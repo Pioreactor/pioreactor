@@ -1638,12 +1638,13 @@ def start_od_reading(
     estimator_transformer: EstimatorTransformerProtocol
 
     if estimator is True:
-        try:
-            from pioreactor.estimators import load_active_estimator
+        from pioreactor.estimators import load_active_estimator
 
+        maybe_estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
+        if maybe_estimator:
             estimator_transformer = CachedEstimatorTransformer()
-            estimator_transformer.hydrate_estimator(load_active_estimator(pt.OD_FUSED_DEVICE))
-        except Exception:
+            estimator_transformer.hydrate_estimator(maybe_estimator)
+        else:
             estimator_transformer = NullEstimatorTransformer()
     elif isinstance(
         estimator, structs.ODFusionEstimator

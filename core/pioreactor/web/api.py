@@ -1672,7 +1672,9 @@ def get_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> Del
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["POST"])
 def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
-    yaml_data = request.get_json()["calibration_data"]
+    payload = request.get_json() or {}
+    yaml_data = payload.get("calibration_data")
+    set_as_active = payload.get("set_as_active", False)
 
     if not yaml_data:
         abort_with(
@@ -1680,6 +1682,14 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
             "YAML data is missing.",
             cause="Request JSON missing calibration_data.",
             remediation="Provide calibration_data with a valid YAML payload.",
+        )
+
+    if not isinstance(set_as_active, bool):
+        abort_with(
+            400,
+            "Invalid set_as_active value.",
+            cause="Request JSON must include set_as_active as a boolean when provided.",
+            remediation="Send set_as_active as true or false.",
         )
 
     try:
@@ -1693,10 +1703,12 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
             remediation="Fix the YAML structure and retry.",
         )
 
+    payload["set_as_active"] = set_as_active
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_post_across_workers(f"/unit_api/calibrations/{device}", request.get_json())
+        task = broadcast_post_across_workers(f"/unit_api/calibrations/{device}", payload)
     else:
-        task = tasks.multicast_post(f"/unit_api/calibrations/{device}", [pioreactor_unit], request.get_json())
+        task = tasks.multicast_post(f"/unit_api/calibrations/{device}", [pioreactor_unit], payload)
     return create_task_response(task)
 
 

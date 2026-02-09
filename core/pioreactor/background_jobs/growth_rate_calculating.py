@@ -363,7 +363,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         if any(v <= 0.0 for v in scaled_signals.values()):
             raise ValueError(
-                f"Non-positive normalized value(s) observed: {scaled_signals}. Likely optical signal received is less than the blank signal."
+                f"Non-positive normalized value(s) observed: {scaled_signals}. Likely optical signal received is less than the blank signal or OD reading is 0."
             )
 
         return scaled_signals
@@ -389,7 +389,9 @@ class GrowthRateCalculator(BackgroundJob):
                     self.logger.debug(
                         f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
                     )
-                    raise ValueError("Late arriving data: {timestamp=}, {self.time_of_previous_observation=}")
+                    raise ValueError(
+                        f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
+                    )
 
             else:
                 dt = 0.0
@@ -443,12 +445,8 @@ class GrowthRateCalculator(BackgroundJob):
         """
 
         def consume(od_stream: ODObservationSource, dosing_stream: DosingObservationSource) -> None:
-            try:
-                for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
-                    pass
-            except Exception as e:
-                self.logger.error(e)
-                self._initialization_complete.set()
+            for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
+                pass
 
         Thread(target=consume, args=(od_stream, dosing_stream), daemon=True).start()
 
@@ -460,8 +458,18 @@ class GrowthRateCalculator(BackgroundJob):
     def process_until_disconnected_or_exhausted(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
     ) -> Generator[tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput], None, None]:
-        od_iter = self._initialize_from_streams(od_stream, dosing_stream)
-        merged_streams = self._iter_merged_events(od_stream, dosing_stream, od_iter)
+        od_events_iter = self._initialize_state_and_get_od_iterator(od_stream, dosing_stream)
+
+        if od_stream.is_live and dosing_stream.is_live:
+            merged_streams = merge_live_streams(
+                od_events_iter, dosing_stream, stop_event=self._blocking_event
+            )
+        elif not od_stream.is_live and not dosing_stream.is_live:
+            merged_streams = merge_historical_streams(
+                od_events_iter, dosing_stream, key=lambda t: t.timestamp
+            )
+        else:
+            raise ValueError("Both streams must be live or both must be historical.")
 
         for event in merged_streams:
             if isinstance(event, structs.ODReadings):
@@ -471,7 +479,7 @@ class GrowthRateCalculator(BackgroundJob):
                         self.od_filtered,
                         self.kalman_filter_outputs,
                     ) = self._update_state_from_observation(event)
-                except Exception as e:
+                except ValueError as e:
                     self.logger.error(f"Error processing OD readings: {e}", exc_info=True)
                     continue
 
@@ -488,7 +496,7 @@ class GrowthRateCalculator(BackgroundJob):
             else:
                 raise ValueError(f"Unexpected event type: {type(event)}. Expected ODReadings or DosingEvent.")
 
-    def _initialize_from_streams(
+    def _initialize_state_and_get_od_iterator(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
     ) -> Iterator[structs.ODReadings]:
         self._initialization_complete.clear()
@@ -507,31 +515,15 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"od_normalization_variance={self.od_variances}")
         self.logger.debug(f"od_blank={dict(self.od_blank)}")
 
-        od_iter = iter(od_stream)
+        od_events_iter = iter(od_stream)
         self.ekf = self._initialize_extended_kalman_filter(
             od_std=config.getfloat("growth_rate_kalman", "od_std"),
             rate_std=config.getfloat("growth_rate_kalman", "rate_std"),
             obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
-            od_iter=od_iter,
+            od_iter=od_events_iter,
         )
         self._initialization_complete.set()
-        return od_iter
-
-    def _iter_merged_events(
-        self,
-        od_stream: ODObservationSource,
-        dosing_stream: DosingObservationSource,
-        od_iter: Iterator[structs.ODReadings],
-    ) -> Generator[structs.ODReadings | structs.DosingEvent, None, None]:
-        if od_stream.is_live and dosing_stream.is_live:
-            merged_streams = merge_live_streams(od_iter, dosing_stream, stop_event=self._blocking_event)
-        elif not od_stream.is_live and not dosing_stream.is_live:
-            merged_streams = merge_historical_streams(od_iter, dosing_stream, key=lambda t: t.timestamp)
-        else:
-            raise ValueError("Both streams must be live or both must be historical.")
-
-        for event in merged_streams:
-            yield event
+        return od_events_iter
 
 
 @click.group(invoke_without_command=True, name="growth_rate_calculating")

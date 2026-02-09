@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogContent,
   Alert,
+  Checkbox,
 } from '@mui/material';
 import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
@@ -65,15 +66,42 @@ function UploadCalibrationDialog({
   const [selectedWorker, setSelectedWorker] = useState(pioreactorUnit || '$broadcast');
   const [selectedDevice, setSelectedDevice] = useState(device || '');
   const [calibrationYaml, setCalibrationYaml] = useState('');
+  const [markAsActive, setMarkAsActive] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  const clearUploadMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleWorkerChange = (event) => {
+    clearUploadMessages();
+    setSelectedWorker(event.target.value);
+  };
+
+  const handleDeviceChange = (event) => {
+    clearUploadMessages();
+    setSelectedDevice(sanitizeDeviceName(event.target.value));
+  };
+
+  const handleMarkAsActiveChange = (event) => {
+    clearUploadMessages();
+    setMarkAsActive(event.target.checked);
+  };
+
+  const handleCalibrationYamlChange = (value) => {
+    clearUploadMessages();
+    setCalibrationYaml(value);
+  };
 
   const handleUploadCalibration = async () => {
     setError(null);
     setSuccess(null);
     try {
       const requestBody = {
-        calibration_data: calibrationYaml
+        calibration_data: calibrationYaml,
+        set_as_active: markAsActive,
       };
 
       const response = await fetch(`/api/workers/${selectedWorker}/calibrations/${selectedDevice}`, {
@@ -160,7 +188,7 @@ function UploadCalibrationDialog({
             <FormLabel component="legend">Pioreactor</FormLabel>
             <Select
               value={selectedWorker}
-              onChange={(e) => setSelectedWorker(e.target.value)}
+              onChange={handleWorkerChange}
             >
               {workers.map((worker) => (
                 <MenuItem key={worker} value={worker}>
@@ -182,10 +210,16 @@ function UploadCalibrationDialog({
               fullWidth
               placeholder="e.g. od, media_pump"
               value={selectedDevice}
-              onChange={(e) => setSelectedDevice(sanitizeDeviceName(e.target.value))}
+              onChange={handleDeviceChange}
             />
           </FormControl>
         </Box>
+
+        <FormControlLabel
+          control={<Checkbox checked={markAsActive} onChange={handleMarkAsActiveChange} />}
+          label="Set uploaded calibration as Active"
+          sx={{ mb: 1 }}
+        />
 
         <FormLabel component="legend">YAML description</FormLabel>
         <Box sx={{
@@ -201,7 +235,7 @@ function UploadCalibrationDialog({
           }}>
           <Editor
             value={calibrationYaml}
-            onValueChange={setCalibrationYaml}
+            onValueChange={handleCalibrationYamlChange}
             highlight={_ => highlight(calibrationYaml, languages.yaml)}
             padding={10}
             style={{

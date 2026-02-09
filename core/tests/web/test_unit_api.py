@@ -2,7 +2,28 @@
 """
 Additional unit tests for unit_api endpoints.
 """
+from datetime import datetime
+from datetime import timezone
+
 import pytest
+from msgspec.yaml import encode as yaml_encode
+from pioreactor.structs import PolyFitCoefficients
+from pioreactor.structs import SimplePeristalticPumpCalibration
+from pioreactor.utils import local_persistent_storage
+
+
+def _build_valid_calibration_yaml(calibration_name: str) -> str:
+    calibration = SimplePeristalticPumpCalibration(
+        calibration_name=calibration_name,
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=datetime.now(timezone.utc),
+        curve_data_=PolyFitCoefficients(coefficients=[0.0, 1.0]),
+        recorded_data={"x": [0.0, 1.0], "y": [0.0, 1.0]},
+        hz=250.0,
+        dc=60.0,
+        voltage=3.3,
+    )
+    return yaml_encode(calibration).decode()
 
 
 def test_task_results_pending(client) -> None:
@@ -244,3 +265,52 @@ def test_get_running_jobs_endpoint_filters_results(client) -> None:
     rows = response.get_json()
     assert isinstance(rows, list)
     assert [row["job_id"] for row in rows] == [running_job_id]
+
+
+def test_create_calibration_sets_active_when_requested(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: True)
+
+    response = client.post(
+        "/unit_api/calibrations/media_pump",
+        json={
+            "calibration_data": _build_valid_calibration_yaml("uploaded_active"),
+            "set_as_active": True,
+        },
+    )
+
+    assert response.status_code == 201
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache.get("media_pump") == "uploaded_active"
+
+
+def test_create_calibration_does_not_set_active_by_default(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: True)
+
+    response = client.post(
+        "/unit_api/calibrations/media_pump",
+        json={"calibration_data": _build_valid_calibration_yaml("uploaded_inactive")},
+    )
+
+    assert response.status_code == 201
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache.get("media_pump") is None
+
+
+def test_create_calibration_rejects_non_boolean_set_as_active(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: True)
+
+    response = client.post(
+        "/unit_api/calibrations/media_pump",
+        json={
+            "calibration_data": _build_valid_calibration_yaml("invalid_bool"),
+            "set_as_active": "yes",
+        },
+    )
+
+    assert response.status_code == 400

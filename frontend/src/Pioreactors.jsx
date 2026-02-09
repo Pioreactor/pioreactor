@@ -96,6 +96,13 @@ import {
   stateDisplay,
 } from "./color";
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
+import {
+  canQuickEditCardSetting,
+  createPrimaryStateActionForState,
+  createStateActionsForState,
+  isAutomationJob,
+  shouldClearPendingStateAction,
+} from "./components/pioreactorCardQuickControls";
 
 const workerMissingModelDetails = (worker) =>
   worker?.model_name == null || worker?.model_version == null;
@@ -111,18 +118,24 @@ const EMPTY_STATE_ILLUSTRATIONS = [
 
 
 function StateTypography({ state, isDisabled=false }) {
+  const stateInfo = stateDisplay[state] || {
+    display: state || "Unknown",
+    color: disconnectedGrey,
+    backgroundColor: null,
+  };
+
   const style = {
-    color: isDisabled ? disabledColor : stateDisplay[state].color,
+    color: isDisabled ? disabledColor : stateInfo.color,
     padding: "1px 9px",
     borderRadius: "16px",
-    backgroundColor: stateDisplay[state].backgroundColor,
+    backgroundColor: stateInfo.backgroundColor,
     display: "inline-block",
     fontWeight: 500
   };
 
   return (
     <Typography display="block" gutterBottom sx={style}>
-      {stateDisplay[state].display}
+      {stateInfo.display}
     </Typography>
   );
 }
@@ -3092,19 +3105,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     setJobFetchComplete(true);
   }, [contribJobsList])
 
-  const parseToType = (payloadString, typeOfSetting) => {
-    if (typeOfSetting === "numeric"){
-      return [null, ""].includes(payloadString) ? payloadString : parseFloat(payloadString)
-    }
-    else if (typeOfSetting === "boolean"){
-      if ([null, ""].includes(payloadString)){
-        return null
-      }
-      return (["1", "true", "True", 1].includes(payloadString))
-    }
-    return payloadString
-  }
-
   useEffect(() => {
     if (!isUnitActive) {
       return undefined;
@@ -3158,12 +3158,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
           return previous
         }
 
-        const shouldClearPending =
-          (pendingAction === "start" && !["disconnected", "lost", null].includes(statePayload)) ||
-          (pendingAction === "stop" && statePayload === "disconnected") ||
-          (pendingAction === "pause" && statePayload === "sleeping") ||
-          (pendingAction === "resume" && statePayload === "ready") ||
-          statePayload === "lost"
+        const shouldClearPending = shouldClearPendingStateAction(pendingAction, statePayload)
 
         if (!shouldClearPending) {
           return previous
@@ -3174,12 +3169,12 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         return updated
       })
     } else {
-      const typeOfSetting = jobs[job]?.publishedSettings?.[setting]?.type
-      if (!typeOfSetting) {
-        return
-      }
-      const settingPayload = parseToType(message.toString(), typeOfSetting)
       setJobs(prev => {
+        const typeOfSetting = prev[job]?.publishedSettings?.[setting]?.type
+        if (!typeOfSetting) {
+          return prev
+        }
+        const settingPayload = parsePayloadToType(message.toString(), typeOfSetting)
         const updatedJob = { ...prev[job] };
         const updatedSetting = { ...updatedJob.publishedSettings[setting], value: settingPayload };
 
@@ -3224,83 +3219,32 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     }
   }
 
-  const isAutomationJob = (jobKey) =>
-    ["temperature_automation", "dosing_automation", "led_automation"].includes(jobKey)
-
   const createStateActions = (jobKey, state) => {
-    switch (state) {
-      case "ready":
-        return [
-          {
-            label: "Pause",
-            onClick: () => setPioreactorJobState(jobKey, "sleeping"),
-            pendingAction: "pause",
-          },
-          {
-            label: "Stop",
-            onClick: () => setPioreactorJobState(jobKey, "disconnected"),
-            pendingAction: "stop",
-          },
-        ]
-      case "sleeping":
-        return [
-          {
-            label: "Resume",
-            onClick: () => setPioreactorJobState(jobKey, "ready"),
-            pendingAction: "resume",
-          },
-          {
-            label: "Stop",
-            onClick: () => setPioreactorJobState(jobKey, "disconnected"),
-            pendingAction: "stop",
-          },
-        ]
-      default:
-        return []
-    }
+    return createStateActionsForState(state, {
+      onPause: () => setPioreactorJobState(jobKey, "sleeping"),
+      onResume: () => setPioreactorJobState(jobKey, "ready"),
+      onStop: () => setPioreactorJobState(jobKey, "disconnected"),
+    })
   }
 
   const getPrimaryStateAction = (jobKey, state) => {
-    if (state === "disconnected" || state === "lost") {
-      if (isAutomationJob(jobKey)) {
-        return {
-          label: "Start",
-          onClick: () => openAutomationSelectionDialog(jobKey),
-        }
-      }
-      return {
-        label: "Start",
-        onClick: () => runPioreactorJob(unit, experiment, jobKey),
-        pendingAction: "start",
-      }
-    }
-    if (state === "ready") {
-      return {
-        label: "Stop",
-        onClick: () => setPioreactorJobState(jobKey, "disconnected"),
-        pendingAction: "stop",
-      }
-    }
-    if (state === "sleeping") {
-      return {
-        label: "Resume",
-        onClick: () => setPioreactorJobState(jobKey, "ready"),
-        pendingAction: "resume",
-      }
-    }
-    return null
+    const pendingStart = !isAutomationJob(jobKey)
+    return createPrimaryStateActionForState(state, {
+      onStart: pendingStart
+        ? () => runPioreactorJob(unit, experiment, jobKey)
+        : () => openAutomationSelectionDialog(jobKey),
+      pendingStart,
+    })
   }
 
-  const runStateActionWithPending = async (jobKey, action) => {
+  const runStateActionWithPending = (jobKey, action) => {
     if (!action?.onClick) {
       return
     }
     if (action.pendingAction) {
       setPendingStateActionsByJob((previous) => ({...previous, [jobKey]: action.pendingAction}))
     }
-    try {
-      await action.onClick()
-    } catch (error) {
+    return Promise.resolve(action.onClick()).catch(() => {
       setPendingStateActionsByJob((previous) => {
         if (!(jobKey in previous)) {
           return previous
@@ -3309,7 +3253,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         delete updated[jobKey]
         return updated
       })
-    }
+    })
   }
 
   const handleStateMenuOpen = (event, jobKey) => {
@@ -3357,11 +3301,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       default:
         return <SettingTextField {...commonProps} onUpdate={onUpdateAndClose} />
     }
-  }
-
-  const hasQuickSettingValue = (setting) => {
-    const value = setting?.value
-    return ![null, "", "—", "-"].includes(value)
   }
 
   const getInicatorLabel = (state, isActive) => {
@@ -3579,8 +3518,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
               Object.entries(job.publishedSettings)
                 .filter(([, setting]) => setting.display)
                 .map(([setting_key, setting]) => {
-                  const supportsQuickEdit = ["boolean", "numeric", "string"].includes(setting.type)
-                  const canQuickEdit = isUnitActive && setting.editable && supportsQuickEdit && hasQuickSettingValue(setting)
+                  const canQuickEdit = canQuickEditCardSetting(setting, isUnitActive)
                   return (
                     <Box sx={{width: "130px", mt: "10px", mr: "2px", p: "0px 3px"}} key={job_key + setting_key}>
                       <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>

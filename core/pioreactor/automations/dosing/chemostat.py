@@ -20,9 +20,9 @@ class Chemostat(DosingAutomationJob):
 
         with local_persistent_storage("active_calibrations") as cache:
             if "media_pump" not in cache:
-                raise CalibrationError("Media and waste pump calibration must be performed first.")
+                raise CalibrationError("Media and waste calibrations must be active first.")
             elif "waste_pump" not in cache:
-                raise CalibrationError("Media and waste pump calibration must be performed first.")
+                raise CalibrationError("Media and waste calibrations must be active first.")
 
         self.exchange_volume_ml = float(exchange_volume_ml)
 

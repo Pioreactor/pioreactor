@@ -50,6 +50,7 @@ from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import safe_join
 
 AllCalibrations = subclass_union(CalibrationBase)
@@ -918,7 +919,18 @@ def create_calibration(device: str) -> ResponseReturnValue:
     # if folder does not exist, users should make it with mkdir -p ... && chown -R pioreactor:www-data ...
 
     try:
-        raw_yaml = request.get_json()["calibration_data"]
+        payload = request.get_json() or {}
+        raw_yaml = payload["calibration_data"]
+        set_as_active = payload.get("set_as_active", False)
+
+        if not isinstance(set_as_active, bool):
+            abort_with(
+                400,
+                description="Invalid 'set_as_active' value.",
+                cause="'set_as_active' must be a boolean.",
+                remediation="Send set_as_active as true or false.",
+            )
+
         calibration_data = yaml_decode(raw_yaml, type=AllCalibrations)
         calibration_name = calibration_data.calibration_name
 
@@ -940,9 +952,15 @@ def create_calibration(device: str) -> ResponseReturnValue:
         path = calibration_data.path_on_disk_for_device(device)
         tasks.save_file(path, raw_yaml)
 
+        if set_as_active:
+            with local_persistent_storage("active_calibrations") as c:
+                c[device] = calibration_name
+
         # Respond with success and the created calibration details
         return jsonify({"msg": "Calibration created successfully.", "path": str(path)}), 201
 
+    except HTTPException:
+        raise
     except Exception as e:
         publish_to_error_log(f"Error creating calibration: {e}", "create_calibration")
         abort_with(

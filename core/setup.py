@@ -51,7 +51,7 @@ WORKER_REQUIREMENTS = [
     "pyftdi==0.55.4",
     "pyserial==3.5",
     "pyusb==1.2.1",
-    "rpi_hardware_pwm==0.3.0",
+    "rpi_hardware_pwm==0.3.1",
     "smbus2==0.5.0",
     "DAC43608==0.2.7",
 ]

@@ -45,7 +45,10 @@ client.username_pw_set(
 )
 
 
-load_plugins()
+try:
+    load_plugins()
+except Exception as e:
+    logger.debug(f"Web-server encountered error {e} when loading plugins.")
 
 
 def decode_base64(string: str) -> str:

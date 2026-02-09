@@ -22,7 +22,9 @@
 #### Bug fixes
 
  - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared `config_$broadcast.ini` path.
- - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, their status text updates to "Will be unassigned from <experiment>" when selected, and "Select all" now applies consistently to all listed units.
+ - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, and "Select all" now applies consistently to all listed units.
+ - Bumped rpi_hardware_pwm to avoid a race condition setting up PWMs.
+
 
 ### 26.2.3
 
