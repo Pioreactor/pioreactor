@@ -648,7 +648,7 @@ function CalibrationsContainer() {
               component={Link}
               to="/calibration-coverage"
             >
-              <WindowOutlinedIcon fontSize="small"/>{" "}
+              <TuneIcon fontSize="small"/>{" "}
               Calibration coverage
             </Button>
             <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}}

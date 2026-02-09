@@ -15,6 +15,9 @@
  - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
  - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
  - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
+ - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
+ - Updated quick-start behavior for `temperature_automation`, `dosing_automation`, and `led_automation`: clicking their off state now opens the corresponding "Select ... automation" dialog instead of starting a default automation immediately.
+ - Added inline quick-edit popovers for card settings values; empty values (`-`/`—`) are non-clickable, the editor closes with a top-right `x`, and numeric/text updates close the popover after clicking `Update`.
 
 #### Bug fixes
 

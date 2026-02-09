@@ -19,6 +19,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Popover from '@mui/material/Popover';
 import InputAdornment from '@mui/material/InputAdornment';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
@@ -1803,6 +1806,14 @@ function FlashLEDButton(props){
 function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, label: initialLabel }){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState(initialLabel || "")
+  const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false)
+  const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false)
+  const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false)
+  const [stateActionAnchorEl, setStateActionAnchorEl] = useState(null)
+  const [stateActionJobKey, setStateActionJobKey] = useState(null)
+  const [pendingStateActionsByJob, setPendingStateActionsByJob] = useState({})
+  const [quickSettingAnchorEl, setQuickSettingAnchorEl] = useState(null)
+  const [quickSettingSelection, setQuickSettingSelection] = useState(null)
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const isXrModel = Boolean(modelDetails.model_name?.toLowerCase().includes("xr"));
   const modelBadgeContent = modelDetails.model_name?.endsWith("XR") ? "XR" : modelDetails.reactor_capacity_ml;
@@ -1859,7 +1870,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
           setJobs((prev) => ({...prev, ...jobs_}))
           setJobFetchComplete(true)
         })
-        .catch((error) => {})
+        .catch(() => {})
     }
     fetchContribBackgroundJobs();
   }, [])
@@ -1913,25 +1924,223 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
     };
   }, [experiment, jobFetchComplete, client, subscribeToTopic, unsubscribeFromTopic, unit])
 
-  const onMessage = (topic, message, packet) => {
+  const onMessage = (topic, message, _packet) => {
     if (!message || !topic) return;
 
-    var [job, setting] = topic.toString().split('/').slice(-2)
-    var payload;
+    const [job, setting] = topic.toString().split('/').slice(-2)
     if (setting === "$state"){
-      payload = message.toString()
-      setJobs((prev) => ({...prev, [job]: {...prev[job], state: payload}}))
+      const statePayload = message.toString()
+      setJobs((prev) => ({...prev, [job]: {...prev[job], state: statePayload}}))
+      setPendingStateActionsByJob((previous) => {
+        const pendingAction = previous[job]
+        if (!pendingAction) {
+          return previous
+        }
+
+        const shouldClearPending =
+          (pendingAction === "start" && !["disconnected", "lost", null].includes(statePayload)) ||
+          (pendingAction === "stop" && statePayload === "disconnected") ||
+          (pendingAction === "pause" && statePayload === "sleeping") ||
+          (pendingAction === "resume" && statePayload === "ready") ||
+          statePayload === "lost"
+
+        if (!shouldClearPending) {
+          return previous
+        }
+
+        const updated = {...previous}
+        delete updated[job]
+        return updated
+      })
     } else {
-      payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
+      const typeOfSetting = jobs[job]?.publishedSettings?.[setting]?.type
+      if (!typeOfSetting) {
+        return
+      }
+      const settingPayload = parseToType(message.toString(), typeOfSetting)
       setJobs(prev => {
         const updatedJob = { ...prev[job] };
-        const updatedSetting = { ...updatedJob.publishedSettings[setting], value: payload };
+        const updatedSetting = { ...updatedJob.publishedSettings[setting], value: settingPayload };
 
         updatedJob.publishedSettings = { ...updatedJob.publishedSettings, [setting]: updatedSetting };
 
         return { ...prev, [job]: updatedJob };
       });
     }
+  }
+
+  const setPioreactorJobAttr = (job, setting, value) => {
+    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
+      method: "PATCH",
+      body: JSON.stringify({settings: {[setting]: value}}),
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      }
+    }).then((response) => {
+      if (response.ok) {
+        return
+      }
+      throw new Error(`Error ${response.status}.`)
+    })
+  }
+
+  const setPioreactorJobState = (job, state) => {
+    return setPioreactorJobAttr(job, "$state", state)
+  }
+
+  const openAutomationSelectionDialog = (jobKey) => {
+    if (jobKey === "temperature_automation") {
+      setOpenChangeTemperatureDialog(true)
+      return
+    }
+    if (jobKey === "dosing_automation") {
+      setOpenChangeDosingDialog(true)
+      return
+    }
+    if (jobKey === "led_automation") {
+      setOpenChangeLEDDialog(true)
+    }
+  }
+
+  const isAutomationJob = (jobKey) =>
+    ["temperature_automation", "dosing_automation", "led_automation"].includes(jobKey)
+
+  const createStateActions = (jobKey, state) => {
+    switch (state) {
+      case "ready":
+        return [
+          {
+            label: "Pause",
+            onClick: () => setPioreactorJobState(jobKey, "sleeping"),
+            pendingAction: "pause",
+          },
+          {
+            label: "Stop",
+            onClick: () => setPioreactorJobState(jobKey, "disconnected"),
+            pendingAction: "stop",
+          },
+        ]
+      case "sleeping":
+        return [
+          {
+            label: "Resume",
+            onClick: () => setPioreactorJobState(jobKey, "ready"),
+            pendingAction: "resume",
+          },
+          {
+            label: "Stop",
+            onClick: () => setPioreactorJobState(jobKey, "disconnected"),
+            pendingAction: "stop",
+          },
+        ]
+      default:
+        return []
+    }
+  }
+
+  const getPrimaryStateAction = (jobKey, state) => {
+    if (state === "disconnected" || state === "lost") {
+      if (isAutomationJob(jobKey)) {
+        return {
+          label: "Start",
+          onClick: () => openAutomationSelectionDialog(jobKey),
+        }
+      }
+      return {
+        label: "Start",
+        onClick: () => runPioreactorJob(unit, experiment, jobKey),
+        pendingAction: "start",
+      }
+    }
+    if (state === "ready") {
+      return {
+        label: "Stop",
+        onClick: () => setPioreactorJobState(jobKey, "disconnected"),
+        pendingAction: "stop",
+      }
+    }
+    if (state === "sleeping") {
+      return {
+        label: "Resume",
+        onClick: () => setPioreactorJobState(jobKey, "ready"),
+        pendingAction: "resume",
+      }
+    }
+    return null
+  }
+
+  const runStateActionWithPending = async (jobKey, action) => {
+    if (!action?.onClick) {
+      return
+    }
+    if (action.pendingAction) {
+      setPendingStateActionsByJob((previous) => ({...previous, [jobKey]: action.pendingAction}))
+    }
+    try {
+      await action.onClick()
+    } catch (error) {
+      setPendingStateActionsByJob((previous) => {
+        if (!(jobKey in previous)) {
+          return previous
+        }
+        const updated = {...previous}
+        delete updated[jobKey]
+        return updated
+      })
+    }
+  }
+
+  const handleStateMenuOpen = (event, jobKey) => {
+    setStateActionAnchorEl(event.currentTarget)
+    setStateActionJobKey(jobKey)
+  }
+
+  const handleStateMenuClose = () => {
+    setStateActionAnchorEl(null)
+    setStateActionJobKey(null)
+  }
+
+  const handleQuickSettingOpen = (event, jobKey, settingKey) => {
+    setQuickSettingAnchorEl(event.currentTarget)
+    setQuickSettingSelection({jobKey, settingKey})
+  }
+
+  const handleQuickSettingClose = () => {
+    setQuickSettingAnchorEl(null)
+    setQuickSettingSelection(null)
+  }
+
+  function renderQuickSettingComponent(setting, job_key, setting_key, state) {
+    const onUpdateAndClose = (job, settingName, value) => {
+      setPioreactorJobAttr(job, settingName, value)
+      handleQuickSettingClose()
+    }
+
+    const commonProps = {
+      setSnackbarMessage: () => {},
+      setSnackbarOpen: () => {},
+      value: setting.value,
+      units: setting.unit,
+      job: job_key,
+      setting: setting_key,
+      disabled: state === "disconnected" || !isUnitActive,
+      id: `quick-edit-${unit}-${job_key}-${setting_key}`,
+    }
+
+    switch (setting.type) {
+      case "boolean":
+        return <SettingSwitchField {...commonProps} onUpdate={setPioreactorJobAttr} />
+      case "numeric":
+        return <SettingNumericField {...commonProps} onUpdate={onUpdateAndClose} />
+      default:
+        return <SettingTextField {...commonProps} onUpdate={onUpdateAndClose} />
+    }
+  }
+
+  const hasQuickSettingValue = (setting) => {
+    const value = setting?.value
+    return ![null, "", "—", "-"].includes(value)
   }
 
   const getInicatorLabel = (state, isActive) => {
@@ -1970,9 +2179,25 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
   const indicatorDotColor = getIndicatorDotColor(jobs.monitor.state)
   const indicatorDotShadow = 2
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
+  const quickSettingEditorOpen = Boolean(quickSettingAnchorEl && quickSettingSelection)
+  const quickSetting =
+    quickSettingSelection &&
+    jobs[quickSettingSelection.jobKey] &&
+    jobs[quickSettingSelection.jobKey].publishedSettings[quickSettingSelection.settingKey]
+      ? jobs[quickSettingSelection.jobKey].publishedSettings[quickSettingSelection.settingKey]
+      : null
+  const quickSettingState = quickSettingSelection ? jobs[quickSettingSelection.jobKey]?.state : null
+  const stateActionMenuOpen = Boolean(stateActionAnchorEl && stateActionJobKey)
+  const activeStateMenuActions =
+    stateActionJobKey && jobs[stateActionJobKey]
+      ? createStateActions(stateActionJobKey, jobs[stateActionJobKey].state)
+      : []
+  const dosingControlJob = jobs.dosing_automation
+  const dosingMaxVolume = parseFloat(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10
+  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10
 
   return (
-    <Card  aria-disabled={!isUnitActive}>
+    <Card aria-disabled={!isUnitActive}>
       <CardContent sx={{p: "10px 20px 20px 20px"}}>
         <Box className={"fixme"}>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
@@ -2053,30 +2278,61 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
           </Typography>
         </Box>
         <RowOfUnitSettingDisplayBox>
-          {Object.values(jobs)
-              .filter(job => job.metadata.display)
-              .map(job => (
-            <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job.metadata.key}>
-              <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
-                {job.metadata.display_name}
-                {(job.metadata.display_name === "Optical density" && isXrModel) ? (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label="XR"
-                    sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
-                  />
-                ) : null}
-              </Typography>
-              <UnitSettingDisplay
-                value={job.state}
-                isUnitActive={isUnitActive}
-                default="disconnected"
-                subtext={job.metadata.subtext ? job.publishedSettings[job.metadata.subtext].value : null}
-                isStateSetting
-              />
-            </Box>
-         ))}
+          {Object.entries(jobs)
+            .filter(([, job]) => job.metadata.display)
+            .map(([jobKey, job]) => {
+              const primaryStateAction = getPrimaryStateAction(jobKey, job.state)
+              const allStateActions = createStateActions(jobKey, job.state)
+              const subtext = job.metadata.subtext ? job.publishedSettings[job.metadata.subtext]?.value : null
+              const isPendingStateAction = Boolean(pendingStateActionsByJob[jobKey])
+              const canUsePrimaryAction = isUnitActive && Boolean(primaryStateAction) && !isPendingStateAction
+              const showStateActionMenu = isUnitActive && allStateActions.length > 0 && !isPendingStateAction
+              return (
+                <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job.metadata.key}>
+                  <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
+                    {job.metadata.display_name}
+                    {(job.metadata.display_name === "Optical density" && isXrModel) ? (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label="XR"
+                        sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
+                      />
+                    ) : null}
+                  </Typography>
+                  <Box sx={{display: "flex", alignItems: "center", minHeight: "32px"}}>
+                    <Box
+                      onClick={() => {
+                        if (canUsePrimaryAction) {
+                          runStateActionWithPending(jobKey, primaryStateAction)
+                        }
+                      }}
+                      sx={{cursor: canUsePrimaryAction ? "pointer" : "default"}}
+                    >
+                      {isPendingStateAction ? (
+                        <Box sx={{minHeight: "30px", display: "flex", alignItems: "center", ml: 1}}>
+                          <CircularProgress size={18} />
+                        </Box>
+                      ) : (
+                        <StateTypography state={job.state} isDisabled={!isUnitActive}/>
+                      )}
+                    </Box>
+                    {showStateActionMenu ? (
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={(event) => handleStateMenuOpen(event, jobKey)}
+                          sx={{ml: 0.25}}
+                        >
+                          <ExpandMoreIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    ) : null}
+                  </Box>
+                  <UnitSettingDisplaySubtext subtext={subtext}/>
+                </Box>
+              )
+            })}
 
         </RowOfUnitSettingDisplayBox>
       </Box>
@@ -2096,39 +2352,142 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
           </Typography>
         </Box>
         <RowOfUnitSettingDisplayBox>
-          {Object.values(jobs)
-            //.filter(job => (job.state !== "disconnected") || (job.metadata.key === "leds"))
-            .map(job => [job.state, job.metadata.key, job.publishedSettings])
-            .map(([state, job_key, settings], index) => (
-              Object.entries(settings)
-                .filter(([setting_key, setting], _) => setting.display)
-                .map(([setting_key, setting], _) =>
-                  <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job_key + setting_key}>
-                    <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
-                      {setting.label}
-                      {(setting.label === "Optical density" && isXrModel) ? (
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label="XR"
-                          sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
+          {Object.entries(jobs)
+            .map(([job_key, job]) =>
+              Object.entries(job.publishedSettings)
+                .filter(([, setting]) => setting.display)
+                .map(([setting_key, setting]) => {
+                  const supportsQuickEdit = ["boolean", "numeric", "string"].includes(setting.type)
+                  const canQuickEdit = isUnitActive && setting.editable && supportsQuickEdit && hasQuickSettingValue(setting)
+                  return (
+                    <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job_key + setting_key}>
+                      <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
+                        {setting.label}
+                        {(setting.label === "Optical density" && isXrModel) ? (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label="XR"
+                            sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
+                          />
+                        ) : null}
+                      </Typography>
+                      <Box
+                        onClick={(event) => {
+                          if (canQuickEdit) {
+                            handleQuickSettingOpen(event, job_key, setting_key)
+                          }
+                        }}
+                        sx={{
+                          cursor: canQuickEdit ? "pointer" : "default",
+                          display: "inline-flex",
+                          borderRadius: "6px",
+                          padding: canQuickEdit ? "1px 2px" : "0px",
+                          "&:hover": canQuickEdit ? { backgroundColor: "rgba(0, 0, 0, 0.04)" } : {},
+                        }}
+                      >
+                        <UnitSettingDisplay
+                          value={setting.value}
+                          isUnitActive={isUnitActive}
+                          measurementUnit={setting.unit}
+                          precision={2}
+                          default="—"
+                          isLEDIntensity={setting.label === "LED intensity"}
+                          isPWMDc={setting.label === "PWM intensity"}
+                          config={config}
                         />
-                      ) : null}
-                    </Typography>
-                    <UnitSettingDisplay
-                      value={setting.value}
-                      isUnitActive={isUnitActive}
-                      measurementUnit={setting.unit}
-                      precision={2}
-                      default="—"
-                      isLEDIntensity={setting.label === "LED intensity"}
-                      isPWMDc={setting.label === "PWM intensity"}
-                      config={config}
-                    />
-                  </Box>
-            )))}
+                      </Box>
+                    </Box>
+                  )
+                })
+            )}
         </RowOfUnitSettingDisplayBox>
       </Box>
+
+      <Menu
+        anchorEl={stateActionAnchorEl}
+        open={stateActionMenuOpen}
+        onClose={handleStateMenuClose}
+      >
+        {activeStateMenuActions.map((action) => (
+          <MenuItem
+            key={action.label}
+            onClick={() => {
+              if (stateActionJobKey) {
+                runStateActionWithPending(stateActionJobKey, action)
+              }
+              handleStateMenuClose()
+            }}
+          >
+            {action.label}
+          </MenuItem>
+        ))}
+      </Menu>
+
+      <ChangeAutomationsDialog
+        open={openChangeTemperatureDialog}
+        onFinished={() => setOpenChangeTemperatureDialog(false)}
+        unit={unit}
+        label={label}
+        experiment={experiment}
+        automationType="temperature"
+        no_skip_first_run={true}
+      />
+
+      <ChangeDosingAutomationsDialog
+        automationType="dosing"
+        open={openChangeDosingDialog}
+        onFinished={() => setOpenChangeDosingDialog(false)}
+        unit={unit}
+        label={label}
+        experiment={experiment}
+        no_skip_first_run={false}
+        maxVolume={dosingMaxVolume}
+        liquidVolume={dosingLiquidVolume}
+        threshold={modelDetails.reactor_max_fill_volume_ml}
+      />
+
+      <ChangeAutomationsDialog
+        automationType="led"
+        open={openChangeLEDDialog}
+        onFinished={() => setOpenChangeLEDDialog(false)}
+        unit={unit}
+        label={label}
+        experiment={experiment}
+        no_skip_first_run={false}
+      />
+
+      <Popover
+        open={quickSettingEditorOpen && Boolean(quickSetting)}
+        anchorEl={quickSettingAnchorEl}
+        onClose={handleQuickSettingClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+      >
+        <Box sx={{p: 2, width: "310px"}}>
+          {quickSetting && quickSettingSelection ? (
+            <React.Fragment>
+              <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "flex-start"}}>
+                <Typography variant="subtitle2">
+                  Edit {quickSetting.label}
+                </Typography>
+                <IconButton size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {jobs[quickSettingSelection.jobKey]?.metadata?.display_name}
+              </Typography>
+              {renderQuickSettingComponent(
+                quickSetting,
+                quickSettingSelection.jobKey,
+                quickSettingSelection.settingKey,
+                quickSettingState
+              )}
+            </React.Fragment>
+          ) : null}
+        </Box>
+      </Popover>
 
 
       </CardContent>
