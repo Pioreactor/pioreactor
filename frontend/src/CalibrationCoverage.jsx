@@ -6,6 +6,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -13,12 +14,14 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneIcon from "@mui/icons-material/Tune";
-import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
-
+import AddIcon from "@mui/icons-material/Add";
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import { fetchTaskResult } from "./utilities";
 import PioreactorIcon from "./components/PioreactorIcon";
 import {
@@ -46,38 +49,37 @@ function CoverageCell({ unit, device, cell, onNavigate }) {
         )}
 
         {status === COVERAGE_STATUS.AVAILABLE_NOT_ACTIVE && hasLink && (
-          <Button
-            size="small"
-            variant="text"
-
-            sx={{
-              textTransform: "none",
-              minWidth: 0,
-              justifyContent: "flex-start",
-              alignSelf: "flex-start",
-            }}
-            onClick={() => onNavigate(cell.detailPath)}
-            aria-label={`Open calibrations for ${unit} ${device}`}
-          >
-            Available
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
+            <Typography component="span" variant="body2" color="text.secondary">
+              Inactive
+            </Typography>
+            <Tooltip title="Choose a calibration to set active">
+              <IconButton
+                size="small"
+                onClick={() => onNavigate(cell.detailPath)}
+                aria-label={`Open calibrations for ${unit} ${device}`}
+              >
+                <ExpandMoreIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         )}
 
         {status === COVERAGE_STATUS.MISSING && (
-          <Button
-            size="small"
-            variant="text"
-            sx={{
-              textTransform: "none",
-              minWidth: 0,
-              justifyContent: "flex-start",
-              alignSelf: "flex-start",
-            }}
-            onClick={() => onNavigate(`/protocols/${unit}/${device}`)}
-            aria-label={`Create calibration for ${unit} ${device}`}
-          >
-            Create a calibration
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
+            <Typography component="span" variant="body2" color="text.secondary">
+              Missing
+            </Typography>
+            <Tooltip title="Create calibration">
+              <IconButton
+                size="small"
+                onClick={() => onNavigate(`/protocols/${unit}/${device}`)}
+                aria-label={`Create calibration for ${unit} ${device}`}
+              >
+                <AddIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         )}
 
         {status === COVERAGE_STATUS.UNKNOWN && (
@@ -169,7 +171,14 @@ function CalibrationCoverage(props) {
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ minWidth: 180 }}>Pioreactor</TableCell>
+                  <TableCell
+                    sx={{
+                      minWidth: 180,
+                      backgroundColor: (theme) => theme.palette.action.hover,
+                    }}
+                  >
+                    Pioreactor
+                  </TableCell>
                   {matrix.devices.map((device) => (
                     <TableCell key={device} align="left" sx={{ minWidth: 180 }}>
                       {device}
@@ -180,7 +189,13 @@ function CalibrationCoverage(props) {
               <TableBody>
                 {matrix.units.map((unit) => (
                   <TableRow key={unit} hover>
-                    <TableCell component="th" scope="row">
+                    <TableCell
+                      component="th"
+                      scope="row"
+                      sx={{
+                        backgroundColor: (theme) => theme.palette.action.hover,
+                      }}
+                    >
                       <Chip
                         size="small"
                         icon={<PioreactorIcon />}
@@ -189,6 +204,7 @@ function CalibrationCoverage(props) {
                         clickable
                         component={Link}
                         to={`/pioreactors/${unit}`}
+                        sx={{ "& .MuiChip-label": { fontWeight: 600 } }}
                       />
                     </TableCell>
                     {matrix.devices.map((device) => (
