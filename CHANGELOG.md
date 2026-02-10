@@ -22,6 +22,7 @@
 
  - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared (and wrong) `config_$broadcast.ini` path.
  - Bumped rpi_hardware_pwm to avoid a race condition setting up PWMs.
+ - Fixed calibration detail pages so `Set active` / `Set inactive` waits for backend task completion before refetching, preventing stale "Set active" and missing "Active" status until manual refresh.
 
 
 ### 26.2.3

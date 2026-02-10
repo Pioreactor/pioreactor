@@ -292,10 +292,7 @@ function SingleCalibrationPage(props) {
   const handleSetActive = async () => {
     const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}/${calibrationName}`;
     try {
-      const response = await fetch(apiUrl, { method: "PATCH" });
-      if (!response.ok) {
-        throw new Error("Failed to activate calibration");
-      }
+      await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
       showSnackbar("Calibration set as Active")
       await fetchSingleCalibration();
     } catch (err) {
@@ -306,10 +303,7 @@ function SingleCalibrationPage(props) {
   const handleRemoveActive = async () => {
     const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}`;
     try {
-      const response = await fetch(apiUrl, { method: "DELETE" });
-      if (!response.ok) {
-        throw new Error("Failed to remove active calibration");
-      }
+      await fetchTaskResult(apiUrl, { fetchOptions: { method: "DELETE" } });
       showSnackbar("Calibration is no longer Active")
       await fetchSingleCalibration();
     } catch (err) {
