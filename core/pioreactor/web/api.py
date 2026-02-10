@@ -31,6 +31,7 @@ from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
+from pioreactor.mureq import Response as MureqResponse
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.structs import CalibrationBase
@@ -73,7 +74,7 @@ for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
 
 
-def as_json_response(json: str) -> ResponseReturnValue:
+def as_json_response(json: str) -> Response:
     return Response(json, mimetype="application/json")
 
 
@@ -82,7 +83,7 @@ def format_utc_timestamp_for_lookback_hours(lookback_hours: float) -> str:
     return cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def _extract_unit_api_error(response: Response | None) -> str | None:
+def _extract_unit_api_error(response: MureqResponse | None) -> str | None:
     if response is None:
         return None
     body = response.content
@@ -269,7 +270,7 @@ def run_job_on_unit_in_experiment(
 
     }
     """
-    json = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
+    json = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
 
     if experiment == UNIVERSAL_EXPERIMENT:
         # universal experiment, all workers
@@ -1577,7 +1578,7 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
         )
 
     uploaded = request.files.get("archive")
-    if uploaded is None or uploaded.filename == "":
+    if uploaded is None or not uploaded.filename:
         abort_with(
             400,
             "No archive uploaded",
@@ -1588,7 +1589,15 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
     try:
         filename = secure_filename(uploaded.filename) or "archive.zip"
         temp_basename = f"import_dot_pioreactor_{uuid.uuid4().hex}_{filename}"
-        temp_path = Path(safe_join(tempfile.gettempdir(), temp_basename))
+        temp_path_str = safe_join(tempfile.gettempdir(), temp_basename)
+        if temp_path_str is None:
+            abort_with(
+                400,
+                "Invalid archive filename",
+                cause="Archive filename could not be resolved to a safe temporary path.",
+                remediation="Rename the archive file and retry.",
+            )
+        temp_path = Path(temp_path_str)
         uploaded.save(temp_path)
     except Exception as exc:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
@@ -1731,7 +1740,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
             remediation="Send a JSON payload describing the calibration session.",
         )
 
-    response: Response | None = None
+    response: MureqResponse | None = None
     try:
         response = post_into(
             resolve_to_address(pioreactor_unit),
@@ -1768,7 +1777,7 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    response: Response | None = None
+    response: MureqResponse | None = None
     try:
         response = get_from(
             resolve_to_address(pioreactor_unit),
@@ -1813,7 +1822,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
             remediation="Send a JSON payload with calibration inputs.",
         )
 
-    response: Response | None = None
+    response: MureqResponse | None = None
     try:
         response = post_into(
             resolve_to_address(pioreactor_unit),
@@ -1850,7 +1859,7 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    response: Response | None = None
+    response: MureqResponse | None = None
     try:
         response = post_into(
             resolve_to_address(pioreactor_unit),
@@ -2066,7 +2075,7 @@ def upload_system_file() -> ResponseReturnValue:
 
     # If the user does not select a file, the browser submits an
     # empty file without a filename.
-    if file.filename == "":
+    if not file.filename:
         abort_with(
             400,
             "No selected file",
@@ -2083,8 +2092,17 @@ def upload_system_file() -> ResponseReturnValue:
 
     filename = secure_filename(file.filename)
     save_path = safe_join(tempfile.gettempdir(), filename)
+    if save_path is None:
+        abort_with(
+            400,
+            "Invalid filename",
+            cause="Uploaded filename could not be resolved to a safe temporary path.",
+            remediation="Rename the file and retry.",
+        )
     file.save(save_path)
-    return jsonify({"message": "File successfully uploaded", "save_path": save_path}), 200
+    response = jsonify({"message": "File successfully uploaded", "save_path": save_path})
+    response.status_code = 200
+    return response
 
 
 @api_bp.route("/automations/descriptors/<automation_type>", methods=["GET"])

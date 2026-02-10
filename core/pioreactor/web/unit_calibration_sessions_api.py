@@ -79,7 +79,9 @@ def start_calibration_session() -> ResponseReturnValue:
     save_calibration_session(session)
     step = _get_calibration_step(session)
     step_payload = to_builtins(step) if step is not None else None
-    return jsonify({"session": to_builtins(session), "step": step_payload}), 201
+    response = jsonify({"session": to_builtins(session), "step": step_payload})
+    response.status_code = 201
+    return response
 
 
 def get_calibration_session(session_id: str) -> ResponseReturnValue:
@@ -88,7 +90,9 @@ def get_calibration_session(session_id: str) -> ResponseReturnValue:
         abort_with(404, "Calibration session not found.")
     step = _get_calibration_step(session)
     step_payload = to_builtins(step) if step is not None else None
-    return jsonify({"session": to_builtins(session), "step": step_payload}), 200
+    response = jsonify({"session": to_builtins(session), "step": step_payload})
+    response.status_code = 200
+    return response
 
 
 def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
@@ -102,7 +106,9 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
     save_calibration_session(session)
     step = _get_calibration_step(session)
     step_payload = to_builtins(step) if step is not None else None
-    return jsonify({"session": to_builtins(session), "step": step_payload}), 200
+    response = jsonify({"session": to_builtins(session), "step": step_payload})
+    response.status_code = 200
+    return response
 
 
 def advance_calibration_session(session_id: str) -> ResponseReturnValue:
@@ -129,10 +135,11 @@ def advance_calibration_session(session_id: str) -> ResponseReturnValue:
 
     save_calibration_session(session)
     step = _get_calibration_step(session)
-    return (
-        jsonify({"session": to_builtins(session), "step": to_builtins(step) if step is not None else None}),
-        200,
+    response = jsonify(
+        {"session": to_builtins(session), "step": to_builtins(step) if step is not None else None}
     )
+    response.status_code = 200
+    return response
 
 
 def register_calibration_session_routes(unit_api_bp: Blueprint) -> None:

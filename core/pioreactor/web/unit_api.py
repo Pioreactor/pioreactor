@@ -9,6 +9,7 @@ from subprocess import run
 from tempfile import NamedTemporaryFile
 from time import sleep
 from typing import Any
+from typing import cast
 
 from flask import after_this_request
 from flask import Blueprint
@@ -207,8 +208,8 @@ def _task_is_locked(lock_name: str) -> bool:
     return huey.lock_task(lock_name).is_locked()
 
 
-def _locked_task_response(lock_name: str) -> ResponseReturnValue:
-    return jsonify({"status": "in_progress", "lock": lock_name}), 202
+def _locked_task_response(lock_name: str) -> DelayedResponseReturnValue:
+    return cast(DelayedResponseReturnValue, (jsonify({"status": "in_progress", "lock": lock_name}), 202))
 
 
 ### SYSTEM
@@ -222,7 +223,7 @@ def update_software_target(target: str) -> DelayedResponseReturnValue:
     if target not in ("app",):  # todo: firmware
         abort_with(404, description="Invalid target")
 
-    body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
+    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
 
     commands: tuple[str, ...] = tuple()
     commands += tuple(body.args)
@@ -244,7 +245,7 @@ def update_software() -> DelayedResponseReturnValue:
     if _task_is_locked("update-lock"):
         return _locked_task_response("update-lock")
 
-    body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
+    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
 
     commands: tuple[str, ...] = tuple()
     commands += tuple(body.args)
@@ -349,7 +350,7 @@ def remove_file() -> DelayedResponseReturnValue:
         )
 
     # use filepath in body
-    body = current_app.get_json(request.data) or {}
+    body = current_app.json.loads(request.data) or {}
     filepath = body.get("filepath")
     if not filepath:
         abort_with(
@@ -544,7 +545,7 @@ def run_job(job_name: str) -> DelayedResponseReturnValue:
     if is_rate_limited(job_name):
         abort_with(429, "Too many requests, please try again later.")
 
-    json = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
+    json = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
     args = json.args
     options = json.options
     env = json.env | {
@@ -577,7 +578,7 @@ def stop_all_jobs() -> DelayedResponseReturnValue:
 def stop_jobs() -> DelayedResponseReturnValue:
     if not request.data:
         return abort_with(400, "No job filter specified")
-    json = current_app.get_json(request.data)
+    json = current_app.json.loads(request.data)
 
     job_name = json.get("job_name")
     experiment = json.get("experiment")
@@ -737,7 +738,7 @@ def _canonicalize_package_name(raw: str) -> str:
 def _load_plugin_allowlist() -> set[str]:
     allowlist_path = Path(os.environ["DOT_PIOREACTOR"]) / PLUGIN_ALLOWLIST_FILENAME
     try:
-        contents = current_app.get_json(allowlist_path.read_bytes())
+        contents = current_app.json.loads(allowlist_path.read_bytes())
     except Exception as e:
         publish_to_error_log(f"{PLUGIN_ALLOWLIST_FILENAME} is not present or invalid JSON: {e}", "plugins")
         return set()
@@ -839,7 +840,7 @@ def install_plugin() -> DelayedResponseReturnValue:
     #        "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
     #    )
 
-    body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
+    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
 
     if not body.args:
         abort_with(
@@ -880,7 +881,7 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
       "args": ["arg1", "arg2"]
     }
     """
-    body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
+    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
 
     if len(body.args) != 1:
         abort_with(
@@ -957,7 +958,9 @@ def create_calibration(device: str) -> ResponseReturnValue:
                 c[device] = calibration_name
 
         # Respond with success and the created calibration details
-        return jsonify({"msg": "Calibration created successfully.", "path": str(path)}), 201
+        response = jsonify({"msg": "Calibration created successfully.", "path": str(path)})
+        response.status_code = 201
+        return response
 
     except HTTPException:
         raise
@@ -992,10 +995,11 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
             if cache.get(device) == calibration_name:
                 cache.pop(device)
 
-        return (
-            jsonify({"msg": f"Calibration '{calibration_name}' for device '{device}' deleted successfully."}),
-            200,
+        response = jsonify(
+            {"msg": f"Calibration '{calibration_name}' for device '{device}' deleted successfully."}
         )
+        response.status_code = 200
+        return response
 
     except Exception as e:
         publish_to_error_log(f"Error deleting calibration: {e}", "delete_calibration")
@@ -1501,10 +1505,11 @@ def delete_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
             if cache.get(device) == estimator_name:
                 cache.pop(device)
 
-        return (
-            jsonify({"msg": f"Estimator '{estimator_name}' for device '{device}' deleted successfully."}),
-            200,
+        response = jsonify(
+            {"msg": f"Estimator '{estimator_name}' for device '{device}' deleted successfully."}
         )
+        response.status_code = 200
+        return response
     except Exception as e:
         publish_to_error_log(f"Error deleting estimator: {e}", "delete_estimator")
         abort_with(
