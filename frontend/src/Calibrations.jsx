@@ -44,7 +44,7 @@ import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml';
 import CheckIcon from '@mui/icons-material/Check';
-
+import ChecklistRtlOutlinedIcon from '@mui/icons-material/ChecklistRtlOutlined';
 
 export function sanitizeDeviceName(raw) {
   const cleaned = raw
@@ -682,17 +682,17 @@ function CalibrationsContainer() {
               component={Link}
               to="/calibration-coverage"
             >
-              <TuneIcon fontSize="small"/>{" "}
-              Calibration coverage
+              <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+              Status
             </Button>
             <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}}
                     color="primary"
                     onClick={() => setOpenUploadDialog(true)}
             >
-              <UploadIcon fontSize="small"/> Upload calibration
+              <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/> Upload calibration
             </Button>
             <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleDownloadCalibrations}>
-              <DownloadIcon fontSize="small"/> Download all calibrations
+              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/> Download all calibrations
             </Button>
           </Box>
         </Box>

@@ -105,6 +105,11 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   .venv/bin/pytest core/tests/test_cli.py
   ```
 
+* Keep mypy green:
+
+  ```bash
+  .venv/bin/mypy core/pioreactor
+  ```
 ---
 
 ## Logging

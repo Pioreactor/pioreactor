@@ -51,34 +51,16 @@ function CoverageCell({ unit, device, cell, onNavigate }) {
         {status === COVERAGE_STATUS.AVAILABLE_NOT_ACTIVE && hasLink && (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
             <Typography component="span" variant="body2" color="text.secondary">
-              Inactive
+              No active calibration
             </Typography>
-            <Tooltip title="Choose a calibration to set active">
-              <IconButton
-                size="small"
-                onClick={() => onNavigate(cell.detailPath)}
-                aria-label={`Open calibrations for ${unit} ${device}`}
-              >
-                <ExpandMoreIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
           </Box>
         )}
 
         {status === COVERAGE_STATUS.MISSING && (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
             <Typography component="span" variant="body2" color="text.secondary">
-              Missing
+              Not calibrated
             </Typography>
-            <Tooltip title="Create calibration">
-              <IconButton
-                size="small"
-                onClick={() => onNavigate(`/protocols/${unit}/${device}`)}
-                aria-label={`Create calibration for ${unit} ${device}`}
-              >
-                <AddIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
           </Box>
         )}
 
@@ -132,7 +114,7 @@ function CalibrationCoverage(props) {
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: "center" }}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
-              Calibration coverage
+              Calibration status
             </Box>
           </Typography>
           <Button

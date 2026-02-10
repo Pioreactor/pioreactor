@@ -38,7 +38,7 @@ LEADER_REQUIREMENTS: list[str] = [
 
 WORKER_REQUIREMENTS = [
     "numpy==2.3.2",
-    "grpredict==25.6.1",
+    "grpredict==26.2.10",
     "Adafruit-Blinka==8.58.1",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "adafruit-circuitpython-busdevice==5.2.9",

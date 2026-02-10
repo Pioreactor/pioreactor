@@ -401,7 +401,7 @@ class GrowthRateCalculator(BackgroundJob):
         updated_state_, covariance_ = self.ekf.update(
             list(scaled_observations.values()), dt, self._recent_dilution
         )
-        latest_od_filtered, latest_growth_rate = float(updated_state_[0]), float(updated_state_[1])
+        latest_od_filtered, latest_growth_rate = float(updated_state_[0]), float(updated_state_[1])  # type: ignore
 
         if self._obs_since_last_dose is not None and self._obs_required_to_reset is not None:
             self._obs_since_last_dose += 1
@@ -421,8 +421,8 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         kf_outputs = structs.KalmanFilterOutput(
-            state=self.ekf.state_.tolist(),
-            covariance_matrix=covariance_.tolist(),
+            state=self.ekf.state_.tolist(),  # type: ignore
+            covariance_matrix=covariance_.tolist(),  # type: ignore
             timestamp=timestamp,
         )
 
