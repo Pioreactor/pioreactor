@@ -8,21 +8,19 @@
  - Removed `/api/contrib/*` endpoints in favor of resource-scoped routes: `/api/automations/descriptors/<automation_type>`, `/api/jobs/descriptors`, `/api/charts/descriptors`, and `/api/datasets/exportable*`.
  - Renamed `pio jobs remove` to `pio jobs purge`.
  - Replaced `pio jobs running` with `pio jobs list running` (`list running` is now a running-only filter of `pio jobs list` output).
+ - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, and "Select all" now applies consistently to all listed units.
 
 #### Enhancements
 
- - Normalized calibration route parameter naming to `calibration_name` across API and unit API calibration endpoints for more consistent endpoint templates.
  - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
  - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
  - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
  - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
- - Updated quick-start behavior for `temperature_automation`, `dosing_automation`, and `led_automation`: clicking their off state now opens the corresponding "Select ... automation" dialog instead of starting a default automation immediately.
- - Added inline quick-edit popovers for card settings values; empty values (`-`/`—`) are non-clickable, the editor closes with a top-right `x`, and numeric/text updates close the popover after clicking `Update`.
+ - Added inline quick-edit popovers for card settings values.
 
 #### Bug fixes
 
- - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared `config_$broadcast.ini` path.
- - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, and "Select all" now applies consistently to all listed units.
+ - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared (and wrong) `config_$broadcast.ini` path.
  - Bumped rpi_hardware_pwm to avoid a race condition setting up PWMs.
 
 

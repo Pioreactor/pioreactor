@@ -8,6 +8,7 @@ from click.testing import CliRunner
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
@@ -16,6 +17,8 @@ from pioreactor.utils.mock import MockRpmCalculator as RpmCalculator
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
+
+from .utils import wait_for
 
 
 unit = get_unit_name()
@@ -228,6 +231,28 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
             assert st._estimate_duty_cycle > 0
             assert st.currently_dodging_od
             assert st.enable_dodging_od
+
+
+def test_warning_when_dodging_without_stirring_calibration() -> None:
+    exp = "test_warning_when_dodging_without_stirring_calibration"
+
+    with collect_all_logs_of_level("WARNING", unit, exp) as warnings:
+        with start_stirring(
+            target_rpm=500,
+            unit=unit,
+            experiment=exp,
+            use_rpm=True,
+            enable_dodging_od=True,
+            calibration=False,
+        ):
+            pass
+
+    assert wait_for(
+        lambda: any(
+            "OD dodging is enabled without a stirring calibration." in w["message"] for w in warnings
+        ),
+        timeout=3.0,
+    )
 
 
 def test_target_rpm_during_od_reading_defaults_to_zero() -> None:

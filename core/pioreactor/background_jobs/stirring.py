@@ -408,6 +408,11 @@ class Stirrer(BackgroundJobWithDodging):
                 self._estimate_duty_cycle - 0.90 * (self._estimate_duty_cycle - (cal.y_to_x(rpm)))
             )
         else:
+            if self.enable_dodging_od:
+                self.logger.warning(
+                    "OD dodging is enabled without a stirring calibration. "
+                    "This can increase OD reading noise. Run a stirring calibration for better stability."
+                )
             return lambda rpm: self._estimate_duty_cycle
 
     def on_disconnected(self) -> None:

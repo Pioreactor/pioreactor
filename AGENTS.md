@@ -45,10 +45,10 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 ## Running the system
 
-ALWAYS use the project virtualenv for any Python or pytest commands:
+ALWAYS use the project virtualenv for any Python, mypy, or pytest commands.
 
 ```bash
-source .venv/bin/activate
+.venv/bin/
 ```
 
 We use Python 3.13.
