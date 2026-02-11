@@ -251,7 +251,7 @@ pioreactors:
             options:
               automation_name: turbidostat
               volume: 1.0
-              target_normalized_od: 5.0
+              target_biomass: 5.0
           - type: stop
             hours_elapsed: 3.0
 """

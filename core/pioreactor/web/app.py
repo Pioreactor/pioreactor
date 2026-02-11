@@ -47,7 +47,8 @@ client.username_pw_set(
 
 try:
     load_plugins()
-except Exception as e:
+except BaseException as e:
+    # BaseExpection since some plugins might use SystemExit, which isn't an Exception.
     logger.debug(f"Web-server encountered error {e} when loading plugins.")
 
 

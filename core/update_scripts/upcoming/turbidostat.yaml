@@ -1,0 +1,17 @@
+---
+display_name: Turbidostat
+automation_name: turbidostat
+description: >
+  Every quarter-minute, check if the selected biomass signal is above the target value. If so, exchange volume amount.
+
+fields:
+  - key: target_biomass
+    default: null
+    unit: OD/AU
+    label: Target
+    type: numeric
+  - key: exchange_volume_ml
+    default: 1.0
+    unit: mL
+    label: Exchange volume
+    type: numeric

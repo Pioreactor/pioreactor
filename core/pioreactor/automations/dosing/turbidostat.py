@@ -6,10 +6,11 @@ from pioreactor import types as pt
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.background_jobs.od_reading import REF_keyword
+from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
+from pioreactor.estimators import load_active_estimator
 from pioreactor.exc import CalibrationError
 from pioreactor.utils import local_persistent_storage
-from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 
 
 class Turbidostat(DosingAutomationJob):
@@ -23,6 +24,7 @@ class Turbidostat(DosingAutomationJob):
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_biomass": {"datatype": "float", "settable": True},
         "biomass_signal": {"datatype": "string", "settable": True},
+        "resolved_biomass_signal": {"datatype": "string", "settable": False},
         "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
     target_biomass = None
@@ -32,7 +34,7 @@ class Turbidostat(DosingAutomationJob):
         self,
         exchange_volume_ml: float | str,
         target_biomass: Optional[float | str] = None,
-        biomass_signal: str = "normalized_od",
+        biomass_signal: str = "auto",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -50,9 +52,6 @@ class Turbidostat(DosingAutomationJob):
         self.target_biomass = float(target_biomass)
 
         self.exchange_volume_ml = float(exchange_volume_ml)
-        self.ema_od = ExponentialMovingAverage(
-            config.getfloat("turbidostat.config", "od_smoothing_ema", fallback=0.5)
-        )
 
     def set_duration(self, value: float | None):
         # force duration to always be 0.25 - we want to check often.
@@ -85,14 +84,41 @@ class Turbidostat(DosingAutomationJob):
 
         raise ValueError("No OD signal channels found in [od_config.photodiode_channel].")
 
+    @property
+    def _od_angle(self) -> pt.PdAngle:
+        angle = config["od_config.photodiode_channel"][self._od_channel]
+        if angle in (None, "", REF_keyword):
+            raise ValueError(f"No OD signal angle configured for channel {self._od_channel}.")
+        return cast(pt.PdAngle, str(angle))
+
+    def _has_active_od_fused_estimator(self) -> bool:
+        try:
+            return load_active_estimator(pt.OD_FUSED_DEVICE) is not None
+        except Exception as e:
+            self.logger.warning(
+                "Unable to load active od_fused estimator for auto biomass signal selection: %s",
+                e,
+            )
+            return False
+
+    def _has_active_od_calibration_for_resolved_angle(self) -> bool:
+        od_device = cast(pt.ODCalibrationDevices, f"od{self._od_angle}")
+        try:
+            return load_active_calibration(od_device) is not None
+        except Exception as e:
+            self.logger.warning(
+                "Unable to load active OD calibration for device %s for auto biomass signal selection: %s",
+                od_device,
+                e,
+            )
+            return False
+
     def execute(self) -> Optional[events.DilutionEvent]:
         assert self.target_biomass is not None
-        latest_biomass = self.latest_biomass_value(self.biomass_signal, od_channel=self._od_channel)
-        if self.biomass_signal in {"od", "od_fused"}:
-            latest_biomass = self.ema_od.update(latest_biomass)
+        resolved_biomass_signal = self.resolved_biomass_signal
+        latest_biomass = self.latest_biomass_value(resolved_biomass_signal, od_channel=self._od_channel)
 
         if latest_biomass >= self.target_biomass:
-            self.ema_od.clear()  # clear the ema so that we don't cause a second dosing to occur right after.
             latest_biomass_before_dosing = latest_biomass
             target_biomass_before_dosing = self.target_biomass
 
@@ -103,13 +129,13 @@ class Turbidostat(DosingAutomationJob):
             data = {
                 "latest_biomass": latest_biomass_before_dosing,
                 "target_biomass": target_biomass_before_dosing,
-                "biomass_signal": self.biomass_signal,
+                "resolved_biomass_signal": resolved_biomass_signal,
                 "exchange_volume_ml": self.exchange_volume_ml,
                 "volume_actually_moved_ml": results["media_ml"],
             }
 
             return events.DilutionEvent(
-                f"Latest biomass ({self.biomass_signal}) = {latest_biomass_before_dosing:.2f} ≥ Target biomass = {target_biomass_before_dosing:.2f}; cycled {results['media_ml']:.2f} mL",
+                f"Latest biomass ({resolved_biomass_signal}) = {latest_biomass_before_dosing:.2f} ≥ Target biomass = {target_biomass_before_dosing:.2f}; cycled {results['media_ml']:.2f} mL",
                 data,
             )
         else:
@@ -118,11 +144,24 @@ class Turbidostat(DosingAutomationJob):
     def set_target_biomass(self, new_target: float) -> None:
         self.target_biomass = float(new_target)
 
+    @property
+    def resolved_biomass_signal(self) -> str:
+        if self.biomass_signal != "auto":
+            return str(self.biomass_signal)
+
+        if self._has_active_od_fused_estimator():
+            return "od_fused"
+
+        if self._has_active_od_calibration_for_resolved_angle():
+            return "od"
+
+        return "normalized_od"
+
     def set_biomass_signal(self, new_signal: str) -> None:
         self._set_biomass_signal(new_signal)
 
     def _set_biomass_signal(self, biomass_signal: str) -> None:
-        allowed = ("normalized_od", "od_fused", "od")
+        allowed = ("auto", "normalized_od", "od_fused", "od")
         if biomass_signal not in allowed:
             raise ValueError(
                 f"Unsupported biomass_signal={biomass_signal}. Use one of: {', '.join(allowed)}."

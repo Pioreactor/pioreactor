@@ -17,7 +17,7 @@ export default function useCapabilityExamplesOverride() {
   // Edit me: provide your preferred defaults here.
   const overrides = {
     'dosing_automation::chemostat': {start: { exchange_volume_ml: 1, duration: 20 }, update: { exchange_volume_ml: 1.5}},
-    'dosing_automation::turbidostat': {start: { exchange_volume_ml: 1, biomass_signal: "normalized_od", target_biomass: 3.0}, update: { target_biomass: 5.0}},
+    'dosing_automation::turbidostat': {start: { exchange_volume_ml: 1, biomass_signal: "auto", target_biomass: 3.0}, update: { target_biomass: 5.0}},
     'temperature_automation::thermostat': {start: {target_temperature: 30}, update: {target_temperature: 35}},
     'stirring': {start: {target_rpm: 500}, update: {target_rpm: 350}},
     'led_automation::light_dark_cycle': {start: {light_intensity: 10, light_duration_minutes: 60 * 16, dark_duration_minutes: 60*8}},

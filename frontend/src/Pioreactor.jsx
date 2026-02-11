@@ -23,6 +23,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Popover from '@mui/material/Popover';
 import InputAdornment from '@mui/material/InputAdornment';
+import SvgIcon from '@mui/material/SvgIcon';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Accordion from '@mui/material/Accordion';
@@ -35,7 +36,6 @@ import ListItemText from '@mui/material/ListItemText';
 import ListSubheader from '@mui/material/ListSubheader';
 import Button from "@mui/material/Button";
 import LoadingButton from '@mui/lab/LoadingButton';
-import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
@@ -86,6 +86,7 @@ import {
   disconnectedGrey,
   lostRed,
   readyGreen,
+  defaultStateDisplayBackground,
   disabledColor,
   stateDisplay,
 } from "./color";
@@ -118,6 +119,22 @@ function StateTypography({ state, isDisabled=false }) {
 }
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
+
+function ShieldCheckOutlineIcon(props) {
+  return (
+    <SvgIcon {...props} viewBox="0 0 24 24">
+      <path d="M21,11C21,16.55 17.16,21.74 12,23C6.84,21.74 3,16.55 3,11V5L12,1L21,5V11M12,21C15.75,20 19,15.54 19,11.22V6.3L12,3.18L5,6.3V11.22C5,15.54 8.25,20 12,21M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9" />
+    </SvgIcon>
+  );
+}
+
+function ShieldAlertOutlineIcon(props) {
+  return (
+    <SvgIcon {...props} viewBox="0 0 24 24">
+      <path d="M21,11C21,16.55 17.16,21.74 12,23C6.84,21.74 3,16.55 3,11V5L12,1L21,5V11M12,21C15.75,20 19,15.54 19,11.22V6.3L12,3.18L5,6.3V11.22C5,15.54 8.25,20 12,21M11,7H13V13H11V7M11,15H13V17H11V15Z" />
+    </SvgIcon>
+  );
+}
 
 
 
@@ -351,10 +368,21 @@ function UnitSettingDisplay(props) {
     } else {
       return (
         <React.Fragment>
-          <Chip size="small" style={{ fontSize: "13px"}}
-            label={formatForDisplay(value) + " " +
-              (props.measurementUnit ? props.measurementUnit : "")}
-          />
+          <Typography
+            display="block"
+            gutterBottom
+            sx={{
+              color: "rgba(0, 0, 0, 0.87)",
+              padding: "1px 9px",
+              borderRadius: "16px",
+              backgroundColor: defaultStateDisplayBackground,
+              display: "inline-block",
+              fontWeight: 400,
+              fontSize: "14px",
+            }}
+          >
+            {formatForDisplay(value)} {props.measurementUnit ? props.measurementUnit : ""}
+          </Typography>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
       );
@@ -422,12 +450,15 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
                 <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
                 <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
+                <Chip icon={<PlayCircleOutlinedIcon/>} size="small" sx={{ mb: "2px" }} label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
               </Box>
             </Box>
             <Box sx={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
-                <ToggleOnIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Availability:&nbsp;
+                {isActive
+                  ? <ShieldCheckOutlineIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/>
+                  : <ShieldAlertOutlineIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/>
+                } Availability:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {isActive ? "Active" : "Inactive"}
@@ -2315,7 +2346,6 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                           display: "inline-flex",
                           borderRadius: "6px",
                           padding: canQuickEdit ? "1px 2px" : "0px",
-                          "&:hover": canQuickEdit ? { backgroundColor: "rgba(0, 0, 0, 0.04)" } : {},
                         }}
                       >
                         <UnitSettingDisplay

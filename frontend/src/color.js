@@ -165,16 +165,17 @@ const NOTICE_COLOR = "#addcaf";
 const readyGreen = "#176114";
 const disconnectedGrey = "#585858";
 const lostRed = "#DE3618";
+const defaultStateDisplayBackground = "rgba(0, 0, 0, 0.04)";
 const disabledColor = "rgba(0, 0, 0, 0.38)";
 const inactiveGrey = "#99999b";
 
 const stateDisplay = {
   init: { display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC" },
   ready: { display: "On", color: readyGreen, backgroundColor: "#DDFFDC" },
-  sleeping: { display: "Paused", color: disconnectedGrey, backgroundColor: null },
-  disconnected: { display: "Off", color: disconnectedGrey, backgroundColor: null },
-  lost: { display: "Lost", color: lostRed, backgroundColor: null },
-  NA: { display: "Not available", color: disconnectedGrey, backgroundColor: null },
+  sleeping: { display: "Paused", color: disconnectedGrey, backgroundColor: defaultStateDisplayBackground },
+  disconnected: { display: "Off", color: disconnectedGrey, backgroundColor: defaultStateDisplayBackground },
+  lost: { display: "Lost", color: lostRed, backgroundColor: defaultStateDisplayBackground },
+  NA: { display: "Not available", color: disconnectedGrey, backgroundColor: defaultStateDisplayBackground },
 };
 
 export {
@@ -187,6 +188,7 @@ export {
   readyGreen,
   disconnectedGrey,
   lostRed,
+  defaultStateDisplayBackground,
   disabledColor,
   inactiveGrey,
   stateDisplay,

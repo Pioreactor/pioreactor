@@ -177,9 +177,10 @@ def test_silent_automation() -> None:
 @pytest.mark.slow
 def test_turbidostat_automation() -> None:
     experiment = "test_turbidostat_automation"
-    target_od = 1.0
+    target_biomass = 1.0
     with Turbidostat(
-        target_normalized_od=target_od,
+        target_biomass=target_biomass,
+        biomass_signal="normalized_od",
         duration=60,
         exchange_volume_ml=0.25,
         unit=unit,
@@ -298,13 +299,13 @@ def test_turbidostat_automation() -> None:
         assert algo.run() is None
 
 
-def test_cant_target_both_in_turbidostat() -> None:
-    experiment = "test_cant_target_both_in_turbidostat"
+def test_rejects_invalid_biomass_signal_in_turbidostat() -> None:
+    experiment = "test_rejects_invalid_biomass_signal_in_turbidostat"
 
     with pytest.raises(ValueError):
         with Turbidostat(
-            target_od=0.5,
-            target_normalized_od=2.0,
+            target_biomass=0.5,
+            biomass_signal="garbage",
             duration=60,
             exchange_volume_ml=0.25,
             unit=unit,
@@ -314,42 +315,108 @@ def test_cant_target_both_in_turbidostat() -> None:
             pass
 
 
-def test_cant_change_target_in_turbidostat() -> None:
-    experiment = "test_cant_change_target_in_turbidostat"
+def test_turbidostat_auto_prefers_active_od_fused_estimator(monkeypatch) -> None:
+    experiment = "test_turbidostat_auto_prefers_active_od_fused_estimator"
+
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_estimator",
+        lambda device: object(),
+    )
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_calibration",
+        lambda device: object(),
+    )
 
     with Turbidostat(
-        target_od=0.5,
+        target_biomass=0.5,
         duration=60,
         exchange_volume_ml=0.25,
         unit=unit,
         experiment=experiment,
         skip_first_run=True,
     ) as algo:
-        assert not algo.is_targeting_nOD
-        assert algo.target_od == 0.5
-        assert algo.target_normalized_od is None
+        assert algo.resolved_biomass_signal == "od_fused"
 
-        algo.set_target_normalized_od(2.0)
 
-        assert not algo.is_targeting_nOD
-        assert algo.target_od == 0.5
-        assert algo.target_normalized_od is None
+def test_turbidostat_auto_uses_active_od_calibration_without_estimator(monkeypatch) -> None:
+    experiment = "test_turbidostat_auto_uses_active_od_calibration_without_estimator"
+
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_estimator",
+        lambda device: None,
+    )
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_calibration",
+        lambda device: object(),
+    )
+
+    with Turbidostat(
+        target_biomass=0.5,
+        duration=60,
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+        skip_first_run=True,
+    ) as algo:
+        assert algo.resolved_biomass_signal == "od"
+
+
+def test_turbidostat_auto_falls_back_to_normalized_od_without_active_models(monkeypatch) -> None:
+    experiment = "test_turbidostat_auto_falls_back_to_normalized_od_without_active_models"
+
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_estimator",
+        lambda device: None,
+    )
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_calibration",
+        lambda device: None,
+    )
+
+    with Turbidostat(
+        target_biomass=0.5,
+        duration=60,
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+        skip_first_run=True,
+    ) as algo:
+        assert algo.resolved_biomass_signal == "normalized_od"
+
+
+def test_cant_change_target_in_turbidostat() -> None:
+    experiment = "test_cant_change_target_in_turbidostat"
+
+    with Turbidostat(
+        target_biomass=0.5,
+        duration=60,
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+        skip_first_run=True,
+    ) as algo:
+        assert algo.target_biomass == 0.5
+
+        algo.set_target_biomass(2.0)
+
+        assert algo.target_biomass == 2.0
 
 
 @pytest.mark.slow
 def test_turbidostat_targeting_od() -> None:
     experiment = "test_turbidostat_targeting_od"
 
-    target_od = 0.2
+    target_biomass = 0.2
     with Turbidostat(
-        target_od=target_od,
+        target_biomass=target_biomass,
+        biomass_signal="od",
         duration=60,
         exchange_volume_ml=0.25,
         unit=unit,
         experiment=experiment,
         skip_first_run=True,
     ) as algo:
-        assert algo.target_od == target_od
+        assert algo.target_biomass == target_biomass
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             encode(
@@ -512,10 +579,11 @@ def test_changing_morbidostat_parameters_over_mqtt() -> None:
 def test_changing_turbidostat_params_over_mqtt() -> None:
     experiment = "test_changing_turbidostat_params_over_mqtt"
     og_volume = 0.5
-    og_target_od = 1.0
+    og_target_biomass = 1.0
     algo = Turbidostat(
         exchange_volume_ml=og_volume,
-        target_normalized_od=og_target_od,
+        target_biomass=og_target_biomass,
+        biomass_signal="normalized_od",
         duration=60,
         unit=unit,
         experiment=experiment,
@@ -549,10 +617,13 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
     assert algo.exchange_volume_ml == 1.0
 
-    new_od = 1.5
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", new_od)
+    new_target_biomass = 1.5
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/dosing_automation/target_biomass/set",
+        new_target_biomass,
+    )
     pause()
-    assert algo.target_normalized_od == new_od
+    assert algo.target_biomass == new_target_biomass
     algo.clean_up()
 
 
@@ -672,7 +743,7 @@ def test_throughput_calculator_restart() -> None:
     with Turbidostat(
         unit=unit,
         experiment=experiment,
-        target_normalized_od=1.0,
+        target_biomass=1.0,
         duration=5 / 60,
         exchange_volume_ml=1.0,
     ) as automation_job:
@@ -693,7 +764,7 @@ def test_throughput_calculator_manual_set() -> None:
     with Turbidostat(
         unit=unit,
         experiment=experiment,
-        target_normalized_od=1.0,
+        target_biomass=1.0,
         duration=5 / 60,
         exchange_volume_ml=1.0,
     ) as automation_job:
@@ -960,7 +1031,7 @@ def test_disconnect_cleanly(fast_dosing_timers) -> None:
     algo = Turbidostat(
         unit=unit,
         experiment=experiment,
-        target_normalized_od=1.0,
+        target_biomass=1.0,
         duration=50,
         exchange_volume_ml=1.0,
     )
@@ -1027,7 +1098,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
     )
 
     with Turbidostat(
-        target_normalized_od=0.1, duration=40 / 60, exchange_volume_ml=0.25, unit=unit, experiment=experiment
+        target_biomass=0.1, duration=40 / 60, exchange_volume_ml=0.25, unit=unit, experiment=experiment
     ) as algo:
         pause()
         event = algo.run()
