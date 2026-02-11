@@ -331,6 +331,8 @@ def test_REF_is_lower_than_0_dot_256_volts(
     ):
         samples = []
 
+        sleep(1.0)  # let the LED warm up => more stable
+
         for i in range(6):
             samples.append(adc_reader.take_reading()[reference_channel].reading)
 

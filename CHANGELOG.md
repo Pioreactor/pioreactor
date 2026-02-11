@@ -25,6 +25,7 @@
  - Bumped rpi_hardware_pwm to avoid a race condition setting up PWMs.
  - Fixed calibration detail pages so `Set active` / `Set inactive` waits for backend task completion before refetching, preventing stale "Set active" and missing "Active" status until manual refresh.
  - Made IR reference-noise gating in OD reading scale with the configured reading interval (baseline `std <= 0.01` at `5.0s`), including when the interval is changed at runtime.
+ - Fixed Inventory model updates and active/inactive toggles to show success only after confirmed backend `2xx` responses, with explicit error feedback on failure.
 
 
 ### 26.2.3

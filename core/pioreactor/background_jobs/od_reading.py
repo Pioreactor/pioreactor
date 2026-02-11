@@ -765,6 +765,7 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
             self.initial_ref = ir_output_reading
             with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
                 cache.set(self.experiment, self.initial_ref)
+            self.logger.debug(f"Set {self._PERSISTENT_CACHE_NAME} cache to {self.initial_ref}.")
 
         relative_ref = ir_output_reading / self.initial_ref
 

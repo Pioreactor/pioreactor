@@ -561,22 +561,40 @@ function WorkerCard({worker, config, leaderVersion}) {
     }
   }
 
-  const handleModelChange = (event) => {
+  const handleModelChange = async (event) => {
     const [modelName, modelVersion] = event.target.value.split(',');
-    setModel([modelName, modelVersion]);
     const selectedModel = availableModels.find(
       ({model_name, model_version}) => model_name === modelName && String(model_version) === String(modelVersion)
     );
     const displayName = selectedModel ? selectedModel.display_name : `${modelName}, v${modelVersion}`;
-    showSnackbar(`Updated ${unit} to ${displayName}`);
-    fetch(`/api/workers/${unit}/model`, {
-      method: "PUT",
-      body: JSON.stringify({model_name: modelName, model_version: modelVersion}),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+    try {
+      const response = await fetch(`/api/workers/${unit}/model`, {
+        method: "PUT",
+        body: JSON.stringify({model_name: modelName, model_version: modelVersion}),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          if (payload?.error) {
+            errorMessage = payload.error;
+          }
+        } catch (_error) {
+          // use default HTTP status message
+        }
+        throw new Error(errorMessage);
       }
-    });
+
+      setModel([modelName, modelVersion]);
+      showSnackbar(`Updated ${unit} to ${displayName}`);
+    } catch (error) {
+      showSnackbar(`Failed to update ${unit}: ${error.message}`);
+    }
   }
 
   const indicatorDotColor = getIndicatorDotColor(state)
@@ -626,17 +644,37 @@ function WorkerCard({worker, config, leaderVersion}) {
     };
   }, [client, onSelfTestData, selfTestDefinition, subscribeToTopic, unsubscribeFromTopic, unit]);
 
-  const handleStatusChange = (event) => {
+  const handleStatusChange = async (event) => {
+    const newStatus = event.target.checked ? "active" : "inactive";
 
-    setActiveStatus(event.target.checked ? "active" : "inactive");
-    fetch(`/api/workers/${unit}/is_active`, {
-      method: "PUT",
-      body: JSON.stringify({is_active: Number(event.target.checked) }),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+    try {
+      const response = await fetch(`/api/workers/${unit}/is_active`, {
+        method: "PUT",
+        body: JSON.stringify({is_active: Number(event.target.checked) }),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          if (payload?.error) {
+            errorMessage = payload.error;
+          }
+        } catch (_error) {
+          // use default HTTP status message
+        }
+        throw new Error(errorMessage);
       }
-    })
+
+      setActiveStatus(newStatus);
+      showSnackbar(`Set ${unit} to ${newStatus}.`);
+    } catch (error) {
+      showSnackbar(`Failed to update ${unit}: ${error.message}`);
+    }
   };
 
   const onExperimentClick = () => {
