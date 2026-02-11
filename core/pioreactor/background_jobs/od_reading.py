@@ -89,6 +89,7 @@ from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
 from pioreactor.states import JobState as st
 from pioreactor.utils import adcs as madcs
@@ -632,13 +633,23 @@ class ADCReader(LoggerMixin):
 
 class IrLedReferenceTracker(LoggerMixin):
     _logger_name = "ir_led_ref"
+    BASELINE_STD_THRESHOLD = 0.025
+    BASELINE_INTERVAL_SECONDS = 5.0
     channel: pt.PdChannel
 
-    def __init__(self) -> None:
+    def __init__(self, interval: float | None = None) -> None:
         super().__init__()
+        self.interval = interval
 
     def update(self, ir_output_reading: pt.Voltage) -> None:
         pass
+
+    def set_interval(self, interval: float | None) -> None:
+        self.interval = interval
+
+    def get_std_threshold(self) -> float:
+        interval = self.interval if self.interval is not None else self.BASELINE_INTERVAL_SECONDS
+        return self.BASELINE_STD_THRESHOLD * math.sqrt(interval / self.BASELINE_INTERVAL_SECONDS)
 
     def pop_reference_reading(self, raw_readings: RawPDReadings) -> tuple[pt.Voltage, RawPDReadings]:
         ref_reading = raw_readings.pop(self.channel).reading
@@ -680,8 +691,8 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     INITIAL = 1.0
 
-    def __init__(self, channel: pt.PdChannel) -> None:
-        super().__init__()
+    def __init__(self, channel: pt.PdChannel, interval: float | None = None) -> None:
+        super().__init__(interval=interval)
         self.led_output_ema = ExponentialMovingAverage(
             config.getfloat("od_reading.config", "pd_reference_ema")
         )
@@ -698,7 +709,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
             # can happen if there is only a single data points, and the variance can't be computed.
             latest_std = 0.0
 
-        if latest_std <= 0.01:
+        if latest_std <= self.get_std_threshold():
             # only update if the std looks "okay""
             self.led_output_ema.update(ir_output_reading / self.INITIAL)
         else:
@@ -724,8 +735,10 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
 
     _PERSISTENT_CACHE_NAME = "ir_led_reference_normalization"
 
-    def __init__(self, channel: pt.PdChannel, experiment: pt.Experiment | None = None) -> None:
-        super().__init__()
+    def __init__(
+        self, channel: pt.PdChannel, experiment: pt.Experiment | None = None, interval: float | None = None
+    ) -> None:
+        super().__init__(interval=interval)
         self.channel = channel
         self.experiment = experiment
         self.initial_ref = self._get_cached_initial_ref()
@@ -764,7 +777,7 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
             # can happen if there is only a single data points, and the variance can't be computed.
             latest_std = 0.0
 
-        if latest_std <= 0.01:
+        if latest_std <= self.get_std_threshold():
             # only update if the std looks "okay""
             self.led_output_ema.update(relative_ref)
         else:
@@ -1278,6 +1291,7 @@ class ODReader(BackgroundJob):
             raise ValueError("interval must be positive or None")
 
         self.interval = interval
+        self.ir_led_reference_transformer.set_interval(interval)
 
         if self.interval is not None:
             if self.interval <= 1.0:
@@ -1606,10 +1620,12 @@ def start_od_reading(
             ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerUnitInit(
                 ir_led_reference_channel,
                 experiment=experiment,
+                interval=interval,
             )
         else:
             ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
                 ir_led_reference_channel,
+                interval=interval,
             )
 
     else:
@@ -1700,7 +1716,18 @@ def click_od_reading(
     """
 
     # determine interval: override if provided, else use snapshot or config default
-    default_interval = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
+    samples_per_second = config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
+    if samples_per_second <= 0:
+        create_logger("od_reading").error(
+            "Invalid config value for [od_reading.config] samples_per_second=%s. "
+            "Expected a value > 0 to compute the default read interval.",
+            samples_per_second,
+        )
+        raise ValueError(
+            f"Invalid [od_reading.config] samples_per_second={samples_per_second}. Expected a value > 0."
+        )
+
+    default_interval = 1 / samples_per_second
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
     penalizer = (
         config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval

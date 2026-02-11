@@ -11,6 +11,7 @@ from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import CachedEstimatorTransformer
+from pioreactor.background_jobs.od_reading import click_od_reading
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
@@ -1306,6 +1307,21 @@ def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:
         tracker.update(v)
 
 
+def test_PhotodiodeIrLedReferenceTrackerStaticInit_std_threshold_scales_with_interval(
+    mocker,
+) -> None:
+    tracker = PhotodiodeIrLedReferenceTrackerStaticInit(channel="1", interval=1.25)
+    mocker.patch.object(tracker.led_output_emstd, "get_latest", return_value=0.015)
+    ema_update_spy = mocker.spy(tracker.led_output_ema, "update")
+
+    tracker.update(1.0)
+    assert ema_update_spy.call_count == 0
+
+    tracker.set_interval(20.0)
+    tracker.update(1.0)
+    assert ema_update_spy.call_count == 1
+
+
 def test_PhotodiodeIrLedReferenceTrackerUnitInit() -> None:
     experiment = "test_PhotodiodeIrLedReferenceTrackerUnitInit"
     with local_persistent_storage("ir_led_reference_normalization") as cache:
@@ -1327,6 +1343,27 @@ def test_PhotodiodeIrLedReferenceTrackerUnitInit() -> None:
 
     assert abs(tracker.led_output_ema.get_latest() - 0.8) < 0.05
     assert abs(tracker.transform(1.0) - 1.25) < 0.1
+
+
+def test_PhotodiodeIrLedReferenceTrackerUnitInit_std_threshold_scales_with_interval(
+    mocker,
+) -> None:
+    experiment = "test_PhotodiodeIrLedReferenceTrackerUnitInit_std_threshold_scales_with_interval"
+    tracker = PhotodiodeIrLedReferenceTrackerUnitInit(
+        channel="1",
+        experiment=experiment,
+        interval=1.25,
+    )
+    tracker.initial_ref = 1.0
+    mocker.patch.object(tracker.led_output_emstd, "get_latest", return_value=0.015)
+    ema_update_spy = mocker.spy(tracker.led_output_ema, "update")
+
+    tracker.update(1.0)
+    assert ema_update_spy.call_count == 0
+
+    tracker.set_interval(20.0)
+    tracker.update(1.0)
+    assert ema_update_spy.call_count == 1
 
 
 def test_PhotodiodeIrLedReferenceTrackerUnitInit_uses_cached_reference() -> None:
@@ -1562,6 +1599,17 @@ def test_only_one_ref_channel_allowed() -> None:
     with pytest.raises(ValueError):
         with start_od_reading({"1": "REF", "2": "REF"}, interval=None, fake_data=True, experiment=experiment):
             pass
+
+
+def test_click_od_reading_errors_cleanly_when_samples_per_second_is_zero() -> None:
+    with temporary_config_change(config, "od_reading.config", "samples_per_second", "0"):
+        with pytest.raises(ValueError, match=r"samples_per_second=0\.0.*> 0"):
+            click_od_reading.callback(
+                fake_data=True,
+                interval=None,
+                ir_led_intensity=None,
+                snapshot=False,
+            )
 
 
 def test_supports_more_photodiode_channels() -> None:

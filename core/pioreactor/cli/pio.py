@@ -838,21 +838,25 @@ def cache():
 
 @cache.command(name="view", short_help="print out the contents of a cache")
 @click.argument("cache", metavar="CACHE")
-def view_cache(cache: str) -> None:
+@click.argument("key", metavar="KEY", required=False)
+def view_cache(cache: str, key: str | None) -> None:
     """
-    Print all key/value pairs for a cache.
+    Print key/value pairs for a cache.
 
     \b
     Examples:
       pio cache view pwm
+      pio cache view pwm 12
     """
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
     for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
         with cacher(cache) as c:
-            for key in sorted(list(c.iterkeys())):
-                click.echo(f"{click.style(key, bold=True)} = {c[key]}")
+            keys_to_show = [key] if key is not None else sorted(list(c.iterkeys()))
+            for key_to_show in keys_to_show:
+                if key_to_show in c:
+                    click.echo(f"{click.style(key_to_show, bold=True)} = {c[key_to_show]}")
 
 
 @cache.command(name="clear", short_help="remove a key from a cache")

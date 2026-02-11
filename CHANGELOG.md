@@ -14,6 +14,7 @@
 
  - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
  - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
+ - Updated `pio cache view` to accept an optional key filter: `pio cache view <cache> <key>` now returns only that key when provided.
  - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
  - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
  - Added inline quick-edit popovers for card settings values.
@@ -23,6 +24,7 @@
  - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared (and wrong) `config_$broadcast.ini` path.
  - Bumped rpi_hardware_pwm to avoid a race condition setting up PWMs.
  - Fixed calibration detail pages so `Set active` / `Set inactive` waits for backend task completion before refetching, preventing stale "Set active" and missing "Active" status until manual refresh.
+ - Made IR reference-noise gating in OD reading scale with the configured reading interval (baseline `std <= 0.01` at `5.0s`), including when the interval is changed at runtime.
 
 
 ### 26.2.3

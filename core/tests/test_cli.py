@@ -21,6 +21,7 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
 from tests.conftest import capture_requests
 
@@ -116,6 +117,66 @@ def test_pio_config_show_key_requires_section() -> None:
     result = runner.invoke(pio, ["config", "show", "--key", "broker_address"])
     assert result.exit_code != 0
     assert "--key requires --section." in result.output
+
+
+def test_pio_cache_view_with_key_filters_output() -> None:
+    cache_name = "test_pio_cache_view_with_key_filters_output"
+    target_key = "target_key"
+    other_key = "other_key"
+
+    try:
+        with local_intermittent_storage(cache_name) as c:
+            c[target_key] = "intermittent_value"
+            c[other_key] = "intermittent_other"
+
+        with local_persistent_storage(cache_name) as c:
+            c[target_key] = "persistent_value"
+            c[other_key] = "persistent_other"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "view", cache_name, target_key])
+
+        assert result.exit_code == 0
+        lines = [line for line in result.output.splitlines() if line]
+        assert lines == [
+            f"{target_key} = intermittent_value",
+            f"{target_key} = persistent_value",
+        ]
+        assert other_key not in result.output
+    finally:
+        with local_intermittent_storage(cache_name) as c:
+            for key in tuple(c.iterkeys()):
+                del c[key]
+        with local_persistent_storage(cache_name) as c:
+            for key in tuple(c.iterkeys()):
+                del c[key]
+
+
+def test_pio_cache_view_without_key_shows_all_keys() -> None:
+    cache_name = "test_pio_cache_view_without_key_shows_all_keys"
+
+    try:
+        with local_intermittent_storage(cache_name) as c:
+            c["b"] = "intermittent_b"
+            c["a"] = "intermittent_a"
+
+        with local_persistent_storage(cache_name) as c:
+            c["c"] = "persistent_c"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "view", cache_name])
+
+        assert result.exit_code == 0
+        assert "a = intermittent_a" in result.output
+        assert "b = intermittent_b" in result.output
+        assert "c = persistent_c" in result.output
+    finally:
+        with local_intermittent_storage(cache_name) as c:
+            for key in tuple(c.iterkeys()):
+                del c[key]
+        with local_persistent_storage(cache_name) as c:
+            for key in tuple(c.iterkeys()):
+                del c[key]
 
 
 def test_led_intensity() -> None:
