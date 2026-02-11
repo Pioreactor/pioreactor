@@ -92,6 +92,7 @@ import {
   disconnectedGrey,
   lostRed,
   readyGreen,
+  defaultStateDisplayBackground,
   disabledColor,
   stateDisplay,
 } from "./color";
@@ -121,7 +122,7 @@ function StateTypography({ state, isDisabled=false }) {
   const stateInfo = stateDisplay[state] || {
     display: state || "Unknown",
     color: disconnectedGrey,
-    backgroundColor: null,
+    backgroundColor: defaultStateDisplayBackground,
   };
 
   const style = {
@@ -130,7 +131,7 @@ function StateTypography({ state, isDisabled=false }) {
     borderRadius: "16px",
     backgroundColor: stateInfo.backgroundColor,
     display: "inline-block",
-    fontWeight: 500
+    fontWeight: 500,
   };
 
   return (
@@ -431,10 +432,21 @@ function UnitSettingDisplay(props) {
     } else {
       return (
         <React.Fragment>
-          <Chip size="small" style={{ fontSize: "13px"}}
-            label={formatForDisplay(value) + " " +
-              (props.measurementUnit ? props.measurementUnit : "")}
-          />
+          <Typography
+            display="block"
+            gutterBottom
+            sx={{
+              color: "rgba(0, 0, 0, 0.87)",
+              padding: "1px 9px",
+              borderRadius: "16px",
+              backgroundColor: defaultStateDisplayBackground,
+              display: "inline-block",
+              fontWeight: 400,
+              fontSize: "14px",
+            }}
+          >
+            {formatForDisplay(value)} {props.measurementUnit ? props.measurementUnit : ""}
+          </Typography>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
       );
@@ -3543,7 +3555,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                           display: "inline-flex",
                           borderRadius: "6px",
                           padding: canQuickEdit ? "1px 2px" : "0px",
-                          "&:hover": canQuickEdit ? { backgroundColor: "rgba(0, 0, 0, 0.04)" } : {},
                         }}
                       >
                         <UnitSettingDisplay
