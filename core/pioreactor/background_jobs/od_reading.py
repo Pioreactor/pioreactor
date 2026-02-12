@@ -1378,7 +1378,11 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-                sleep(config.getfloat("duration_between_led_off_and_od_reading", fallback=0.125))
+                sleep(
+                    config.getfloat(
+                        "od_reading.config", "duration_between_led_off_and_od_reading", fallback=0.125
+                    )
+                )
                 raw_od_readings = self._read_from_adc()
 
         try:
