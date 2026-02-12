@@ -298,22 +298,24 @@ class PWM:
         self._serialize()
 
     def clean_up(self) -> None:
-        with suppress(ValueError):
-            # this is thrown if the _pwm hasn't started yet.
-            self.stop()
+        try:
+            with suppress(ValueError):
+                # this is thrown if the _pwm hasn't started yet.
+                self.stop()
+        finally:
+            try:
+                self._pwm.close()
+            finally:
+                self.unlock()
 
-        self._pwm.close()
+                with local_intermittent_storage("pwm_dc") as cache:
+                    cache.pop(self.pin)
 
-        self.unlock()
+                self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 
-        with local_intermittent_storage("pwm_dc") as cache:
-            cache.pop(self.pin)
-
-        self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
-
-        if not self._external_client:
-            self.pub_client.loop_stop()
-            self.pub_client.disconnect()
+                if not self._external_client:
+                    self.pub_client.loop_stop()
+                    self.pub_client.disconnect()
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:

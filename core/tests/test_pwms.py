@@ -9,6 +9,7 @@ import pytest
 from pioreactor import pubsub
 from pioreactor.exc import PWMError
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import pwm as pwm_module
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.pwm import SoftwarePWMOutputDevice
 from pioreactor.whoami import get_unit_name
@@ -160,6 +161,25 @@ def test_software_pwm_stop_errors_raise_pwm_error(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(PWMError, match="Failed to set software PWM"):
         pwm.off()
+
+
+def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    monkeypatch.setattr(pwm_module, "is_testing_env", lambda: False)
+    exp = "test_cleanup_unlocks_even_if_stop_raises_pwm_error"
+    unit = get_unit_name()
+
+    pwm = PWM(17, 10, experiment=exp, unit=unit)
+    pwm.lock()
+    pwm.start(20)
+
+    state["raise_when_dc"] = 0.0
+
+    with pytest.raises(PWMError, match="Failed to set software PWM"):
+        pwm.clean_up()
+
+    with local_intermittent_storage("pwm_locks") as cache:
+        assert 17 not in cache
 
 
 def test_lock_is_exclusive_after_creation() -> None:

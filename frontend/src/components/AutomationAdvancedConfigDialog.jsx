@@ -133,7 +133,7 @@ export default function AutomationAdvancedConfigButton({
 
           {totalParameterCount > 0 && (
             <Typography variant="body2" component="span" gutterBottom>
-              Override your default configuration parameters from sections starting with <code>[{jobName}.]</code>. These changes only apply to this run.
+              Override your default configuration parameters from sections starting with <code>{jobName}.</code>. These changes only apply to this run.
             </Typography>
           )}
 
@@ -143,7 +143,7 @@ export default function AutomationAdvancedConfigButton({
               return (
                 <FormControl component="fieldset" sx={{ mt: 4 }} key={section}>
                   <FormLabel component="legend" sx={{ mb: 1 }} >
-                    <code>[{section}]</code>
+                    <code>{section}</code>
                   </FormLabel>
                   <div>
                     {Object.entries(sectionValues).map(([param, value]) => {
