@@ -1927,7 +1927,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           )}
 
           {selfTestDefinition && (
-            <Accordion disableGutters sx={{boxShadow: "none", "&:before": {display: "none"}}}>
+            <Accordion defaultExpanded disableGutters sx={{boxShadow: "none", "&:before": {display: "none"}}}>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
                   {renderSelfTestSummaryIcon()}
