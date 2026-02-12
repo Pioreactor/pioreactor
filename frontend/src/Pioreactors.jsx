@@ -1566,7 +1566,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                   unit={unit}
                   experiment={experiment}
                   label={label}
-                  config={config?.["temperature_automation.config"] || {}}
+                  configSections={config || {}}
                   no_skip_first_run={true}
                 />
 
@@ -1634,7 +1634,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                   unit={unit}
                   experiment={experiment}
                   label={label}
-                  config={config?.["dosing_automation.config"] || {}}
+                  configSections={config || {}}
                   maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
                   liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10}
                   threshold={modelDetails.reactor_max_fill_volume_ml}
@@ -1709,7 +1709,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                   unit={unit}
                   experiment={experiment}
                   label={label}
-                  config={config?.["led_automation.config"] || {}}
+                  configSections={config || {}}
                   no_skip_first_run={false}
                 />
                </React.Fragment>

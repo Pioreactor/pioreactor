@@ -2,6 +2,15 @@
 
 #### Breaking changes
 
+ - Turbidostat biomass signal behavior has changed in a user-visible way:
+   - The setting key is now `biomass_signal` (renamed from `biomass_signal_override`).
+   - The config moved from `[turbidostat.config]` to `[dosing_automation.turbidostat]`.
+   - Default behavior is now `biomass_signal=auto`, with selection order:
+     1. active `od_fused` estimator
+     2. active OD calibration for the configured angle (`od`)
+     3. normalized OD
+   - Users can still explicitly override `biomass_signal` in config (including via profiles), but Turbidostat now defaults to `auto`.
+   - Update scripts migrate existing values from the legacy section/key when present.
  - Renamed `/api/is_local_access_point_active` to `/api/local_access_point` (now returns `{active: <bool>}`).
  - Consolidated experiment profile routes under `/api/experiment_profiles` and `/api/experiments/<experiment>/experiment_profiles/*`. Removed `/api/contrib/experiment_profiles` and `/api/experiment_profiles/running/experiments/<experiment>`. `PATCH` now targets `/api/experiment_profiles/<filename>`.
  - Consolidated config API routes under `/api/config/*`: `/api/units/<pioreactor_unit>/configuration` is now `/api/config/units/<pioreactor_unit>`, and `/api/configs` + `/api/configs/<filename>` + `/api/configs/<filename>/history` are now `/api/config/files` + `/api/config/files/<filename>` + `/api/config/files/<filename>/history`.
@@ -18,6 +27,8 @@
  - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
  - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
  - Added inline quick-edit popovers for card settings values.
+ - Automation advanced config now discovers and displays both `[<x>_automation.config]` and per-automation sections like `[<x>_automation.<automation_name>]`, enabling section-specific overrides from the UI.
+
 
 #### Bug fixes
 
@@ -26,6 +37,7 @@
  - Fixed calibration detail pages so `Set active` / `Set inactive` waits for backend task completion before refetching, preventing stale "Set active" and missing "Active" status until manual refresh.
  - Made IR reference-noise gating in OD reading scale with the configured reading interval (baseline `std <= 0.01` at `5.0s`), including when the interval is changed at runtime.
  - Fixed Inventory model updates and active/inactive toggles to show success only after confirmed backend `2xx` responses, with explicit error feedback on failure.
+
 
 
 ### 26.2.3

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import {
   Dialog,
@@ -28,7 +28,7 @@ export default function AutomationAdvancedConfigButton({
   unit,
   experiment,
   label,
-  config = {},          // values from [jobName.config]
+  configSections = {},  // values from parsed config.ini sections
   disabled = false,
   // Dosing extras for ChangeDosingAutomationsDialog
   maxVolume,
@@ -40,35 +40,67 @@ export default function AutomationAdvancedConfigButton({
   const [values, setValues] = useState({});
   const [original, setOriginal] = useState({});
   const [openChangeDialog, setOpenChangeDialog] = useState(false);
-  const [configOverrides, setConfigOverrides] = useState({});
+  const [configOverrides, setConfigOverrides] = useState([]);
+  const baseSection = `${jobName}.config`;
+
+  const sectionNames = useMemo(() => {
+    const discoveredSections = Object.keys(configSections || {})
+      .filter((section) => section.startsWith(`${jobName}.`) && section !== baseSection)
+      .sort();
+    return [baseSection, ...discoveredSections].filter(
+      (section) => Object.keys(configSections?.[section] || {}).length > 0
+    );
+  }, [configSections, jobName, baseSection]);
 
   useEffect(() => {
     if (open) {
-      setValues(config || {});
-      setOriginal(config || {});
+      const sectionValues = Object.fromEntries(
+        sectionNames.map((section) => [section, { ...(configSections?.[section] || {}) }])
+      );
+      setValues(sectionValues);
+      setOriginal(sectionValues);
     }
-  }, [open, config]);
+  }, [open, configSections, sectionNames]);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const handleFieldChange = (param) => (e) => {
-    setValues((prev) => ({ ...prev, [param]: e.target.value }));
+  const handleFieldChange = (section, param) => (e) => {
+    setValues((prev) => ({
+      ...prev,
+      [section]: {
+        ...(prev[section] || {}),
+        [param]: e.target.value,
+      },
+    }));
   };
 
-  const handleReset = (param) => () => {
-    setValues((prev) => ({ ...prev, [param]: original[param] }));
+  const handleReset = (section, param) => () => {
+    setValues((prev) => ({
+      ...prev,
+      [section]: {
+        ...(prev[section] || {}),
+        [param]: original?.[section]?.[param],
+      },
+    }));
   };
 
   const handleStartToAutomationDialog = (e) => {
     e.preventDefault();
-    const overrides = Object.fromEntries(
-      Object.entries(values).filter(([k, v]) => original[k] !== v)
+    const overrides = Object.entries(values).flatMap(([section, params]) =>
+      Object.entries(params || {})
+        .filter(([key, value]) => original?.[section]?.[key] !== value)
+        .map(([key, value]) => [section, key, value])
     );
     setConfigOverrides(overrides);
     setOpen(false);
     setOpenChangeDialog(true);
   };
+
+  const totalParameterCount = Object.values(values || {}).reduce(
+    (count, sectionParams) => count + Object.keys(sectionParams || {}).length,
+    0
+  );
 
   return (
     <>
@@ -95,47 +127,54 @@ export default function AutomationAdvancedConfigButton({
         </DialogTitle>
 
         <DialogContent>
-          {Object.keys(values || {}).length === 0 && (
+          {totalParameterCount === 0 && (
             <Typography variant="body2" component="p" color="textSecondary">No configuration parameters found for {jobName}.</Typography>
           )}
 
-          {Object.keys(values || {}).length > 0 && (
+          {totalParameterCount > 0 && (
             <Typography variant="body2" component="span" gutterBottom>
-              Override your default configuration parameters from section <code>[{jobName + ".config"}]</code>. These changes only apply to this run.
+              Override your default configuration parameters from sections starting with <code>[{jobName}.]</code>. These changes only apply to this run.
             </Typography>
           )}
 
           <form>
-            <FormControl component="fieldset" sx={{ mt: 2 }}>
-              <FormLabel component="legend">Configuration</FormLabel>
-              <div>
-                {Object.entries(values || {}).map(([param, value]) => {
-                  const isModified = original[param] !== value;
-                  return (
-                    <TextField
-                      key={param}
-                      label={param}
-                      size="small"
-                      autoComplete="off"
-                      variant="outlined"
-                      value={value}
-                      onChange={handleFieldChange(param)}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{
-                        endAdornment: isModified && (
-                          <InputAdornment position="end">
-                            <IconButton size="small" aria-label={`Reset ${param}`} onClick={handleReset(param)}>
-                              <ReplayIcon sx={{ color: (theme) => theme.palette.warning.main }} fontSize="small" />
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                      sx={{ mt: 2, mr: 2, mb: 0, width: "25ch" }}
-                    />
-                  );
-                })}
-              </div>
-            </FormControl>
+            {sectionNames.map((section) => {
+              const sectionValues = values?.[section] || {};
+              return (
+                <FormControl component="fieldset" sx={{ mt: 4 }} key={section}>
+                  <FormLabel component="legend" sx={{ mb: 1 }} >
+                    <code>[{section}]</code>
+                  </FormLabel>
+                  <div>
+                    {Object.entries(sectionValues).map(([param, value]) => {
+                      const isModified = original?.[section]?.[param] !== value;
+                      return (
+                        <TextField
+                          key={`${section}.${param}`}
+                          label={param}
+                          size="small"
+                          autoComplete="off"
+                          variant="outlined"
+                          value={value}
+                          onChange={handleFieldChange(section, param)}
+                          InputLabelProps={{ shrink: true }}
+                          InputProps={{
+                            endAdornment: isModified && (
+                              <InputAdornment position="end">
+                                <IconButton size="small" aria-label={`Reset ${param}`} onClick={handleReset(section, param)}>
+                                  <ReplayIcon sx={{ color: (theme) => theme.palette.warning.main }} fontSize="small" />
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{ mt: 2, mr: 2, mb: 0, width: "25ch" }}
+                        />
+                      );
+                    })}
+                  </div>
+                </FormControl>
+              );
+            })}
           </form>
         </DialogContent>
 
@@ -143,7 +182,7 @@ export default function AutomationAdvancedConfigButton({
           <Button color="secondary" onClick={handleClose}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleStartToAutomationDialog} disabled={Object.keys(values || {}).length === 0}>
+          <Button variant="contained" onClick={handleStartToAutomationDialog} disabled={totalParameterCount === 0}>
             Next
           </Button>
         </DialogActions>

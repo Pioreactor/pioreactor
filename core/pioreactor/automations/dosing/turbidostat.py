@@ -34,7 +34,7 @@ class Turbidostat(DosingAutomationJob):
         self,
         exchange_volume_ml: float | str,
         target_biomass: Optional[float | str] = None,
-        biomass_signal: str = "auto",
+        biomass_signal: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -47,6 +47,13 @@ class Turbidostat(DosingAutomationJob):
 
         if target_biomass is None:
             raise ValueError("Provide a target biomass.")
+
+        if biomass_signal is None:
+            biomass_signal = config.get(
+                "dosing_automation.turbidostat",
+                "biomass_signal",
+                fallback="auto",
+            )
 
         self._set_biomass_signal(biomass_signal)
         self.target_biomass = float(target_biomass)

@@ -92,7 +92,7 @@ function ChangeDosingAutomationsDialog(props) {
       `${automationType}_automation`,
       [],
       {"automation_name": automationName, ...removeEmpty(algoSettings)},
-      props.configOverrides || {}
+      props.configOverrides || []
     )
     setOpenSnackbar(true);
     handleClose()

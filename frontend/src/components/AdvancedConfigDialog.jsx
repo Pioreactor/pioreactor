@@ -48,10 +48,10 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
   const handleStart = (e) => {
     e.preventDefault();
 
-    // Build a minimal overrides object: only send keys whose value changed
-    const overrides = Object.fromEntries(
-      Object.entries(values).filter(([k, v]) => original[k] !== v)
-    );
+    // Build section-aware overrides: [section, key, value]
+    const overrides = Object.entries(values)
+      .filter(([k, v]) => original[k] !== v)
+      .map(([parameter, value]) => [`${jobName}.config`, parameter, value]);
 
     runPioreactorJob(unit, experiment, jobName, [], {}, overrides);
 

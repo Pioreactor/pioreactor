@@ -24,6 +24,8 @@ from pioreactor.background_jobs.dosing_automation import AltMediaFractionCalcula
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.background_jobs.dosing_automation import VolumeCalculator
+from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
@@ -313,6 +315,20 @@ def test_rejects_invalid_biomass_signal_in_turbidostat() -> None:
             skip_first_run=True,
         ):
             pass
+
+
+def test_turbidostat_uses_config_default_biomass_signal() -> None:
+    experiment = "test_turbidostat_uses_config_default_biomass_signal"
+    with temporary_config_change(config, "dosing_automation.turbidostat", "biomass_signal", "od"):
+        with Turbidostat(
+            target_biomass=0.5,
+            duration=60,
+            exchange_volume_ml=0.25,
+            unit=unit,
+            experiment=experiment,
+            skip_first_run=True,
+        ) as algo:
+            assert algo.biomass_signal == "od"
 
 
 def test_turbidostat_auto_prefers_active_od_fused_estimator(monkeypatch) -> None:
