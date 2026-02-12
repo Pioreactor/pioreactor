@@ -59,10 +59,7 @@ class Thermostat(TemperatureAutomationJob):
             pass
 
         assert self.latest_temperature is not None
-        output = self.pid.update(
-            self.latest_temperature, dt=1
-        )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
-        # TOOD: 1 kinda sucks, since it's possible there is a quick succession of messages, i.e. from a network disconnect -> reconnect.
+        output = self.pid.update(self.latest_temperature, dt=self.latest_temperature_dt)
         self.update_heater_with_delta(output)
         self.logger.debug(f"PID output = {output}")
 
