@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import atexit
+import signal
+import threading
 from contextlib import contextmanager
 from contextlib import suppress
 from json import dumps
@@ -17,6 +20,7 @@ from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
+from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_assigned_experiment_name
@@ -215,6 +219,7 @@ class PWM:
         self.pin: GpioPin = pin
         self.hz = hz
         self.duty_cycle = 0.0
+        self._is_cleaned_up = False
         self._lock_id = f"{getpid()}:{id(self)}"
 
         if self.is_locked():
@@ -240,6 +245,7 @@ class PWM:
         self.logger.debug(
             f"Initialized GPIO-{self.pin} using {'hardware' if self.using_hardware else 'software'}-timing, initial frequency = {self.hz} hz."
         )
+        self._set_up_exit_protocol()
 
     @property
     def using_hardware(self) -> bool:
@@ -297,7 +303,50 @@ class PWM:
 
         self._serialize()
 
+    def _exit(self, reason: int | str, *args: Any) -> None:
+        if self._is_cleaned_up:
+            return
+
+        if isinstance(reason, int):
+            self.logger.debug(f"Exiting PWM caused by signal {signal.strsignal(reason)}.")
+        elif isinstance(reason, str):
+            self.logger.debug(f"Exiting PWM caused by {reason}.")
+
+        with suppress(Exception):
+            self.clean_up()
+
+    def _set_up_exit_protocol(self) -> None:
+        if threading.current_thread() is not threading.main_thread():
+            return
+
+        atexit.register(self._exit, "Python atexit")
+
+        # terminate command, ex: pkill, kill
+        append_signal_handlers(signal.SIGTERM, [self._exit])
+
+        # keyboard interrupt
+        append_signal_handlers(signal.SIGINT, [self._exit])
+
+        try:
+            # ssh closes
+            append_signal_handlers(
+                signal.SIGHUP,
+                [
+                    self._exit,
+                    # add a "ignore all future SIGHUPs" onto the top of the stack.
+                    lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
+                ],
+            )
+        except AttributeError:
+            # SIGHUP is only available on unix machines
+            pass
+
     def clean_up(self) -> None:
+        if self._is_cleaned_up:
+            return
+
+        self._is_cleaned_up = True
+
         try:
             with suppress(ValueError):
                 # this is thrown if the _pwm hasn't started yet.
@@ -309,7 +358,7 @@ class PWM:
                 self.unlock()
 
                 with local_intermittent_storage("pwm_dc") as cache:
-                    cache.pop(self.pin)
+                    cache.pop(self.pin, None)
 
                 self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 
@@ -352,3 +401,6 @@ class PWM:
 
     def __enter__(self) -> "PWM":
         return self
+
+    def __del__(self) -> None:
+        self._exit("Python __del__")

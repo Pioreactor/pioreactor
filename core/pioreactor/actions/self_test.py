@@ -9,7 +9,6 @@ Outputs from each test go into MQTT, and return to the command line.
 import sys
 from contextlib import nullcontext
 from json import dumps
-from threading import Thread
 from time import sleep
 from typing import Callable
 from typing import cast
@@ -177,27 +176,47 @@ def test_all_positive_correlations_between_pds_and_leds(
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
         # for led_channel in ALL_LED_CHANNELS: # we use to check all LED channels, but most users don't need to check all, also https://github.com/Pioreactor/pioreactor/issues/445
         for led_channel in [ir_led_channel]:  # fast to just check IR
-            varying_intensity_results: dict[PdChannel, list[float]] = {
-                pd_channel: [] for pd_channel in pd_channels_available
-            }
-            for intensity in INTENSITIES:
-                # turn on the LED to set intensity
-                led_intensity(
-                    {led_channel: intensity},
-                    unit=unit,
-                    experiment=experiment,
-                    verbose=False,
-                    source_of_event="self_test",
-                )
+            try:
+                varying_intensity_results: dict[PdChannel, list[float]] = {
+                    pd_channel: [] for pd_channel in pd_channels_available
+                }
+                for intensity in INTENSITIES:
+                    # turn on the LED to set intensity
+                    led_intensity(
+                        {led_channel: intensity},
+                        unit=unit,
+                        experiment=experiment,
+                        verbose=False,
+                        source_of_event="self_test",
+                    )
 
-                # record from ADC, we'll average them
-                avg_reading = average_over_raw_pd_readings(
-                    adc_reader.take_reading(),
-                    adc_reader.take_reading(),
-                    adc_reader.take_reading(),
-                )
+                    # record from ADC, we'll average them
+                    avg_reading = average_over_raw_pd_readings(
+                        adc_reader.take_reading(),
+                        adc_reader.take_reading(),
+                        adc_reader.take_reading(),
+                    )
 
-                # turn off led to cool it down
+                    # turn off led to cool it down
+                    led_intensity(
+                        {led_channel: 0},
+                        unit=unit,
+                        experiment=experiment,
+                        verbose=False,
+                        source_of_event="self_test",
+                    )
+                    sleep(intensity / 100)  # let it cool down in proportion to the intensity
+
+                    # Add to accumulating list
+                    for pd_channel in pd_channels_available:
+                        varying_intensity_results[pd_channel].append(avg_reading[pd_channel].reading)
+
+                        if avg_reading[pd_channel].reading >= 2.0:
+                            # we are probably going to saturate the PD - clearly we are detecting something though!
+                            logger.debug(
+                                f"Saw {avg_reading[pd_channel].reading:.2f} for pair pd_channel={pd_channel}, led_channel={led_channel}@intensity={intensity}. Saturation possible. No solution implemented yet! See issue #445"
+                            )
+            finally:
                 led_intensity(
                     {led_channel: 0},
                     unit=unit,
@@ -205,17 +224,6 @@ def test_all_positive_correlations_between_pds_and_leds(
                     verbose=False,
                     source_of_event="self_test",
                 )
-                sleep(intensity / 100)  # let it cool down in proportion to the intensity
-
-                # Add to accumulating list
-                for pd_channel in pd_channels_available:
-                    varying_intensity_results[pd_channel].append(avg_reading[pd_channel].reading)
-
-                    if avg_reading[pd_channel].reading >= 2.0:
-                        # we are probably going to saturate the PD - clearly we are detecting something though!
-                        logger.debug(
-                            f"Saw {avg_reading[pd_channel].reading:.2f} for pair pd_channel={pd_channel}, led_channel={led_channel}@intensity={intensity}. Saturation possible. No solution implemented yet! See issue #445"
-                        )
 
         # compute the linear correlation between the intensities and observed PD measurements
         for pd_channel in pd_channels_available:
@@ -456,52 +464,52 @@ def test_positive_correlation_between_rpm_and_stirring(
         assert measured_correlation > 0.9, f"RPM correlation not high enough: {(dcs, measured_rpms)}"
 
 
-class BatchTestRunner:
-    def __init__(self, tests_to_run: list[Callable], *test_func_args) -> None:
-        self.count_tested = 0
-        self.count_passed = 0
-        self.failed_tests: list[str] = []
-        self.tests_to_run = tests_to_run
-        self._thread = Thread(target=self._run, args=test_func_args)  # don't make me daemon: 295
+def run_tests(
+    tests_to_run: list[Callable],
+    managed_state,
+    logger: CustomLogger,
+    unit: str,
+    testing_experiment: str,
+) -> SummableDict:
+    count_tested = 0
+    count_passed = 0
+    failed_tests: list[str] = []
 
-    def start(self):
-        self._thread.start()
-        return self
+    for test in tests_to_run:
+        if managed_state.exit_event.is_set():
+            logger.info("Self-test interrupted, stopping remaining tests.")
+            break
 
-    def collect(self) -> SummableDict:
-        self._thread.join()
-        return SummableDict(
-            {
-                "count_tested": self.count_tested,
-                "count_passed": self.count_passed,
-                "failed_tests": self.failed_tests,
-            }
-        )
+        test_name = test.__name__
 
-    def _run(self, managed_state, logger: CustomLogger, unit: str, testing_experiment: str) -> None:
-        for test in self.tests_to_run:
-            test_name = test.__name__
+        success = True
+        logger.debug(f"Starting test {test_name}...")
+        try:
+            test(managed_state, logger, unit, testing_experiment)
+        except Exception as e:
+            success = False
+            logger.debug(e, exc_info=True)
+            logger.warning(f"{test_name.replace('_', ' ')}: {e}")
 
-            success = True
-            logger.debug(f"Starting test {test_name}...")
-            try:
-                test(managed_state, logger, unit, testing_experiment)
-            except Exception as e:
-                success = False
-                logger.debug(e, exc_info=True)
-                logger.warning(f"{test_name.replace('_', ' ')}: {e}")
+        logger.debug(f"{test_name}: {'✅' if success else '❌'}")
 
-            logger.debug(f"{test_name}: {'✅' if success else '❌'}")
+        count_tested += 1
+        count_passed += int(success)
+        if not success:
+            failed_tests.append(test_name)
 
-            self.count_tested += 1
-            self.count_passed += int(success)
-            if not success:
-                self.failed_tests.append(test_name)
+        managed_state.publish_setting(test_name, int(success))
 
-            managed_state.publish_setting(test_name, int(success))
+        with local_persistent_storage("self_test_results") as c:
+            c[test_name] = int(success)
 
-            with local_persistent_storage("self_test_results") as c:
-                c[test_name] = int(success)
+    return SummableDict(
+        {
+            "count_tested": count_tested,
+            "count_passed": count_passed,
+            "failed_tests": failed_tests,
+        }
+    )
 
 
 def get_failed_test_names() -> Iterator[str]:
@@ -526,21 +534,6 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
     testing_experiment = UNIVERSAL_EXPERIMENT
     logger = create_logger("self_test", unit=unit, experiment=testing_experiment)
 
-    A_TESTS = (
-        test_pioreactor_HAT_present,
-        test_detect_heating_pcb,
-        test_positive_correlation_between_temperature_and_heating,
-        test_aux_power_is_not_too_high,
-    )
-    B_TESTS = (
-        test_all_positive_correlations_between_pds_and_leds,
-        test_ambient_light_interference,
-        test_REF_is_lower_than_0_dot_256_volts,
-        test_REF_is_in_correct_position,
-        test_PD_is_near_0_volts_for_blank,
-        test_positive_correlation_between_rpm_and_stirring,
-    )
-
     with managed_lifecycle(unit, testing_experiment, "self_test") as managed_state:
         if any(
             is_pio_job_running(
@@ -562,7 +555,8 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         if k:
             tests_to_run = (name for name in tests_to_run if k in name)
 
-        functions_to_test = {vars(sys.modules[__name__])[name] for name in tuple(tests_to_run)}
+        test_names = tuple(tests_to_run)
+        functions_to_test = [vars(sys.modules[__name__])[name] for name in test_names]
 
         logger.info(f"Starting self-test. Running {len(functions_to_test)} tests.")
 
@@ -570,12 +564,16 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         for f in functions_to_test:
             managed_state.publish_setting(f.__name__, None)
 
-        # some tests can be run in parallel.
-        test_args = (managed_state, logger, unit, testing_experiment)
-        RunnerA = BatchTestRunner([f for f in A_TESTS if f in functions_to_test], *test_args).start()
-        RunnerB = BatchTestRunner([f for f in B_TESTS if f in functions_to_test], *test_args).start()
+        try:
+            results = run_tests(functions_to_test, managed_state, logger, unit, testing_experiment)
+        except KeyboardInterrupt:
+            logger.info("Self-test interrupted, waiting for cleanup.")
+            raise click.Abort()
 
-        results = RunnerA.collect() + RunnerB.collect()
+        if managed_state.exit_event.is_set():
+            logger.info("Self-test interrupted.")
+            raise click.Abort()
+
         count_tested, count_passed = results["count_tested"], results["count_passed"]
         count_failures = int(count_tested - count_passed)
 
@@ -587,7 +585,8 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
             logger.info("All tests passed ✅")
         elif count_failures > 0:
             logger.info(f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌")
-            failed_tests = "\n      ".join(f"{test_name}" for test_name in results["failed_tests"])
+            failed_test_names = cast(list[str], results["failed_tests"])
+            failed_tests = "\n      ".join(f"{test_name}" for test_name in failed_test_names)
             logger.debug(f"Failed tests:\n      {failed_tests}")
 
         return int(count_failures > 0)

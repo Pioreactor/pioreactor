@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 # test_pwms
 import json
+import signal
 import sys
 import time
 import types
+from typing import Any
 
 import pytest
 from pioreactor import pubsub
@@ -106,7 +108,7 @@ def test_pwm_update_mqtt_multiple_at_one() -> None:
 
 
 def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, float | list[float] | None]:
-    fake_lgpio = types.ModuleType("lgpio")
+    fake_lgpio: Any = types.ModuleType("lgpio")
 
     class FakeLgpioError(Exception):
         pass
@@ -180,6 +182,45 @@ def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.Monke
 
     with local_intermittent_storage("pwm_locks") as cache:
         assert 17 not in cache
+
+
+def test_exit_path_cleans_up_pwm_to_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    monkeypatch.setattr(pwm_module, "is_testing_env", lambda: False)
+    exp = "test_exit_path_cleans_up_pwm_to_zero"
+    unit = get_unit_name()
+
+    pwm = PWM(17, 10, experiment=exp, unit=unit)
+    pwm.lock()
+    pwm.start(20)
+    pwm._exit(signal.SIGHUP)
+
+    tx_calls = state["tx_calls"]
+    assert isinstance(tx_calls, list)
+    assert tx_calls[-1] == 0.0
+
+    with local_intermittent_storage("pwm_locks") as cache:
+        assert 17 not in cache
+
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert 17 not in cache
+
+
+def test_cleanup_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    monkeypatch.setattr(pwm_module, "is_testing_env", lambda: False)
+    exp = "test_cleanup_is_idempotent"
+    unit = get_unit_name()
+
+    pwm = PWM(17, 10, experiment=exp, unit=unit)
+    pwm.lock()
+    pwm.start(20)
+    pwm.clean_up()
+    pwm.clean_up()
+
+    tx_calls = state["tx_calls"]
+    assert isinstance(tx_calls, list)
+    assert tx_calls[-1] == 0.0
 
 
 def test_lock_is_exclusive_after_creation() -> None:

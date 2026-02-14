@@ -538,6 +538,11 @@ class Stirrer(BackgroundJobWithDodging):
     def set_duty_cycle(self, value: float) -> None:
         with self.duty_cycle_lock:
             self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
+
+            # exit if not ready
+            if self.state is not st.READY:
+                return
+
             self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value: float) -> None:
@@ -546,11 +551,16 @@ class Stirrer(BackgroundJobWithDodging):
             raise ValueError("Can't set target RPM when no RPM measurement is being made")
 
         self.target_rpm = clamp(0.0, float(value), 5_000.0)
+        self.pid.set_setpoint(self.target_rpm)
 
         if self.target_rpm == 0:
             self._estimate_duty_cycle = 0
         else:
             self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
+
+        # exit if not ready
+        if self.state is not st.READY:
+            return
 
         if self.duty_cycle == 0:
             # we are currently _not_ moving, need to kick for a moment.
@@ -558,7 +568,6 @@ class Stirrer(BackgroundJobWithDodging):
             sleep(0.35)
 
         self.set_duty_cycle(self._estimate_duty_cycle)
-        self.pid.set_setpoint(self.target_rpm)
 
     def sleep_if_ready(self, seconds):
         if self.state is st.READY:
