@@ -33,6 +33,7 @@
 #### Bug fixes
 
  - Actually use the `duration_between_led_off_and_od_reading` config.
+ - OD reading now uses a trimmed-mean + prior smoother on ADS1114-based units (v1.5s), while keeping sinusoidal regression on non-ADS1114 units where AC hum is present. This also skips unnecessary AC frequency detection on ADS1114 channels.
  - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared (and wrong) `config_$broadcast.ini` path.
  - Bumped rpi_hardware_pwm to avoid a race condition setting up PWMs.
  - Fixed calibration detail pages so `Set active` / `Set inactive` waits for backend task completion before refetching, preventing stale "Set active" and missing "Active" status until manual refresh.
