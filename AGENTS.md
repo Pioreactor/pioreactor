@@ -33,10 +33,10 @@ This repository contains the **executable code for the Pioreactor project**. It 
   Typed message structures for MQTT communication—such as `ODReadings`, `DosingEvent`, and `CalibrationBase`—are defined in `core/pioreactor/structs.py`.
 
 * **Version and Device Info**
-  Software version and hardware detection logic reside in `pioreactor/version.py`, exposing `__version__` and helper functions like `get_hardware_version()`.
+  Software version and hardware detection logic reside in `core/pioreactor/version.py`, exposing `__version__` and helper functions like `get_hardware_version()`.
 
 * **Plugin System**
-  Additional functionality can be loaded via Python entry points or drop-in `.py` files under `~/.pioreactor/plugins`. Plugins are discovered and registered in `pioreactor/plugin_management/__init__.py`.
+  Additional functionality can be loaded via Python entry points or drop-in `.py` files under `~/.pioreactor/plugins`. Plugins are discovered and registered in `core/pioreactor/plugin_management/__init__.py`.
 
 * **Web API and UI**
   The `core/pioreactor/web/` directory includes our APIs and built frontend React projects.
@@ -108,7 +108,7 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
 * Keep mypy green:
 
   ```bash
-  .venv/bin/mypy core/pioreactor
+  .venv/bin/mypy core/pioreactor --ignore-missing-imports
   ```
 ---
 
@@ -135,13 +135,10 @@ When searching the repo, exclude these directories:
 
 * `core/tests/data/`
 * `core/update_scripts/`
-* `migration_scripts/`
-* `tests/data`
-* `update_scripts/`
-* `experiments/`
-* `jupyer_notebooks/`
+* `core/tests/data`
+* `core/experiments/`
 
-Also exclude all `CHANGELOG.md` files.
+Also exclude  `CHANGELOG.md` files.
 
 ---
 

@@ -82,6 +82,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
         fake_data=is_testing_env(),
         experiment=experiment,
         calibration=False,
+        estimator=False,
     ) as od_stream:
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
@@ -372,6 +373,7 @@ def test_PD_is_near_0_volts_for_blank(
             fake_data=is_testing_env(),
             experiment=experiment,
             calibration=False,
+            estimator=False,
         ) as od_stream:
             for i, reading in enumerate(od_stream, start=1):
                 signals.append(reading.ods[channel].od)

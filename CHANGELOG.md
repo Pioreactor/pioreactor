@@ -39,6 +39,7 @@
  - Made IR reference-noise gating in OD reading scale with the configured reading interval (baseline `std <= 0.01` at `5.0s`), including when the interval is changed at runtime.
  - Fixed Inventory model updates and active/inactive toggles to show success only after confirmed backend `2xx` responses, with explicit error feedback on failure.
  - Fixed changing RPM during a paused stirring would start stirring again.
+ - `self_test` cleans up better when interrupted
 
 
 
