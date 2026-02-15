@@ -162,7 +162,7 @@ class ADS1114_ADC:
     Notes:
       * ADS1114 has a *single* input pair (AIN0, AIN1). For single-ended reads,
         tie AIN1 to GND in hardware and read AIN0.
-      * This driver uses single-shot conversions by default.
+      * This driver runs in continuous-conversion mode to minimize I2C traffic.
 
     """
 
@@ -234,7 +234,9 @@ class ADS1114_ADC:
         self.adc_channel = adc_channel
         # Cache current DR and PGA fields
         self._dr_bits = self._DR_CODE[self.DATA_RATE]
-        self.set_ads_gain(self.gain)  # also writes base config
+        self._seconds_per_conversion = 1.0 / float(self.DATA_RATE)
+        self._next_conversion_ready_at = 0.0
+        self.set_ads_gain(self.gain)  # also writes continuous-mode config
 
     def check_on_gain(self, value, tol: float = 0.85) -> None:
         # Auto-select gain that keeps the value inside a comfortable portion of its FSR
@@ -244,13 +246,16 @@ class ADS1114_ADC:
                 break
 
     def set_ads_gain(self, gain: float) -> None:
-        """Apply a new PGA gain (updates device CONFIG)."""
+        """Apply a new PGA gain and keep ADC in continuous-conversion mode."""
         gain = float(gain)
         if gain not in self._PGA_BITS:
             raise ValueError(f"Unsupported ADS1114 gain: {gain}")
         self.gain = gain
-        cfg = self._build_config(start=False)  # do not start a conversion here
+        cfg = self._build_config()
         self._write_register(self._CONFIG, cfg)
+        # First conversion after a reconfiguration may still reflect old settings.
+        # Ensure next read waits for one full conversion period.
+        self._next_conversion_ready_at = time.monotonic() + self._seconds_per_conversion
 
     def from_voltage_to_raw(self, voltage):
         # 16-bit two's complement, FS code = +32767 for +FS
@@ -264,40 +269,26 @@ class ADS1114_ADC:
 
     def read_from_channel(self) -> int:
         """
-        Trigger a single conversion and return the raw 16-bit signed integer.
+        Read conversion register and return raw 16-bit signed integer.
 
         ADS1114 has only one channel pair (AIN0-AIN1). `channel` is ignored but
         kept for interface compatibility with other ADCs.
         """
-        # Start a single-shot (or update continuous) conversion
-        cfg = self._build_config(start=True)
-        self._write_register(self._CONFIG, cfg)
-
-        # Poll OS bit (Config[15]) until conversion completes
-        # At 128 SPS, max ~7.8 ms; include a tiny sleep to avoid busy loop
-        for _ in range(50):
-            if self._read_config_ready():
-                break
-            time.sleep(0.001)
-        else:
-            # If we somehow never saw OS=1, fall through and still read conversion
-            pass
+        wait_s = self._next_conversion_ready_at - time.monotonic()
+        if wait_s > 0:
+            time.sleep(wait_s)
 
         # Read conversion register (MSB first), convert to signed
         msb, lsb = self._bus.read_i2c_block_data(self.i2c_addr, self._CONVERSION, 2)
+        self._next_conversion_ready_at = time.monotonic() + self._seconds_per_conversion
         value = struct.unpack(">h", bytes((msb, lsb)))[0]
         return int(value)
 
     # --- Private helpers ---
 
-    def _read_config_ready(self) -> bool:
-        msb, lsb = self._bus.read_i2c_block_data(self.i2c_addr, self._CONFIG, 2)
-        cfg = (msb << 8) | lsb
-        return bool(cfg & (1 << 15))  # OS bit
-
-    def _build_config(self, *, start: bool) -> int:
-        # Bit 15: OS (write 1 to start in single-shot, reads back 0 while converting)
-        os_bit = 1 if start else 0
+    def _build_config(self) -> int:
+        # Bit 15: OS (single-shot control). For continuous mode, leave low.
+        os_bit = 0
 
         # Bits 14:12 are RESERVED on ADS1114 -> write 000b
         reserved_14_12 = 0
@@ -306,7 +297,7 @@ class ADS1114_ADC:
         pga_bits = self._PGA_BITS[self.gain] & 0b111
 
         # MODE bit [8]: 1 = single-shot, 0 = continuous
-        mode_bit = 1
+        mode_bit = 0
 
         # DR bits [7:5]
         dr_bits = self._dr_bits & 0b111
