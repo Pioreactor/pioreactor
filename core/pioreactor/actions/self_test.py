@@ -6,7 +6,9 @@ Functions with prefix `test_` are ran, and any exception thrown means the test f
 
 Outputs from each test go into MQTT, and return to the command line.
 """
+import signal
 import sys
+from contextlib import contextmanager
 from contextlib import nullcontext
 from json import dumps
 from time import sleep
@@ -51,6 +53,33 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 if is_testing_env():
     from pioreactor.utils.mock import MockRpmCalculator
+
+
+SELF_TEST_TIMEOUT_SECONDS = 180.0
+
+
+class SelfTestTimedOut(TimeoutError):
+    pass
+
+
+@contextmanager
+def timeout_self_test(test_name: str, timeout_seconds: float) -> Iterator[None]:
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.getitimer(signal.ITIMER_REAL)
+
+    def alarm_handler(_signum, _frame) -> None:
+        raise SelfTestTimedOut(f"{test_name} timed out after {SELF_TEST_TIMEOUT_SECONDS}s.")
+
+    signal.signal(signal.SIGALRM, alarm_handler)
+    signal.setitimer(signal.ITIMER_REAL, timeout_seconds)
+
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0.0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        if previous_timer[0] > 0.0 or previous_timer[1] > 0.0:
+            signal.setitimer(signal.ITIMER_REAL, previous_timer[0], previous_timer[1])
 
 
 def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
@@ -487,7 +516,11 @@ def run_tests(
         success = True
         logger.debug(f"Starting test {test_name}...")
         try:
-            test(managed_state, logger, unit, testing_experiment)
+            with timeout_self_test(test_name, SELF_TEST_TIMEOUT_SECONDS):
+                test(managed_state, logger, unit, testing_experiment)
+        except SelfTestTimedOut as e:
+            success = False
+            logger.warning(str(e))
         except Exception as e:
             success = False
             logger.debug(e, exc_info=True)
