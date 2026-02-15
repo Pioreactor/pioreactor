@@ -284,7 +284,7 @@ class ADCReader(LoggerMixin):
             self.logger.debug(f"TUNE STEP: {aggregated_signals=}")
 
         for channel in self.channels:
-            if self.most_appropriate_AC_hz is None:
+            if self.most_appropriate_AC_hz is None and not self._is_ads1114_channel(channel):
                 self.most_appropriate_AC_hz = self.determine_most_appropriate_AC_hz(
                     timestamps, aggregated_signals
                 )
@@ -425,11 +425,8 @@ class ADCReader(LoggerMixin):
 
         assert len(x) == len(y), "shape mismatch"
 
-        # remove the max and min values.
-        argmin_y_, argmax_y_ = argextrema(y)
-
-        x = [v for (i, v) in enumerate(x) if (i != argmin_y_) and (i != argmax_y_)]
-        y = [v for (i, v) in enumerate(y) if (i != argmin_y_) and (i != argmax_y_)]
+        y, removed_indices = self._trim_extrema(y)
+        x = [v for i, v in enumerate(x) if i not in removed_indices]
 
         x_ = np.asarray(x)
         y_ = np.asarray(y)
@@ -471,7 +468,7 @@ class ADCReader(LoggerMixin):
             self.logger.error(f"Error in regression. {e}")
             self.logger.debug(f"{x=}")
             self.logger.debug(f"{y=}")
-            return (y_.mean(), None, None), 1e10
+            return (float(y_.mean()) if y_.size else 0.0, None, None), 1e10
 
         y_model = C + b * np.sin(freq * tau * x_) + c * np.cos(freq * tau * x_)
         SSE = np.sum((y_ - y_model) ** 2)
@@ -489,6 +486,35 @@ class ADCReader(LoggerMixin):
             phi = np.arcsin(c / np.sqrt(b**2 + c**2))
 
         return (float(C), float(A), float(phi)), AIC
+
+    def _is_ads1114_channel(self, channel: pt.PdChannel) -> bool:
+        return isinstance(self.adcs[channel], madcs.ADS1114_ADC)
+
+    @staticmethod
+    def _trim_extrema(values: list[pt.AnalogValue]) -> tuple[list[pt.AnalogValue], set[int]]:
+        if len(values) <= 2:
+            return values, set()
+
+        argmin_y_, argmax_y_ = argextrema(values)
+        removed_indices = {argmin_y_, argmax_y_}
+        return [v for i, v in enumerate(values) if i not in removed_indices], removed_indices
+
+    def _simple_trimmed_mean_with_prior(
+        self,
+        y: list[pt.AnalogValue],
+        prior_C: Optional[pt.AnalogValue] = None,
+        penalizer_C: Optional[pt.AnalogValue] = 0,
+    ) -> pt.AnalogValue:
+        y_, _ = self._trim_extrema(y)
+        n = len(y_)
+
+        if n == 0:
+            return 0.0
+
+        trimmed_mean = mean(y_)
+        if prior_C is not None and penalizer_C:
+            return (n * trimmed_mean + penalizer_C * prior_C) / (n + penalizer_C)
+        return trimmed_mean
 
     def clear_batched_readings(self) -> None:
         """
@@ -548,7 +574,20 @@ class ADCReader(LoggerMixin):
                     aggregated_signals[channel], self.adc_offsets.get(channel, 0.0)
                 )
 
-                if self.most_appropriate_AC_hz is not None:
+                prior_C = (
+                    self.adcs[channel].from_voltage_to_raw_precise(self.batched_readings[channel].reading)
+                    if (channel in self.batched_readings)
+                    else None
+                )
+                penalizer_C = self.penalizer * self.oversampling_count
+
+                if self._is_ads1114_channel(channel):
+                    best_estimate_of_signal_ = self._simple_trimmed_mean_with_prior(
+                        shifted_signals,
+                        prior_C=prior_C,
+                        penalizer_C=penalizer_C,
+                    )
+                elif self.most_appropriate_AC_hz is not None:
                     (
                         best_estimate_of_signal_,
                         *_other_param_estimates,
@@ -556,16 +595,8 @@ class ADCReader(LoggerMixin):
                         timestamps[channel],
                         shifted_signals,
                         self.most_appropriate_AC_hz,
-                        prior_C=(
-                            (
-                                self.adcs[channel].from_voltage_to_raw_precise(
-                                    self.batched_readings[channel].reading
-                                )
-                            )
-                            if (channel in self.batched_readings)
-                            else None
-                        ),
-                        penalizer_C=(self.penalizer * self.oversampling_count),
+                        prior_C=prior_C,
+                        penalizer_C=penalizer_C,
                     )
 
                 else:

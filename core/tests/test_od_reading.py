@@ -628,6 +628,15 @@ def test_sin_regression_with_strong_penalizer() -> None:
     assert abs(C - 125) < 0.01
 
 
+def test_simple_trimmed_mean_with_prior() -> None:
+    adc_reader = ADCReader(channels=[])
+    y = [1.0, 2.0, 100.0, 3.0, 4.0]
+    expected = (3 * 3.0 + 3 * 10.0) / (3 + 3)
+    assert adc_reader._simple_trimmed_mean_with_prior(y, prior_C=10.0, penalizer_C=3.0) == pytest.approx(
+        expected
+    )
+
+
 def test_ADC_picks_to_correct_freq() -> None:
     actual_freq = 50.0
 
