@@ -11,7 +11,7 @@ fields:
     label: Target
     type: numeric
   - key: exchange_volume_ml
-    default: 1.0
+    default: null
     unit: mL
     label: Exchange volume
     type: numeric

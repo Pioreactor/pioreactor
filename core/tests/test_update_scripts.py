@@ -82,7 +82,7 @@ def test_no_restarting_huey_service() -> None:
 def test_crudini_uses_venv_binary() -> None:
     scripts = find_shell_scripts(SCRIPT_DIRECTORY)
     error_msgs = []
-    crudini_pattern = re.compile(r"(^|[^/\w-])crudini(\s|$)")
+    crudini_pattern = re.compile(r"(^|[^-\w])(?:.*/)?crudini(\s|$)")
 
     for script in scripts:
         with open(script, "r") as file:
@@ -90,9 +90,9 @@ def test_crudini_uses_venv_binary() -> None:
                 if line.lstrip().startswith("#"):  # comment
                     continue
 
-                if crudini_pattern.search(line) and "/opt/pioreactor/venv/crudini" not in line:
+                if crudini_pattern.search(line) and "/opt/pioreactor/venv/bin/crudini" not in line:
                     error_msgs.append(
-                        f"Error in {script} at line {line_number}: 'crudini' must be invoked via '/opt/pioreactor/venv/crudini'."
+                        f"Error in {script} at line {line_number}: 'crudini' must be invoked via '/opt/pioreactor/venv/bin/crudini'."
                     )
 
     assert not error_msgs, "\n".join(error_msgs)
