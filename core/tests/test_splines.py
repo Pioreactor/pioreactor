@@ -5,8 +5,11 @@ import numpy as np
 import pytest
 from pioreactor import structs
 from pioreactor.utils.splines import spline_eval
+from pioreactor.utils.splines import spline_eval_derivative
 from pioreactor.utils.splines import spline_fit
+from pioreactor.utils.splines import spline_fit_interpolating
 from pioreactor.utils.splines import spline_solve
+from scipy.interpolate import CubicSpline
 
 
 def _spline_data(knots: list[float], coefficients: list[list[float]]) -> structs.SplineFitData:
@@ -215,3 +218,31 @@ def test_spline_fit_od_data_reduces_error_vs_poly() -> None:
     poly_mse = np.mean((poly_preds - np.array(voltages)) ** 2)
 
     assert spline_mse <= poly_mse
+
+
+def test_spline_eval_matches_scipy_natural_cubic_spline() -> None:
+    x = np.array([0.0, 0.4, 1.0, 1.8, 2.6, 3.1, 4.0])
+    y = np.array([1.0, 0.8, 1.4, 1.1, 0.3, 0.6, 1.2])
+
+    spline_data = spline_fit_interpolating(x.tolist(), y.tolist())
+    scipy_spline = CubicSpline(x, y, bc_type="natural")
+
+    x_grid = np.linspace(x.min() - 0.5, x.max() + 0.5, 300)
+    ours = np.array([spline_eval(spline_data, float(xi)) for xi in x_grid])
+    theirs = scipy_spline(x_grid)
+
+    assert np.allclose(ours, theirs, rtol=1e-10, atol=1e-10)
+
+
+def test_spline_eval_derivative_matches_scipy_natural_cubic_spline() -> None:
+    x = np.array([0.0, 0.4, 1.0, 1.8, 2.6, 3.1, 4.0])
+    y = np.array([1.0, 0.8, 1.4, 1.1, 0.3, 0.6, 1.2])
+
+    spline_data = spline_fit_interpolating(x.tolist(), y.tolist())
+    scipy_spline = CubicSpline(x, y, bc_type="natural")
+
+    x_grid = np.linspace(x.min() - 0.5, x.max() + 0.5, 300)
+    ours = np.array([spline_eval_derivative(spline_data, float(xi)) for xi in x_grid])
+    theirs = scipy_spline(x_grid, 1)
+
+    assert np.allclose(ours, theirs, rtol=1e-10, atol=1e-10)
