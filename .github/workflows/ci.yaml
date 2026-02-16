@@ -160,12 +160,14 @@ jobs:
           make web-dev &
           sleep 5
 
-      - name: Run tests
+      - name: Run fast tests
         run: |
-          export PLUGINS_DEV="${PLUGINS_DEV:-$GITHUB_WORKSPACE/plugins_dev}"
-          echo "Running fast test"
           make fast-test
-          echo "Running slow test"
+
+      - name: Run slow tests
+        run: |
           make slow-test
-          echo "Running flakey test"
+
+      - name: Run flakey tests
+        run: |
           make flakey-test || true
