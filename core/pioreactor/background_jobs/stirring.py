@@ -485,7 +485,8 @@ class Stirrer(BackgroundJobWithDodging):
             timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
         )
 
-        if recent_rpm == 0 and self.state is st.READY:  # and not is_testing_env():
+        target_rpm = self.target_rpm or 0
+        if recent_rpm == 0 and self.state is st.READY and target_rpm > 0:  # and not is_testing_env():
             self.logger.warning(
                 "Stirring RPM is 0 - attempting to restart it automatically. It may be a temporary stall, target RPM may be too low, insufficient power applied to fan, or not reading sensor correctly."
             )
