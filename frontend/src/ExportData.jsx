@@ -288,7 +288,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
   );
 };
 
-const Datasets = ({ datasets, selectedDatasets, handleChange, onSelectAll }) => {
+const Datasets = ({ datasets, selectedDatasets, handleChange }) => {
   return (
     <Box sx={{ m: 1 }}>
       <FormControl component="fieldset">
@@ -296,17 +296,6 @@ const Datasets = ({ datasets, selectedDatasets, handleChange, onSelectAll }) => 
           <Box fontWeight="fontWeightRegular">Available datasets</Box>
         </Typography>
         <FormGroup>
-          <FormControlLabel
-            control={<Checkbox
-              checked={datasets.length > 0 && selectedDatasets.length === datasets.length}
-              onChange={onSelectAll}
-              name="select_all"
-              sx={{ml: 3, my: 1}}
-            />}
-            label={<Typography component="span" fontStyle="italic">
-  Select all
-</Typography>}
-          />
           {datasets.map((dataset) => (
             <Dataset
               key={dataset.dataset_name}
@@ -407,15 +396,6 @@ function ExportDataContainer() {
         : prevState.selectedDatasets.filter((item) => item !== name),
     }));
   };
-
-  const handleSelectAll = (event) => {
-    const { checked } = event.target;
-    setState(prevState => ({
-      ...prevState,
-      selectedDatasets: checked ? datasets.map(d => d.dataset_name) : [],
-    }));
-  };
-
 
   function handleExperimentSelectionChange(experiments) {
     setState(prevState => ({
@@ -561,7 +541,6 @@ function ExportDataContainer() {
                 <Datasets
                   selectedDatasets={state.selectedDatasets}
                   handleChange={handleCheckboxChange}
-                  onSelectAll={handleSelectAll}
                   datasets={datasets}
                 />
               </Grid>

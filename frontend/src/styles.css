@@ -75,6 +75,7 @@ u {
   margin: auto 7px auto 0px;
 }
 
-.readonlyEditor textarea {
-  outline: 0;
+.readonlyEditor textarea:focus-visible {
+  outline: 2px solid #5331ca;
+  outline-offset: 2px;
 }

@@ -31,6 +31,10 @@ function ExperimentSummaryForm(props) {
   const [description, setDescription] = React.useState("");
   const [historicalExperiments, setHistoricalExperiments] = React.useState({});
   const [loading, setLoading] = React.useState(false);
+  const trimmedExpName = expName.trim();
+  const hasInvalidCharacters = trimmedExpName.includes("#") || trimmedExpName.includes("+") || trimmedExpName.includes("/") || trimmedExpName.includes("$") || trimmedExpName.includes("%") || trimmedExpName.includes("\\");
+  const nameAlreadyUsed = trimmedExpName in historicalExperiments;
+  const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
 
   React.useEffect(() => {
     function getHistoricalExperiments() {
@@ -66,20 +70,20 @@ function ExperimentSummaryForm(props) {
     e.preventDefault();
     setLoading(true)
 
-    if (expName === ""){
+    if (trimmedExpName === ""){
       setFormError(true)
       setHelperText("Can't be blank.")
       setLoading(false)
       return
     }
-    else if (expName.includes("#") || expName.includes("+") || expName.includes("/")|| expName.includes("$")|| expName.includes("%")|| expName.includes("\\")) {
+    else if (hasInvalidCharacters) {
       setFormError(true)
       setHelperText("Can't use $, %, #,\\, / or + characters in experiment name.")
       setLoading(false)
       return
     }
 
-    const experimentMetadata = {experiment: expName.trim(), created_at: timestamp.toISOString(), description: description,  delta_hours: 0}
+    const experimentMetadata = {experiment: trimmedExpName, created_at: timestamp.toISOString(), description: description,  delta_hours: 0}
 
     fetch('/api/experiments', {
         method: "POST",
@@ -104,16 +108,22 @@ function ExperimentSummaryForm(props) {
             .json()
             .then((json) => {
                if (json && json.error) {
-                setHelperText(json.error);
+                setHelperText(`${json.error} Please retry.`);
               } else {
-                setHelperText("Server error. See UI logs.");
+                setHelperText("Server error while creating experiment. Please retry or check UI logs.");
               }
             })
             .catch(() => {
-              setHelperText("Server error. See UI logs.");
+              setHelperText("Server error while creating experiment. Please retry or check UI logs.");
             });
           setFormError(true);
         }
+      })
+      .catch(() => {
+        setFormError(true);
+        setHelperText("Network error while creating experiment. Check your connection and retry.");
+      })
+      .finally(() => {
         setLoading(false)
       })
   }
@@ -203,7 +213,7 @@ function ExperimentSummaryForm(props) {
                 onClick={onSubmit}
                 endIcon={<SaveIcon />}
                 style={{textTransform: 'none'}}
-                disabled={(expName==="") || formError}
+                disabled={hasBlockingValidationError}
                 loading={loading}
                 loadingPosition="end"
               >

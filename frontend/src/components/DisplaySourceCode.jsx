@@ -42,7 +42,6 @@ const DisplaySourceCode = ({ sourceCode }) => {
             fontSize: "14px",
             fontFamily: 'monospace',
             borderRadius: "3px",
-            outline: 0,
           }}
         />
       </StyledCardContent>
