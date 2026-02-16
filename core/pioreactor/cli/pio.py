@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import subprocess
 from os import geteuid
 from pathlib import Path
@@ -27,11 +28,32 @@ if whoami.am_I_leader():
     lazy_subcommands["experiments"] = "pioreactor.cli.experiments.experiments"
 
 
+GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,40}$")
+
+
+def validate_git_sha(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+
+    cleaned_value = value.strip()
+    if not GIT_SHA_PATTERN.fullmatch(cleaned_value):
+        raise click.BadParameter("Expected a commit SHA (7 to 40 hexadecimal characters).")
+
+    return cleaned_value.lower()
+
+
+def validate_git_sha_option(
+    _ctx: click.Context, _param: click.Parameter, value: Optional[str]
+) -> Optional[str]:
+    return validate_git_sha(value)
+
+
 def get_update_app_commands(
     branch: Optional[str],
     repo: str,
     source: Optional[str],
     version: Optional[str],
+    sha: Optional[str] = None,
     no_deps: bool = False,
     defer_web_restart: bool = False,
 ) -> tuple[list[tuple[str, float]], str]:
@@ -45,7 +67,8 @@ def get_update_app_commands(
     from pioreactor.utils.networking import is_using_local_access_point
 
     commands_and_priority: list[tuple[str, float]] = []
-    # source overrides branch/version
+    sha = validate_git_sha(sha)
+    # source overrides branch/version/sha
     if source is not None:
         source = quote(source)
         if re.search(r"release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$", source):
@@ -101,15 +124,17 @@ def get_update_app_commands(
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             raise click.Abort()
-    elif branch is not None:
-        cleaned_branch = quote(branch)
+    elif branch is not None or sha is not None:
+        git_ref = branch if branch is not None else sha
+        assert git_ref is not None
+        cleaned_ref = quote(git_ref)
         cleaned_repo = quote(repo)
-        version_installed = cleaned_branch
+        version_installed = cleaned_ref
         no_deps_flag = "--no-deps " if no_deps else ""
         commands_and_priority.append(
             (
                 f"/opt/pioreactor/venv/bin/pip install --force-reinstall {no_deps_flag}--index-url https://piwheels.org/simple --extra-index-url https://pypi.org/simple "
-                f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"',
+                f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_ref}#subdirectory=core"',
                 1,
             )  # noqa: E501
         )
@@ -923,8 +948,9 @@ def update_settings(ctx, job: str) -> None:
 @pio.group(invoke_without_command=True)
 @click.option("-s", "--source", help="use a URL, whl file, or release-***.zip file")
 @click.option("-b", "--branch", help="specify a branch")
+@click.option("--sha", callback=validate_git_sha_option, help="specify a commit SHA")
 @click.pass_context
-def update(ctx, source: Optional[str], branch: Optional[str]) -> None:
+def update(ctx, source: Optional[str], branch: Optional[str], sha: Optional[str]) -> None:
     """
     update software for the app (it's an alias for pio update app)
     """
@@ -932,8 +958,10 @@ def update(ctx, source: Optional[str], branch: Optional[str]) -> None:
         # run update app
         if source is not None:
             ctx.invoke(update_app, source=source)
-        else:
+        elif branch is not None:
             ctx.invoke(update_app, branch=branch)
+        else:
+            ctx.invoke(update_app, sha=sha)
 
 
 def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
@@ -1001,11 +1029,12 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 
 @update.command(name="app")
 @click.option("-b", "--branch", help="install from a branch on github")
+@click.option("--sha", callback=validate_git_sha_option, help="install from a commit SHA on github")
 @click.option(
     "--no-deps",
     is_flag=True,
     default=False,
-    help="skip dependency resolution for branch updates",
+    help="skip dependency resolution for branch/SHA updates",
 )
 @click.option(
     "-r",
@@ -1023,6 +1052,7 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 )
 def update_app(
     branch: Optional[str],
+    sha: Optional[str],
     no_deps: bool,
     repo: str,
     source: Optional[str],
@@ -1039,8 +1069,9 @@ def update_app(
     # initialize logger and build commands based on input parameters
     logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     logger.debug(
-        "Starting app update. branch=%s repo=%s source=%s version=%s no_deps=%s defer_web_restart=%s",
+        "Starting app update. branch=%s sha=%s repo=%s source=%s version=%s no_deps=%s defer_web_restart=%s",
         branch,
+        sha,
         repo,
         source,
         version,
@@ -1052,6 +1083,7 @@ def update_app(
         repo,
         source,
         version,
+        sha=sha,
         no_deps=no_deps,
         defer_web_restart=defer_web_restart,
     )

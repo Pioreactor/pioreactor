@@ -65,6 +65,27 @@ def test_app_commands_with_branch() -> None:
     assert cmds == [expected]
 
 
+def test_app_commands_with_sha() -> None:
+    sha = "a0b1c2d3e4f56789a0b1c2d3e4f56789a0b1c2d3"
+    repo = "org/repo"
+    cmds, version = get_update_app_commands(
+        branch=None,
+        sha=sha,
+        repo=repo,
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+    assert version == sha
+    expected = (
+        "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
+        "--extra-index-url https://pypi.org/simple "
+        f'"pioreactor[leader_worker] @ git+https://github.com/{repo}.git@{sha}#subdirectory=core"',
+        1,
+    )
+    assert cmds == [expected]
+
+
 def test_app_commands_with_release_zip(tmp_path) -> None:
     version = "1.2.3"
     # construct a source path matching release zip pattern
@@ -106,6 +127,17 @@ def test_app_commands_invalid_source(capsys) -> None:
         get_update_app_commands(branch=None, repo="org/repo", source=bad_source, version=None)
     captured = capsys.readouterr()
     assert "Not a valid source file" in captured.out
+
+
+def test_app_commands_invalid_sha() -> None:
+    with pytest.raises(click.BadParameter):
+        get_update_app_commands(
+            branch=None,
+            sha="not-a-sha",
+            repo="org/repo",
+            source=None,
+            version=None,
+        )
 
 
 def test_app_commands_branch_with_special_chars() -> None:

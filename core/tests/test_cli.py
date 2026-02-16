@@ -292,6 +292,36 @@ def test_pios_run_requests_with_experiments(active_workers_in_cluster) -> None:
     assert sorted(req.url for req in bucket) == sorted(expected_urls)
 
 
+def test_pios_update_requests_with_sha() -> None:
+    runner = CliRunner()
+    git_sha = "a0b1c2d3"
+    with capture_requests() as bucket:
+        result = runner.invoke(pios, ["update", "--sha", git_sha, "-y"])
+
+    assert result.exit_code == 0
+    update_requests = [req for req in bucket if req.path == "/unit_api/system/update"]
+    assert len(update_requests) >= 2
+    update_urls = {req.url for req in update_requests}
+    assert "http://unit1.local:4999/unit_api/system/update" in update_urls
+    assert "http://unit2.local:4999/unit_api/system/update" in update_urls
+    assert all(req.json == {"options": {"sha": git_sha}} for req in update_requests)
+
+
+def test_pios_update_app_requests_with_sha() -> None:
+    runner = CliRunner()
+    git_sha = "a0b1c2d3"
+    with capture_requests() as bucket:
+        result = runner.invoke(pios, ["update", "app", "--sha", git_sha, "-y"])
+
+    assert result.exit_code == 0
+    update_requests = [req for req in bucket if req.path == "/unit_api/system/update/app"]
+    assert len(update_requests) >= 2
+    update_urls = {req.url for req in update_requests}
+    assert "http://unit1.local:4999/unit_api/system/update/app" in update_urls
+    assert "http://unit2.local:4999/unit_api/system/update/app" in update_urls
+    assert all(req.json == {"options": {"sha": git_sha}} for req in update_requests)
+
+
 def test_pios_kill_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(kill, allow_extra_args=True)
