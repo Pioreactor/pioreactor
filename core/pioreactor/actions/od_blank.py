@@ -49,7 +49,9 @@ def od_statistics(
         from pioreactor.background_jobs.stirring import start_stirring
 
         logger.info("Starting stirring.")
-        st = start_stirring(unit=unit, experiment=experiment, enable_dodging_od=True)
+        st = start_stirring(
+            unit=unit, experiment=experiment, enable_dodging_od=False
+        )  # don't dodge - the interval is too low.
         st.block_until_rpm_is_close_to_target(timeout=40)  # wait for stirring to be reasonable.
     else:
         st = nullcontext()  # type: ignore
