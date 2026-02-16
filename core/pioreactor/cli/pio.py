@@ -28,7 +28,7 @@ if whoami.am_I_leader():
     lazy_subcommands["experiments"] = "pioreactor.cli.experiments.experiments"
 
 
-GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,40}$")
+GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{4,40}$")
 
 
 def validate_git_sha(value: Optional[str]) -> Optional[str]:
@@ -37,7 +37,7 @@ def validate_git_sha(value: Optional[str]) -> Optional[str]:
 
     cleaned_value = value.strip()
     if not GIT_SHA_PATTERN.fullmatch(cleaned_value):
-        raise click.BadParameter("Expected a commit SHA (7 to 40 hexadecimal characters).")
+        raise click.BadParameter("Expected a commit SHA (4 to 40 hexadecimal characters).")
 
     return cleaned_value.lower()
 

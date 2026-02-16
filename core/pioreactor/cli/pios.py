@@ -35,7 +35,7 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
-GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,40}$")
+GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{4,40}$")
 
 
 def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value: str | None) -> str | None:
@@ -44,7 +44,7 @@ def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value:
 
     cleaned_value = value.strip()
     if not GIT_SHA_PATTERN.fullmatch(cleaned_value):
-        raise click.BadParameter("Expected a commit SHA (7 to 40 hexadecimal characters).")
+        raise click.BadParameter("Expected a commit SHA (4 to 40 hexadecimal characters).")
 
     return cleaned_value.lower()
 

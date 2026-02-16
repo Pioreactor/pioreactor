@@ -86,6 +86,27 @@ def test_app_commands_with_sha() -> None:
     assert cmds == [expected]
 
 
+def test_app_commands_with_4_char_sha() -> None:
+    sha = "a0b1"
+    repo = "org/repo"
+    cmds, version = get_update_app_commands(
+        branch=None,
+        sha=sha,
+        repo=repo,
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+    assert version == sha
+    expected = (
+        "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
+        "--extra-index-url https://pypi.org/simple "
+        f'"pioreactor[leader_worker] @ git+https://github.com/{repo}.git@{sha}#subdirectory=core"',
+        1,
+    )
+    assert cmds == [expected]
+
+
 def test_app_commands_with_release_zip(tmp_path) -> None:
     version = "1.2.3"
     # construct a source path matching release zip pattern
