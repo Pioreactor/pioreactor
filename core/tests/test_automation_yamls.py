@@ -77,7 +77,7 @@ def test_automations_and_their_yamls_have_the_same_data() -> None:
                 # check settings -> yaml
                 for setting, metadata in klass.published_settings.items():
                     if metadata["settable"]:
-                        assert any([f["key"] == setting for f in data["fields"]])
+                        assert any([f["key"] == setting for f in data["fields"]]), setting
 
     except Exception as e:
         print(automation_name, klass)

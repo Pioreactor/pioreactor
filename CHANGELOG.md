@@ -2,22 +2,25 @@
 
 #### Breaking changes
 
- - Turbidostat biomass signal behavior has changed in a user-visible way:
-   - The setting key is now `biomass_signal` (renamed from `biomass_signal_override`).
-   - The config moved from `[turbidostat.config]` to `[dosing_automation.turbidostat]`.
+ - Changed Turbidostat biomass signal behavior:
    - Default behavior is now `biomass_signal=auto`, with selection order:
      1. active `od_fused` estimator
      2. active OD calibration for the configured angle (`od`)
      3. normalized OD
-   - Users can still explicitly override `biomass_signal` in config (including via profiles), but Turbidostat now defaults to `auto`.
+   - You can still explicitly override `biomass_signal` in config (including via profiles).
+   - Moved config from `[turbidostat.config]` to `[dosing_automation.turbidostat]`.
    - Update scripts migrate existing values from the legacy section/key when present.
  - Renamed `/api/is_local_access_point_active` to `/api/local_access_point` (now returns `{active: <bool>}`).
- - Consolidated experiment profile routes under `/api/experiment_profiles` and `/api/experiments/<experiment>/experiment_profiles/*`. Removed `/api/contrib/experiment_profiles` and `/api/experiment_profiles/running/experiments/<experiment>`. `PATCH` now targets `/api/experiment_profiles/<filename>`.
- - Consolidated config API routes under `/api/config/*`: `/api/units/<pioreactor_unit>/configuration` is now `/api/config/units/<pioreactor_unit>`, and `/api/configs` + `/api/configs/<filename>` + `/api/configs/<filename>/history` are now `/api/config/files` + `/api/config/files/<filename>` + `/api/config/files/<filename>/history`.
+ - Consolidated experiment profile routes:
+   - Kept `/api/experiment_profiles` and `/api/experiments/<experiment>/experiment_profiles/*`.
+   - Removed `/api/contrib/experiment_profiles` and `/api/experiment_profiles/running/experiments/<experiment>`.
+   - `PATCH` now targets `/api/experiment_profiles/<filename>`.
+ - Consolidated config API routes under `/api/config/*`:
+   - `/api/units/<pioreactor_unit>/configuration` is now `/api/config/units/<pioreactor_unit>`.
+   - `/api/configs` + `/api/configs/<filename>` + `/api/configs/<filename>/history` are now `/api/config/files` + `/api/config/files/<filename>` + `/api/config/files/<filename>/history`.
  - Removed `/api/contrib/*` endpoints in favor of resource-scoped routes: `/api/automations/descriptors/<automation_type>`, `/api/jobs/descriptors`, `/api/charts/descriptors`, and `/api/datasets/exportable*`.
  - Renamed `pio jobs remove` to `pio jobs purge`.
  - Replaced `pio jobs running` with `pio jobs list running` (`list running` is now a running-only filter of `pio jobs list` output).
- - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, and "Select all" now applies consistently to all listed units.
 
 #### Enhancements
 
@@ -27,12 +30,12 @@
  - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
  - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
  - Added inline quick-edit popovers for card settings values.
+ - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, and "Select all" now applies consistently to all listed units.
  - Automation advanced config now discovers and displays both `[<x>_automation.config]` and per-automation sections like `[<x>_automation.<automation_name>]`, enabling section-specific overrides from the UI.
-
 
 #### Bug fixes
 
- - Actually use the `duration_between_led_off_and_od_reading` config.
+ - Fixed usage of the `duration_between_led_off_and_od_reading` config.
  - OD reading now uses a trimmed-mean + prior smoother on ADS1114-based units (v1.5s), while keeping sinusoidal regression on non-ADS1114 units where AC hum is present. This also skips unnecessary AC frequency detection on ADS1114 channels.
  - Simplified ADS1114 reads in `pioreactor.utils.adcs` to use continuous conversion mode, replacing per-sample config-write + ready-poll cycles with paced conversion-register reads. This reduces I2C traffic and lowers cross-process bus contention risk on ADS1114-based units.
  - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared (and wrong) `config_$broadcast.ini` path.
@@ -40,9 +43,8 @@
  - Fixed calibration detail pages so `Set active` / `Set inactive` waits for backend task completion before refetching, preventing stale "Set active" and missing "Active" status until manual refresh.
  - Made IR reference-noise gating in OD reading scale with the configured reading interval (baseline `std <= 0.01` at `5.0s`), including when the interval is changed at runtime.
  - Fixed Inventory model updates and active/inactive toggles to show success only after confirmed backend `2xx` responses, with explicit error feedback on failure.
- - Fixed changing RPM during a paused stirring would start stirring again.
- - `self_test` cleans up better when interrupted
-
+ - Fixed an issue where changing RPM while stirring was paused would restart stirring.
+ - `self_test` now cleans up better when interrupted.
 
 
 ### 26.2.3

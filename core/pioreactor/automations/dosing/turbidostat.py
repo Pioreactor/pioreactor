@@ -22,8 +22,8 @@ class Turbidostat(DosingAutomationJob):
     automation_name = "turbidostat"
     published_settings = {
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
-        "target_biomass": {"datatype": "float", "settable": True},
-        "biomass_signal": {"datatype": "string", "settable": True},
+        "target_biomass": {"datatype": "float", "settable": True, "unit": "OD/AU"},
+        "biomass_signal": {"datatype": "string", "settable": False},
         "resolved_biomass_signal": {"datatype": "string", "settable": False},
         "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
