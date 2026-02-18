@@ -292,6 +292,30 @@ def test_pios_run_requests_with_experiments(active_workers_in_cluster) -> None:
     assert sorted(req.url for req in bucket) == sorted(expected_urls)
 
 
+def test_pios_run_requests_with_config_override() -> None:
+    runner = CliRunner()
+    with capture_requests() as bucket:
+        result = runner.invoke(
+            pios,
+            [
+                "run",
+                "stirring",
+                "--config-override",
+                "stirring.config",
+                "pwm_hz",
+                "100",
+                "-y",
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert len(bucket) == 2
+    assert all(
+        req.json == {"args": [], "options": {}, "config_overrides": [["stirring.config", "pwm_hz", "100"]]}
+        for req in bucket
+    )
+
+
 def test_pios_update_requests_with_sha() -> None:
     runner = CliRunner()
     git_sha = "a0b1c2d3"

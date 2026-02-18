@@ -982,13 +982,26 @@ if am_I_leader() or is_testing_env():
         context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
         short_help="run a job on workers",
     )
+    @click.option(
+        "--config-override",
+        nargs=3,
+        multiple=True,
+        metavar="<section> <param> <value>",
+        help="Temporarily override a config value while running the job",
+    )
     @click.argument("job", type=click.STRING)
     @which_units
     @confirmation
     @json_output
     @click.pass_context
     def run(
-        ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool, json: bool
+        ctx,
+        job: str,
+        config_override: tuple[tuple[str, str, str], ...],
+        units: tuple[str, ...],
+        experiments: tuple[str, ...],
+        yes: bool,
+        json: bool,
     ) -> None:
         """
         Run a job on all, or specific, workers.
@@ -1021,6 +1034,7 @@ if am_I_leader() or is_testing_env():
                 raise click.Abort()
 
         data = parse_click_arguments(extra_args)
+        data["config_overrides"] = [list(override) for override in config_override]
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
