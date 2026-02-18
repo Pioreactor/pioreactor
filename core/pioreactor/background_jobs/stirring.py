@@ -540,10 +540,6 @@ class Stirrer(BackgroundJobWithDodging):
         with self.duty_cycle_lock:
             self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
 
-            # exit if not ready
-            if self.state is not st.READY:
-                return
-
             self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value: float) -> None:
@@ -559,8 +555,8 @@ class Stirrer(BackgroundJobWithDodging):
         else:
             self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
-        # exit if not ready
-        if self.state is not st.READY:
+        # if paused, don't apply a kick or change live duty cycle.
+        if self.state is st.SLEEPING:
             return
 
         if self.duty_cycle == 0:

@@ -12,6 +12,7 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.states import JobState as job_state
 from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils.mock import MockRpmCalculator as RpmCalculator
 from pioreactor.utils.timing import catchtime
@@ -33,6 +34,25 @@ def test_stirring_runs() -> None:
     st = start_stirring(target_rpm=500)
     assert st.duty_cycle > 0
     st.clean_up()
+
+
+def test_initial_startup_publishes_kick_to_pwm(monkeypatch) -> None:
+    exp = "test_initial_startup_publishes_kick_to_pwm"
+    observed_dc_payloads: list[dict[str, float]] = []
+    monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+
+    def collect_pwm_dc(msg) -> None:
+        payload = msg.payload.decode()
+        if payload:
+            observed_dc_payloads.append(json.loads(payload))
+
+    subscribe_and_callback(collect_pwm_dc, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+
+    with start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=False):
+        assert wait_for(
+            lambda: any(100.0 in payload.values() for payload in observed_dc_payloads),
+            timeout=3.0,
+        )
 
 
 def test_change_target_rpm_mid_cycle() -> None:
@@ -82,6 +102,32 @@ def test_pause_stirring_mid_cycle() -> None:
         pause()
         assert st.state == st.READY
         assert st.duty_cycle == original_dc
+
+
+def test_set_target_rpm_while_paused_does_not_restart_stirring(monkeypatch) -> None:
+    # Unit-level regression check: while not READY, updating target RPM should not kick stirring.
+    stirrer = Stirrer.__new__(Stirrer)
+    object.__setattr__(stirrer, "rpm_calculator", object())
+    object.__setattr__(stirrer, "target_rpm", 500.0)
+    object.__setattr__(stirrer, "pid", type("PidStub", (), {"set_setpoint": lambda self, *_: None})())
+    object.__setattr__(stirrer, "rpm_to_dc_lookup", lambda rpm: rpm / 10)
+    object.__setattr__(stirrer, "state", job_state.SLEEPING)
+    object.__setattr__(stirrer, "duty_cycle", 0.0)
+    object.__setattr__(stirrer, "_estimate_duty_cycle", 10.0)
+    object.__setattr__(stirrer, "published_settings", {})
+    set_duty_cycle_calls: list[float] = []
+    object.__setattr__(
+        stirrer,
+        "set_duty_cycle",
+        lambda value: set_duty_cycle_calls.append(value),
+    )
+
+    Stirrer.set_target_rpm(stirrer, 750.0)
+
+    assert stirrer.target_rpm == 750.0
+    assert stirrer._estimate_duty_cycle == 75.0
+    assert stirrer.duty_cycle == 0.0
+    assert set_duty_cycle_calls == []
 
 
 def test_publish_target_rpm() -> None:
