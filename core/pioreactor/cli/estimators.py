@@ -14,6 +14,7 @@ from pioreactor.estimators import list_estimator_devices
 from pioreactor.estimators import list_of_estimators_by_device
 from pioreactor.estimators import load_active_estimator
 from pioreactor.estimators import load_estimator
+from pioreactor.plugin_management import load_plugins
 from pioreactor.utils.akimas import akima_eval
 from pioreactor.utils.akimas import akima_fit
 
@@ -31,7 +32,7 @@ def estimators() -> None:
     """
     interface for all estimators.
     """
-    pass
+    load_plugins()
 
 
 @estimators.command(name="list")

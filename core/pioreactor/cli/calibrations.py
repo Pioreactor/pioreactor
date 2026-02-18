@@ -15,6 +15,7 @@ from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import crunch_data_and_confirm_with_user
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
+from pioreactor.plugin_management import load_plugins
 
 
 def green(string: str) -> str:
@@ -30,7 +31,7 @@ def calibration() -> None:
     """
     interface for all calibrations.
     """
-    pass
+    load_plugins()
 
 
 @calibration.command(name="list")

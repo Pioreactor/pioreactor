@@ -35,3 +35,20 @@ def test_delete_estimator_missing_file_aborts(monkeypatch, tmp_path) -> None:
     output = click.unstyle(result.output)
     assert result.exit_code != 0
     assert "No such estimator file" in output
+
+
+def test_estimators_group_loads_plugins(monkeypatch) -> None:
+    called = False
+
+    def fake_load_plugins() -> dict[str, object]:
+        nonlocal called
+        called = True
+        return {}
+
+    monkeypatch.setattr(cli_estimators, "load_plugins", fake_load_plugins)
+
+    runner = CliRunner()
+    result = runner.invoke(cli_estimators.estimators, ["protocols"])
+
+    assert result.exit_code == 0
+    assert called
