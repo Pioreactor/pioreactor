@@ -489,7 +489,7 @@ AnyCalibration = t.Union[
     CalibrationBase,
 ]
 
-AnyEstimator = t.Union[ODFusionEstimator]
+AnyEstimator = t.Union[EstimatorBase, ODFusionEstimator]
 
 
 class Log(JSONPrintedStruct):

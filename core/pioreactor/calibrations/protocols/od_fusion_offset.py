@@ -89,7 +89,10 @@ def _list_estimators_for_worker(worker: str) -> tuple[list[str], str | None]:
 
 def _load_estimator_for_worker(worker: str, estimator_name: str) -> structs.ODFusionEstimator:
     if worker == get_unit_name():
-        return load_estimator(ESTIMATOR_DEVICE, estimator_name)
+        estimator = load_estimator(ESTIMATOR_DEVICE, estimator_name)
+        if not isinstance(estimator, structs.ODFusionEstimator):
+            raise ValueError(f"Estimator {estimator_name} is not an ODFusionEstimator.")
+        return estimator
 
     response = get_from(worker, f"/unit_api/estimators/{ESTIMATOR_DEVICE}/{estimator_name}")
     response.raise_for_status()
