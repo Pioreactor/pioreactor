@@ -56,6 +56,10 @@ class RunLazyGroup(LazyGroup):
 
     def get_command(self, ctx, cmd_name):
         self._load_plugins()
+        # Prefer plugin-registered commands over lazy defaults so plugins can
+        # intentionally replace built-in command entrypoints.
+        if cmd_name in self.commands:
+            return self.commands[cmd_name]
         return super().get_command(ctx, cmd_name)
 
 

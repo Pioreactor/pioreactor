@@ -45,6 +45,7 @@
  - Fixed Inventory model updates and active/inactive toggles to show success only after confirmed backend `2xx` responses, with explicit error feedback on failure.
  - Fixed an issue where changing RPM while stirring was paused would restart stirring.
  - `self_test` now cleans up better when interrupted.
+ - CLI change gives plugin-registered commands precedence, enabling intentional overrides to existing `pio run` commands.
 
 
 ### 26.2.3
