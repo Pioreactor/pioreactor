@@ -37,7 +37,6 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
-ESTIMATOR_DEVICE = pt.OD_FUSED_DEVICE
 STANDARDS_REQUIRED = 2
 SAMPLES_PER_STANDARD = 4
 logger = create_logger("calibrations.od_fusion_offset", experiment="$experiment")
@@ -66,10 +65,10 @@ def _ordered_worker_options() -> list[str]:
 def _list_estimators_for_worker(worker: str) -> tuple[list[str], str | None]:
     try:
         if worker == get_unit_name():
-            estimators = list_of_estimators_by_device(ESTIMATOR_DEVICE)
+            estimators = list_of_estimators_by_device(pt.OD_FUSED_DEVICE)
             return sorted(estimators), None
 
-        response = get_from(worker, f"/unit_api/estimators/{ESTIMATOR_DEVICE}")
+        response = get_from(worker, f"/unit_api/estimators/{pt.OD_FUSED_DEVICE}")
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, list):
@@ -89,17 +88,13 @@ def _list_estimators_for_worker(worker: str) -> tuple[list[str], str | None]:
 
 def _load_estimator_for_worker(worker: str, estimator_name: str) -> structs.ODFusionEstimator:
     if worker == get_unit_name():
-        estimator = load_estimator(ESTIMATOR_DEVICE, estimator_name)
-        if not isinstance(estimator, structs.ODFusionEstimator):
-            raise ValueError(f"Estimator {estimator_name} is not an ODFusionEstimator.")
+        estimator = load_estimator(pt.OD_FUSED_DEVICE, estimator_name)
+        assert isinstance(estimator, structs.ODFusionEstimator)
         return estimator
 
-    response = get_from(worker, f"/unit_api/estimators/{ESTIMATOR_DEVICE}/{estimator_name}")
+    response = get_from(worker, f"/unit_api/estimators/{pt.OD_FUSED_DEVICE}/{estimator_name}")
     response.raise_for_status()
     payload = response.json()
-    if not isinstance(payload, dict):
-        raise ValueError(f"Unexpected estimator payload from {worker}.")
-
     payload.pop("is_active", None)
     payload.pop("pioreactor_unit", None)
     return json_decode(json_encode(payload), type=structs.ODFusionEstimator)
@@ -195,7 +190,7 @@ def start_fusion_offset_session() -> CalibrationSession:
     return CalibrationSession(
         session_id=session_id,
         protocol_name=FusionOffsetODProtocol.protocol_name,
-        target_device=ESTIMATOR_DEVICE,
+        target_device=pt.OD_FUSED_DEVICE,
         status="in_progress",
         step_id="intro",
         data={
@@ -315,7 +310,7 @@ class NameInput(SessionStep):
         name = ctx.inputs.str("estimator_name", default=default_name)
         ctx.data["estimator_name"] = name
 
-        if name in list_of_estimators_by_device(ESTIMATOR_DEVICE):
+        if name in list_of_estimators_by_device(pt.OD_FUSED_DEVICE):
             return NameOverwriteConfirm()
         return RpmInput()
 
@@ -537,7 +532,7 @@ class RemoveStandard(SessionStep):
             source_estimator_name=source_estimator_name,
         )
 
-        result = ctx.store_estimator(new_estimator, ESTIMATOR_DEVICE)
+        result = ctx.store_estimator(new_estimator, pt.OD_FUSED_DEVICE)
         ctx.complete(
             {
                 "title": "Fusion estimator saved.",
@@ -567,7 +562,7 @@ _FUSION_OFFSET_STEPS: StepRegistry = {
 
 class FusionOffsetODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
     protocol_name = "od_fusion_offset"
-    target_device = [cast(pt.ODFusedCalibrationDevice, ESTIMATOR_DEVICE)]
+    target_device = [cast(pt.ODFusedCalibrationDevice, pt.OD_FUSED_DEVICE)]
     title = "Fusion OD two-point offset"
     description = "Adjust an existing fused OD estimator using two OD standards."
     requirements = (
@@ -580,7 +575,7 @@ class FusionOffsetODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
 
     @classmethod
     def start_session(cls, target_device: pt.ODFusedCalibrationDevice) -> CalibrationSession:
-        if target_device != ESTIMATOR_DEVICE:
+        if target_device != pt.OD_FUSED_DEVICE:
             raise ValueError("Invalid target device for fusion offset calibration.")
         return start_fusion_offset_session()
 

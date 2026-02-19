@@ -440,7 +440,12 @@ class TestGrowthRateCalculating:
             ), create_dosing_stream_from_mqtt(unit, experiment)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                calc.process_until_disconnected_or_exhausted_in_background(
+                    od_stream,
+                    dosing_stream,
+                    wait_for_initialization=True,
+                    timeout=5.0,
+                )
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -485,31 +490,40 @@ class TestGrowthRateCalculating:
                 )
                 pause()
 
-                publish(
-                    f"pioreactor/{unit}/{experiment}/dosing_events",
-                    encode(
-                        structs.DosingEvent(
-                            volume_change=1.0,
-                            event="add_media",
-                            source_of_event="algo",
-                            timestamp=to_datetime("2010-01-01T12:01:55.000Z"),
-                        )
-                    ),
+                dosing_event_payload = encode(
+                    structs.DosingEvent(
+                        volume_change=1.0,
+                        event="add_media",
+                        source_of_event="algo",
+                        timestamp=to_datetime("2010-01-01T12:01:55.000Z"),
+                    )
                 )
-                pause()
+
+                for _ in range(3):
+                    publish(
+                        f"pioreactor/{unit}/{experiment}/dosing_events",
+                        dosing_event_payload,
+                    )
+                    if wait_for(lambda: calc._recent_dilution, timeout=2.0):
+                        break
+
                 assert calc._recent_dilution
-                pause()
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1"],
-                        [0.40],
-                        ["90"],
-                        timestamp="2010-01-01T12:02:00.000Z",
-                    ),
+
+                post_dose_od_payload = create_encoded_od_raw_batched(
+                    ["1"],
+                    [0.40],
+                    ["90"],
+                    timestamp="2010-01-01T12:02:00.000Z",
                 )
-                pause()
-                pause()
+
+                for _ in range(3):
+                    publish(
+                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                        post_dose_od_payload,
+                    )
+                    if wait_for(lambda: not calc._recent_dilution, timeout=2.0):
+                        break
+
                 assert not calc._recent_dilution
 
     @pytest.mark.slow

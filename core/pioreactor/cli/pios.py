@@ -4,6 +4,7 @@ CLI for running the commands on workers, or otherwise interacting with the worke
 """
 import os
 import re
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from shlex import quote
 from typing import Any
@@ -323,9 +324,17 @@ if am_I_leader() or is_testing_env():
             click.echo("No jobs recorded.")
             return
 
-        all_rows.sort(key=lambda job_row: job_row[5], reverse=True)
+        rows_by_unit: dict[str, list[tuple[int, str, str, str | None, str, str, str | None]]] = defaultdict(
+            list
+        )
         for job_row in all_rows:
-            click.echo(_format_job_history_line(*job_row))
+            rows_by_unit[job_row[4]].append(job_row)
+
+        for unit in sorted(rows_by_unit):
+            click.echo(click.style(unit, bold=True))
+            unit_rows = sorted(rows_by_unit[unit], key=lambda row: row[5], reverse=True)
+            for job_row in unit_rows:
+                click.echo(f"  {_format_job_history_line(*job_row)}")
 
     def universal_identifier_to_all_active_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
         try:

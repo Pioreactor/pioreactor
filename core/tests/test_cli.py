@@ -426,6 +426,67 @@ def test_pios_jobs_list_running_requests_running_endpoint(monkeypatch) -> None:
     assert "still running" in result.output
 
 
+def test_pios_jobs_list_partitions_output_by_unit(monkeypatch) -> None:
+    class DummyResponse:
+        def __init__(self, payload: list[dict[str, str | int | None]]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return
+
+        def json(self) -> list[dict[str, str | int | None]]:
+            return self._payload
+
+    responses = {
+        "unit1.local": DummyResponse(
+            [
+                {
+                    "job_id": 42,
+                    "job_name": "stirring",
+                    "experiment": "_testing_experiment",
+                    "job_source": "cli",
+                    "unit": "unit1",
+                    "started_at": "2026-01-01T00:00:00.000Z",
+                    "ended_at": "2026-01-01T00:10:00.000Z",
+                }
+            ]
+        ),
+        "unit2.local": DummyResponse(
+            [
+                {
+                    "job_id": 43,
+                    "job_name": "od_reading",
+                    "experiment": "_testing_experiment",
+                    "job_source": "cli",
+                    "unit": "unit2",
+                    "started_at": "2026-01-01T00:05:00.000Z",
+                    "ended_at": None,
+                }
+            ]
+        ),
+    }
+
+    def fake_get_from(address: str, endpoint: str, **_kwargs):
+        assert endpoint == "/unit_api/jobs"
+        return responses[address]
+
+    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+
+    runner = CliRunner()
+    result = runner.invoke(pios, ["jobs", "list", "--units", "unit1", "--units", "unit2"])
+    assert result.exit_code == 0
+
+    lines = result.output.splitlines()
+    assert "unit1" in lines
+    assert "unit2" in lines
+    assert "  [job_id=42]" in result.output
+    assert "  [job_id=43]" in result.output
+    unit1_job_line = next(line for line in lines if "[job_id=42]" in line)
+    unit2_job_line = next(line for line in lines if "[job_id=43]" in line)
+    assert lines.index("unit1") < lines.index(unit1_job_line)
+    assert lines.index("unit2") < lines.index(unit2_job_line)
+
+
 def test_pio_job_info_lists_job() -> None:
     runner = CliRunner()
     job_name = "test_job"
