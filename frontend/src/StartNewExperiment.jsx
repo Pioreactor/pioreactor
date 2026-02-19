@@ -13,7 +13,6 @@ import TextField from '@mui/material/TextField';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import {useNavigate } from 'react-router';
 import SaveIcon from '@mui/icons-material/Save';
-import LoadingButton from '@mui/lab/LoadingButton';
 
 import { useExperiment } from './providers/ExperimentContext';
 
@@ -207,7 +206,7 @@ function ExperimentSummaryForm(props) {
             }}>
             <Box style={{display: "flex", justifyContent: "flex-end"}}>
               <Button style={{marginRight: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
-              <LoadingButton
+              <Button
                 color="primary"
                 variant="contained"
                 onClick={onSubmit}
@@ -218,7 +217,7 @@ function ExperimentSummaryForm(props) {
                 loadingPosition="end"
               >
                 Save
-              </LoadingButton>
+              </Button>
             </Box>
           </Grid>
         </Grid>

@@ -18,7 +18,6 @@ import CardActions from '@mui/material/CardActions';
 import List from '@mui/material/List';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
-import LoadingButton from "@mui/lab/LoadingButton";
 import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, IconButton } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
@@ -945,14 +944,14 @@ function ClusterClockCard({leaderHostname}){
             hasUserEditedTimestamp.current = true;
           }}
         />
-        <LoadingButton
+        <Button
           variant="text"
           loading={updatingClock}
           sx={{ ml: 2, textTransform: "none" }}
           onClick={handlePostTimestamp}
         >
           Update clocks
-        </LoadingButton>
+        </Button>
       </Box>
       </CardContent>
     </Card>

@@ -1,10 +1,10 @@
-import React, {useEffect, useState} from "react";
+import React, {useCallback, useEffect, useRef, useState} from "react";
 
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import FormControl from '@mui/material/FormControl';
-import LoadingButton from '@mui/lab/LoadingButton';
+import Button from '@mui/material/Button';
 import FormLabel from '@mui/material/FormLabel';
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
@@ -32,42 +32,61 @@ function EditableCodeDiv() {
     timestamp_ix: 0,
     errorMsg: "",
     isError: false,
-    hasChangedSinceSave: true,
+    hasChangedSinceSave: false,
     availableConfigs: [{ name: "shared config.ini", filename: "config.ini" }]
   });
 
-  const getConfig = async (filename) => {
-    try {
-      const response = await fetch(`/api/config/files/${filename}`);
-      const text = await response.text();
-      setState(prev => ({ ...prev, code: text }));
-    } catch (err) {
-      setState(prev => ({ ...prev, code: "# Error loading config" }));
-      console.error("Failed to fetch config:", err);
-    }
-  };
+  const loadRequestId = useRef(0);
+  const currentFilenameRef = useRef(state.filename);
 
+  useEffect(() => {
+    currentFilenameRef.current = state.filename;
+  }, [state.filename]);
 
-  const getHistoricalConfigFiles = async (filename) => {
+  const loadConfigAndHistory = useCallback(async (filename) => {
+    const requestId = ++loadRequestId.current;
     try {
-      const response = await fetch(`/api/config/files/${filename}/history`);
-      const listOfHistoricalConfigs = await response.json();
+      const [configResponse, historyResponse] = await Promise.all([
+        fetch(`/api/config/files/${filename}`),
+        fetch(`/api/config/files/${filename}/history`)
+      ]);
+
+      if (!configResponse.ok || !historyResponse.ok) {
+        throw new Error("Failed to load config data.");
+      }
+
+      const [text, listOfHistoricalConfigs] = await Promise.all([
+        configResponse.text(),
+        historyResponse.json()
+      ]);
+
+      if (requestId !== loadRequestId.current) {
+        return;
+      }
+
       setState(prev => ({
         ...prev,
+        code: text,
         historicalConfigs: listOfHistoricalConfigs,
-        timestamp_ix: 0
+        timestamp_ix: 0,
+        hasChangedSinceSave: false
       }));
     } catch (err) {
-      console.error("Failed to fetch historical configs:", err);
+      if (requestId !== loadRequestId.current) {
+        return;
+      }
+      setState(prev => ({ ...prev, code: "# Error loading config" }));
+      console.error("Failed to fetch config/history:", err);
     }
-  };
+  }, []);
 
   const saveCurrentCode = async () => {
+    const filenameAtSave = state.filename;
     setState(prev => ({ ...prev, saving: true, isError: false }));
     try {
-      const res = await fetch(`/api/config/files/${state.filename}`, {
+      const res = await fetch(`/api/config/files/${filenameAtSave}`, {
         method: "PATCH",
-        body: JSON.stringify({ code: state.code, filename: state.filename }),
+        body: JSON.stringify({ code: state.code, filename: filenameAtSave }),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -75,10 +94,12 @@ function EditableCodeDiv() {
       });
 
       if (res.ok) {
+        if (currentFilenameRef.current === filenameAtSave) {
+          await loadConfigAndHistory(filenameAtSave);
+        }
         setState(prev => ({
           ...prev,
-          snackbarMsg: `Success: ${state.filename} saved and synced.`,
-          hasChangedSinceSave: false,
+          snackbarMsg: `Success: ${filenameAtSave} saved and synced.`,
           openSnackbar: true,
           isError: false
         }));
@@ -96,9 +117,8 @@ function EditableCodeDiv() {
   };
 
   useEffect(() => {
-    getConfig(state.filename);
-    getHistoricalConfigFiles(state.filename);
-  }, [state.filename]);
+    loadConfigAndHistory(state.filename);
+  }, [state.filename, loadConfigAndHistory]);
 
   useEffect(() => {
     // what's up with the ignore? https://react.dev/learn/synchronizing-with-effects#fetching-data
@@ -154,11 +174,11 @@ function EditableCodeDiv() {
         setState(prev => ({ ...prev, availableConfigs: [...prev.availableConfigs, {name: desired, filename: desired}] }));
       }
     }
-  }, [pioreactorUnit, state.availableConfigs]);
+  }, [pioreactorUnit, state.availableConfigs, state.filename]);
 
   const onSelectionChange = (e) => {
     const filename = e.target.value;
-    setState(prev => ({ ...prev, filename: filename, code: "Loading..." }));
+    setState(prev => ({ ...prev, filename: filename, code: "Loading...", hasChangedSinceSave: false }));
     if (filename === "config.ini") {
       navigate(`/config`);
     } else if (filename.startsWith("config_") && filename.endsWith(".ini")) {
@@ -170,8 +190,11 @@ function EditableCodeDiv() {
   const onSelectionHistoricalChange = (e) => {
     const timestamp = e.target.value;
     const ix = state.historicalConfigs.findIndex((c) => c.timestamp === timestamp);
+    if (ix < 0) {
+      return;
+    }
     const configBlob = state.historicalConfigs[ix];
-    setState(prev => ({ ...prev, code: configBlob.data, timestamp_ix: ix }));
+    setState(prev => ({ ...prev, code: configBlob.data, timestamp_ix: ix, hasChangedSinceSave: ix !== 0 }));
   };
 
   const onTextChange = (code) => {
@@ -181,6 +204,11 @@ function EditableCodeDiv() {
   const handleSnackbarClose = () => {
     setState(prev => ({ ...prev, openSnackbar: false }));
   };
+
+  const selectedTimestamp = state.historicalConfigs[state.timestamp_ix]?.timestamp || "";
+  const isCodeLoaded = state.code !== null && state.code !== "Loading...";
+  const isHistoricalSelection = state.timestamp_ix !== 0;
+  const canSaveOrRevert = isCodeLoaded && (state.hasChangedSinceSave || isHistoricalSelection) && !state.saving;
 
   return (
     <React.Fragment>
@@ -207,7 +235,7 @@ function EditableCodeDiv() {
               <Select
                 labelId="historicalConfigSelect"
                 variant="standard"
-                value={state.historicalConfigs.length > 0 ? state.historicalConfigs[state.timestamp_ix].timestamp : ""}
+                value={selectedTimestamp}
                 displayEmpty={true}
                 onChange={onSelectionHistoricalChange}
               >
@@ -251,18 +279,18 @@ function EditableCodeDiv() {
       </div>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
-          <LoadingButton
+          <Button
             sx={{ margin: "5px 12px 5px 12px", textTransform: 'none' }}
             color="primary"
             variant="contained"
             onClick={saveCurrentCode}
-            disabled={!state.hasChangedSinceSave}
+            disabled={!canSaveOrRevert}
             loading={state.saving}
             loadingPosition="end"
             endIcon={<SaveIcon />}
           >
             {state.timestamp_ix === 0 ? "Save" : "Revert"}
-          </LoadingButton>
+          </Button>
           <Box sx={{ ml: 1, my: 1 }}>{state.isError ? <Alert severity="error">{state.errorMsg}</Alert> : ""}</Box>
         </div>
       </div>

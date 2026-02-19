@@ -1,6 +1,5 @@
 import React from "react";
 import MarkdownView from 'react-showdown';
-import LoadingButton from '@mui/lab/LoadingButton';
 
 import Grid from '@mui/material/Grid';
 import { styled } from '@mui/material/styles';
@@ -215,7 +214,7 @@ function UploadArchiveAndConfirm(props) {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
-          <LoadingButton variant="contained" loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}  sx={{textTransform: "None"}}>Update</LoadingButton>
+          <Button variant="contained" loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}  sx={{textTransform: "None"}}>Update</Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>

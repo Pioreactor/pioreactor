@@ -2,7 +2,6 @@ import React, {useState} from 'react'
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
-import LoadingButton from '@mui/lab/LoadingButton';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utilities"
@@ -101,7 +100,7 @@ export default function ActionCirculatingForm(props) {
 
       <br />
       <div style={{display: "flex"}}>
-        <LoadingButton
+        <Button
           loading={clicked && (props?.job?.state === "disconnected")}
           disabled={formErrorDuration || (props?.job?.state === "ready")}
           type="submit"
@@ -112,7 +111,7 @@ export default function ActionCirculatingForm(props) {
           sx={{marginRight: '10px'}}
         >
           Start
-        </LoadingButton>
+        </Button>
         <Button
           size="small"
           color="secondary"

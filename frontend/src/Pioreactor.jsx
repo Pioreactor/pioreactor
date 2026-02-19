@@ -35,7 +35,6 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ListSubheader from '@mui/material/ListSubheader';
 import Button from "@mui/material/Button";
-import LoadingButton from '@mui/lab/LoadingButton';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
@@ -1568,7 +1567,7 @@ function SettingsActionsDialog(props) {
           </RequirementsAlert>
 
           <Box sx={{display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap"}}>
-            <LoadingButton
+            <Button
               variant="contained"
               loading={isSelfTestRunning || selfTestStartPending}
               loadingPosition="start"
@@ -1578,7 +1577,7 @@ function SettingsActionsDialog(props) {
               sx={{textTransform: "none"}}
             >
               {isSelfTestRunning ? "Running" : "Start"}
-            </LoadingButton>
+            </Button>
           </Box>
 
           <ControlDivider/>

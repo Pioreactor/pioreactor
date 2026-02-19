@@ -26,7 +26,6 @@ import FlareIcon from '@mui/icons-material/Flare';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import LoadingButton from '@mui/lab/LoadingButton';
 import CheckIcon from '@mui/icons-material/Check';
 import Divider from '@mui/material/Divider';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
@@ -377,7 +376,7 @@ function AddNewPioreactor({setWorkers}){
         </Box>
 
         <Box sx={{display: "flex", justifyContent: "flex-end"}}>
-          <LoadingButton
+          <Button
             variant="contained"
             color="primary"
             sx={{marginTop: "10px", textTransform: 'none'}}
@@ -389,7 +388,7 @@ function AddNewPioreactor({setWorkers}){
 
           >
             Add Pioreactor
-          </LoadingButton>
+          </Button>
         </Box>
 
       </DialogContent>

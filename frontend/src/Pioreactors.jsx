@@ -42,7 +42,6 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ListSubheader from '@mui/material/ListSubheader';
 import Button from "@mui/material/Button";
-import LoadingButton from '@mui/lab/LoadingButton';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
@@ -673,10 +672,10 @@ function AssignPioreactors({ experiment, variant="text" }) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <p>
+          <Typography component="div">
             Assign and unassign Pioreactors to experiment{" "}
             <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} />.
-          </p>
+          </Typography>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
             {workers.length > 1 &&
@@ -1505,7 +1504,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               <Typography variant="caption" display="block" gutterBottom color="textSecondary">
                 {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
               </Typography>
-              <Typography variant="body2" component="p" gutterBottom>
+              <Typography variant="body2" component="div" gutterBottom>
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>
               <Box sx={{justifyContent:"space-between", display:"flex"}}>
@@ -1531,7 +1530,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             <div key={temperatureControlJob.metadata.key}>
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
-                <Typography variant="body2" component="p" gutterBottom>
+                <Typography variant="body2" component="div" gutterBottom>
                 Currently running temperature automation <Chip size="small" label={temperatureControlJob.publishedSettings.automation_name.value}/>
                 </Typography>
                 {buttons[temperatureControlJob.metadata.key]}
@@ -1599,7 +1598,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             <div key={dosingControlJob.metadata.key}>
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (dosingControlJob.state === "init")
               ?<React.Fragment>
-                <Typography variant="body2" component="p" gutterBottom>
+                <Typography variant="body2" component="div" gutterBottom>
                 Currently running dosing automation <Chip size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>.
                 </Typography>
                 {buttons[dosingControlJob.metadata.key]}
@@ -1674,7 +1673,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             <div key={ledControlJob.metadata.key}>
               {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (ledControlJob.state === "init")
               ?<React.Fragment>
-                <Typography variant="body2" component="p" gutterBottom>
+                <Typography variant="body2" component="div" gutterBottom>
                 Currently running LED automation <Chip size="small" label={ledControlJob.publishedSettings.automation_name.value}/>.
                 </Typography>
                 {buttons[ledControlJob.metadata.key]}
@@ -1898,7 +1897,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           </RequirementsAlert>
 
           <Box sx={{display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap"}}>
-            <LoadingButton
+            <Button
               variant="contained"
               loading={isSelfTestRunning || selfTestStartPending}
               loadingPosition="start"
@@ -1908,7 +1907,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               sx={{textTransform: "none"}}
             >
               {isSelfTestRunning ? "Running" : "Start"}
-            </LoadingButton>
+            </Button>
 
           </Box>
 
@@ -2714,7 +2713,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
           </RequirementsAlert>
 
           <Box sx={{display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap"}}>
-            <LoadingButton
+            <Button
               variant="contained"
               loading={isSelfTestRunning || selfTestStartPending}
               loadingPosition="start"
@@ -2724,7 +2723,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
               sx={{textTransform: "none"}}
             >
               {isSelfTestRunning ? "Running" : "Start"}
-            </LoadingButton>
+            </Button>
           </Box>
 
           <ControlDivider/>

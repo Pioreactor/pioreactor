@@ -20,7 +20,6 @@ import DialogContent from '@mui/material/DialogContent';
 import {Typography} from '@mui/material';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import LoadingButton from "@mui/lab/LoadingButton";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
 
@@ -74,7 +73,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
       case "sleeping":
        return (
          <Box sx={{display: "inline-block"}}>
-           <LoadingButton
+           <Button
             variant="contained"
             loading={true}
             loadingPosition="start"
@@ -83,13 +82,13 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
             sx={{mt: "5px", height: "31px", textTransform: "none"}}
            >
             Running
-           </LoadingButton>
+           </Button>
          </Box>
        )
       default:
        return (
          <Box sx={{display: "inline-block"}}>
-           <LoadingButton
+           <Button
             variant="contained"
             loading={false}
             loadingPosition="start"
@@ -98,7 +97,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
             sx={{mt: "5px", height: "31px", textTransform: "none"}}
            >
             Start
-           </LoadingButton>
+           </Button>
          </Box>
        )
     }
@@ -149,7 +148,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
             Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
           </Typography>
           <RequirementsAlert sx={{mb: 2, pb: 0}}>
-            Add a closed vial, half-filled with water or media, and stirbar into the Pioreactor.
+            Add a closed vial, half-filled with water or clear media, and stirbar into the Pioreactor.
             <Box
               component="img"
               src="/static/svgs/prepare-vial-arrow-pioreactor-compact.svg"
@@ -226,7 +225,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
                 <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_PD_is_near_0_volts_for_blank", selfTestState)}
                 </ListItemIcon>
-                <ListItemText primary="Photodiode measures near zero signal for clear water" />
+                <ListItemText primary="Photodiode measures near zero signal for clear water or media" />
               </ListItem>
 
             </List>

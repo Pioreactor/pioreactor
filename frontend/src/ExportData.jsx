@@ -14,7 +14,7 @@ import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
 import Select from '@mui/material/Select';
 import Box from '@mui/material/Box';
-import LoadingButton from "@mui/lab/LoadingButton";
+import Button from '@mui/material/Button';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useTheme } from '@mui/material/styles';
 import Chip from '@mui/material/Chip';
@@ -431,7 +431,7 @@ function ExportDataContainer() {
             </Box>
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-            <LoadingButton
+            <Button
                 type="submit"
                 variant="contained"
                 color="primary"
@@ -443,7 +443,7 @@ function ExportDataContainer() {
                 style={{textTransform: 'none'}}
               >
                 Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
-            </LoadingButton>
+            </Button>
           </Box>
         </Box>
       <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
