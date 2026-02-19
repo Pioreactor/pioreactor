@@ -46,6 +46,8 @@
  - Fixed an issue where changing RPM while stirring was paused would restart stirring.
  - `self_test` now cleans up better when interrupted.
  - CLI change gives plugin-registered commands precedence, enabling intentional overrides to existing `pio run` commands.
+ - Fixed UI bugs on the Configuration page
+ - Fixed `HAT_PRESENT` not being respected in the UI flow.
 
 
 ### 26.2.3

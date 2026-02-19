@@ -30,6 +30,7 @@ declare -a TEST_SEQUENCE=(
   check_database_access
   check_worker_model_metadata
   check_unit_api_core
+  check_unit_api_job_history
   check_blink
   check_pio_run_latency
   check_pio_logs_cli
@@ -131,8 +132,14 @@ require_cmd() {
 }
 
 ensure_not_root() {
+  if [[ -n "${SUDO_USER:-}" || -n "${SUDO_UID:-}" ]]; then
+    printf "${RED}[fail] Do not run with sudo. Switch to the 'pioreactor' user and run directly.${NC}\n"
+    exit 1
+  fi
+
   if [[ "$EUID" -eq 0 ]]; then
-    fail "Do not run as root. Switch to the 'pioreactor' user."
+    printf "${RED}[fail] Do not run as root. Switch to the 'pioreactor' user and run directly.${NC}\n"
+    exit 1
   fi
 
   local current_user
@@ -424,6 +431,10 @@ check_unit_api_core() {
   run_step "Checking /unit_api/active_calibrations" curl_check http://localhost/unit_api/active_calibrations
 }
 
+check_unit_api_job_history() {
+  run_step "Checking /unit_api/jobs" curl_check http://localhost/unit_api/jobs 'type=="array"'
+}
+
 check_blink() {
   run_step "Blinking device LED" pio blink
 }
@@ -492,6 +503,7 @@ check_leader_api() {
   run_step "Checking /api/units/$hostname/capabilities" curl_check "http://localhost/api/units/$hostname/capabilities"
   run_step "Checking /api/units/$hostname/system/utc_clock" curl_check "http://localhost/api/units/$hostname/system/utc_clock"
   run_step "Checking /api/logs" curl_check http://localhost/api/logs
+  run_step "Checking /api/local_access_point" curl_check http://localhost/api/local_access_point '.active | type=="boolean"'
 }
 
 check_leader_export() {
@@ -624,7 +636,7 @@ check_experiment_profiles() {
 experiment_profile_name: test_profile
 YAML
 
-  if http_json_ok http://localhost/api/contrib/experiment_profiles '.[] | select(.experimentProfile.experiment_profile_name == "test_profile")'; then
+  if http_json_ok http://localhost/api/experiment_profiles '.[] | select(.experimentProfile.experiment_profile_name == "test_profile")'; then
     ok "test_profile in experiment_profiles"
   else
     fail "test_profile not in experiment_profiles"
@@ -647,7 +659,7 @@ default_order_by: "created_at"
 source: "app"
 YAML
 
-  if http_json_ok http://localhost/api/contrib/exportable_datasets '.[] | select(.dataset_name=="test_dataset")'; then
+  if http_json_ok http://localhost/api/datasets/exportable '.[] | select(.dataset_name=="test_dataset")'; then
     ok "test_dataset listed"
   else
     fail "test_dataset not listed"
@@ -662,7 +674,7 @@ check_export_datasets_endpoint() {
   payload='{"datasets":["experiments","logs"],"experiments":["<All experiments>"],"partition_by_unit":false,"partition_by_experiment":false}'
   local response
 
-  if ! response="$(curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" http://localhost/api/contrib/exportable_datasets/export_datasets)"; then
+  if ! response="$(curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" http://localhost/api/datasets/exportable/export)"; then
     fail "export_datasets request failed"
     return
   fi
