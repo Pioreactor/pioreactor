@@ -644,7 +644,7 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     def on_session_abort(
         cls,
         _session: CalibrationSession,
-        _executor=None,
+        executor=None,
     ) -> None:
         experiment = get_testing_experiment_name()
         unit = get_unit_name()

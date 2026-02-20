@@ -24,8 +24,10 @@ from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
+from pioreactor.logging import create_logger
 from pioreactor.web.tasks import get_calibration_action
 from pioreactor.web.utils import abort_with
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -106,6 +108,8 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
         protocol = get_protocol_for_session(session)
         protocol.on_session_abort(session, executor=_execute_calibration_action)
     except Exception as exc:
+        logger = create_logger("unit_calibration_sessions_api", experiment=UNIVERSAL_EXPERIMENT)
+        logger.exception("Calibration abort cleanup failed for session %s", session_id)
         session.error = f"Calibration aborted by user. Cleanup failed: {exc}"
     session.updated_at = utc_iso_timestamp()
     save_calibration_session(session)
