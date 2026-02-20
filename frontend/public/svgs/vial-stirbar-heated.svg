@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="50 59 120 142">
+  <g style="color:#616161">
+    <g transform="translate(95.3 100.1) scale(2.6)" stroke="currentColor" stroke-width="1.2" fill="none">
+      <rect x="1.0" y="11.3" width="9.3" height="7.6" rx="0.6" ry="0.6" fill="#9FD7F4" stroke="none" />
+      <rect x="3.1" y="17.2" width="4.9" height="0.9" rx="0.4" fill="currentColor" stroke="none" />
+      <path
+        d="M0.17 5.96L0.14 19.44H11.17V5.81L0.18 5.97Z"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <line x1="7.14" y1="0.00" x2="7.14" y2="12.94" />
+      <line x1="4" y1="-0.00" x2="4" y2="14.94" />
+      <rect
+        x="0.86"
+        y="0.5"
+        width="9.61"
+        height="3.0"
+        fill="currentColor"
+        stroke="currentColor"
+        stroke-linejoin="round"
+      />
+      <rect x="0.17" y="21.2" width="11.0" height="1.8" rx="0.25" fill="#D8A0A2" stroke="currentColor" />
+    </g>
+  </g>
+</svg>
