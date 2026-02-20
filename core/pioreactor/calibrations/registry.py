@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict
+from collections.abc import Callable
 from typing import Any
 from typing import ClassVar
 from typing import Generic
+from typing import TYPE_CHECKING
 from typing import TypeVar
 
 from pioreactor import structs
 
+if TYPE_CHECKING:
+    from pioreactor.calibrations.structured_session import CalibrationSession
+
 Device = TypeVar("Device", bound=str)
 ProtocolName = str
+SessionCleanupExecutor = Callable[[str, dict[str, Any]], dict[str, Any]]
 
 
 class CalibrationProtocol(Generic[Device]):
@@ -25,6 +31,17 @@ class CalibrationProtocol(Generic[Device]):
 
     def run(self, target_device: Device) -> structs.CalibrationBase | list[structs.CalibrationBase]:
         raise NotImplementedError("Subclasses must implement this method.")
+
+    @classmethod
+    def on_session_abort(
+        cls,
+        session: "CalibrationSession",
+        executor: SessionCleanupExecutor | None = None,
+    ) -> None:
+        """
+        Optional protocol hook for releasing resources when a session is aborted from the UI.
+        """
+        return
 
 
 def get_calibration_protocols() -> dict[str, dict[ProtocolName, type["CalibrationProtocol[Any]"]]]:

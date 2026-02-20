@@ -7,7 +7,10 @@ from typing import Iterator
 
 import pytest
 from pioreactor.calibrations.protocols import od_standards
+from pioreactor.calibrations.structured_session import CalibrationSession
+from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
+from pioreactor.whoami import get_testing_experiment_name
 
 
 @contextmanager
@@ -80,3 +83,50 @@ def test_build_standards_chart_metadata_handles_mismatched_lengths() -> None:
     points1 = cast(list[dict[str, float]], series[1]["points"])
     assert points0 == [{"x": 0.1, "y": 1.1}]
     assert points1 == [{"x": 0.1, "y": 2.2}, {"x": 0.2, "y": 2.3}]
+
+
+def _dummy_session() -> CalibrationSession:
+    now = utc_iso_timestamp()
+    return CalibrationSession(
+        session_id="session-od-1",
+        protocol_name=od_standards.StandardsODProtocol.protocol_name,
+        target_device="od",
+        status="in_progress",
+        step_id="intro",
+        data={},
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def test_on_session_abort_requests_od_job_cleanup(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, bytes, int]] = []
+
+    def fake_publish(topic: str, message: bytes, qos: int) -> None:
+        calls.append((topic, message, qos))
+
+    monkeypatch.setattr(od_standards, "publish", fake_publish)
+    od_standards.StandardsODProtocol.on_session_abort(_dummy_session())
+
+    assert calls == [
+        (
+            f"pioreactor/{od_standards.get_unit_name()}/{get_testing_experiment_name()}/od_reading/$state/set",
+            b"disconnected",
+            1,
+        ),
+        (
+            f"pioreactor/{od_standards.get_unit_name()}/{get_testing_experiment_name()}/stirring/$state/set",
+            b"disconnected",
+            1,
+        ),
+    ]
+
+
+def test_on_session_abort_aggregates_cleanup_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def failing_publish(topic: str, message: bytes, qos: int) -> None:
+        job_name = topic.split("/")[-3]
+        raise RuntimeError(f"failed {job_name}")
+
+    monkeypatch.setattr(od_standards, "publish", failing_publish)
+    with pytest.raises(RuntimeError, match="failed od_reading"):
+        od_standards.StandardsODProtocol.on_session_abort(_dummy_session())

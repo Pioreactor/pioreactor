@@ -33,6 +33,7 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
+from pioreactor.pubsub import publish
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
@@ -638,6 +639,17 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     @classmethod
     def start_session(cls, target_device: pt.ODCalibrationDevices) -> CalibrationSession:
         return start_standards_session(target_device)
+
+    @classmethod
+    def on_session_abort(
+        cls,
+        _session: CalibrationSession,
+        _executor=None,
+    ) -> None:
+        experiment = get_testing_experiment_name()
+        unit = get_unit_name()
+        publish(f"pioreactor/{unit}/{experiment}/od_reading/$state/set", b"disconnected", qos=1)
+        publish(f"pioreactor/{unit}/{experiment}/stirring/$state/set", b"disconnected", qos=1)
 
     def run(  # type: ignore
         self, target_device: pt.ODCalibrationDevices, *args, **kwargs

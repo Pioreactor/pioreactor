@@ -102,6 +102,11 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
 
     session.status = "aborted"
     session.error = "Calibration aborted by user."
+    try:
+        protocol = get_protocol_for_session(session)
+        protocol.on_session_abort(session, executor=_execute_calibration_action)
+    except Exception as exc:
+        session.error = f"Calibration aborted by user. Cleanup failed: {exc}"
     session.updated_at = utc_iso_timestamp()
     save_calibration_session(session)
     step = _get_calibration_step(session)

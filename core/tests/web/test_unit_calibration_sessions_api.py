@@ -46,6 +46,14 @@ class DummyProtocol:
             updated_at=now,
         )
 
+    @classmethod
+    def on_session_abort(
+        cls,
+        session: CalibrationSession,
+        executor=None,
+    ) -> None:
+        return None
+
 
 def _patch_protocols(monkeypatch) -> None:
     monkeypatch.setattr(api, "get_protocol", lambda target_device, protocol_name: DummyProtocol)
@@ -87,6 +95,44 @@ def test_abort_calibration_session_updates_status(client, monkeypatch) -> None:
     payload = response.get_json()
     assert payload["session"]["status"] == "aborted"
     assert payload["session"]["error"] == "Calibration aborted by user."
+
+
+def test_abort_calibration_session_runs_cleanup_hook(client, monkeypatch) -> None:
+    class CleanupProtocol(DummyProtocol):
+        cleanup_calls: list[tuple[str, bool]] = []
+
+        @classmethod
+        def on_session_abort(cls, session: CalibrationSession, executor=None) -> None:
+            cls.cleanup_calls.append((session.session_id, executor is not None))
+
+    monkeypatch.setattr(api, "get_protocol", lambda target_device, protocol_name: CleanupProtocol)
+    monkeypatch.setattr(api, "get_protocol_for_session", lambda session: CleanupProtocol)
+
+    session = CleanupProtocol.start_session("device")
+    save_calibration_session(session)
+
+    response = client.post(f"/unit_api/calibrations/sessions/{session.session_id}/abort")
+    assert response.status_code == 200
+    assert CleanupProtocol.cleanup_calls == [(session.session_id, True)]
+
+
+def test_abort_calibration_session_reports_cleanup_error(client, monkeypatch) -> None:
+    class FailingCleanupProtocol(DummyProtocol):
+        @classmethod
+        def on_session_abort(cls, session: CalibrationSession, executor=None) -> None:
+            raise RuntimeError("cleanup exploded")
+
+    monkeypatch.setattr(api, "get_protocol", lambda target_device, protocol_name: FailingCleanupProtocol)
+    monkeypatch.setattr(api, "get_protocol_for_session", lambda session: FailingCleanupProtocol)
+
+    session = FailingCleanupProtocol.start_session("device")
+    save_calibration_session(session)
+
+    response = client.post(f"/unit_api/calibrations/sessions/{session.session_id}/abort")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["session"]["status"] == "aborted"
+    assert "Cleanup failed: cleanup exploded" in payload["session"]["error"]
 
 
 def test_advance_calibration_session_validates_inputs(client, monkeypatch) -> None:

@@ -6,7 +6,6 @@ This should be run with a vial in, with a stirbar. Water is fine.
 """
 import uuid
 from contextlib import nullcontext
-from time import sleep
 from typing import ClassVar
 from typing import Literal
 
@@ -26,6 +25,7 @@ from pioreactor.config import config
 from pioreactor.exc import JobPresentError
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import publish
 from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
@@ -89,11 +89,13 @@ def collect_stirring_measurements(
                 max_dc + min_dc
             ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
             st.start_stirring()
-            sleep(3)
+            if lc.exit_event.wait(3):
+                raise InterruptedError("Stirring calibration aborted.")
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
-                sleep(2.0)
+                if lc.exit_event.wait(2.0):
+                    raise InterruptedError("Stirring calibration aborted.")
                 rpm = float(rpm_calc.estimate(2))
                 measured_rpms.append(rpm)
                 logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
@@ -262,6 +264,17 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
         max_dc: float | None = None,
     ) -> CalibrationSession:
         return start_dc_based_session(target_device, min_dc=min_dc, max_dc=max_dc)
+
+    @classmethod
+    def on_session_abort(
+        cls,
+        _session: CalibrationSession,
+        _executor=None,
+    ) -> None:
+        experiment = get_testing_experiment_name()
+        unit = get_unit_name()
+        publish(f"pioreactor/{unit}/{experiment}/stirring_calibration/$state/set", b"disconnected", qos=1)
+        publish(f"pioreactor/{unit}/{experiment}/stirring/$state/set", b"disconnected", qos=1)
 
     def run(
         self, target_device: Literal["stirring"], min_dc: str | None = None, max_dc: str | None = None
