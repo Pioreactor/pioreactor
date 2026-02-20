@@ -6,6 +6,8 @@ import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
 
 function ErrorSnackbar() {
+  const HEAD_LINE_COUNT = 4;
+  const TAIL_LINE_COUNT = 4;
   const [open, setOpen] = React.useState(false)
   const [unit, setUnit] = React.useState("")
   const [msg, setMsg] = React.useState("")
@@ -72,6 +74,17 @@ function ErrorSnackbar() {
     setOpen(false);
   };
 
+  const formattedMessage = React.useMemo(() => {
+    const lines = msg.split(/\r?\n/);
+    if (lines.length <= HEAD_LINE_COUNT + TAIL_LINE_COUNT) {
+      return msg;
+    }
+
+    const head = lines.slice(0, HEAD_LINE_COUNT);
+    const tail = lines.slice(-TAIL_LINE_COUNT);
+    return [...head, "...", ...tail].join("\n");
+  }, [msg]);
+
 
   return (
     <Snackbar
@@ -84,7 +97,19 @@ function ErrorSnackbar() {
     >
     <Alert variant="standard" severity={level.toLowerCase()} onClose={handleClose}>
       <AlertTitle style={{fontSize: 15}}>{getAlertTitle(task, level, unit)}</AlertTitle>
-      <span style={{whiteSpace: 'pre-wrap'}}>{msg}</span>
+      <span
+        style={{
+          whiteSpace: "pre-wrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 10,
+          wordBreak: "break-word",
+        }}
+      >
+        {formattedMessage}
+      </span>
     </Alert>
     </Snackbar>
 )}

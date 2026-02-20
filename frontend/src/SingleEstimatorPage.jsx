@@ -61,7 +61,7 @@ function formatSplineType(curveData) {
 
 function formatEstimatorCurve(estimator) {
   if (!estimator || typeof estimator !== "object") {
-    return "Unknown";
+    return null;
   }
   const angles = Array.isArray(estimator.angles)
     ? estimator.angles
@@ -457,10 +457,12 @@ function SingleEstimatorPageCard({ pioreactorUnit, device, estimatorName, estima
                     <TableCell><strong>Estimator type</strong></TableCell>
                     <TableCell>{estimator_type}</TableCell>
                   </TableRow>
+                  {curveType &&
                   <TableRow>
                     <TableCell><strong>Fit curve</strong></TableCell>
                     <TableCell>{curveType}</TableCell>
                   </TableRow>
+                  }
                 </TableBody>
               </Table>
             </Box>
