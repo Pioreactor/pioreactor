@@ -160,12 +160,20 @@ class SoftwarePWMOutputDevice:
                 forced_low = True
 
             if not forced_low:
-                create_logger("pwm").warning(
-                    "Unable to confirm GPIO-%s low during software PWM close (tx_pwm_error=%s, gpio_write_error=%s). Keeping previous software duty cycle state.",
-                    self.pin,
-                    repr(tx_pwm_error) if tx_pwm_error is not None else "None",
-                    repr(gpio_write_error) if gpio_write_error is not None else "None",
-                )
+                logger = create_logger("pwm", to_mqtt=False)
+                if tx_pwm_error is None:
+                    logger.info(
+                        "Stopped software PWM on GPIO-%s, but unable to confirm low level (gpio_write_error=%s). Keeping previous software duty cycle state.",
+                        self.pin,
+                        repr(gpio_write_error) if gpio_write_error is not None else "None",
+                    )
+                else:
+                    logger.warning(
+                        "Unable to confirm GPIO-%s low during software PWM close (tx_pwm_error=%s, gpio_write_error=%s). Keeping previous software duty cycle state.",
+                        self.pin,
+                        repr(tx_pwm_error),
+                        repr(gpio_write_error) if gpio_write_error is not None else "None",
+                    )
         finally:
             with suppress(lgpio.error):
                 lgpio.gpiochip_close(self._handle)

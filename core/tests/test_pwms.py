@@ -227,6 +227,26 @@ def test_software_pwm_close_warns_and_keeps_dc_if_force_low_fails(
     )
 
 
+def test_software_pwm_close_infos_if_pwm_stops_but_low_unconfirmed(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    pwm = SoftwarePWMOutputDevice(pin=17, frequency=100)
+    pwm.start(20)
+
+    state["raise_when_write"] = 0.0
+
+    with caplog.at_level(logging.INFO, logger="pwm"):
+        pwm.close()
+
+    assert pwm.dc == 20.0
+    assert any(
+        "Stopped software PWM on GPIO-17, but unable to confirm low level" in record.message
+        for record in caplog.records
+    )
+    assert not any(record.levelno >= logging.WARNING for record in caplog.records)
+
+
 def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.MonkeyPatch) -> None:
     state = _install_fake_lgpio(monkeypatch)
     monkeypatch.setattr(pwm_module, "is_testing_env", lambda: False)
