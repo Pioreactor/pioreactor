@@ -142,14 +142,30 @@ class SoftwarePWMOutputDevice:
         self._started = False
 
         # Best effort to force a deterministic low level before releasing the gpiochip.
+        tx_pwm_error: Exception | None = None
+        gpio_write_error: Exception | None = None
+        forced_low = False
         try:
-            with suppress(lgpio.error):
+            try:
                 lgpio.tx_pwm(self._handle, self.pin, self.frequency, 0)
+            except lgpio.error as e:
+                tx_pwm_error = e
 
-            with suppress(AttributeError, lgpio.error):
+            try:
                 lgpio.gpio_write(self._handle, self.pin, 0)
+            except (AttributeError, lgpio.error) as e:
+                gpio_write_error = e
+            else:
+                self._dc = 0.0
+                forced_low = True
 
-            self._dc = 0.0
+            if not forced_low:
+                create_logger("pwm").warning(
+                    "Unable to confirm GPIO-%s low during software PWM close (tx_pwm_error=%s, gpio_write_error=%s). Keeping previous software duty cycle state.",
+                    self.pin,
+                    repr(tx_pwm_error) if tx_pwm_error is not None else "None",
+                    repr(gpio_write_error) if gpio_write_error is not None else "None",
+                )
         finally:
             with suppress(lgpio.error):
                 lgpio.gpiochip_close(self._handle)

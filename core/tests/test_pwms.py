@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # test_pwms
 import json
+import logging
 import signal
 import sys
 import time
@@ -107,13 +108,18 @@ def test_pwm_update_mqtt_multiple_at_one() -> None:
     assert json.loads(mqtt_items[-1]).get("12", 0.0) == 0.0
 
 
-def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, float | list[float] | None]:
+def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     fake_lgpio: Any = types.ModuleType("lgpio")
 
     class FakeLgpioError(Exception):
         pass
 
-    state: dict[str, float | list[float] | None] = {"raise_when_dc": None, "tx_calls": [], "write_calls": []}
+    state: dict[str, Any] = {
+        "raise_when_dc": None,
+        "raise_when_write": None,
+        "tx_calls": [],
+        "write_calls": [],
+    }
 
     def gpiochip_open(_chip: int) -> int:
         return 1
@@ -134,6 +140,10 @@ def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, float | li
         write_calls = state["write_calls"]
         assert isinstance(write_calls, list)
         write_calls.append(float(level))
+
+        raise_when_write = state["raise_when_write"]
+        if (raise_when_write is not None) and (float(level) == raise_when_write):
+            raise FakeLgpioError("simulated lgpio gpio_write failure")
 
     def gpiochip_close(_handle: int) -> None:
         return
@@ -183,11 +193,38 @@ def test_software_pwm_close_forces_low_even_if_stop_fails(monkeypatch: pytest.Mo
     with pytest.raises(PWMError, match="Failed to set software PWM"):
         pwm.off()
 
+    assert pwm.dc == 20.0
     pwm.close()
 
     write_calls = state["write_calls"]
     assert isinstance(write_calls, list)
     assert write_calls[-1] == 0.0
+    assert pwm.dc == 0.0
+
+
+def test_software_pwm_close_warns_and_keeps_dc_if_force_low_fails(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    pwm = SoftwarePWMOutputDevice(pin=17, frequency=100)
+    pwm.start(20)
+
+    state["raise_when_dc"] = 0.0
+    state["raise_when_write"] = 0.0
+
+    with pytest.raises(PWMError, match="Failed to set software PWM"):
+        pwm.off()
+
+    assert pwm.dc == 20.0
+
+    with caplog.at_level(logging.WARNING, logger="pwm"):
+        pwm.close()
+
+    assert pwm.dc == 20.0
+    assert any(
+        "Unable to confirm GPIO-17 low during software PWM close" in record.message
+        for record in caplog.records
+    )
 
 
 def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.MonkeyPatch) -> None:
