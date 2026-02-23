@@ -10,6 +10,7 @@
    - You can still explicitly override `biomass_signal` in config (including via profiles).
    - Moved config from `[turbidostat.config]` to `[dosing_automation.turbidostat]`.
    - Update scripts migrate existing values from the legacy section/key when present.
+ - Renamed `pio cache clear` to `pio cache purge`.
  - Renamed `/api/is_local_access_point_active` to `/api/local_access_point` (now returns `{active: <bool>}`).
  - Consolidated experiment profile routes:
    - Kept `/api/experiment_profiles` and `/api/experiments/<experiment>/experiment_profiles/*`.
@@ -25,8 +26,10 @@
 #### Enhancements
 
  - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
+ - Added `--config-override <section> <param> <value>` to `pios run` to temporarily override config values when launching worker jobs.
  - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
  - Updated `pio cache view` to accept an optional key filter: `pio cache view <cache> <key>` now returns only that key when provided.
+ - Added `pio update --sha <commit>` (and `pio update app --sha <commit>`) to install from a specific git commit.
  - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
  - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
  - Added inline quick-edit popovers for card settings values.
@@ -48,6 +51,7 @@
  - CLI change gives plugin-registered commands precedence, enabling intentional overrides to existing `pio run` commands.
  - Fixed UI bugs on the Configuration page
  - Fixed `HAT_PRESENT` not being respected in the UI flow.
+ - PWMs clean up better, and display a warning if something looks wrong.
 
 
 ### 26.2.3
