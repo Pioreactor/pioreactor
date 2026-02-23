@@ -97,7 +97,6 @@ ALLOWED_ENV = (
     "HARDWARE",
     "ACTIVE",
     "FIRMWARE",
-    "ACTIVE",
     "DEBUG",
     "MODEL_NAME",
     "MODEL_VERSION",
@@ -105,6 +104,7 @@ ALLOWED_ENV = (
     "DOT_PIOREACTOR",
     "GLOBAL_CONFIG",
     "LOCAL_CONFIG",
+    "HAT_PRESENT",
 )
 
 

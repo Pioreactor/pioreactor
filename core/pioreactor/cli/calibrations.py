@@ -238,7 +238,10 @@ def set_active_calibration(device: str, calibration_name: str | None) -> None:
     """
 
     if calibration_name is None:
-        present = load_active_calibration(device)  # type: ignore
+        try:
+            present = load_active_calibration(device)  # type: ignore
+        except FileNotFoundError:
+            present = None
 
         if present is not None:
             click.echo(f"Clearing active calibration for {device}.")

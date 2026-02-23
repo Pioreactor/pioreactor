@@ -223,7 +223,7 @@ class GrowthRateCalculator(BackgroundJob):
             obs_variances = obs_std**2 * np.diag(scaling_obs_variances)
             return obs_variances
         except ZeroDivisionError:
-            self.logger.debug(exc_info=True)
+            self.logger.debug("Division by zero", exc_info=True)
             # we should clear the cache here...
 
             with local_persistent_storage("od_normalization_mean") as cache:

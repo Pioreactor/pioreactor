@@ -111,7 +111,10 @@ def set_active_estimator(device: str, estimator_name: str | None) -> None:
     """
 
     if estimator_name is None:
-        present = load_active_estimator(device)  # type: ignore
+        try:
+            present = load_active_estimator(device)  # type: ignore
+        except FileNotFoundError:
+            present = None
 
         if present is not None:
             click.echo(f"Clearing active estimator for {device}.")
