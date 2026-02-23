@@ -1,5 +1,18 @@
 ### Upcoming
 
+#### Enhancements
+
+ - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
+ - Added `--config-override <section> <param> <value>` to `pios run` to temporarily override config values when launching worker jobs.
+ - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
+ - Updated `pio cache view` to accept an optional key filter: `pio cache view <cache> <key>` now returns only that key when provided.
+ - Added `pio update --sha <commit>` (and `pio update app --sha <commit>`) to install from a specific git commit.
+ - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
+ - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
+ - Added inline quick-edit popovers for card settings values.
+ - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, and "Select all" now applies consistently to all listed units.
+ - Automation advanced config now discovers and displays both `[<x>_automation.config]` and per-automation sections like `[<x>_automation.<automation_name>]`, enabling section-specific overrides from the UI.
+
 #### Breaking changes
 
  - Changed Turbidostat biomass signal behavior:
@@ -22,19 +35,6 @@
  - Removed `/api/contrib/*` endpoints in favor of resource-scoped routes: `/api/automations/descriptors/<automation_type>`, `/api/jobs/descriptors`, `/api/charts/descriptors`, and `/api/datasets/exportable*`.
  - Renamed `pio jobs remove` to `pio jobs purge`.
  - Replaced `pio jobs running` with `pio jobs list running` (`list running` is now a running-only filter of `pio jobs list` output).
-
-#### Enhancements
-
- - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
- - Added `--config-override <section> <param> <value>` to `pios run` to temporarily override config values when launching worker jobs.
- - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
- - Updated `pio cache view` to accept an optional key filter: `pio cache view <cache> <key>` now returns only that key when provided.
- - Added `pio update --sha <commit>` (and `pio update app --sha <commit>`) to install from a specific git commit.
- - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
- - Added card-level quick controls to both `/pioreactors` and `/pioreactor/<unit>`: clicking an activity state now runs contextual actions (start, stop, pause, resume), and shows an in-place spinner until MQTT reports the expected state transition.
- - Added inline quick-edit popovers for card settings values.
- - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, and "Select all" now applies consistently to all listed units.
- - Automation advanced config now discovers and displays both `[<x>_automation.config]` and per-automation sections like `[<x>_automation.<automation_name>]`, enabling section-specific overrides from the UI.
 
 #### Bug fixes
 
