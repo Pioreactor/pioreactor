@@ -82,7 +82,7 @@ function formatEstimatorCurve(estimator) {
   if (sigmaText !== "Unknown") {
     return sigmaText;
   }
-  return "Unknown";
+  return null;
 }
 
 
@@ -457,7 +457,7 @@ function SingleEstimatorPageCard({ pioreactorUnit, device, estimatorName, estima
                     <TableCell><strong>Estimator type</strong></TableCell>
                     <TableCell>{estimator_type}</TableCell>
                   </TableRow>
-                  {curveType &&
+                  {curveType !== null &&
                   <TableRow>
                     <TableCell><strong>Fit curve</strong></TableCell>
                     <TableCell>{curveType}</TableCell>

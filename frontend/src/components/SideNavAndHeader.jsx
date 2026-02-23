@@ -24,7 +24,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import AddIcon from '@mui/icons-material/Add';
@@ -63,7 +63,6 @@ const ConditionalTooltip = ({condition, title, children}) => {
 
 
 const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}) => {
-  const navigate = useNavigate();
   const [selectOpen, setSelectOpen] = React.useState(false);
   const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
   React.useEffect(() => {
@@ -91,13 +90,6 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
 
 
   function handleExperimentChange(e) {
-    const currentPath = window.location.pathname.split('/')[1]; // Assumes the base path is at the first segment
-    const allowedPaths = ['pioreactors', 'experiment-profiles', 'overview', 'logs'];
-
-    if (!allowedPaths.includes(currentPath)) {
-      navigate('/overview');
-    }
-
     if (e.target.value){
       selectExperiment(e.target.value);
     }

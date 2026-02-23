@@ -884,18 +884,18 @@ def view_cache(cache: str, key: str | None) -> None:
                     click.echo(f"{click.style(key_to_show, bold=True)} = {c[key_to_show]}")
 
 
-@cache.command(name="clear", short_help="remove a key from a cache")
+@cache.command(name="purge", short_help="remove a key from a cache")
 @click.argument("cache", metavar="CACHE")
 @click.argument("key", metavar="KEY")
 @click.option("--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins.")
-def clear_cache(cache: str, key: str, as_int: bool) -> None:
+def purge_cache(cache: str, key: str, as_int: bool) -> None:
     """
     Remove a single entry from a cache.
 
     \b
     Examples:
-      pio cache clear pwm 12
-      pio cache clear gpio 18 --as-int
+      pio cache purge pwm 12
+      pio cache purge gpio 18 --as-int
     """
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
