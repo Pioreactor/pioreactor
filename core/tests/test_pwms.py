@@ -113,7 +113,7 @@ def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, float | li
     class FakeLgpioError(Exception):
         pass
 
-    state: dict[str, float | list[float] | None] = {"raise_when_dc": None, "tx_calls": []}
+    state: dict[str, float | list[float] | None] = {"raise_when_dc": None, "tx_calls": [], "write_calls": []}
 
     def gpiochip_open(_chip: int) -> int:
         return 1
@@ -130,6 +130,11 @@ def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, float | li
         if (raise_when_dc is not None) and (duty_cycle == raise_when_dc):
             raise FakeLgpioError("simulated lgpio tx_pwm failure")
 
+    def gpio_write(_handle: int, _pin: int, level: int) -> None:
+        write_calls = state["write_calls"]
+        assert isinstance(write_calls, list)
+        write_calls.append(float(level))
+
     def gpiochip_close(_handle: int) -> None:
         return
 
@@ -137,6 +142,7 @@ def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, float | li
     fake_lgpio.gpiochip_open = gpiochip_open
     fake_lgpio.gpio_claim_output = gpio_claim_output
     fake_lgpio.tx_pwm = tx_pwm
+    fake_lgpio.gpio_write = gpio_write
     fake_lgpio.gpiochip_close = gpiochip_close
 
     monkeypatch.setitem(sys.modules, "lgpio", fake_lgpio)
@@ -153,6 +159,8 @@ def test_software_pwm_dc_errors_raise_pwm_error(monkeypatch: pytest.MonkeyPatch)
     with pytest.raises(PWMError, match="Failed to set software PWM"):
         pwm.dc = 25.0
 
+    assert pwm.dc == 0.0
+
 
 def test_software_pwm_stop_errors_raise_pwm_error(monkeypatch: pytest.MonkeyPatch) -> None:
     state = _install_fake_lgpio(monkeypatch)
@@ -163,6 +171,23 @@ def test_software_pwm_stop_errors_raise_pwm_error(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(PWMError, match="Failed to set software PWM"):
         pwm.off()
+
+
+def test_software_pwm_close_forces_low_even_if_stop_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    pwm = SoftwarePWMOutputDevice(pin=17, frequency=100)
+    pwm.start(20)
+
+    state["raise_when_dc"] = 0.0
+
+    with pytest.raises(PWMError, match="Failed to set software PWM"):
+        pwm.off()
+
+    pwm.close()
+
+    write_calls = state["write_calls"]
+    assert isinstance(write_calls, list)
+    assert write_calls[-1] == 0.0
 
 
 def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.MonkeyPatch) -> None:

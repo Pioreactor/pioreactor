@@ -123,28 +123,36 @@ class SoftwarePWMOutputDevice:
         import lgpio
 
         dc = clamp(0.0, dc, 100.0)
-        self._dc = dc
         if self._started:
             try:
-                lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+                lgpio.tx_pwm(self._handle, self.pin, self.frequency, dc)
             except lgpio.error as e:
                 raise PWMError(
                     f"Failed to set software PWM on GPIO-{self.pin} to {dc:.5g}% duty cycle at {self.frequency:.5g} Hz."
                 ) from e
+            self._dc = dc
         elif dc == 0:
-            pass
+            self._dc = 0.0
         else:
             raise ValueError("must call .start() first!")
 
-    def close(self):
+    def close(self) -> None:
         import lgpio
 
         self._started = False
+
+        # Best effort to force a deterministic low level before releasing the gpiochip.
         try:
-            lgpio.gpiochip_close(self._handle)
-        except lgpio.error:
-            # not sure why this happens.
-            pass
+            with suppress(lgpio.error):
+                lgpio.tx_pwm(self._handle, self.pin, self.frequency, 0)
+
+            with suppress(AttributeError, lgpio.error):
+                lgpio.gpio_write(self._handle, self.pin, 0)
+
+            self._dc = 0.0
+        finally:
+            with suppress(lgpio.error):
+                lgpio.gpiochip_close(self._handle)
 
 
 class PWM:
