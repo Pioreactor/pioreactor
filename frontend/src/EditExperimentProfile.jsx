@@ -13,7 +13,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import TextField from '@mui/material/TextField';
 import { Link, useParams } from 'react-router';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml';

@@ -26,7 +26,7 @@ import {
 import PioreactorIcon from "./components/PioreactorIcon";
 import yaml from "js-yaml";
 import dayjs from 'dayjs';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import EstimatorIcon from './components/EstimatorIcon';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import Chip from '@mui/material/Chip';

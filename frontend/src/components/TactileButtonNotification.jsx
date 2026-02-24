@@ -3,7 +3,7 @@ import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import { useMQTT } from '../providers/MQTTContext';
 
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './Snackbar';
 
 const FAILSAFE_AUTO_HIDE_MS = 15000;
 
@@ -45,6 +45,7 @@ function TactileButtonNotification() {
       onClose={handleClose}
       anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       key={"button-tactile-snackbar"}
+      message={unit ? `Holding ${unit}'s button down` : ""}
       transitionDuration={{enter: 10}}
     >
     <Alert severity="info" variant="filled" icon={false} onClose={handleClose}>

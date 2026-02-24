@@ -39,7 +39,7 @@ import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
 import { getConfig } from "./utilities";
 import { disconnectedGrey, lostRed, inactiveGrey, readyGreen } from "./color";
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import Menu from "@mui/material/Menu";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';

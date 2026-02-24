@@ -16,7 +16,7 @@ import DialogContent from '@mui/material/DialogContent';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Menu from '@mui/material/Menu';

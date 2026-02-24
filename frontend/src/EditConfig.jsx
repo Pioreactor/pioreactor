@@ -9,7 +9,7 @@ import FormLabel from '@mui/material/FormLabel';
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/Save';
 import Editor from 'react-simple-code-editor';

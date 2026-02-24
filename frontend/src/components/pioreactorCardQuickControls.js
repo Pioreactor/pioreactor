@@ -24,8 +24,8 @@ export function shouldClearPendingStateAction(pendingAction, nextState) {
 export function createStateActionsForState(state, { onPause, onResume, onStop }) {
   if (state === "ready") {
     return [
-      { label: "Pause", onClick: onPause, pendingAction: "pause" },
       { label: "Stop", onClick: onStop, pendingAction: "stop" },
+      { label: "Pause", onClick: onPause, pendingAction: "pause" },
     ];
   }
 

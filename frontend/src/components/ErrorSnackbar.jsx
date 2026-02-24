@@ -1,6 +1,6 @@
 import React from "react";
 import Alert from '@mui/material/Alert';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './Snackbar';
 import AlertTitle from '@mui/material/AlertTitle';
 import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
@@ -93,6 +93,7 @@ function ErrorSnackbar() {
       key="error-snackbar"
       autoHideDuration={14000}
       style={{maxWidth: "500px"}}
+      message={`${task}:${level}:${unit}:${formattedMessage}`}
       onClose={handleClose}
     >
     <Alert variant="standard" severity={level.toLowerCase()} onClose={handleClose}>

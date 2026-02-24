@@ -1,7 +1,7 @@
 import React, {useState} from 'react'
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-import Snackbar from "@mui/material/Snackbar";
+import Snackbar from './Snackbar';
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utilities"
 

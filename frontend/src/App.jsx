@@ -37,6 +37,7 @@ import { ConfirmProvider } from 'material-ui-confirm';
 import {getConfig} from "./utilities"
 import { MQTTProvider } from './providers/MQTTContext';
 import { ExperimentProvider } from './providers/ExperimentContext';
+import { SnackbarProvider } from "notistack";
 
 
 import "@fontsource/roboto/400.css"
@@ -98,7 +99,9 @@ function App() {
             <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline />
-              <MainSite />
+              <SnackbarProvider maxSnack={6}>
+                <MainSite />
+              </SnackbarProvider>
             </ConfirmProvider>
           </Router>
         </ThemeProvider>

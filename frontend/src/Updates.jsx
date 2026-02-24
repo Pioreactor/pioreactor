@@ -8,7 +8,7 @@ import CardContent from '@mui/material/CardContent';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import {Typography} from '@mui/material';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import Link from '@mui/material/Link';
 import UpdateIcon from '@mui/icons-material/Update';
 import Divider from '@mui/material/Divider';

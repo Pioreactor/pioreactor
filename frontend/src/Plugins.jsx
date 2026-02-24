@@ -11,7 +11,7 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import {Typography} from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemAvatar from '@mui/material/ListItemAvatar';

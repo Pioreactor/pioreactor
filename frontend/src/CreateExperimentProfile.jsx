@@ -14,7 +14,7 @@ import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import { Link, useLocation } from 'react-router';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import Snackbar from '@mui/material/Snackbar';
+import Snackbar from './components/Snackbar';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml'; // You can add more languages or change it

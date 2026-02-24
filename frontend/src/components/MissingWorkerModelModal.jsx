@@ -14,7 +14,7 @@ import InputLabel from "@mui/material/InputLabel";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
-import Snackbar from "@mui/material/Snackbar";
+import Snackbar from './Snackbar';
 import { styled } from "@mui/material/styles";
 import PioreactorIcon from "./PioreactorIcon";
 import ListSubheader from '@mui/material/ListSubheader';
