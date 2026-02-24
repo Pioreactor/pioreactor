@@ -476,7 +476,9 @@ class ADCReader(LoggerMixin):
         if SSE > 1e-20:
             AIC = n * np.log(SSE / n) + 2 * 3
         else:
-            AIC = math.inf
+            # Perfect (or numerically-perfect) fits should rank best when selecting
+            # between candidate AC frequencies.
+            AIC = -math.inf
 
         if np.sqrt(b**2 + c**2) <= 1e-20:
             A = 0
@@ -1319,10 +1321,20 @@ class ODReader(BackgroundJob):
 
         _, REF_on_signal = on_reading.popitem()
 
-        ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.250
+        def _safe_ratio(numerator: float, denominator: float) -> float:
+            # Very small / zero sensor values can occur during startup or hardware faults.
+            # Treating the ratio as +inf preserves current behavior (falls back to MAX)
+            # while avoiding runtime crashes.
+            if denominator <= 0.0:
+                return float("inf")
+            return numerator / denominator
+
+        ir_intensity_argmax_REF_can_be = _safe_ratio(initial_ir_intensity, REF_on_signal.reading) * 0.250
 
         # divide by N since the culture is unlikely to Nx.
-        ir_intensity_argmax_ANGLE_can_be = (initial_ir_intensity / culture_on_signal.reading) * 3.0 / 50
+        ir_intensity_argmax_ANGLE_can_be = (
+            _safe_ratio(initial_ir_intensity, culture_on_signal.reading) * 3.0 / 50
+        )
 
         ir_led_intensity = min(
             MAX, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be
@@ -1496,10 +1508,12 @@ class ODReader(BackgroundJob):
     ############
 
     def on_sleeping(self) -> None:
-        self.record_from_adc_timer.pause()
+        if hasattr(self, "record_from_adc_timer"):
+            self.record_from_adc_timer.pause()
 
     def on_sleeping_to_ready(self) -> None:
-        self.record_from_adc_timer.unpause()
+        if hasattr(self, "record_from_adc_timer"):
+            self.record_from_adc_timer.unpause()
 
     def on_disconnected(self) -> None:
         try:

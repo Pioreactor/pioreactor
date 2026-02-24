@@ -685,6 +685,18 @@ def test_ADC_picks_to_correct_freq_even_if_slight_noise_in_freq() -> None:
     assert best_freq == actual_freq
 
 
+def test_ADC_picks_exact_frequency_for_perfect_signal() -> None:
+    actual_freq = 50.0
+    # Use a non-aliased sample grid so the linear solve is non-singular.
+    x = [i / 29 for i in range(29)]
+    y = [10.0 + np.sin(actual_freq * 2 * np.pi * _x + 0.3) for _x in x]
+
+    adc_reader = ADCReader(channels=["1"])
+
+    best_freq = adc_reader.determine_most_appropriate_AC_hz({"1": x}, {"1": y})
+    assert best_freq == actual_freq
+
+
 def test_error_thrown_if_wrong_angle() -> None:
     with pytest.raises(ValueError):
         start_od_reading(make_channels("100", "135"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
@@ -736,7 +748,7 @@ def test_sin_regression_all_negative() -> None:
 
     (C, A, phi), AIC = adc_reader._sin_regression_with_known_freq(x, y, freq)
     assert C == -2
-    assert AIC == float("inf")
+    assert AIC == -float("inf")
 
 
 @pytest.mark.slow
@@ -915,6 +927,8 @@ def test_outliers_are_removed_in_sin_regression() -> None:
 def test_interval_is_empty() -> None:
     with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True) as od:
         assert not hasattr(od, "record_from_adc_timer")
+        od.on_sleeping()
+        od.on_sleeping_to_ready()
 
 
 def test_determine_best_ir_led_intensity_values() -> None:
@@ -948,6 +962,16 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 50  # 6.0
+    )
+
+    assert (
+        _determine_best_ir_led_intensity(
+            {"2": "90"},
+            50,
+            {"1": structs.RawPDReading(0.0, "1"), "2": structs.RawPDReading(0.0, "2")},
+            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},
+        )
+        == 85.0
     )
 
 
