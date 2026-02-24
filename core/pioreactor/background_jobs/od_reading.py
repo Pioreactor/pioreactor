@@ -836,8 +836,26 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
         return 1.0, raw_readings
 
 
+class HydratedCalibrationModel:
+    def __init__(
+        self,
+        calibration_name: str,
+        calibrate_signal: Callable[[pt.Voltage], pt.OD],
+        verify_reading: Callable[[structs.ODReading], bool],
+    ) -> None:
+        self.calibration_name = calibration_name
+        self._calibrate_signal = calibrate_signal
+        self._verify_reading = verify_reading
+
+    def __call__(self, observed_voltage: pt.Voltage) -> pt.OD:
+        return self._calibrate_signal(observed_voltage)
+
+    def verify(self, od_reading: structs.ODReading) -> bool:
+        return self._verify_reading(od_reading)
+
+
 class CalibrationTransformerProtocol(Protocol):
-    models: dict[pt.PdChannel, Callable]
+    models: dict[pt.PdChannel, HydratedCalibrationModel]
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None: ...
 
@@ -857,7 +875,7 @@ class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
 
     def __init__(self) -> None:
         super().__init__()
-        self.models: dict[pt.PdChannel, Callable] = {}
+        self.models: dict[pt.PdChannel, HydratedCalibrationModel] = {}
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
         return
@@ -871,8 +889,7 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
 
     def __init__(self) -> None:
         super().__init__()
-        self.models: dict[pt.PdChannel, Callable] = {}
-        self.verifiers: dict[pt.PdChannel, Callable] = {}
+        self.models: dict[pt.PdChannel, HydratedCalibrationModel] = {}
         self._last_bound_warning_at: float | None = None
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
@@ -885,18 +902,9 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
         if channel in self.models:
             raise ValueError(f"Calibration model for channel {channel} already hydrated.")
 
-        cal_type = calibration_data.calibration_type
-        calibration_name = calibration_data.calibration_name
+        self.models[channel] = self._hydrate_model(calibration_data)
 
-        self.models[channel], self.verifiers[channel] = self._hydrate_model(calibration_data)
-        self.models[channel].calibration_name = calibration_name  # type: ignore
-        self.logger.debug(
-            f"Using OD calibration `{calibration_name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_data_=}"
-        )
-
-    def _hydrate_model(
-        self, calibration_data: structs.ODCalibration
-    ) -> tuple[Callable[[pt.Voltage], pt.OD], Callable[[structs.ODReading], bool]]:
+    def _hydrate_model(self, calibration_data: structs.ODCalibration) -> HydratedCalibrationModel:
         if (
             calibration_data.y != "Voltage"
         ):  # don't check for OD600 - we can allow other non-OD600 calibrations
@@ -972,7 +980,11 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
                     )
                 return clamp_to_recorded_extrema()
 
-        return _calibrate_signal, _verify
+        return HydratedCalibrationModel(
+            calibration_name=calibration_data.calibration_name,
+            calibrate_signal=_calibrate_signal,
+            verify_reading=_verify,
+        )
 
     def _should_warn_about_bounds(self) -> bool:
         now = time()
@@ -988,7 +1000,7 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
                 raw_od = od_readings.ods[channel]
 
                 # check if everything is okay - blows up if not.
-                self.verifiers[channel](raw_od)
+                self.models[channel].verify(raw_od)
 
                 calibrated_od_readings.ods[channel] = structs.CalibratedODReading(
                     channel=raw_od.channel,
@@ -996,7 +1008,7 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
                     timestamp=raw_od.timestamp,
                     ir_led_intensity=raw_od.ir_led_intensity,
                     od=self.models[channel](raw_od.od),
-                    calibration_name=self.models[channel].calibration_name,  # type: ignore
+                    calibration_name=self.models[channel].calibration_name,
                 )
             else:
                 calibrated_od_readings.ods[channel] = od_readings.ods[channel]
@@ -1031,7 +1043,6 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
             self.logger.debug("No estimator available for OD fusion, skipping.")
             return
         self.estimator = estimator
-        self.logger.debug(f"Using OD estimator `{estimator.estimator_name}`.")
 
     def _verify(self, raw_od_readings: structs.ODReadings) -> None:
         if self.estimator is None:
@@ -1209,6 +1220,28 @@ class ODReader(BackgroundJob):
         self.estimator_transformer.add_external_logger(self.logger)
 
         self.channel_angle_map = channel_angle_map
+
+        calibration_status = "none"
+        if isinstance(self.calibration_transformer, CachedCalibrationTransformer):
+            configured_channels = sorted(self.channel_angle_map.keys(), key=int)
+            used_calibrations: list[str] = []
+            for channel in configured_channels:
+                model = self.calibration_transformer.models.get(channel)
+                if model is None:
+                    continue
+                used_calibrations.append(
+                    f"{model.calibration_name} (pd{channel}@{self.channel_angle_map[channel]})"
+                )
+
+            if used_calibrations:
+                calibration_status = ", ".join(used_calibrations)
+
+        estimator_status = "none"
+        if isinstance(self.estimator_transformer, CachedEstimatorTransformer):
+            if self.estimator_transformer.estimator is not None:
+                estimator_status = self.estimator_transformer.estimator.estimator_name
+
+        self.logger.debug(f"OD setup: calibrations={calibration_status}; estimator={estimator_status}.")
 
         self.first_od_obs_time: Optional[float] = None
         self._set_for_iterating = threading.Event()
