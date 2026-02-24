@@ -1767,7 +1767,7 @@ def click_od_reading(
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
     penalizer = (
         config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
-        if (interval is not None)
+        if (run_interval is not None)
         else 0
     )
     with start_od_reading(
