@@ -352,15 +352,6 @@ function PageHeader(props) {
         });
       }
 
-    async function getCurrentUIVersion() {
-         await fetch("/unit_api/versions/ui")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setUIVersion(data['version'])
-        });
-      }
 
     async function getLatestAppVersion() {
          await fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
@@ -375,7 +366,6 @@ function PageHeader(props) {
         })
       }
 
-      getCurrentUIVersion()
       getCurrentAppVersion()
       getLatestAppVersion()
   }, [])
