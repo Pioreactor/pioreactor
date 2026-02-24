@@ -476,7 +476,7 @@ def set_system_utc_clock() -> DelayedResponseReturnValue:
     task1.get(blocking=True, timeout=20)
 
     # then tell the workers to update to leader's value (via chrony)
-    task2 = broadcast_post_across_cluster("/unit_api/system/utc_clock")
+    task2 = broadcast_post_across_workers("/unit_api/system/utc_clock")
     return create_task_response(task2)
 
 

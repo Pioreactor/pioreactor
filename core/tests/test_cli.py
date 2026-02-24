@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 import pytest
 from click.testing import CliRunner
+from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.cli.pio import pio
@@ -117,6 +118,57 @@ def test_pio_config_show_key_requires_section() -> None:
     result = runner.invoke(pio, ["config", "show", "--key", "broker_address"])
     assert result.exit_code != 0
     assert "--key requires --section." in result.output
+
+
+def test_pio_status_handles_unassigned_experiment(monkeypatch) -> None:
+    def raise_not_assigned(_unit: str) -> str:
+        raise exc.NotAssignedAnExperimentError("no experiment assigned")
+
+    monkeypatch.setattr("pioreactor.whoami.get_assigned_experiment_name", raise_not_assigned)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status"])
+
+    assert result.exit_code == 0
+    identity_line = next(line for line in result.output.splitlines() if line.startswith("identity"))
+    assert "OK" in identity_line
+    assert "experiment=" in identity_line
+    assert whoami.NO_EXPERIMENT not in identity_line
+    assert "worker is not assigned to an experiment" not in result.output
+
+
+def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> None:
+    def raise_unit_name() -> str:
+        raise RuntimeError("unit lookup failed")
+
+    def raise_is_worker() -> bool:
+        raise RuntimeError("worker lookup failed")
+
+    def raise_config(*_args, **_kwargs):
+        raise RuntimeError("config unavailable")
+
+    class BrokenJobManager:
+        def __enter__(self):
+            raise RuntimeError("job manager unavailable")
+
+        def __exit__(self, *_args) -> bool:
+            return False
+
+    monkeypatch.setattr("pioreactor.whoami.get_unit_name", raise_unit_name)
+    monkeypatch.setattr("pioreactor.whoami.am_I_a_worker", raise_is_worker)
+    monkeypatch.setattr("pioreactor.pubsub.create_webserver_path", raise_config)
+    monkeypatch.setattr("pioreactor.config.config.get", raise_config)
+    monkeypatch.setattr("pioreactor.config.config.getint", raise_config)
+    monkeypatch.setattr("pioreactor.utils.job_manager.JobManager", BrokenJobManager)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status"])
+
+    assert result.exit_code == 0
+    assert "identity" in result.output
+    assert "services:web" in result.output
+    assert "jobs:running" in result.output
+    assert "job manager unavailable" in result.output
 
 
 def test_pio_cache_view_with_key_filters_output() -> None:

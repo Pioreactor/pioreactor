@@ -734,14 +734,49 @@ def status() -> None:
     def add_check(name: str, status: str, details: str) -> None:
         checks.append((name, status, details))
 
-    unit = whoami.get_unit_name()
-    role = "leader" if whoami.am_I_leader() else "worker"
-    experiment = whoami.get_assigned_experiment_name(unit)
-    add_check("identity", "OK", f"unit={unit} role={role} experiment={experiment}")
+    unit = "<unknown>"
+    role = "<unknown>"
+    experiment = "<unknown>"
+    identity_status = "OK"
+    identity_details: list[str] = []
+
+    try:
+        unit = whoami.get_unit_name()
+    except Exception as error:
+        identity_status = "FAIL"
+        identity_details.append(f"unit lookup failed ({error})")
+    else:
+        try:
+            role = "leader" if whoami.am_I_leader() else "worker"
+        except Exception as error:
+            if identity_status != "FAIL":
+                identity_status = "WARN"
+            identity_details.append(f"role lookup failed ({error})")
+
+        try:
+            experiment = whoami.get_assigned_experiment_name(unit)
+        except exc.NotAssignedAnExperimentError:
+            experiment = ""
+        except Exception as error:
+            if identity_status != "FAIL":
+                identity_status = "WARN"
+            identity_details.append(f"experiment lookup failed ({error})")
+
+    identity_summary = f"unit={unit} role={role} experiment={experiment}"
+    if identity_details:
+        identity_summary = f"{identity_summary} ({'; '.join(identity_details)})"
+    add_check("identity", identity_status, identity_summary)
 
     version_details = f"app={tuple_to_text(software_version_info)}"
     version_status = "OK"
-    if whoami.am_I_a_worker():
+    try:
+        is_worker = whoami.am_I_a_worker()
+    except Exception as error:
+        is_worker = False
+        version_status = "WARN"
+        version_details += f" worker=unknown ({error})"
+
+    if is_worker:
         try:
             version_details += f" firmware={tuple_to_text(get_firmware_version())}"
         except Exception:
@@ -749,23 +784,40 @@ def status() -> None:
             version_status = "WARN"
     add_check("version", version_status, version_details)
 
-    broker_host = config.get("mqtt", "broker_address", fallback="localhost").split(";")[0].strip()
-    broker_port = config.getint("mqtt", "broker_port", fallback=1883)
+    broker_host = "localhost"
+    broker_port = 1883
+    mqtt_config_error: Exception | None = None
+    try:
+        broker_host = config.get("mqtt", "broker_address", fallback="localhost").split(";")[0].strip()
+        broker_port = config.getint("mqtt", "broker_port", fallback=1883)
+    except Exception as error:
+        mqtt_config_error = error
+
     try:
         with socket.create_connection((broker_host, broker_port), timeout=2):
-            add_check("connectivity:mqtt", "OK", f"{broker_host}:{broker_port}")
-    except OSError as exc:
-        add_check("connectivity:mqtt", "FAIL", f"{broker_host}:{broker_port} ({exc})")
+            mqtt_status = "WARN" if mqtt_config_error is not None else "OK"
+            mqtt_details = f"{broker_host}:{broker_port}"
+            if mqtt_config_error is not None:
+                mqtt_details = f"{mqtt_details} (using defaults: {mqtt_config_error})"
+            add_check("connectivity:mqtt", mqtt_status, mqtt_details)
+    except OSError as error:
+        details = f"{broker_host}:{broker_port} ({error})"
+        if mqtt_config_error is not None:
+            details = f"{details} (using defaults: {mqtt_config_error})"
+        add_check("connectivity:mqtt", "FAIL", details)
+    except Exception as error:
+        add_check("connectivity:mqtt", "FAIL", f"{broker_host}:{broker_port} ({error})")
 
-    webserver_url = create_webserver_path("localhost", "unit_api/health")
+    webserver_url = "unit_api/health"
     try:
+        webserver_url = create_webserver_path("localhost", "unit_api/health")
         response = mureq.get(webserver_url, timeout=2)
         if response.ok:
             add_check("services:web", "OK", webserver_url)
         else:
             add_check("services:web", "FAIL", f"{webserver_url} (HTTP {response.status_code})")
-    except Exception as exc:
-        add_check("services:web", "FAIL", f"{webserver_url} ({exc})")
+    except Exception as error:
+        add_check("services:web", "FAIL", f"{webserver_url} ({error})")
 
     systemctl_path = shutil.which("systemctl")
     if systemctl_path is None:
@@ -780,25 +832,38 @@ def status() -> None:
         huey_status = "OK" if result.returncode == 0 and raw_status == "active" else "FAIL"
         add_check("services:huey", huey_status, raw_status or "unknown")
 
-    with JobManager() as jm:
-        running_jobs = jm.list_jobs(all_jobs=True)
-    add_check("jobs:running", "OK", f"count={len(running_jobs)}")
+    try:
+        with JobManager() as jm:
+            running_jobs = jm.list_jobs(all_jobs=True)
+    except Exception as error:
+        add_check("jobs:running", "FAIL", str(error))
+    else:
+        add_check("jobs:running", "OK", f"count={len(running_jobs)}")
 
-    log_file = Path(config.get("logging", "log_file", fallback="/var/log/pioreactor.log"))
+    try:
+        log_file = Path(config.get("logging", "log_file", fallback="/var/log/pioreactor.log"))
+    except Exception:
+        log_file = Path("/var/log/pioreactor.log")
     log_status = "OK" if log_file.exists() else "WARN"
     log_details = str(log_file) if log_file.exists() else f"missing: {log_file}"
     add_check("storage:logs", log_status, log_details)
 
-    db_path = Path(config.get("storage", "database"))
-    if whoami.am_I_leader():
+    db_path: Path | None
+    try:
+        db_path = Path(config.get("storage", "database"))
+    except Exception as error:
+        db_path = None
+        add_check("storage:db", "WARN", f"storage.database missing ({error})")
+
+    if db_path is not None and role == "leader":
         db_status = "OK"
         db_details = [str(db_path)]
         try:
             conn = sqlite3.connect(str(db_path))
             conn.execute("select 1;")
             conn.close()
-        except Exception as exc:
-            add_check("storage:db", "FAIL", f"{db_path} ({exc})")
+        except Exception as error:
+            add_check("storage:db", "FAIL", f"{db_path} ({error})")
         else:
             shm_path = Path(f"{db_path}-shm")
             wal_path = Path(f"{db_path}-wal")
@@ -834,12 +899,16 @@ def status() -> None:
 
             add_check("storage:db", db_status, " ".join(db_details))
 
-    disk_root = db_path.parent
-    if disk_root.exists():
-        free_bytes = shutil.disk_usage(disk_root).free
-        free_gb = free_bytes / (1024**3)
-        disk_status = "WARN" if free_gb < 1.0 else "OK"
-        add_check("storage:disk", disk_status, f"free={free_gb:.1f}GB path={disk_root}")
+    if db_path is not None:
+        disk_root = db_path.parent
+        if disk_root.exists():
+            try:
+                free_bytes = shutil.disk_usage(disk_root).free
+                free_gb = free_bytes / (1024**3)
+                disk_status = "WARN" if free_gb < 1.0 else "OK"
+                add_check("storage:disk", disk_status, f"free={free_gb:.1f}GB path={disk_root}")
+            except Exception as error:
+                add_check("storage:disk", "WARN", f"path={disk_root} ({error})")
 
     name_width = 22
     status_width = 7
