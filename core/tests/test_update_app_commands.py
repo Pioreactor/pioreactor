@@ -3,12 +3,15 @@
 Tests for the get_update_app_commands helper in pioreactor.cli.pio.
 """
 import tempfile
+from http.client import HTTPMessage
+from json import dumps
 from shlex import quote
 
 import click
 import pytest
 from pioreactor.cli.pio import get_update_app_commands
 from pioreactor.config import config
+from pioreactor.mureq import Response
 
 
 def test_app_commands_with_whl_source() -> None:
@@ -180,3 +183,56 @@ def test_app_commands_branch_with_special_chars() -> None:
         f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"'
     )
     assert cmds == [(expected_cmd, 1)]
+
+
+def test_app_commands_from_release_metadata_include_restart_by_default(monkeypatch) -> None:
+    def mock_get(_url: str, **_kwargs) -> Response:
+        release_metadata = {
+            "tag_name": "26.2.23",
+            "assets": [
+                {
+                    "name": "pioreactor-26.2.23-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/pioreactor-26.2.23-py3-none-any.whl",
+                }
+            ],
+        }
+        return Response("", 200, HTTPMessage(), dumps(release_metadata).encode())
+
+    monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get)
+
+    cmds, _ = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=None,
+        version=None,
+    )
+
+    assert ("sudo systemctl restart pioreactor-web.target", 101) in cmds
+
+
+def test_app_commands_from_release_metadata_skip_restart_when_deferred(monkeypatch) -> None:
+    def mock_get(_url: str, **_kwargs) -> Response:
+        release_metadata = {
+            "tag_name": "26.2.23",
+            "assets": [
+                {
+                    "name": "pioreactor-26.2.23-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/pioreactor-26.2.23-py3-none-any.whl",
+                }
+            ],
+        }
+        return Response("", 200, HTTPMessage(), dumps(release_metadata).encode())
+
+    monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get)
+
+    cmds, _ = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ("sudo systemctl restart pioreactor-web.target", 101) not in cmds

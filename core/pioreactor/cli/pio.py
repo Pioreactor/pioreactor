@@ -208,6 +208,8 @@ def get_update_app_commands(
                 )
             else:
                 commands_and_priority.append((f"wget -O {tmp_rls_dir}/{name} {url}", -1))
+        if not defer_web_restart:
+            commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 101))
         if not found_whl:
             raise FileNotFoundError(f"Could not find a whl in assets of {repo} release {tag}")
     return commands_and_priority, version_installed

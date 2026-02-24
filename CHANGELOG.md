@@ -1,3 +1,11 @@
+### Upcoming
+
+#### Bug fixes
+
+ - `pio update app` now always schedules `systemctl restart pioreactor-web.target` after a successful default release-asset update, matching other update paths.
+ - Actually ship the HAT_PRESENT change from last time
+ - OD reading now correctly uses the smoothing penalizer.
+
 ### 26.2.23
 
 #### Enhancements
