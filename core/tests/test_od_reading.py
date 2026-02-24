@@ -218,6 +218,20 @@ def test_fused_od_skips_when_angle_missing() -> None:
         assert reader.od_fused is None
 
 
+def test_fused_od_errors_when_ir_led_intensity_differs_from_estimator() -> None:
+    estimator = _build_fusion_estimator()
+    readings_by_angle = _build_readings_for_concentration(0.2)
+    raw_readings = _build_od_readings(readings_by_angle)
+    estimator_transformer = CachedEstimatorTransformer()
+    estimator_transformer.hydrate_estimator(estimator)
+
+    for reading in raw_readings.ods.values():
+        reading.ir_led_intensity = 70.0
+
+    with pytest.raises(exc.CalibrationError, match="IR LED intensity"):
+        estimator_transformer(raw_readings)
+
+
 def test_sin_regression_all_zeros_should_return_zeros() -> None:
     import numpy as np
 

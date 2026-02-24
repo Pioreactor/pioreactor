@@ -1031,9 +1031,21 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         self.estimator = estimator
         self.logger.debug(f"Using OD estimator `{estimator.estimator_name}`.")
 
+    def _verify(self, raw_od_readings: structs.ODReadings) -> None:
+        if self.estimator is None:
+            return
+
+        for od_reading in raw_od_readings.ods.values():
+            if od_reading.ir_led_intensity != self.estimator.ir_led_intensity:
+                raise exc.CalibrationError(
+                    f"IR LED intensity {od_reading.ir_led_intensity} does not match estimator {self.estimator.ir_led_intensity} for channel {od_reading.channel}."
+                )
+
     def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
         if self.estimator is None:
             return None
+
+        self._verify(raw_od_readings)
 
         fused_inputs: dict[pt.PdAngle, float] = {
             reading.angle: reading.od for reading in raw_od_readings.ods.values()
@@ -1766,7 +1778,7 @@ def click_od_reading(
     default_interval = 1 / samples_per_second
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
     penalizer = (
-        config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
+        config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / run_interval
         if (run_interval is not None)
         else 0
     )
