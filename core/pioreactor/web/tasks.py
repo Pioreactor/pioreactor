@@ -42,6 +42,7 @@ from pioreactor.models import CORE_MODELS
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
+from pioreactor.plugins.plugin_management import load_plugins
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
@@ -225,6 +226,11 @@ def _process_delayed_json_response(
 @huey.on_startup()
 def initialized():
     logger.debug("Starting Huey consumer...")
+    logger.debug("Loading plugins...")
+    try:
+        load_plugins()
+    except:
+        pass
 
 
 @huey.task(priority=50)
