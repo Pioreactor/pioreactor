@@ -101,19 +101,19 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     test_channels = {str(channel): "90" for channel, angle in pd_channels.items()}
 
     all_channels = [cast(PdChannel, channel) for channel in test_channels]
-    delta_per_channel: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
+    relative_effect_per_channel: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
     with stirring.start_stirring(
         target_rpm=None, duty_cycle=90, unit=unit, experiment=experiment, enable_dodging_od=False
     ) as st, start_od_reading(
         channels=test_channels,
-        interval=1.15,
+        interval=None,
         unit=unit,
         fake_data=is_testing_env(),
         experiment=experiment,
         calibration=False,
         estimator=False,
-    ) as od_stream:
+    ) as od_reader:
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
         warmup_samples = 5
@@ -123,7 +123,8 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
 
         # Warm-up: discard a few initial readings to allow signals to stabilize.
         for _ in range(warmup_samples):
-            next(od_stream)
+            reading = od_reader.record_from_adc()
+            assert reading is not None, "Unable to capture OD reading during warmup."
 
         def collect_phase_medians(target_state: JobState) -> dict[PdChannel, float]:
             st.set_state(target_state)
@@ -131,7 +132,8 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
             per_channel_window: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
             for sample_i in range(settle_samples + window_samples):
-                reading = next(od_stream)
+                reading = od_reader.record_from_adc()
+                assert reading is not None, "Unable to capture OD reading while collecting phase medians."
                 if sample_i < settle_samples:
                     continue
                 for channel in all_channels:
@@ -143,18 +145,22 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
             off_medians = collect_phase_medians(JobState.SLEEPING)
             on_medians = collect_phase_medians(JobState.READY)
             for channel in all_channels:
-                delta_per_channel[channel].append(on_medians[channel] - off_medians[channel])
+                EPS = 1e-9
+                relative_effect_per_channel[channel].append(
+                    abs(on_medians[channel] - off_medians[channel])
+                    / max((abs(on_medians[channel]) + abs(off_medians[channel])) / 2, EPS)
+                )
 
     effect_per_channel = {
-        channel: float(median([abs(delta) for delta in deltas]))
-        for channel, deltas in delta_per_channel.items()
+        channel: float(median(relative_effects))
+        for channel, relative_effects in relative_effect_per_channel.items()
     }
     ref_effect = effect_per_channel[reference_channel]
     signal_effects = {channel: effect_per_channel[channel] for channel in signal_channels}
     highest_signal_channel = max(signal_effects, key=signal_effects.__getitem__)
     highest_signal_effect = signal_effects[highest_signal_channel]
 
-    logger.debug(f"{delta_per_channel=}")
+    logger.debug(f"{relative_effect_per_channel=}")
     logger.debug(f"{effect_per_channel=}")
 
     MIN_SIGNAL_EFFECT = 0.002

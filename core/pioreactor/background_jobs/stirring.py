@@ -372,9 +372,11 @@ class Stirrer(BackgroundJobWithDodging):
     def initialize_rpm_to_dc_lookup(
         self, calibration: bool | structs.SimpleStirringCalibration | None
     ) -> Callable:
-        if self.rpm_calculator is None or self.target_rpm is None:
-            # if we can't track RPM, no point in adjusting DC, use current value
+        if self.rpm_calculator is None:
             assert self.target_rpm is None, "Can't target an RPM without rpm_calculator."
+            return lambda rpm: self._estimate_duty_cycle
+
+        if self.target_rpm is None:
             return lambda rpm: self._estimate_duty_cycle
 
         assert isinstance(self.target_rpm, float)
