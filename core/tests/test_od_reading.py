@@ -228,8 +228,29 @@ def test_fused_od_errors_when_ir_led_intensity_differs_from_estimator() -> None:
     for reading in raw_readings.ods.values():
         reading.ir_led_intensity = 70.0
 
-    with pytest.raises(exc.CalibrationError, match="IR LED intensity"):
+    with pytest.raises((exc.CalibrationError, exc.EstimatorError), match="IR LED intensity"):
         estimator_transformer(raw_readings)
+
+
+def test_record_from_adc_handles_estimator_ir_led_intensity_mismatch() -> None:
+    estimator = _build_fusion_estimator()
+    estimator_transformer = CachedEstimatorTransformer()
+    estimator_transformer.hydrate_estimator(estimator)
+    channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
+
+    with ODReader(
+        channel_angle_map,
+        interval=None,
+        unit=get_unit_name(),
+        experiment="test_record_from_adc_handles_estimator_ir_led_intensity_mismatch",
+        adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
+        calibration_transformer=NullCalibrationTransformer(),
+        estimator_transformer=estimator_transformer,
+    ) as reader:
+        reader.ir_led_intensity = estimator.ir_led_intensity - 10.0
+        od_readings = reader.record_from_adc()
+        assert od_readings is not None
+        assert reader.od_fused is None
 
 
 def test_sin_regression_all_zeros_should_return_zeros() -> None:

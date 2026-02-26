@@ -1495,9 +1495,14 @@ class ODReader(BackgroundJob):
                     setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
                     setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
 
-            fused_od = self.estimator_transformer(raw_od_readings)
-            if fused_od is not None:
-                self.od_fused = fused_od
+            try:
+                fused_od = self.estimator_transformer(raw_od_readings)
+            except (exc.CalibrationError, exc.EstimatorError) as e:
+                self.logger.error(f"Error in estimator transformer: {e}")
+                self.od_fused = None
+            else:
+                if fused_od is not None:
+                    self.od_fused = fused_od
 
         finally:
             for post_function in self.post_read_callbacks:
