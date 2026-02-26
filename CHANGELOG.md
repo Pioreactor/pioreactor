@@ -6,6 +6,7 @@
  - Actually ship the `HAT_PRESENT` change from last time
  - OD reading now correctly uses the smoothing penalizer.
  - `pio status` now handles unassigned experiments and other local check failures gracefully, leaving unassigned experiments blank and avoiding early aborts.
+ - fix self-test "Reference photodiode is correct magnitude" for v1.5s
 
 ### 26.2.23
 

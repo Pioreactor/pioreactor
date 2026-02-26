@@ -774,6 +774,7 @@ def test_ability_to_be_iterated() -> None:
         fake_data=True,
         experiment="test_ability_to_be_iterated",
         calibration=False,
+        estimator=False,
     )
     results = []
 
@@ -1534,7 +1535,7 @@ def test_calibration_data_from_user1() -> None:
         infer = od.calibration_transformer.models["2"]
 
         # try varying voltage up over and across the lower bound, and assert we are always non-decreasing.
-        od_0 = 0
+        od_0 = 0.0
         for i in range(10):
             voltage = i / 5 + 0.1
 
@@ -1578,7 +1579,7 @@ def test_calibration_data_from_user2() -> None:
         infer = od.calibration_transformer.models["2"]
 
         # try varying voltage up over and across the lower bound, and assert we are always non-decreasing.
-        od_0 = 0
+        od_0 = 0.0
         for i in range(10):
             voltage = i / 5 * 0.018
             od_1 = infer(voltage)
@@ -1596,6 +1597,7 @@ def test_auto_ir_led_intensity_REF_and_90() -> None:
             fake_data=True,
             experiment=experiment,
             calibration=False,
+            estimator=False,
         ) as od:
             assert abs(od.ir_led_intensity - 85.0) < 0.01
 
@@ -1689,6 +1691,7 @@ def test_can_pass_config_section_directly() -> None:
             fake_data=True,
             experiment=experiment,
             calibration=False,
+            estimator=False,
         ) as od:
             assert set(od.channel_angle_map.keys()) == {"1"}
 
@@ -1711,6 +1714,7 @@ def test_config_section_omits_empty_photodiode_channels() -> None:
             fake_data=True,
             experiment=experiment,
             calibration=False,
+            estimator=False,
         ) as od:
             assert set(od.channel_angle_map.keys()) == {"2"}
             assert set(od.adc_reader.channels) == {"1", "2"}
@@ -2074,7 +2078,7 @@ def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -
                 cache[ch] = val
 
         with start_od_reading(
-            make_channels("REF", "90"), interval=None, fake_data=True, calibration=False
+            make_channels("REF", "90"), interval=None, fake_data=True, calibration=False, estimator=False
         ) as od:
             # set IR intensity and perform a single reading to exercise the LED context
             _ = od.record_from_adc()

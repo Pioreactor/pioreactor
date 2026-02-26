@@ -169,7 +169,7 @@ class ADCReader(LoggerMixin):
     from pioreactor.background_jobs.od_reading import ADCReader
 
     adc = ADCReader(["1", "2"], fake_data=False)
-    adc.tune_adc()
+    adc.tune_adc_with_ir_on()
 
     while True:
         print(adc.take_reading())
@@ -237,12 +237,12 @@ class ADCReader(LoggerMixin):
 
             return adcs
 
-    def tune_adc(self) -> RawPDReadings:
+    def tune_adc_with_ir_on(self) -> RawPDReadings:
         """
         This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
 
-        It doesn't occur in the classes __init__ because it often requires an LED to be on (and this class doesn't control LEDs.).
-        See ODReader for an example.
+        This method should be called with the IR LED on for OD workflows, since gain selection depends
+        on observed signal level. See ODReader for an example.
 
         """
 
@@ -300,7 +300,7 @@ class ADCReader(LoggerMixin):
 
         for channel, adc in self.adcs.items():
             self.logger.debug(
-                f"Using ADC class {adc.__class__.__name__} for pd{channel} with initial gain {adc.gain}."
+                f"Setting ADC class {adc.__class__.__name__} for pd{channel} with initial gain {adc.gain}."
             )
 
         return batched_readings
@@ -1050,7 +1050,7 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
 
         for od_reading in raw_od_readings.ods.values():
             if od_reading.ir_led_intensity != self.estimator.ir_led_intensity:
-                raise exc.CalibrationError(
+                raise exc.EstimatorError(
                     f"IR LED intensity {od_reading.ir_led_intensity} does not match estimator {self.estimator.ir_led_intensity} for channel {od_reading.channel}."
                 )
 
@@ -1282,7 +1282,7 @@ class ODReader(BackgroundJob):
                 self.start_ir_led()
                 sleep(0.125)
 
-                on_reading = self.adc_reader.tune_adc()  # determine best gain, max-signal, etc.
+                on_reading = self.adc_reader.tune_adc_with_ir_on()  # determine best gain, max-signal, etc.
 
                 # IR led is off so we can set blanks
                 self.stop_ir_led()

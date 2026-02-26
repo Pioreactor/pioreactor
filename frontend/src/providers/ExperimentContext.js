@@ -39,6 +39,15 @@ const fetchJson = async (url, signal) => {
   return response.json();
 };
 
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
+const ensureObject = (value) => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value;
+  }
+  return {};
+};
+
 export const ExperimentProvider = ({ children }) => {
   const [experimentMetadata, setExperimentMetadata] = useState({});
   const [allExperiments, setAllExperiments] = useState([]);
@@ -64,7 +73,7 @@ export const ExperimentProvider = ({ children }) => {
       try {
         // Try fetching the primary URL
         const data = await fetchJson(primaryUrl, controller.signal);
-        const enrichedData = { ...data, _createdAt: now };
+        const enrichedData = { ...ensureObject(data), _createdAt: now };
         writeCachedExperimentMetadata(enrichedData);
         return enrichedData;
       } catch (error) {
@@ -78,7 +87,7 @@ export const ExperimentProvider = ({ children }) => {
         }
         // Fallback to /api/experiments/latest
         const fallbackData = await fetchJson("/api/experiments/latest", controller.signal);
-        const enrichedData = { ...fallbackData, _createdAt: now };
+        const enrichedData = { ...ensureObject(fallbackData), _createdAt: now };
         writeCachedExperimentMetadata(enrichedData);
         return enrichedData;
       }
@@ -112,10 +121,11 @@ export const ExperimentProvider = ({ children }) => {
     const fetchAllExperiments = async () => {
       try {
         const data = await fetchJson("/api/experiments", controller.signal);
-        setAllExperiments(data);
+        setAllExperiments(ensureArray(data));
       } catch (error) {
         if (controller.signal.aborted) return;
         console.error("Failed to load experiments:", error);
+        setAllExperiments([]);
       }
     };
 

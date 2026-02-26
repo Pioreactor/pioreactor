@@ -67,13 +67,24 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
   const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
   React.useEffect(() => {
     async function getActiveExperiments() {
-         await fetch("/api/experiments/assignment_count")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setActiveExperiments(new Set(data.map(item => item.experiment)))
-        })
+      try {
+        const response = await fetch("/api/experiments/assignment_count");
+        if (!response.ok) {
+          setActiveExperiments(new Set([]));
+          return;
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+          setActiveExperiments(new Set([]));
+          return;
+        }
+
+        setActiveExperiments(new Set(data.map(item => item.experiment)));
+      } catch (error) {
+        console.error("Failed to fetch active experiments:", error);
+        setActiveExperiments(new Set([]));
+      }
       }
     setTimeout(getActiveExperiments, 100)
   }, [])
@@ -174,6 +185,7 @@ export default function SideNavAndHeader() {
   const [latestVersion, setLatestVersion] = React.useState(null)
   const [openSubmenu, setOpenSubmenu] = React.useState("")
   const {experimentMetadata, selectExperiment, allExperiments} = useExperiment()
+  const allExperimentNames = Array.isArray(allExperiments) ? allExperiments.map((v) => v.experiment) : [];
 
 
   React.useEffect(() => {
@@ -272,7 +284,7 @@ export default function SideNavAndHeader() {
             >
               <SelectableMenuItem
                 experiment={experimentMetadata.experiment || ""} // CAM: don't remove the ""
-                availableExperiments={allExperiments.map(v => v.experiment)}
+                availableExperiments={allExperimentNames}
                 selectExperiment={selectExperiment}
                 />
 

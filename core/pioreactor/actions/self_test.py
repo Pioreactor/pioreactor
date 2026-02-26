@@ -197,7 +197,16 @@ def test_all_positive_correlations_between_pds_and_leds(
         channels=pd_channels_available, dynamic_gain=True, fake_data=is_testing_env(), penalizer=0.0
     )
     adc_reader.add_external_logger(logger)
-    adc_reader.tune_adc()
+    tune_state = {channel: 0.0 for channel in ALL_LED_CHANNELS}
+    tune_state[ir_led_channel] = max(INTENSITIES)  # tune the ADC to the maximum
+    with change_leds_intensities_temporarily(
+        tune_state,
+        unit=unit,
+        experiment=experiment,
+        verbose=False,
+        source_of_event="self_test",
+    ):
+        adc_reader.tune_adc_with_ir_on()
     # TODO: should we remove blank? Technically correlation is invariant to location.
 
     with stirring.start_stirring(
@@ -312,7 +321,6 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
     )
 
     adc_reader.add_external_logger(logger)
-    adc_reader.tune_adc()
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
@@ -339,7 +347,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     config_ir_intensity = config.get("od_reading.config", "ir_led_intensity")
     if config_ir_intensity == "auto":
-        ir_intensity = 70.0  # this has been our historical default, and should generally work. Default now is "auto", which targets 0.225 V into REF
+        ir_intensity = 70.0  # this has been our historical default, and should generally work.
     else:
         ir_intensity = float(config_ir_intensity)
 
@@ -347,7 +355,6 @@ def test_REF_is_lower_than_0_dot_256_volts(
         channels=[reference_channel], dynamic_gain=True, fake_data=is_testing_env(), penalizer=0.0
     )
     adc_reader.add_external_logger(logger)
-    adc_reader.tune_adc()
 
     with change_leds_intensities_temporarily(
         {"A": 0, "B": 0, "C": 0, "D": 0},
@@ -370,16 +377,20 @@ def test_REF_is_lower_than_0_dot_256_volts(
         samples = []
 
         sleep(1.0)  # let the LED warm up => more stable
+        adc_reader.tune_adc_with_ir_on()  # tune under illuminated conditions
 
         for i in range(6):
             samples.append(adc_reader.take_reading()[reference_channel].reading)
 
         assert (
-            0.02 < mean(samples) < 0.500
+            0.02 < mean(samples) < 1.0
         ), f"Recorded {mean(samples):0.3f} in REF, should ideally be between 0.02 and 0.500. Current IR LED: {ir_intensity}%."
 
         # also check for stability: the std. of the reference should be quite low:
-        assert variance(samples) < 1e-2, f"Too much noise in REF channel, observed {variance(samples)}."
+        assert (
+            variance(samples) < 1e-2
+        ), f"Too much noise in REF channel, observed {variance(samples)}. Data: {samples}."
+        logger.debug(f"data: {samples}")
 
 
 def test_PD_is_near_0_volts_for_blank(

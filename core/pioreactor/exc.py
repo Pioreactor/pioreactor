@@ -37,6 +37,12 @@ class CalibrationError(Exception):
     """
 
 
+class EstimatorError(Exception):
+    """
+    An issue with estimator (pump, stirring, OD, etc.)
+    """
+
+
 class NotActiveWorkerError(Exception):
     """
     if a worker is not active, things shouldn't happen.
