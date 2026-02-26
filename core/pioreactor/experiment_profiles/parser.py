@@ -228,7 +228,7 @@ class ProfileParser(Parser):
         if not is_active(unit):
             raise NotActiveWorkerError(f"Worker {unit} is not active.")
 
-        result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=1)
+        result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=2.0)
 
         if result:
             # error handling here

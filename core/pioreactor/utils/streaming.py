@@ -86,7 +86,7 @@ class MqttODFusedSource(ODObservationSource):
             msg = subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_fused",
                 allow_retained=False,
-                timeout=1,
+                timeout=2.5,
             )
             if msg is None:
                 continue

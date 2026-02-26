@@ -1026,7 +1026,7 @@ def post_into_unit(
 ) -> tuple[str, Any]:
     try:
         address = resolve_to_address(unit)
-        r = post_into(address, endpoint, json=json, params=params, timeout=1)
+        r = post_into(address, endpoint, json=json, params=params, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
@@ -1161,7 +1161,7 @@ def multicast_get(
 def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
     try:
         address = resolve_to_address(unit)
-        r = patch_into(address, endpoint, json=json, timeout=1)
+        r = patch_into(address, endpoint, json=json, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
@@ -1199,7 +1199,7 @@ def multicast_patch(
 @huey.task(priority=10)
 def delete_from_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
     try:
-        r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=1)
+        r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=2.0)
         r.raise_for_status()
         return unit, r.json() if r.content else None
     except (HTTPErrorStatus, HTTPException) as e:
