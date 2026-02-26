@@ -45,7 +45,6 @@ from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import SummableDict
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import mean
-from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.math_helpers import variance
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -87,8 +86,9 @@ def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, 
 
 
 def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
-    # this _also_ uses stirring to increase the variance in the non-REF.
-    # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
+    # Toggle stirring between SLEEPING and READY. The REF channel should have a much smaller
+    # ON/OFF effect than signal channels if it is physically in the REF position.
+    from statistics import median
 
     assert is_HAT_present(), "Hat is not detected."
 
@@ -100,7 +100,8 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
 
     test_channels = {str(channel): "90" for channel, angle in pd_channels.items()}
 
-    signals: dict[PdChannel, list[float]] = {cast(PdChannel, channel): [] for channel in test_channels}
+    all_channels = [cast(PdChannel, channel) for channel in test_channels]
+    delta_per_channel: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
     with stirring.start_stirring(
         target_rpm=1250, unit=unit, experiment=experiment, enable_dodging_od=False
@@ -116,42 +117,58 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
         warmup_samples = 5
-        total_samples = 50
+        n_cycles = 8
+        settle_samples = 1
+        window_samples = 2
 
         # Warm-up: discard a few initial readings to allow signals to stabilize.
         for _ in range(warmup_samples):
-            try:
-                next(od_stream)
-            except StopIteration:
-                break
+            next(od_stream)
 
-        for i, reading in enumerate(od_stream, start=1):
-            for channel in signals:
-                signals[channel].append(reading.ods[channel].od)
+        def collect_phase_medians(target_state: JobState) -> dict[PdChannel, float]:
+            st.set_state(target_state)
+            per_channel_window: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
-            if i % 5 == 0 and i % 2 == 0:
-                st.set_state(JobState.READY)
-            elif i % 5 == 0:
-                st.set_state(JobState.SLEEPING)
+            for sample_i in range(settle_samples + window_samples):
+                reading = next(od_stream)
+                if sample_i < settle_samples:
+                    continue
+                for channel in all_channels:
+                    per_channel_window[channel].append(reading.ods[channel].od)
 
-            if i == total_samples:
-                break
+            return {channel: float(median(values)) for channel, values in per_channel_window.items()}
 
-    logger.debug(f"{signals=}")
+        for _ in range(n_cycles):
+            off_medians = collect_phase_medians(JobState.SLEEPING)
+            on_medians = collect_phase_medians(JobState.READY)
+            for channel in all_channels:
+                delta_per_channel[channel].append(on_medians[channel] - off_medians[channel])
 
-    norm_variance_per_channel = {
-        channel: variance(readings) / trimmed_mean(readings) ** 2 for channel, readings in signals.items()
+    effect_per_channel = {
+        channel: float(median([abs(delta) for delta in deltas]))
+        for channel, deltas in delta_per_channel.items()
     }
+    ref_effect = effect_per_channel[reference_channel]
+    signal_effects = {channel: effect_per_channel[channel] for channel in signal_channels}
+    highest_signal_channel = max(signal_effects, key=signal_effects.__getitem__)
+    highest_signal_effect = signal_effects[highest_signal_channel]
 
-    THRESHOLD = 1.0
-    ref_variance = norm_variance_per_channel[reference_channel]
-    signal_variances = {channel: norm_variance_per_channel[channel] for channel in signal_channels}
-    lowest_signal_channel = min(signal_variances, key=signal_variances.__getitem__)
-    lowest_signal_variance = signal_variances[lowest_signal_channel]
+    logger.debug(f"{delta_per_channel=}")
+    logger.debug(f"{effect_per_channel=}")
+
+    MIN_SIGNAL_EFFECT = 0.002
+    MAX_REF_EFFECT = 0.010
+    MAX_REF_TO_SIGNAL_RATIO = 0.5
 
     assert (
-        THRESHOLD * ref_variance < lowest_signal_variance
-    ), f"REF measured higher variance than SIGNAL. {reference_channel=}, {norm_variance_per_channel=}"
+        highest_signal_effect >= MIN_SIGNAL_EFFECT
+    ), f"Stirring perturbation too small to evaluate REF placement. {effect_per_channel=}"
+    assert (
+        ref_effect <= MAX_REF_EFFECT
+    ), f"REF is too disturbed by stirring. {reference_channel=}, {effect_per_channel=}"
+    assert (
+        ref_effect <= MAX_REF_TO_SIGNAL_RATIO * highest_signal_effect
+    ), f"REF disturbance is too similar to SIGNAL disturbance. {reference_channel=}, {highest_signal_channel=}, {effect_per_channel=}"
 
 
 def test_all_positive_correlations_between_pds_and_leds(
