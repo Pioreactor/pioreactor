@@ -42,7 +42,7 @@ from pioreactor.models import CORE_MODELS
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
-from pioreactor.plugins.plugin_management import load_plugins
+from pioreactor.plugin_management import load_plugins
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
