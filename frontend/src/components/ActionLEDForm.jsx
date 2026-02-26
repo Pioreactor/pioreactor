@@ -30,7 +30,7 @@ export default function ActionLEDForm(props) {
     return false
   }
 
-  function onSubmit(e) {
+  function onSubmit() {
     if (validInput(intensity)) {
       setErrorForm(false)
       setIsSubmitted(true)
@@ -59,7 +59,7 @@ export default function ActionLEDForm(props) {
     }
   }
 
-  const handleSnackbarClose = (e, reason) => {
+  const handleSnackbarClose = (_event, reason) => {
     if (reason === 'clickaway') {
       return;
     }

@@ -2,7 +2,6 @@ import React, { useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import ListItemText from "@mui/material/ListItemText";
@@ -101,7 +100,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
     const serializer = new XMLSerializer();
     const serializedSvg = serializer.serializeToString(clonedSvg);
-    const svgWithHeader = `<?xml version=\"1.0\" encoding=\"utf-8\"?>\n${serializedSvg}`;
+    const svgWithHeader = `<?xml version="1.0" encoding="utf-8"?>\n${serializedSvg}`;
     const svgBlob = new Blob([svgWithHeader], { type: "image/svg+xml;charset=utf-8" });
 
     if (format === "svg") {
@@ -285,7 +284,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
             }}
           />
 
-        {calibrations.map((cal, index) => {
+        {calibrations.map((cal) => {
           // Convert recorded_data into an array of {x, y} for scatter
           const scatterData = (cal.recorded_data?.x || []).map((xVal, i) => ({
             x: xVal,

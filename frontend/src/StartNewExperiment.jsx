@@ -10,7 +10,6 @@ import CardContent from '@mui/material/CardContent';
 import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
-import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import {useNavigate } from 'react-router';
 import SaveIcon from '@mui/icons-material/Save';
 
@@ -49,6 +48,7 @@ function ExperimentSummaryForm(props) {
         .then(data => setHistoricalExperiments(data))
     }
 
+    getHistoricalExperiments();
   }, [])
 
 
@@ -228,7 +228,7 @@ function ExperimentSummaryForm(props) {
 
 
 
-function StartNewExperimentContainer(props) {
+function StartNewExperimentContainer() {
   const [activeStep, setActiveStep] = React.useState(0);
   const [skipped, setSkipped] = React.useState(new Set());
   const navigate = useNavigate();

@@ -52,7 +52,7 @@ function ErrorSnackbar() {
     };
   }, [client, experimentMetadata, subscribeToTopic, unsubscribeFromTopic])
 
-  const onMessage = (topic, message, packet) => {
+  const onMessage = (topic, message, _packet) => {
       if (!message || !topic) return;
 
       if (!topic.toString().endsWith("/ui")){
@@ -67,7 +67,7 @@ function ErrorSnackbar() {
     }
 
 
-  const handleClose = (event, reason) => {
+  const handleClose = (_event, reason) => {
     if (reason === 'clickaway') {
       return;
     }

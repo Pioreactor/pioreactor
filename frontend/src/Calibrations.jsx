@@ -33,13 +33,10 @@ import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import UploadIcon from '@mui/icons-material/Upload';
 import DownloadIcon from '@mui/icons-material/Download';
-import GridViewIcon from '@mui/icons-material/GridView';
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';
 import TuneIcon from '@mui/icons-material/Tune';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
-import WindowOutlinedIcon from '@mui/icons-material/WindowOutlined';
-import ViewListIcon from '@mui/icons-material/ViewList';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml';

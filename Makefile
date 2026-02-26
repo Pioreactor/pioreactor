@@ -103,7 +103,7 @@ wheel: venv  ## Build core wheel (stage 1 artifact)
 	cd $(CORE_DIR) && $(ACTIVATE) && python -m build
 
 frontend-build:
-	cd $(NODE_DIR) && npm run build
+	cd $(NODE_DIR) && npm run --silent  build
 
 # --- live dev servers ---------------------------------------------------------
 web-dev: venv  ## Run Flask API on 127.0.0.1:5000

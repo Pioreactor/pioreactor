@@ -7,7 +7,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml'; // You can add more languages or change it
 
 
-const StyledCard = styled(Card)(({ theme }) => ({
+const StyledCard = styled(Card)(() => ({
   height: "350px",
   overflow: "auto",
   backgroundColor: "rgb(248,248,248)",
@@ -20,7 +20,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
   boxShadow: "none"
 }));
 
-const StyledCardContent = styled(CardContent)(({ theme }) => ({
+const StyledCardContent = styled(CardContent)(() => ({
 }));
 
 

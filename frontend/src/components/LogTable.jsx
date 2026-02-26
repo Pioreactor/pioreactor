@@ -37,7 +37,7 @@ const StyledTableCell = styled(TableCell)(({ level }) => ({
   whiteSpace: "normal"
 }));
 
-const StyledTableCellFiller = styled(TableCell)(({ level }) => ({
+const StyledTableCellFiller = styled(TableCell)(() => ({
   paddingTop: "25px",
   paddingBottom: "15px",
   textAlign: "center",
@@ -135,7 +135,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
     }
   };
 
-  const onMessage = (topic, message, packet) => {
+  const onMessage = (topic, message, _packet) => {
     if (!message || !topic) return;
 
     const unit = topic.toString().split('/')[1];

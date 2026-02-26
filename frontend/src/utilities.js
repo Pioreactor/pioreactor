@@ -11,16 +11,16 @@ function parseINIString(data){
         if(regex.comment.test(line)){
             return;
         }else if(regex.param.test(line)){
-            var match = line.match(regex.param);
+            const paramMatch = line.match(regex.param);
             if(section){
-                value[section][match[1]] = match[2];
+                value[section][paramMatch[1]] = paramMatch[2];
             }else{
-                value[match[1]] = match[2];
+                value[paramMatch[1]] = paramMatch[2];
             }
         }else if(regex.section.test(line)){
-            var match = line.match(regex.section);
-            value[match[1]] = {};
-            section = match[1];
+            const sectionMatch = line.match(regex.section);
+            value[sectionMatch[1]] = {};
+            section = sectionMatch[1];
         }else if(line.length === 0 && section){
             section = null;
         };
@@ -41,7 +41,7 @@ export function getConfig(setCallback) {
     .then((config) => {
       setCallback(parseINIString(config));
     })
-    .catch((error) => {})
+    .catch((_error) => {})
 }
 
 export function getRelabelMap(setCallback, experiment="current") {
@@ -137,7 +137,7 @@ export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries =
       if (payload?.error) {
         message = payload.error;
       }
-    } catch (error) {
+    } catch (_error) {
       // ignore JSON parse errors and fall back to default message
     }
     throw new Error(message);

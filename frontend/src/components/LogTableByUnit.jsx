@@ -28,7 +28,7 @@ dayjs.extend(utc);
 
 
 
-const StyledTableCell = styled(TableCell)(({ theme, level }) => {
+const StyledTableCell = styled(TableCell)(({ level }) => {
   return {
     padding: "6px 6px 6px 10px",
     fontSize: 13,
@@ -39,7 +39,7 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
   };
 });
 
-const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
+const StyledTableCellFiller = styled(TableCell)(() => {
   return {
     paddingTop: "25px",
     paddingBottom: "15px",
@@ -47,7 +47,7 @@ const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
   };
 });
 
-const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
+const StyledTimeTableCell = styled(TableCell)(({ level }) => {
   return {
     padding: "6px 6px 6px 10px",
     fontSize: 13,
@@ -142,7 +142,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
     return <span title={localTs.format('YYYY-MM-DD HH:mm:ss')}>{localTs.format('HH:mm:ss')}</span>;
   };
 
-  const onMessage = (topic, message, packet) => {
+  const onMessage = (topic, message, _packet) => {
     if (!message || !topic) return;
 
     const unit = topic.toString().split('/')[1];

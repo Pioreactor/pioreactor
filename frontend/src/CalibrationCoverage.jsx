@@ -6,7 +6,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  IconButton,
   Paper,
   Table,
   TableBody,
@@ -14,14 +13,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneIcon from "@mui/icons-material/Tune";
-import AddIcon from "@mui/icons-material/Add";
-import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import { fetchTaskResult } from "./utilities";
 import PioreactorIcon from "./components/PioreactorIcon";
 import {
@@ -29,7 +24,7 @@ import {
   deriveCalibrationCoverageMatrix,
 } from "./calibration_coverage_matrix";
 
-function CoverageCell({ unit, device, cell, onNavigate }) {
+function CoverageCell({ cell, onNavigate }) {
   const hasLink = Boolean(cell?.detailPath);
   const hasCalibrationLink = Boolean(cell?.detailPath && cell?.calibrationName);
   const status = cell?.status;
@@ -192,8 +187,6 @@ function CalibrationCoverage(props) {
                     {matrix.devices.map((device) => (
                       <CoverageCell
                         key={`${unit}-${device}`}
-                        unit={unit}
-                        device={device}
                         cell={matrix.cells?.[unit]?.[device]}
                         onNavigate={(path) => navigate(path)}
                       />

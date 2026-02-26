@@ -205,7 +205,7 @@ export default function SideNavAndHeader() {
       })
       .then((data) => {
         setLatestVersion(data['tag_name'])
-      }).catch(e => {
+      }).catch((_e) => {
         // no internet?
       });
     }
@@ -242,7 +242,7 @@ export default function SideNavAndHeader() {
           <Menu
               transitionDuration={0}
               style={{minWidth: "230px", width: "230px", height: "100%"}}
-              renderExpandIcon={({level, active, disabled}) => null }
+              renderExpandIcon={() => null }
               menuItemStyles={{
                 label:  {whiteSpace: "pre-wrap", fontSize: "16px"},
                 button: ({ level, active, disabled }) => {
@@ -320,7 +320,7 @@ export default function SideNavAndHeader() {
           <Menu
               transitionDuration={0}
               style={{minWidth: "230px", width: "230px", height: "100%"}}
-              renderExpandIcon={({level, active, disabled}) => null }
+              renderExpandIcon={() => null }
               menuItemStyles={{
                 label:  {whiteSpace: "pre-wrap", fontSize: "16px"},
                 button: ({ level, active, disabled }) => {

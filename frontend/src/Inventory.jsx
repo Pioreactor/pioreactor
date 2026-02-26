@@ -468,7 +468,7 @@ function WorkerCard({worker, config, leaderVersion}) {
     setSelfTestJob({ state: null, publishedSettings });
   }, [selfTestDefinition]);
 
-  const onSelfTestData = React.useCallback((topic, message, packet) => {
+  const onSelfTestData = React.useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
 
     const [job, setting] = topic.toString().split('/').slice(-2);
@@ -498,7 +498,7 @@ function WorkerCard({worker, config, leaderVersion}) {
     });
   }, [selfTestSettingTypes]);
 
-  const onMonitorData = (topic, message, packet) => {
+  const onMonitorData = (topic, message, _packet) => {
     if (!message || !topic) return;
 
     const setting = topic.toString().split('/').pop()

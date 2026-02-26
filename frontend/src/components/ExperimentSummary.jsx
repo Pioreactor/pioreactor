@@ -13,7 +13,6 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
 import { Link } from 'react-router';
 import ManageExperimentMenu from "./ManageExperimentMenu";
-import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 
 
 class EditableDescription extends React.Component {

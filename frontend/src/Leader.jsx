@@ -21,7 +21,7 @@ import Box from '@mui/material/Box';
 import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, IconButton } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
-import { checkTaskCallback, getConfig, runPioreactorJobViaUnitAPI } from "./utilities";
+import { checkTaskCallback, getConfig } from "./utilities";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./color";
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import { Link } from 'react-router';

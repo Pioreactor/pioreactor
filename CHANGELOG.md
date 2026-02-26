@@ -3,7 +3,7 @@
 #### Bug fixes
 
  - `pio update app` now always schedules `systemctl restart pioreactor-web.target` after a successful default release-asset update, matching other update paths.
- - Actually ship the HAT_PRESENT change from last time
+ - Actually ship the `HAT_PRESENT` change from last time
  - OD reading now correctly uses the smoothing penalizer.
  - `pio status` now handles unassigned experiments and other local check failures gracefully, leaving unassigned experiments blank and avoiding early aborts.
 

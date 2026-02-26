@@ -18,7 +18,6 @@ import PioreactorIcon from "./PioreactorIcon";
 import { runPioreactorJob } from "../utilities";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ReplayIcon from '@mui/icons-material/Replay';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import Snackbar from './Snackbar';
 
 

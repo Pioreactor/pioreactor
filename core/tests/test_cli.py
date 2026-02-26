@@ -151,8 +151,8 @@ def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> Non
         def __enter__(self):
             raise RuntimeError("job manager unavailable")
 
-        def __exit__(self, *_args) -> bool:
-            return False
+        def __exit__(self, *_args) -> None:
+            return None
 
     monkeypatch.setattr("pioreactor.whoami.get_unit_name", raise_unit_name)
     monkeypatch.setattr("pioreactor.whoami.am_I_a_worker", raise_is_worker)

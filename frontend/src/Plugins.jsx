@@ -23,7 +23,7 @@ import { Link, useParams, useNavigate } from 'react-router';
 import SelectButton from "./components/SelectButton";
 import {fetchTaskResult} from "./utilities";
 
-function PageHeader(props) {
+function PageHeader() {
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -54,7 +54,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
         })
         .then((json) => {
           setSuggestedPlugins(json)
-        }).catch(e => {
+        }).catch((_e) => {
           // no internet?
         })
       }
@@ -74,7 +74,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
       })
   }
 
-  const handleSnackbarClose = (event, reason) => {
+  const handleSnackbarClose = (_event, reason) => {
     if (reason === 'clickaway') {
       return;
     }
@@ -85,7 +85,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
       <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
        <List>
           {availablePlugins
-              .map((plugin, i) =>
+              .map((plugin) =>
             <ListItem key={plugin.name}>
               <ListItemAvatar>
                 <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
@@ -167,7 +167,7 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
 
-  const handleSnackbarClose = (e, reason) => {
+  const handleSnackbarClose = (_event, reason) => {
     if (reason === 'clickaway') {
       return;
     }
@@ -191,7 +191,7 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
       <React.Fragment>
         <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
          <List >
-            {installedPlugins.map(( plugin, i) =>
+            {installedPlugins.map((plugin) =>
               <ListItem key={plugin.name}>
                 <ListItemAvatar>
                     <Avatar name={plugin.name + "seed1"} size={40} colors={["#5332ca", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>

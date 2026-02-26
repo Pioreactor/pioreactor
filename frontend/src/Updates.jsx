@@ -17,7 +17,6 @@ import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useConfirm } from 'material-ui-confirm';
-import UnderlineSpan from "./components/UnderlineSpan";
 import SelectButton from "./components/SelectButton";
 import FolderZipIcon from '@mui/icons-material/FolderZip';
 import Dialog from '@mui/material/Dialog';
@@ -32,7 +31,6 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import CloseIcon from '@mui/icons-material/Close';
-import { lostRed } from "./color";
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -222,7 +220,7 @@ function UploadArchiveAndConfirm(props) {
 }
 
 
-function UpdateSoftwareConfirmDialog(props) {
+function UpdateSoftwareConfirmDialog() {
   const confirm = useConfirm();
   const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
@@ -335,9 +333,8 @@ function UpdateSoftwareConfirmDialog(props) {
 }
 
 
-function PageHeader(props) {
+function PageHeader() {
   const [version, setVersion] = React.useState("")
-  const [uiVersion, setUIVersion] = React.useState("")
   const [latestVersion, setLatestVersion] = React.useState("")
 
 
@@ -352,16 +349,6 @@ function PageHeader(props) {
         });
       }
 
-    async function getCurrentUIVersion() {
-         await fetch("/unit_api/versions/ui")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setUIVersion(data['version'])
-        });
-      }
-
     async function getLatestAppVersion() {
          await fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
         .then((response) => {
@@ -370,12 +357,11 @@ function PageHeader(props) {
         .then((data) => {
           setLatestVersion(data['tag_name'])
         })
-        .catch(e => {
+        .catch((_e) => {
           console.log("No internet connection?")
         })
       }
 
-      getCurrentUIVersion()
       getCurrentAppVersion()
       getLatestAppVersion()
   }, [])
@@ -436,7 +422,7 @@ function ChangelogContainer(){
         .then((data) => {
           setChangelog(data)
         }
-        ).catch(e => {
+        ).catch((_e) => {
           // no internet?
           setChangelog(`
 Could not retrieve latest Changelog. Perhaps not connected to the internet.
