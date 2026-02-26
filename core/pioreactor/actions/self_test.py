@@ -127,6 +127,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
 
         def collect_phase_medians(target_state: JobState) -> dict[PdChannel, float]:
             st.set_state(target_state)
+            sleep(1)
             per_channel_window: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
             for sample_i in range(settle_samples + window_samples):
