@@ -57,7 +57,7 @@ class MqttODSource(ODObservationSource):
         counter = 0
         while not self._stop_event.is_set():
             msg = subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods", allow_retained=False, timeout=1
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods", allow_retained=False, timeout=2.5
             )
             if msg is None:
                 continue
