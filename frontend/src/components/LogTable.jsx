@@ -55,6 +55,14 @@ const StyledTimeTableCell = styled(TableCell)(({ level }) => ({
 }));
 
 const LEVELS = ["NOTSET", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITICAL"];
+const HIGHLIGHTABLE_CHIP_SX = {
+  userSelect: "text",
+  WebkitUserSelect: "text",
+  "& .MuiChip-label": {
+    userSelect: "text",
+    WebkitUserSelect: "text",
+  },
+};
 
 function LogTable({ units, byDuration, experimentStartTime, experiment, config, relabelMap }) {
   const [listOfLogs, setListOfLogs] = useState([]);
@@ -195,7 +203,16 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                   <TableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
                     <StyledTableCell level={log.level}>
-                      <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit} data-pioreactor-unit={log.pioreactor_unit}/>
+                      <Chip
+                        size="small"
+                        icon={<PioreactorIcon/>}
+                        label={relabelUnit(log.pioreactor_unit)}
+                        clickable
+                        component={Link}
+                        to={"/pioreactors/" + log.pioreactor_unit}
+                        data-pioreactor-unit={log.pioreactor_unit}
+                        sx={HIGHLIGHTABLE_CHIP_SX}
+                      />
                     </StyledTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level}>{log.message}</StyledTableCell>

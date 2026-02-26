@@ -7,6 +7,13 @@
  - OD reading now correctly uses the smoothing penalizer.
  - `pio status` now handles unassigned experiments and other local check failures gracefully, leaving unassigned experiments blank and avoiding early aborts.
  - fix self-test "Reference photodiode is correct magnitude" for v1.5s
+ - Updated the REF-position self-test logic:
+   - Previously, it compared normalized variances over a time series.
+   - Now, it directly compares stirring ON/OFF deltas from controlled snapshots, aligned with the core idea: **stirring should not materially change REF**, while SIGNAL channels should respond.
+
+#### Breaking changes
+
+ - `ADCReader.tune_adc` was renamed to `ADCReader.tune_adc_with_ir_on` to make the LED-on precondition explicit.
 
 ### 26.2.23
 
