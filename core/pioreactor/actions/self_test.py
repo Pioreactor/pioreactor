@@ -104,7 +104,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     delta_per_channel: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
     with stirring.start_stirring(
-        target_rpm=1250, unit=unit, experiment=experiment, enable_dodging_od=False
+        target_rpm=None, duty_cycle=90, unit=unit, experiment=experiment, enable_dodging_od=False
     ) as st, start_od_reading(
         channels=test_channels,
         interval=1.15,
