@@ -55,6 +55,19 @@ if is_testing_env():
 
 
 SELF_TEST_TIMEOUT_SECONDS = 180.0
+ORDERED_SELF_TEST_NAMES: tuple[str, ...] = (
+    # order in UI - good for responsiveness.
+    "test_pioreactor_HAT_present",
+    "test_all_positive_correlations_between_pds_and_leds",
+    "test_ambient_light_interference",
+    "test_REF_is_lower_than_0_dot_256_volts",
+    "test_REF_is_in_correct_position",
+    "test_PD_is_near_0_volts_for_blank",
+    "test_detect_heating_pcb",
+    "test_positive_correlation_between_temperature_and_heating",
+    "test_positive_correlation_between_rpm_and_stirring",
+    "test_aux_power_is_not_too_high",
+)
 
 
 class SelfTestTimedOut(TimeoutError):
@@ -590,7 +603,7 @@ def get_failed_test_names() -> Iterator[str]:
 
 
 def get_all_test_names() -> Iterator[str]:
-    return (name for name in vars(sys.modules[__name__]).keys() if name.startswith("test_"))
+    return iter(ORDERED_SELF_TEST_NAMES)
 
 
 @click.command(name="self_test")

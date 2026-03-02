@@ -67,10 +67,8 @@ export default function Snackbar({
             });
           }
 
-          if (style) {
-            return <div style={style}>{renderedChildren}</div>;
-          }
-          return <>{renderedChildren}</>;
+          // notistack transition needs a ref-able root element (fragments can't receive refs)
+          return <div style={style}>{renderedChildren}</div>;
         }
 
         return <SnackbarContent message={snackMessage} style={style} />;
