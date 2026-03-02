@@ -171,6 +171,21 @@ def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> Non
     assert "job manager unavailable" in result.output
 
 
+def test_pio_status_handles_i2c_scan_errors_without_aborting(monkeypatch) -> None:
+    def raise_i2c_error(*_args, **_kwargs) -> None:
+        raise RuntimeError("i2c unavailable")
+
+    monkeypatch.setattr("pioreactor.utils.mock.MockI2C.writeto", raise_i2c_error)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status"])
+
+    assert result.exit_code == 0
+    i2c_line = next(line for line in result.output.splitlines() if line.startswith("hardware:i2c_bus1"))
+    assert "WARN" in i2c_line
+    assert "scan failed (i2c unavailable)" in i2c_line
+
+
 def test_pio_cache_view_with_key_filters_output() -> None:
     cache_name = "test_pio_cache_view_with_key_filters_output"
     target_key = "target_key"

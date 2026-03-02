@@ -46,7 +46,7 @@ function CoverageCell({ cell, onNavigate }) {
         {status === COVERAGE_STATUS.AVAILABLE_NOT_ACTIVE && hasLink && (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: "100%" }}>
             <Typography component="span" variant="body2" color="text.secondary">
-              No active calibration
+              Active calibration not set
             </Typography>
           </Box>
         )}

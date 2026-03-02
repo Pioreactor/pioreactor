@@ -784,6 +784,17 @@ def status() -> None:
             version_status = "WARN"
     add_check("version", version_status, version_details)
 
+    try:
+        from pioreactor.hardware import is_i2c_device_present
+
+        detected_i2c_addresses = [
+            f"0x{address:02x}" for address in range(0x03, 0x78) if is_i2c_device_present(address)
+        ]
+        detected_summary = ", ".join(detected_i2c_addresses) if detected_i2c_addresses else "none found"
+        add_check("hardware:i2c_bus1", "OK", detected_summary)
+    except Exception as error:
+        add_check("hardware:i2c_bus1", "WARN", f"scan failed ({error})")
+
     broker_host = "localhost"
     broker_port = 1883
     mqtt_config_error: Exception | None = None

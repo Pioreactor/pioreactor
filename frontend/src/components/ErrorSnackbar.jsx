@@ -1,7 +1,9 @@
 import React from "react";
 import Alert from '@mui/material/Alert';
+import Link from '@mui/material/Link';
 import Snackbar from './Snackbar';
 import AlertTitle from '@mui/material/AlertTitle';
+import { Link as RouterLink } from 'react-router';
 import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
 
@@ -13,6 +15,7 @@ function ErrorSnackbar() {
   const [msg, setMsg] = React.useState("")
   const [level, setLevel] = React.useState("error")
   const [task, setTask] = React.useState("")
+  const [experiment, setExperiment] = React.useState("")
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const { experimentMetadata } = useExperiment();
 
@@ -57,11 +60,12 @@ function ErrorSnackbar() {
 
       if (!topic.toString().endsWith("/ui")){
         const payload = JSON.parse(message.toString())
-        const unit = topic.toString().split("/")[1]
+        const [_, unit, experimentFromTopic] = topic.toString().split("/")
         setMsg(payload.message)
         setTask(payload.task)
         setLevel(payload.level === "NOTICE" ? "SUCCESS" : payload.level)
         setUnit(unit === "$broadcast" ? "All Pioreactors" : unit)
+        setExperiment(experimentFromTopic)
         setOpen(true)
       }
     }
@@ -84,6 +88,10 @@ function ErrorSnackbar() {
     const tail = lines.slice(-TAIL_LINE_COUNT);
     return [...head, "...", ...tail].join("\n");
   }, [msg]);
+
+  const showLogsHelper = level === "ERROR";
+  const logsRoute = experiment === "$experiment" ? "/system-logs" : "/logs";
+  const logsLabel = experiment === "$experiment" ? "View System Logs" : "View Logs";
 
 
   return (
@@ -111,6 +119,20 @@ function ErrorSnackbar() {
       >
         {formattedMessage}
       </span>
+      {showLogsHelper && (
+        <div style={{ marginTop: 8 }}>
+          <Link
+            component={RouterLink}
+            to={logsRoute}
+            underline="always"
+            color="info.main"
+            sx={{ cursor: "pointer", fontWeight: 500 }}
+            onClick={handleClose}
+          >
+            {logsLabel}
+          </Link>
+        </div>
+      )}
     </Alert>
     </Snackbar>
 )}
