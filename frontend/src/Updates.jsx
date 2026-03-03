@@ -111,7 +111,7 @@ function UploadArchiveAndConfirm(props) {
 
   const handleUpdate = async (savePath) => {
     try {
-      await fetch("/api/system/update_from_archive", {
+      const response = await fetch("/api/system/update_from_archive", {
         method: "POST",
         body: JSON.stringify({ release_archive_location: savePath, units: selectedUnits }),
         headers: {
@@ -119,9 +119,23 @@ function UploadArchiveAndConfirm(props) {
           'Content-Type': 'application/json'
         },
       });
+
+      if (!response.ok) {
+        let message = `Update failed with status ${response.status}`;
+        try {
+          const errorData = await response.json();
+          message = errorData.error || message;
+        } catch (_) {
+          // Keep fallback status-based message if error response isn't JSON.
+        }
+        throw new Error(message);
+      }
+      return true;
     } catch (error) {
+      setErrorMsg(error.message)
       setIsUploading(false)
       console.error(error);
+      return false;
     }
   };
 
@@ -133,7 +147,11 @@ function UploadArchiveAndConfirm(props) {
       return;
     }
 
-    await handleUpdate(savePath);
+    const updateQueued = await handleUpdate(savePath);
+    if (!updateQueued) {
+      return;
+    }
+
     handleClose();
     props.onSuccess()
   }

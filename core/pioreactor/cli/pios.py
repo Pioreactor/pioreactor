@@ -684,6 +684,7 @@ if am_I_leader() or is_testing_env():
 
         if repo is not None:
             options["repo"] = repo
+            args = f"{args} --repo {quote(repo)}".strip()
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:

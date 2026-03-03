@@ -328,17 +328,21 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
     # CPU heavy / IO heavy
     if units == "$broadcast":
         logger.debug("Updating app on leader")
-        update_app_on_leader = ["pio", "update", "app"]
+        update_app_on_leader = [PIO_EXECUTABLE, "update", "app", "--defer-web-restart"]
         check_call(update_app_on_leader)
 
         logger.debug("Updating app on workers")
         update_app_across_all_workers = [PIOS_EXECUTABLE, "update", "-y"]
-        run(update_app_across_all_workers)
+        check_call(update_app_across_all_workers)
+
+        sleep(2)
+        logger.debug("Restarting pioreactor-web.target after cluster update")
+        check_call(["sudo", "systemctl", "restart", "pioreactor-web.target"])
         return True
 
     logger.debug(f"Updating app on unit {units}")
     update_app_on_specific_unit = [PIOS_EXECUTABLE, "update", "-y", "--units", units]
-    run(update_app_on_specific_unit)
+    check_call(update_app_on_specific_unit)
     return True
 
 
@@ -358,7 +362,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
 
         logger.debug(f"Updating app on workers from {archive_location}")
         distribute_archive_to_workers = [PIOS_EXECUTABLE, "cp", archive_location, "-y"]
-        run(distribute_archive_to_workers)
+        check_call(distribute_archive_to_workers)
 
         # this may include leader, and leader's UI. If it's not included, we need to update the UI later.
         logger.debug(f"Updating cluster with `pios update --source {archive_location} -y`")
@@ -369,7 +373,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
             archive_location,
             "-y",
         ]
-        run(update_app_across_all_workers)
+        check_call(update_app_across_all_workers)
         sleep(2)
 
         logger.debug("Restarting pioreactor-web.target after cluster update")
@@ -386,7 +390,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
             "--units",
             units,
         ]
-        run(distribute_archive_to_workers)
+        check_call(distribute_archive_to_workers)
 
         update_app_across_all_workers = [
             PIOS_EXECUTABLE,
@@ -397,7 +401,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
             "--units",
             units,
         ]
-        run(update_app_across_all_workers)
+        check_call(update_app_across_all_workers)
         return True
 
 
@@ -409,7 +413,7 @@ def update_app_from_release_archive_on_specific_pioreactors(
 
     logger.debug(f"Updating app and ui on unit {pioreactors} from {archive_location}")
     distribute_archive_to_workers = [PIOS_EXECUTABLE, "cp", archive_location, "-y", *units_cli]
-    run(distribute_archive_to_workers)
+    check_call(distribute_archive_to_workers)
 
     update_app_across_all_workers = [
         PIOS_EXECUTABLE,
@@ -419,7 +423,7 @@ def update_app_from_release_archive_on_specific_pioreactors(
         "-y",
         *units_cli,
     ]
-    run(update_app_across_all_workers)
+    check_call(update_app_across_all_workers)
 
     return True
 

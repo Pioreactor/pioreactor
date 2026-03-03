@@ -413,6 +413,31 @@ def test_pios_update_app_requests_with_sha() -> None:
     assert all(req.json == {"options": {"sha": git_sha}} for req in update_requests)
 
 
+def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
+    from pioreactor.mureq import HTTPException
+
+    runner = CliRunner()
+    commands: list[str] = []
+
+    def fail_post_into(*_args, **_kwargs):
+        raise HTTPException("worker webserver unavailable")
+
+    def record_ssh(_address: str, command: str) -> None:
+        commands.append(command)
+
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", fail_post_into)
+    monkeypatch.setattr("pioreactor.cli.pios.ssh", record_ssh)
+
+    result = runner.invoke(
+        pios,
+        ["update", "app", "--version", "1.2.3", "--repo", "org/repo", "-y"],
+    )
+
+    assert result.exit_code == 0
+    assert len(commands) >= 1
+    assert all("--repo org/repo" in command for command in commands)
+
+
 def test_pios_kill_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(kill, allow_extra_args=True)

@@ -104,14 +104,15 @@ def test_update_app_across_cluster_broadcast_updates_leader_and_workers(
     calls: list[tuple[str, list[str]]] = []
 
     monkeypatch.setattr(tasks, "check_call", lambda cmd: calls.append(("check_call", cmd)))
-    monkeypatch.setattr(tasks, "run", lambda cmd: calls.append(("run", cmd)))
+    monkeypatch.setattr(tasks, "sleep", lambda _seconds: None)
 
     result = tasks.update_app_across_cluster.call_local()
 
     assert result is True
     assert calls == [
-        ("check_call", ["pio", "update", "app"]),
-        ("run", [tasks.PIOS_EXECUTABLE, "update", "-y"]),
+        ("check_call", [tasks.PIO_EXECUTABLE, "update", "app", "--defer-web-restart"]),
+        ("check_call", [tasks.PIOS_EXECUTABLE, "update", "-y"]),
+        ("check_call", ["sudo", "systemctl", "restart", "pioreactor-web.target"]),
     ]
 
 
@@ -120,15 +121,11 @@ def test_update_app_across_cluster_single_unit_only_targets_selected_unit(
 ) -> None:
     calls: list[tuple[str, list[str]]] = []
 
-    def fail_if_check_call_used(_cmd: list[str]) -> None:
-        raise AssertionError("check_call should not be used for single-unit updates")
-
-    monkeypatch.setattr(tasks, "check_call", fail_if_check_call_used)
-    monkeypatch.setattr(tasks, "run", lambda cmd: calls.append(("run", cmd)))
+    monkeypatch.setattr(tasks, "check_call", lambda cmd: calls.append(("check_call", cmd)))
 
     result = tasks.update_app_across_cluster.call_local(units="unit2")
 
     assert result is True
     assert calls == [
-        ("run", [tasks.PIOS_EXECUTABLE, "update", "-y", "--units", "unit2"]),
+        ("check_call", [tasks.PIOS_EXECUTABLE, "update", "-y", "--units", "unit2"]),
     ]
