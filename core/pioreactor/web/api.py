@@ -2187,7 +2187,9 @@ def get_chart_descriptors() -> ResponseReturnValue:
 
 @api_bp.route("/system/update_next_version", methods=["POST"])
 def update_app() -> DelayedResponseReturnValue:
-    task = tasks.update_app_across_cluster()
+    body = request.get_json(silent=True) or {}
+    units = body.get("units", "$broadcast")
+    task = tasks.update_app_across_cluster(units=units)
     return create_task_response(task)
 
 

@@ -2828,6 +2828,8 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, units, disabled, job, setting, id }){
   const [value, setValue] = useState(initialValue || "");
   const [activeSubmit, setActiveSumbit] = useState(false);
+  const unitSize = (units || "").length > 8 ? "large" : "normal";
+  const textFieldMaxWidth = unitSize === "large" ? "240px" : "180px";
 
   useEffect(() => {
     if (initialValue !== value) {
@@ -2873,7 +2875,7 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
           variant="outlined"
           onChange={onChange}
           onKeyPress={onKeyPress}
-          sx={{mt: 2, maxWidth: "180px"}}
+          sx={{mt: 2, maxWidth: textFieldMaxWidth}}
         />
         <Button
           size="small"
@@ -2921,6 +2923,8 @@ function SettingNumericField({ value: initialValue, units, onUpdate, setSnackbar
   const [value, setValue] = useState(initialValue || "");
   const [error, setError] = useState(false);
   const [activeSubmit, setActiveSubmit] = useState(false);
+  const unitSize = (units || "").length > 8 ? "large" : "normal";
+  const textFieldMaxWidth = unitSize === "large" ? "220px" : "160px";
 
   useEffect(() => {
     if (initialValue !== value) {
@@ -2974,7 +2978,7 @@ function SettingNumericField({ value: initialValue, units, onUpdate, setSnackbar
         variant="outlined"
         onChange={onChange}
         onKeyPress={onKeyPress}
-        sx={{mt: 2, maxWidth: "140px"}}
+        sx={{mt: 2, maxWidth: textFieldMaxWidth}}
       />
       <Button
         size="small"
@@ -3639,7 +3643,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
             <React.Fragment>
               <Box sx={{display: "flex", justifyContent: "space-between", alignItems: "flex-start"}}>
                 <Typography variant="subtitle2">
-                  Edit {quickSetting.label}
+                  {quickSetting.label}
                 </Typography>
                 <IconButton size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
                   <CloseIcon fontSize="small" />

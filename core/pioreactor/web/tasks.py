@@ -229,7 +229,7 @@ def initialized():
     logger.debug("Loading plugins...")
     try:
         load_plugins()
-    except:
+    except Exception:
         pass
 
 
@@ -324,15 +324,21 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
 
 
 @huey.task()
-def update_app_across_cluster() -> bool:
+def update_app_across_cluster(units: str = "$broadcast") -> bool:
     # CPU heavy / IO heavy
-    logger.debug("Updating app on leader")
-    update_app_on_leader = ["pio", "update", "app"]
-    check_call(update_app_on_leader)
+    if units == "$broadcast":
+        logger.debug("Updating app on leader")
+        update_app_on_leader = ["pio", "update", "app"]
+        check_call(update_app_on_leader)
 
-    logger.debug("Updating app on workers")
-    update_app_across_all_workers = [PIOS_EXECUTABLE, "update", "-y"]
-    run(update_app_across_all_workers)
+        logger.debug("Updating app on workers")
+        update_app_across_all_workers = [PIOS_EXECUTABLE, "update", "-y"]
+        run(update_app_across_all_workers)
+        return True
+
+    logger.debug(f"Updating app on unit {units}")
+    update_app_on_specific_unit = [PIOS_EXECUTABLE, "update", "-y", "--units", units]
+    run(update_app_on_specific_unit)
     return True
 
 

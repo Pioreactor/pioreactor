@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from http.client import HTTPMessage
 from typing import Any
 
 import pytest
@@ -10,7 +11,7 @@ from pioreactor.web import tasks
 
 
 def _response(status_code: int, payload: dict[str, Any]) -> Response:
-    return Response("http://unit.local", status_code, {}, json.dumps(payload).encode())
+    return Response("http://unit.local", status_code, HTTPMessage(), json.dumps(payload).encode())
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -95,3 +96,39 @@ def test_collect_multicast_results_returns_partial_on_timeout() -> None:
     output = tasks._collect_multicast_results(units, group, timeout=0.01)
 
     assert output == {"unit1": {"ok": True}, "unit2": None}
+
+
+def test_update_app_across_cluster_broadcast_updates_leader_and_workers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, list[str]]] = []
+
+    monkeypatch.setattr(tasks, "check_call", lambda cmd: calls.append(("check_call", cmd)))
+    monkeypatch.setattr(tasks, "run", lambda cmd: calls.append(("run", cmd)))
+
+    result = tasks.update_app_across_cluster.call_local()
+
+    assert result is True
+    assert calls == [
+        ("check_call", ["pio", "update", "app"]),
+        ("run", [tasks.PIOS_EXECUTABLE, "update", "-y"]),
+    ]
+
+
+def test_update_app_across_cluster_single_unit_only_targets_selected_unit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, list[str]]] = []
+
+    def fail_if_check_call_used(_cmd: list[str]) -> None:
+        raise AssertionError("check_call should not be used for single-unit updates")
+
+    monkeypatch.setattr(tasks, "check_call", fail_if_check_call_used)
+    monkeypatch.setattr(tasks, "run", lambda cmd: calls.append(("run", cmd)))
+
+    result = tasks.update_app_across_cluster.call_local(units="unit2")
+
+    assert result is True
+    assert calls == [
+        ("run", [tasks.PIOS_EXECUTABLE, "update", "-y", "--units", "unit2"]),
+    ]

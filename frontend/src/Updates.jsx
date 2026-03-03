@@ -16,7 +16,6 @@ import MenuItem from '@mui/material/MenuItem';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useConfirm } from 'material-ui-confirm';
 import SelectButton from "./components/SelectButton";
 import FolderZipIcon from '@mui/icons-material/FolderZip';
 import Dialog from '@mui/material/Dialog';
@@ -220,12 +219,128 @@ function UploadArchiveAndConfirm(props) {
 }
 
 
+function UpdateFromInternetAndConfirm(props) {
+  const [errorMsg, setErrorMsg] = React.useState(null);
+  const [units, setUnits] = React.useState([]);
+  const [selectedUnits, setSelectedUnits] = React.useState("$broadcast");
+  const [isUpdating, setIsUpdating] = React.useState(false);
+  const handleClose = props.onClose
+
+
+  React.useEffect(() => {
+    async function fetchUnits() {
+      try {
+        const response = await fetch(`/api/units`);
+        if (response.ok) {
+          const units = await response.json();
+          setUnits(units.map(u => u.pioreactor_unit));
+        } else {
+          console.error('Failed to fetch units:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching units:', error);
+      }
+    };
+    fetchUnits()
+  }, [])
+
+  const onSelectionChange = (event) => {
+    setSelectedUnits(event.target.value);
+  }
+
+  const handleUpdate = async () => {
+    setIsUpdating(true)
+    setErrorMsg(null)
+
+    try {
+      const response = await fetch("/api/system/update_next_version", {
+        method: "POST",
+        body: JSON.stringify({ units: selectedUnits }),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Update failed with status ' + response.status);
+      }
+
+      handleClose();
+      props.onSuccess()
+    } catch (error) {
+      setErrorMsg(error.message)
+      setIsUpdating(false)
+      console.error(error);
+    }
+  };
+
+  return (
+    <React.Fragment>
+      <Dialog
+        open={true}
+        onClose={handleClose}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {props.title}
+          <IconButton
+            aria-label="close"
+            onClick={handleClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+            size="large">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            {props.description}
+            {units.length > 1 &&
+            <Box sx={{my: 2}}>
+              <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
+                <InputLabel >Units to update</InputLabel>
+                <Select
+                  labelId="configSelect"
+                  value={selectedUnits ? selectedUnits : "$broadcast"}
+                  onChange={onSelectionChange}
+                  label="Units to update"
+                >
+                  {units.map((unit) => (
+                    <MenuItem key={unit} value={unit}>{unit}</MenuItem>
+                  ))}
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          }
+            <Box sx={{minHeight: "30px", alignItems: "center", display: "flex"}}>
+              {errorMsg ? <Alert severity="error">{errorMsg}</Alert> : <React.Fragment/>}
+            </Box>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
+          <Button variant="contained" loading={isUpdating} onClick={handleUpdate} sx={{textTransform: "None"}}>Update</Button>
+        </DialogActions>
+      </Dialog>
+    </React.Fragment>
+  );
+}
+
+
 function UpdateSoftwareConfirmDialog() {
-  const confirm = useConfirm();
   const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
   const [installOption, setInstallOption] = React.useState("archive")
   const [showArchiveConfirm, setShowArchiveConfirm] = React.useState(false);
+  const [showInternetConfirm, setShowInternetConfirm] = React.useState(false);
   const [internetAccess, setInternetAccess] = React.useState(false);
 
   React.useEffect(() => {
@@ -244,9 +359,6 @@ function UpdateSoftwareConfirmDialog() {
 
   const updateVersion = () => {
     setOpenSnackbar(true)
-    if (installOption === "latest") {
-      fetch("/api/system/update_next_version", {method: "POST"})
-    }
   }
 
   const handleClick = () => {
@@ -255,18 +367,7 @@ function UpdateSoftwareConfirmDialog() {
       setShowArchiveConfirm(true);
     }
     else {
-      confirm({
-        description: getDescription(),
-        title: getTitle(),
-        confirmationText: "Update",
-        confirmationButtonProps: {color: "primary"},
-        cancellationButtonProps: {color: "secondary"}, //style: {textTransform: 'none'}
-        }).then(() => {
-          updateVersion();
-          setUpdating(true)
-        }
-      ).catch(() => {});
-
+      setShowInternetConfirm(true);
     }
   };
 
@@ -326,6 +427,17 @@ function UpdateSoftwareConfirmDialog() {
           description={getDescription()}
           onSuccess={() => setOpenSnackbar(true)}
           onClose={() => setShowArchiveConfirm(false)}
+        />
+      )}
+      {showInternetConfirm && (
+        <UpdateFromInternetAndConfirm
+          title={getTitle()}
+          description={getDescription()}
+          onSuccess={() => {
+            updateVersion();
+            setUpdating(true)
+          }}
+          onClose={() => setShowInternetConfirm(false)}
         />
       )}
       </React.Fragment>

@@ -563,3 +563,33 @@ def test_get_settings_api(client) -> None:
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
+
+
+def test_update_next_version_defaults_to_broadcast(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_update_app_across_cluster(units: str = "$broadcast") -> str:
+        captured["units"] = units
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.update_app_across_cluster", fake_update_app_across_cluster)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.post("/api/system/update_next_version")
+    assert response.status_code == 202
+    assert captured["units"] == "$broadcast"
+
+
+def test_update_next_version_accepts_unit_selection(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_update_app_across_cluster(units: str = "$broadcast") -> str:
+        captured["units"] = units
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.update_app_across_cluster", fake_update_app_across_cluster)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.post("/api/system/update_next_version", json={"units": "unit2"})
+    assert response.status_code == 202
+    assert captured["units"] == "unit2"
