@@ -20,7 +20,7 @@ def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
     )
     logger.debug(" ".join(command))
 
-    result = subprocess.run(command, capture_output=True)
+    result = subprocess.run(command, capture_output=True, text=True)
 
     if result.returncode == 0:
         logger.notice(f"Successfully installed plugin {name_of_plugin}.")  # type: ignore

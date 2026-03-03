@@ -409,10 +409,11 @@ def logs(n: int, f: bool) -> None:
         ["tail", "-qn", str(n)] + (["-f"] if f else []) + log_files,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        text=True,
     ) as process:
         assert process.stdout is not None
         for line in process.stdout:
-            click.echo(line.decode("utf8").rstrip("\n"))
+            click.echo(line.rstrip("\n"))
 
 
 @pio.command(name="log", short_help="append a log message from the CLI")
@@ -1188,7 +1189,7 @@ def update_app(
         p = subprocess.run(
             command,
             shell=True,
-            universal_newlines=True,
+            text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -1261,7 +1262,7 @@ def update_firmware(version: Optional[str]) -> None:
         p = subprocess.run(
             command,
             shell=True,
-            universal_newlines=True,
+            text=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
         )
@@ -1308,10 +1309,11 @@ if whoami.am_I_leader():
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            text=True,
         ) as process:
             assert process.stdout is not None
             for line in process.stdout:
-                timestamp, topic, value = line.decode("utf8").rstrip("\n").split("||")
+                timestamp, topic, value = line.rstrip("\n").split("||")
                 click.echo(
                     click.style(timestamp, fg="cyan")
                     + " | "

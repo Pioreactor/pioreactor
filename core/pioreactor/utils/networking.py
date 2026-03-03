@@ -33,6 +33,7 @@ def rsync(*args: str) -> None:
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            text=True,
         )
     except subprocess.CalledProcessError as e:
         raise RsyncError(f"rysnc command failed: {e.stderr}") from e
@@ -80,9 +81,10 @@ def is_reachable(address: str) -> bool:
         ["ping", "-c1", "-W3", address],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
+        text=True,
     ).stdout
     if std_out_from_ping is not None:
-        output = str(std_out_from_ping.read())
+        output = std_out_from_ping.read()
         # TODO: find a better test, or rethink above ping...
         return True if "1 received" in output else False
     return False
@@ -129,14 +131,17 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 
     def worker_hostnames(queue: Queue) -> None:
         with subprocess.Popen(
-            ["avahi-browse", "_pio-worker._tcp", "-rp"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            ["avahi-browse", "_pio-worker._tcp", "-rp"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         ) as process:
             if process.stdout is None:
                 return
 
             assert process.stdout is not None
             for line in process.stdout:
-                result = line.decode("utf8").rstrip("\n")
+                result = line.rstrip("\n")
                 parsed = result.split(";")
                 if parsed[0] != "=" or parsed[1] == "lo" or parsed[2] != "IPv4":
                     continue

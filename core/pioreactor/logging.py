@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+import re
 from logging import handlers
 from time import sleep
 from typing import TYPE_CHECKING
@@ -21,6 +22,7 @@ PIOREACTOR_LOG_FORMAT = logging.Formatter(
     "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S%z",
 )
+ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
 def add_logging_level(levelName: str, levelNum: int) -> None:
@@ -74,10 +76,25 @@ class CustomLogger(logging.LoggerAdapter):
 
 
 class CustomisedJSONFormatter(JSONFormatter):
+    def _normalize_mqtt_message(self, message: str, record: logging.LogRecord) -> str:
+        # Some callsites still pass bytes directly to logger.*; decode these for UI/MQTT logs.
+        if isinstance(record.msg, bytes | bytearray):
+            decoded = bytes(record.msg).decode("utf-8", errors="replace")
+            if record.args:
+                try:
+                    message = decoded % record.args
+                except Exception:
+                    message = decoded
+            else:
+                message = decoded
+
+        message = message.replace("\r\n", "\n").replace("\r", "\n")
+        return ANSI_ESCAPE_RE.sub("", message)
+
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
         from pioreactor.utils.timing import current_utc_timestamp
 
-        extra["message"] = message
+        extra["message"] = self._normalize_mqtt_message(message, record)
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_timestamp()
