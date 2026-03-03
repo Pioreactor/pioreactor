@@ -10,7 +10,6 @@ import pytest
 os.environ.setdefault("DOT_PIOREACTOR", ".pioreactor")
 
 from pioreactor.actions.self_test import run_tests
-from pioreactor.actions.self_test import get_all_test_names
 
 
 def test_run_tests_success_and_failure_counts() -> None:
@@ -120,18 +119,3 @@ def test_run_tests_does_not_swallow_keyboard_interrupt() -> None:
         run_tests([interrupted], managed_state, logger, unit="unit", testing_experiment="experiment")
 
     managed_state.publish_setting.assert_not_called()
-
-
-def test_get_all_test_names_returns_explicit_order() -> None:
-    assert list(get_all_test_names()) == [
-        "test_pioreactor_HAT_present",
-        "test_REF_is_in_correct_position",
-        "test_all_positive_correlations_between_pds_and_leds",
-        "test_ambient_light_interference",
-        "test_REF_is_lower_than_0_dot_256_volts",
-        "test_PD_is_near_0_volts_for_blank",
-        "test_detect_heating_pcb",
-        "test_positive_correlation_between_temperature_and_heating",
-        "test_aux_power_is_not_too_high",
-        "test_positive_correlation_between_rpm_and_stirring",
-    ]

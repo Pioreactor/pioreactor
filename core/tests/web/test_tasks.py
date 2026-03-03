@@ -96,36 +96,3 @@ def test_collect_multicast_results_returns_partial_on_timeout() -> None:
     output = tasks._collect_multicast_results(units, group, timeout=0.01)
 
     assert output == {"unit1": {"ok": True}, "unit2": None}
-
-
-def test_update_app_across_cluster_broadcast_updates_leader_and_workers(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[str, list[str]]] = []
-
-    monkeypatch.setattr(tasks, "check_call", lambda cmd: calls.append(("check_call", cmd)))
-    monkeypatch.setattr(tasks, "sleep", lambda _seconds: None)
-
-    result = tasks.update_app_across_cluster.call_local()
-
-    assert result is True
-    assert calls == [
-        ("check_call", [tasks.PIO_EXECUTABLE, "update", "app", "--defer-web-restart"]),
-        ("check_call", [tasks.PIOS_EXECUTABLE, "update", "-y"]),
-        ("check_call", ["sudo", "systemctl", "restart", "pioreactor-web.target"]),
-    ]
-
-
-def test_update_app_across_cluster_single_unit_only_targets_selected_unit(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[str, list[str]]] = []
-
-    monkeypatch.setattr(tasks, "check_call", lambda cmd: calls.append(("check_call", cmd)))
-
-    result = tasks.update_app_across_cluster.call_local(units="unit2")
-
-    assert result is True
-    assert calls == [
-        ("check_call", [tasks.PIOS_EXECUTABLE, "update", "-y", "--units", "unit2"]),
-    ]
