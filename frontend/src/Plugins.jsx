@@ -44,22 +44,55 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
   const [availablePlugins, setSuggestedPlugins] = React.useState([])
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
+  const [isSuggestedPluginsLoading, setIsSuggestedPluginsLoading] = React.useState(true)
+  const [suggestedPluginsFetchError, setSuggestedPluginsFetchError] = React.useState("")
+  const [suggestedPluginsRefreshCounter, setSuggestedPluginsRefreshCounter] = React.useState(0)
 
 
   React.useEffect(() => {
+    let isActive = true
+
     async function getData() {
-         await fetch("https://raw.githubusercontent.com/Pioreactor/list-of-plugins/main/plugins.json")
-        .then((response) => {
-          return response.json();
-        })
-        .then((json) => {
-          setSuggestedPlugins(json)
-        }).catch((_e) => {
-          // no internet?
-        })
+      setIsSuggestedPluginsLoading(true)
+      setSuggestedPluginsFetchError("")
+
+      try {
+        const response = await fetch("https://raw.githubusercontent.com/Pioreactor/list-of-plugins/main/plugins.json")
+
+        if (!response.ok) {
+          throw new Error(`Unable to load community plugins (HTTP ${response.status}).`)
+        }
+
+        const payload = await response.json();
+        const suggestedPlugins = Array.isArray(payload) ? payload : []
+
+        if (!isActive) {
+          return
+        }
+
+        setSuggestedPlugins(suggestedPlugins)
+      } catch (e) {
+        if (!isActive) {
+          return
+        }
+
+        setSuggestedPlugins([])
+        setSuggestedPluginsFetchError(
+          e instanceof Error ? e.message : "Unable to load community plugins."
+        )
+      } finally {
+        if (isActive) {
+          setIsSuggestedPluginsLoading(false)
+        }
       }
-      getData()
-  }, [])
+    }
+
+    getData()
+
+    return () => {
+      isActive = false
+    }
+  }, [suggestedPluginsRefreshCounter])
 
   const installPlugin = (name, plugin_name)  => {
       setSnackbarOpen(true);
@@ -80,74 +113,108 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
     }
     setSnackbarOpen(false)
   }
+
+  const refreshSuggestedPlugins = () => {
+    setSuggestedPluginsRefreshCounter((counter) => counter + 1)
+  }
+
   return (
     <React.Fragment>
       <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
-       <List>
-          {availablePlugins
-              .map((plugin) =>
-            <ListItem key={plugin.name}>
-              <ListItemAvatar>
-                <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
-              </ListItemAvatar>
-              <ListItemText
-                primary={plugin.name}
-                primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
-                secondary={
-                 <>
-                  <Typography
-                    sx={{ display: 'block', fontStyle: "italic"}}
-                    component="span"
-                    variant="body2"
-                    color="text.primary"
+        {isSuggestedPluginsLoading && (
+          <Box sx={{textAlign: "center", marginBottom: '24px', marginTop: "24px"}}>
+            <CircularProgress size={24}/>
+          </Box>
+        )}
+
+        {!isSuggestedPluginsLoading && suggestedPluginsFetchError && (
+          <Box sx={{textAlign: "center", marginBottom: '24px', marginTop: "24px"}}>
+            <Typography variant="body2" component="p" color="error">
+              {suggestedPluginsFetchError}
+            </Typography>
+            <Button variant="text" onClick={refreshSuggestedPlugins} sx={{mt: 1, textTransform: 'none'}}>
+              Retry
+            </Button>
+          </Box>
+        )}
+
+        {!isSuggestedPluginsLoading && !suggestedPluginsFetchError && availablePlugins.length === 0 && (
+          <Box sx={{textAlign: "center", marginBottom: '24px', marginTop: "24px"}}>
+            <Typography variant="body2" component="p" color="textSecondary">
+              No suggested plugins available right now.
+            </Typography>
+          </Box>
+        )}
+
+        {!isSuggestedPluginsLoading && !suggestedPluginsFetchError && availablePlugins.length > 0 && (
+          <List>
+            {availablePlugins
+                .map((plugin) => {
+                  return (
+              <ListItem key={plugin.name}>
+                <ListItemAvatar>
+                  <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={plugin.name}
+                  primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
+                  secondary={
+                   <>
+                    <Typography
+                      sx={{ display: 'block', fontStyle: "italic"}}
+                      component="span"
+                      variant="body2"
+                      color="text.primary"
+                    >
+                      {plugin.author}
+                    </Typography>
+                    <span>
+                     {plugin.description}
+                    </span>
+                   </>
+                  }
+                  style={{maxWidth: "525px"}}
+                />
+                <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
+
+                  <SelectButton
+                    variant="contained"
+                    color="primary"
+                    aria-label="install"
+                    value={selectedUnit}
+                    onClick={(e) => installPlugin(e.target.value, plugin.name)}
+                    //endIcon={<DownloadIcon />}
+                    style={{textTransform: 'none'}}
+                    sx={{ml: "3px"}}
+                    disabled={installedPlugins.includes(plugin.name)}
                   >
-                    {plugin.author}
-                  </Typography>
-                  <span>
-                   {plugin.description}
-                  </span>
-                 </>
-                }
-                style={{maxWidth: "525px"}}
-              />
-              <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
+                    <MenuItem value={selectedUnit}>{installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
+                    <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
+                  </SelectButton>
 
-                <SelectButton
-                  variant="contained"
-                  color="primary"
-                  aria-label="install"
-                  value={selectedUnit}
-                  onClick={(e) => installPlugin(e.target.value, plugin.name)}
-                  //endIcon={<DownloadIcon />}
-                  style={{textTransform: 'none'}}
-                  sx={{ml: "3px"}}
-                  disabled={installedPlugins.includes(plugin.name)}
-                >
-                  <MenuItem value={selectedUnit}>{installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
-                  <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
-                </SelectButton>
+                  <Button
+                    component={Link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    to={plugin.homepage}
+                    variant="text"
+                    style={{textTransform: 'none'}}
+                    size="small"
+                    color="primary"
+                    aria-label="view homepage"
+                    disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
+                    endIcon={<OpenInNewIcon />}
+                    sx={{ml: "15px"}}
+                  >
+                    View
+                  </Button>
+                  </ListItemSecondaryAction>
 
-                <Button
-                  component={Link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  to={plugin.homepage}
-                  variant="text"
-                  style={{textTransform: 'none'}}
-                  size="small"
-                  color="primary"
-                  aria-label="view homepage"
-                  disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
-                  endIcon={<OpenInNewIcon />}
-                  sx={{ml: "15px"}}
-                >
-                  View
-                </Button>
-                </ListItemSecondaryAction>
-
-            </ListItem>,
-          )}
-        </List>
+              </ListItem>
+                  )
+                })}
+          </List>
+        )}
       </Box>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
@@ -192,6 +259,13 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
         <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
          <List >
             {installedPlugins.map((plugin) =>
+              {
+                const homepage =
+                  typeof plugin.homepage === "string"
+                    ? plugin.homepage.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/, "")
+                    : "";
+
+                return (
               <ListItem key={plugin.name}>
                 <ListItemAvatar>
                     <Avatar name={plugin.name + "seed1"} size={40} colors={["#5332ca", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
@@ -231,20 +305,21 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
                       component={Link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      to={plugin.homepage.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/, '')} // this is a hack since the leader will produce a homepage with it's leader_address which is 127.0.0.1.
+                      to={homepage} // this is a hack since the leader will produce a homepage with it's leader_address which is 127.0.0.1.
                       variant="text"
                       size="small"
                       color="primary"
                       aria-label="view homepage"
-                      disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
+                      disabled={!homepage || (homepage === "Unknown")}
                       endIcon={<OpenInNewIcon />}
                       sx={{ml: "15px", textTransform: 'none'}}
                     >
                       View
                     </Button>
                 </ListItemSecondaryAction>
-              </ListItem>,
-            )}
+              </ListItem>
+                )
+              })}
           </List>
         </Box>
         <Snackbar
@@ -278,48 +353,127 @@ function PluginContainer(){
   const [isFetchComplete, setIsFetchComplete] = React.useState(false)
   const [selectedUnit, setSelectedUnit] = React.useState(pioreactorUnit || "")
   const [units, setUnits] = React.useState([])
+  const [installedPluginsFetchError, setInstalledPluginsFetchError] = React.useState("")
+  const [unitsFetchError, setUnitsFetchError] = React.useState("")
+  const [pluginsRefreshCounter, setPluginsRefreshCounter] = React.useState(0)
+  const latestPluginsRequestId = React.useRef(0)
 
   React.useEffect(() => {
-    // Recursive approach with an optional delay between retries
+    if (!selectedUnit) {
+      setInstalledPlugins([])
+      setInstalledPluginsFetchError("")
+      setIsFetchComplete(true)
+      return
+    }
+
+    let isActive = true
+    const requestId = ++latestPluginsRequestId.current
 
     async function getPluginsInstalled() {
       setIsFetchComplete(false)
+      setInstalledPluginsFetchError("")
+
       try {
         // Fetch installed plugins
         const result = await fetchTaskResult(`/api/units/${selectedUnit}/plugins/installed`);
 
-        // Once 200 is received and JSON is parsed, update state
-        setIsFetchComplete(true);
+        if (!isActive || requestId !== latestPluginsRequestId.current) {
+          return
+        }
 
+        // Once 200 is received and JSON is parsed, update state
         if (result['result'][selectedUnit]){
           setInstalledPlugins(result['result'][selectedUnit])
         } else {
           setInstalledPlugins([])
         }
       } catch (err) {
+        if (!isActive || requestId !== latestPluginsRequestId.current) {
+          return
+        }
         console.error('Error getting plugins installed:', err);
+        setInstalledPlugins([])
+        setInstalledPluginsFetchError(err instanceof Error ? err.message : "Failed to load installed plugins.")
+      } finally {
+        if (isActive && requestId === latestPluginsRequestId.current) {
+          setIsFetchComplete(true)
+        }
       }
     }
 
-    if (selectedUnit){
-      getPluginsInstalled()
+    getPluginsInstalled()
+
+    return () => {
+      isActive = false
     }
-  }, [selectedUnit])
+  }, [selectedUnit, pluginsRefreshCounter])
 
 
   React.useEffect(() => {
+    let isActive = true
+
     async function getUnits() {
-         await fetch(`/api/units`)
-        .then((response) => {
-          return response.json();
+      setUnitsFetchError("")
+
+      try {
+        const response = await fetch(`/api/units`)
+
+        if (!response.ok) {
+          throw new Error(`Unable to load units (HTTP ${response.status}).`)
+        }
+
+        const data = await response.json();
+        const nextUnits = Array.isArray(data) ? data.map((unit) => unit.pioreactor_unit) : []
+
+        if (!isActive) {
+          return
+        }
+
+        setUnits(nextUnits)
+
+        if (nextUnits.length === 0) {
+          setSelectedUnit("")
+          setInstalledPlugins([])
+          setIsFetchComplete(true)
+          setUnitsFetchError("No units are available.")
+          return
+        }
+
+        setSelectedUnit((current) => {
+          if (current && nextUnits.includes(current)) {
+            return current
+          }
+
+          if (pioreactorUnit && nextUnits.includes(pioreactorUnit)) {
+            return pioreactorUnit
+          }
+
+          return nextUnits[0]
         })
-        .then((data) => {
-          setUnits(data.map((unit) => unit.pioreactor_unit))
-          setSelectedUnit(selectedUnit || data[0].pioreactor_unit)
-        });
+      } catch (err) {
+        if (!isActive) {
+          return
+        }
+
+        console.error('Error getting units:', err)
+        setUnits([])
+        setSelectedUnit("")
+        setInstalledPlugins([])
+        setIsFetchComplete(true)
+        setUnitsFetchError(err instanceof Error ? err.message : "Failed to load units.")
       }
-      getUnits()
-  }, [])
+    }
+
+    getUnits()
+
+    return () => {
+      isActive = false
+    }
+  }, [pioreactorUnit])
+
+  const refreshInstalledPlugins = () => {
+    setPluginsRefreshCounter((counter) => counter + 1)
+  }
 
   const onSelectionChange = (e) => {
     setSelectedUnit(e.target.value)
@@ -340,7 +494,7 @@ function PluginContainer(){
             variant="standard"
             value={selectedUnit}
             onChange={onSelectionChange}
-
+            disabled={units.length === 0}
             sx={{
               "& .MuiSelect-select": {
                 paddingY: 0,
@@ -359,14 +513,33 @@ function PluginContainer(){
 
         </Typography>
 
-          {isFetchComplete && (
-           <ListInstalledPlugins  selectedUnit={selectedUnit} installedPlugins={installedPlugins}/>
-          )}
-
-          {!isFetchComplete && (
+          {!isFetchComplete && selectedUnit && (
             <Box sx={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
               <CircularProgress size={33}/>
             </Box>
+          )}
+
+          {unitsFetchError && (
+            <Box sx={{textAlign: "center", marginBottom: '24px', marginTop: "16px"}}>
+              <Typography variant="body2" component="p" color="textSecondary">
+                {unitsFetchError}
+              </Typography>
+            </Box>
+          )}
+
+          {!unitsFetchError && isFetchComplete && installedPluginsFetchError && (
+            <Box sx={{textAlign: "center", marginBottom: '24px', marginTop: "16px"}}>
+              <Typography variant="body2" component="p" color="error">
+                {installedPluginsFetchError}
+              </Typography>
+              <Button variant="text" onClick={refreshInstalledPlugins} sx={{mt: 1, textTransform: 'none'}}>
+                Retry
+              </Button>
+            </Box>
+          )}
+
+          {!unitsFetchError && isFetchComplete && !installedPluginsFetchError && (
+           <ListInstalledPlugins  selectedUnit={selectedUnit} installedPlugins={installedPlugins}/>
           )}
 
         <Typography variant="h6" component="h3">

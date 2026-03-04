@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
-import os
 from threading import Event
 from time import sleep
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-
-os.environ.setdefault("DOT_PIOREACTOR", ".pioreactor")
-
 from pioreactor.actions.self_test import run_tests
 
 
