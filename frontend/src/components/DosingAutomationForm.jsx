@@ -12,24 +12,44 @@ import MenuItem from "@mui/material/MenuItem";
 function DosingAutomationForm(props) {
   const threshold = props.threshold;
   const [warning, setWarning] = useState("");
+  const safetyBufferMl = 1;
 
   const defaults = Object.assign({}, ...props.fields.map(field => ({ [field.key]: field.default })));
   useEffect(() => {
     props.updateParent(defaults);
   }, [props.fields]);
 
-  const checkForWarnings = (id, value) => {
-    if (id === "initial_volume_ml" && value > threshold) {
-      setWarning(`Initial volume exceeds safe maximum of ${threshold} mL.`);
-    } else if (id === "max_working_volume_ml" && value > threshold) {
-      setWarning(`Max working volume exceeds safe maximum of ${threshold} mL.`);
-    } else {
-      setWarning(""); // clear warning
+  const computeWarning = (initialVolume, maxWorkingVolume) => {
+    if (initialVolume != null && initialVolume > threshold) {
+      return `Initial volume exceeds safe maximum of ${threshold} mL.`;
     }
+
+    if (maxWorkingVolume != null && maxWorkingVolume > threshold) {
+      return `Max working volume exceeds safe maximum of ${threshold} mL.`;
+    }
+
+    if (
+      maxWorkingVolume != null &&
+      maxWorkingVolume >= threshold - safetyBufferMl &&
+      maxWorkingVolume <= threshold
+    ) {
+      return `Max working volume is very close to the ${threshold} mL safety ceiling. This ceiling is not a recommended target.`;
+    }
+
+    return "";
   };
 
+  useEffect(() => {
+    setWarning(computeWarning(props.algoSettings.initial_volume_ml, props.algoSettings.max_working_volume_ml));
+  }, [props.algoSettings.initial_volume_ml, props.algoSettings.max_working_volume_ml, threshold]);
+
+  const parseNumericInput = (event) => (
+    Number.isNaN(event.target.valueAsNumber) ? null : event.target.valueAsNumber
+  );
+
   const onSettingsChange = (id, value) => {
-    checkForWarnings(id, value);
+    const nextSettings = { ...props.algoSettings, [id]: value };
+    setWarning(computeWarning(nextSettings.initial_volume_ml, nextSettings.max_working_volume_ml));
     props.updateParent({ [id]: value });
   };
 
@@ -73,7 +93,7 @@ function DosingAutomationForm(props) {
         type={field.type === "numeric" ? "number" : "text"}
         onChange={
           field.type === "numeric"
-            ? (e) => onSettingsChange(e.target.id, e.target.valueAsNumber || null)
+            ? (e) => onSettingsChange(e.target.id, parseNumericInput(e))
             : (e) => onSettingsChange((e.target.id, e.target.value))
         }
         InputProps={inputProps}
@@ -109,7 +129,7 @@ function DosingAutomationForm(props) {
           endAdornment: <InputAdornment position="end">ml</InputAdornment>,
         }}
         variant="outlined"
-        onChange={(e) => onSettingsChange(e.target.id, e.target.valueAsNumber || null)}
+        onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
         onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
         sx={{ mt: 3, mr: 2, mb: 0, width: "18ch" }}
       />
@@ -125,7 +145,7 @@ function DosingAutomationForm(props) {
         }}
         variant="outlined"
         defaultValue={props.maxVolume}
-        onChange={(e) => onSettingsChange(e.target.id, e.target.valueAsNumber || null)}
+        onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
         onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
         sx={{ mt: 3, mr: 1, mb: 0, width: "18ch" }}
       />

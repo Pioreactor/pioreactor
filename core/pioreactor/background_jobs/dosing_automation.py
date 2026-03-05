@@ -244,6 +244,11 @@ class DosingAutomationJob(AutomationJob):
         self._init_alt_media_fraction(alt_media_fraction)
         self._init_volume_throughput()
         self._init_liquid_volume(current_volume_ml, max_working_volume_ml)
+        self._last_vial_volume_warning_at: float | None = None
+        self.logger.debug(
+            f"Volume settings initialized: current_volume_ml={self.current_volume_ml:.2f} mL, "
+            f"max_working_volume_ml={self.max_working_volume_ml:.2f} mL."
+        )
 
         self.set_duration(duration)
         self._continue_pumping_event = Event()
@@ -516,7 +521,10 @@ class DosingAutomationJob(AutomationJob):
         with local_persistent_storage("current_volume_ml") as cache:
             cache[self.experiment] = self.current_volume_ml
 
-        if self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN:
+        if (
+            self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN
+            and self._should_warn_about_high_vial_volume()
+        ):
             self.logger.warning(
                 f"Vial is calculated to have a volume of {self.current_volume_ml:.2f} mL. Is this expected?"
             )
@@ -524,6 +532,13 @@ class DosingAutomationJob(AutomationJob):
             pass
             # TODO: this should publish to pumps to stop them.
             # but it is checked elsewhere
+
+    def _should_warn_about_high_vial_volume(self) -> bool:
+        now = time.time()
+        if self._last_vial_volume_warning_at is None or (now - self._last_vial_volume_warning_at) >= 10:
+            self._last_vial_volume_warning_at = now
+            return True
+        return False
 
     def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:
         (
@@ -664,6 +679,8 @@ def start_dosing_automation(
             **kwargs,
         )
 
+    except exc.JobPresentError:
+        raise
     except Exception as e:
         logger = create_logger("dosing_automation")
         logger.error(e)

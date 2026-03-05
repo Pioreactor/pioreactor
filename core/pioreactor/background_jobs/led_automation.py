@@ -227,6 +227,8 @@ def start_led_automation(
             **kwargs,
         )
 
+    except exc.JobPresentError:
+        raise
     except Exception as e:
         logger = create_logger("led_automation")
         logger.error(e)

@@ -305,17 +305,20 @@ function AddNewPioreactor({setWorkers}){
             <CircularProgress size={20} sx={{ mt: 1 }} />
           ) : discoveredWorkers.length === 0 ? (
             <Typography variant="body2" component="p" color="textSecondary">No workers found. This discovery process isn't guaranteed however.</Typography>
-          ) : (
-            discoveredWorkers.map((w) => (
-              <Chip
-                icon={<PioreactorIcon/>}
-                key={w.pioreactor_unit}
-                label={w.pioreactor_unit}
-                onClick={() => setName(w.pioreactor_unit)}
-                sx={{ mr: 1, mb: 1 }}
-              />
-            ))
-          )}
+          ) : <>
+              <Typography variant="body2" component="p" color="textSecondary">This discovery process isn't guaranteed to find all.</Typography> (
+              {discoveredWorkers.map((w) => (
+                <Chip
+                  icon={<PioreactorIcon/>}
+                  key={w.pioreactor_unit}
+                  label={w.pioreactor_unit}
+                  onClick={() => setName(w.pioreactor_unit)}
+                  sx={{ mr: 1, mb: 1 }}
+                />
+              ))}
+            )
+            </>
+        }
         </Box>
         <div>
           <TextField

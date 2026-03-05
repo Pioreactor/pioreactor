@@ -609,6 +609,8 @@ def start_temperature_automation(
             **kwargs,
         )
 
+    except exc.JobPresentError:
+        raise
     except Exception as e:
         logger = create_logger("temperature_automation", experiment=experiment)
         logger.error(e)

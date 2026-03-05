@@ -99,13 +99,14 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
 
 ## Testing
 
-* Use **pytest** for Python tests. All tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
+ - Use **pytest** for Python tests. All tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
 
   ```bash
   .venv/bin/pytest core/tests/test_cli.py
   ```
+ - Don't run tests in parallel.
 
-* Keep mypy green:
+ - Keep mypy green:
 
   ```bash
   .venv/bin/mypy core/pioreactor --ignore-missing-imports
