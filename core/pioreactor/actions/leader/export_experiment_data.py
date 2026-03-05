@@ -171,7 +171,7 @@ def create_sql_query(
     query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery}) T"
 
     if has_experiment:
-        query += " JOIN experiments E ON E.experiment = T.experiment"
+        query += " LEFT JOIN experiments E ON E.experiment = T.experiment"  # left join since some experiments, like $experiment, are virtual. Maybe this shouldn't be the case?
 
     # Add WHERE clause if provided
     if where_clauses:
