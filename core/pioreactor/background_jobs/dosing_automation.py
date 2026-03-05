@@ -404,20 +404,21 @@ class DosingAutomationJob(AutomationJob):
 
         if sum_of_volumes > self.MAX_SUBDOSE:
             volumes_moved += self.execute_io_action(
-                waste_ml=sum_of_volumes / 2,
+                waste_ml=waste_ml / 2,
                 **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
             )
             volumes_moved += self.execute_io_action(
-                waste_ml=sum_of_volumes / 2,
+                waste_ml=waste_ml / 2,
                 **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
             )
 
         else:
             # iterate through pumps, and dose required amount. First *_media, then waste.
+            projected_volume_ml = self.current_volume_ml
             for pump, volume_ml in all_pumps_ml.items():
-                if (self.current_volume_ml + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
+                if (projected_volume_ml + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
                     self.logger.error(
-                        f"Pausing all pumping since {self.current_volume_ml:g} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
+                        f"Pausing all pumping since {projected_volume_ml:g} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
                     self.set_state(self.SLEEPING)
                     return volumes_moved
@@ -438,6 +439,7 @@ class DosingAutomationJob(AutomationJob):
                         mqtt_client=self.pub_client,
                         logger=self.logger,
                     )
+                    projected_volume_ml += volumes_moved[pump]
                     pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.

@@ -21,12 +21,116 @@ import Chip from '@mui/material/Chip';
 import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
+import { useLocation } from "react-router";
 
 
 const datasetDescription = {
     marginLeft: "30px",
     fontSize: 14,
     color: 'text.secondary',
+}
+
+const SYSTEM_EXPERIMENT_LABEL = "<System>";
+const ALL_EXPERIMENTS_LABEL = "<All experiments>";
+
+const DEFAULT_EXPORT_STATE = {
+  experimentSelection: [],
+  partitionByUnitSelection: false,
+  partitionByExperimentSelection: true,
+  selectedDatasets: [],
+  // ISO-8601 strings in UTC
+  startTime: null,
+  endTime: null,
+  // enable time filter inputs
+  useTimeFilter: false,
+};
+
+const TRUE_QUERY_VALUES = new Set(["1", "true", "yes", "on"]);
+const FALSE_QUERY_VALUES = new Set(["0", "false", "no", "off"]);
+
+function parseQueryBoolean(value) {
+  if (value === null) {
+    return null;
+  }
+
+  const normalizedValue = value.toLowerCase();
+  if (TRUE_QUERY_VALUES.has(normalizedValue)) {
+    return true;
+  }
+  if (FALSE_QUERY_VALUES.has(normalizedValue)) {
+    return false;
+  }
+  return null;
+}
+
+function getFirstQueryParam(searchParams, keys) {
+  for (const key of keys) {
+    const value = searchParams.get(key);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getQueryList(searchParams, keys) {
+  const values = keys
+    .flatMap((key) => searchParams.getAll(key))
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return [...new Set(values)];
+}
+
+function parseExportStateFromSearch(search) {
+  const searchParams = new URLSearchParams(search);
+
+  const experimentsFromQuery = getQueryList(searchParams, ["experiments", "experiment"]).map(
+    (experiment) => (experiment === "$experiment" ? SYSTEM_EXPERIMENT_LABEL : experiment),
+  );
+  const experimentSelection = experimentsFromQuery.includes(ALL_EXPERIMENTS_LABEL)
+    ? [ALL_EXPERIMENTS_LABEL]
+    : experimentsFromQuery;
+
+  const selectedDatasets = getQueryList(searchParams, ["datasets", "dataset"]);
+
+  const partitionByUnitSelection =
+    parseQueryBoolean(
+      getFirstQueryParam(searchParams, ["partition_by_unit", "partitionByUnit"]),
+    ) ?? DEFAULT_EXPORT_STATE.partitionByUnitSelection;
+  const partitionByExperimentSelection =
+    parseQueryBoolean(
+      getFirstQueryParam(searchParams, ["partition_by_experiment", "partitionByExperiment"]),
+    ) ?? DEFAULT_EXPORT_STATE.partitionByExperimentSelection;
+
+  const startTime = getFirstQueryParam(searchParams, ["start_time", "startTime"]);
+  const endTime = getFirstQueryParam(searchParams, ["end_time", "endTime"]);
+  const useTimeFilterFromQuery = parseQueryBoolean(
+    getFirstQueryParam(searchParams, ["use_time_filter", "useTimeFilter"]),
+  );
+  const useTimeFilter =
+    useTimeFilterFromQuery ?? Boolean(startTime || endTime || DEFAULT_EXPORT_STATE.useTimeFilter);
+
+  return {
+    ...DEFAULT_EXPORT_STATE,
+    experimentSelection,
+    partitionByUnitSelection,
+    partitionByExperimentSelection,
+    selectedDatasets,
+    startTime,
+    endTime,
+    useTimeFilter,
+  };
+}
+
+function arrayShallowEqual(left, right) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
 }
 
 
@@ -38,20 +142,17 @@ function getStyles(value, values, theme) {
   };
 }
 
-function MultipleSelectChip({availableValues, parentHandleChange}) {
+function MultipleSelectChip({availableValues, parentHandleChange, values}) {
   const theme = useTheme();
-  const [values, setValues] = React.useState([]);
 
   const handleChange = (event) => {
     const {
       target: { value },
     } = event;
-    if (value.includes("<All experiments>")){
-      setValues(["<All experiments>"]);
-      parentHandleChange(["<All experiments>"])
+    if (value.includes(ALL_EXPERIMENTS_LABEL)){
+      parentHandleChange([ALL_EXPERIMENTS_LABEL])
     }
     else {
-      setValues(value);
       parentHandleChange(value)
     }
   };
@@ -101,8 +202,6 @@ function MultipleSelectChip({availableValues, parentHandleChange}) {
 function ExperimentSelection(props) {
 
   const [experiments, setExperiments] = React.useState([])
-  const SYSTEM_EXPERIMENT_LABEL = "<System>";
-  const ALL_EXPERIMENTS_LABEL = "<All experiments>";
 
   React.useEffect(() => {
     async function getData() {
@@ -114,7 +213,9 @@ function ExperimentSelection(props) {
           .filter((name) => name !== "$experiment");
 
         // Ensure "<System>" and "<All experiments>" are always available and at the bottom.
-        setExperiments([...experimentNames, SYSTEM_EXPERIMENT_LABEL, ALL_EXPERIMENTS_LABEL]);
+        const allExperiments = [...experimentNames, SYSTEM_EXPERIMENT_LABEL, ALL_EXPERIMENTS_LABEL];
+        setExperiments(allExperiments);
+        props.onExperimentsLoaded(allExperiments);
       } catch (error) {
         console.error("Failed to fetch experiments:", error);
       }
@@ -126,7 +227,11 @@ function ExperimentSelection(props) {
 
   return (
     <Box sx={{ m: 1}}>
-      <MultipleSelectChip availableValues={experiments} parentHandleChange={props.handleChange} />
+      <MultipleSelectChip
+        availableValues={experiments}
+        parentHandleChange={props.handleChange}
+        values={props.experimentSelection}
+      />
     </Box>
   )
 }
@@ -316,21 +421,16 @@ const Datasets = ({ datasets, selectedDatasets, handleChange }) => {
 
 
 function ExportDataContainer() {
+  const location = useLocation();
   const [isRunning, setIsRunning] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
   const [datasets, setDatasets] = React.useState([])
 
-  const [state, setState] = React.useState({
-    experimentSelection: [],
-    partitionByUnitSelection: false,
-    partitionByExperimentSelection: true,
-    selectedDatasets: [],
-    // ISO-8601 strings in UTC
-    startTime: null,
-    endTime: null,
-    // enable time filter inputs
-    useTimeFilter: false,
-  });
+  const [state, setState] = React.useState(() => parseExportStateFromSearch(location.search));
+
+  React.useEffect(() => {
+    setState(parseExportStateFromSearch(location.search));
+  }, [location.search]);
 
 
   React.useEffect(() => {
@@ -346,6 +446,25 @@ function ExportDataContainer() {
     }
     getDatasets()
   }, [])
+
+  React.useEffect(() => {
+    if (datasets.length === 0) {
+      return;
+    }
+
+    const datasetNames = new Set(datasets.map((dataset) => dataset.dataset_name));
+    setState((prevState) => {
+      const filteredSelectedDatasets = prevState.selectedDatasets.filter((name) => datasetNames.has(name));
+      if (arrayShallowEqual(filteredSelectedDatasets, prevState.selectedDatasets)) {
+        return prevState;
+      }
+
+      return {
+        ...prevState,
+        selectedDatasets: filteredSelectedDatasets,
+      };
+    });
+  }, [datasets]);
 
 
   const onSubmit =  async (event) => {
@@ -370,8 +489,8 @@ function ExportDataContainer() {
             partition_by_unit: state.partitionByUnitSelection,
             partition_by_experiment: state.partitionByExperimentSelection,
             datasets: state.selectedDatasets,
-            start_time: state.startTime,
-            end_time: state.endTime,
+            start_time: state.useTimeFilter ? state.startTime : null,
+            end_time: state.useTimeFilter ? state.endTime : null,
           }),
           headers: {
             'Accept': 'application/json',
@@ -411,6 +530,23 @@ function ExportDataContainer() {
       experimentSelection: experiments
     }));
   };
+
+  function handleExperimentsLoaded(availableExperiments) {
+    const availableExperimentSet = new Set(availableExperiments);
+    setState((prevState) => {
+      const filteredSelectedExperiments = prevState.experimentSelection.filter((experiment) =>
+        availableExperimentSet.has(experiment),
+      );
+      if (arrayShallowEqual(filteredSelectedExperiments, prevState.experimentSelection)) {
+        return prevState;
+      }
+
+      return {
+        ...prevState,
+        experimentSelection: filteredSelectedExperiments,
+      };
+    });
+  }
 
   function handlePartitionByChange(event) {
     const stateKey = {
@@ -470,6 +606,7 @@ function ExportDataContainer() {
                 <ExperimentSelection
                   experimentSelection={state.experimentSelection}
                   handleChange={handleExperimentSelectionChange}
+                  onExperimentsLoaded={handleExperimentsLoaded}
                 />
               </Grid>
               <Grid  size={{

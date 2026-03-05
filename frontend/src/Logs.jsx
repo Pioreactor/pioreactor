@@ -85,6 +85,16 @@ function Logs(props) {
       console.error('Error adding new log entry:', error);
     }
   };
+
+  const exportLogsQueryParams = new URLSearchParams();
+  if (experimentMetadata.experiment) {
+    exportLogsQueryParams.append("experiments", experimentMetadata.experiment);
+  }
+  exportLogsQueryParams.append("datasets", "logs");
+  exportLogsQueryParams.set("partition_by_experiment", "false");
+  exportLogsQueryParams.set("partition_by_unit", pioreactorUnit ? "true" : "false");
+  const exportLogsHref = `/export-data?${exportLogsQueryParams.toString()}`;
+
   return (
     <Fragment>
       <Grid container spacing={2} >
@@ -144,7 +154,7 @@ function Logs(props) {
                 availableUnits={assignedUnits}
                 onSubmit={handleSubmitDialog}
               />
-              <Button to={`/export-data`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
+              <Button to={exportLogsHref} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
                 <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export logs
               </Button>
               <Divider orientation="vertical" flexItem variant="middle"/>

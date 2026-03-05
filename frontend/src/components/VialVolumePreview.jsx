@@ -111,8 +111,10 @@ function VialVolumePreview({
           strokeWidth={STROKEWIDTH}
           strokeLinejoin="round"
         />
+        <line x1="0.86" y1={tubeBottomY} x2="10.47" y2={tubeBottomY} stroke="grey" strokeWidth={0.5} stroke-dasharray="1,0.45"/>
         <line x1="7.14" y1="0.00" x2="7.14" y2={tubeBottomY} stroke="currentColor" strokeWidth={STROKEWIDTH} />
         <line x1="4" y1="0.00" x2="4" y2="7" stroke="currentColor" strokeWidth={STROKEWIDTH} />
+
       </svg>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
         Initial vial preview

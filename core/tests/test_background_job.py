@@ -11,6 +11,7 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.exc import JobPresentError
+from pioreactor.exc import NotActiveWorkerError
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
@@ -462,6 +463,60 @@ def test_duplicate_job_cannot_start_while_existing_instance_is_running() -> None
         pause()
         with pytest.raises(JobPresentError):
             DuplicateJob(unit=unit, experiment=exp)
+
+
+def test_clean_up_still_disconnects_when_ready_to_disconnected_hook_errors() -> None:
+    class TestJob(BackgroundJob):
+        job_name = "hook_error_on_disconnect"
+
+        def on_ready_to_disconnected(self) -> None:
+            raise RuntimeError("disconnect hook failed")
+
+    exp = "test_clean_up_still_disconnects_when_ready_to_disconnected_hook_errors"
+    unit = get_unit_name()
+
+    job = TestJob(unit=unit, experiment=exp)
+    job.clean_up()
+    pause()
+
+    state_msg = subscribe(
+        f"pioreactor/{unit}/{exp}/{job.job_name}/$state",
+        timeout=1.0,
+    )
+
+    assert job.state == job.DISCONNECTED
+    assert job._blocking_event.is_set()
+    assert state_msg is not None
+    assert state_msg.payload.decode() == job.DISCONNECTED
+
+
+def test_dodging_jobs_respect_inactive_worker_guard(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.base.is_active",
+        lambda unit: unit != "notactiveworker",
+    )
+
+    with temporary_config_section(config, "inactive_dodging_job.config"):
+
+        class InactiveDodgingJob(BackgroundJobWithDodging):
+            job_name = "inactive_dodging_job"
+
+            def __init__(self, unit: str, experiment: str) -> None:
+                super().__init__(unit=unit, experiment=experiment)
+
+        job = None
+        try:
+            job = InactiveDodgingJob(
+                unit="notactiveworker",
+                experiment="test_dodging_jobs_respect_inactive_worker_guard",
+            )
+        except NotActiveWorkerError:
+            pass
+        else:
+            try:
+                pytest.fail("Expected dodging jobs to reject inactive workers.")
+            finally:
+                job.clean_up()
 
 
 def test_dodging_persists_when_second_od_reader_start_fails() -> None:

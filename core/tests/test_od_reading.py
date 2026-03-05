@@ -4,15 +4,19 @@ import time
 
 import numpy as np
 import pytest
+from msgspec.json import decode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.background_jobs.od_reading import ADCReader
+from pioreactor.background_jobs.od_reading import average_over_od_readings
+from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import CachedEstimatorTransformer
 from pioreactor.background_jobs.od_reading import click_od_reading
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
+from pioreactor.background_jobs.od_reading import NullEstimatorTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
@@ -22,6 +26,7 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.od_fusion import compute_fused_od
@@ -2108,3 +2113,158 @@ def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -
             with local_intermittent_storage("leds") as cache_after:
                 for ch, val in init_states.items():
                     assert cache_after[ch] == val, f"LED {ch} was modified during read"
+
+
+def test_calibration_failure_clears_previous_od_state(monkeypatch) -> None:
+    experiment = "test_calibration_failure_clears_previous_od_state"
+    raw_reading = _build_od_readings({"45": 0.5})
+    monkeypatch.setattr("pioreactor.background_jobs.od_reading.random.random", lambda: 1.0)
+
+    class FlakyCalibrationTransformer(NullCalibrationTransformer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = 0
+
+        def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings:
+            self.calls += 1
+            if self.calls == 1:
+                return batched_readings
+            raise exc.CalibrationError("synthetic calibration failure")
+
+    with start_od_reading(
+        make_channels("45", "REF"),
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        calibration=False,
+        estimator=False,
+    ) as od_job:
+        monkeypatch.setattr(od_job, "_read_from_adc", lambda: raw_reading)
+        od_job.calibration_transformer = FlakyCalibrationTransformer()
+
+        first = od_job.record_from_adc()
+        assert first is not None
+        assert od_job.ods is not None
+        assert od_job.od1 is not None
+
+        with pytest.raises(exc.CalibrationError, match="synthetic calibration failure"):
+            od_job.record_from_adc()
+
+        assert od_job.ods is None
+        assert od_job.od1 is None
+
+
+def test_fused_od_is_cleared_when_estimator_returns_none(monkeypatch) -> None:
+    experiment = "test_fused_od_is_cleared_when_estimator_returns_none"
+    raw_reading = _build_od_readings({"45": 0.5})
+    monkeypatch.setattr("pioreactor.background_jobs.od_reading.random.random", lambda: 1.0)
+
+    class FlakyEstimatorTransformer(NullEstimatorTransformer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = 0
+
+        def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
+            self.calls += 1
+            if self.calls == 1:
+                return structs.ODFused(od_fused=0.5, timestamp=raw_od_readings.timestamp)
+            return None
+
+    with start_od_reading(
+        make_channels("45", "REF"),
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        calibration=False,
+        estimator=False,
+    ) as od_job:
+        monkeypatch.setattr(od_job, "_read_from_adc", lambda: raw_reading)
+        od_job.estimator_transformer = FlakyEstimatorTransformer()
+
+        od_job.record_from_adc()
+        assert od_job.od_fused is not None
+
+        od_job.record_from_adc()
+        assert od_job.od_fused is None
+
+
+def test_relative_intensity_topic_publishes_a_json_payload(monkeypatch) -> None:
+    experiment = "test_relative_intensity_topic_publishes_a_json_payload"
+
+    monkeypatch.setattr("pioreactor.background_jobs.od_reading.random.random", lambda: 0.0)
+
+    with start_od_reading(
+        make_channels("45", "REF"),
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        calibration=False,
+        estimator=False,
+    ) as od_job:
+        assert od_job.published_settings["relative_intensity_of_ir_led"]["datatype"] == "json"
+
+        od_job.record_from_adc()
+
+        msg = subscribe(
+            f"pioreactor/{get_unit_name()}/{experiment}/od_reading/relative_intensity_of_ir_led",
+            timeout=1.0,
+        )
+        assert msg is not None
+        payload = decode(msg.payload, type=dict[str, object])
+        assert "relative_intensity_of_ir_led" in payload
+        assert "timestamp" in payload
+
+
+def test_average_over_raw_pd_readings_uses_per_channel_counts() -> None:
+    averaged = average_over_raw_pd_readings(
+        {
+            "1": structs.RawPDReading(reading=1.0, channel="1"),
+            "2": structs.RawPDReading(reading=3.0, channel="2"),
+        },
+        {
+            "1": structs.RawPDReading(reading=5.0, channel="1"),
+        },
+    )
+
+    assert averaged["1"].reading == pytest.approx(3.0)
+    assert averaged["2"].reading == pytest.approx(3.0)
+
+
+def test_average_over_od_readings_uses_per_channel_counts() -> None:
+    timestamp = current_utc_datetime()
+    averaged = average_over_od_readings(
+        structs.ODReadings(
+            timestamp=timestamp,
+            ods={
+                "1": structs.RawODReading(
+                    timestamp=timestamp,
+                    angle="45",
+                    od=1.0,
+                    channel="1",
+                    ir_led_intensity=70.0,
+                ),
+                "2": structs.RawODReading(
+                    timestamp=timestamp,
+                    angle="90",
+                    od=3.0,
+                    channel="2",
+                    ir_led_intensity=70.0,
+                ),
+            },
+        ),
+        structs.ODReadings(
+            timestamp=timestamp,
+            ods={
+                "1": structs.RawODReading(
+                    timestamp=timestamp,
+                    angle="45",
+                    od=5.0,
+                    channel="1",
+                    ir_led_intensity=70.0,
+                ),
+            },
+        ),
+    )
+
+    assert averaged.ods["1"].od == pytest.approx(3.0)
+    assert averaged.ods["2"].od == pytest.approx(3.0)

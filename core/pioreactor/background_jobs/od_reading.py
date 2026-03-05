@@ -113,19 +113,18 @@ RawPDReadings = dict[pt.PdChannel, structs.RawPDReading]
 
 
 def average_over_raw_pd_readings(*multiple_raw_pd_readings: RawPDReadings) -> RawPDReadings:
-    running_count = 0
-
     summed_pd_channel_to_voltage: PdChannelToVoltage = {}
+    counts_by_channel: dict[pt.PdChannel, int] = {}
 
     for raw_pd_readings in multiple_raw_pd_readings:
         for pd_channel, raw_od_reading in raw_pd_readings.items():
             summed_pd_channel_to_voltage[pd_channel] = (
                 summed_pd_channel_to_voltage.get(pd_channel, 0) + raw_od_reading.reading
             )
-        running_count += 1
+            counts_by_channel[pd_channel] = counts_by_channel.get(pd_channel, 0) + 1
 
     return {
-        pd_channel: structs.RawPDReading(reading=voltage / running_count, channel=pd_channel)
+        pd_channel: structs.RawPDReading(reading=voltage / counts_by_channel[pd_channel], channel=pd_channel)
         for pd_channel, voltage in summed_pd_channel_to_voltage.items()
     }
 
@@ -1134,7 +1133,7 @@ class ODReader(BackgroundJob):
         "first_od_obs_time": {"datatype": "float", "settable": False},
         "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "interval": {"datatype": "float", "settable": True, "unit": "s"},
-        "relative_intensity_of_ir_led": {"datatype": "float", "settable": False},
+        "relative_intensity_of_ir_led": {"datatype": "json", "settable": False},
         "ods": {"datatype": "ODReadings", "settable": False},
         "od1": {"datatype": "ODReading", "settable": False},
         "od2": {"datatype": "ODReading", "settable": False},
@@ -1478,9 +1477,13 @@ class ODReader(BackgroundJob):
         except (exc.NoSolutionsFoundError, exc.CalibrationError, ValueError) as e:
             # some calibration error occurred
             od_readings = None
+            self.ods = None
 
-            # still publish the raw readings
+            # Preserve the fresh raw readings, but clear the calibrated outputs so
+            # consumers do not keep observing the previous successful batch.
             for channel, _ in self.channel_angle_map.items():
+                setattr(self, f"od{channel}", None)
+                setattr(self, f"calibrated_od{channel}", None)
                 setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
 
             self.logger.error(f"Error in calibration transformer: {e}")
@@ -1501,8 +1504,7 @@ class ODReader(BackgroundJob):
                 self.logger.error(f"Error in estimator transformer: {e}")
                 self.od_fused = None
             else:
-                if fused_od is not None:
-                    self.od_fused = fused_od
+                self.od_fused = fused_od
 
         finally:
             for post_function in self.post_read_callbacks:

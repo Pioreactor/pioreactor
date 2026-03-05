@@ -3,7 +3,9 @@ import { useState, useEffect, Fragment } from 'react';
 import Select from '@mui/material/Select';
 import Grid from "@mui/material/Grid";
 import MenuItem from "@mui/material/MenuItem";
-import { useNavigate, useParams, useLocation } from 'react-router';
+import Button from "@mui/material/Button";
+import { Link, useNavigate, useParams, useLocation } from 'react-router';
+import DownloadIcon from '@mui/icons-material/Download';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import PaginatedLogsTable from "./components/PaginatedLogsTable";
@@ -56,6 +58,13 @@ function SystemLogs(props) {
       navigate(`/system-logs/${event.target.value}`);
     }
   }
+
+  const exportLogsQueryParams = new URLSearchParams();
+  exportLogsQueryParams.append("experiments", "$experiment");
+  exportLogsQueryParams.append("datasets", "logs");
+  exportLogsQueryParams.set("partition_by_experiment", "false");
+  exportLogsQueryParams.set("partition_by_unit", pioreactorUnit ? "true" : "false");
+  const exportLogsHref = `/export-data?${exportLogsQueryParams.toString()}`;
 
 
   return (
@@ -110,7 +119,11 @@ function SystemLogs(props) {
             </Box>
           </Grid>
           <Grid size={{ md: 12, lg: 5}}>
-
+            <Box sx={{display: "flex", justifyContent: "flex-end", flexFlow: "wrap"}}>
+              <Button to={exportLogsHref} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
+                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export logs
+              </Button>
+            </Box>
           </Grid>
           <Grid>
             <PaginatedLogsTable pioreactorUnit={pioreactorUnit} experiment={"$experiment"} logLevel={logLevel} />

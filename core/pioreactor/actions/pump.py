@@ -226,6 +226,18 @@ def _pump_action(
     if logger is None:
         logger = create_logger(action_name, experiment=experiment, unit=unit)
 
+    if ml is not None:
+        ml = float(ml)
+        if ml < 0:
+            logger.error("ml should be greater than or equal to 0")
+            raise ValueError("ml should be greater than or equal to 0")
+
+    if duration is not None:
+        duration = float(duration)
+        if duration < 0:
+            logger.error("seconds must be >= 0")
+            raise ValueError("seconds must be >= 0")
+
     try:
         pin = _get_pin(pump_device)
     except NoOptionError:
@@ -256,14 +268,9 @@ def _pump_action(
 
         if manually:
             assert ml is not None
-            ml = float(ml)
-            if ml < 0:
-                logger.error("ml should be greater than or equal to 0")
-                raise ValueError("ml should be greater than or equal to 0")
             duration = 0.0
             logger.info(f"{_to_human_readable_action(ml, None, pump_device)} (exchanged manually)")
         elif ml is not None:
-            ml = float(ml)
             if is_default_calibration(calibration):
                 logger.error(
                     f"Active calibration not found. Run {pump_device} calibration first: `pio calibrations run --device {pump_device}` or set active with `pio calibrations set-active`"
@@ -272,13 +279,9 @@ def _pump_action(
                     f"Active calibration not found. Run {pump_device} calibration: `pio calibrations run --device {pump_device}`, or set active with `pio calibrations set-active`"
                 )
 
-            if ml < 0:
-                logger.error("ml should be greater than or equal to 0")
-                raise ValueError("ml should be greater than or equal to 0")
             duration = calibration.ml_to_duration(ml)
             logger.info(_to_human_readable_action(ml, None, pump_device))
         elif duration is not None:
-            duration = float(duration)
             ml = calibration.duration_to_ml(duration)  # can be wrong if calibration is not defined
 
             logger.info(_to_human_readable_action(None, duration, pump_device))

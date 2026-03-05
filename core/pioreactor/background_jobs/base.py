@@ -556,6 +556,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         if self.state is not st.DISCONNECTED:
             self.set_state(st.DISCONNECTED)
+            if self.state is not st.DISCONNECTED:
+                # A transition hook may have failed before disconnected() ran.
+                self.disconnected()
         self._clean_up_resources()
 
     def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:
@@ -1127,6 +1130,15 @@ class BackgroundJobWithDodging(_BackgroundJob):
     currently_dodging_od = False
 
     def __init__(self, *args, source="app", enable_dodging_od=False, **kwargs) -> None:
+        unit = kwargs.get("unit")
+        if unit is None and len(args) > 0:
+            unit = args[0]
+
+        if unit is not None and not is_active(unit):
+            raise NotActiveWorkerError(
+                f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
+            )
+
         super().__init__(*args, source=source, **kwargs)  # type: ignore
 
         if not config.has_section(f"{self.job_name}.config"):

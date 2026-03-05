@@ -102,6 +102,19 @@ def test_pump_io_doesnt_allow_negative() -> None:
         remove_waste(duration=-1, unit=unit, experiment=exp)
 
 
+def test_negative_duration_is_rejected_before_constructing_pump(monkeypatch) -> None:
+    exp = "test_negative_duration_is_rejected_before_constructing_pump"
+
+    class FailIfConstructed:
+        def __init__(self, *args, **kwargs) -> None:
+            raise AssertionError("PWMPump should not be constructed for negative durations")
+
+    monkeypatch.setattr("pioreactor.actions.pump.PWMPump", FailIfConstructed)
+
+    with pytest.raises(ValueError):
+        add_media(duration=-1, unit=unit, experiment=exp)
+
+
 def test_pump_io_cant_set_both_duration_and_ml() -> None:
     exp = "test_pump_io_cant_set_both_duration_and_ml"
     with pytest.raises(ValueError):

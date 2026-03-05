@@ -876,6 +876,76 @@ def test_execute_io_action_outputs_float_point_error() -> None:
         assert result["waste_ml"] == waste
 
 
+def test_execute_io_action_preserves_requested_waste_when_subdosing(fast_dosing_timers) -> None:
+    experiment = "test_execute_io_action_preserves_requested_waste_when_subdosing"
+
+    class StubAutomation(DosingAutomationJob):
+        automation_name = "_test_preserve_requested_waste_when_subdosing"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            return ml
+
+        def execute(self):
+            return None
+
+    with StubAutomation(unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0) as job:
+        result = job.execute_io_action(media_ml=2.0, waste_ml=3.0)
+
+    assert result["media_ml"] == pytest.approx(2.0)
+    assert result["waste_ml"] == pytest.approx(3.0)
+
+
+def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing_timers) -> None:
+    experiment = "test_execute_io_action_uses_cumulative_volume_for_overflow_check"
+    calls: list[tuple[str, float]] = []
+
+    class StubAutomation(DosingAutomationJob):
+        automation_name = "_test_cumulative_volume_for_overflow_check"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("media", ml))
+            return ml
+
+        def add_alt_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("alt_media", ml))
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("waste", ml))
+            return ml
+
+        def execute(self):
+            return None
+
+    with StubAutomation(
+        unit=unit,
+        experiment=experiment,
+        duration=None,
+        current_volume_ml=StubAutomation.MAX_VIAL_VOLUME_TO_STOP - 0.7,
+    ) as job:
+        result = job.execute_io_action(media_ml=0.4, alt_media_ml=0.4, waste_ml=0.8)
+
+        assert job.state == job.SLEEPING
+
+    assert calls == [("media", 0.4)]
+    assert result["media_ml"] == pytest.approx(0.4)
+    assert result["alt_media_ml"] == pytest.approx(0.0)
+    assert result["waste_ml"] == pytest.approx(0.0)
+
+
 def test_mqtt_properties_in_dosing_automations() -> None:
     experiment = "test_mqtt_properties_in_dosing_automations"
 
