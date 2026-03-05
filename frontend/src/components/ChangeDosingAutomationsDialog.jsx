@@ -55,6 +55,18 @@ function ChangeDosingAutomationsDialog(props) {
     fetchAutomations();
   }, [automationType])
 
+  useEffect(() => {
+    if (!props.open) {
+      return;
+    }
+
+    setAlgoSettings((prev) => ({
+      ...prev,
+      max_working_volume_ml: props.maxVolume,
+      initial_volume_ml: props.liquidVolume,
+    }));
+  }, [props.open, props.maxVolume, props.liquidVolume]);
+
 
   const removeEmpty = (obj) => {
     return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null));
@@ -75,8 +87,8 @@ function ChangeDosingAutomationsDialog(props) {
 
     setAlgoSettings((prev) => ({
       ...( !props.no_skip_first_run && { skip_first_run: prev.skip_first_run }),
-      max_working_volume_ml: prev.maxVolume,
-      initial_volume_ml: prev.liquidVolume,
+      max_working_volume_ml: prev.max_working_volume_ml ?? props.maxVolume,
+      initial_volume_ml: prev.initial_volume_ml ?? props.liquidVolume,
     }));
   };
 

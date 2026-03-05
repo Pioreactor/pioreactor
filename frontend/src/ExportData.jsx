@@ -101,16 +101,20 @@ function MultipleSelectChip({availableValues, parentHandleChange}) {
 function ExperimentSelection(props) {
 
   const [experiments, setExperiments] = React.useState([])
+  const SYSTEM_EXPERIMENT_LABEL = "<System>";
+  const ALL_EXPERIMENTS_LABEL = "<All experiments>";
 
   React.useEffect(() => {
     async function getData() {
       try {
         const response = await fetch("/api/experiments");
         const data = await response.json();
-        const experimentNames = data.map((e) => e.experiment);
+        const experimentNames = data
+          .map((e) => e.experiment)
+          .filter((name) => name !== "$experiment");
 
-        // Ensure "<All experiments>" is always at the bottom
-        setExperiments([...experimentNames, "<All experiments>"]);
+        // Ensure "<System>" and "<All experiments>" are always available and at the bottom.
+        setExperiments([...experimentNames, SYSTEM_EXPERIMENT_LABEL, ALL_EXPERIMENTS_LABEL]);
       } catch (error) {
         console.error("Failed to fetch experiments:", error);
       }
@@ -352,13 +356,17 @@ function ExportDataContainer() {
       return;
     }
 
+    const experimentsForExport = state.experimentSelection.map((experiment) =>
+      experiment === "<System>" ? "$experiment" : experiment
+    );
+
     setIsRunning(true);
     setErrorMsg("");
     try {
       const res = await fetch('/api/datasets/exportable/export',{
           method: "POST",
           body: JSON.stringify({
-            experiments: state.experimentSelection,
+            experiments: experimentsForExport,
             partition_by_unit: state.partitionByUnitSelection,
             partition_by_experiment: state.partitionByExperimentSelection,
             datasets: state.selectedDatasets,

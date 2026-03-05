@@ -4,6 +4,7 @@
 
  - Fixed a UI crash when MQTT `button_down` events triggered tactile-button notifications: custom snackbar content now renders with a ref-able root element so notistack transitions no longer throw `Custom snackbar is not refForwarding`.
  - Fix plugins not being loaded correctly in the background task worker. This affected mostly plugin calibrations.
+ - Added a `<System>` experiment option in Export Data and mapped it to `"$experiment"` so users can export system logs from the UI.
 
 ### 26.2.26
 

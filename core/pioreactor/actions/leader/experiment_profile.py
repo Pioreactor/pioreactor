@@ -63,8 +63,13 @@ def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
         try:
             func(*args, **kwargs)
         except Exception as e:
-            logger.error(f"Error in action: {e}")
-            logger.debug(f"Error in action: {e}", exc_info=True)
+            if isinstance(e, KeyError) and e.args:
+                error_message = f"Error in action: {e.args[0]}"
+            else:
+                error_message = f"Error in action: {e}"
+
+            logger.error(error_message)
+            logger.debug(error_message, exc_info=True)
 
     return inner_function
 

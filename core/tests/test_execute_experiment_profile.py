@@ -575,6 +575,48 @@ def test_repeat_warns_and_skips_actions_beyond_every(mock__load_experiment_profi
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_repeat_logs_useful_error_for_missing_nested_key_in_while(
+    mock__load_experiment_profile, caplog
+) -> None:
+    experiment = "_testing_experiment"
+
+    publish(
+        "pioreactor/unit1/_testing_experiment/jobbing/rpm_snapshot",
+        encode({"measured_rpm": 500}),
+        retain=True,
+    )
+
+    repeat = Repeat(
+        t="0s",
+        every="0.01s",
+        max_time="0.02s",
+        while_="${{unit1:jobbing:rpm_snapshot.rpm > 100}}",
+        actions=[Update(t="0s", options={"setting": "1"})],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[repeat]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with caplog.at_level("ERROR"):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert any("missing nested key `rpm`" in record.message for record in caplog.records)
+    assert any("rpm_snapshot.rpm" in record.message for record in caplog.records)
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_expression_in_common(
     mock__load_experiment_profile, active_workers_in_cluster
 ) -> None:

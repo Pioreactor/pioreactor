@@ -723,8 +723,6 @@ def get_capabilities() -> ResponseReturnValue:
 
 ### PLUGINS
 
-PLUGIN_ALLOWLIST_FILENAME = "plugins/api_plugins_allowlist.json"
-
 
 def _canonicalize_package_name(raw: str) -> str:
     # normalize to something close to pip's canonical form for comparison
@@ -733,16 +731,6 @@ def _canonicalize_package_name(raw: str) -> str:
         if sep in name:
             name = name.split(sep, 1)[0]
     return name.replace("_", "-").lower()
-
-
-def _load_plugin_allowlist() -> set[str]:
-    allowlist_path = Path(os.environ["DOT_PIOREACTOR"]) / PLUGIN_ALLOWLIST_FILENAME
-    try:
-        contents = current_app.json.loads(allowlist_path.read_bytes())
-    except Exception as e:
-        publish_to_error_log(f"{PLUGIN_ALLOWLIST_FILENAME} is not present or invalid JSON: {e}", "plugins")
-        return set()
-    return {_canonicalize_package_name(c["name"]) for c in contents}
 
 
 @unit_api_bp.route("/plugins/installed", methods=["GET"])

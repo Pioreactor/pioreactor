@@ -243,6 +243,19 @@ class ProfileParser(Parser):
             if len(keys) > 0:
                 # its a nested json object, iteratively nest into it.
                 for key in keys:
+                    if not isinstance(value, dict):
+                        raise TypeError(
+                            f"Expression lookup `{data_string}` attempted nested key access `{key}` "
+                            f"on a non-mapping value of type `{type(value).__name__}`."
+                        )
+
+                    if key not in value:
+                        available_keys = ", ".join(str(k) for k in value.keys())
+                        raise KeyError(
+                            f"Expression lookup `{data_string}` referenced missing nested key `{key}`. "
+                            f"Available keys: [{available_keys}]"
+                        )
+
                     value = value[key]
 
             return convert_string(value)

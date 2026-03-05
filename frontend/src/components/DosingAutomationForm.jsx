@@ -3,11 +3,13 @@ import TextField from "@mui/material/TextField";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 import InputAdornment from "@mui/material/InputAdornment";
+import Box from "@mui/material/Box";
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import IconButton from '@mui/material/IconButton';
 import Alert from "@mui/material/Alert";
 import UnderlineSpan from "./UnderlineSpan";
 import MenuItem from "@mui/material/MenuItem";
+import VialVolumePreview from "./VialVolumePreview";
 
 function DosingAutomationForm(props) {
   const threshold = props.threshold;
@@ -15,8 +17,14 @@ function DosingAutomationForm(props) {
   const safetyBufferMl = 1;
 
   const defaults = Object.assign({}, ...props.fields.map(field => ({ [field.key]: field.default })));
+  const defaultsWithoutVolumeFields = Object.fromEntries(
+    Object.entries(defaults).filter(
+      ([key]) => key !== "initial_volume_ml" && key !== "max_working_volume_ml"
+    )
+  );
+
   useEffect(() => {
-    props.updateParent(defaults);
+    props.updateParent(defaultsWithoutVolumeFields);
   }, [props.fields]);
 
   const computeWarning = (initialVolume, maxWorkingVolume) => {
@@ -118,50 +126,58 @@ function DosingAutomationForm(props) {
 
       <Divider sx={{ mt: 2, mb: 0 }} />
 
-      <TextField
-        type="number"
-        size="small"
-        autoComplete="off"
-        id="initial_volume_ml"
-        label="Initial volume"
-        defaultValue={props.liquidVolume}
-        InputProps={{
-          endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 2,
+          flexWrap: { xs: "wrap", md: "nowrap" },
         }}
-        variant="outlined"
-        onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
-        onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
-        sx={{ mt: 3, mr: 2, mb: 0, width: "18ch" }}
-      />
-
-      <TextField
-        type="number"
-        size="small"
-        autoComplete="off"
-        id="max_working_volume_ml"
-        label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Max working volume</UnderlineSpan>}
-        InputProps={{
-          endAdornment: <InputAdornment position="end">ml</InputAdornment>,
-        }}
-        variant="outlined"
-        defaultValue={props.maxVolume}
-        onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
-        onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
-        sx={{ mt: 3, mr: 1, mb: 0, width: "18ch" }}
-      />
-
-      <IconButton
-        sx={{ mt: 3 }}
-        aria-label="Learn more about volume parameters"
-        target="_blank"
-        rel="noopener noreferrer"
-        href="https://docs.pioreactor.com/user-guide/dosing-automations#volume-parameters"
       >
-        <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }} />
-      </IconButton>
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", flex: 1, mt:1}}>
+          <TextField
+            type="number"
+            size="small"
+            autoComplete="off"
+            id="initial_volume_ml"
+            label="Initial volume"
+            value={props.algoSettings.initial_volume_ml ?? ""}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+            }}
+            variant="outlined"
+            onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
+            onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
+            sx={{ mt: 3, mr: 2, mb: 0, width: "18ch" }}
+          />
+
+          <TextField
+            type="number"
+            size="small"
+            autoComplete="off"
+            id="max_working_volume_ml"
+            label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Max working volume</UnderlineSpan>}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+            }}
+            variant="outlined"
+            value={props.algoSettings.max_working_volume_ml ?? ""}
+            onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
+            onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
+            sx={{ mt: 3, mr: 1, mb: 0, width: "18ch" }}
+          />
+        </Box>
+
+        <VialVolumePreview
+          initialVolumeMl={props.algoSettings.initial_volume_ml}
+          maxWorkingVolumeMl={props.algoSettings.max_working_volume_ml}
+          maxVolumeMl={props.threshold + 2}
+        />
+      </Box>
 
       {warning && (
-        <Alert severity="warning" sx={{ mt: 2 }}>
+        <Alert severity="warning" sx={{ mt: 0 }}>
           {warning}
         </Alert>
       )}

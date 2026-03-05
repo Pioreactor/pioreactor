@@ -138,6 +138,17 @@ def test_mqtt_timeout() -> None:
         assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True")
 
 
+def test_mqtt_nested_lookup_reports_missing_key() -> None:
+    publish(
+        f"pioreactor/{unit}/{exp}/test_job/rpm_snapshot",
+        encode({"measured_rpm": 1000}),
+        retain=True,
+    )
+
+    with pytest.raises(KeyError, match=r"missing nested key `rpm`"):
+        parse_profile_expression_to_bool(f"{unit}:test_job:rpm_snapshot.rpm > 0")
+
+
 def test_calculator() -> None:
     assert parse_profile_expression("True + True") == 2.0
     assert parse_profile_expression("1 + 1") == 2
