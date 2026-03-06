@@ -27,6 +27,19 @@ class NextStep(SessionStep):
         return steps.info("Next", "Advanced.")
 
 
+class FloatListStep(SessionStep):
+    step_id = "float-list"
+
+    def render(self, ctx: SessionContext):
+        from pioreactor.calibrations.session_flow import fields
+
+        return steps.form("Float list", "Provide values.", [fields.float_list("values")])
+
+    def advance(self, ctx: SessionContext):
+        ctx.inputs.float_list("values")
+        return NextStep()
+
+
 class DummyProtocol:
     protocol_name = "dummy"
     target_device = "device"
@@ -53,6 +66,25 @@ class DummyProtocol:
         executor=None,
     ) -> None:
         return None
+
+
+class FloatListProtocol(DummyProtocol):
+    protocol_name = "float_list"
+    step_registry = {FloatListStep.step_id: FloatListStep, NextStep.step_id: NextStep}
+
+    @staticmethod
+    def start_session(target_device: str) -> CalibrationSession:
+        now = utc_iso_timestamp()
+        return CalibrationSession(
+            session_id="session-float-list",
+            protocol_name=FloatListProtocol.protocol_name,
+            target_device=target_device,
+            status="in_progress",
+            step_id=FloatListStep.step_id,
+            data={},
+            created_at=now,
+            updated_at=now,
+        )
 
 
 def _patch_protocols(monkeypatch) -> None:
@@ -162,3 +194,20 @@ def test_advance_calibration_session_advances_step(client, monkeypatch) -> None:
     payload = response.get_json()
     assert payload["session"]["step_id"] == "next"
     assert payload["step"]["step_id"] == "next"
+
+
+def test_advance_calibration_session_invalid_float_list_returns_400(client, monkeypatch) -> None:
+    monkeypatch.setattr(api, "get_protocol", lambda target_device, protocol_name: FloatListProtocol)
+    monkeypatch.setattr(api, "get_protocol_for_session", lambda session: FloatListProtocol)
+
+    session = FloatListProtocol.start_session("device")
+    save_calibration_session(session)
+
+    response = client.post(
+        f"/unit_api/calibrations/sessions/{session.session_id}/inputs",
+        json={"inputs": {"values": [1, None]}},
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert "Invalid 'values', expected list of numbers." in payload["error"]

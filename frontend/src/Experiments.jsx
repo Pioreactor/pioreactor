@@ -133,7 +133,7 @@ function ExperimentMetadataDialog({
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            Created {experiment?.created_at ? dayjs(experiment.created_at).format("YYYY-MM-DD") : "Unknown"}
+            Created {experiment?.created_at ? dayjs(experiment.created_at).format("D MMMM YYYY, h:mm a") : "Unknown"}
           </Typography>
           <TextField
             label="Description"

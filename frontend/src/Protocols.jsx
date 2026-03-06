@@ -20,6 +20,46 @@ import { fetchTaskResult } from "./utilities";
 import CircularProgress from "@mui/material/CircularProgress";
 import RequirementsAlert from "./components/RequirementsAlert";
 
+const CALIBRATION_SESSION_STORAGE_KEY = "activeCalibrationSession";
+
+function loadStoredCalibrationSession() {
+  try {
+    const raw = window.sessionStorage.getItem(CALIBRATION_SESSION_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (
+      !parsed ||
+      typeof parsed.sessionId !== "string" ||
+      typeof parsed.unit !== "string" ||
+      typeof parsed.protocolId !== "string" ||
+      typeof parsed.targetDevice !== "string"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function saveStoredCalibrationSession(handle) {
+  try {
+    window.sessionStorage.setItem(CALIBRATION_SESSION_STORAGE_KEY, JSON.stringify(handle));
+  } catch (_error) {
+    // Best effort only.
+  }
+}
+
+function clearStoredCalibrationSession() {
+  try {
+    window.sessionStorage.removeItem(CALIBRATION_SESSION_STORAGE_KEY);
+  } catch (_error) {
+    // Best effort only.
+  }
+}
+
 function ProtocolCard({
   protocol,
   selectedUnit,
@@ -113,6 +153,7 @@ function Protocols(props) {
   const [activeSessionProtocolId, setActiveSessionProtocolId] = React.useState(null);
   const [activeSessionUnit, setActiveSessionUnit] = React.useState(null);
   const [isAbortingProtocol, setIsAbortingProtocol] = React.useState(false);
+  const restoreAttemptedRef = React.useRef(false);
   const navigate = useNavigate();
 
   const isSessionDialogOpen = Boolean(activeSessionProtocol);
@@ -214,9 +255,6 @@ function Protocols(props) {
   const handleSelectUnitChange = (event) => {
     setSelectedUnit(event.target.value);
     setActiveSessionProtocol(null);
-    setActiveSessionId(null);
-    setActiveSessionProtocolId(null);
-    setActiveSessionUnit(null);
     if (selectedDevice) {
       navigate(`/protocols/${event.target.value}/${selectedDevice}`);
     } else {
@@ -243,6 +281,7 @@ function Protocols(props) {
     setActiveSessionId(null);
     setActiveSessionProtocolId(protocol.id);
     setActiveSessionUnit(selectedUnit);
+    clearStoredCalibrationSession();
     setActiveSessionProtocol(protocol);
   };
 
@@ -282,6 +321,7 @@ function Protocols(props) {
       setActiveSessionId(null);
       setActiveSessionProtocolId(null);
       setActiveSessionUnit(null);
+      clearStoredCalibrationSession();
       setSnackbarMessage("Calibration session aborted.");
       setSnackbarOpen(true);
     } catch (err) {
@@ -291,6 +331,43 @@ function Protocols(props) {
       setIsAbortingProtocol(false);
     }
   };
+
+  React.useEffect(() => {
+    if (restoreAttemptedRef.current) {
+      return;
+    }
+    restoreAttemptedRef.current = true;
+
+    const restoreSession = async () => {
+      const storedSession = loadStoredCalibrationSession();
+      if (!storedSession) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/workers/${storedSession.unit}/calibrations/sessions/${storedSession.sessionId}`,
+        );
+        if (!response.ok) {
+          clearStoredCalibrationSession();
+          return;
+        }
+        const payload = await response.json();
+        if (payload?.session?.status !== "in_progress") {
+          clearStoredCalibrationSession();
+          return;
+        }
+
+        setActiveSessionId(storedSession.sessionId);
+        setActiveSessionProtocolId(storedSession.protocolId);
+        setActiveSessionUnit(storedSession.unit);
+      } catch (_error) {
+        clearStoredCalibrationSession();
+      }
+    };
+
+    restoreSession();
+  }, []);
 
   return (
     <React.Fragment>
@@ -435,11 +512,20 @@ function Protocols(props) {
           setActiveSessionId(sessionId);
           setActiveSessionProtocolId(activeSessionProtocol?.id ?? null);
           setActiveSessionUnit(selectedUnit);
+          if (activeSessionProtocol?.id && activeSessionProtocol?.target_device && selectedUnit) {
+            saveStoredCalibrationSession({
+              sessionId,
+              unit: selectedUnit,
+              protocolId: activeSessionProtocol.id,
+              targetDevice: activeSessionProtocol.target_device,
+            });
+          }
         }}
         onComplete={() => {
           setActiveSessionId(null);
           setActiveSessionProtocolId(null);
           setActiveSessionUnit(null);
+          clearStoredCalibrationSession();
           setSnackbarMessage("Calibration session completed.");
           setSnackbarOpen(true);
         }}
@@ -452,11 +538,12 @@ function Protocols(props) {
           setActiveSessionId(null);
           setActiveSessionProtocolId(null);
           setActiveSessionUnit(null);
+          clearStoredCalibrationSession();
           setSnackbarMessage("Calibration session aborted.");
           setSnackbarOpen(true);
         }}
-        onAbortFailure={() => {
-          setSnackbarMessage("Failed to abort calibration session.");
+        onAbortFailure={(message) => {
+          setSnackbarMessage(message || "Failed to abort calibration session.");
           setSnackbarOpen(true);
         }}
       />

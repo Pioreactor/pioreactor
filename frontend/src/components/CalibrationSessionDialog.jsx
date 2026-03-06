@@ -313,20 +313,33 @@ export default function CalibrationSessionDialog({
     async (shouldAbort) => {
       if (shouldAbort && sessionId && unit) {
         try {
-          await fetch(sessionAbortEndpoint(unit, sessionId), {
+          const response = await fetch(sessionAbortEndpoint(unit, sessionId), {
             method: "POST",
             headers: {
               Accept: "application/json",
               "Content-Type": "application/json",
             },
           });
+          if (!response.ok) {
+            let errorMessage = `Failed to abort calibration session (${response.status}).`;
+            try {
+              const payload = await response.json();
+              errorMessage = payload.error || JSON.stringify(payload);
+            } catch (_error) {
+              // Keep the fallback message.
+            }
+            throw new Error(errorMessage);
+          }
           if (onAbortSuccess) {
             onAbortSuccess();
           }
-        } catch (_error) {
+        } catch (err) {
+          const message = err.message || "Failed to abort calibration session.";
+          setSessionError(message);
           if (onAbortFailure) {
-            onAbortFailure();
+            onAbortFailure(message);
           }
+          return;
         }
       }
       if (!shouldAbort && onComplete) {

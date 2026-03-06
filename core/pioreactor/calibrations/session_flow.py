@@ -212,12 +212,18 @@ class SessionInputs:
         if isinstance(value, list):
             if not value:
                 raise ValueError(f"'{name}' cannot be empty.")
-            return [float(item) for item in value]
+            try:
+                return [float(item) for item in value]
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Invalid '{name}', expected list of numbers.") from exc
         if isinstance(value, str):
             parts = [part.strip() for part in value.split(",") if part.strip()]
             if not parts:
                 raise ValueError(f"'{name}' cannot be empty.")
-            return [float(part) for part in parts]
+            try:
+                return [float(part) for part in parts]
+            except ValueError as exc:
+                raise ValueError(f"Invalid '{name}', expected list of numbers.") from exc
         raise ValueError(f"Invalid '{name}', expected list of numbers.")
 
 

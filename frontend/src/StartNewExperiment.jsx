@@ -238,7 +238,7 @@ function ExperimentSummaryForm(props) {
               md: 12
             }}>
             <TextField
-              label="Description (optional)"
+              label="Description (optional - can be edited later)"
               rows={2}
               placeholder="Add a description. This description can be changed later."
               multiline
@@ -270,7 +270,7 @@ function ExperimentSummaryForm(props) {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Tags (optional)"
+                  label="Tags (optional - can be edited later)"
                   placeholder="Add a tag"
                   helperText="Press Enter or comma to add a tag."
                   onKeyDown={(event) => {

@@ -102,6 +102,13 @@ def test_session_inputs_parsing() -> None:
         inputs.bool("missing_required")
 
 
+def test_session_inputs_float_list_invalid_entries_raise_value_error() -> None:
+    inputs = SessionInputs({"values": [1.0, None]})
+
+    with pytest.raises(ValueError, match="Invalid 'values', expected list of numbers."):
+        inputs.float_list("values")
+
+
 def test_session_engine_advances_and_completes() -> None:
     session = _build_session()
 
