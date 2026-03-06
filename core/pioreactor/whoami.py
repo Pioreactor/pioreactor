@@ -172,8 +172,11 @@ def get_pioreactor_model(unit_name: "pt.Unit | None" = None) -> "Model":
 
     target_unit_name = unit_name or get_unit_name()
 
-    name = _get_pioreactor_model_name(target_unit_name)
-    version = _get_pioreactor_model_version(target_unit_name)
+    try:
+        name = _get_pioreactor_model_name(target_unit_name)
+        version = _get_pioreactor_model_version(target_unit_name)
+    except NoWorkerFoundError:
+        raise
 
     if name is None or version is None:
         raise NoModelAssignedError("Unknown Pioreactor model: name and version not set yet.")

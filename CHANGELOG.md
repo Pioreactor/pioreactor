@@ -4,12 +4,16 @@
 
  - Redesigned the Experiments UI page into a management-focused table with search, status/tag filters, tag editing, and quick actions for exporting, ending, or deleting experiments.
  - Added experiment tags to the UI and API: tags can now be created when starting a new experiment, edited later from the Experiments page, and used to organize/filter experiments.
+ - Calibration protocol sessions now persist a tab-scoped resume handle in the UI, so reloading the Protocols page in the same browser tab restores the existing `Resume protocol` action instead of losing the in-progress session.
 
 #### Bug fixes
 
  - Fixed a UI crash when MQTT `button_down` events triggered tactile-button notifications: custom snackbar content now renders with a ref-able root element so notistack transitions no longer throw `Custom snackbar is not refForwarding`.
- - Fix plugins not being loaded correctly in the background task worker. This affected mostly plugin calibrations.
+ - Fix plugins not being loaded correctly in the background task worker. This affected mostly plugin-sourced calibrations.
  - Added a `<System>` experiment option in Export Data and mapped it to `"$experiment"` so users can export system logs from the UI.
+ - Fixed calibration session resume so reopening a saved protocol session returns to the current step instead of accidentally starting the protocol from the beginning again.
+ - Fixed calibration session abort handling in the UI so backend abort failures are surfaced to the user and no longer clear the session as if cleanup succeeded.
+ - Fixed invalid comma-separated calibration inputs such as pump target volume lists to return a clean validation error instead of bubbling into a server error.
 
 ### 26.2.26
 

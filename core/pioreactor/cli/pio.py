@@ -693,7 +693,9 @@ def version(verbose: bool) -> None:
         try:
             model = get_pioreactor_model().display_name
         except exc.NoModelAssignedError:
-            model = ""
+            model = "Unknown"
+        except exc.NoWorkerFoundError:
+            model = "N/A"
 
         click.echo(f"Pioreactor app:         {tuple_to_text(software_version_info)}")
 
