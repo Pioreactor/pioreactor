@@ -162,6 +162,55 @@ def test_change_worker_model_triggers_hardware_check_for_v1_5(client, monkeypatc
     assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.5"}
 
 
+def test_get_dosing_state_api(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+
+    captured: dict[str, object] = {}
+
+    class DummyTask:
+        id = "task-dosing-state-get"
+
+    def fake_multicast_get(endpoint: str, units: list[str]) -> DummyTask:
+        captured["endpoint"] = endpoint
+        captured["units"] = units
+        return DummyTask()
+
+    monkeypatch.setattr(mod.tasks, "multicast_get", fake_multicast_get)
+
+    response = client.get("/api/workers/unit1/dosing_state/experiments/exp1")
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == "/unit_api/dosing_state/experiments/exp1"
+    assert captured["units"] == ["unit1"]
+
+
+def test_patch_dosing_state_api(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+
+    captured: dict[str, object] = {}
+
+    class DummyTask:
+        id = "task-dosing-state-patch"
+
+    def fake_multicast_patch(endpoint: str, units: list[str], json: dict | None = None) -> DummyTask:
+        captured["endpoint"] = endpoint
+        captured["units"] = units
+        captured["json"] = json
+        return DummyTask()
+
+    monkeypatch.setattr(mod.tasks, "multicast_patch", fake_multicast_patch)
+
+    response = client.patch(
+        "/api/workers/unit1/dosing_state/experiments/exp1",
+        json={"current_volume_ml": 12.0},
+    )
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == "/unit_api/dosing_state/experiments/exp1"
+    assert captured["units"] == ["unit1"]
+    assert captured["json"] == {"current_volume_ml": 12.0}
+
+
 def test_change_worker_model_does_not_trigger_hardware_check_for_non_v1_5(client, monkeypatch) -> None:
     def fake_post_into_unit(*_args, **_kwargs) -> None:
         raise AssertionError("hardware check should not be triggered")

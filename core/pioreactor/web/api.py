@@ -2163,6 +2163,37 @@ def get_job_setting_for_worker(
     return create_task_response(task)
 
 
+@api_bp.route("/workers/<pioreactor_unit>/dosing_state/experiments/<experiment>", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/dosing_state/experiments/<experiment>", methods=["GET"])
+def get_dosing_state_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:
+    endpoint = f"/unit_api/dosing_state/experiments/{experiment}"
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_get_across_workers_in_experiment(endpoint, experiment)
+    else:
+        workers = get_all_workers_in_experiment(experiment)
+        if pioreactor_unit not in workers:
+            abort_with(404, f"{pioreactor_unit} not in experiment {experiment}")
+        task = tasks.multicast_get(endpoint, [pioreactor_unit])
+
+    return create_task_response(task)
+
+
+@api_bp.route("/workers/<pioreactor_unit>/dosing_state/experiments/<experiment>", methods=["PATCH"])
+@api_bp.route("/units/<pioreactor_unit>/dosing_state/experiments/<experiment>", methods=["PATCH"])
+def patch_dosing_state_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:
+    endpoint = f"/unit_api/dosing_state/experiments/{experiment}"
+    payload = request.get_json(silent=True) or {}
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_patch_across_workers(endpoint, payload)
+    else:
+        workers = get_all_workers_in_experiment(experiment)
+        if pioreactor_unit not in workers:
+            abort_with(404, f"{pioreactor_unit} not in experiment {experiment}")
+        task = tasks.multicast_patch(endpoint, [pioreactor_unit], payload)
+
+    return create_task_response(task)
+
+
 ## MISC
 
 

@@ -7,6 +7,7 @@ from datetime import timezone
 
 import pytest
 from msgspec.yaml import encode as yaml_encode
+from pioreactor import whoami
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
@@ -102,6 +103,77 @@ def test_get_versions_endpoints(client) -> None:
     assert r_app.status_code == 200
     v_app = r_app.get_json()
     assert "version" in v_app and isinstance(v_app["version"], str)
+
+
+def test_get_dosing_state_snapshot(client) -> None:
+    experiment = "test_get_dosing_state_snapshot"
+    with local_persistent_storage("current_volume_ml") as cache:
+        cache[experiment] = 12.5
+    with local_persistent_storage("alt_media_fraction") as cache:
+        cache[experiment] = 0.25
+    with local_persistent_storage("media_throughput") as cache:
+        cache[experiment] = 1.0
+    with local_persistent_storage("alt_media_throughput") as cache:
+        cache[experiment] = 0.5
+
+    response = client.get(f"/unit_api/dosing_state/experiments/{experiment}")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "current_volume_ml": 12.5,
+        "alt_media_fraction": 0.25,
+        "media_throughput": 1.0,
+        "alt_media_throughput": 0.5,
+    }
+
+
+def test_patch_dosing_state_snapshot_updates_cache_and_running_job(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    experiment = "test_patch_dosing_state_snapshot_updates_cache_and_running_job"
+    published_messages: list[tuple[str, float, dict]] = []
+
+    def fake_publish(topic: str, message: float, **kwargs) -> None:
+        published_messages.append((topic, message, kwargs))
+
+    monkeypatch.setattr(mod, "publish", fake_publish)
+    monkeypatch.setattr(mod, "is_pio_job_running", lambda job_name: job_name == "dosing_automation")
+
+    response = client.patch(
+        f"/unit_api/dosing_state/experiments/{experiment}",
+        json={"current_volume_ml": 11.25, "media_throughput": 0.0},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["current_volume_ml"] == 11.25
+    assert response.get_json()["media_throughput"] == 0.0
+
+    with local_persistent_storage("current_volume_ml") as cache:
+        assert cache[experiment] == 11.25
+    with local_persistent_storage("media_throughput") as cache:
+        assert cache[experiment] == 0.0
+
+    assert (
+        f"pioreactor/{mod.HOSTNAME}/{experiment}/dosing_automation/current_volume_ml",
+        11.25,
+        {"retain": True, "qos": 2},
+    ) in published_messages
+    assert (
+        f"pioreactor/{mod.HOSTNAME}/{experiment}/dosing_automation/current_volume_ml/set",
+        11.25,
+        {"qos": 2},
+    ) in published_messages
+
+
+def test_patch_dosing_state_snapshot_rejects_invalid_volume(client) -> None:
+    experiment = "test_patch_dosing_state_snapshot_rejects_invalid_volume"
+    response = client.patch(
+        f"/unit_api/dosing_state/experiments/{experiment}",
+        json={"current_volume_ml": whoami.get_pioreactor_model().reactor_max_fill_volume_ml + 1},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid dosing state payload."
 
 
 def test_hardware_check_requires_model_payload(client) -> None:

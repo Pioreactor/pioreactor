@@ -18,6 +18,8 @@ from pioreactor.actions.pump import remove_waste
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
+from pioreactor.dosing_state import get_dosing_state
+from pioreactor.dosing_state import persist_dosing_state_field
 from pioreactor.logging import create_logger
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
@@ -510,16 +512,15 @@ class DosingAutomationJob(AutomationJob):
             10,
         )
 
-        # add to cache
         with local_persistent_storage("alt_media_fraction") as cache:
             cache[self.experiment] = self.alt_media_fraction
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
         self.current_volume_ml = round(
-            VolumeCalculator.update(dosing_event, self.current_volume_ml, self.max_working_volume_ml), 10
+            VolumeCalculator.update(dosing_event, self.current_volume_ml, self.max_working_volume_ml),
+            10,
         )
 
-        # add to cache
         with local_persistent_storage("current_volume_ml") as cache:
             cache[self.experiment] = self.current_volume_ml
 
@@ -547,11 +548,8 @@ class DosingAutomationJob(AutomationJob):
             self.media_throughput,
             self.alt_media_throughput,
         ) = ThroughputCalculator.update(dosing_event, self.media_throughput, self.alt_media_throughput)
-
-        # add to cache
         with local_persistent_storage("alt_media_throughput") as cache:
             cache[self.experiment] = self.alt_media_throughput
-
         with local_persistent_storage("media_throughput") as cache:
             cache[self.experiment] = self.media_throughput
 
@@ -565,17 +563,13 @@ class DosingAutomationJob(AutomationJob):
         )
 
         if alt_media_fraction is None:
-            with local_persistent_storage("alt_media_fraction") as cache:
-                self.alt_media_fraction = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "initial_alt_media_fraction", fallback=0.0)
-                )
+            self.alt_media_fraction = get_dosing_state(self.experiment).alt_media_fraction
         else:
-            self.alt_media_fraction = float(alt_media_fraction)
+            self.alt_media_fraction = persist_dosing_state_field(
+                self.experiment, "alt_media_fraction", float(alt_media_fraction)
+            )
 
         assert 0 <= self.alt_media_fraction <= 1
-
-        with local_persistent_storage("alt_media_fraction") as cache:
-            cache[self.experiment] = self.alt_media_fraction
 
         return
 
@@ -602,46 +596,59 @@ class DosingAutomationJob(AutomationJob):
             },
         )
 
+        dosing_state = get_dosing_state(self.experiment)
+
         if max_working_volume_ml is None:
-            self.max_working_volume_ml = config.getfloat("bioreactor", "max_working_volume_ml", fallback=14)
+            self.max_working_volume_ml = dosing_state.max_working_volume_ml
         else:
-            self.max_working_volume_ml = float(max_working_volume_ml)
+            self.max_working_volume_ml = persist_dosing_state_field(
+                self.experiment, "max_working_volume_ml", float(max_working_volume_ml)
+            )
 
         assert self.max_working_volume_ml >= 0
 
         if current_volume_ml is None:
-            # look in database first, fallback to config
-            with local_persistent_storage("current_volume_ml") as cache:
-                self.current_volume_ml = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "initial_volume_ml", fallback=14)
-                )
+            self.current_volume_ml = dosing_state.current_volume_ml
         else:
-            self.current_volume_ml = float(current_volume_ml)
+            self.current_volume_ml = persist_dosing_state_field(
+                self.experiment, "current_volume_ml", float(current_volume_ml)
+            )
 
         assert self.current_volume_ml >= 0
-
-        with local_persistent_storage("current_volume_ml") as cache:
-            cache[self.experiment] = self.current_volume_ml
 
         return
 
     def _init_volume_throughput(self) -> None:
         self.add_to_published_settings(
             "alt_media_throughput",
-            {"datatype": "float", "settable": False, "unit": "mL", "persist": True},
+            {"datatype": "float", "settable": True, "unit": "mL", "persist": True},
         )
         self.add_to_published_settings(
             "media_throughput",
-            {"datatype": "float", "settable": False, "unit": "mL", "persist": True},
+            {"datatype": "float", "settable": True, "unit": "mL", "persist": True},
         )
-
-        with local_persistent_storage("alt_media_throughput") as cache:
-            self.alt_media_throughput = cache.get(self.experiment, 0.0)
-
-        with local_persistent_storage("media_throughput") as cache:
-            self.media_throughput = cache.get(self.experiment, 0.0)
+        dosing_state = get_dosing_state(self.experiment)
+        self.alt_media_throughput = dosing_state.alt_media_throughput
+        self.media_throughput = dosing_state.media_throughput
 
         return
+
+    def set_current_volume_ml(self, value: float) -> None:
+        self.current_volume_ml = persist_dosing_state_field(self.experiment, "current_volume_ml", value)
+
+    def set_max_working_volume_ml(self, value: float) -> None:
+        self.max_working_volume_ml = persist_dosing_state_field(
+            self.experiment, "max_working_volume_ml", value
+        )
+
+    def set_alt_media_fraction(self, value: float) -> None:
+        self.alt_media_fraction = persist_dosing_state_field(self.experiment, "alt_media_fraction", value)
+
+    def set_media_throughput(self, value: float) -> None:
+        self.media_throughput = persist_dosing_state_field(self.experiment, "media_throughput", value)
+
+    def set_alt_media_throughput(self, value: float) -> None:
+        self.alt_media_throughput = persist_dosing_state_field(self.experiment, "alt_media_throughput", value)
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

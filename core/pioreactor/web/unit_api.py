@@ -29,10 +29,15 @@ from pioreactor import whoami
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.config import get_leader_hostname
+from pioreactor.dosing_state import apply_dosing_state_patch
+from pioreactor.dosing_state import DOSING_STATE_FIELDS
+from pioreactor.dosing_state import get_dosing_state
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
+from pioreactor.pubsub import publish
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
@@ -712,6 +717,56 @@ def update_job(job_name: str) -> ResponseReturnValue:
     """
     # body = request.get_json()
     abort_with(503, "Not implemented.")
+
+
+@unit_api_bp.route("/dosing_state/experiments/<experiment>", methods=["GET"])
+def get_dosing_state_snapshot(experiment: str) -> ResponseReturnValue:
+    return jsonify(to_builtins(get_dosing_state(experiment)))
+
+
+@unit_api_bp.route("/dosing_state/experiments/<experiment>", methods=["PATCH"])
+def patch_dosing_state_snapshot(experiment: str) -> ResponseReturnValue:
+    patch_payload = request.get_json(silent=True) or {}
+    if not patch_payload:
+        abort_with(
+            400,
+            "Missing dosing state payload.",
+            cause="Request JSON body was empty.",
+            remediation="Provide one or more dosing state fields to update.",
+        )
+
+    try:
+        next_state = apply_dosing_state_patch(experiment, patch_payload)
+    except (KeyError, TypeError, ValueError) as exc:
+        abort_with(
+            400,
+            "Invalid dosing state payload.",
+            cause=str(exc),
+            remediation=(
+                "Provide one or more of current_volume_ml, max_working_volume_ml, "
+                "alt_media_fraction, media_throughput, alt_media_throughput with valid numeric values."
+            ),
+        )
+
+    fields_to_update = [field_name for field_name in DOSING_STATE_FIELDS if field_name in patch_payload]
+
+    for field_name in fields_to_update:
+        publish(
+            f"pioreactor/{HOSTNAME}/{experiment}/dosing_automation/{field_name}",
+            getattr(next_state, field_name),
+            retain=True,
+            qos=2,
+        )
+
+    if is_pio_job_running("dosing_automation"):
+        for field_name in fields_to_update:
+            publish(
+                f"pioreactor/{HOSTNAME}/{experiment}/dosing_automation/{field_name}/set",
+                getattr(next_state, field_name),
+                qos=2,
+            )
+
+    return jsonify(to_builtins(next_state))
 
 
 @unit_api_bp.route("/capabilities", methods=["GET"])

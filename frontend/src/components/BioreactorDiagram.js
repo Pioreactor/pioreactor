@@ -50,20 +50,31 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     baseLow,
     baseHigh,
   } = versionMap[size] || versionMap[20];
+  const diagramYOffset = 30;
+  const shiftedBaseLow = baseLow + diagramYOffset;
+  const shiftedBaseHigh = baseHigh + diagramYOffset;
 
   const bioreactor = {
     width: 200,
     height: bioreactorHeight,
     x: (canvasDim.width - 200) / 2,
-    y: (canvasDim.height - bioreactorHeight) / 2 - 20,
-    cornerRadius: 10,
+    y: (canvasDim.height - bioreactorHeight) / 2 - 20 + diagramYOffset,
+    cornerRadius: 20,
     stirBar: {
       maxWidth: 70,
       height: 10,
       x: (canvasDim.width - 70) / 2,
-      y: (canvasDim.height - 10) / 2 + stirBarOffset,
-      radius: 5,
+      y: (canvasDim.height - 10) / 2 + stirBarOffset + diagramYOffset,
+      radius: 3,
     },
+  };
+  const cap = {
+    width: bioreactor.width * 0.95,
+    height: 56,
+    x: bioreactor.x + 5,
+    y: bioreactor.y - 63,
+    radius: 3,
+
   };
 
   const canvasRef = useRef(null);
@@ -87,6 +98,9 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     if (Object.keys(config || {}).length) {
       setVolume(
         Math.min(config?.bioreactor?.initial_volume_ml, size)
+      );
+      setMaxVolume(
+        Math.min(config?.bioreactor?.max_working_volume_ml || size, size)
       );
     }
   }, [config, size]);
@@ -185,40 +199,40 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const liquidLevel = (volume / size) * bioreactor.height;
-    const bottomOfWasteTube = bioreactor.height - (maxVolume / size) * bioreactor.height + 20; // bioreactor.height - maxVolume / 40 * bioreactor.height + 20
+    const bottomOfWasteTube = bioreactor.height - (maxVolume / size) * bioreactor.height + 53; // bioreactor.height - maxVolume / 40 * bioreactor.height + 20
 
     const ledsRects = [];
-    const ledY = baseLow - 20;
-    ledsRects.push({ text: 'B', x: 50, y: ledY + 50, width: 40, height: 30, radius: 5 });
-    ledsRects.push({ text: 'D', x: 310, y: ledY + 50, width: 40, height: 30, radius: 5 });
-    ledsRects.push({ text: 'A', x: 50, y: ledY, width: 40, height: 30, radius: 5 });
-    ledsRects.push({ text: 'C', x: 310, y: ledY, width: 40, height: 30, radius: 5 });
+    const ledY = shiftedBaseLow - 20;
+    ledsRects.push({ text: 'B', x: 50, y: ledY + 50, width: 40, height: 30, radius: 3 });
+    ledsRects.push({ text: 'D', x: 310, y: ledY + 50, width: 40, height: 30, radius: 3 });
+    ledsRects.push({ text: 'A', x: 50, y: ledY, width: 40, height: 30, radius: 3 });
+    ledsRects.push({ text: 'C', x: 310, y: ledY, width: 40, height: 30, radius: 3 });
 
-    const heaterRec = [{ text: 'heat', x: 100, y: baseHigh - 10, width: 200, height: 20, radius: 3 }];
+    const heaterRec = [{ text: 'heat', x: 100, y: shiftedBaseHigh - 10, width: 200, height: 20, radius: 3 }];
 
     const pumpsRects = [
-      { text: 'waste', x: bioreactor.x + (bioreactor.width * 3) / 4, y: bioreactor.y - 20, width: 20, height: bottomOfWasteTube, radius: 3 },
-      { text: 'media', x: bioreactor.x + (bioreactor.width * 2) / 4, y: bioreactor.y - 20, width: 20, height: 100, radius: 3 },
-      { text: 'alt-media', x: bioreactor.x + bioreactor.width / 4, y: bioreactor.y - 20, width: 20, height: 100, radius: 3 },
+      { text: 'waste', x: bioreactor.x + (bioreactor.width * 3) / 4, y: bioreactor.y - 53, width: 20, height: bottomOfWasteTube, radius: 3 },
+      { text: 'media', x: bioreactor.x + (bioreactor.width * 2) / 4, y: bioreactor.y - 53, width: 20, height: 100, radius: 3 },
+      { text: 'alt-media', x: bioreactor.x + bioreactor.width / 4,   y: bioreactor.y - 53, width: 20, height: 100, radius: 3 },
     ];
 
     const warningRects = [
-      { text: '⚠ diagram above may not be an accurate\nrepresentation of the volume. Observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 5 },
+      { text: '⚠ diagram above may not be an accurate\nrepresentation of the volume. Observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 3 },
     ];
 
     const dynamicRects = [];
     if (temperature) {
-      dynamicRects.push({ text: `Temp: ${roundTo1(temperature)}°C`, x: 110, y: 260, width: 90, height: 30, radius: 5 });
+      dynamicRects.push({ text: `Temp: ${roundTo1(temperature)}°C`, x: 110, y: 260 + diagramYOffset, width: 90, height: 30, radius: 3 });
     }
     if (nOD) {
-      dynamicRects.push({ text: `nOD: ${roundTo1(nOD)}`, x: 210, y: 260, width: 80, height: 30, radius: 5 });
+      dynamicRects.push({ text: `nOD: ${roundTo1(nOD)}`, x: 210, y: 260 + diagramYOffset, width: 80, height: 30, radius: 3 });
     }
     if (volume) {
-      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: Math.max(bioreactor.y + bioreactor.height - liquidLevel - 35, 40), width: 90, height: 30, radius: 5 });
+      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: Math.max(bioreactor.y + bioreactor.height - liquidLevel - 35, 40), width: 90, height: 30, radius: 3 });
     }
 
-    function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle) {
-      ctx.lineWidth = 2;
+    function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle, lineWidth=2) {
+      ctx.lineWidth = lineWidth;
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
       ctx.lineTo(x + width - radius, y);
@@ -242,11 +256,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
 
     function drawTurbidLiquid(x, y, width, height, radius, turbidity) {
       if (height <= 0) return;
-      if (height > 30) {
-        drawRoundedRect(x, y, width, height, radius, '#E1DDFF', '#000');
-      } else {
-        drawRoundedRect(x, y, width, height, 10, '#E1DDFF', '#000');
-      }
+      drawRoundedRect(x, y, width, height, 10, '#E1DDFF', '#000');
       if (!turbidity) return;
       ctx.strokeStyle = '#4D3AC340';
       ctx.lineWidth = 1;
@@ -265,18 +275,18 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     function drawOutline() {
       ctx.lineWidth = 8;
       ctx.beginPath();
-      const start = (canvasDim.height - bioreactor.height) / 2;
+      const start = (canvasDim.height - bioreactor.height) / 2 + diagramYOffset;
       ctx.moveTo(70, start - 50);
-      ctx.lineTo(70, baseLow - 50);
-      ctx.lineTo(20, baseLow - 50);
-      ctx.lineTo(20, baseHigh - 50);
-      ctx.lineTo(55, baseHigh - 50);
-      ctx.lineTo(55, canvasDim.height - 30);
-      ctx.lineTo(canvasDim.width - 55, canvasDim.height - 30);
-      ctx.lineTo(canvasDim.width - 55, baseHigh - 50);
-      ctx.lineTo(canvasDim.width - 20, baseHigh - 50);
-      ctx.lineTo(canvasDim.width - 20, baseLow - 50);
-      ctx.lineTo(canvasDim.width - 70, baseLow - 50);
+      ctx.lineTo(70, shiftedBaseLow - 50);
+      ctx.lineTo(20, shiftedBaseLow - 50);
+      ctx.lineTo(20, shiftedBaseHigh - 50);
+      ctx.lineTo(55, shiftedBaseHigh - 50);
+      ctx.lineTo(55, canvasDim.height - 30 + diagramYOffset);
+      ctx.lineTo(canvasDim.width - 55, canvasDim.height - 30 + diagramYOffset);
+      ctx.lineTo(canvasDim.width - 55, shiftedBaseHigh - 50);
+      ctx.lineTo(canvasDim.width - 20, shiftedBaseHigh - 50);
+      ctx.lineTo(canvasDim.width - 20, shiftedBaseLow - 50);
+      ctx.lineTo(canvasDim.width - 70, shiftedBaseLow - 50);
       ctx.lineTo(canvasDim.width - 70, start - 50);
       ctx.closePath();
       ctx.fillStyle = 'rgba(0,0,0,0.01)';
@@ -380,9 +390,13 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
         Math.max(bioreactor.y + bioreactor.height - liquidLevel, bioreactor.y),
         bioreactor.width,
         Math.min(liquidLevel, bioreactor.height),
-        bioreactor.cornerRadius,
         nOD
       );
+      drawRoundedRect(cap.x, cap.y, cap.width, cap.height, cap.radius, 'rgba(230,230,230)', 'rgba(210,210,210)', 4);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = '#000';
+      ctx.beginPath();
+      ctx.stroke();
       const angle = (2 * Math.PI / (frameFactor * fps / rpm)) * stirBarFrame.current;
       const width = bioreactor.stirBar.maxWidth * Math.abs(Math.cos(angle)) + 10;
       drawRoundedRect(
@@ -418,7 +432,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     }
     startAnimating();
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [rpm, temperature, nOD, leds, pumps, volume, heat, size]);
+  }, [rpm, temperature, nOD, leds, pumps, volume, maxVolume, heat, size]);
 
   return (
     <div>

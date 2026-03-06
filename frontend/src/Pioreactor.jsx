@@ -69,6 +69,7 @@ import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import RequirementsAlert from "./components/RequirementsAlert";
 import UnderlineSpan from "./components/UnderlineSpan";
 import BioreactorDiagram from "./components/BioreactorDiagram";
+import DosingStatePanel from "./components/DosingStatePanel";
 import Chart from "./components/Chart";
 import LogTableByUnit from "./components/LogTableByUnit";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
@@ -115,6 +116,11 @@ function StateTypography({ state, isDisabled=false }) {
       {stateDisplay[state].display}
     </Typography>
   );
+}
+
+function parseNumberOrNull(value) {
+  const parsed = Number.parseFloat(value);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
@@ -764,6 +770,7 @@ function SettingsActionsDialog(props) {
   const [open, setOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [persistedDosingState, setPersistedDosingState] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
@@ -1035,6 +1042,24 @@ function SettingsActionsDialog(props) {
 
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
   const dosingControlJob = props.jobs.dosing_automation
+  const dosingIsRunning = ["ready", "sleeping", "init"].includes(dosingControlJob?.state)
+  const liveDosingState = {
+    current_volume_ml: parseNumberOrNull(dosingControlJob?.publishedSettings?.current_volume_ml?.value),
+    max_working_volume_ml: parseNumberOrNull(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value),
+    alt_media_fraction: parseNumberOrNull(dosingControlJob?.publishedSettings?.alt_media_fraction?.value),
+    media_throughput: parseNumberOrNull(dosingControlJob?.publishedSettings?.media_throughput?.value),
+    alt_media_throughput: parseNumberOrNull(dosingControlJob?.publishedSettings?.alt_media_throughput?.value),
+  }
+  const dosingMaxVolume =
+    liveDosingState.max_working_volume_ml ??
+    persistedDosingState?.max_working_volume_ml ??
+    parseNumberOrNull(props.config?.bioreactor?.max_working_volume_ml) ??
+    10
+  const dosingLiquidVolume =
+    liveDosingState.current_volume_ml ??
+    persistedDosingState?.current_volume_ml ??
+    parseNumberOrNull(props.config?.bioreactor?.initial_volume_ml) ??
+    10
   const ledControlJob = props.jobs.led_automation
   const temperatureControlJob = props.jobs.temperature_automation
   const isSelfTestRunningState = (state) =>
@@ -1266,7 +1291,7 @@ function SettingsActionsDialog(props) {
               <StateTypography state={dosingControlJob.state}/>
             </div>
             <div key={dosingControlJob.metadata.key}>
-              {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (dosingControlJob.state === "init")
+              {dosingIsRunning
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
                 Currently running dosing automation <Chip size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>.
@@ -1304,12 +1329,13 @@ function SettingsActionsDialog(props) {
                   experiment={props.experiment}
                   label={props.label}
                   configSections={props.config || {}}
-                  maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(props.config?.bioreactor?.max_working_volume_ml) || 10}
-                  liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
+                  maxVolume={dosingMaxVolume}
+                  liquidVolume={dosingLiquidVolume}
                   threshold={props.modelDetails.reactor_max_fill_volume_ml}
                 />
                </React.Fragment>
               }
+
             </div>
 
 
@@ -1321,8 +1347,8 @@ function SettingsActionsDialog(props) {
               label={props.label}
               experiment={props.experiment}
               no_skip_first_run={false}
-              maxVolume={dosingControlJob.publishedSettings.max_working_volume_ml.value || parseFloat(props.config?.bioreactor?.max_working_volume_ml) || 10.0}
-              liquidVolume={dosingControlJob.publishedSettings.current_volume_ml.value || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
+              maxVolume={dosingMaxVolume}
+              liquidVolume={dosingLiquidVolume}
               threshold={props.modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
@@ -1404,6 +1430,7 @@ function SettingsActionsDialog(props) {
 
 
         <TabPanel value={tabValue} index={1}>
+
           <Typography  gutterBottom>
             Assign temporary label to Pioreactor
           </Typography>
@@ -1417,6 +1444,19 @@ function SettingsActionsDialog(props) {
             setSnackbarOpen={setSnackbarOpen}
             disabled={false}
           />
+          <ControlDivider/>
+
+          <DosingStatePanel
+            unit={props.unit}
+            experiment={props.experiment}
+            isRunning={dosingIsRunning}
+            liveState={liveDosingState}
+            threshold={props.modelDetails.reactor_max_fill_volume_ml}
+            onStateChange={setPersistedDosingState}
+            setSnackbarMessage={setSnackbarMessage}
+            setSnackbarOpen={setSnackbarOpen}
+          />
+
           <ControlDivider/>
 
           {Object.values(props.jobs)
@@ -1882,6 +1922,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       },
     },
   })
+  const [persistedDosingState, setPersistedDosingState] = useState(null)
 
   useEffect(() => {
     setLabel(initialLabel)
@@ -2160,8 +2201,24 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       ? createStateActions(stateActionJobKey, jobs[stateActionJobKey].state)
       : []
   const dosingControlJob = jobs.dosing_automation
-  const dosingMaxVolume = parseFloat(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10
-  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10
+  const dosingIsRunning = ["ready", "sleeping", "init"].includes(dosingControlJob?.state)
+  const liveDosingState = {
+    current_volume_ml: parseNumberOrNull(dosingControlJob?.publishedSettings?.current_volume_ml?.value),
+    max_working_volume_ml: parseNumberOrNull(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value),
+    alt_media_fraction: parseNumberOrNull(dosingControlJob?.publishedSettings?.alt_media_fraction?.value),
+    media_throughput: parseNumberOrNull(dosingControlJob?.publishedSettings?.media_throughput?.value),
+    alt_media_throughput: parseNumberOrNull(dosingControlJob?.publishedSettings?.alt_media_throughput?.value),
+  }
+  const dosingMaxVolume =
+    liveDosingState.max_working_volume_ml ??
+    persistedDosingState?.max_working_volume_ml ??
+    parseNumberOrNull(config?.bioreactor?.max_working_volume_ml) ??
+    10
+  const dosingLiquidVolume =
+    liveDosingState.current_volume_ml ??
+    persistedDosingState?.current_volume_ml ??
+    parseNumberOrNull(config?.bioreactor?.initial_volume_ml) ??
+    10
 
   return (
     <Card aria-disabled={!isUnitActive}>
