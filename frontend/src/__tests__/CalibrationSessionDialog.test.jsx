@@ -11,6 +11,10 @@ const CalibrationSessionDialog = require("../components/CalibrationSessionDialog
 describe("CalibrationSessionDialog", () => {
   beforeEach(() => {
     global.fetch = jest.fn((url) => {
+      if (url === "/api/workers/unit-1/calibrations/sessions") {
+        throw new Error("Dialog should not start a new session when a sessionId prop is present.");
+      }
+
       if (url === "/api/workers/unit-1/calibrations/sessions/session-1") {
         return Promise.resolve({
           ok: true,
@@ -81,6 +85,27 @@ describe("CalibrationSessionDialog", () => {
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/workers/unit-1/calibrations/sessions/session-1/abort",
       expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  test("loads the existing session step instead of starting over when resumed", async () => {
+    render(
+      <MemoryRouter>
+        <CalibrationSessionDialog
+          open
+          protocol={{ title: "Test protocol", protocol_name: "dummy", target_device: "device" }}
+          unit="unit-1"
+          sessionId="session-1"
+        />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Record calibration");
+
+    expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit-1/calibrations/sessions/session-1");
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      "/api/workers/unit-1/calibrations/sessions",
+      expect.anything(),
     );
   });
 });

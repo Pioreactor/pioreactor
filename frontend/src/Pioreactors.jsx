@@ -1635,7 +1635,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                   label={label}
                   configSections={config || {}}
                   maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
-                  liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10}
+                  liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
                   threshold={modelDetails.reactor_max_fill_volume_ml}
                 />
                </React.Fragment>
@@ -1652,7 +1652,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               experiment={experiment}
               no_skip_first_run={false}
               maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
-              liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10}
+              liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
               threshold={modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
@@ -3369,7 +3369,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       : []
   const dosingControlJob = jobs.dosing_automation
   const dosingMaxVolume = parseFloat(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10
-  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10
+  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10
 
   return (
     <Card sx={{mt: 0, mb: 3}} id={unit} aria-disabled={!isUnitActive}>

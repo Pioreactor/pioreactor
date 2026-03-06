@@ -474,7 +474,6 @@ def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc:
         experiment=get_testing_experiment_name(),
         calibration=calibration,
     )
-    logger.debug("Finished pump calibration action for device=%s", pump_device)
     return True
 
 

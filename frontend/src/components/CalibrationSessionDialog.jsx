@@ -129,7 +129,7 @@ export default function CalibrationSessionDialog({
   onAbortFailure,
   onStartFailure,
 }) {
-  const [sessionId, setSessionId] = React.useState(null);
+  const [sessionId, setSessionId] = React.useState(sessionIdProp ?? null);
   const [sessionStep, setSessionStep] = React.useState(null);
   const [sessionError, setSessionError] = React.useState("");
   const [sessionLoading, setSessionLoading] = React.useState(false);
@@ -172,11 +172,13 @@ export default function CalibrationSessionDialog({
     setSessionId(sessionIdProp);
   }, [sessionIdProp]);
 
+  const effectiveSessionId = sessionIdProp ?? sessionId;
+
   const startSession = React.useCallback(async () => {
     if (!open || !protocol || !unit) {
       return;
     }
-    if (startInFlightRef.current || sessionId) {
+    if (startInFlightRef.current || effectiveSessionId) {
       return;
     }
     startInFlightRef.current = true;
@@ -240,16 +242,16 @@ export default function CalibrationSessionDialog({
       setSessionLoading(false);
       startInFlightRef.current = false;
     }
-  }, [onSessionId, onStartFailure, open, protocol, sessionId, unit]);
+  }, [effectiveSessionId, onSessionId, onStartFailure, open, protocol, unit]);
 
   const loadSession = React.useCallback(async () => {
-    if (!open || !unit || !sessionId) {
+    if (!open || !unit || !effectiveSessionId) {
       return;
     }
     setSessionLoading(true);
     setSessionError("");
     try {
-      const response = await fetch(`/api/workers/${unit}/calibrations/sessions/${sessionId}`);
+      const response = await fetch(`/api/workers/${unit}/calibrations/sessions/${effectiveSessionId}`);
       if (!response.ok) {
         throw new Error(`Failed to load session (${response.status}).`);
       }
@@ -266,10 +268,10 @@ export default function CalibrationSessionDialog({
     } finally {
       setSessionLoading(false);
     }
-  }, [open, sessionId, unit]);
+  }, [effectiveSessionId, open, unit]);
 
   const advanceSession = React.useCallback(async (overrideInputs) => {
-    if (!unit || !sessionId) {
+    if (!unit || !effectiveSessionId) {
       return;
     }
     if (overrideInputs && typeof overrideInputs.preventDefault === "function") {
@@ -279,7 +281,7 @@ export default function CalibrationSessionDialog({
     setSessionError("");
     try {
       const inputs = overrideInputs ?? formatInputs(sessionStep, sessionValues);
-      const response = await fetch(sessionAdvanceEndpoint(unit, sessionId), {
+      const response = await fetch(sessionAdvanceEndpoint(unit, effectiveSessionId), {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -307,13 +309,13 @@ export default function CalibrationSessionDialog({
     } finally {
       setSessionLoading(false);
     }
-  }, [sessionId, sessionStep, sessionValues, unit]);
+  }, [effectiveSessionId, sessionStep, sessionValues, unit]);
 
   const abortSession = React.useCallback(
     async (shouldAbort) => {
-      if (shouldAbort && sessionId && unit) {
+      if (shouldAbort && effectiveSessionId && unit) {
         try {
-          const response = await fetch(sessionAbortEndpoint(unit, sessionId), {
+          const response = await fetch(sessionAbortEndpoint(unit, effectiveSessionId), {
             method: "POST",
             headers: {
               Accept: "application/json",
@@ -350,22 +352,22 @@ export default function CalibrationSessionDialog({
         onClose();
       }
     },
-    [onAbortFailure, onAbortSuccess, onClose, onComplete, resetSessionState, sessionId, unit]
+    [effectiveSessionId, onAbortFailure, onAbortSuccess, onClose, onComplete, resetSessionState, unit]
   );
 
   React.useEffect(() => {
     if (!open) {
-      if (!sessionId) {
+      if (!effectiveSessionId) {
         resetSessionState();
       }
       return;
     }
-    if (sessionId) {
+    if (effectiveSessionId) {
       loadSession();
       return;
     }
     startSession();
-  }, [loadSession, open, resetSessionState, sessionId, startSession]);
+  }, [effectiveSessionId, loadSession, open, resetSessionState, startSession]);
 
   React.useEffect(() => {
     if (!sessionLoading) {

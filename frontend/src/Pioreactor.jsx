@@ -2161,7 +2161,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       : []
   const dosingControlJob = jobs.dosing_automation
   const dosingMaxVolume = parseFloat(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10
-  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10
+  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10
 
   return (
     <Card aria-disabled={!isUnitActive}>
