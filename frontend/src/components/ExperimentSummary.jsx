@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 //import dayjs from "dayjs";
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import {Typography} from '@mui/material';
+import {Chip, Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
@@ -95,6 +95,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
   const experiment = experimentMetadata.experiment
   const startedAt = experimentMetadata.created_at
   const deltaHours = experimentMetadata.delta_hours
+  const tags = Array.isArray(experimentMetadata.tags) ? experimentMetadata.tags : []
   return(
     <React.Fragment>
       <Box>
@@ -130,7 +131,20 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
               </Box>
             </Box>
 
-      </Typography>
+            <Box
+              component="span"
+              sx={{display: "inline-flex", alignItems: "center", gap: 1, flexWrap: "wrap"}}
+            >
+              {tags.length > 0 && (
+                <React.Fragment>
+                  <Typography component="span" variant="subtitle2" sx={{minWidth: "fit-content"}}>
+                    <Box fontWeight="fontWeightBold">Tags:</Box>
+                  </Typography>
+                  {tags.map((tag) => <Chip key={tag} label={tag} size="small" variant="outlined" />)}
+                </React.Fragment>
+              )}
+            </Box>
+          </Typography>
         </Box>
       </Box>
       {showAssignmentAlert &&
