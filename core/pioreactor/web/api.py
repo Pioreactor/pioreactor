@@ -5,6 +5,7 @@ import os
 import re
 import sqlite3
 import tempfile
+import typing as t
 import uuid
 import zipfile
 from datetime import timedelta
@@ -70,6 +71,8 @@ AllCalibrations = structs.subclass_union(CalibrationBase)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
+EXPERIMENT_TAG_SEPARATOR = "\x1f"
+
 for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
 
@@ -81,6 +84,114 @@ def as_json_response(json: str) -> Response:
 def format_utc_timestamp_for_lookback_hours(lookback_hours: float) -> str:
     cutoff = current_utc_datetime() - timedelta(hours=lookback_hours)
     return cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _parse_experiment_tags(raw_tags: str | None) -> list[str]:
+    if not raw_tags:
+        return []
+
+    return [tag for tag in raw_tags.split(EXPERIMENT_TAG_SEPARATOR) if tag]
+
+
+def _normalize_experiment_tags(raw_tags: object) -> list[str]:
+    if raw_tags is None:
+        return []
+
+    if not isinstance(raw_tags, list):
+        abort_with(
+            400,
+            "Invalid tags payload",
+            cause="Expected 'tags' to be a JSON array of strings.",
+            remediation="Submit tags as a JSON array, for example ['project-a', 'screening'].",
+        )
+
+    normalized_tags: list[str] = []
+    seen_tags: set[str] = set()
+
+    for raw_tag in raw_tags:
+        if not isinstance(raw_tag, str):
+            abort_with(
+                400,
+                "Invalid tag value",
+                cause="Each tag must be a string.",
+                remediation="Remove non-string tag values and retry.",
+            )
+
+        tag = raw_tag.strip()
+        if not tag:
+            continue
+
+        casefolded_tag = tag.casefold()
+        if casefolded_tag in seen_tags:
+            continue
+
+        normalized_tags.append(tag)
+        seen_tags.add(casefolded_tag)
+
+    return normalized_tags
+
+
+def _serialize_experiment_row(row: dict[str, t.Any]) -> dict[str, t.Any]:
+    serialized_row = dict(row)
+    serialized_row["worker_count"] = int(serialized_row.get("worker_count") or 0)
+    serialized_row["tags"] = _parse_experiment_tags(serialized_row.get("tags"))
+    return serialized_row
+
+
+def _serialize_experiment_rows(rows: list[dict[str, t.Any]] | None) -> list[dict[str, t.Any]]:
+    return [_serialize_experiment_row(row) for row in (rows or [])]
+
+
+def _get_experiment_metadata_query(source: str) -> str:
+    return f"""
+        WITH worker_counts AS (
+            SELECT
+                a.experiment,
+                count(a.pioreactor_unit) AS worker_count
+            FROM experiment_worker_assignments a
+            JOIN workers w
+                ON a.pioreactor_unit = w.pioreactor_unit
+            GROUP BY a.experiment
+        ),
+        experiment_tags_grouped AS (
+            SELECT
+                experiment,
+                group_concat(tag, '{EXPERIMENT_TAG_SEPARATOR}') AS tags
+            FROM (
+                SELECT experiment, tag
+                FROM experiment_tags
+                ORDER BY experiment, created_at, rowid
+            )
+            GROUP BY experiment
+        )
+        SELECT
+            e.experiment,
+            e.created_at,
+            e.description,
+            round((strftime('%s','now') - strftime('%s', e.created_at))/60/60, 0) AS delta_hours,
+            COALESCE(worker_counts.worker_count, 0) AS worker_count,
+            experiment_tags_grouped.tags
+        FROM {source} e
+        LEFT JOIN worker_counts
+            ON e.experiment = worker_counts.experiment
+        LEFT JOIN experiment_tags_grouped
+            ON e.experiment = experiment_tags_grouped.experiment
+    """
+
+
+def _get_experiment_metadata(experiment: str) -> dict[str, t.Any] | None:
+    result = query_app_db(
+        _get_experiment_metadata_query("experiments")
+        + """
+        WHERE e.experiment = ?
+        """,
+        (experiment,),
+        one=True,
+    )
+    if result is None:
+        return None
+    assert isinstance(result, dict)
+    return _serialize_experiment_row(result)
 
 
 def _extract_unit_api_error(response: MureqResponse | None) -> str | None:
@@ -233,10 +344,15 @@ def stop_specific_job_on_unit(
     )
     try:
         msg.wait_for_publish(timeout=2.0)
-    except Exception:
-        # TODO: make this $broadcastable
-        tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], json={"job_name": job_name})
-        abort_with(500, "Failed to publish to mqtt")
+    except Exception as e:
+        publish_to_error_log(str(e), "stop_specific_job_on_unit")
+        # Fall back to the unit API stop endpoint instead of surfacing a false failure.
+        task = tasks.multicast_post(
+            "/unit_api/jobs/stop",
+            [pioreactor_unit],
+            json={"job_name": job_name, "experiment": experiment},
+        )
+        return create_task_response(task)
 
     return {"status": "success"}, 202
 
@@ -2298,14 +2414,14 @@ def export_exportable_datasets() -> ResponseReturnValue:
 @api_bp.route("/experiments", methods=["GET"])
 def get_experiments() -> ResponseReturnValue:
     try:
-        response = jsonify(
-            query_app_db(
-                """SELECT experiment, created_at, description, round( (strftime("%s","now") - strftime("%s", created_at))/60/60, 0) as delta_hours
-                FROM experiments
-                ORDER BY created_at
-                DESC;"""
-            )
+        experiments = query_app_db(
+            _get_experiment_metadata_query("experiments")
+            + """
+            ORDER BY e.created_at DESC;
+            """
         )
+        assert isinstance(experiments, list)
+        response = jsonify(_serialize_experiment_rows(experiments))
         return response
 
     except Exception as e:
@@ -2317,6 +2433,7 @@ def get_experiments() -> ResponseReturnValue:
 def create_experiment() -> ResponseReturnValue:
     body = request.get_json()
     proposed_experiment_name = body.get("experiment")
+    tags = _normalize_experiment_tags(body.get("tags")) if "tags" in body else []
 
     if not proposed_experiment_name:
         abort_with(
@@ -2376,13 +2493,21 @@ def create_experiment() -> ResponseReturnValue:
         if row_count == 0:
             raise sqlite3.IntegrityError()
 
+        for tag in tags:
+            modify_app_db(
+                "INSERT INTO experiment_tags (experiment, tag, created_at) VALUES (?, ?, ?)",
+                (proposed_experiment_name, tag, current_utc_timestamp()),
+            )
+
         publish_to_experiment_log(
             f"New experiment created: {body['experiment']}",
             proposed_experiment_name,
             "create_experiment",
             level="INFO",
         )
-        return {"status": "success"}, 201
+        created_experiment = _get_experiment_metadata(proposed_experiment_name)
+        assert created_experiment is not None
+        return jsonify(created_experiment), 201
 
     except sqlite3.IntegrityError:
         abort_with(
@@ -2421,13 +2546,13 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
 @api_bp.route("/experiments/latest", methods=["GET"])
 def get_latest_experiment() -> ResponseReturnValue:
     try:
+        latest_experiment = query_app_db(
+            _get_experiment_metadata_query("latest_experiment"),
+            one=True,
+        )
+        assert latest_experiment is None or isinstance(latest_experiment, dict)
         return attach_cache_control(
-            jsonify(
-                query_app_db(
-                    "SELECT experiment, created_at, description, media_used, organism_used, delta_hours FROM latest_experiment",
-                    one=True,
-                )
-            ),
+            jsonify(_serialize_experiment_row(latest_experiment) if latest_experiment is not None else None),
             max_age=2,
         )
 
@@ -2538,30 +2663,41 @@ def get_historical_media_used() -> ResponseReturnValue:
 @api_bp.route("/experiments/<experiment>", methods=["PATCH"])
 def update_experiment(experiment: str) -> ResponseReturnValue:
     body = request.get_json()
+    if not isinstance(body, dict):
+        abort_with(400, "Invalid request body")
+
+    if ("description" not in body) and ("tags" not in body):
+        abort_with(400, "Missing description or tags")
+
+    existing_experiment = _get_experiment_metadata(experiment)
+    if existing_experiment is None:
+        abort_with(404, f"Experiment {experiment} not found")
+
     if "description" in body:
-        row_count = modify_app_db(
+        modify_app_db(
             "UPDATE experiments SET description = (?) WHERE experiment=(?)",
             (body["description"], experiment),
         )
 
-        if row_count == 1:
-            return {"status": "success"}, 200
-        else:
-            abort_with(404, f"Experiment {experiment} not found")
-    else:
-        abort_with(400, "Missing description")
+    if "tags" in body:
+        tags = _normalize_experiment_tags(body["tags"])
+        modify_app_db("DELETE FROM experiment_tags WHERE experiment = ?", (experiment,))
+        for tag in tags:
+            modify_app_db(
+                "INSERT INTO experiment_tags (experiment, tag, created_at) VALUES (?, ?, ?)",
+                (experiment, tag, current_utc_timestamp()),
+            )
+
+    updated_experiment = _get_experiment_metadata(experiment)
+    if updated_experiment is None:
+        abort_with(404, f"Experiment {experiment} not found")
+
+    return jsonify(updated_experiment), 200
 
 
 @api_bp.route("/experiments/<experiment>", methods=["GET"])
 def get_experiment(experiment: str) -> ResponseReturnValue:
-    result = query_app_db(
-        """SELECT experiment, created_at, description, round( (strftime("%s","now") - strftime("%s", created_at))/60/60, 0) as delta_hours
-        FROM experiments
-        WHERE experiment=(?);
-        """,
-        (experiment,),
-        one=True,
-    )
+    result = _get_experiment_metadata(experiment)
     if result is not None:
         return jsonify(result)
     else:
@@ -3278,22 +3414,21 @@ def get_active_experiments() -> ResponseReturnValue:
     try:
         # same columns as GET /api/experiments, filtered to experiments with ≥1 active worker
         result = query_app_db(
-            """
-            SELECT
-              e.experiment,
-              e.created_at,
-              e.description,
-              round((strftime('%s','now') - strftime('%s', e.created_at))/60/60, 0) AS delta_hours
-            FROM experiments e
-            JOIN experiment_worker_assignments a
-              ON e.experiment = a.experiment
-            JOIN workers w
-              ON a.pioreactor_unit = w.pioreactor_unit
-            WHERE w.is_active = 1
-            GROUP BY e.experiment, e.created_at, e.description
+            _get_experiment_metadata_query("experiments")
+            + """
+            WHERE EXISTS (
+                SELECT 1
+                FROM experiment_worker_assignments a
+                JOIN workers w
+                    ON a.pioreactor_unit = w.pioreactor_unit
+                WHERE a.experiment = e.experiment
+                  AND w.is_active = 1
+            )
             ORDER BY e.created_at DESC
-            """,
+            """
         )
+        assert result is None or isinstance(result, list)
+        result = _serialize_experiment_rows(result)
         return attach_cache_control(jsonify(result or []), max_age=2)
     except Exception as e:
         publish_to_error_log(str(e), "get_active_experiments")

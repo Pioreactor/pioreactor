@@ -1,5 +1,10 @@
 ### Upcoming
 
+#### Enhancements
+
+ - Redesigned the Experiments UI page into a management-focused table with search, status/tag filters, tag editing, and quick actions for exporting, ending, or deleting experiments.
+ - Added experiment tags to the UI and API: tags can now be created when starting a new experiment, edited later from the Experiments page, and used to organize/filter experiments.
+
 #### Bug fixes
 
  - Fixed a UI crash when MQTT `button_down` events triggered tactile-button notifications: custom snackbar content now renders with a ref-able root element so notistack transitions no longer throw `Custom snackbar is not refForwarding`.

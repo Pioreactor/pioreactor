@@ -419,6 +419,15 @@ export default function SideNavAndHeader() {
                 </SubMenu>
 
                 <MenuItem
+                  icon={<PlayCircleOutlinedIcon sx={{fontSize: "23px"}}/> }
+                  component={<Link to="/experiments" className="link" />}
+                  active={isSelected("/experiments")}
+
+                  >
+                  Experiments
+                </MenuItem>
+
+                <MenuItem
                   icon={<DownloadIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/export-data" className="link" />}
                   active={isSelected("/export-data")}
@@ -427,14 +436,6 @@ export default function SideNavAndHeader() {
                   Export data
                 </MenuItem>
 
-                <MenuItem
-                  icon={<InsertChartOutlinedIcon sx={{fontSize: "23px"}}/> }
-                  component={<Link to="/experiments" className="link" />}
-                  active={isSelected("/experiments")}
-
-                  >
-                  Past experiments
-                </MenuItem>
 
                 <MenuItem
                   icon={<LibraryAddOutlinedIcon sx={{fontSize: "23px"}}/> }

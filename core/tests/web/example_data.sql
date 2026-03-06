@@ -4,6 +4,16 @@ INSERT INTO experiments (experiment, created_at, description, media_used, organi
 ('exp2', '2023-10-02T15:00:00Z', 'Second experiment', 'Minimal media', 'Yeast'),
 ('exp3', '2023-10-03T09:00:00Z', 'Third experiment', 'Rich media', 'Bacteria');
 
+CREATE TABLE IF NOT EXISTS experiment_tags (
+    experiment TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (experiment, tag),
+    FOREIGN KEY (experiment) REFERENCES experiments (
+        experiment
+    ) ON DELETE CASCADE
+);
+
 INSERT INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version) VALUES
 ('unit1', '2023-10-01T10:00:00Z', 1, "pioreactor_20ml", "1.1"),
 ('unit2', '2023-10-01T11:00:00Z', 1, "pioreactor_40ml", "1.0"),
@@ -21,6 +31,14 @@ INSERT INTO pioreactor_unit_labels (experiment, pioreactor_unit, label, created_
 ('exp1', 'unit2', 'Reactor 2', '2023-10-01T12:00:00Z'),
 ('exp2', 'unit3', 'Reactor 3', '2023-10-02T15:00:00Z'),
 ('exp3', 'unit4', 'Reactor 4', '2023-10-03T09:00:00Z');
+
+INSERT INTO experiment_tags (experiment, tag, created_at) VALUES
+('exp1', 'rna', '2023-10-01T12:00:00Z'),
+('exp1', 'screening', '2023-10-01T12:00:00Z'),
+('exp2', 'project-beta', '2023-10-02T15:00:00Z'),
+('exp3', 'archive', '2023-10-03T09:00:00Z'),
+('exp3', 'fermentation', '2023-10-03T09:00:00Z'),
+('exp3', 'priority', '2023-10-03T09:00:00Z');
 
 INSERT INTO logs (experiment, pioreactor_unit, timestamp, message, source, level, task) VALUES
 ('exp1', 'unit1', '2023-10-01T12:10:00Z', 'Started mixing', 'mixer', 'INFO', 'stirring'),

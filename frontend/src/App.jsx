@@ -131,7 +131,7 @@ function MainSite() {
                   <Route path="/overview" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                   <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
                   <Route path="/plugins/:pioreactorUnit/" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
-                  <Route path="/experiments" element={<Experiments title="Pioreactor ~ Past experiments"/>}/>
+                  <Route path="/experiments" element={<Experiments title="Pioreactor ~ Experiments"/>}/>
                   <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
                   <Route path="/experiment-profiles/:profileFilename/" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
                   <Route path="/experiment-profiles/new" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>

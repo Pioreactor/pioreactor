@@ -22,6 +22,8 @@ def test_latest_experiment_endpoint(client) -> None:
     assert data["experiment"] == "exp3"
     assert data["description"] == "Third experiment"
     assert data["delta_hours"] > 0
+    assert data["worker_count"] == 1
+    assert data["tags"] == ["archive", "fermentation", "priority"]
 
 
 def test_assignment_count(client) -> None:
@@ -266,9 +268,12 @@ def test_create_experiment(client) -> None:
             "description": "Fourth experiment",
             "media_used": "Special media",
             "organism_used": "Algae",
+            "tags": ["seed", "project-x", "seed"],
         },
     )
     assert response.status_code == 201  # Created
+    data = response.get_json()
+    assert data["tags"] == ["seed", "project-x"]
 
     # Verify the experiment exists
     response = client.get("/api/experiments/exp4")
@@ -276,6 +281,8 @@ def test_create_experiment(client) -> None:
     data = response.get_json()
     assert data["experiment"] == "exp4"
     assert data["description"] == "Fourth experiment"
+    assert data["tags"] == ["seed", "project-x"]
+    assert data["worker_count"] == 0
 
 
 def test_create_duplicate_experiment(client) -> None:
@@ -297,14 +304,45 @@ def test_update_experiment(client) -> None:
         "/api/experiments/exp2",
         json={
             "description": "Updated second experiment",
+            "tags": ["project-beta", "  follow-up ", "PROJECT-BETA", ""],
         },
     )
     assert response.status_code == 200  # OK
+    data = response.get_json()
+    assert data["tags"] == ["project-beta", "follow-up"]
 
     # Verify the updates
     response = client.get("/api/experiments/exp2")
     data = response.get_json()
     assert data["description"] == "Updated second experiment"
+    assert data["tags"] == ["project-beta", "follow-up"]
+
+
+def test_get_experiments_includes_tags_and_worker_count(client) -> None:
+    response = client.get("/api/experiments")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    exp3 = next(item for item in data if item["experiment"] == "exp3")
+    exp0 = next(item for item in data if item["experiment"] == "exp0")
+    assert exp3["worker_count"] == 1
+    assert exp3["tags"] == ["archive", "fermentation", "priority"]
+    assert exp0["worker_count"] == 0
+    assert exp0["tags"] == []
+
+
+def test_update_experiment_tags_only(client) -> None:
+    response = client.patch(
+        "/api/experiments/exp1",
+        json={
+            "tags": ["RNA", "screening", "rna", "scale-up"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["description"] == "First experiment"
+    assert data["tags"] == ["RNA", "screening", "scale-up"]
 
 
 def test_update_nonexistent_experiment(client) -> None:
@@ -316,6 +354,17 @@ def test_update_nonexistent_experiment(client) -> None:
         },
     )
     assert response.status_code == 404  # Not Found
+
+
+def test_update_experiment_with_invalid_tags_payload(client) -> None:
+    response = client.patch(
+        "/api/experiments/exp1",
+        json={
+            "tags": "project-a",
+        },
+    )
+
+    assert response.status_code == 400
 
 
 def test_create_experiment_missing_fields(client) -> None:
@@ -525,6 +574,27 @@ def test_run_job_response(client) -> None:
     client.post(
         "/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1",
     )
+
+
+def test_stop_specific_job_returns_task_response_when_mqtt_publish_fails(client, monkeypatch) -> None:
+    import pioreactor.web.api as mod
+
+    class FailingPublish:
+        def wait_for_publish(self, timeout: float) -> None:
+            raise RuntimeError("mqtt down")
+
+    class DummyTask:
+        id = "fallback-task"
+
+    monkeypatch.setattr(mod.client, "publish", lambda *_args, **_kwargs: FailingPublish())
+    monkeypatch.setattr(mod.tasks, "multicast_post", lambda *_args, **_kwargs: DummyTask())
+
+    response = client.post("/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1")
+
+    assert response.status_code == 202
+    data = response.get_json()
+    assert data["task_id"] == "fallback-task"
+    assert data["result_url_path"] == "/unit_api/task_results/fallback-task"
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")

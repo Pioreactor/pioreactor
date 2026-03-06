@@ -2,6 +2,7 @@ import React from "react";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 
+import Autocomplete from '@mui/material/Autocomplete';
 import Grid from '@mui/material/Grid';
 import FormGroup from '@mui/material/FormGroup';
 import Card from '@mui/material/Card';
@@ -19,6 +20,33 @@ import { useExperiment } from './providers/ExperimentContext';
 dayjs.extend(utc);
 
 
+function normalizeTagList(tags) {
+  const normalizedTags = [];
+  const seenTags = new Set();
+
+  for (const rawTag of tags) {
+    if (typeof rawTag !== "string") {
+      continue;
+    }
+
+    const tag = rawTag.trim();
+    if (!tag) {
+      continue;
+    }
+
+    const normalizedTag = tag.toLowerCase();
+    if (seenTags.has(normalizedTag)) {
+      continue;
+    }
+
+    normalizedTags.push(tag);
+    seenTags.add(normalizedTag);
+  }
+
+  return normalizedTags;
+}
+
+
 
 function ExperimentSummaryForm(props) {
   const { updateExperiment } = useExperiment();
@@ -27,6 +55,9 @@ function ExperimentSummaryForm(props) {
   const [helperText, setHelperText] = React.useState(" ");
   const [expName, setExpName] = React.useState("");
   const [description, setDescription] = React.useState("");
+  const [tags, setTags] = React.useState([]);
+  const [tagOptions, setTagOptions] = React.useState([]);
+  const [tagInputValue, setTagInputValue] = React.useState("");
   const [historicalExperiments, setHistoricalExperiments] = React.useState({});
   const [loading, setLoading] = React.useState(false);
   const trimmedExpName = expName.trim();
@@ -35,37 +66,49 @@ function ExperimentSummaryForm(props) {
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
 
   React.useEffect(() => {
-    function getHistoricalExperiments() {
-      fetch("/api/experiments")
-        .then((response) => {
-          if (response.ok){
-            return response.json();
-          }
-        }).then(json => json.reduce((acc, {experiment}) => {
-              acc[experiment] = 1;
-              return acc;
-            }, {}))
-        .then(data => setHistoricalExperiments(data))
+    async function getHistoricalExperiments() {
+      try {
+        const response = await fetch("/api/experiments");
+        if (!response.ok) {
+          return;
+        }
+
+        const experiments = await response.json();
+        setHistoricalExperiments(
+          experiments.reduce((acc, {experiment}) => {
+            acc[experiment] = 1;
+            return acc;
+          }, {}),
+        );
+        setTagOptions(
+          [...new Set(experiments.flatMap(({tags = []}) => tags))]
+            .filter((tag) => typeof tag === "string" && tag.trim())
+            .sort((left, right) => left.localeCompare(right)),
+        );
+      } catch (error) {
+        console.error("Failed to fetch experiments:", error);
+      }
     }
 
     getHistoricalExperiments();
   }, [])
 
 
-  function populateFields(){
-    fetch("/api/experiments/latest")
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setExpName(data.experiment)
-        setDescription(data.description)
-
-      });
+  async function populateFields(){
+    try {
+      const response = await fetch("/api/experiments/latest");
+      const data = await response.json();
+      setExpName(data.experiment)
+      setDescription(data.description)
+      setTags(Array.isArray(data.tags) ? data.tags : [])
+      setTagInputValue("")
+    } catch (error) {
+      console.error("Failed to populate from latest experiment:", error);
+    }
   }
 
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault();
     setLoading(true)
 
@@ -82,49 +125,53 @@ function ExperimentSummaryForm(props) {
       return
     }
 
-    const experimentMetadata = {experiment: trimmedExpName, created_at: timestamp.toISOString(), description: description,  delta_hours: 0}
+    const experimentMetadata = {
+      experiment: trimmedExpName,
+      created_at: timestamp.toISOString(),
+      description: description,
+      tags: normalizeTagList([...tags, tagInputValue]),
+      delta_hours: 0,
+      worker_count: 0,
+    }
 
-    fetch('/api/experiments', {
+    try {
+      const res = await fetch('/api/experiments', {
         method: "POST",
         body: JSON.stringify(experimentMetadata),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
-      }).then(res => {
-        if (res.ok){
-          setHelperText(" ")
-          setFormError(false);
-          updateExperiment(experimentMetadata, true)
-          props.handleNext()
-        }
-        else if (res.status === 409) {
-          setFormError(true);
-          setHelperText("Experiment name already used. Please choose another.")
-        }
-        else {
-          res
-            .json()
-            .then((json) => {
-               if (json && json.error) {
-                setHelperText(`${json.error} Please retry.`);
-              } else {
-                setHelperText("Server error while creating experiment. Please retry or check UI logs.");
-              }
-            })
-            .catch(() => {
-              setHelperText("Server error while creating experiment. Please retry or check UI logs.");
-            });
-          setFormError(true);
-        }
-      })
-      .catch(() => {
+      });
+
+      if (res.ok) {
+        const savedExperiment = await res.json();
+        setHelperText(" ")
+        setFormError(false);
+        updateExperiment(savedExperiment, true)
+        props.handleNext()
+        return
+      }
+
+      if (res.status === 409) {
         setFormError(true);
-        setHelperText("Network error while creating experiment. Check your connection and retry.");
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+        setHelperText("Experiment name already used. Please choose another.")
+        return
+      }
+
+      const json = await res.json().catch(() => null);
+      setFormError(true);
+      if (json && json.error) {
+        setHelperText(`${json.error} Please retry.`);
+      } else {
+        setHelperText("Server error while creating experiment. Please retry or check UI logs.");
+      }
+    } catch (_error) {
+      setFormError(true);
+      setHelperText("Network error while creating experiment. Check your connection and retry.");
+    } finally {
+      setLoading(false)
+    }
   }
 
   const onExpNameChange = (e) => {
@@ -149,6 +196,15 @@ function ExperimentSummaryForm(props) {
   const onDescChange = (e) => {
     setDescription(e.target.value)
   }
+
+  const commitPendingTag = React.useCallback(() => {
+    if (!tagInputValue.trim()) {
+      return;
+    }
+
+    setTags((previousTags) => normalizeTagList([...previousTags, tagInputValue]));
+    setTagInputValue("");
+  }, [tagInputValue]);
 
   return (
     <Box sx={{mt: "15px"}}>
@@ -190,6 +246,41 @@ function ExperimentSummaryForm(props) {
               sx={{mt: 0, mb: 2, width: "100%"}}
               onChange={onDescChange}
               fullWidth={true}
+            />
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              md: 12
+            }}>
+            <Autocomplete
+              multiple
+              freeSolo
+              options={tagOptions}
+              value={tags}
+              inputValue={tagInputValue}
+              onChange={(_event, nextTags) => setTags(normalizeTagList(nextTags))}
+              onInputChange={(_event, nextValue, reason) => {
+                if (reason === "reset") {
+                  return;
+                }
+                setTagInputValue(nextValue);
+              }}
+              filterSelectedOptions
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Tags (optional)"
+                  placeholder="Add a tag"
+                  helperText="Press Enter or comma to add a tag."
+                  onKeyDown={(event) => {
+                    if ((event.key === "Enter" || event.key === ",") && tagInputValue.trim()) {
+                      event.preventDefault();
+                      commitPendingTag();
+                    }
+                  }}
+                />
+              )}
             />
           </Grid>
 

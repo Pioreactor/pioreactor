@@ -939,7 +939,16 @@ def create_calibration(device: str) -> ResponseReturnValue:
             )
 
         path = calibration_data.path_on_disk_for_device(device)
-        tasks.save_file(path, raw_yaml)
+        save_result = tasks.save_file(str(path), raw_yaml)
+        save_succeeded = bool(save_result.get(blocking=True, timeout=10))
+
+        if not save_succeeded:
+            abort_with(
+                500,
+                description="Failed to create calibration.",
+                cause="Unable to save calibration file.",
+                remediation="Check file permissions and server logs.",
+            )
 
         if set_as_active:
             with local_persistent_storage("active_calibrations") as c:

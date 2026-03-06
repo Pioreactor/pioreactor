@@ -1,285 +1,649 @@
 import React from "react";
 import dayjs from "dayjs";
 
-import FormLabel from '@mui/material/FormLabel';
-import FormControl from '@mui/material/FormControl';
-import FormGroup from '@mui/material/FormGroup';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Grid from "@mui/material/Grid";
+import Alert from "@mui/material/Alert";
+import Autocomplete from "@mui/material/Autocomplete";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chart from "./components/Chart";
-import Select from '@mui/material/Select';
-import {Typography} from '@mui/material';
-import Box from '@mui/material/Box';
-import MenuItem from '@mui/material/MenuItem';
-import Checkbox from '@mui/material/Checkbox';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import { getConfig, getRelabelMap } from "./utilities";
-import { colors, ColorCycler } from "./color";
-import DownloadIcon from '@mui/icons-material/Download';
-import { Link } from 'react-router';
+import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import LinearProgress from "@mui/material/LinearProgress";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Stack from "@mui/material/Stack";
+import { styled } from "@mui/material/styles";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Typography from "@mui/material/Typography";
+import AddIcon from "@mui/icons-material/Add";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import PlayCircleOutlinedIcon from "@mui/icons-material/PlayCircleOutlined";
+import { useConfirm } from "material-ui-confirm";
+import { useSnackbar } from "notistack";
+import { Link, useNavigate } from "react-router";
 
-// TODO:
-// figure out how to display lots of data from long-running experiments without breaking the thing,
-//
+import { useExperiment } from "./providers/ExperimentContext";
 
+const TAGS_TO_SHOW = 6;
 
+const StyledTableCell = styled(TableCell)(() => ({
+  padding: "6px 6px 6px 10px",
+  whiteSpace: "normal",
+}));
 
+const TableRowStyled = styled(TableRow)(() => ({
+  "&:nth-of-type(odd)": {
+    backgroundColor: "#F7F7F7",
+  },
+  "&:nth-of-type(even)": {
+    backgroundColor: "white",
+  },
+}));
 
-function ExperimentSelection(props) {
-  const [experiments, setExperiments] = React.useState([])
-  const selectedExperient = experiments.find(o => o.experiment === props.experimentSelection);
+function normalizeTagList(tags) {
+  const normalizedTags = [];
+  const seenTags = new Set();
 
-  React.useEffect(() => {
-    async function getData() {
-       await fetch("/api/experiments")
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setExperiments(data);
-        if (!props.experimentSelection && data.length > 0) {
-          props.handleExperimentSelectionChange(data[0].experiment);
-        }
-      });
+  for (const rawTag of tags) {
+    if (typeof rawTag !== "string") {
+      continue;
     }
-    getData()
-  }, [])
 
-  const handleExperimentSelectionChange = (e) => {
-    props.handleExperimentSelectionChange(e.target.value)
+    const tag = rawTag.trim();
+    if (!tag) {
+      continue;
+    }
+
+    const normalizedTag = tag.toLowerCase();
+    if (seenTags.has(normalizedTag)) {
+      continue;
+    }
+
+    normalizedTags.push(tag);
+    seenTags.add(normalizedTag);
   }
 
-  const experimentOptions = experiments.map((v, index) => {
-            return <MenuItem key={index} value={v.experiment}>{v.experiment +  (v.created_at ? ` (${dayjs(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
-  })
-
-  return (
-    <Box sx={{maxWidth: "450px", m: 1}}>
-      <FormControl fullWidth component="fieldset" sx={{my: 1}}>
-        <FormLabel component="legend">Experiment</FormLabel>
-        <Select
-          labelId="expSelect"
-          variant="standard"
-          value={props.experimentSelection}
-          onChange={handleExperimentSelectionChange}
-        >
-        {experimentOptions}
-        </Select>
-      </FormControl>
-      <Box sx={{my: 1}}>
-        <Typography sx={{ fontSize: 16 }} color="text.secondary" gutterBottom>
-          Experiment created
-        </Typography>
-        <Typography variant="body2" style={{whiteSpace: "pre-line"}} gutterBottom>
-          {dayjs(selectedExperient?.created_at).format("MMMM D, YYYY, h:mm a")}
-        </Typography>
-        <Typography sx={{ fontSize: 16, pt: 1}} color="text.secondary" gutterBottom>
-          Description
-        </Typography>
-        <Typography variant="body2" style={{whiteSpace: "pre-line"}}>
-          {selectedExperient?.description}
-        </Typography>
-      </Box>
-    </Box>
-  )
+  return normalizedTags;
 }
 
-
-function ChartSelection(props) {
-
-  const [charts, setCharts] = React.useState({})
+function ExperimentMetadataDialog({
+  experiment,
+  open,
+  onClose,
+  onSave,
+  allTagOptions,
+  isSaving,
+  errorMessage,
+}) {
+  const [description, setDescription] = React.useState("");
+  const [tags, setTags] = React.useState([]);
+  const [tagInputValue, setTagInputValue] = React.useState("");
 
   React.useEffect(() => {
-    async function getCharts() {
-        await fetch("/api/charts/descriptors")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setCharts(data.reduce((map, obj) => (map[obj.chart_key] = obj, map), {}))
-        });
-      }
-    getCharts()
-  }, [])
+    if (!open || !experiment) {
+      return;
+    }
 
-  const handleChange = (e) => {
-      props.handleChartSelectionChange(charts[e.target.name], e.target.checked)
-    };
+    setDescription(experiment.description || "");
+    setTags(Array.isArray(experiment.tags) ? experiment.tags : []);
+    setTagInputValue("");
+  }, [open, experiment]);
+
+  const commitPendingTag = React.useCallback(() => {
+    if (!tagInputValue.trim()) {
+      return;
+    }
+
+    setTags((previousTags) => normalizeTagList([...previousTags, tagInputValue]));
+    setTagInputValue("");
+  }, [tagInputValue]);
+
+  const handleTagsChange = (_event, nextTags) => {
+    setTags(normalizeTagList(nextTags));
+  };
+
+  const handleSave = () => {
+    if (!experiment) {
+      return;
+    }
+
+    onSave({
+      ...experiment,
+      description,
+      tags: normalizeTagList([...tags, tagInputValue]),
+    });
+  };
 
   return (
-    <div style={{maxWidth: "450px", margin: "10px"}}>
-      <FormControl fullWidth component="fieldset" sx={{m:2}}>
-        <FormLabel component="legend">Charts</FormLabel>
-        <FormGroup>
-          {Object.entries(charts)
-            .filter(([chart_key, _]) => props.config['ui.overview.charts'] && (props.config['ui.overview.charts'][chart_key] === "1"))
-            .map(([chart_key, chart]) =>
-            <FormControlLabel
-              key={chart_key}
-              control={
-                <Checkbox checked={chart_key in props.chartSelection} onChange={handleChange} name={chart_key} size="small"/>
+    <Dialog open={open} onClose={isSaving ? undefined : onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{experiment?.experiment || "Edit experiment"}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Created {experiment?.created_at ? dayjs(experiment.created_at).format("YYYY-MM-DD") : "Unknown"}
+          </Typography>
+          <TextField
+            label="Description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            multiline
+            minRows={3}
+            fullWidth
+          />
+          <Autocomplete
+            multiple
+            freeSolo
+            options={allTagOptions}
+            value={tags}
+            inputValue={tagInputValue}
+            onChange={handleTagsChange}
+            onInputChange={(_event, nextValue, reason) => {
+              if (reason === "reset") {
+                return;
               }
-              label={chart.title}/>
+              setTagInputValue(nextValue);
+            }}
+            filterSelectedOptions
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tags"
+                placeholder="Add a tag"
+                helperText="Press Enter or comma to add a tag."
+                onKeyDown={(event) => {
+                  if ((event.key === "Enter" || event.key === ",") && tagInputValue.trim()) {
+                    event.preventDefault();
+                    commitPendingTag();
+                  }
+                }}
+              />
             )}
-        </FormGroup>
-      </FormControl>
-    </div>
-  )
+          />
+          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={isSaving} sx={{ textTransform: "none" }}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={isSaving}
+          sx={{ textTransform: "none" }}
+        >
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }
 
+function ExperimentActionsMenu({
+  experiment,
+  disabled,
+  onEdit,
+  onExport,
+  onEnd,
+  onDelete,
+}) {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const menuOpen = Boolean(anchorEl);
 
-
-function ExperimentsContainer(props) {
-
-  const [experimentSelection, setExperimentSelection] = React.useState("")
-  const [chartSelection, setChartSelection] = React.useState({})
-  const [config, setConfig] = React.useState({})
-  const [relabelMap, setRelabelMap] = React.useState({})
-  const unitsColorMap = new ColorCycler(colors)
-
-
-  React.useEffect(() => {
-    document.title = props.title;
-    getConfig(setConfig)
-
-  }, [props.title]);
-
-  function handleExperimentSelectionChange(experimentName) {
-    setExperimentSelection(experimentName)
-    getRelabelMap(setRelabelMap, experimentName)
+  const handleClose = () => {
+    setAnchorEl(null);
   };
-
-  function handleChartSelectionChange(chart_obj, is_checked) {
-    if (is_checked){
-      setChartSelection({ ...chartSelection, [chart_obj.chart_key]: chart_obj })
-    } else {
-      const { [chart_obj.chart_key]: tmp, ...rest } = chartSelection;
-      setChartSelection(rest)
-    }
-  };
-
-
-  function objectToQueryString(obj) {
-    const chartKeyToDataKey = {
-      implied_growth_rate : "growth_rates",
-      raw_optical_density : "od_readings",
-      temperature : "temperature_readings",
-      normalized_optical_density : "od_readings_filtered",
-      fused_optical_density : "od_readings_fused",
-      fraction_of_volume_that_is_alternative_media : "alt_media_fraction",
-    }
-
-    let queryString = "";
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key) && chartKeyToDataKey.hasOwnProperty(key)) {
-        queryString += `&${chartKeyToDataKey[key]}=1`;
-      }
-    }
-    return queryString;
-  }
-
-
-  const additionalQueryString = objectToQueryString(chartSelection)
 
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
-              Past experiments
-            </Box>
-          </Typography>
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-            <Button to={`/export-data?experiment=${experimentSelection}&experiments=1${additionalQueryString}`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-              <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export experiment data
-            </Button>
-          </Box>
-        </Box>
-      </Box>
-      <Card>
-        <CardContent sx={{p: 1}}>
-          <Grid container spacing={2} justifyContent="space-between">
-            <Grid size={6}>
-              <ExperimentSelection
-                experimentSelection={experimentSelection}
-                handleExperimentSelectionChange={handleExperimentSelectionChange}
-              />
-            </Grid>
-            <Grid size={6}>
-              <ChartSelection
-                chartSelection={chartSelection}
-                handleChartSelectionChange={handleChartSelectionChange}
-                config={config}
-              />
-            </Grid>
-            <Grid
-              container
-              spacing={2}
-              justifyContent="flex-start"
-              style={{height: "100%"}}
-              size={{
-                xs: 12,
-                md: 12
-              }}>
-              {Object.entries(chartSelection).sort()
-                .map(([chart_key, chart]) =>
-                  <React.Fragment key={`grid-chart-${chart_key}`}>
-                    <Grid size={6}>
-                      <Chart
-                        chart_key={`chart-${chart_key}`}
-                        config={config}
-                        dataSource={chart.data_source}
-                        title={chart.title}
-                        topic={chart.mqtt_topic}
-                        payloadKey={chart.payload_key}
-                        yAxisLabel={chart.y_axis_label}
-                        experiment={experimentSelection}
-                        //experimentStartTime={experimentMetadata.created_at}
-                        deltaHours={10}
-                        downSample={true}
-                        interpolation={chart.interpolation || "stepAfter"}
-                        yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                        lookback={10000}
-                        fixedDecimals={chart.fixed_decimals}
-                        yTransformation={eval(chart.y_transformation || "(y) => y")}
-                        dataSourceColumn={chart.data_source_column}
-                        relabelMap={relabelMap}
-                        isPartitionedBySensor={chart_key === "raw_optical_density"}
-                        allowZoom={true}
-                        isLiveChart={false}
-                        byDuration={false}
-                        unitsColorMap={unitsColorMap}
-                      />
-                    </Grid>
-                  </React.Fragment>
+      <IconButton
+        size="small"
+        onClick={(event) => setAnchorEl(event.currentTarget)}
+        disabled={disabled}
+        aria-label={`More actions for ${experiment.experiment}`}
+      >
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
+      <Menu anchorEl={anchorEl} open={menuOpen} onClose={handleClose}>
+        <MenuItem
+          onClick={() => {
+            handleClose();
+            onEdit();
+          }}
+        >
+          Edit
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleClose();
+            onExport();
+          }}
+        >
+          Export data
+        </MenuItem>
+        {experiment.worker_count > 0 && (
+          <MenuItem
+            onClick={() => {
+              handleClose();
+              onEnd();
+            }}
+          >
+            End experiment
+          </MenuItem>
+        )}
+        <MenuItem
+          onClick={() => {
+            handleClose();
+            onDelete();
+          }}
+          sx={{ color: "secondary.main" }}
+        >
+          Delete experiment
+        </MenuItem>
+      </Menu>
+    </React.Fragment>
+  );
+}
 
-            )}
-            </Grid>
-          </Grid>
-        </CardContent>
+function ExperimentsContainer(props) {
+  const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { enqueueSnackbar } = useSnackbar();
+  const { allExperiments, experimentMetadata, selectExperiment, updateExperiment, setAllExperiments } = useExperiment();
+  const [experiments, setExperiments] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("all");
+  const [selectedTags, setSelectedTags] = React.useState([]);
+  const [editingExperiment, setEditingExperiment] = React.useState(null);
+  const [isSavingDialog, setIsSavingDialog] = React.useState(false);
+  const [dialogError, setDialogError] = React.useState("");
+  const [busyExperimentName, setBusyExperimentName] = React.useState("");
+
+  React.useEffect(() => {
+    document.title = props.title;
+  }, [props.title]);
+
+  const refreshExperiments = React.useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const response = await fetch("/api/experiments");
+      if (!response.ok) {
+        throw new Error(`Failed to load experiments (${response.status})`);
+      }
+
+      const data = await response.json();
+      setExperiments(data);
+      setAllExperiments(data);
+    } catch (error) {
+      console.error("Failed to fetch experiments:", error);
+      setLoadError("Unable to load experiments right now.");
+    } finally {
+      setLoading(false);
+    }
+  }, [setAllExperiments]);
+
+  React.useEffect(() => {
+    if (Array.isArray(allExperiments) && allExperiments.length > 0) {
+      setExperiments(allExperiments);
+      setLoading(false);
+    }
+  }, [allExperiments]);
+
+  React.useEffect(() => {
+    refreshExperiments();
+  }, [refreshExperiments]);
+
+  const allTagOptions = React.useMemo(() => {
+    return [...new Set(experiments.flatMap((experiment) => experiment.tags || []))].sort((left, right) =>
+      left.localeCompare(right),
+    );
+  }, [experiments]);
+
+  const filteredExperiments = React.useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    return experiments.filter((experiment) => {
+      const isActive = experiment.worker_count > 0;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && isActive) ||
+        (statusFilter === "inactive" && !isActive);
+      if (!matchesStatus) {
+        return false;
+      }
+
+      const tags = Array.isArray(experiment.tags) ? experiment.tags : [];
+      const matchesTags =
+        selectedTags.length === 0 ||
+        selectedTags.every((tag) => tags.some((experimentTag) => experimentTag.toLowerCase() === tag.toLowerCase()));
+      if (!matchesTags) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      return [experiment.experiment, experiment.description || "", ...tags]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch);
+    });
+  }, [experiments, search, selectedTags, statusFilter]);
+
+  const handleDialogSave = async (updatedExperiment) => {
+    setIsSavingDialog(true);
+    setDialogError("");
+
+    try {
+      const response = await fetch(`/api/experiments/${encodeURIComponent(updatedExperiment.experiment)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          description: updatedExperiment.description,
+          tags: updatedExperiment.tags,
+        }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to update experiment metadata.");
+      }
+
+      const savedExperiment = await response.json();
+      setExperiments((previousExperiments) =>
+        previousExperiments.map((experiment) =>
+          experiment.experiment === savedExperiment.experiment ? savedExperiment : experiment,
+        ),
+      );
+      updateExperiment(savedExperiment);
+      setDialogError("");
+      setIsSavingDialog(false);
+      setEditingExperiment(null);
+    } catch (error) {
+      console.error("Failed to save experiment metadata:", error);
+      setDialogError(error.message || "Failed to update experiment metadata.");
+      setIsSavingDialog(false);
+    }
+  };
+
+  const handleEndExperiment = async (experiment) => {
+    await confirm({
+      description:
+        "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?",
+      title: "End experiment?",
+      confirmationText: "Confirm",
+      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" } },
+      cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
+    });
+
+    setBusyExperimentName(experiment.experiment);
+
+    try {
+      const response = await fetch(`/api/experiments/${encodeURIComponent(experiment.experiment)}/workers`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to end ${experiment.experiment}.`);
+      }
+
+      await refreshExperiments();
+      enqueueSnackbar(`Ended ${experiment.experiment}.`, { variant: "success" });
+    } finally {
+      setBusyExperimentName("");
+    }
+  };
+
+  const handleDeleteExperiment = async (experiment) => {
+    await confirm({
+      description:
+        "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?",
+      title: "Delete experiment?",
+      confirmationText: "Confirm",
+      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" } },
+      cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
+    });
+
+    setBusyExperimentName(experiment.experiment);
+
+    try {
+      const response = await fetch(`/api/experiments/${encodeURIComponent(experiment.experiment)}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete ${experiment.experiment}.`);
+      }
+
+      const responseAfterDelete = await fetch("/api/experiments");
+      const nextExperiments = responseAfterDelete.ok ? await responseAfterDelete.json() : [];
+      setExperiments(nextExperiments);
+      setAllExperiments(nextExperiments);
+
+      if (experimentMetadata.experiment === experiment.experiment && nextExperiments.length > 0) {
+        updateExperiment(nextExperiments[0], true);
+      }
+
+      enqueueSnackbar(`Deleted ${experiment.experiment}.`, { variant: "success" });
+    } finally {
+      setBusyExperimentName("");
+    }
+  };
+
+  return (
+    <React.Fragment>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, gap: 2, flexWrap: "wrap" }}>
+        <Typography variant="h5" component="h1">
+          <Box fontWeight="fontWeightBold">Experiments</Box>
+        </Typography>
+        <Button
+          variant="text"
+          component={Link}
+          to="/start-new-experiment"
+          sx={{ textTransform: "none" }}
+        >
+          <AddIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> New experiment
+        </Button>
+      </Box>
+
+      <Card sx={{ mb: 2 }}>
+        {loading && <LinearProgress />}
+        <Box sx={{ p: 2 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} useFlexGap flexWrap="wrap">
+            <TextField
+              size="small"
+              label="Search experiments"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              sx={{ minWidth: { xs: "100%", md: 260 } }}
+            />
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={statusFilter}
+              onChange={(_event, nextValue) => {
+                if (nextValue) {
+                  setStatusFilter(nextValue);
+                }
+              }}
+            >
+              <ToggleButton value="all" sx={{ textTransform: "none" }}>
+                all
+              </ToggleButton>
+              <ToggleButton value="active" sx={{ textTransform: "none" }}>
+                active
+              </ToggleButton>
+              <ToggleButton value="inactive" sx={{ textTransform: "none" }}>
+                inactive
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Autocomplete
+              multiple
+              size="small"
+              options={allTagOptions}
+              value={selectedTags}
+              onChange={(_event, nextValue) => setSelectedTags(nextValue)}
+              filterSelectedOptions
+              sx={{ minWidth: { xs: "100%", md: 280 }, flexGrow: 1 }}
+              renderInput={(params) => <TextField {...params} label="Filter by tags" />}
+            />
+          </Stack>
+        </Box>
       </Card>
+
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {loadError}
+        </Alert>
+      )}
+
+      <Card>
+        <TableContainer sx={{ width: "100%", overflowY: "auto", overflowX: "auto" }}>
+          <Table size="small" aria-label="experiments table">
+            <TableHead>
+              <TableRow>
+                <StyledTableCell sx={{ backgroundColor: "white" }}>Experiment</StyledTableCell>
+                <StyledTableCell sx={{ backgroundColor: "white", whiteSpace: "nowrap" }}>Created at</StyledTableCell>
+                <StyledTableCell sx={{ backgroundColor: "white" }}>Status</StyledTableCell>
+                <StyledTableCell sx={{ backgroundColor: "white" }} align="right" />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredExperiments.map((experiment) => {
+                const isBusy = busyExperimentName === experiment.experiment;
+                const visibleTags = (experiment.tags || []).slice(0, TAGS_TO_SHOW);
+                const remainingTagCount = Math.max((experiment.tags || []).length - visibleTags.length, 0);
+
+                return (
+                  <TableRowStyled key={experiment.experiment} hover>
+                    <StyledTableCell sx={{ width: "65%" }}>
+                      <Stack spacing={0.75}>
+                        <Box>
+                          <Chip
+                            icon={<PlayCircleOutlinedIcon />}
+                            size="small"
+                            sx={{ mb: "2px" }}
+                            label={experiment.experiment}
+                            clickable
+                            component={Link}
+                            to="/overview"
+                            onClick={() => selectExperiment(experiment.experiment)}
+                            data-experiment-name={experiment.experiment}
+                          />
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          color={experiment.description ? "text.primary" : "text.secondary"}
+                          sx={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {experiment.description || "No description"}
+                        </Typography>
+                        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                          {visibleTags.map((tag) => (
+                            <Chip key={`${experiment.experiment}-${tag}`} label={tag} size="small" variant="outlined" />
+                          ))}
+                          {remainingTagCount > 0 && (
+                            <Chip label={`+${remainingTagCount}`} size="small" variant="outlined" />
+                          )}
+                        </Stack>
+                      </Stack>
+                    </StyledTableCell>
+                    <StyledTableCell sx={{ whiteSpace: "nowrap", verticalAlign: "top" }}>
+                      {dayjs(experiment.created_at).format("D MMMM YYYY, h:mm a")}
+                    </StyledTableCell>
+                    <StyledTableCell sx={{ verticalAlign: "top" }}>
+                      <Chip
+                        label={experiment.worker_count > 0 ? "Active" : "Inactive"}
+                        size="small"
+                        variant="outlined"
+                        color={experiment.worker_count > 0 ? "primary" : "default"}
+                      />
+                    </StyledTableCell>
+                    <StyledTableCell align="right" sx={{ whiteSpace: "nowrap", verticalAlign: "top" }}>
+                      <ExperimentActionsMenu
+                        experiment={experiment}
+                        disabled={isBusy}
+                        onEdit={() => {
+                          setDialogError("");
+                          setEditingExperiment(experiment);
+                        }}
+                        onExport={() => navigate(`/export-data?experiment=${encodeURIComponent(experiment.experiment)}`)}
+                        onEnd={() => handleEndExperiment(experiment).catch(() => {})}
+                        onDelete={() => handleDeleteExperiment(experiment).catch(() => {})}
+                      />
+                    </StyledTableCell>
+                  </TableRowStyled>
+                );
+              })}
+              {!loading && filteredExperiments.length === 0 && (
+                <TableRow>
+                  <StyledTableCell colSpan={4}>
+                    <Box sx={{ py: 4, textAlign: "center" }}>
+                      <Typography variant="body1">No experiments match the current filters.</Typography>
+                    </Box>
+                  </StyledTableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+
+      <ExperimentMetadataDialog
+        experiment={editingExperiment}
+        open={Boolean(editingExperiment)}
+        onClose={() => {
+          if (!isSavingDialog) {
+            setDialogError("");
+            setEditingExperiment(null);
+          }
+        }}
+        onSave={handleDialogSave}
+        allTagOptions={allTagOptions}
+        isSaving={isSavingDialog}
+        errorMessage={dialogError}
+      />
     </React.Fragment>
   );
 }
 
 function Experiments(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title]);
-    return (
-      <Grid container spacing={2} >
-        <Grid
-          size={{
-            md: 12,
-            xs: 12
-          }}>
-          <ExperimentsContainer/>
-        </Grid>
+  return (
+    <Grid container spacing={2}>
+      <Grid
+        size={{
+          md: 12,
+          xs: 12,
+        }}
+      >
+        <ExperimentsContainer title={props.title} />
       </Grid>
-    );
+    </Grid>
+  );
 }
 
 export default Experiments;

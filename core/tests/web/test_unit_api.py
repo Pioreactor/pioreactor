@@ -12,6 +12,14 @@ from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
 
 
+class FakeTaskResult:
+    def __init__(self, value: bool) -> None:
+        self.value = value
+
+    def get(self, blocking: bool = True, timeout: float | None = None) -> bool:
+        return self.value
+
+
 def _build_valid_calibration_yaml(calibration_name: str) -> str:
     calibration = SimplePeristalticPumpCalibration(
         calibration_name=calibration_name,
@@ -270,7 +278,7 @@ def test_get_running_jobs_endpoint_filters_results(client) -> None:
 def test_create_calibration_sets_active_when_requested(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 
-    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: FakeTaskResult(True))
 
     response = client.post(
         "/unit_api/calibrations/media_pump",
@@ -288,7 +296,7 @@ def test_create_calibration_sets_active_when_requested(client, monkeypatch) -> N
 def test_create_calibration_does_not_set_active_by_default(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 
-    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: FakeTaskResult(True))
 
     response = client.post(
         "/unit_api/calibrations/media_pump",
@@ -303,7 +311,7 @@ def test_create_calibration_does_not_set_active_by_default(client, monkeypatch) 
 def test_create_calibration_rejects_non_boolean_set_as_active(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 
-    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: FakeTaskResult(True))
 
     response = client.post(
         "/unit_api/calibrations/media_pump",
@@ -314,3 +322,21 @@ def test_create_calibration_rejects_non_boolean_set_as_active(client, monkeypatc
     )
 
     assert response.status_code == 400
+
+
+def test_create_calibration_returns_error_if_save_fails(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: FakeTaskResult(False))
+
+    response = client.post(
+        "/unit_api/calibrations/media_pump",
+        json={
+            "calibration_data": _build_valid_calibration_yaml("failed_write"),
+            "set_as_active": True,
+        },
+    )
+
+    assert response.status_code == 500
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache.get("media_pump") is None
