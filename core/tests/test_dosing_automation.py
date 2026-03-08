@@ -16,6 +16,7 @@ from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import pubsub
 from pioreactor import structs
+from pioreactor.actions.pump import add_media
 from pioreactor.automations import events
 from pioreactor.automations.dosing.chemostat import Chemostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
@@ -1532,6 +1533,24 @@ def test_current_volume_ml_is_published(fast_dosing_timers) -> None:
         assert abs(chemostat.current_volume_ml - initial_volume) <= chemostat.exchange_volume_ml
 
 
+def test_public_add_media_does_not_double_count_with_running_dosing_automation(
+    fast_dosing_timers,
+) -> None:
+    experiment = "test_public_add_media_does_not_double_count_with_running_dosing_automation"
+
+    with Silent(unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0) as automation_job:
+        assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(10.0)
+
+        moved_ml = add_media(ml=1.0, unit=unit, experiment=experiment)
+
+        assert moved_ml == pytest.approx(1.0)
+        assert wait_for(lambda: close(automation_job.current_volume_ml, 11.0), timeout=5.0)
+        assert wait_for(
+            lambda: close(bioreactor.get_bioreactor_value(experiment, "current_volume_ml"), 11.0),
+            timeout=5.0,
+        )
+
+
 def test_bioreactor_mqtt_updates_running_dosing_job() -> None:
     experiment = "test_bioreactor_mqtt_updates_running_dosing_job"
 
@@ -1627,15 +1646,15 @@ def test_current_volume_ml_calculator() -> None:
     current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 15
 
-    # remove 10ml manually
+    # removing more waste than the volume above the outflow tube should clamp at max volume
     event = DosingEvent(
         volume_change=10,
         event="remove_waste",
         timestamp=default_datetime_for_pioreactor(7),
-        source_of_event="manually",
+        source_of_event="test",
     )
     current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 5
+    assert current_volume == 14
 
 
 def test_current_volume_ml_calculator_with_negative_values() -> None:

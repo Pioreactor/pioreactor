@@ -61,7 +61,6 @@ import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsD
 import AdvancedConfigButton from "./components/AdvancedConfigDialog"
 import AutomationAdvancedConfigButton from "./components/AutomationAdvancedConfigDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
-import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
@@ -1007,10 +1006,18 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobAttr(job, setting, value) {
     if (job === "bioreactor") {
-      return updateBioreactorValues(props.unit, props.experiment, {[setting]: value})
+      return updateBioreactorValues(props.unit, props.experiment, {[setting]: value}).then(() => {
+        const parsedValue = parseNumericValue(value)
+        if (parsedValue !== null) {
+          props.setBioreactorValues?.((previous) => ({
+            ...previous,
+            [setting]: parsedValue,
+          }))
+        }
+      })
     }
 
-    fetch(`/api/workers/${props.unit}/jobs/update/job_name/${job}/experiments/${props.experiment}`, {
+    return fetch(`/api/workers/${props.unit}/jobs/update/job_name/${job}/experiments/${props.experiment}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {
@@ -1699,14 +1706,6 @@ function SettingsActionsDialog(props) {
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_alt_media} />
-          <ControlDivider/>
-          <Typography gutterBottom>
-            Manual adjustments
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics. Dosing automation must be on.
-          </Typography>
-          <ActionManualDosingForm unit={props.unit} experiment={props.experiment}/>
 
 
         </TabPanel>
@@ -2481,6 +2480,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                 setLabel={setLabel}
                 modelDetails={modelDetails}
                 bioreactorValues={bioreactorValues}
+                setBioreactorValues={setBioreactorValues}
                 bioreactorSettingsGroup={bioreactorSettingsGroup}
               />
             </Box>

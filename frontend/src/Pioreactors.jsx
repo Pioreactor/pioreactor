@@ -69,7 +69,6 @@ import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
 import AutomationAdvancedConfigButton from "./components/AutomationAdvancedConfigDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
-import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
@@ -1889,14 +1888,6 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={unit} experiment={experiment} job={jobs.add_alt_media} />
-          <ControlDivider/>
-          <Typography gutterBottom>
-            Manual adjustments
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics. Dosing automation must be on.
-          </Typography>
-          <ActionManualDosingForm unit={unit} experiment={experiment}/>
 
 
         </TabPanel>
@@ -2717,14 +2708,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm  experiment={experiment} action="add_alt_media" unit={broadcastUnit} />
-          <ControlDivider/>
-          <Typography gutterBottom>
-            Manual adjustments
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics. Dosing automation must be on.
-          </Typography>
-          <ActionManualDosingForm experiment={experiment}  unit={broadcastUnit}/>
 
         </TabPanel>
 

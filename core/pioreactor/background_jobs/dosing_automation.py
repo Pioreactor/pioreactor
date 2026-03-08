@@ -13,9 +13,9 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.actions.pump import add_alt_media
-from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import remove_waste
+from pioreactor.actions.pump import add_alt_media_via_pump
+from pioreactor.actions.pump import add_media_via_pump
+from pioreactor.actions.pump import remove_waste_via_pump
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
@@ -88,25 +88,11 @@ class VolumeCalculator:
     ) -> float:
         assert current_volume_ml >= 0
         assert max_working_volume_ml >= 0
-        volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
-        if event == "add_media":
-            return max(current_volume_ml + volume, 0)
-        elif event == "add_alt_media":
-            return max(current_volume_ml + volume, 0)
-        elif event == "remove_waste":
-            if new_dosing_event.source_of_event == "manually":
-                # we assume the user has extracted what they want, regardless of level or tube height.
-                return max(current_volume_ml - volume, 0.0)
-            elif current_volume_ml <= max_working_volume_ml:
-                # if the current volume is less than the outflow tube, no liquid is removed
-                return max(current_volume_ml, 0)
-            else:
-                # since we do some additional "removing" after adding, we don't want to
-                # count that as being removed (total volume is limited by position of outflow tube).
-                # hence we keep an lowerbound here.
-                return max(current_volume_ml - volume, max_working_volume_ml, 0)
-        else:
-            raise ValueError("Unknown event type")
+        return bioreactor.calculate_updated_current_volume(
+            new_dosing_event,
+            current_volume_ml=current_volume_ml,
+            max_working_volume_ml=max_working_volume_ml,
+        )
 
 
 class AltMediaFractionCalculator:
@@ -180,13 +166,13 @@ class DosingAutomationJob(AutomationJob):
     # overwrite to use your own dosing programs.
     # interface must look like types.DosingProgram
     add_media_to_bioreactor: pt.DosingProgram = staticmethod(
-        partial(add_media, duration=None, calibration=None, continuously=False)
+        partial(add_media_via_pump, duration=None, calibration=None, continuously=False)
     )
     remove_waste_from_bioreactor: pt.DosingProgram = staticmethod(
-        partial(remove_waste, duration=None, calibration=None, continuously=False)
+        partial(remove_waste_via_pump, duration=None, calibration=None, continuously=False)
     )
     add_alt_media_to_bioreactor: pt.DosingProgram = staticmethod(
-        partial(add_alt_media, duration=None, calibration=None, continuously=False)
+        partial(add_alt_media_via_pump, duration=None, calibration=None, continuously=False)
     )
 
     # dosing metrics that are available, and published to MQTT

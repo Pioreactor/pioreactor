@@ -4,9 +4,11 @@ from __future__ import annotations
 import math
 import typing as t
 
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
+from pioreactor.pubsub import publish as mqtt_publish
 from pioreactor.utils import local_persistent_storage
 
 BIOREACTOR_STORAGE_NAME = "bioreactor"
@@ -166,12 +168,13 @@ def publish_bioreactor_value(
     value: object,
 ) -> float:
     parsed_value = validate_bioreactor_value(variable_name, value)
-    mqtt_client.publish(
+    msg_info = mqtt_client.publish(
         get_bioreactor_topic(unit, experiment, variable_name),
         parsed_value,
         qos=QOS.EXACTLY_ONCE,
         retain=True,
     )
+    msg_info.wait_for_publish(timeout=10)
     return parsed_value
 
 
@@ -204,6 +207,106 @@ def handle_bioreactor_set_message(
     return unit, experiment, variable_name, parsed_value
 
 
+def calculate_updated_current_volume(
+    dosing_event: structs.DosingEvent,
+    current_volume_ml: float,
+    max_working_volume_ml: float,
+) -> float:
+    volume, event = float(dosing_event.volume_change), dosing_event.event
+
+    if event in ("add_media", "add_alt_media"):
+        return max(current_volume_ml + volume, 0.0)
+
+    if event == "remove_waste":
+        if current_volume_ml <= max_working_volume_ml:
+            return max(current_volume_ml, 0.0)
+        return max(current_volume_ml - volume, max_working_volume_ml, 0.0)
+
+    raise ValueError(f"Unknown dosing event type `{event}`.")
+
+
+def calculate_updated_alt_media_fraction(
+    dosing_event: structs.DosingEvent,
+    current_alt_media_fraction: float,
+    current_volume_ml: float,
+) -> float:
+    volume, event = float(dosing_event.volume_change), dosing_event.event
+
+    if event == "add_media":
+        return _calculate_alt_media_fraction_after_addition(
+            current_alt_media_fraction,
+            media_delta=volume,
+            alt_media_delta=0.0,
+            current_volume_ml=current_volume_ml,
+        )
+
+    if event == "add_alt_media":
+        return _calculate_alt_media_fraction_after_addition(
+            current_alt_media_fraction,
+            media_delta=0.0,
+            alt_media_delta=volume,
+            current_volume_ml=current_volume_ml,
+        )
+
+    if event == "remove_waste":
+        return current_alt_media_fraction
+
+    raise ValueError(f"Unknown dosing event type `{event}`.")
+
+
+def apply_dosing_event_to_bioreactor(
+    unit: pt.Unit,
+    experiment: pt.Experiment,
+    dosing_event: structs.DosingEvent,
+    mqtt_client: pt.Client | None = None,
+) -> dict[str, float]:
+    current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
+    max_working_volume_ml = get_bioreactor_value(experiment, "max_working_volume_ml")
+    current_alt_media_fraction = get_bioreactor_value(experiment, "alt_media_fraction")
+
+    updated_alt_media_fraction = calculate_updated_alt_media_fraction(
+        dosing_event,
+        current_alt_media_fraction=current_alt_media_fraction,
+        current_volume_ml=current_volume_ml,
+    )
+    updated_current_volume_ml = calculate_updated_current_volume(
+        dosing_event,
+        current_volume_ml=current_volume_ml,
+        max_working_volume_ml=max_working_volume_ml,
+    )
+
+    updated_alt_media_fraction = set_bioreactor_value(
+        experiment,
+        "alt_media_fraction",
+        updated_alt_media_fraction,
+    )
+    updated_current_volume_ml = set_bioreactor_value(
+        experiment,
+        "current_volume_ml",
+        updated_current_volume_ml,
+    )
+
+    _publish_updated_bioreactor_value(
+        unit,
+        experiment,
+        "alt_media_fraction",
+        updated_alt_media_fraction,
+        mqtt_client=mqtt_client,
+    )
+    _publish_updated_bioreactor_value(
+        unit,
+        experiment,
+        "current_volume_ml",
+        updated_current_volume_ml,
+        mqtt_client=mqtt_client,
+    )
+
+    return {
+        "alt_media_fraction": updated_alt_media_fraction,
+        "current_volume_ml": updated_current_volume_ml,
+    }
+
+
 def _get_bioreactor_metadata(
     variable_name: str,
 ) -> dict[str, str | float | None | _BioreactorDefaultResolver]:
@@ -211,3 +314,37 @@ def _get_bioreactor_metadata(
         return _BIOREACTOR_VARIABLES[variable_name]
     except KeyError as e:
         raise KeyError(f"Unknown bioreactor variable `{variable_name}`.") from e
+
+
+def _calculate_alt_media_fraction_after_addition(
+    current_alt_media_fraction: float,
+    media_delta: float,
+    alt_media_delta: float,
+    current_volume_ml: float,
+) -> float:
+    total_addition = media_delta + alt_media_delta
+    denominator = current_volume_ml + total_addition
+    if denominator <= 0:
+        return current_alt_media_fraction
+
+    updated = (current_alt_media_fraction * current_volume_ml + alt_media_delta) / denominator
+    return min(max(updated, 0.0), 1.0)
+
+
+def _publish_updated_bioreactor_value(
+    unit: pt.Unit,
+    experiment: pt.Experiment,
+    variable_name: str,
+    value: float,
+    mqtt_client: pt.Client | None = None,
+) -> None:
+    if mqtt_client is not None:
+        publish_bioreactor_value(mqtt_client, unit, experiment, variable_name, value)
+        return
+
+    mqtt_publish(
+        get_bioreactor_topic(unit, experiment, variable_name),
+        value,
+        qos=QOS.EXACTLY_ONCE,
+        retain=True,
+    )

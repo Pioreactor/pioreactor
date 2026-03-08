@@ -3,8 +3,10 @@ from types import SimpleNamespace
 
 import pytest
 from pioreactor import bioreactor
+from pioreactor import structs
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import subscribe
+from pioreactor.utils.timing import default_datetime_for_pioreactor
 
 
 def test_get_bioreactor_value_uses_defaults() -> None:
@@ -56,3 +58,21 @@ def test_handle_bioreactor_set_message_persists_and_publishes() -> None:
     )
     assert retained_message is not None
     assert float(retained_message.payload) == pytest.approx(11.75)
+
+
+def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_waste() -> None:
+    dosing_event = structs.DosingEvent(
+        volume_change=10.0,
+        event="remove_waste",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    assert (
+        bioreactor.calculate_updated_current_volume(
+            dosing_event,
+            current_volume_ml=15.0,
+            max_working_volume_ml=14.0,
+        )
+        == pytest.approx(14.0)
+    )

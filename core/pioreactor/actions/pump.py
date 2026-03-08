@@ -10,6 +10,7 @@ from typing import Optional
 import click
 from msgspec.json import encode
 from msgspec.structs import replace
+from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
@@ -22,6 +23,7 @@ from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
@@ -193,7 +195,6 @@ def _pump_action(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.SimplePeristalticPumpCalibration] = None,
     continuously: bool = False,
-    manually: bool = False,
     mqtt_client: Optional[Client] = None,
     logger: Optional[CustomLogger] = None,
     job_source: Optional[str] = None,
@@ -203,16 +204,6 @@ def _pump_action(
     If calibration is not defined or available on disk, returns gibberish.
     """
 
-    def _get_pump_action(pump_device: PumpCalibrationDevices) -> str:
-        if pump_device == "media_pump":
-            return "add_media"
-        elif pump_device == "alt_media_pump":
-            return "add_alt_media"
-        elif pump_device == "waste_pump":
-            return "remove_waste"
-        else:
-            raise ValueError(f"{pump_device} not valid.")
-
     if not ((ml is not None) or (duration is not None) or continuously):
         raise ValueError("either ml or duration must be set")
     if (ml is not None) and (duration is not None):
@@ -221,7 +212,7 @@ def _pump_action(
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
 
-    action_name = _get_pump_action(pump_device)
+    action_name = _get_action_name_for_pump_device(pump_device)
 
     if logger is None:
         logger = create_logger(action_name, experiment=experiment, unit=unit)
@@ -266,11 +257,7 @@ def _pump_action(
     ) as state:
         mqtt_client = state.mqtt_client
 
-        if manually:
-            assert ml is not None
-            duration = 0.0
-            logger.info(f"{_to_human_readable_action(ml, None, pump_device)} (exchanged manually)")
-        elif ml is not None:
+        if ml is not None:
             if is_default_calibration(calibration):
                 logger.error(
                     f"Active calibration not found. Run {pump_device} calibration first: `pio calibrations run --device {pump_device}` or set active with `pio calibrations set-active`"
@@ -300,14 +287,6 @@ def _pump_action(
             source_of_event=source_of_event,
             timestamp=current_utc_datetime(),
         )
-
-        if manually:
-            publish_async(
-                mqtt_client,
-                f"pioreactor/{unit}/{experiment}/dosing_events",
-                encode(replace(empty_dosing_event, volume_change=ml)),
-            )
-            return 0.0
 
         # first check if the pin is already in use. If so, exit early.
         with local_intermittent_storage("pwm_locks") as pwm_locks:
@@ -557,20 +536,89 @@ def _liquid_circulation(
     )
 
 
+def _pump_action_with_bioreactor_updates(
+    pump_device: PumpCalibrationDevices,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    ml: Optional[pt.mL] = None,
+    duration: Optional[pt.Seconds] = None,
+    source_of_event: Optional[str] = None,
+    calibration: Optional[structs.SimplePeristalticPumpCalibration] = None,
+    continuously: bool = False,
+    mqtt_client: Optional[Client] = None,
+    logger: Optional[CustomLogger] = None,
+    job_source: Optional[str] = None,
+) -> pt.mL:
+    resolved_unit = unit or get_unit_name()
+    resolved_experiment = experiment or get_assigned_experiment_name(resolved_unit)
+    action_name = _get_action_name_for_pump_device(pump_device)
+
+    moved_ml = _pump_action(
+        pump_device,
+        unit=resolved_unit,
+        experiment=resolved_experiment,
+        ml=ml,
+        duration=duration,
+        source_of_event=source_of_event,
+        calibration=calibration,
+        continuously=continuously,
+        mqtt_client=mqtt_client,
+        logger=logger,
+        job_source=job_source,
+    )
+
+    if moved_ml <= 0:
+        return moved_ml
+
+    if not _should_update_bioreactor_state_directly(resolved_unit, resolved_experiment):
+        return moved_ml
+
+    dosing_event = structs.DosingEvent(
+        volume_change=moved_ml,
+        event=action_name,
+        source_of_event=source_of_event,
+        timestamp=current_utc_datetime(),
+    )
+    bioreactor.apply_dosing_event_to_bioreactor(
+        resolved_unit,
+        resolved_experiment,
+        dosing_event,
+        mqtt_client=mqtt_client,
+    )
+    return moved_ml
+
+
+def _get_action_name_for_pump_device(pump_device: PumpCalibrationDevices) -> str:
+    if pump_device == "media_pump":
+        return "add_media"
+    if pump_device == "alt_media_pump":
+        return "add_alt_media"
+    if pump_device == "waste_pump":
+        return "remove_waste"
+    raise ValueError(f"{pump_device} not valid.")
+
+
+def _should_update_bioreactor_state_directly(unit: pt.Unit, experiment: pt.Experiment) -> bool:
+    with JobManager() as jm:
+        return len(jm.list_jobs(job_name="dosing_automation", unit=unit, experiment=experiment)) == 0
+
+
 ### high level functions below:
 
 circulate_media = partial(_liquid_circulation, "media_pump")
 circulate_alt_media = partial(_liquid_circulation, "alt_media_pump")
-add_media = partial(_pump_action, "media_pump")
-remove_waste = partial(_pump_action, "waste_pump")
-add_alt_media = partial(_pump_action, "alt_media_pump")
+add_media_via_pump = partial(_pump_action, "media_pump")
+remove_waste_via_pump = partial(_pump_action, "waste_pump")
+add_alt_media_via_pump = partial(_pump_action, "alt_media_pump")
+add_media = partial(_pump_action_with_bioreactor_updates, "media_pump")
+remove_waste = partial(_pump_action_with_bioreactor_updates, "waste_pump")
+add_alt_media = partial(_pump_action_with_bioreactor_updates, "alt_media_pump")
 
 
 @click.command(name="add_alt_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
-@click.option("--manually", is_flag=True, help="The media is manually added (don't run pumps)")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -582,7 +630,6 @@ def click_add_alt_media(
     duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
-    manually: bool,
 ) -> pt.mL:
     """
     Add alt-media from unit
@@ -597,7 +644,6 @@ def click_add_alt_media(
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,
-        manually=manually,
     )
 
 
@@ -605,7 +651,6 @@ def click_add_alt_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
-@click.option("--manually", is_flag=True, help="The media is manually removed (don't run pumps)")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -617,7 +662,6 @@ def click_remove_waste(
     duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
-    manually: bool,
 ) -> pt.mL:
     """
     Remove waste/media from unit
@@ -632,7 +676,6 @@ def click_remove_waste(
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,
-        manually=manually,
     )
 
 
@@ -640,7 +683,6 @@ def click_remove_waste(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
-@click.option("--manually", is_flag=True, help="The media is manually added (don't run pumps)")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -652,7 +694,6 @@ def click_add_media(
     duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
-    manually: bool,
 ) -> pt.mL:
     """
     Add media to unit
@@ -667,7 +708,6 @@ def click_add_media(
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,
-        manually=manually,
     )
 
 
