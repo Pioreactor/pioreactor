@@ -4,6 +4,7 @@ import time
 
 import pytest
 import zeroconf
+from pioreactor import bioreactor
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
@@ -11,6 +12,7 @@ from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 def pause(n=1):
@@ -86,3 +88,35 @@ def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
         assert len(logs) == 1
 
     r.unregister_service(info)
+
+
+def test_monitor_updates_bioreactor_values_from_mqtt() -> None:
+    unit = get_unit_name()
+    experiment = "test_monitor_updates_bioreactor_values_from_mqtt"
+
+    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+        publish(
+            bioreactor.get_bioreactor_set_topic(unit, experiment, "current_volume_ml"),
+            13.25,
+        )
+        publish(
+            bioreactor.get_bioreactor_set_topic(UNIVERSAL_IDENTIFIER, experiment, "max_working_volume_ml"),
+            16.0,
+        )
+        pause(2)
+
+    retained_message = subscribe(
+        bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
+        timeout=1.0,
+    )
+    assert retained_message is not None
+    assert float(retained_message.payload) == pytest.approx(13.25)
+    assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(13.25)
+
+    broadcast_retained_message = subscribe(
+        bioreactor.get_bioreactor_topic(unit, experiment, "max_working_volume_ml"),
+        timeout=1.0,
+    )
+    assert broadcast_retained_message is not None
+    assert float(broadcast_retained_message.payload) == pytest.approx(16.0)
+    assert bioreactor.get_bioreactor_value(experiment, "max_working_volume_ml") == pytest.approx(16.0)

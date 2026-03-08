@@ -27,6 +27,9 @@ from msgspec import to_builtins
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
+from pioreactor.bioreactor import get_bioreactor_descriptors
+from pioreactor.bioreactor import get_bioreactor_set_topic
+from pioreactor.bioreactor import validate_bioreactor_value
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.models import get_registered_models
@@ -546,6 +549,62 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
             )
     except Exception as e:
         publish_to_error_log(str(e), "update_job_on_unit")
+        abort_with(400, str(e))
+
+    return {"status": "success"}, 202
+
+
+@api_bp.route(
+    "/workers/<pioreactor_unit>/experiments/<experiment>/bioreactor",
+    methods=["GET"],
+)
+@api_bp.route(
+    "/units/<pioreactor_unit>/experiments/<experiment>/bioreactor",
+    methods=["GET"],
+)
+def get_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        return create_task_response(
+            broadcast_get_across_workers_in_experiment(
+                f"/unit_api/bioreactor/experiments/{experiment}",
+                experiment=experiment,
+            )
+        )
+
+    return create_task_response(
+        tasks.multicast_get(f"/unit_api/bioreactor/experiments/{experiment}", [pioreactor_unit])
+    )
+
+
+@api_bp.route(
+    "/workers/<pioreactor_unit>/experiments/<experiment>/bioreactor",
+    methods=["PATCH"],
+)
+@api_bp.route(
+    "/units/<pioreactor_unit>/experiments/<experiment>/bioreactor",
+    methods=["PATCH"],
+)
+def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
+    values = (request.get_json(silent=True) or {}).get("values", {})
+
+    if not isinstance(values, dict) or not values:
+        abort_with(
+            400,
+            "Missing bioreactor values.",
+            cause="Expected a JSON object under `values` with one or more bioreactor settings.",
+            remediation='Submit a payload like {"values": {"current_volume_ml": 12.5}}.',
+        )
+
+    try:
+        for variable_name, value in values.items():
+            parsed_value = validate_bioreactor_value(variable_name, value)
+            client.publish(
+                get_bioreactor_set_topic(pioreactor_unit, experiment, variable_name),
+                parsed_value,
+                qos=2,
+            )
+    except Exception as e:
+        publish_to_error_log(str(e), "update_bioreactor_on_unit")
         abort_with(400, str(e))
 
     return {"status": "success"}, 202
@@ -2276,6 +2335,11 @@ def get_job_descriptors() -> ResponseReturnValue:
     except Exception as e:
         publish_to_error_log(str(e), "get_job_descriptors")
         abort_with(400, str(e))
+
+
+@api_bp.route("/bioreactor/descriptors", methods=["GET"])
+def get_bioreactor_variable_descriptors() -> ResponseReturnValue:
+    return attach_cache_control(jsonify(get_bioreactor_descriptors()), max_age=0)
 
 
 @api_bp.route("/charts/descriptors", methods=["GET"])

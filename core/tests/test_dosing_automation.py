@@ -12,6 +12,7 @@ import pytest
 from click.testing import CliRunner
 from msgspec.json import decode
 from msgspec.json import encode
+from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import pubsub
 from pioreactor import structs
@@ -24,6 +25,7 @@ from pioreactor.background_jobs.dosing_automation import AltMediaFractionCalcula
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.background_jobs.dosing_automation import VolumeCalculator
+from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.structs import DosingEvent
@@ -960,27 +962,40 @@ def test_mqtt_properties_in_dosing_automations() -> None:
         r = msg.payload
         assert float(r) == 0
 
-        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction")
+        msg = pubsub.subscribe(bioreactor.get_bioreactor_topic(unit, experiment, "alt_media_fraction"))
         assert msg is not None
         r = msg.payload
         assert float(r) == 0
 
-        ca.execute_io_action(media_ml=0.35, alt_media_ml=0.25, waste_ml=0.6)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_events",
+            encode(
+                structs.DosingEvent(
+                    volume_change=0.35,
+                    event="add_media",
+                    timestamp=current_utc_datetime(),
+                    source_of_event="test_suite",
+                )
+            ),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_events",
+            encode(
+                structs.DosingEvent(
+                    volume_change=0.25,
+                    event="add_alt_media",
+                    timestamp=current_utc_datetime(),
+                    source_of_event="test_suite",
+                )
+            ),
+        )
+        pause()
+        pause()
 
-        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput")
-        assert msg is not None
-        r = msg.payload
-        assert float(r) == 0.25
-
-        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput")
-        assert msg is not None
-        r = msg.payload
-        assert float(r) == 0.35
-
-        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction")
-        assert msg is not None
-        r = msg.payload
-        assert close(float(r), 0.017123287671232876)
+        assert close(ca.alt_media_throughput, 0.25)
+        assert close(ca.media_throughput, 0.35)
+        assert close(ca.alt_media_fraction, 0.017123287671232876)
+        assert close(bioreactor.get_bioreactor_value(experiment, "alt_media_fraction"), 0.017123287671232876)
 
 
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
@@ -1499,17 +1514,40 @@ def test_current_volume_ml_is_published(fast_dosing_timers) -> None:
         initial_volume = chemostat.current_volume_ml
         assert initial_volume == 14
         assert wait_for(lambda: chemostat.media_throughput > 0, timeout=5.0)
-        assert wait_for(lambda: chemostat.current_volume_ml <= initial_volume, timeout=5.0)
+        assert wait_for(
+            lambda: bioreactor.get_bioreactor_value(experiment, "current_volume_ml") != initial_volume,
+            timeout=5.0,
+        )
+        persisted_volume = bioreactor.get_bioreactor_value(experiment, "current_volume_ml")
+        assert close(persisted_volume, chemostat.current_volume_ml)
         result = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/current_volume_ml",
+            bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
             timeout=1.0,
         )
         assert result is not None
         published_volume = float(result.payload)
-        assert close(published_volume, chemostat.current_volume_ml)
+        assert close(published_volume, persisted_volume)
 
         assert chemostat.media_throughput > 0
         assert abs(chemostat.current_volume_ml - initial_volume) <= chemostat.exchange_volume_ml
+
+
+def test_bioreactor_mqtt_updates_running_dosing_job() -> None:
+    experiment = "test_bioreactor_mqtt_updates_running_dosing_job"
+
+    with Monitor(unit=unit, experiment="$experiment"):
+        with DosingAutomationJob(unit=unit, experiment=experiment) as job:
+            pubsub.publish(
+                bioreactor.get_bioreactor_set_topic(unit, experiment, "current_volume_ml"),
+                12.5,
+            )
+            pubsub.publish(
+                bioreactor.get_bioreactor_set_topic(unit, experiment, "alt_media_fraction"),
+                0.35,
+            )
+
+            assert wait_for(lambda: close(job.current_volume_ml, 12.5), timeout=5.0)
+            assert wait_for(lambda: close(job.alt_media_fraction, 0.35), timeout=5.0)
 
 
 def test_current_volume_ml_calculator() -> None:

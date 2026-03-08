@@ -38,7 +38,15 @@ const PIN_TO_PWM = {
   18: 5, // heater
 };
 
-const BioreactorDiagram = ({ experiment, unit, config, size }) => {
+function clampVolume(value, fallbackValue, size) {
+  const parsedValue = parseFloat(value);
+  if (Number.isFinite(parsedValue)) {
+    return Math.min(parsedValue, size);
+  }
+  return Math.min(fallbackValue, size);
+}
+
+const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVolume }) => {
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   const {
@@ -84,25 +92,22 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
   const [leds, setLeds] = useState({ A: 0, B: 0, C: 0, D: 0 });
   const [pumps, setPumps] = useState(new Set());
   const [heat, setHeat] = useState(false);
-  const [volume, setVolume] = useState(size === 20 ? 14 : 20);
-  const [maxVolume, setMaxVolume] = useState(
-     Math.min(size, config?.bioreactor?.max_working_volume_ml || size)
+
+  const defaultVolume = size === 20 ? 14 : 20;
+  const volume = clampVolume(
+    liquidVolume ?? config?.bioreactor?.initial_volume_ml,
+    defaultVolume,
+    size,
+  );
+  const cappedMaxVolume = clampVolume(
+    maxVolume ?? config?.bioreactor?.max_working_volume_ml,
+    size,
+    size,
   );
 
   let now, then, elapsed;
   const fps = 45;
   const fpsInterval = 1000 / fps;
-
-  useEffect(() => {
-    if (Object.keys(config || {}).length) {
-      setVolume(
-        Math.min(config?.bioreactor?.initial_volume_ml, size)
-      );
-      setMaxVolume(
-        Math.min(config?.bioreactor?.max_working_volume_ml || size, size)
-      );
-    }
-  }, [config, size]);
 
   function onMessage(topic, message) {
     if (!message || !topic) return;
@@ -154,16 +159,6 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
       setTemperature(messageString ? JSON.parse(messageString).temperature : null);
     } else if (topicString.endsWith('growth_rate_calculating/od_filtered')) {
       setNOD(messageString ? JSON.parse(messageString).od_filtered : null);
-    } else if (topicString.endsWith('dosing_automation/current_volume_ml')) {
-      if (messageString) {
-        const v = parseFloat(messageString);
-        setVolume(Math.min(v, size));
-      }
-    } else if (topicString.endsWith('dosing_automation/max_working_volume_ml')) {
-      if (messageString) {
-        const m = parseFloat(messageString);
-        setMaxVolume(Math.min(m, size));
-      }
     } else if (topicString.endsWith('leds/intensity')) {
       setLeds(messageString ? JSON.parse(messageString) : { A: 0, B: 0, C: 0, D: 0 });
     }
@@ -177,28 +172,24 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
       `pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
       `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
       `pioreactor/${unit}/${experiment}/leds/intensity`,
-      `pioreactor/${unit}/${experiment}/dosing_automation/current_volume_ml`,
-      `pioreactor/${unit}/${experiment}/dosing_automation/max_working_volume_ml`,
       `pioreactor/${unit}/${experiment}/pwms/dc`,
       `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
       `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
       `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
-      `pioreactor/${unit}/_testing_${experiment}/dosing_automation/current_volume_ml`,
-      `pioreactor/${unit}/_testing_${experiment}/dosing_automation/max_working_volume_ml`,
       `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
     ];
     subscribeToTopic(topics, onMessage, 'BioreactorDiagram');
     return () => {
       unsubscribeFromTopic(topics, 'BioreactorDiagram');
     };
-  }, [client, experiment, config, size, subscribeToTopic, unsubscribeFromTopic, unit]);
+  }, [client, experiment, config, subscribeToTopic, unsubscribeFromTopic, unit]);
 
   useEffect(() => {
     let animationFrameId;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const liquidLevel = (volume / size) * bioreactor.height;
-    const bottomOfWasteTube = bioreactor.height - (maxVolume / size) * bioreactor.height + 53; // bioreactor.height - maxVolume / 40 * bioreactor.height + 20
+    const bottomOfWasteTube = bioreactor.height - (cappedMaxVolume / size) * bioreactor.height + 53; // bioreactor.height - maxVolume / 40 * bioreactor.height + 20
 
     const ledsRects = [];
     const ledY = shiftedBaseLow - 20;
@@ -443,7 +434,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     }
     startAnimating();
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [rpm, temperature, nOD, leds, pumps, volume, maxVolume, heat, size]);
+  }, [rpm, temperature, nOD, leds, pumps, volume, cappedMaxVolume, heat, size]);
 
   return (
     <div>

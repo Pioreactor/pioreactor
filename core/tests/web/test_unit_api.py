@@ -7,6 +7,7 @@ from datetime import timezone
 
 import pytest
 from msgspec.yaml import encode as yaml_encode
+from pioreactor.bioreactor import set_bioreactor_value
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
@@ -102,6 +103,30 @@ def test_get_versions_endpoints(client) -> None:
     assert r_app.status_code == 200
     v_app = r_app.get_json()
     assert "version" in v_app and isinstance(v_app["version"], str)
+
+
+def test_get_bioreactor_values_endpoint_returns_defaults(client) -> None:
+    resp = client.get("/unit_api/bioreactor/experiments/exp1")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["values"]["current_volume_ml"] == pytest.approx(14.0)
+    assert data["values"]["max_working_volume_ml"] == pytest.approx(14.0)
+    assert data["values"]["alt_media_fraction"] == pytest.approx(0.0)
+
+
+def test_get_bioreactor_values_endpoint_returns_persisted_values(client) -> None:
+    set_bioreactor_value("exp1", "current_volume_ml", 11.2)
+    set_bioreactor_value("exp1", "max_working_volume_ml", 15.0)
+    set_bioreactor_value("exp1", "alt_media_fraction", 0.3)
+
+    resp = client.get("/unit_api/bioreactor/experiments/exp1")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["values"]["current_volume_ml"] == pytest.approx(11.2)
+    assert data["values"]["max_working_volume_ml"] == pytest.approx(15.0)
+    assert data["values"]["alt_media_fraction"] == pytest.approx(0.3)
 
 
 def test_hardware_check_requires_model_payload(client) -> None:

@@ -8,6 +8,7 @@ from typing import Optional
 
 import click
 from msgspec.json import decode
+from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
@@ -223,10 +224,16 @@ class DosingAutomationJob(AutomationJob):
         skip_first_run: bool = False,
         alt_media_fraction: float | None = None,
         initial_volume_ml: float | None = None,
+        current_volume_ml: float | None = None,
         max_working_volume_ml: float | None = None,
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
+
+        if current_volume_ml is not None:
+            if (initial_volume_ml is not None) and (float(current_volume_ml) != float(initial_volume_ml)):
+                raise ValueError("Provide only one of `current_volume_ml` or `initial_volume_ml`.")
+            initial_volume_ml = current_volume_ml
 
         if "duration" not in self.published_settings:
 
@@ -509,19 +516,25 @@ class DosingAutomationJob(AutomationJob):
             AltMediaFractionCalculator.update(dosing_event, self.alt_media_fraction, self.current_volume_ml),
             10,
         )
-
-        # add to cache
-        with local_persistent_storage("alt_media_fraction") as cache:
-            cache[self.experiment] = self.alt_media_fraction
+        self.alt_media_fraction = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "alt_media_fraction",
+            self.alt_media_fraction,
+        )
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
         self.current_volume_ml = round(
             VolumeCalculator.update(dosing_event, self.current_volume_ml, self.max_working_volume_ml), 10
         )
-
-        # add to cache
-        with local_persistent_storage("current_volume_ml") as cache:
-            cache[self.experiment] = self.current_volume_ml
+        self.current_volume_ml = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "current_volume_ml",
+            self.current_volume_ml,
+        )
 
         if (
             self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN
@@ -556,74 +569,52 @@ class DosingAutomationJob(AutomationJob):
             cache[self.experiment] = self.media_throughput
 
     def _init_alt_media_fraction(self, alt_media_fraction: float | None) -> None:
-        self.add_to_published_settings(
-            "alt_media_fraction",
-            {
-                "datatype": "float",
-                "settable": True,
-            },
-        )
-
         if alt_media_fraction is None:
-            with local_persistent_storage("alt_media_fraction") as cache:
-                self.alt_media_fraction = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "initial_alt_media_fraction", fallback=0.0)
-                )
+            resolved_alt_media_fraction = bioreactor.get_bioreactor_value(
+                self.experiment,
+                "alt_media_fraction",
+            )
         else:
-            self.alt_media_fraction = float(alt_media_fraction)
+            resolved_alt_media_fraction = alt_media_fraction
 
-        assert 0 <= self.alt_media_fraction <= 1
-
-        with local_persistent_storage("alt_media_fraction") as cache:
-            cache[self.experiment] = self.alt_media_fraction
-
-        return
+        self.alt_media_fraction = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "alt_media_fraction",
+            resolved_alt_media_fraction,
+        )
 
     def _init_liquid_volume(
         self, initial_volume_ml: float | None, max_working_volume_ml: float | None
     ) -> None:
-        self.add_to_published_settings(
-            "current_volume_ml",
-            {
-                "datatype": "float",
-                "settable": True,  # allow initial volume override via CLI or settings
-                "unit": "mL",
-                "persist": True,  # keep around so the UI can see it
-            },
-        )
-
-        self.add_to_published_settings(
-            "max_working_volume_ml",
-            {
-                "datatype": "float",
-                "settable": True,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
-                "unit": "mL",
-                "persist": True,  # keep around so the UI can see it
-            },
-        )
-
         if max_working_volume_ml is None:
-            self.max_working_volume_ml = config.getfloat("bioreactor", "max_working_volume_ml", fallback=14)
+            resolved_max_working_volume_ml = bioreactor.get_bioreactor_value(
+                self.experiment,
+                "max_working_volume_ml",
+            )
         else:
-            self.max_working_volume_ml = float(max_working_volume_ml)
-
-        assert self.max_working_volume_ml >= 0
+            resolved_max_working_volume_ml = max_working_volume_ml
 
         if initial_volume_ml is None:
-            # look in database first, fallback to config
-            with local_persistent_storage("current_volume_ml") as cache:
-                self.current_volume_ml = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "initial_volume_ml", fallback=14)
-                )
+            resolved_current_volume_ml = bioreactor.get_bioreactor_value(self.experiment, "current_volume_ml")
         else:
-            self.current_volume_ml = float(initial_volume_ml)
+            resolved_current_volume_ml = initial_volume_ml
 
-        assert self.current_volume_ml >= 0
-
-        with local_persistent_storage("current_volume_ml") as cache:
-            cache[self.experiment] = self.current_volume_ml
-
-        return
+        self.max_working_volume_ml = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "max_working_volume_ml",
+            resolved_max_working_volume_ml,
+        )
+        self.current_volume_ml = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "current_volume_ml",
+            resolved_current_volume_ml,
+        )
 
     def _init_volume_throughput(self) -> None:
         self.add_to_published_settings(
@@ -648,6 +639,25 @@ class DosingAutomationJob(AutomationJob):
             self._update_dosing_metrics,
             f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
         )
+        self.subscribe_and_callback(
+            self._set_bioreactor_value_from_mqtt,
+            [
+                bioreactor.get_bioreactor_topic(self.unit, self.experiment, "alt_media_fraction"),
+                bioreactor.get_bioreactor_topic(self.unit, self.experiment, "current_volume_ml"),
+                bioreactor.get_bioreactor_topic(self.unit, self.experiment, "max_working_volume_ml"),
+            ],
+        )
+
+    def _set_bioreactor_value_from_mqtt(self, message: pt.MQTTMessage) -> None:
+        _, _, variable_name, _ = bioreactor.parse_bioreactor_topic(message.topic)
+        parsed_value = bioreactor.validate_bioreactor_value(variable_name, message.payload)
+
+        if variable_name == "alt_media_fraction":
+            self.alt_media_fraction = parsed_value
+        elif variable_name == "current_volume_ml":
+            self.current_volume_ml = parsed_value
+        elif variable_name == "max_working_volume_ml":
+            self.max_working_volume_ml = parsed_value
 
 
 class DosingAutomationJobContrib(DosingAutomationJob):

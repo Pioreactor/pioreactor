@@ -152,6 +152,48 @@ export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries =
   return checkTaskCallback(payload.result_url_path, {maxRetries, delayMs});
 }
 
+export async function getBioreactorDescriptors() {
+  const response = await fetch("/api/bioreactor/descriptors");
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getBioreactorValues(unit, experiment, {delayMs = 200} = {}) {
+  const taskPayload = await fetchTaskResult(
+    `/api/workers/${unit}/experiments/${experiment}/bioreactor`,
+    {delayMs},
+  );
+  return taskPayload?.result?.[unit]?.values || {};
+}
+
+export async function updateBioreactorValues(unit, experiment, values) {
+  const response = await fetch(`/api/workers/${unit}/experiments/${experiment}/bioreactor`, {
+    method: "PATCH",
+    body: JSON.stringify({values}),
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (response.ok) {
+    return response.json();
+  }
+
+  let message = `Error ${response.status}.`;
+  try {
+    const payload = await response.json();
+    if (payload?.error) {
+      message = payload.error;
+    }
+  } catch (_error) {
+    // ignore JSON parse errors and keep the default message
+  }
+  throw new Error(message);
+}
+
 export function objectWithDefaultEmpty(obj) {
   /**
    * Wraps an object in a Proxy that returns an empty object `{}`

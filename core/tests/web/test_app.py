@@ -635,6 +635,56 @@ def test_get_settings_api(client) -> None:
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
 
 
+def test_get_bioreactor_descriptors(client) -> None:
+    response = client.get("/api/bioreactor/descriptors")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert [descriptor["key"] for descriptor in data] == [
+        "current_volume_ml",
+        "max_working_volume_ml",
+        "alt_media_fraction",
+    ]
+
+
+def test_get_bioreactor_on_unit_queues_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_multicast_get(endpoint: str, units: list[str]) -> str:
+        captured["endpoint"] = endpoint
+        captured["units"] = units
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_get", fake_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.get("/api/workers/unit1/experiments/exp1/bioreactor")
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == "/unit_api/bioreactor/experiments/exp1"
+    assert captured["units"] == ["unit1"]
+
+
+def test_update_bioreactor_on_unit_publishes_to_mqtt(client, monkeypatch: MonkeyPatch) -> None:
+    published_messages: list[tuple[str, float, int]] = []
+
+    def fake_publish(topic: str, payload: float, qos: int = 0):
+        published_messages.append((topic, payload, qos))
+
+    monkeypatch.setattr("pioreactor.web.api.client.publish", fake_publish)
+
+    response = client.patch(
+        "/api/workers/unit1/experiments/exp1/bioreactor",
+        json={"values": {"current_volume_ml": 12.5, "alt_media_fraction": 0.4}},
+    )
+
+    assert response.status_code == 202
+    assert published_messages == [
+        ("pioreactor/unit1/exp1/bioreactor/current_volume_ml/set", 12.5, 2),
+        ("pioreactor/unit1/exp1/bioreactor/alt_media_fraction/set", 0.4, 2),
+    ]
+
+
 def test_update_next_version_defaults_to_broadcast(client, monkeypatch: MonkeyPatch) -> None:
     captured: dict[str, str] = {}
 

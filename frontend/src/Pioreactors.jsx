@@ -83,6 +83,7 @@ import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
   getConfig,
+  getBioreactorValues,
   getRelabelMap,
   runPioreactorJob,
   fetchTaskResult,
@@ -114,6 +115,35 @@ const EMPTY_STATE_ILLUSTRATIONS = [
   "/static/svgs/bacteria-two-bacillus-touching.svg",
   "/static/svgs/bacteria-three-bacillus-touching.svg",
 ];
+
+const BIOREACTOR_CONFIG_KEYS = {
+  current_volume_ml: "initial_volume_ml",
+  max_working_volume_ml: "max_working_volume_ml",
+  alt_media_fraction: "initial_alt_media_fraction",
+};
+
+function parseNumericValue(value) {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getBioreactorFallbackValue(config, key) {
+  const configKey = BIOREACTOR_CONFIG_KEYS[key];
+  const parsedConfigValue = parseNumericValue(config?.bioreactor?.[configKey]);
+  if (parsedConfigValue !== null) {
+    return parsedConfigValue;
+  }
+
+  if (key === "alt_media_fraction") {
+    return 0;
+  }
+
+  return 14;
+}
+
+function getBioreactorConfirmedValue(values, config, key) {
+  return parseNumericValue(values?.[key]) ?? getBioreactorFallbackValue(config, key);
+}
 
 
 
@@ -1079,7 +1109,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
 
 
 
-function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabled, modelDetails }) {
+function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabled, modelDetails, bioreactorValues }) {
   const [open, setOpen] = useState(false);
   const [config, setConfig] = useState({})
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -1388,6 +1418,16 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
   const dosingControlJob = jobs.dosing_automation;
   const ledControlJob = jobs.led_automation;
   const temperatureControlJob = jobs.temperature_automation;
+  const dosingMaxVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "max_working_volume_ml",
+  );
+  const dosingLiquidVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "current_volume_ml",
+  );
   const isSelfTestRunningState = (state) =>
     ["init", "ready", "sleeping"].includes(state);
 
@@ -1654,8 +1694,8 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                   experiment={experiment}
                   label={label}
                   configSections={config || {}}
-                  maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
-                  liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
+                  maxVolume={dosingMaxVolume}
+                  liquidVolume={dosingLiquidVolume}
                   threshold={modelDetails.reactor_max_fill_volume_ml}
                 />
                </React.Fragment>
@@ -1671,8 +1711,8 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               label={label}
               experiment={experiment}
               no_skip_first_run={false}
-              maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
-              liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
+              maxVolume={dosingMaxVolume}
+              liquidVolume={dosingLiquidVolume}
               threshold={modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
@@ -3063,6 +3103,7 @@ function FlashLEDButton({ unit, disabled }){
 function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelDetails = {}}){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
+  const [bioreactorValues, setBioreactorValues] = useState({})
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false)
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false)
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false)
@@ -3103,6 +3144,25 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   useEffect(() => {
     setLabel(originalLabel)
   }, [originalLabel])
+
+  useEffect(() => {
+    if (!unit || !experiment) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+    getBioreactorValues(unit, experiment, {delayMs: 400})
+      .then((values) => {
+        if (!isCancelled) {
+          setBioreactorValues(values);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [experiment, unit])
 
 
   useEffect(() => {
@@ -3179,6 +3239,46 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       unsubscribeFromTopic(topics, "PioreactorCard");
     };
   }, [experiment, jobFetchComplete, isUnitActive, client, subscribeToTopic, unsubscribeFromTopic, unit])
+
+  const onBioreactorMessage = useCallback((topic, message) => {
+    if (!topic || !message) {
+      return;
+    }
+
+    const parts = topic.toString().split('/');
+    const variableName = parts[4];
+    const parsedValue = parseNumericValue(message.toString());
+
+    if (!variableName || parsedValue === null) {
+      return;
+    }
+
+    setBioreactorValues((previous) => ({
+      ...previous,
+      [variableName]: parsedValue,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!client || !unit || !experiment) {
+      return undefined;
+    }
+
+    const topics = [
+      `pioreactor/${unit}/${experiment}/bioreactor/current_volume_ml`,
+      `pioreactor/${unit}/${experiment}/bioreactor/max_working_volume_ml`,
+      `pioreactor/${unit}/${experiment}/bioreactor/alt_media_fraction`,
+      `pioreactor/${unit}/_testing_${experiment}/bioreactor/current_volume_ml`,
+      `pioreactor/${unit}/_testing_${experiment}/bioreactor/max_working_volume_ml`,
+      `pioreactor/${unit}/_testing_${experiment}/bioreactor/alt_media_fraction`,
+    ];
+
+    subscribeToTopic(topics, onBioreactorMessage, "PioreactorCardBioreactor");
+
+    return () => {
+      unsubscribeFromTopic(topics, "PioreactorCardBioreactor");
+    };
+  }, [client, experiment, onBioreactorMessage, subscribeToTopic, unsubscribeFromTopic, unit])
 
   const onMessage = (topic, message, _packet) => {
     if (!message || !topic) return;
@@ -3388,8 +3488,16 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       ? createStateActions(stateActionJobKey, jobs[stateActionJobKey].state)
       : []
   const dosingControlJob = jobs.dosing_automation
-  const dosingMaxVolume = parseFloat(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10
-  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10
+  const dosingMaxVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "max_working_volume_ml",
+  )
+  const dosingLiquidVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "current_volume_ml",
+  )
 
   return (
     <Card sx={{mt: 0, mb: 3}} id={unit} aria-disabled={!isUnitActive}>
@@ -3455,6 +3563,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                 jobs={jobs}
                 setLabel={setLabel}
                 modelDetails={modelDetails}
+                bioreactorValues={bioreactorValues}
               />
             </Box>
           </Box>

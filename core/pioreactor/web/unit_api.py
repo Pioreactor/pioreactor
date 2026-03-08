@@ -26,6 +26,7 @@ from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import whoami
+from pioreactor.bioreactor import get_all_bioreactor_values
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.config import get_leader_hostname
@@ -712,6 +713,11 @@ def update_job(job_name: str) -> ResponseReturnValue:
     """
     # body = request.get_json()
     abort_with(503, "Not implemented.")
+
+
+@unit_api_bp.route("/bioreactor/experiments/<experiment>", methods=["GET"])
+def get_bioreactor_values(experiment: str) -> ResponseReturnValue:
+    return jsonify({"values": get_all_bioreactor_values(experiment)})
 
 
 @unit_api_bp.route("/capabilities", methods=["GET"])
