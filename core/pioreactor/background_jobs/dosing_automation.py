@@ -222,7 +222,7 @@ class DosingAutomationJob(AutomationJob):
         duration: Optional[float] = None,
         skip_first_run: bool = False,
         alt_media_fraction: float | None = None,
-        current_volume_ml: float | None = None,
+        initial_volume_ml: float | None = None,
         max_working_volume_ml: float | None = None,
         **kwargs,
     ) -> None:
@@ -243,7 +243,7 @@ class DosingAutomationJob(AutomationJob):
 
         self._init_alt_media_fraction(alt_media_fraction)
         self._init_volume_throughput()
-        self._init_liquid_volume(current_volume_ml, max_working_volume_ml)
+        self._init_liquid_volume(initial_volume_ml, max_working_volume_ml)
         self._last_vial_volume_warning_at: float | None = None
         self.logger.debug(
             f"Volume settings initialized: current_volume_ml={self.current_volume_ml:.2f} mL, "
@@ -580,7 +580,7 @@ class DosingAutomationJob(AutomationJob):
         return
 
     def _init_liquid_volume(
-        self, current_volume_ml: float | None, max_working_volume_ml: float | None
+        self, initial_volume_ml: float | None, max_working_volume_ml: float | None
     ) -> None:
         self.add_to_published_settings(
             "current_volume_ml",
@@ -609,14 +609,14 @@ class DosingAutomationJob(AutomationJob):
 
         assert self.max_working_volume_ml >= 0
 
-        if current_volume_ml is None:
+        if initial_volume_ml is None:
             # look in database first, fallback to config
             with local_persistent_storage("current_volume_ml") as cache:
                 self.current_volume_ml = cache.get(
                     self.experiment, config.getfloat("bioreactor", "initial_volume_ml", fallback=14)
                 )
         else:
-            self.current_volume_ml = float(current_volume_ml)
+            self.current_volume_ml = float(initial_volume_ml)
 
         assert self.current_volume_ml >= 0
 

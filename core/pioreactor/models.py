@@ -96,15 +96,15 @@ PIOREACTOR_40ml_XR_v1_5 = replace(
 )
 
 
-CORE_MODELS = {
-    (PIOREACTOR_40ml__v1_5.model_name, PIOREACTOR_40ml__v1_5.model_version): PIOREACTOR_40ml__v1_5,
-    (PIOREACTOR_40ml__v1_0.model_name, PIOREACTOR_40ml__v1_0.model_version): PIOREACTOR_40ml__v1_0,
-    (PIOREACTOR_20ml__v1_1.model_name, PIOREACTOR_20ml__v1_1.model_version): PIOREACTOR_20ml__v1_1,
-    (PIOREACTOR_20ml__v1_0.model_name, PIOREACTOR_20ml__v1_0.model_version): PIOREACTOR_20ml__v1_0,
-    (PIOREACTOR_20ml__v1_5.model_name, PIOREACTOR_20ml__v1_5.model_version): PIOREACTOR_20ml__v1_5,
-    (PIOREACTOR_40ml_XR_v1_5.model_name, PIOREACTOR_40ml_XR_v1_5.model_version): PIOREACTOR_40ml_XR_v1_5,
-    (PIOREACTOR_20ml_XR_v1_5.model_name, PIOREACTOR_20ml_XR_v1_5.model_version): PIOREACTOR_20ml_XR_v1_5,
-}
+CORE_MODELS = (
+    PIOREACTOR_40ml__v1_5,
+    PIOREACTOR_40ml__v1_0,
+    PIOREACTOR_20ml__v1_1,
+    PIOREACTOR_20ml__v1_0,
+    PIOREACTOR_20ml__v1_5,
+    PIOREACTOR_40ml_XR_v1_5,
+    PIOREACTOR_20ml_XR_v1_5,
+)
 
 
 def load_contrib_model_definitions() -> list[Model]:
@@ -131,7 +131,7 @@ def load_contrib_model_definitions() -> list[Model]:
 def get_registered_models() -> dict[tuple[str, str], Model]:
     # Merge built-in and user models, user overrides take priority
     registered_models = {
-        **CORE_MODELS,
+        **{(m.model_name, m.model_version): m for m in CORE_MODELS},
         **{(m.model_name, m.model_version): m for m in load_contrib_model_definitions()},
     }
     return registered_models

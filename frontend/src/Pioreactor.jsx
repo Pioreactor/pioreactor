@@ -100,14 +100,15 @@ import {
 } from "./components/pioreactorCardQuickControls";
 
 
-function StateTypography({ state, isDisabled=false }) {
+function StateTypography({ state, isDisabled=false, isInteractive=false }) {
   const style = {
     color: isDisabled ? disabledColor : stateDisplay[state].color,
     padding: "1px 10px",
     borderRadius: "16px",
     backgroundColor: stateDisplay[state].backgroundColor,
     display: "inline-block",
-    fontWeight: 500
+    fontWeight: 500,
+    ...getFauxChipHoverSx(isInteractive),
   };
 
   return (
@@ -116,6 +117,24 @@ function StateTypography({ state, isDisabled=false }) {
     </Typography>
   );
 }
+
+const getFauxChipHoverSx = (isInteractive) => ({
+  transition: (theme) => theme.transitions.create(["background-color", "box-shadow"], {
+    duration: theme.transitions.duration.shortest,
+  }),
+  ...(isInteractive ? {
+    "&:hover": {
+      backgroundColor: (theme) =>
+        theme.alpha(
+          theme.palette.action.selected,
+          `${theme.palette.action.selectedOpacity} + ${theme.palette.action.hoverOpacity}`,
+        ),
+    },
+    "&:active": {
+      boxShadow: (theme) => theme.shadows[1],
+    },
+  } : {}),
+});
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
@@ -378,6 +397,7 @@ function UnitSettingDisplay(props) {
               display: "inline-block",
               fontWeight: 400,
               fontSize: "14px",
+              ...getFauxChipHoverSx(props.isInteractive),
             }}
           >
             {formatForDisplay(value)} {props.measurementUnit ? props.measurementUnit : ""}
@@ -421,7 +441,6 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
 
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
-    navigate("/overview");
   }
 
   return (
@@ -2255,7 +2274,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
               const canUsePrimaryAction = isUnitActive && Boolean(primaryStateAction) && !isPendingStateAction
               const showStateActionMenu = isUnitActive && allStateActions.length > 0 && !isPendingStateAction
               return (
-                <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job.metadata.key}>
+                <Box sx={{width: "132px", ml:"2px", mt: "10px", mr: "2px", px: "3px"}} key={job.metadata.key}>
                   <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                     {job.metadata.display_name}
                     {(job.metadata.display_name === "Optical density" && isXrModel) ? (
@@ -2274,14 +2293,16 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                           runStateActionWithPending(jobKey, primaryStateAction)
                         }
                       }}
-                      sx={{cursor: canUsePrimaryAction ? "pointer" : "default"}}
+                      sx={{
+                        cursor: canUsePrimaryAction ? "pointer" : "default",
+                      }}
                     >
                       {isPendingStateAction ? (
                         <Box sx={{minHeight: "30px", display: "flex", alignItems: "center", ml: 1}}>
                           <CircularProgress size={18} />
                         </Box>
                       ) : (
-                        <StateTypography state={job.state} isDisabled={!isUnitActive}/>
+                        <StateTypography state={job.state} isDisabled={!isUnitActive} isInteractive={canUsePrimaryAction}/>
                       )}
                     </Box>
                     {showStateActionMenu ? (
@@ -2326,7 +2347,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                 .map(([setting_key, setting]) => {
                   const canQuickEdit = canQuickEditCardSetting(setting, isUnitActive)
                   return (
-                    <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job_key + setting_key}>
+                    <Box sx={{width: "132px", ml:"2px", mt: "10px", mr: "2px", px: "3px"}} key={job_key + setting_key}>
                       <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                         {setting.label}
                         {(setting.label === "Optical density" && isXrModel) ? (
@@ -2360,6 +2381,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                           isLEDIntensity={setting.label === "LED intensity"}
                           isPWMDc={setting.label === "PWM intensity"}
                           config={config}
+                          isInteractive={canQuickEdit}
                         />
                       </Box>
                     </Box>
@@ -2542,7 +2564,6 @@ function Pioreactor({title}) {
 
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
-    navigate("/overview");
   }
 
   useEffect(() => {

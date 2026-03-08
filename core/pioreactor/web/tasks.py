@@ -38,7 +38,7 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config as pioreactor_config
 from pioreactor.logging import create_logger
-from pioreactor.models import CORE_MODELS
+from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
@@ -293,8 +293,9 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
     if model_version != "1.5":
         return
 
-    if (model_name, model_version) in CORE_MODELS:
-        display_name = CORE_MODELS[(model_name, model_version)].display_name
+    registered_models = get_registered_models()
+    if (model_name, model_version) in registered_models:
+        display_name = registered_models[(model_name, model_version)].display_name
     else:
         display_name = f"{model_name} {model_version}"
 

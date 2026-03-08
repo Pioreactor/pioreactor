@@ -15,6 +15,7 @@ function DosingAutomationForm(props) {
   const threshold = props.threshold;
   const [warning, setWarning] = useState("");
   const safetyBufferMl = 1;
+  const volumeInputBounds = { min: 0, max: threshold + 2};
 
   const defaults = Object.assign({}, ...props.fields.map(field => ({ [field.key]: field.default })));
   const defaultsWithoutVolumeFields = Object.fromEntries(
@@ -28,20 +29,20 @@ function DosingAutomationForm(props) {
   }, [props.fields]);
 
   const computeWarning = (initialVolume, maxWorkingVolume) => {
-    if (initialVolume != null && initialVolume > threshold) {
+    if (initialVolume != null && initialVolume >= threshold) {
       return `Initial volume exceeds safe maximum of ${threshold} mL.`;
     }
 
-    if (maxWorkingVolume != null && maxWorkingVolume > threshold) {
+    if (maxWorkingVolume != null && maxWorkingVolume >= threshold) {
       return `Max working volume exceeds safe maximum of ${threshold} mL.`;
     }
 
     if (
       maxWorkingVolume != null &&
       maxWorkingVolume >= threshold - safetyBufferMl &&
-      maxWorkingVolume <= threshold
+      maxWorkingVolume < threshold
     ) {
-      return `Max working volume is very close to the ${threshold} mL safety ceiling. This ceiling is not a recommended target.`;
+      return `Max working volume is very close to the ${threshold} mL safety ceiling.`;
     }
 
     return "";
@@ -111,7 +112,7 @@ function DosingAutomationForm(props) {
   });
 
   return (
-    <div>
+    <Box sx={{ width: "100%", minWidth: { md: 520 } }}>
       <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 3, mb: 1, padding: "6px 6px" }}>
         {props.description}
       </Typography>
@@ -130,12 +131,12 @@ function DosingAutomationForm(props) {
         sx={{
           display: "flex",
           alignItems: "flex-start",
-          justifyContent: "space-between",
+          justifyContent: "flex-start",
           gap: 2,
           flexWrap: { xs: "wrap", md: "nowrap" },
         }}
       >
-        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", flex: 1, mt:1}}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", flex: 1, minWidth: 0, mt: 1 }}>
           <TextField
             type="number"
             size="small"
@@ -146,6 +147,7 @@ function DosingAutomationForm(props) {
             InputProps={{
               endAdornment: <InputAdornment position="end">ml</InputAdornment>,
             }}
+            inputProps={volumeInputBounds}
             variant="outlined"
             onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
             onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
@@ -161,6 +163,7 @@ function DosingAutomationForm(props) {
             InputProps={{
               endAdornment: <InputAdornment position="end">ml</InputAdornment>,
             }}
+            inputProps={volumeInputBounds}
             variant="outlined"
             value={props.algoSettings.max_working_volume_ml ?? ""}
             onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
@@ -169,11 +172,21 @@ function DosingAutomationForm(props) {
           />
         </Box>
 
-        <VialVolumePreview
-          initialVolumeMl={props.algoSettings.initial_volume_ml}
-          maxWorkingVolumeMl={props.algoSettings.max_working_volume_ml}
-          maxVolumeMl={props.threshold + 2}
-        />
+        <Box
+          sx={{
+            flex: { xs: "1 0 100%", md: "0 0 120px" },
+            width: { xs: "100%", md: 120 },
+            display: "flex",
+            justifyContent: { xs: "center", md: "center" },
+            alignItems: "flex-start",
+          }}
+        >
+          <VialVolumePreview
+            initialVolumeMl={props.algoSettings.initial_volume_ml}
+            maxWorkingVolumeMl={props.algoSettings.max_working_volume_ml}
+            maxVolumeMl={props.threshold + 2}
+          />
+        </Box>
       </Box>
 
       {warning && (
@@ -181,7 +194,7 @@ function DosingAutomationForm(props) {
           {warning}
         </Alert>
       )}
-    </div>
+    </Box>
   );
 }
 

@@ -28,7 +28,6 @@ import AddIcon from "@mui/icons-material/Add";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PlayCircleOutlinedIcon from "@mui/icons-material/PlayCircleOutlined";
 import { useConfirm } from "material-ui-confirm";
-import { useSnackbar } from "notistack";
 import { Link, useNavigate } from "react-router";
 
 import ExperimentMetadataDialog from "./components/ExperimentMetadataDialog";
@@ -37,7 +36,7 @@ import { useExperiment } from "./providers/ExperimentContext";
 const TAGS_TO_SHOW = 6;
 
 const StyledTableCell = styled(TableCell)(() => ({
-  padding: "6px 6px 6px 10px",
+  padding: "10px 10px 10px 15px",
   whiteSpace: "normal",
 }));
 
@@ -119,7 +118,6 @@ function ExperimentActionsMenu({
 function ExperimentsContainer(props) {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { enqueueSnackbar } = useSnackbar();
   const { allExperiments, experimentMetadata, selectExperiment, updateExperiment, setAllExperiments } = useExperiment();
   const [experiments, setExperiments] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
@@ -266,7 +264,6 @@ function ExperimentsContainer(props) {
       }
 
       await refreshExperiments();
-      enqueueSnackbar(`Ended ${experiment.experiment}.`, { variant: "success" });
     } finally {
       setBusyExperimentName("");
     }
@@ -301,7 +298,6 @@ function ExperimentsContainer(props) {
         updateExperiment(nextExperiments[0], true);
       }
 
-      enqueueSnackbar(`Deleted ${experiment.experiment}.`, { variant: "success" });
     } finally {
       setBusyExperimentName("");
     }
@@ -374,14 +370,14 @@ function ExperimentsContainer(props) {
       )}
 
       <Card>
-        <TableContainer sx={{ width: "100%", overflowY: "auto", overflowX: "auto" }}>
+        <TableContainer sx={{ width: "100%", overflowY: "auto", overflowX: "auto", mt: 2 }}>
           <Table size="small" aria-label="experiments table">
             <TableHead>
               <TableRow>
-                <StyledTableCell sx={{ backgroundColor: "white" }}>Experiment</StyledTableCell>
-                <StyledTableCell sx={{ backgroundColor: "white", whiteSpace: "nowrap" }}>Created at</StyledTableCell>
-                <StyledTableCell sx={{ backgroundColor: "white" }}>Status</StyledTableCell>
-                <StyledTableCell sx={{ backgroundColor: "white" }} align="right" />
+                <TableCell sx={{backgroundColor: "white" }}>Experiment</TableCell>
+                <TableCell sx={{backgroundColor: "white", whiteSpace: "nowrap" }}>Created at</TableCell>
+                <TableCell sx={{backgroundColor: "white" }}>Status</TableCell>
+                <TableCell sx={{backgroundColor: "white" }} align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -392,7 +388,7 @@ function ExperimentsContainer(props) {
 
                 return (
                   <TableRowStyled key={experiment.experiment} hover>
-                    <StyledTableCell sx={{ width: "65%" }}>
+                    <StyledTableCell sx={{ width: "65%"}}>
                       <Stack spacing={0.75}>
                         <Box>
                           <Chip
