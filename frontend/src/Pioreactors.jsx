@@ -2088,6 +2088,8 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = useState(0);
   const [jobs, setJobs] = useState({});
+  const [bioreactorDescriptors, setBioreactorDescriptors] = useState([]);
+  const [bioreactorValues, setBioreactorValues] = useState({});
   const [selfTestResults, setSelfTestResults] = useState({});
   const [selfTestStartPending, setSelfTestStartPending] = useState(false);
   const [relabelMap, setRelabelMap] = useState({});
@@ -2140,6 +2142,22 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   }, [contribJobsList]);
 
   useEffect(() => {
+    let isCancelled = false
+
+    getBioreactorDescriptors()
+      .then((descriptors) => {
+        if (!isCancelled) {
+          setBioreactorDescriptors(descriptors)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (experiment) {
       getRelabelMap(setRelabelMap, experiment);
     }
@@ -2166,6 +2184,17 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     () => getAvailableSelfTestGroups(selfTestDefinition),
     [selfTestDefinition]
   );
+  const bioreactorSettingsGroup = useMemo(
+    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config),
+    [bioreactorDescriptors, bioreactorValues, config]
+  );
+  const editableSettingsGroups = useMemo(() => {
+    const groups = Object.values(jobs).filter(job => job.metadata.display)
+    if (bioreactorSettingsGroup) {
+      groups.push(bioreactorSettingsGroup)
+    }
+    return groups
+  }, [jobs, bioreactorSettingsGroup]);
 
   const buildSelfTestBaseline = useCallback(() => {
     const publishedSettings = {};
@@ -2310,6 +2339,16 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
 
   function setPioreactorJobAttr(job, setting, value) {
+    if (job === "bioreactor") {
+      return updateBioreactorSettingAndMirrorState(
+        broadcastUnit,
+        experiment,
+        setting,
+        value,
+        setBioreactorValues,
+      )
+    }
+
     fetch(`/api/workers/${broadcastUnit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
@@ -2674,8 +2713,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          {Object.values(jobs)
-            .filter(job => job.metadata.display)
+          {editableSettingsGroups
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
             .map(([state, job_key, settings], index) => (
               Object.entries(settings)
