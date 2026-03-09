@@ -34,6 +34,7 @@ from pioreactor.calibrations import get_calibration_protocols as get_calibration
 from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
+from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils import local_persistent_storage
@@ -41,7 +42,6 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
 from pioreactor.version import __version__
 from pioreactor.web import tasks
-from pioreactor.web.app import client
 from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import publish_to_error_log
 from pioreactor.web.app import publish_to_log
@@ -737,10 +737,11 @@ def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
         )
 
     try:
-        for variable_name, value in values.items():
-            set_and_publish_bioreactor_value(
-                cast("pt.Client", client), HOSTNAME, experiment, variable_name, value
-            )
+        with create_client() as mqtt_client:
+            for variable_name, value in values.items():
+                set_and_publish_bioreactor_value(
+                    cast("pt.Client", mqtt_client), HOSTNAME, experiment, variable_name, value
+                )
     except Exception as e:
         publish_to_error_log(str(e), "update_bioreactor_values")
         abort_with(400, str(e))

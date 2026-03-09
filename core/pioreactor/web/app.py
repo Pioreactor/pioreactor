@@ -80,9 +80,9 @@ def create_app():
             port=broker_port,
         )
         client.loop_start()
-        logger.debug(f"Starting MQTT client at {broker_address}:{broker_port}")
+        logger.debug(f"Starting MQTT client at {broker_address}:{broker_port}, {client.is_connected()=}")
     except Exception:
-        pass
+        raise
 
     @app.teardown_appcontext
     def close_connection(exception) -> None:

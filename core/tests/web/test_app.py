@@ -647,24 +647,6 @@ def test_get_bioreactor_descriptors(client) -> None:
     ]
 
 
-def test_get_bioreactor_on_unit_queues_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
-    captured: dict[str, object] = {}
-
-    def fake_multicast_get(endpoint: str, units: list[str]) -> str:
-        captured["endpoint"] = endpoint
-        captured["units"] = units
-        return "task"
-
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_get", fake_multicast_get)
-    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
-
-    response = client.get("/api/workers/unit1/experiments/exp1/bioreactor")
-
-    assert response.status_code == 202
-    assert captured["endpoint"] == "/unit_api/bioreactor/experiments/exp1"
-    assert captured["units"] == ["unit1"]
-
-
 def test_update_bioreactor_on_unit_queues_multicast_patch(client, monkeypatch: MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 

@@ -78,7 +78,6 @@ import {
   getBioreactorConfirmedValue,
   getBioreactorDescriptors,
   getBioreactorSubscriptionTopics,
-  getBioreactorValues,
   parseNumericValue,
   updateBioreactorValues,
   getRelabelMap,
@@ -205,25 +204,6 @@ function BioreactorDiagramPanel({
   const pushBioreactorValues = useCallback((nextValuesOrUpdater) => {
     onValuesChange?.(nextValuesOrUpdater);
   }, [onValuesChange]);
-
-  useEffect(() => {
-    if (!unit || !experiment) {
-      return undefined;
-    }
-
-    let isCancelled = false;
-    getBioreactorValues(unit, experiment, {delayMs: 400})
-      .then((values) => {
-        if (!isCancelled) {
-          pushBioreactorValues(values);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [experiment, pushBioreactorValues, unit]);
 
   const onBioreactorMessage = useCallback((topic, message) => {
     if (!topic || !message) {

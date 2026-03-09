@@ -554,28 +554,6 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
 
 @api_bp.route(
     "/workers/<pioreactor_unit>/experiments/<experiment>/bioreactor",
-    methods=["GET"],
-)
-@api_bp.route(
-    "/units/<pioreactor_unit>/experiments/<experiment>/bioreactor",
-    methods=["GET"],
-)
-def get_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(
-            broadcast_get_across_workers_in_experiment(
-                f"/unit_api/bioreactor/experiments/{experiment}",
-                experiment=experiment,
-            )
-        )
-
-    return create_task_response(
-        tasks.multicast_get(f"/unit_api/bioreactor/experiments/{experiment}", [pioreactor_unit])
-    )
-
-
-@api_bp.route(
-    "/workers/<pioreactor_unit>/experiments/<experiment>/bioreactor",
     methods=["PATCH"],
 )
 def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:
