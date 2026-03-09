@@ -120,14 +120,19 @@ const EMPTY_STATE_ILLUSTRATIONS = [
   "/static/svgs/bacteria-three-bacillus-touching.svg",
 ];
 
-function createBioreactorSettingsGroup(descriptors, values, config) {
+function createBioreactorSettingsGroup(descriptors, values, config, { valueMode = "confirmed" } = {}) {
   if (!Array.isArray(descriptors) || descriptors.length === 0) {
     return null;
   }
 
   const publishedSettings = descriptors.reduce((acc, descriptor) => {
+    const settingValue =
+      valueMode === "blank"
+        ? ""
+        : getBioreactorConfirmedValue(values, config, descriptor.key)
+
     acc[descriptor.key] = {
-      value: getBioreactorConfirmedValue(values, config, descriptor.key),
+      value: settingValue,
       label: descriptor.label,
       type: descriptor.type,
       unit: descriptor.unit || null,
@@ -2185,7 +2190,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     [selfTestDefinition]
   );
   const bioreactorSettingsGroup = useMemo(
-    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config),
+    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config, { valueMode: "blank" }),
     [bioreactorDescriptors, bioreactorValues, config]
   );
   const editableSettingsGroups = useMemo(() => {

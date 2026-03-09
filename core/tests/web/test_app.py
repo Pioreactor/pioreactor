@@ -14,6 +14,21 @@ IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 huey.immediate = True
 
 
+def test_process_delayed_json_response_accepts_created_status() -> None:
+    import pioreactor.web.tasks as mod
+
+    class DummyResponse:
+        status_code = 201
+
+        def json(self) -> dict[str, str]:
+            return {"msg": "Calibration created successfully."}
+
+    assert mod._process_delayed_json_response("unit1", DummyResponse()) == (
+        "unit1",
+        {"msg": "Calibration created successfully."},
+    )
+
+
 def test_latest_experiment_endpoint(client) -> None:
     response = client.get("/api/experiments/latest")
 
