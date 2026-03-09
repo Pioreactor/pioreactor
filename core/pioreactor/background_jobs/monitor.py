@@ -8,9 +8,11 @@ from typing import Callable
 from typing import Optional
 
 import click
+from msgspec.json import decode
 from pioreactor import bioreactor
 from pioreactor import error_codes
 from pioreactor import exc
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import utils
 from pioreactor import version
@@ -660,6 +662,22 @@ class Monitor(LongRunningBackgroundJob):
         except Exception as e:
             self.logger.warning(str(e))
 
+    def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
+        try:
+            pieces = message.topic.split("/")
+            if len(pieces) != 4 or pieces[0] != "pioreactor" or pieces[3] != "dosing_events":
+                raise ValueError(f"Invalid dosing event topic: {message.topic}")
+
+            dosing_event = decode(message.payload, type=structs.DosingEvent)
+            bioreactor.apply_dosing_event_to_bioreactor(
+                pieces[1],
+                pieces[2],
+                dosing_event,
+                mqtt_client=self.pub_client,
+            )
+        except Exception as e:
+            self.logger.warning(str(e))
+
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.flicker_led_response_okay_and_publish_state,
@@ -683,6 +701,13 @@ class Monitor(LongRunningBackgroundJob):
                 f"pioreactor/{self.unit}/+/bioreactor/+/set",
                 f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/bioreactor/+/set",
             ],
+            allow_retained=False,
+            qos=QOS.AT_LEAST_ONCE,
+        )
+
+        self.subscribe_and_callback(
+            self.update_bioreactor_state_from_dosing_event,
+            f"pioreactor/{self.unit}/+/dosing_events",
             allow_retained=False,
             qos=QOS.AT_LEAST_ONCE,
         )

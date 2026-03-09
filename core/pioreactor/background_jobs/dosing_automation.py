@@ -502,24 +502,10 @@ class DosingAutomationJob(AutomationJob):
             AltMediaFractionCalculator.update(dosing_event, self.alt_media_fraction, self.current_volume_ml),
             10,
         )
-        self.alt_media_fraction = bioreactor.set_and_publish_bioreactor_value(
-            self.pub_client,
-            self.unit,
-            self.experiment,
-            "alt_media_fraction",
-            self.alt_media_fraction,
-        )
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
         self.current_volume_ml = round(
             VolumeCalculator.update(dosing_event, self.current_volume_ml, self.max_working_volume_ml), 10
-        )
-        self.current_volume_ml = bioreactor.set_and_publish_bioreactor_value(
-            self.pub_client,
-            self.unit,
-            self.experiment,
-            "current_volume_ml",
-            self.current_volume_ml,
         )
 
         if (

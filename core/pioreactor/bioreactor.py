@@ -214,7 +214,7 @@ def calculate_updated_current_volume(
 ) -> float:
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
-    if event in ("add_media", "add_alt_media"):
+    if event == "add_alt_media" or event.startswith("add_"):
         return max(current_volume_ml + volume, 0.0)
 
     if event == "remove_waste":
@@ -232,19 +232,19 @@ def calculate_updated_alt_media_fraction(
 ) -> float:
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
-    if event == "add_media":
-        return _calculate_alt_media_fraction_after_addition(
-            current_alt_media_fraction,
-            media_delta=volume,
-            alt_media_delta=0.0,
-            current_volume_ml=current_volume_ml,
-        )
-
     if event == "add_alt_media":
         return _calculate_alt_media_fraction_after_addition(
             current_alt_media_fraction,
             media_delta=0.0,
             alt_media_delta=volume,
+            current_volume_ml=current_volume_ml,
+        )
+
+    if event.startswith("add_"):
+        return _calculate_alt_media_fraction_after_addition(
+            current_alt_media_fraction,
+            media_delta=volume,
+            alt_media_delta=0.0,
             current_volume_ml=current_volume_ml,
         )
 

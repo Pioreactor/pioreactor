@@ -36,6 +36,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def close(x: float, y: float) -> bool:
@@ -1503,34 +1504,35 @@ def test_current_volume_ml_is_published(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_current_volume_ml_is_published"
 
-    with start_dosing_automation(
-        "chemostat",
-        duration=0.1,
-        skip_first_run=False,
-        unit=unit,
-        experiment=experiment,
-        exchange_volume_ml=2.0,
-    ) as chemostat_job:
-        chemostat = cast(Chemostat, chemostat_job)
-        initial_volume = chemostat.current_volume_ml
-        assert initial_volume == 14
-        assert wait_for(lambda: chemostat.media_throughput > 0, timeout=5.0)
-        assert wait_for(
-            lambda: bioreactor.get_bioreactor_value(experiment, "current_volume_ml") != initial_volume,
-            timeout=5.0,
-        )
-        persisted_volume = bioreactor.get_bioreactor_value(experiment, "current_volume_ml")
-        assert close(persisted_volume, chemostat.current_volume_ml)
-        result = pubsub.subscribe(
-            bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
-            timeout=1.0,
-        )
-        assert result is not None
-        published_volume = float(result.payload)
-        assert close(published_volume, persisted_volume)
+    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+        with start_dosing_automation(
+            "chemostat",
+            duration=0.1,
+            skip_first_run=False,
+            unit=unit,
+            experiment=experiment,
+            exchange_volume_ml=2.0,
+        ) as chemostat_job:
+            chemostat = cast(Chemostat, chemostat_job)
+            initial_volume = chemostat.current_volume_ml
+            assert initial_volume == 14
+            assert wait_for(lambda: chemostat.media_throughput > 0, timeout=5.0)
+            assert wait_for(
+                lambda: bioreactor.get_bioreactor_value(experiment, "current_volume_ml") != initial_volume,
+                timeout=5.0,
+            )
+            persisted_volume = bioreactor.get_bioreactor_value(experiment, "current_volume_ml")
+            assert close(persisted_volume, chemostat.current_volume_ml)
+            result = pubsub.subscribe(
+                bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
+                timeout=1.0,
+            )
+            assert result is not None
+            published_volume = float(result.payload)
+            assert close(published_volume, persisted_volume)
 
-        assert chemostat.media_throughput > 0
-        assert abs(chemostat.current_volume_ml - initial_volume) <= chemostat.exchange_volume_ml
+            assert chemostat.media_throughput > 0
+            assert abs(chemostat.current_volume_ml - initial_volume) <= chemostat.exchange_volume_ml
 
 
 def test_public_add_media_does_not_double_count_with_running_dosing_automation(
@@ -1538,17 +1540,20 @@ def test_public_add_media_does_not_double_count_with_running_dosing_automation(
 ) -> None:
     experiment = "test_public_add_media_does_not_double_count_with_running_dosing_automation"
 
-    with Silent(unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0) as automation_job:
-        assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(10.0)
+    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+        with Silent(
+            unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0
+        ) as automation_job:
+            assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(10.0)
 
-        moved_ml = add_media(ml=1.0, unit=unit, experiment=experiment)
+            moved_ml = add_media(ml=1.0, unit=unit, experiment=experiment)
 
-        assert moved_ml == pytest.approx(1.0)
-        assert wait_for(lambda: close(automation_job.current_volume_ml, 11.0), timeout=5.0)
-        assert wait_for(
-            lambda: close(bioreactor.get_bioreactor_value(experiment, "current_volume_ml"), 11.0),
-            timeout=5.0,
-        )
+            assert moved_ml == pytest.approx(1.0)
+            assert wait_for(lambda: close(automation_job.current_volume_ml, 11.0), timeout=5.0)
+            assert wait_for(
+                lambda: close(bioreactor.get_bioreactor_value(experiment, "current_volume_ml"), 11.0),
+                timeout=5.0,
+            )
 
 
 def test_bioreactor_mqtt_updates_running_dosing_job() -> None:

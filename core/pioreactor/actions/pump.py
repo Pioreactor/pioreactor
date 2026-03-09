@@ -10,7 +10,6 @@ from typing import Optional
 import click
 from msgspec.json import encode
 from msgspec.structs import replace
-from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
@@ -23,7 +22,6 @@ from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
@@ -536,58 +534,6 @@ def _liquid_circulation(
     )
 
 
-def _pump_action_with_bioreactor_updates(
-    pump_device: PumpCalibrationDevices,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    ml: Optional[pt.mL] = None,
-    duration: Optional[pt.Seconds] = None,
-    source_of_event: Optional[str] = None,
-    calibration: Optional[structs.SimplePeristalticPumpCalibration] = None,
-    continuously: bool = False,
-    mqtt_client: Optional[Client] = None,
-    logger: Optional[CustomLogger] = None,
-    job_source: Optional[str] = None,
-) -> pt.mL:
-    resolved_unit = unit or get_unit_name()
-    resolved_experiment = experiment or get_assigned_experiment_name(resolved_unit)
-    action_name = _get_action_name_for_pump_device(pump_device)
-
-    moved_ml = _pump_action(
-        pump_device,
-        unit=resolved_unit,
-        experiment=resolved_experiment,
-        ml=ml,
-        duration=duration,
-        source_of_event=source_of_event,
-        calibration=calibration,
-        continuously=continuously,
-        mqtt_client=mqtt_client,
-        logger=logger,
-        job_source=job_source,
-    )
-
-    if moved_ml <= 0:
-        return moved_ml
-
-    if not _should_update_bioreactor_state_directly(resolved_unit, resolved_experiment):
-        return moved_ml
-
-    dosing_event = structs.DosingEvent(
-        volume_change=moved_ml,
-        event=action_name,
-        source_of_event=source_of_event,
-        timestamp=current_utc_datetime(),
-    )
-    bioreactor.apply_dosing_event_to_bioreactor(
-        resolved_unit,
-        resolved_experiment,
-        dosing_event,
-        mqtt_client=mqtt_client,
-    )
-    return moved_ml
-
-
 def _get_action_name_for_pump_device(pump_device: PumpCalibrationDevices) -> str:
     if pump_device == "media_pump":
         return "add_media"
@@ -598,11 +544,6 @@ def _get_action_name_for_pump_device(pump_device: PumpCalibrationDevices) -> str
     raise ValueError(f"{pump_device} not valid.")
 
 
-def _should_update_bioreactor_state_directly(unit: pt.Unit, experiment: pt.Experiment) -> bool:
-    with JobManager() as jm:
-        return len(jm.list_jobs(job_name="dosing_automation", unit=unit, experiment=experiment)) == 0
-
-
 ### high level functions below:
 
 circulate_media = partial(_liquid_circulation, "media_pump")
@@ -610,9 +551,9 @@ circulate_alt_media = partial(_liquid_circulation, "alt_media_pump")
 add_media_via_pump = partial(_pump_action, "media_pump")
 remove_waste_via_pump = partial(_pump_action, "waste_pump")
 add_alt_media_via_pump = partial(_pump_action, "alt_media_pump")
-add_media = partial(_pump_action_with_bioreactor_updates, "media_pump")
-remove_waste = partial(_pump_action_with_bioreactor_updates, "waste_pump")
-add_alt_media = partial(_pump_action_with_bioreactor_updates, "alt_media_pump")
+add_media = add_media_via_pump
+remove_waste = remove_waste_via_pump
+add_alt_media = add_alt_media_via_pump
 
 
 @click.command(name="add_alt_media")

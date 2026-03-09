@@ -13,6 +13,7 @@ from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import circulate_media
 from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
+from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.config import config
 from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
@@ -73,9 +74,11 @@ def test_pump_io() -> None:
 def test_public_add_media_updates_bioreactor_state() -> None:
     exp = "test_public_add_media_updates_bioreactor_state"
 
-    assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(14.0)
+    with Monitor(unit=unit, experiment="$experiment"):
+        assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(14.0)
 
-    moved_ml = add_media(ml=1.25, unit=unit, experiment=exp)
+        moved_ml = add_media(ml=1.25, unit=unit, experiment=exp)
+        pause(2)
 
     assert moved_ml == pytest.approx(1.25)
     assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.25)
@@ -84,7 +87,9 @@ def test_public_add_media_updates_bioreactor_state() -> None:
 def test_public_add_alt_media_updates_bioreactor_state() -> None:
     exp = "test_public_add_alt_media_updates_bioreactor_state"
 
-    moved_ml = add_alt_media(ml=1.0, unit=unit, experiment=exp)
+    with Monitor(unit=unit, experiment="$experiment"):
+        moved_ml = add_alt_media(ml=1.0, unit=unit, experiment=exp)
+        pause(2)
 
     assert moved_ml == pytest.approx(1.0)
     assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.0)
