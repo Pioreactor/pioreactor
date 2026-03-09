@@ -1129,17 +1129,20 @@ class BackgroundJobWithDodging(_BackgroundJob):
     sneak_in_timer: RepeatedTimer
     currently_dodging_od = False
 
-    def __init__(self, *args, source="app", enable_dodging_od=False, **kwargs) -> None:
-        unit = kwargs.get("unit")
-        if unit is None and len(args) > 0:
-            unit = args[0]
-
-        if unit is not None and not is_active(unit):
+    def __init__(
+        self,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
+        *,
+        source: str = "app",
+        enable_dodging_od: bool = False,
+    ) -> None:
+        if not is_active(unit):
             raise NotActiveWorkerError(
                 f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
             )
 
-        super().__init__(*args, source=source, **kwargs)  # type: ignore
+        super().__init__(unit, experiment, source=source)
 
         if not config.has_section(f"{self.job_name}.config"):
             self.logger.error(

@@ -160,6 +160,15 @@ We run GitHub Actions for CI, located in `.github/workflows/ci.yaml`.
 
 ---
 
+## Database schema
+
+Get the latest database schema:
+
+```
+curl -fsSL https://raw.githubusercontent.com/Pioreactor/CustoPiZer/refs/heads/pioreactor/workspace/scripts/files/sql/create_tables.sql
+```
+
+
 ## Business logic
 
 Make sure to consider the following when editing and reviewing code.
