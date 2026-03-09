@@ -645,29 +645,14 @@ class Monitor(LongRunningBackgroundJob):
                     f"Pioreactor worker, {worker}, is available to be added to your cluster."
                 )
 
-    def set_bioreactor_value_from_mqtt(self, message: MQTTMessage) -> None:
-        try:
-            unit, experiment, variable_name, is_set_topic = bioreactor.parse_bioreactor_topic(message.topic)
-            if not is_set_topic:
-                raise ValueError(f"Expected a bioreactor set topic, got {message.topic}")
-
-            target_unit = self.unit if unit == whoami.UNIVERSAL_IDENTIFIER else unit
-            bioreactor.set_and_publish_bioreactor_value(
-                self.pub_client,
-                target_unit,
-                experiment,
-                variable_name,
-                message.payload,
-            )
-        except Exception as e:
-            self.logger.warning(str(e))
-
     def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
         try:
             _, unit, experiment, _ = message.topic.split("/")
             dosing_event = decode(message.payload, type=structs.DosingEvent)
             # Monitor owns the dosing_events -> bioreactor projection so pump actions can stay
             # hardware-focused and jobs do not need to coordinate who persists retained vial state.
+            # This is an expedient home because monitor is always on; if more experiment-domain
+            # projections accumulate, move this into a dedicated worker-state owner.
             bioreactor.apply_dosing_event_to_bioreactor(
                 unit,
                 experiment,
@@ -691,16 +676,6 @@ class Monitor(LongRunningBackgroundJob):
         self.subscribe_and_callback(
             self.flicker_error_code_from_mqtt,
             f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_with_error_code",
-            qos=QOS.AT_LEAST_ONCE,
-        )
-
-        self.subscribe_and_callback(
-            self.set_bioreactor_value_from_mqtt,
-            [
-                f"pioreactor/{self.unit}/+/bioreactor/+/set",
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/bioreactor/+/set",
-            ],
-            allow_retained=False,
             qos=QOS.AT_LEAST_ONCE,
         )
 

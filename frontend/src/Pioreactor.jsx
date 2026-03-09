@@ -175,7 +175,19 @@ function createBioreactorSettingsGroup(descriptors, values, config) {
   };
 }
 
-function BioreactorPanel({
+function updateBioreactorSettingAndMirrorState(unit, experiment, setting, value, setBioreactorValues) {
+  return updateBioreactorValues(unit, experiment, {[setting]: value}).then(() => {
+    const parsedValue = parseNumericValue(value)
+    if (parsedValue !== null) {
+      setBioreactorValues?.((previous) => ({
+        ...previous,
+        [setting]: parsedValue,
+      }))
+    }
+  })
+}
+
+function BioreactorDiagramPanel({
   unit,
   experiment,
   config,
@@ -238,10 +250,10 @@ function BioreactorPanel({
 
     const topics = getBioreactorSubscriptionTopics(unit, experiment);
 
-    subscribeToTopic(topics, onBioreactorMessage, "BioreactorPanel");
+    subscribeToTopic(topics, onBioreactorMessage, "BioreactorDiagramPanel");
 
     return () => {
-      unsubscribeFromTopic(topics, "BioreactorPanel");
+      unsubscribeFromTopic(topics, "BioreactorDiagramPanel");
     };
   }, [client, experiment, onBioreactorMessage, subscribeToTopic, unsubscribeFromTopic, unit]);
 
@@ -972,17 +984,15 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobAttr(job, setting, value) {
     if (job === "bioreactor") {
-      return updateBioreactorValues(props.unit, props.experiment, {[setting]: value}).then(() => {
-        const parsedValue = parseNumericValue(value)
-        if (parsedValue !== null) {
-          // Mirror the confirmed save locally so the Settings dialog updates immediately.
-          // The retained MQTT echo will still arrive, but it can lag the HTTP response.
-          props.setBioreactorValues?.((previous) => ({
-            ...previous,
-            [setting]: parsedValue,
-          }))
-        }
-      })
+      // Mirror the confirmed save locally so the Settings dialog updates immediately.
+      // The retained MQTT echo will still arrive, but it can lag the HTTP response.
+      return updateBioreactorSettingAndMirrorState(
+        props.unit,
+        props.experiment,
+        setting,
+        value,
+        props.setBioreactorValues,
+      )
     }
 
     return fetch(`/api/workers/${props.unit}/jobs/update/job_name/${job}/experiments/${props.experiment}`, {
@@ -2195,15 +2205,13 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
 
   const setPioreactorJobAttr = (job, setting, value) => {
     if (job === "bioreactor") {
-      return updateBioreactorValues(unit, experiment, {[setting]: value}).then(() => {
-        const parsedValue = parseNumericValue(value)
-        if (parsedValue !== null) {
-          setBioreactorValues((previous) => ({
-            ...previous,
-            [setting]: parsedValue,
-          }))
-        }
-      })
+      return updateBioreactorSettingAndMirrorState(
+        unit,
+        experiment,
+        setting,
+        value,
+        setBioreactorValues,
+      )
     }
 
     return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
@@ -2892,7 +2900,7 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-            <BioreactorPanel
+            <BioreactorDiagramPanel
               unit={unit}
               experiment={experimentMetadata.experiment}
               config={unitConfig}

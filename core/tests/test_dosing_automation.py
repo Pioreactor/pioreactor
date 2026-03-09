@@ -1206,6 +1206,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
         event = algo.run()
         assert isinstance(event, events.ErrorOccurred)
 
+
 def test_latest_event_goes_to_mqtt(fast_dosing_timers) -> None:
     experiment = "test_latest_event_goes_to_mqtt"
 
@@ -1508,18 +1509,16 @@ def test_bioreactor_mqtt_updates_running_dosing_job() -> None:
     with Monitor(unit=unit, experiment="$experiment"):
         with DosingAutomationJob(unit=unit, experiment=experiment) as job:
             pubsub.publish(
-                bioreactor.get_bioreactor_set_topic(unit, experiment, "current_volume_ml"),
+                bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
                 12.5,
             )
             pubsub.publish(
-                bioreactor.get_bioreactor_set_topic(unit, experiment, "alt_media_fraction"),
+                bioreactor.get_bioreactor_topic(unit, experiment, "alt_media_fraction"),
                 0.35,
             )
 
             assert wait_for(lambda: close(job.current_volume_ml, 12.5), timeout=5.0)
             assert wait_for(lambda: close(job.alt_media_fraction, 0.35), timeout=5.0)
-
-
 
 
 @pytest.mark.slow

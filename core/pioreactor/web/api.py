@@ -28,8 +28,6 @@ from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.bioreactor import get_bioreactor_descriptors
-from pioreactor.bioreactor import get_bioreactor_set_topic
-from pioreactor.bioreactor import validate_bioreactor_value
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.models import get_registered_models
@@ -580,8 +578,9 @@ def get_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResp
     "/workers/<pioreactor_unit>/experiments/<experiment>/bioreactor",
     methods=["PATCH"],
 )
-def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    values = (request.get_json(silent=True) or {}).get("values", {})
+def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:
+    body = request.get_json(silent=True) or {}
+    values = body.get("values", {})
 
     if not isinstance(values, dict) or not values:
         abort_with(
@@ -591,18 +590,20 @@ def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> Response
             remediation='Submit a payload like {"values": {"current_volume_ml": 12.5}}.',
         )
 
-    try:
-        for variable_name, value in values.items():
-            parsed_value = validate_bioreactor_value(variable_name, value)
-            client.publish(
-                get_bioreactor_set_topic(pioreactor_unit, experiment, variable_name),
-                parsed_value,
-            )
-    except Exception as e:
-        publish_to_error_log(str(e), "update_bioreactor_on_unit")
-        abort_with(400, str(e))
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = tasks.multicast_patch(
+            f"/unit_api/bioreactor/experiments/{experiment}",
+            get_all_workers_in_experiment(experiment),
+            json=body,
+        )
+    else:
+        task = tasks.multicast_patch(
+            f"/unit_api/bioreactor/experiments/{experiment}",
+            [pioreactor_unit],
+            json=body,
+        )
 
-    return {"status": "success"}, 202
+    return create_task_response(task)
 
 
 @api_bp.route("/units/<pioreactor_unit>/system/reboot", methods=["POST"])

@@ -129,6 +129,31 @@ def test_get_bioreactor_values_endpoint_returns_persisted_values(client) -> None
     assert data["values"]["alt_media_fraction"] == pytest.approx(0.3)
 
 
+def test_update_bioreactor_values_endpoint_persists_and_publishes(client, monkeypatch) -> None:
+    captured: list[tuple[str, str, str, object]] = []
+
+    def fake_set_and_publish_bioreactor_value(mqtt_client, unit, experiment, variable_name, value) -> float:
+        captured.append((unit, experiment, variable_name, value))
+        return float(value)
+
+    monkeypatch.setattr(
+        "pioreactor.web.unit_api.set_and_publish_bioreactor_value",
+        fake_set_and_publish_bioreactor_value,
+    )
+
+    resp = client.patch(
+        "/unit_api/bioreactor/experiments/exp1",
+        json={"values": {"current_volume_ml": 11.2, "alt_media_fraction": 0.3}},
+    )
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "success"}
+    assert captured == [
+        ("localhost", "exp1", "current_volume_ml", 11.2),
+        ("localhost", "exp1", "alt_media_fraction", 0.3),
+    ]
+
+
 def test_hardware_check_requires_model_payload(client) -> None:
     resp = client.post("/unit_api/hardware/check", json={})
     assert resp.status_code == 400

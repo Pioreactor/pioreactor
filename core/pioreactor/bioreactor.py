@@ -50,8 +50,6 @@ _BIOREACTOR_VARIABLES: dict[str, dict[str, str | float | None | _BioreactorDefau
 }
 
 
-
-
 def get_default_bioreactor_value(variable_name: str) -> float:
     metadata = _BIOREACTOR_VARIABLES[variable_name]
     resolver = t.cast(_BioreactorDefaultResolver, metadata["default_resolver"])
@@ -129,23 +127,6 @@ def get_bioreactor_topic(unit: pt.Unit, experiment: pt.Experiment, variable_name
     return f"pioreactor/{unit}/{experiment}/bioreactor/{variable_name}"
 
 
-def get_bioreactor_set_topic(unit: pt.Unit, experiment: pt.Experiment, variable_name: str) -> str:
-    return get_bioreactor_topic(unit, experiment, variable_name) + "/set"
-
-
-def parse_bioreactor_topic(topic: str) -> tuple[str, str, str, bool]:
-    pieces = topic.split("/")
-    unit = pieces[1]
-    experiment = pieces[2]
-    variable_name = pieces[4]
-    is_set_topic = len(pieces) == 6 and pieces[5] == "set"
-
-    if len(pieces) == 6 and not is_set_topic:
-        raise ValueError(f"Invalid bioreactor topic: {topic}")
-
-    return unit, experiment, variable_name, is_set_topic
-
-
 def publish_bioreactor_value(
     mqtt_client: "pt.Client",
     unit: pt.Unit,
@@ -174,23 +155,6 @@ def set_and_publish_bioreactor_value(
     parsed_value = set_bioreactor_value(experiment, variable_name, value)
     publish_bioreactor_value(mqtt_client, unit, experiment, variable_name, parsed_value)
     return parsed_value
-
-
-def handle_bioreactor_set_message(
-    message: pt.MQTTMessage, mqtt_client: "pt.Client"
-) -> tuple[str, str, str, float]:
-    unit, experiment, variable_name, is_set_topic = parse_bioreactor_topic(message.topic)
-    if not is_set_topic:
-        raise ValueError(f"Expected a bioreactor set topic, got {message.topic}")
-
-    parsed_value = set_and_publish_bioreactor_value(
-        mqtt_client,
-        unit,
-        experiment,
-        variable_name,
-        message.payload,
-    )
-    return unit, experiment, variable_name, parsed_value
 
 
 def calculate_updated_current_volume(
@@ -291,8 +255,6 @@ def apply_dosing_event_to_bioreactor(
         "alt_media_fraction": updated_alt_media_fraction,
         "current_volume_ml": updated_current_volume_ml,
     }
-
-
 
 
 def _calculate_alt_media_fraction_after_addition(

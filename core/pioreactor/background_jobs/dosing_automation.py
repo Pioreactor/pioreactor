@@ -630,7 +630,7 @@ class DosingAutomationJob(AutomationJob):
         if not message.payload:
             return
 
-        _, _, variable_name, _ = bioreactor.parse_bioreactor_topic(message.topic)
+        variable_name = message.topic.split("/")[4]
         parsed_value = bioreactor.validate_bioreactor_value(variable_name, message.payload)
 
         if variable_name == "alt_media_fraction":

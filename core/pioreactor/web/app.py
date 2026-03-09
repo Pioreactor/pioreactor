@@ -71,16 +71,18 @@ def create_app():
 
         app.register_blueprint(api_bp)
         app.register_blueprint(mcp_bp)
-        # we currently only need to communicate with MQTT for the leader.
-        # don't even connect if a worker - if the leader is down, this will crash and restart the server over and over.
-        broker_address = pioreactor_config.get("mqtt", "broker_address", fallback="localhost").split(";")[0]
-        broker_port = pioreactor_config.getint("mqtt", "broker_port", fallback=1883)
+
+    broker_address = pioreactor_config.get("mqtt", "broker_address", fallback="localhost").split(";")[0]
+    broker_port = pioreactor_config.getint("mqtt", "broker_port", fallback=1883)
+    try:
         client.connect(
             host=broker_address,
             port=broker_port,
         )
-        logger.debug(f"Starting MQTT client at {broker_address}:{broker_port}")
         client.loop_start()
+        logger.debug(f"Starting MQTT client at {broker_address}:{broker_port}")
+    except Exception:
+        pass
 
     @app.teardown_appcontext
     def close_connection(exception) -> None:

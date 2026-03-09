@@ -665,13 +665,17 @@ def test_get_bioreactor_on_unit_queues_multicast_get(client, monkeypatch: Monkey
     assert captured["units"] == ["unit1"]
 
 
-def test_update_bioreactor_on_unit_publishes_to_mqtt(client, monkeypatch: MonkeyPatch) -> None:
-    published_messages: list[tuple[str, float, int]] = []
+def test_update_bioreactor_on_unit_queues_multicast_patch(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
 
-    def fake_publish(topic: str, payload: float, qos: int = 0):
-        published_messages.append((topic, payload, qos))
+    def fake_multicast_patch(endpoint: str, units: list[str], json: dict | None = None) -> str:
+        captured["endpoint"] = endpoint
+        captured["units"] = units
+        captured["json"] = json
+        return "task"
 
-    monkeypatch.setattr("pioreactor.web.api.client.publish", fake_publish)
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_patch", fake_multicast_patch)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.patch(
         "/api/workers/unit1/experiments/exp1/bioreactor",
@@ -679,10 +683,9 @@ def test_update_bioreactor_on_unit_publishes_to_mqtt(client, monkeypatch: Monkey
     )
 
     assert response.status_code == 202
-    assert published_messages == [
-        ("pioreactor/unit1/exp1/bioreactor/current_volume_ml/set", 12.5, 2),
-        ("pioreactor/unit1/exp1/bioreactor/alt_media_fraction/set", 0.4, 2),
-    ]
+    assert captured["endpoint"] == "/unit_api/bioreactor/experiments/exp1"
+    assert captured["units"] == ["unit1"]
+    assert captured["json"] == {"values": {"current_volume_ml": 12.5, "alt_media_fraction": 0.4}}
 
 
 def test_update_next_version_defaults_to_broadcast(client, monkeypatch: MonkeyPatch) -> None:
