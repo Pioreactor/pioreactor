@@ -516,7 +516,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 self.logger.debug(f"Error in on_{current_state}_to_{new_state_enum}")
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
-                return
 
         getattr(self, new_state_enum)()
 
@@ -556,9 +555,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         if self.state is not st.DISCONNECTED:
             self.set_state(st.DISCONNECTED)
-            if self.state is not st.DISCONNECTED:
-                # A transition hook may have failed before disconnected() ran.
-                self.disconnected()
         self._clean_up_resources()
 
     def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:

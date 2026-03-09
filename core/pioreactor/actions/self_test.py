@@ -7,9 +7,9 @@ Functions with prefix `test_` are ran, and any exception thrown means the test f
 Outputs from each test go into MQTT, and return to the command line.
 """
 import signal
-import sys
 from contextlib import contextmanager
 from contextlib import nullcontext
+from functools import cache
 from json import dumps
 from time import sleep
 from typing import Callable
@@ -18,6 +18,7 @@ from typing import Iterator
 from typing import Optional
 
 import click
+from pioreactor import plugin_management
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import led_intensity
@@ -68,10 +69,27 @@ ORDERED_SELF_TEST_NAMES: tuple[str, ...] = (
     "test_positive_correlation_between_rpm_and_stirring",
     "test_aux_power_is_not_too_high",
 )
+REGISTERED_SELF_TESTS: list[Callable[..., None]] = []
 
 
 class SelfTestTimedOut(TimeoutError):
     pass
+
+
+def register_self_tests(*tests: Callable[..., None]) -> None:
+    for test in tests:
+        if test not in REGISTERED_SELF_TESTS:
+            REGISTERED_SELF_TESTS.append(test)
+
+
+@cache
+def _ensure_plugin_self_tests_registered() -> None:
+    plugin_management.get_plugins()
+
+
+def get_builtin_self_tests() -> list[Callable[..., None]]:
+    current_module = globals()
+    return [current_module[name] for name in ORDERED_SELF_TEST_NAMES]
 
 
 @contextmanager
@@ -602,8 +620,13 @@ def get_failed_test_names() -> Iterator[str]:
                 yield name
 
 
+def get_all_tests() -> list[Callable[..., None]]:
+    _ensure_plugin_self_tests_registered()
+    return get_builtin_self_tests() + list(REGISTERED_SELF_TESTS)
+
+
 def get_all_test_names() -> Iterator[str]:
-    return iter(ORDERED_SELF_TEST_NAMES)
+    return (test.__name__ for test in get_all_tests())
 
 
 @click.command(name="self_test")
@@ -628,27 +651,24 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
             )
             raise click.Abort()
 
-        # automagically finds the test_ functions.
-        tests_to_run: Iterator[str]
+        tests_to_run: list[Callable[..., None]]
         if retry_failed:
-            tests_to_run = get_failed_test_names()
+            failed_test_name_set = set(get_failed_test_names())
+            tests_to_run = [test for test in get_all_tests() if test.__name__ in failed_test_name_set]
         else:
-            tests_to_run = get_all_test_names()
+            tests_to_run = get_all_tests()
 
         if k:
-            tests_to_run = (name for name in tests_to_run if k in name)
+            tests_to_run = [test for test in tests_to_run if k in test.__name__]
 
-        test_names = tuple(tests_to_run)
-        functions_to_test = [vars(sys.modules[__name__])[name] for name in test_names]
-
-        logger.info(f"Starting self-test. Running {len(functions_to_test)} tests.")
+        logger.info(f"Starting self-test. Running {len(tests_to_run)} tests.")
 
         # and clear the mqtt cache first
-        for f in functions_to_test:
-            managed_state.publish_setting(f.__name__, None)
+        for test in tests_to_run:
+            managed_state.publish_setting(test.__name__, None)
 
         try:
-            results = run_tests(functions_to_test, managed_state, logger, unit, testing_experiment)
+            results = run_tests(tests_to_run, managed_state, logger, unit, testing_experiment)
         except KeyboardInterrupt:
             logger.info("Self-test interrupted, waiting for cleanup.")
             raise click.Abort()

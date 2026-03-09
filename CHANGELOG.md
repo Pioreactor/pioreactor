@@ -11,6 +11,18 @@
    - `GET /unit_api/bioreactor/experiments/<experiment>`
  - Added live bioreactor controls to the Pioreactor UI so users can inspect and edit per-unit bioreactor values, with updated vessel diagrams for supported 20 mL and 40 mL models.
  - Dosing workflows now project manual pump actions and dosing-automation events into persisted bioreactor state, keeping tracked volume and alternative-media fraction synchronized across jobs and restarts.
+ - Added plugin hooks for custom self-tests. Plugins can now register additional checks that run with `pio run self_test`, for example:
+
+   ```python
+   from pioreactor.actions.self_test import register_self_tests
+
+
+   def test_air_bubble_is_running(managed_state, logger, unit, experiment):
+       assert ...
+
+
+   register_self_tests(test_air_bubble_is_running)
+   ```
 
 #### Bug fixes
 
