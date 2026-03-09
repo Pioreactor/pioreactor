@@ -555,6 +555,14 @@ class DosingAutomationJob(AutomationJob):
             cache[self.experiment] = self.media_throughput
 
     def _init_alt_media_fraction(self, alt_media_fraction: float | None) -> None:
+        self.add_to_published_settings(
+            "alt_media_fraction",
+            {
+                "datatype": "float",
+                "settable": True,
+            },
+        )
+
         if alt_media_fraction is None:
             resolved_alt_media_fraction = bioreactor.get_bioreactor_value(
                 self.experiment,
@@ -574,6 +582,25 @@ class DosingAutomationJob(AutomationJob):
     def _init_liquid_volume(
         self, initial_volume_ml: float | None, max_working_volume_ml: float | None
     ) -> None:
+        self.add_to_published_settings(
+            "current_volume_ml",
+            {
+                "datatype": "float",
+                "settable": True,
+                "unit": "mL",
+                "persist": True,
+            },
+        )
+        self.add_to_published_settings(
+            "max_working_volume_ml",
+            {
+                "datatype": "float",
+                "settable": True,
+                "unit": "mL",
+                "persist": True,
+            },
+        )
+
         if max_working_volume_ml is None:
             resolved_max_working_volume_ml = bioreactor.get_bioreactor_value(
                 self.experiment,
@@ -634,7 +661,37 @@ class DosingAutomationJob(AutomationJob):
             ],
         )
 
+    def set_alt_media_fraction(self, value: float) -> None:
+        self.alt_media_fraction = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "alt_media_fraction",
+            value,
+        )
+
+    def set_current_volume_ml(self, value: float) -> None:
+        self.current_volume_ml = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "current_volume_ml",
+            value,
+        )
+
+    def set_max_working_volume_ml(self, value: float) -> None:
+        self.max_working_volume_ml = bioreactor.set_and_publish_bioreactor_value(
+            self.pub_client,
+            self.unit,
+            self.experiment,
+            "max_working_volume_ml",
+            value,
+        )
+
     def _set_bioreactor_value_from_mqtt(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
         _, _, variable_name, _ = bioreactor.parse_bioreactor_topic(message.topic)
         parsed_value = bioreactor.validate_bioreactor_value(variable_name, message.payload)
 

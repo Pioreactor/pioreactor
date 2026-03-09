@@ -13,9 +13,9 @@ from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import circulate_media
 from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
+from pioreactor.config import config
 from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
-from pioreactor.config import config
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
@@ -274,6 +274,30 @@ def test_pump_can_be_interrupted() -> None:
         pause()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
+
+
+def test_pump_stop_is_safe_after_pwm_cleanup() -> None:
+    experiment = "test_pump_stop_is_safe_after_pwm_cleanup"
+    calibration = structs.SimplePeristalticPumpCalibration(
+        calibration_name="setup_function",
+        curve_data_=_poly_curve([1.0, 0.0]),
+        recorded_data={"x": [], "y": []},
+        dc=100,
+        hz=100,
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        calibrated_on_pioreactor_unit=unit,
+    )
+
+    pump = PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration)
+    pump.continuously(block=False)
+    pause()
+
+    pump.clean_up()
+    pump.stop()
+
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache.get(13, 0) == 0
 
 
 def test_pumps_can_run_in_background() -> None:

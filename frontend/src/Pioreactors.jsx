@@ -82,8 +82,11 @@ import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
   getConfig,
+  getBioreactorConfirmedValue,
+  getBioreactorSubscriptionTopics,
   getBioreactorValues,
   getRelabelMap,
+  parseNumericValue,
   runPioreactorJob,
   fetchTaskResult,
 } from "./utilities";
@@ -114,35 +117,6 @@ const EMPTY_STATE_ILLUSTRATIONS = [
   "/static/svgs/bacteria-two-bacillus-touching.svg",
   "/static/svgs/bacteria-three-bacillus-touching.svg",
 ];
-
-const BIOREACTOR_CONFIG_KEYS = {
-  current_volume_ml: "initial_volume_ml",
-  max_working_volume_ml: "max_working_volume_ml",
-  alt_media_fraction: "initial_alt_media_fraction",
-};
-
-function parseNumericValue(value) {
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function getBioreactorFallbackValue(config, key) {
-  const configKey = BIOREACTOR_CONFIG_KEYS[key];
-  const parsedConfigValue = parseNumericValue(config?.bioreactor?.[configKey]);
-  if (parsedConfigValue !== null) {
-    return parsedConfigValue;
-  }
-
-  if (key === "alt_media_fraction") {
-    return 0;
-  }
-
-  return 14;
-}
-
-function getBioreactorConfirmedValue(values, config, key) {
-  return parseNumericValue(values?.[key]) ?? getBioreactorFallbackValue(config, key);
-}
 
 
 
@@ -3247,14 +3221,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       return undefined;
     }
 
-    const topics = [
-      `pioreactor/${unit}/${experiment}/bioreactor/current_volume_ml`,
-      `pioreactor/${unit}/${experiment}/bioreactor/max_working_volume_ml`,
-      `pioreactor/${unit}/${experiment}/bioreactor/alt_media_fraction`,
-      `pioreactor/${unit}/_testing_${experiment}/bioreactor/current_volume_ml`,
-      `pioreactor/${unit}/_testing_${experiment}/bioreactor/max_working_volume_ml`,
-      `pioreactor/${unit}/_testing_${experiment}/bioreactor/alt_media_fraction`,
-    ];
+    const topics = getBioreactorSubscriptionTopics(unit, experiment);
 
     subscribeToTopic(topics, onBioreactorMessage, "PioreactorCardBioreactor");
 

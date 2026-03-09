@@ -7,8 +7,8 @@ import typing as t
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
-from pioreactor.pubsub import QOS
 from pioreactor.pubsub import publish as mqtt_publish
+from pioreactor.pubsub import QOS
 from pioreactor.utils import local_persistent_storage
 
 BIOREACTOR_STORAGE_NAME = "bioreactor"
@@ -84,7 +84,7 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
     metadata = _get_bioreactor_metadata(variable_name)
 
     try:
-        parsed = float(value)  # type: ignore[arg-type]
+        parsed = _coerce_to_float(value)
     except (TypeError, ValueError) as e:
         raise ValueError(f"Invalid value for bioreactor variable `{variable_name}`.") from e
 
@@ -329,6 +329,22 @@ def _calculate_alt_media_fraction_after_addition(
 
     updated = (current_alt_media_fraction * current_volume_ml + alt_media_delta) / denominator
     return min(max(updated, 0.0), 1.0)
+
+
+def _coerce_to_float(value: object) -> float:
+    if isinstance(value, bytes):
+        return float(value.decode("utf-8"))
+
+    if isinstance(value, bytearray):
+        return float(bytes(value).decode("utf-8"))
+
+    if isinstance(value, memoryview):
+        return float(value.tobytes().decode("utf-8"))
+
+    if isinstance(value, str | int | float):
+        return float(value)
+
+    return float(t.cast(t.SupportsFloat, value))
 
 
 def _publish_updated_bioreactor_value(
