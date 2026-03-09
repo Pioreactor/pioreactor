@@ -4,10 +4,14 @@ import time
 
 import pytest
 import zeroconf
+from msgspec.json import encode
+from pioreactor import bioreactor
+from pioreactor import structs
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -86,3 +90,47 @@ def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
         assert len(logs) == 1
 
     r.unregister_service(info)
+
+
+def test_monitor_projects_dosing_events_into_bioreactor() -> None:
+    unit = get_unit_name()
+    experiment = "test_monitor_projects_dosing_events_into_bioreactor"
+
+    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+        publish(
+            f"pioreactor/{unit}/{experiment}/dosing_events",
+            encode(
+                structs.DosingEvent(
+                    volume_change=1.5,
+                    event="add_alt_media",
+                    source_of_event="test",
+                    timestamp=current_utc_datetime(),
+                )
+            ),
+        )
+        pause(2)
+
+    assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(15.5)
+    assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(1.5 / 15.5)
+
+
+def test_monitor_projects_custom_add_dosing_events_into_bioreactor() -> None:
+    unit = get_unit_name()
+    experiment = "test_monitor_projects_custom_add_dosing_events_into_bioreactor"
+
+    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+        publish(
+            f"pioreactor/{unit}/{experiment}/dosing_events",
+            encode(
+                structs.DosingEvent(
+                    volume_change=1.0,
+                    event="add_salty_media",
+                    source_of_event="test",
+                    timestamp=current_utc_datetime(),
+                )
+            ),
+        )
+        pause(2)
+
+    assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(15.0)
+    assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(0.0)

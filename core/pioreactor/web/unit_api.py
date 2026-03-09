@@ -25,12 +25,16 @@ from huey.exceptions import TaskLockedException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.bioreactor import get_all_bioreactor_values
+from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
+from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils import local_persistent_storage
@@ -712,6 +716,37 @@ def update_job(job_name: str) -> ResponseReturnValue:
     """
     # body = request.get_json()
     abort_with(503, "Not implemented.")
+
+
+@unit_api_bp.route("/bioreactor/experiments/<experiment>", methods=["GET"])
+def get_bioreactor_values(experiment: str) -> ResponseReturnValue:
+    return jsonify({"values": get_all_bioreactor_values(experiment)})
+
+
+@unit_api_bp.route("/bioreactor/experiments/<experiment>", methods=["PATCH"])
+def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
+    body = request.get_json(silent=True) or {}
+    values = body.get("values", {})
+
+    if not isinstance(values, dict) or not values:
+        abort_with(
+            400,
+            "Missing bioreactor values.",
+            cause="Expected a JSON object under `values` with one or more bioreactor settings.",
+            remediation='Submit a payload like {"values": {"current_volume_ml": 12.5}}.',
+        )
+
+    try:
+        with create_client() as mqtt_client:
+            for variable_name, value in values.items():
+                set_and_publish_bioreactor_value(
+                    cast("pt.Client", mqtt_client), HOSTNAME, experiment, variable_name, value
+                )
+    except Exception as e:
+        publish_to_error_log(str(e), "update_bioreactor_values")
+        abort_with(400, str(e))
+
+    return jsonify({"status": "success"})
 
 
 @unit_api_bp.route("/capabilities", methods=["GET"])

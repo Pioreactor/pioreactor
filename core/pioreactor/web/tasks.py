@@ -203,7 +203,7 @@ def _process_delayed_json_response(
     retry_sleep_s: float = 0.1,
 ) -> tuple[str, Any]:
     """
-    Handle delayed HTTP responses (202 with result_url_path) and immediate 200 responses.
+    Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
     Returns the unit and the appropriate JSON data or result value.
     """
     data = response.json()
@@ -213,7 +213,7 @@ def _process_delayed_json_response(
             return unit, None
         sleep(retry_sleep_s)
         return _get_from_unit(unit, data["result_url_path"], max_attempts=max_attempts - 1)
-    if response.status_code == 200:
+    if 200 <= response.status_code < 300:
         # Normalize immediate responses: unwrap Huey-style payloads to just the result,
         # otherwise return the full JSON body for non-task responses.
         if "task_id" in data:

@@ -58,6 +58,12 @@ def run_around_tests(request):
     with local_persistent_storage("current_volume_ml") as c:
         c.pop(test_name)
 
+    with local_persistent_storage("bioreactor") as cache:
+        for key in list(cache.iterkeys()):
+            if isinstance(key, list):
+                key = tuple(key)
+            del cache[key]
+
     prune_retained_messages("pioreactor/#")
 
     with JobManager() as job_manager:

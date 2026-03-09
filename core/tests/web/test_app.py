@@ -14,6 +14,21 @@ IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 huey.immediate = True
 
 
+def test_process_delayed_json_response_accepts_created_status() -> None:
+    import pioreactor.web.tasks as mod
+
+    class DummyResponse:
+        status_code = 201
+
+        def json(self) -> dict[str, str]:
+            return {"msg": "Calibration created successfully."}
+
+    assert mod._process_delayed_json_response("unit1", DummyResponse()) == (
+        "unit1",
+        {"msg": "Calibration created successfully."},
+    )
+
+
 def test_latest_experiment_endpoint(client) -> None:
     response = client.get("/api/experiments/latest")
 
@@ -633,6 +648,41 @@ def test_get_settings_api(client) -> None:
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
+
+
+def test_get_bioreactor_descriptors(client) -> None:
+    response = client.get("/api/bioreactor/descriptors")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert [descriptor["key"] for descriptor in data] == [
+        "current_volume_ml",
+        "max_working_volume_ml",
+        "alt_media_fraction",
+    ]
+
+
+def test_update_bioreactor_on_unit_queues_multicast_patch(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_multicast_patch(endpoint: str, units: list[str], json: dict | None = None) -> str:
+        captured["endpoint"] = endpoint
+        captured["units"] = units
+        captured["json"] = json
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_patch", fake_multicast_patch)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.patch(
+        "/api/workers/unit1/experiments/exp1/bioreactor",
+        json={"values": {"current_volume_ml": 12.5, "alt_media_fraction": 0.4}},
+    )
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == "/unit_api/bioreactor/experiments/exp1"
+    assert captured["units"] == ["unit1"]
+    assert captured["json"] == {"values": {"current_volume_ml": 12.5, "alt_media_fraction": 0.4}}
 
 
 def test_update_next_version_defaults_to_broadcast(client, monkeypatch: MonkeyPatch) -> None:

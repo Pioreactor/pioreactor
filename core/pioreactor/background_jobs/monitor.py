@@ -8,8 +8,11 @@ from typing import Callable
 from typing import Optional
 
 import click
+from msgspec.json import decode
+from pioreactor import bioreactor
 from pioreactor import error_codes
 from pioreactor import exc
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import utils
 from pioreactor import version
@@ -642,6 +645,23 @@ class Monitor(LongRunningBackgroundJob):
                     f"Pioreactor worker, {worker}, is available to be added to your cluster."
                 )
 
+    def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
+        try:
+            _, unit, experiment, _ = message.topic.split("/")
+            dosing_event = decode(message.payload, type=structs.DosingEvent)
+            # Monitor owns the dosing_events -> bioreactor projection so pump actions can stay
+            # hardware-focused and jobs do not need to coordinate who persists retained vial state.
+            # This is an expedient home because monitor is always on; if more experiment-domain
+            # projections accumulate, move this into a dedicated worker-state owner.
+            bioreactor.apply_dosing_event_to_bioreactor(
+                unit,
+                experiment,
+                dosing_event,
+                mqtt_client=self.pub_client,
+            )
+        except Exception as e:
+            self.logger.warning(str(e))
+
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.flicker_led_response_okay_and_publish_state,
@@ -656,6 +676,13 @@ class Monitor(LongRunningBackgroundJob):
         self.subscribe_and_callback(
             self.flicker_error_code_from_mqtt,
             f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_with_error_code",
+            qos=QOS.AT_LEAST_ONCE,
+        )
+
+        self.subscribe_and_callback(
+            self.update_bioreactor_state_from_dosing_event,
+            f"pioreactor/{self.unit}/+/dosing_events",
+            allow_retained=False,
             qos=QOS.AT_LEAST_ONCE,
         )
 

@@ -5,6 +5,24 @@
  - Redesigned the Experiments UI page into a management-focused table with search, status/tag filters, tag editing, and quick actions for exporting, ending, or deleting experiments.
  - Added experiment tags to the UI and API: tags can now be created when starting a new experiment, edited later from the Experiments page, and used to organize/filter experiments.
  - Calibration protocol sessions now persist a tab-scoped resume handle in the UI, so reloading the Protocols page in the same browser tab restores the existing `Resume protocol` action instead of losing the in-progress session.
+ - Added persisted bioreactor state for each experiment, including `current_volume_ml`, `max_working_volume_ml`, and `alt_media_fraction`. These values are now exposed over MQTT plus new API endpoints:
+   - `GET /api/bioreactor/descriptors`
+   - `GET|PATCH /api/workers/<unit>/experiments/<experiment>/bioreactor`
+   - `GET /unit_api/bioreactor/experiments/<experiment>`
+ - Added live bioreactor controls to the Pioreactor UI so users can inspect and edit per-unit bioreactor values, with updated vessel diagrams for supported 20 mL and 40 mL models.
+ - Dosing workflows now project manual pump actions and dosing-automation events into persisted bioreactor state, keeping tracked volume and alternative-media fraction synchronized across jobs and restarts.
+ - Added plugin hooks for custom self-tests. Plugins can now register additional checks that run with `pio run self_test`, for example:
+
+   ```python
+   from pioreactor.actions.self_test import register_self_tests
+
+
+   def test_air_bubble_is_running(managed_state, logger, unit, experiment):
+       assert ...
+
+
+   register_self_tests(test_air_bubble_is_running)
+   ```
 
 #### Bug fixes
 
@@ -14,6 +32,7 @@
  - Fixed calibration session resume so reopening a saved protocol session returns to the current step instead of accidentally starting the protocol from the beginning again.
  - Fixed calibration session abort handling in the UI so backend abort failures are surfaced to the user and no longer clear the session as if cleanup succeeded.
  - Fixed invalid comma-separated calibration inputs such as pump target volume lists to return a clean validation error instead of bubbling into a server error.
+ - Fixed dosing jobs so MQTT bioreactor updates made from the UI or other publishers are applied immediately to running automations instead of waiting for a restart.
 
 ### 26.2.26
 

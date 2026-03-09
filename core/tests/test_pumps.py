@@ -6,12 +6,15 @@ from datetime import datetime
 from datetime import timezone
 
 import pytest
+from pioreactor import bioreactor
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import circulate_media
 from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
+from pioreactor.background_jobs.monitor import Monitor
+from pioreactor.config import config
 from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
 from pioreactor.pubsub import create_client
@@ -35,6 +38,7 @@ def pause(n=1):
 
 
 def setup_function():
+    config.set("PWM_reverse", "alt_media", "4")
     cal = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
         curve_data_=_poly_curve([1.0, 0.0]),
@@ -65,6 +69,31 @@ def test_pump_io() -> None:
     assert ml == add_media(duration=ml, unit=unit, experiment=exp)
     assert ml == add_alt_media(duration=ml, unit=unit, experiment=exp)
     assert ml == remove_waste(duration=ml, unit=unit, experiment=exp)
+
+
+def test_public_add_media_updates_bioreactor_state() -> None:
+    exp = "test_public_add_media_updates_bioreactor_state"
+
+    with Monitor(unit=unit, experiment="$experiment"):
+        assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(14.0)
+
+        moved_ml = add_media(ml=1.25, unit=unit, experiment=exp)
+        pause(2)
+
+    assert moved_ml == pytest.approx(1.25)
+    assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.25)
+
+
+def test_public_add_alt_media_updates_bioreactor_state() -> None:
+    exp = "test_public_add_alt_media_updates_bioreactor_state"
+
+    with Monitor(unit=unit, experiment="$experiment"):
+        moved_ml = add_alt_media(ml=1.0, unit=unit, experiment=exp)
+        pause(2)
+
+    assert moved_ml == pytest.approx(1.0)
+    assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.0)
+    assert bioreactor.get_bioreactor_value(exp, "alt_media_fraction") == pytest.approx(1 / 15)
 
 
 def test_pump_fails_if_calibration_not_present() -> None:
@@ -252,6 +281,30 @@ def test_pump_can_be_interrupted() -> None:
             assert cache.get(13, 0) == 0
 
 
+def test_pump_stop_is_safe_after_pwm_cleanup() -> None:
+    experiment = "test_pump_stop_is_safe_after_pwm_cleanup"
+    calibration = structs.SimplePeristalticPumpCalibration(
+        calibration_name="setup_function",
+        curve_data_=_poly_curve([1.0, 0.0]),
+        recorded_data={"x": [], "y": []},
+        dc=100,
+        hz=100,
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        calibrated_on_pioreactor_unit=unit,
+    )
+
+    pump = PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration)
+    pump.continuously(block=False)
+    pause()
+
+    pump.clean_up()
+    pump.stop()
+
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache.get(13, 0) == 0
+
+
 def test_pumps_can_run_in_background() -> None:
     experiment = "test_pumps_can_run_in_background"
 
@@ -382,27 +435,9 @@ def test_media_circulation_works_without_calibration_since_we_are_entering_durat
     assert waste_removed >= media_added
 
 
-def test_manually_doesnt_trigger_pwm_dcs() -> None:
-    ml = 1.0
-    exp = "test_manually_doesnt_trigger_pwm_dcs"
-
-    pwm_updates = []
-
-    def collect_pwm_updates(msg):
-        pwm_updates.append(msg.payload.decode())
-
-    subscribe_and_callback(collect_pwm_updates, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
-    assert add_media(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
-    assert add_alt_media(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
-    assert remove_waste(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
-
-    for update in pwm_updates:
-        assert update == r"{}"
-
-
 @pytest.mark.slow
 def test_published_mqtt_data_is_the_same_as_requested() -> None:
-    exp = "test_manually_doesnt_trigger_pwm_dcs"
+    exp = "test_published_mqtt_data_is_the_same_as_requested"
 
     dosing_events = []
 

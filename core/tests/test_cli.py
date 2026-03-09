@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 import pytest
 from click.testing import CliRunner
+from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
@@ -244,6 +245,25 @@ def test_pio_cache_view_without_key_shows_all_keys() -> None:
         with local_persistent_storage(cache_name) as c:
             for key in tuple(c.iterkeys()):
                 del c[key]
+
+
+def test_pio_cache_view_handles_tuple_keys() -> None:
+    experiment = "test_pio_cache_view_handles_tuple_keys"
+
+    try:
+        bioreactor.set_bioreactor_value(experiment, "current_volume_ml", 12.5)
+        bioreactor.set_bioreactor_value(experiment, "alt_media_fraction", 0.3)
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "view", bioreactor.BIOREACTOR_STORAGE_NAME])
+
+        assert result.exit_code == 0
+        assert "('test_pio_cache_view_handles_tuple_keys', 'alt_media_fraction') = 0.3" in result.output
+        assert "('test_pio_cache_view_handles_tuple_keys', 'current_volume_ml') = 12.5" in result.output
+    finally:
+        with local_persistent_storage(bioreactor.BIOREACTOR_STORAGE_NAME) as c:
+            c.pop((experiment, "current_volume_ml"), None)
+            c.pop((experiment, "alt_media_fraction"), None)
 
 
 def test_led_intensity() -> None:

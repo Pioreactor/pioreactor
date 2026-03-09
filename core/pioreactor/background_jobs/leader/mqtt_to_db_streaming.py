@@ -469,12 +469,12 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "temperature_readings",
             ),
             TopicToParserToTable(
-                "pioreactor/+/+/dosing_automation/alt_media_fraction",
+                "pioreactor/+/+/bioreactor/alt_media_fraction",
                 parse_alt_media_fraction,
                 "alt_media_fractions",
             ),
             TopicToParserToTable(
-                "pioreactor/+/+/dosing_automation/current_volume_ml",
+                "pioreactor/+/+/bioreactor/current_volume_ml",
                 parse_liquid_volume,
                 "liquid_volumes",
             ),

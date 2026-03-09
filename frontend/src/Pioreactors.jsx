@@ -69,7 +69,6 @@ import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
 import AutomationAdvancedConfigButton from "./components/AutomationAdvancedConfigDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
-import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
@@ -83,8 +82,14 @@ import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
   getConfig,
+  getBioreactorConfirmedValue,
+  getBioreactorDescriptors,
+  getBioreactorSubscriptionTopics,
+  getBioreactorValues,
   getRelabelMap,
+  parseNumericValue,
   runPioreactorJob,
+  updateBioreactorValues,
   fetchTaskResult,
 } from "./utilities";
 import {
@@ -114,6 +119,55 @@ const EMPTY_STATE_ILLUSTRATIONS = [
   "/static/svgs/bacteria-two-bacillus-touching.svg",
   "/static/svgs/bacteria-three-bacillus-touching.svg",
 ];
+
+function createBioreactorSettingsGroup(descriptors, values, config, { valueMode = "confirmed" } = {}) {
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    return null;
+  }
+
+  const publishedSettings = descriptors.reduce((acc, descriptor) => {
+    const settingValue =
+      valueMode === "blank"
+        ? ""
+        : getBioreactorConfirmedValue(values, config, descriptor.key)
+
+    acc[descriptor.key] = {
+      value: settingValue,
+      label: descriptor.label,
+      type: descriptor.type,
+      unit: descriptor.unit || null,
+      display: true,
+      description: descriptor.description,
+      editable: true,
+    };
+    return acc;
+  }, {});
+
+  return {
+    state: "ready",
+    metadata: {
+      display: false,
+      display_name: "Bioreactor",
+      subtext: null,
+      description: "Per-unit bioreactor settings.",
+      key: "bioreactor",
+      source: "app",
+    },
+    publishedSettings,
+  };
+}
+
+function updateBioreactorSettingAndMirrorState(unit, experiment, setting, value, setBioreactorValues) {
+  return updateBioreactorValues(unit, experiment, {[setting]: value}).then(() => {
+    const parsedValue = parseNumericValue(value)
+    if (parsedValue !== null) {
+      setBioreactorValues?.((previous) => ({
+        ...previous,
+        [setting]: parsedValue,
+      }))
+    }
+  })
+}
 
 
 
@@ -1079,7 +1133,18 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
 
 
 
-function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabled, modelDetails }) {
+function SettingsActionsDialog({
+  unit,
+  experiment,
+  jobs,
+  setLabel,
+  label,
+  disabled,
+  modelDetails,
+  bioreactorValues,
+  setBioreactorValues,
+  bioreactorSettingsGroup,
+}) {
   const [open, setOpen] = useState(false);
   const [config, setConfig] = useState({})
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -1115,6 +1180,13 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
     () => getAvailableSelfTestGroups(selfTestDefinition),
     [selfTestDefinition]
   );
+  const editableSettingsGroups = useMemo(() => {
+    const groups = Object.values(jobs).filter(job => job.metadata.display)
+    if (bioreactorSettingsGroup) {
+      groups.push(bioreactorSettingsGroup)
+    }
+    return groups
+  }, [jobs, bioreactorSettingsGroup]);
 
   const buildSelfTestBaseline = useCallback(() => {
     const publishedSettings = {};
@@ -1230,8 +1302,17 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
   }
 
   function setPioreactorJobAttr(job, setting, value) {
+    if (job === "bioreactor") {
+      return updateBioreactorSettingAndMirrorState(
+        unit,
+        experiment,
+        setting,
+        value,
+        setBioreactorValues,
+      )
+    }
 
-    fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
+    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {
@@ -1388,6 +1469,16 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
   const dosingControlJob = jobs.dosing_automation;
   const ledControlJob = jobs.led_automation;
   const temperatureControlJob = jobs.temperature_automation;
+  const dosingMaxVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "max_working_volume_ml",
+  );
+  const dosingLiquidVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "current_volume_ml",
+  );
   const isSelfTestRunningState = (state) =>
     ["init", "ready", "sleeping"].includes(state);
 
@@ -1654,8 +1745,8 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                   experiment={experiment}
                   label={label}
                   configSections={config || {}}
-                  maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
-                  liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
+                  maxVolume={dosingMaxVolume}
+                  liquidVolume={dosingLiquidVolume}
                   threshold={modelDetails.reactor_max_fill_volume_ml}
                 />
                </React.Fragment>
@@ -1671,8 +1762,8 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               label={label}
               experiment={experiment}
               no_skip_first_run={false}
-              maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
-              liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
+              maxVolume={dosingMaxVolume}
+              liquidVolume={dosingLiquidVolume}
               threshold={modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
@@ -1769,8 +1860,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           />
           <ControlDivider/>
 
-          {Object.values(jobs)
-            .filter(job => job.metadata.display)
+          {editableSettingsGroups
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
             .map(([state, job_key, settings], index) => (
               Object.entries(settings)
@@ -1849,14 +1939,6 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={unit} experiment={experiment} job={jobs.add_alt_media} />
-          <ControlDivider/>
-          <Typography gutterBottom>
-            Manual adjustments
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics. Dosing automation must be on.
-          </Typography>
-          <ActionManualDosingForm unit={unit} experiment={experiment}/>
 
 
         </TabPanel>
@@ -2011,6 +2093,8 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = useState(0);
   const [jobs, setJobs] = useState({});
+  const [bioreactorDescriptors, setBioreactorDescriptors] = useState([]);
+  const [bioreactorValues, setBioreactorValues] = useState({});
   const [selfTestResults, setSelfTestResults] = useState({});
   const [selfTestStartPending, setSelfTestStartPending] = useState(false);
   const [relabelMap, setRelabelMap] = useState({});
@@ -2063,6 +2147,22 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   }, [contribJobsList]);
 
   useEffect(() => {
+    let isCancelled = false
+
+    getBioreactorDescriptors()
+      .then((descriptors) => {
+        if (!isCancelled) {
+          setBioreactorDescriptors(descriptors)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (experiment) {
       getRelabelMap(setRelabelMap, experiment);
     }
@@ -2089,6 +2189,17 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     () => getAvailableSelfTestGroups(selfTestDefinition),
     [selfTestDefinition]
   );
+  const bioreactorSettingsGroup = useMemo(
+    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config, { valueMode: "blank" }),
+    [bioreactorDescriptors, bioreactorValues, config]
+  );
+  const editableSettingsGroups = useMemo(() => {
+    const groups = Object.values(jobs).filter(job => job.metadata.display)
+    if (bioreactorSettingsGroup) {
+      groups.push(bioreactorSettingsGroup)
+    }
+    return groups
+  }, [jobs, bioreactorSettingsGroup]);
 
   const buildSelfTestBaseline = useCallback(() => {
     const publishedSettings = {};
@@ -2233,6 +2344,16 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
 
   function setPioreactorJobAttr(job, setting, value) {
+    if (job === "bioreactor") {
+      return updateBioreactorSettingAndMirrorState(
+        broadcastUnit,
+        experiment,
+        setting,
+        value,
+        setBioreactorValues,
+      )
+    }
+
     fetch(`/api/workers/${broadcastUnit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
@@ -2597,8 +2718,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          {Object.values(jobs)
-            .filter(job => job.metadata.display)
+          {editableSettingsGroups
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
             .map(([state, job_key, settings], index) => (
               Object.entries(settings)
@@ -2677,14 +2797,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm  experiment={experiment} action="add_alt_media" unit={broadcastUnit} />
-          <ControlDivider/>
-          <Typography gutterBottom>
-            Manual adjustments
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics. Dosing automation must be on.
-          </Typography>
-          <ActionManualDosingForm experiment={experiment}  unit={broadcastUnit}/>
 
         </TabPanel>
 
@@ -3063,6 +3175,8 @@ function FlashLEDButton({ unit, disabled }){
 function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelDetails = {}}){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
+  const [bioreactorValues, setBioreactorValues] = useState({})
+  const [bioreactorDescriptors, setBioreactorDescriptors] = useState([])
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false)
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false)
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false)
@@ -3103,6 +3217,41 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   useEffect(() => {
     setLabel(originalLabel)
   }, [originalLabel])
+
+  useEffect(() => {
+    if (!unit || !experiment) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+    getBioreactorValues(unit, experiment, {delayMs: 400})
+      .then((values) => {
+        if (!isCancelled) {
+          setBioreactorValues(values);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [experiment, unit])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    getBioreactorDescriptors()
+      .then((descriptors) => {
+        if (!isCancelled) {
+          setBioreactorDescriptors(descriptors)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
 
 
   useEffect(() => {
@@ -3180,6 +3329,39 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     };
   }, [experiment, jobFetchComplete, isUnitActive, client, subscribeToTopic, unsubscribeFromTopic, unit])
 
+  const onBioreactorMessage = useCallback((topic, message) => {
+    if (!topic || !message) {
+      return;
+    }
+
+    const parts = topic.toString().split('/');
+    const variableName = parts[4];
+    const parsedValue = parseNumericValue(message.toString());
+
+    if (!variableName || parsedValue === null) {
+      return;
+    }
+
+    setBioreactorValues((previous) => ({
+      ...previous,
+      [variableName]: parsedValue,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!client || !unit || !experiment) {
+      return undefined;
+    }
+
+    const topics = getBioreactorSubscriptionTopics(unit, experiment);
+
+    subscribeToTopic(topics, onBioreactorMessage, "PioreactorCardBioreactor");
+
+    return () => {
+      unsubscribeFromTopic(topics, "PioreactorCardBioreactor");
+    };
+  }, [client, experiment, onBioreactorMessage, subscribeToTopic, unsubscribeFromTopic, unit])
+
   const onMessage = (topic, message, _packet) => {
     if (!message || !topic) return;
 
@@ -3221,6 +3403,16 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   }
 
   const setPioreactorJobAttr = (job, setting, value) => {
+    if (job === "bioreactor") {
+      return updateBioreactorSettingAndMirrorState(
+        unit,
+        experiment,
+        setting,
+        value,
+        setBioreactorValues,
+      )
+    }
+
     return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
@@ -3375,21 +3567,36 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   const indicatorDotShadow = 2
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
   const quickSettingEditorOpen = Boolean(quickSettingAnchorEl && quickSettingSelection)
+  const bioreactorSettingsGroup = useMemo(
+    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config),
+    [bioreactorDescriptors, bioreactorValues, config]
+  )
+  const settingsCollections = bioreactorSettingsGroup
+    ? { ...jobs, bioreactor: bioreactorSettingsGroup }
+    : jobs
   const quickSetting =
     quickSettingSelection &&
-    jobs[quickSettingSelection.jobKey] &&
-    jobs[quickSettingSelection.jobKey].publishedSettings[quickSettingSelection.settingKey]
-      ? jobs[quickSettingSelection.jobKey].publishedSettings[quickSettingSelection.settingKey]
+    settingsCollections[quickSettingSelection.jobKey] &&
+    settingsCollections[quickSettingSelection.jobKey].publishedSettings[quickSettingSelection.settingKey]
+      ? settingsCollections[quickSettingSelection.jobKey].publishedSettings[quickSettingSelection.settingKey]
       : null
-  const quickSettingState = quickSettingSelection ? jobs[quickSettingSelection.jobKey]?.state : null
+  const quickSettingState = quickSettingSelection ? settingsCollections[quickSettingSelection.jobKey]?.state : null
   const stateActionMenuOpen = Boolean(stateActionAnchorEl && stateActionJobKey)
   const activeStateMenuActions =
     stateActionJobKey && jobs[stateActionJobKey]
       ? createStateActions(stateActionJobKey, jobs[stateActionJobKey].state)
       : []
   const dosingControlJob = jobs.dosing_automation
-  const dosingMaxVolume = parseFloat(dosingControlJob?.publishedSettings?.max_working_volume_ml?.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10
-  const dosingLiquidVolume = parseFloat(dosingControlJob?.publishedSettings?.current_volume_ml?.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10
+  const dosingMaxVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "max_working_volume_ml",
+  )
+  const dosingLiquidVolume = getBioreactorConfirmedValue(
+    bioreactorValues,
+    config,
+    "current_volume_ml",
+  )
 
   return (
     <Card sx={{mt: 0, mb: 3}} id={unit} aria-disabled={!isUnitActive}>
@@ -3455,6 +3662,9 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                 jobs={jobs}
                 setLabel={setLabel}
                 modelDetails={modelDetails}
+                bioreactorValues={bioreactorValues}
+                setBioreactorValues={setBioreactorValues}
+                bioreactorSettingsGroup={bioreactorSettingsGroup}
               />
             </Box>
           </Box>
@@ -3550,7 +3760,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
           </Typography>
         </Box>
         <RowOfUnitSettingDisplayBox>
-          {Object.entries(jobs)
+          {Object.entries(settingsCollections)
             .map(([job_key, job]) =>
               Object.entries(job.publishedSettings)
                 .filter(([, setting]) => setting.display)
@@ -3673,7 +3883,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                 </IconButton>
               </Box>
               <Typography variant="caption" color="text.secondary">
-                {jobs[quickSettingSelection.jobKey]?.metadata?.display_name}
+                {settingsCollections[quickSettingSelection.jobKey]?.metadata?.display_name}
               </Typography>
               {renderQuickSettingComponent(
                 quickSetting,

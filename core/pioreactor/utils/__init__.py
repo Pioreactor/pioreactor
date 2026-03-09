@@ -324,9 +324,14 @@ class cache:
 
     @staticmethod
     def convert_key(s):
+        def _restore_tuple_keys(value):
+            if isinstance(value, list):
+                return tuple(_restore_tuple_keys(item) for item in value)
+            return value
+
         if isinstance(s, bytes):
             try:
-                return loads(s)
+                return _restore_tuple_keys(loads(s))
             except DecodeError:
                 return s.decode()
         else:

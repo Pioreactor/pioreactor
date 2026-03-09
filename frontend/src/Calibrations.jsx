@@ -53,14 +53,35 @@ export function sanitizeDeviceName(raw) {
   return cleaned;
 }
 
-function UploadCalibrationDialog({
+export function getFailedCalibrationUploadUnits(taskPayload) {
+  const result = taskPayload?.result;
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return [];
+  }
+
+  return Object.entries(result)
+    .filter(([_unit, unitResult]) => unitResult == null)
+    .map(([unit]) => unit)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export function buildCalibrationUploadFailureMessage(failedUnits) {
+  if (failedUnits.length === 0) {
+    return 'Calibration upload failed.';
+  }
+
+  const unitLabel = failedUnits.length === 1 ? 'unit' : 'units';
+  return `Calibration upload failed for ${unitLabel}: ${failedUnits.join(', ')}.`;
+}
+
+export function UploadCalibrationDialog({
   open,
   onClose,
 }) {
   const { pioreactorUnit, device } = useParams();
 
   const [workers, setWorkers] = useState([])
-  const [selectedWorker, setSelectedWorker] = useState(pioreactorUnit || '$broadcast');
+  const [selectedWorker, setSelectedWorker] = useState(pioreactorUnit || '');
   const [selectedDevice, setSelectedDevice] = useState(device || '');
   const [calibrationYaml, setCalibrationYaml] = useState('');
   const [markAsActive, setMarkAsActive] = useState(true);
@@ -101,19 +122,23 @@ function UploadCalibrationDialog({
         set_as_active: markAsActive,
       };
 
-      const response = await fetch(`/api/workers/${selectedWorker}/calibrations/${selectedDevice}`, {
-        method: 'POST',
-        headers: {
-          // Note: "application/json" since endpoint only accepts JSON
-          'Content-Type': 'application/json',
+      const taskPayload = await fetchTaskResult(
+        `/api/workers/${selectedWorker}/calibrations/${selectedDevice}`,
+        {
+          fetchOptions: {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          },
         },
-        body: JSON.stringify(requestBody),
-      });
+      );
 
-      if (!response.ok) {
-        const error = await response.json();
-        setError(error.error);
-        return
+      const failedUnits = getFailedCalibrationUploadUnits(taskPayload);
+      if (failedUnits.length > 0) {
+        setError(buildCalibrationUploadFailureMessage(failedUnits));
+        return;
       }
 
       // Optionally clear fields so user can enter another calibration easily:
@@ -152,13 +177,28 @@ function UploadCalibrationDialog({
         }
         const data = await response.json();
         setWorkers(data.map(worker => worker.pioreactor_unit));
+        setSelectedWorker((currentWorker) => {
+          if (currentWorker) {
+            return currentWorker;
+          }
+
+          if (pioreactorUnit) {
+            return pioreactorUnit;
+          }
+
+          if (data.length > 1) {
+            return '$broadcast';
+          }
+
+          return data[0]?.pioreactor_unit || '';
+        });
       } catch (err) {
         console.error('Error fetching workers:', err);
       }
     };
 
     fetchWorkers();
-  }, []);
+  }, [pioreactorUnit]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth aria-labelledby="form-dialog-title">

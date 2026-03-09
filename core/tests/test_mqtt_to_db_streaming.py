@@ -143,6 +143,50 @@ def test_dosing_events_land_in_db() -> None:
     assert len(results) == 2
 
 
+def test_bioreactor_topics_land_in_db() -> None:
+    unit = get_unit_name()
+    exp = "test_bioreactor_topics_land_in_db"
+    connection = sqlite3.connect(config["storage"]["database"])
+    cursor = connection.cursor()
+
+    cursor.executescript("DROP TABLE IF EXISTS liquid_volumes;")
+    cursor.executescript("DROP TABLE IF EXISTS alt_media_fractions;")
+    cursor.executescript(
+        mureq.get(
+            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
+        ).content.decode("utf-8")
+    )
+
+    connection.commit()
+
+    parsers = [
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/bioreactor/current_volume_ml",
+            m2db.parse_liquid_volume,
+            "liquid_volumes",
+        ),
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/bioreactor/alt_media_fraction",
+            m2db.parse_alt_media_fraction,
+            "alt_media_fractions",
+        ),
+    ]
+
+    with m2db.MqttToDBStreamer(unit, exp, parsers):
+        sleep(1)
+        publish(f"pioreactor/{unit}/{exp}/bioreactor/current_volume_ml", 13.5)
+        publish(f"pioreactor/{unit}/{exp}/bioreactor/alt_media_fraction", 0.25)
+        sleep(2)
+
+    cursor.execute("SELECT liquid_volume FROM liquid_volumes WHERE experiment=?", (exp,))
+    liquid_volume_results = cursor.fetchall()
+    assert liquid_volume_results == [(13.5,)]
+
+    cursor.execute("SELECT alt_media_fraction FROM alt_media_fractions WHERE experiment=?", (exp,))
+    alt_media_results = cursor.fetchall()
+    assert alt_media_results == [(0.25,)]
+
+
 def test_empty_payload_is_filtered_early() -> None:
     unit = "unit"
     exp = "test_empty_payload_is_filtered_early"
