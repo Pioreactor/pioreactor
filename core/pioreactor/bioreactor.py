@@ -50,12 +50,10 @@ _BIOREACTOR_VARIABLES: dict[str, dict[str, str | float | None | _BioreactorDefau
 }
 
 
-def get_bioreactor_variable_names() -> tuple[str, ...]:
-    return tuple(_BIOREACTOR_VARIABLES.keys())
 
 
 def get_default_bioreactor_value(variable_name: str) -> float:
-    metadata = _get_bioreactor_metadata(variable_name)
+    metadata = _BIOREACTOR_VARIABLES[variable_name]
     resolver = t.cast(_BioreactorDefaultResolver, metadata["default_resolver"])
     return validate_bioreactor_value(variable_name, resolver())
 
@@ -81,15 +79,12 @@ def get_bioreactor_descriptors() -> list[BioreactorDescriptor]:
 
 
 def validate_bioreactor_value(variable_name: str, value: object) -> float:
-    metadata = _get_bioreactor_metadata(variable_name)
+    metadata = _BIOREACTOR_VARIABLES[variable_name]
 
     try:
         parsed = _coerce_to_float(value)
     except (TypeError, ValueError) as e:
         raise ValueError(f"Invalid value for bioreactor variable `{variable_name}`.") from e
-
-    if not math.isfinite(parsed):
-        raise ValueError(f"Value for bioreactor variable `{variable_name}` must be finite.")
 
     minimum = t.cast(float | None, metadata["min"])
     maximum = t.cast(float | None, metadata["max"])
@@ -104,7 +99,6 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
 
 
 def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
-    _get_bioreactor_metadata(variable_name)
 
     with local_persistent_storage(BIOREACTOR_STORAGE_NAME) as cache:
         stored_value = cache.get((experiment, variable_name))
@@ -118,7 +112,7 @@ def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float
 def get_all_bioreactor_values(experiment: pt.Experiment) -> dict[str, float]:
     return {
         variable_name: get_bioreactor_value(experiment, variable_name)
-        for variable_name in get_bioreactor_variable_names()
+        for variable_name in _BIOREACTOR_VARIABLES.keys()
     }
 
 
@@ -132,7 +126,6 @@ def set_bioreactor_value(experiment: pt.Experiment, variable_name: str, value: o
 
 
 def get_bioreactor_topic(unit: pt.Unit, experiment: pt.Experiment, variable_name: str) -> str:
-    _get_bioreactor_metadata(variable_name)
     return f"pioreactor/{unit}/{experiment}/bioreactor/{variable_name}"
 
 
@@ -142,12 +135,6 @@ def get_bioreactor_set_topic(unit: pt.Unit, experiment: pt.Experiment, variable_
 
 def parse_bioreactor_topic(topic: str) -> tuple[str, str, str, bool]:
     pieces = topic.split("/")
-    if len(pieces) not in (5, 6):
-        raise ValueError(f"Invalid bioreactor topic: {topic}")
-
-    if pieces[0] != "pioreactor" or pieces[3] != "bioreactor":
-        raise ValueError(f"Invalid bioreactor topic: {topic}")
-
     unit = pieces[1]
     experiment = pieces[2]
     variable_name = pieces[4]
@@ -156,7 +143,6 @@ def parse_bioreactor_topic(topic: str) -> tuple[str, str, str, bool]:
     if len(pieces) == 6 and not is_set_topic:
         raise ValueError(f"Invalid bioreactor topic: {topic}")
 
-    _get_bioreactor_metadata(variable_name)
     return unit, experiment, variable_name, is_set_topic
 
 
@@ -232,6 +218,14 @@ def calculate_updated_alt_media_fraction(
 ) -> float:
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
+    if event == "add_media":
+        return _calculate_alt_media_fraction_after_addition(
+            current_alt_media_fraction,
+            media_delta=volume,
+            alt_media_delta=0.0,
+            current_volume_ml=current_volume_ml,
+        )
+
     if event == "add_alt_media":
         return _calculate_alt_media_fraction_after_addition(
             current_alt_media_fraction,
@@ -240,18 +234,10 @@ def calculate_updated_alt_media_fraction(
             current_volume_ml=current_volume_ml,
         )
 
-    if event.startswith("add_"):
-        return _calculate_alt_media_fraction_after_addition(
-            current_alt_media_fraction,
-            media_delta=volume,
-            alt_media_delta=0.0,
-            current_volume_ml=current_volume_ml,
-        )
-
     if event == "remove_waste":
         return current_alt_media_fraction
 
-    raise ValueError(f"Unknown dosing event type `{event}`.")
+    return current_alt_media_fraction
 
 
 def apply_dosing_event_to_bioreactor(
@@ -307,13 +293,6 @@ def apply_dosing_event_to_bioreactor(
     }
 
 
-def _get_bioreactor_metadata(
-    variable_name: str,
-) -> dict[str, str | float | None | _BioreactorDefaultResolver]:
-    try:
-        return _BIOREACTOR_VARIABLES[variable_name]
-    except KeyError as e:
-        raise KeyError(f"Unknown bioreactor variable `{variable_name}`.") from e
 
 
 def _calculate_alt_media_fraction_after_addition(

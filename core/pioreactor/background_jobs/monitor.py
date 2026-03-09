@@ -664,14 +664,13 @@ class Monitor(LongRunningBackgroundJob):
 
     def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
         try:
-            pieces = message.topic.split("/")
-            if len(pieces) != 4 or pieces[0] != "pioreactor" or pieces[3] != "dosing_events":
-                raise ValueError(f"Invalid dosing event topic: {message.topic}")
-
+            _, unit, experiment, _ = message.topic.split("/")
             dosing_event = decode(message.payload, type=structs.DosingEvent)
+            # Monitor owns the dosing_events -> bioreactor projection so pump actions can stay
+            # hardware-focused and jobs do not need to coordinate who persists retained vial state.
             bioreactor.apply_dosing_event_to_bioreactor(
-                pieces[1],
-                pieces[2],
+                unit,
+                experiment,
                 dosing_event,
                 mqtt_client=self.pub_client,
             )

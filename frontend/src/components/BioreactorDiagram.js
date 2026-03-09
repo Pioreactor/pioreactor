@@ -392,6 +392,16 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       ctx.moveTo(bioreactor.x + 2, bioreactor.y + bottomOfWasteTube - 53);
       ctx.lineTo(bioreactor.x + bioreactor.width - 2, bioreactor.y + bottomOfWasteTube - 53);
       ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'grey';
+      ctx.font = "12px 'Roboto'";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(
+        `${roundTo1(cappedMaxVolume)} mL`,
+        bioreactor.x + bioreactor.width / 2 + 60,
+        bioreactor.y + bottomOfWasteTube - 30
+      );
       ctx.restore();
 
       drawRoundedRect(cap.x, cap.y, cap.width, cap.height, cap.radius, '#ececed', '#E0E0E1', 6);

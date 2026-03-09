@@ -551,6 +551,8 @@ circulate_alt_media = partial(_liquid_circulation, "alt_media_pump")
 add_media_via_pump = partial(_pump_action, "media_pump")
 remove_waste_via_pump = partial(_pump_action, "waste_pump")
 add_alt_media_via_pump = partial(_pump_action, "alt_media_pump")
+# Public pump actions are intentionally raw again. Monitor projects dosing_events into
+# retained bioreactor state, which keeps this module free of runtime ownership checks.
 add_media = add_media_via_pump
 remove_waste = remove_waste_via_pump
 add_alt_media = add_alt_media_via_pump

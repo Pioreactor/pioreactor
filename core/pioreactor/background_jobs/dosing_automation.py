@@ -20,7 +20,6 @@ from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
-from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
@@ -79,65 +78,6 @@ class ThroughputCalculator:
             raise ValueError("Unknown event type")
 
         return (current_media_throughput, current_alt_media_throughput)
-
-
-class VolumeCalculator:
-    @classmethod
-    def update(
-        cls, new_dosing_event: structs.DosingEvent, current_volume_ml: float, max_working_volume_ml: float
-    ) -> float:
-        assert current_volume_ml >= 0
-        assert max_working_volume_ml >= 0
-        return bioreactor.calculate_updated_current_volume(
-            new_dosing_event,
-            current_volume_ml=current_volume_ml,
-            max_working_volume_ml=max_working_volume_ml,
-        )
-
-
-class AltMediaFractionCalculator:
-    """
-    Computes the fraction of the vial that is from the alt-media vs the regular media.
-    State-less.
-    """
-
-    @classmethod
-    def update(
-        cls,
-        new_dosing_event: structs.DosingEvent,
-        current_alt_media_fraction: float,
-        current_volume_ml: float,
-    ) -> float:
-        assert 0.0 <= current_alt_media_fraction <= 1.0
-        assert current_volume_ml >= 0
-        volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
-
-        if event == "add_media":
-            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0, current_volume_ml)
-        elif event == "add_alt_media":
-            return cls._update_alt_media_fraction(current_alt_media_fraction, 0, volume, current_volume_ml)
-        elif event == "remove_waste":
-            return current_alt_media_fraction
-        else:
-            # if the users added, ex, "add_salty_media", well this is the same as adding media (from the POV of alt_media_fraction)
-            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0, current_volume_ml)
-
-    @classmethod
-    def _update_alt_media_fraction(
-        cls,
-        current_alt_media_fraction: float,
-        media_delta: float,
-        alt_media_delta: float,
-        current_volume_ml: float,
-    ) -> float:
-        total_addition = media_delta + alt_media_delta
-
-        return clamp(
-            0.0,
-            (current_alt_media_fraction * current_volume_ml + alt_media_delta)
-            / (current_volume_ml + total_addition),
-            1.0,
-        )
 
 
 class DosingAutomationJob(AutomationJob):
@@ -498,14 +438,26 @@ class DosingAutomationJob(AutomationJob):
         self._update_liquid_volume(dosing_event)
 
     def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
+        # Monitor persists retained bioreactor state from dosing_events. The automation keeps
+        # a local mirror for control decisions only, so it can temporarily diverge from the
+        # retained bioreactor values while MQTT callbacks are still in flight.
         self.alt_media_fraction = round(
-            AltMediaFractionCalculator.update(dosing_event, self.alt_media_fraction, self.current_volume_ml),
+            bioreactor.calculate_updated_alt_media_fraction(
+                dosing_event,
+                current_alt_media_fraction=self.alt_media_fraction,
+                current_volume_ml=self.current_volume_ml,
+            ),
             10,
         )
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
         self.current_volume_ml = round(
-            VolumeCalculator.update(dosing_event, self.current_volume_ml, self.max_working_volume_ml), 10
+            bioreactor.calculate_updated_current_volume(
+                dosing_event,
+                current_volume_ml=self.current_volume_ml,
+                max_working_volume_ml=self.max_working_volume_ml,
+            ),
+            10,
         )
 
         if (

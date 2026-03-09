@@ -580,10 +580,6 @@ def get_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResp
     "/workers/<pioreactor_unit>/experiments/<experiment>/bioreactor",
     methods=["PATCH"],
 )
-@api_bp.route(
-    "/units/<pioreactor_unit>/experiments/<experiment>/bioreactor",
-    methods=["PATCH"],
-)
 def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     values = (request.get_json(silent=True) or {}).get("values", {})
 
@@ -601,7 +597,6 @@ def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> Response
             client.publish(
                 get_bioreactor_set_topic(pioreactor_unit, experiment, variable_name),
                 parsed_value,
-                qos=2,
             )
     except Exception as e:
         publish_to_error_log(str(e), "update_bioreactor_on_unit")

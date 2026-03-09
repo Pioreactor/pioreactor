@@ -975,6 +975,8 @@ function SettingsActionsDialog(props) {
       return updateBioreactorValues(props.unit, props.experiment, {[setting]: value}).then(() => {
         const parsedValue = parseNumericValue(value)
         if (parsedValue !== null) {
+          // Mirror the confirmed save locally so the Settings dialog updates immediately.
+          // The retained MQTT echo will still arrive, but it can lag the HTTP response.
           props.setBioreactorValues?.((previous) => ({
             ...previous,
             [setting]: parsedValue,

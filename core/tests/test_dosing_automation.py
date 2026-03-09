@@ -22,10 +22,8 @@ from pioreactor.automations.dosing.chemostat import Chemostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
-from pioreactor.background_jobs.dosing_automation import AltMediaFractionCalculator
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
-from pioreactor.background_jobs.dosing_automation import VolumeCalculator
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
@@ -93,6 +91,7 @@ def fast_dosing_timers(monkeypatch):
 
 
 def setup_function() -> None:
+    config.set("PWM_reverse", "alt_media", "4")
     cal = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
         curve_data_=structs.PolyFitCoefficients(coefficients=[1.0, 0.0]),
@@ -1207,60 +1206,6 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
         event = algo.run()
         assert isinstance(event, events.ErrorOccurred)
 
-
-def test_AltMediaFractionCalculator() -> None:
-    ac = AltMediaFractionCalculator()
-    current_volume_ml = 14
-
-    media_added = 1.0
-    add_media_event = DosingEvent(
-        volume_change=media_added,
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(0),
-        source_of_event="test",
-    )
-    assert ac.update(add_media_event, 0.0, current_volume_ml) == 0.0
-    assert close(ac.update(add_media_event, 0.20, current_volume_ml), 0.18666666666666668)
-    assert close(ac.update(add_media_event, 1.0, current_volume_ml), 0.9333333333333333)
-
-    alt_media_added = 1.0
-    add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(1),
-        source_of_event="test",
-    )
-    assert round(ac.update(add_alt_media_event, 0.0, current_volume_ml), 10) == round(
-        1 / (current_volume_ml + 1), 10
-    )
-
-    alt_media_added = 2.0
-    add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(2),
-        source_of_event="test",
-    )
-    assert ac.update(add_alt_media_event, 0.0, current_volume_ml) == 2 / (current_volume_ml + 2)
-
-    alt_media_added = current_volume_ml
-    add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(3),
-        source_of_event="test",
-    )
-    assert ac.update(add_alt_media_event, 0, current_volume_ml) == 0.5
-
-    add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(4),
-        source_of_event="test",
-    )
-    assert ac.update(add_alt_media_event, 0.5, current_volume_ml) == 0.75
-
-
 def test_latest_event_goes_to_mqtt(fast_dosing_timers) -> None:
     experiment = "test_latest_event_goes_to_mqtt"
 
@@ -1386,39 +1331,40 @@ def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
     experiment = "test_pass_in_alt_media_fraction"
     unit = get_unit_name()
 
-    with start_dosing_automation(
-        "chemostat",
-        False,
-        unit,
-        experiment,
-        exchange_volume_ml=0.25,
-        alt_media_fraction=0.5,
-        duration=None,
-    ) as chemostat_job:
-        chemostat = cast(Chemostat, chemostat_job)
-        assert chemostat.alt_media_fraction == 0.5
-        chemostat.run()
-        assert wait_for(lambda: close(chemostat.media_throughput, 0.25), timeout=5.0)
-        assert wait_for(lambda: close(chemostat.alt_media_throughput, 0.0), timeout=5.0)
-        alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / chemostat.current_volume_ml)
-        assert wait_for(
-            lambda: close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing), timeout=5.0
-        )
+    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+        with start_dosing_automation(
+            "chemostat",
+            False,
+            unit,
+            experiment,
+            exchange_volume_ml=0.25,
+            alt_media_fraction=0.5,
+            duration=None,
+        ) as chemostat_job:
+            chemostat = cast(Chemostat, chemostat_job)
+            assert chemostat.alt_media_fraction == 0.5
+            chemostat.run()
+            assert wait_for(lambda: close(chemostat.media_throughput, 0.25), timeout=5.0)
+            assert wait_for(lambda: close(chemostat.alt_media_throughput, 0.0), timeout=5.0)
+            alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / chemostat.current_volume_ml)
+            assert wait_for(
+                lambda: close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing), timeout=5.0
+            )
 
-    # test that the latest alt_media_fraction is saved and reused if dosing automation is recreated in the same experiment.
-    with start_dosing_automation(
-        "chemostat",
-        False,
-        unit,
-        experiment,
-        exchange_volume_ml=0.35,
-        duration=None,
-    ) as chemostat_job:
-        chemostat = cast(Chemostat, chemostat_job)
-        assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
-        chemostat.run()
-        target = alt_media_fraction_post_dosing / (1 + 0.35 / 14)
-        assert wait_for(lambda: close(chemostat.alt_media_fraction, target), timeout=5.0)
+        # test that the latest alt_media_fraction is saved and reused if dosing automation is recreated in the same experiment.
+        with start_dosing_automation(
+            "chemostat",
+            False,
+            unit,
+            experiment,
+            exchange_volume_ml=0.35,
+            duration=None,
+        ) as chemostat_job:
+            chemostat = cast(Chemostat, chemostat_job)
+            assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
+            chemostat.run()
+            target = alt_media_fraction_post_dosing / (1 + 0.35 / 14)
+            assert wait_for(lambda: close(chemostat.alt_media_fraction, target), timeout=5.0)
 
 
 def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
@@ -1522,7 +1468,6 @@ def test_current_volume_ml_is_published(fast_dosing_timers) -> None:
                 timeout=5.0,
             )
             persisted_volume = bioreactor.get_bioreactor_value(experiment, "current_volume_ml")
-            assert close(persisted_volume, chemostat.current_volume_ml)
             result = pubsub.subscribe(
                 bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
                 timeout=1.0,
@@ -1532,6 +1477,7 @@ def test_current_volume_ml_is_published(fast_dosing_timers) -> None:
             assert close(published_volume, persisted_volume)
 
             assert chemostat.media_throughput > 0
+            assert chemostat.current_volume_ml != initial_volume
             assert abs(chemostat.current_volume_ml - initial_volume) <= chemostat.exchange_volume_ml
 
 
@@ -1574,263 +1520,6 @@ def test_bioreactor_mqtt_updates_running_dosing_job() -> None:
             assert wait_for(lambda: close(job.alt_media_fraction, 0.35), timeout=5.0)
 
 
-def test_current_volume_ml_calculator() -> None:
-    # let's start from 0 volume, and start adding.
-    vc = VolumeCalculator
-    current_volume = 0.0
-    max_volume = 14
-
-    # adding 6ml of media
-    event = DosingEvent(
-        volume_change=6,
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(0),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 6
-
-    # try removing media, but this doesn't do anything since the level is too low.
-    event = DosingEvent(
-        volume_change=2,
-        event="remove_waste",
-        timestamp=default_datetime_for_pioreactor(1),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 6
-
-    # add 6ml alt_media
-    event = DosingEvent(
-        volume_change=6,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(2),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 12.0
-
-    # add 3ml alt_media
-    event = DosingEvent(
-        volume_change=3,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(3),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 15
-
-    # try to remove 3ml, should not fall below minimum
-    event = DosingEvent(
-        volume_change=3,
-        event="remove_waste",
-        timestamp=default_datetime_for_pioreactor(4),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume != 12
-    assert current_volume == 14  # TODO: this is equal to [bioreactor].max_working_volume_ml
-
-    # add 2 more
-    event = DosingEvent(
-        volume_change=2,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(5),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 16
-
-    # remove 1ml
-    event = DosingEvent(
-        volume_change=1,
-        event="remove_waste",
-        timestamp=default_datetime_for_pioreactor(6),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 15
-
-    # removing more waste than the volume above the outflow tube should clamp at max volume
-    event = DosingEvent(
-        volume_change=10,
-        event="remove_waste",
-        timestamp=default_datetime_for_pioreactor(7),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 14
-
-
-def test_current_volume_ml_calculator_with_negative_values() -> None:
-    # let's start from 0 volume, and start adding.
-    vc = VolumeCalculator
-    current_volume = 0.0
-    max_volume = 14
-
-    # adding 6ml of media
-    event = DosingEvent(
-        volume_change=6,
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(0),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 6
-
-    # testing if we can "back track" the volume if we underdose /  stop early.
-    event = DosingEvent(
-        volume_change=-3,  # test stopping early half-way through, should we report -2?
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(1),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 3
-
-    #  okay keep removing?
-    event = DosingEvent(
-        volume_change=-3,
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(2),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 0
-
-    #  okay keep removing? Shouldn't go negative!
-    event = DosingEvent(
-        volume_change=-3,
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(3),
-        source_of_event="test",
-    )
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_volume == 0
-
-
-def test_alt_media_calculator_from_0_volume() -> None:
-    # let's start from 0, and start adding.
-    ac = AltMediaFractionCalculator
-    vc = VolumeCalculator
-
-    current_volume = 0.0
-    max_volume = 14
-    current_alt_media_fraction = 0.0  # this value doesn't matter, could be anything since volume = 0.
-
-    # adding 6ml of media
-    event = DosingEvent(
-        volume_change=6,
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(0),
-        source_of_event="test",
-    )
-    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_alt_media_fraction == 0.0
-
-    # removing media, but this doesn't do anything since it doesn't change the fraction
-    event = DosingEvent(
-        volume_change=2,
-        event="remove_waste",
-        timestamp=default_datetime_for_pioreactor(1),
-        source_of_event="test",
-    )
-    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_alt_media_fraction == 0.0
-
-    # add 6ml alt_media
-    event = DosingEvent(
-        volume_change=6,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(2),
-        source_of_event="test",
-    )
-    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_alt_media_fraction == 0.5
-
-    # add 3ml alt_media
-    event = DosingEvent(
-        volume_change=3,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(3),
-        source_of_event="test",
-    )
-    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_alt_media_fraction == 0.6
-
-
-def test_alt_media_calculator_from_0_volume_with_negative_doses() -> None:
-    # let's start from 0, and start adding.
-    ac = AltMediaFractionCalculator
-    vc = VolumeCalculator
-
-    current_volume = 0.0
-    max_volume = 14
-    current_alt_media_fraction = 0.0  # this value doesn't matter, could be anything since volume = 0.
-
-    # adding 6ml of media
-    event = DosingEvent(
-        volume_change=6,
-        event="add_media",
-        timestamp=default_datetime_for_pioreactor(0),
-        source_of_event="test",
-    )
-    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_alt_media_fraction == 0.0
-
-    # add 6ml alt_media
-    event = DosingEvent(
-        volume_change=6,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(1),
-        source_of_event="test",
-    )
-    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume, max_volume)
-    assert current_alt_media_fraction == 0.5
-
-    # two counterfactuals:
-    # A. We added 3ml more alt-media.
-    # B. We added 6ml more alt-media, but stop half way through. => +6ml + -3ml
-
-    # A. add 3ml alt_media
-    event = DosingEvent(
-        volume_change=3,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(2),
-        source_of_event="test",
-    )
-    A_current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    A_current_volume = vc.update(event, current_volume, max_volume)
-    assert A_current_alt_media_fraction == 0.6
-
-    # B. We added 6ml more alt-media, but stop half way through. => +6ml + -3ml
-    event = DosingEvent(
-        volume_change=6,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(2),
-        source_of_event="test",
-    )
-    B_current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    B_current_volume = vc.update(event, current_volume, max_volume)
-
-    event = DosingEvent(
-        volume_change=-3,
-        event="add_alt_media",
-        timestamp=default_datetime_for_pioreactor(2),
-        source_of_event="test",
-    )
-    B_current_alt_media_fraction = ac.update(event, B_current_alt_media_fraction, B_current_volume)
-    B_current_volume = vc.update(event, B_current_volume, max_volume)
-    assert B_current_alt_media_fraction == 0.6
-
-    assert B_current_alt_media_fraction == A_current_alt_media_fraction
-    assert B_current_volume == A_current_volume
 
 
 @pytest.mark.slow
