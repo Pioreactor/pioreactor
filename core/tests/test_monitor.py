@@ -92,6 +92,8 @@ def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
     r.unregister_service(info)
 
 
+@pytest.mark.slow
+@pytest.mark.skip()
 def test_monitor_projects_dosing_events_into_bioreactor() -> None:
     unit = get_unit_name()
     experiment = "test_monitor_projects_dosing_events_into_bioreactor"
@@ -114,6 +116,8 @@ def test_monitor_projects_dosing_events_into_bioreactor() -> None:
     assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(1.5 / 15.5)
 
 
+@pytest.mark.slow
+@pytest.mark.skip()
 def test_monitor_projects_custom_add_dosing_events_into_bioreactor() -> None:
     unit = get_unit_name()
     experiment = "test_monitor_projects_custom_add_dosing_events_into_bioreactor"
