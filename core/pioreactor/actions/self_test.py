@@ -84,7 +84,7 @@ def register_self_tests(*tests: Callable[..., None]) -> None:
 
 @cache
 def _ensure_plugin_self_tests_registered() -> None:
-    plugin_management.get_plugins()
+    plugin_management.load_plugins()
 
 
 def get_builtin_self_tests() -> list[Callable[..., None]]:

@@ -963,11 +963,11 @@ def view_cache(cache: str, key: str | None) -> None:
 
     for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
         with cacher(cache) as c:
-            for key_ in c.iterkeys():
-                if key is not None and key_ == key:
-                    click.echo(f"{click.style(key_, bold=True)} = {c[key_]}")
-                    return
-                else:
+            if key and key in c:
+                click.echo(f"{click.style(key, bold=True)} = {c[key]}")
+                return
+            else:
+                for key_ in c.iterkeys():
                     click.echo(f"{click.style(key_, bold=True)} = {c[key_]}")
 
 

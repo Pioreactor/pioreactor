@@ -85,7 +85,6 @@ import {
   getBioreactorConfirmedValue,
   getBioreactorDescriptors,
   getBioreactorSubscriptionTopics,
-  getBioreactorValues,
   getRelabelMap,
   parseNumericValue,
   runPioreactorJob,
@@ -3218,24 +3217,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     setLabel(originalLabel)
   }, [originalLabel])
 
-  useEffect(() => {
-    if (!unit || !experiment) {
-      return undefined;
-    }
-
-    let isCancelled = false;
-    getBioreactorValues(unit, experiment, {delayMs: 400})
-      .then((values) => {
-        if (!isCancelled) {
-          setBioreactorValues(values);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [experiment, unit])
 
   useEffect(() => {
     let isCancelled = false

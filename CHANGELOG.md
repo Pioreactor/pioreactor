@@ -30,9 +30,7 @@
  - Fix plugins not being loaded correctly in the background task worker. This affected mostly plugin-sourced calibrations.
  - Added a `<System>` experiment option in Export Data and mapped it to `"$experiment"` so users can export system logs from the UI.
  - Fixed calibration session resume so reopening a saved protocol session returns to the current step instead of accidentally starting the protocol from the beginning again.
- - Fixed calibration session abort handling in the UI so backend abort failures are surfaced to the user and no longer clear the session as if cleanup succeeded.
- - Fixed invalid comma-separated calibration inputs such as pump target volume lists to return a clean validation error instead of bubbling into a server error.
- - Fixed dosing jobs so MQTT bioreactor updates made from the UI or other publishers are applied immediately to running automations instead of waiting for a restart.
+ - Fix leaking of self-test logs into the experiment.
 
 ### 26.2.26
 

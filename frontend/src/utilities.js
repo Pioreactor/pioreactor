@@ -202,13 +202,6 @@ export async function getBioreactorDescriptors() {
   return response.json();
 }
 
-export async function getBioreactorValues(unit, experiment, {delayMs = 200} = {}) {
-  const taskPayload = await fetchTaskResult(
-    `/api/workers/${unit}/experiments/${experiment}/bioreactor`,
-    {delayMs},
-  );
-  return taskPayload?.result?.[unit]?.values || {};
-}
 
 export async function updateBioreactorValues(unit, experiment, values) {
   const response = await fetch(`/api/workers/${unit}/experiments/${experiment}/bioreactor`, {
