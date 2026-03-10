@@ -149,17 +149,11 @@ class DosingAutomationJob(AutomationJob):
         duration: Optional[float] = None,
         skip_first_run: bool = False,
         alt_media_fraction: float | None = None,
-        initial_volume_ml: float | None = None,
         current_volume_ml: float | None = None,
         max_working_volume_ml: float | None = None,
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
-
-        if current_volume_ml is not None:
-            if (initial_volume_ml is not None) and (float(current_volume_ml) != float(initial_volume_ml)):
-                raise ValueError("Provide only one of `current_volume_ml` or `initial_volume_ml`.")
-            initial_volume_ml = current_volume_ml
 
         if "duration" not in self.published_settings:
 
@@ -176,7 +170,7 @@ class DosingAutomationJob(AutomationJob):
 
         self._init_alt_media_fraction(alt_media_fraction)
         self._init_volume_throughput()
-        self._init_liquid_volume(initial_volume_ml, max_working_volume_ml)
+        self._init_liquid_volume(current_volume_ml, max_working_volume_ml)
         self._last_vial_volume_warning_at: float | None = None
         self.logger.debug(
             f"Volume settings initialized: current_volume_ml={self.current_volume_ml:.2f} mL, "
@@ -518,7 +512,7 @@ class DosingAutomationJob(AutomationJob):
         )
 
     def _init_liquid_volume(
-        self, initial_volume_ml: float | None, max_working_volume_ml: float | None
+        self, current_volume_ml: float | None, max_working_volume_ml: float | None
     ) -> None:
         self.add_to_published_settings(
             "current_volume_ml",
@@ -547,10 +541,10 @@ class DosingAutomationJob(AutomationJob):
         else:
             resolved_max_working_volume_ml = max_working_volume_ml
 
-        if initial_volume_ml is None:
+        if current_volume_ml is None:
             resolved_current_volume_ml = bioreactor.get_bioreactor_value(self.experiment, "current_volume_ml")
         else:
-            resolved_current_volume_ml = initial_volume_ml
+            resolved_current_volume_ml = current_volume_ml
 
         self.max_working_volume_ml = bioreactor.set_and_publish_bioreactor_value(
             self.pub_client,

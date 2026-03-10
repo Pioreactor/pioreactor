@@ -30,7 +30,7 @@ function ChangeDosingAutomationsDialog(props) {
   const [algoSettings, setAlgoSettings] = useState({
     skip_first_run: 0,
     max_working_volume_ml: props.maxVolume,
-    initial_volume_ml: props.liquidVolume,
+    current_volume_ml: props.liquidVolume,
   })
   const [automations, setAutomations] = useState({})
   const [isLoading, setIsLoading] = useState(true)
@@ -63,7 +63,7 @@ function ChangeDosingAutomationsDialog(props) {
     setAlgoSettings((prev) => ({
       ...prev,
       max_working_volume_ml: props.maxVolume,
-      initial_volume_ml: props.liquidVolume,
+      current_volume_ml: props.liquidVolume,
     }));
   }, [props.open, props.maxVolume, props.liquidVolume]);
 
@@ -88,7 +88,7 @@ function ChangeDosingAutomationsDialog(props) {
     setAlgoSettings((prev) => ({
       ...( !props.no_skip_first_run && { skip_first_run: prev.skip_first_run }),
       max_working_volume_ml: prev.max_working_volume_ml ?? props.maxVolume,
-      initial_volume_ml: prev.initial_volume_ml ?? props.liquidVolume,
+      current_volume_ml: prev.current_volume_ml ?? props.liquidVolume,
     }));
   };
 

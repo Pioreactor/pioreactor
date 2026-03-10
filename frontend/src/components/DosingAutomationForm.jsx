@@ -20,7 +20,7 @@ function DosingAutomationForm(props) {
   const defaults = Object.assign({}, ...props.fields.map(field => ({ [field.key]: field.default })));
   const defaultsWithoutVolumeFields = Object.fromEntries(
     Object.entries(defaults).filter(
-      ([key]) => key !== "initial_volume_ml" && key !== "max_working_volume_ml"
+      ([key]) => key !== "current_volume_ml" && key !== "max_working_volume_ml"
     )
   );
 
@@ -28,9 +28,9 @@ function DosingAutomationForm(props) {
     props.updateParent(defaultsWithoutVolumeFields);
   }, [props.fields]);
 
-  const computeWarning = (initialVolume, maxWorkingVolume) => {
-    if (initialVolume != null && initialVolume >= threshold) {
-      return `Initial volume exceeds safe maximum of ${threshold} mL.`;
+  const computeWarning = (currentVolume, maxWorkingVolume) => {
+    if (currentVolume != null && currentVolume >= threshold) {
+      return `Current volume exceeds safe maximum of ${threshold} mL.`;
     }
 
     if (maxWorkingVolume != null && maxWorkingVolume >= threshold) {
@@ -49,8 +49,8 @@ function DosingAutomationForm(props) {
   };
 
   useEffect(() => {
-    setWarning(computeWarning(props.algoSettings.initial_volume_ml, props.algoSettings.max_working_volume_ml));
-  }, [props.algoSettings.initial_volume_ml, props.algoSettings.max_working_volume_ml, threshold]);
+    setWarning(computeWarning(props.algoSettings.current_volume_ml, props.algoSettings.max_working_volume_ml));
+  }, [props.algoSettings.current_volume_ml, props.algoSettings.max_working_volume_ml, threshold]);
 
   const parseNumericInput = (event) => (
     Number.isNaN(event.target.valueAsNumber) ? null : event.target.valueAsNumber
@@ -58,7 +58,7 @@ function DosingAutomationForm(props) {
 
   const onSettingsChange = (id, value) => {
     const nextSettings = { ...props.algoSettings, [id]: value };
-    setWarning(computeWarning(nextSettings.initial_volume_ml, nextSettings.max_working_volume_ml));
+    setWarning(computeWarning(nextSettings.current_volume_ml, nextSettings.max_working_volume_ml));
     props.updateParent({ [id]: value });
   };
 
@@ -141,9 +141,9 @@ function DosingAutomationForm(props) {
             type="number"
             size="small"
             autoComplete="off"
-            id="initial_volume_ml"
-            label="Initial volume"
-            value={props.algoSettings.initial_volume_ml ?? ""}
+            id="current_volume_ml"
+            label="Current volume"
+            value={props.algoSettings.current_volume_ml ?? ""}
             InputProps={{
               endAdornment: <InputAdornment position="end">ml</InputAdornment>,
             }}
@@ -182,7 +182,7 @@ function DosingAutomationForm(props) {
           }}
         >
           <VialVolumePreview
-            initialVolumeMl={props.algoSettings.initial_volume_ml}
+            initialVolumeMl={props.algoSettings.current_volume_ml}
             maxWorkingVolumeMl={props.algoSettings.max_working_volume_ml}
             maxVolumeMl={props.threshold + 2}
           />

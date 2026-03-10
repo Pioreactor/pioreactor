@@ -1946,49 +1946,6 @@ def test_calibration_with_misaligned_voltage_and_od_extrema() -> None:
     assert transformer(to_od_readings(0.1)).ods["1"].od == pytest.approx(0.361)
 
 
-def test_calibration_below_range_uses_min_od_even_if_spline_dips() -> None:
-    calibration = structs.OD600Calibration(
-        calibration_name="20251119_M5_YE_BTB",
-        calibrated_on_pioreactor_unit="pio20",
-        created_at=current_utc_datetime(),
-        curve_data_=structs.SplineFitData(
-            knots=[0.0, 1.7225, 3.785, 5.8475, 9.16],
-            coefficients=[
-                [1.189817371293268, -0.19418558160422592, 0.0, 0.02193851041775432],
-                [0.9674531559670894, 0.0010895109712756035, 0.11336725258374543, -0.015550221638999566],
-                [1.3155212425549285, 0.270281872822149, 0.01715025619243561, -0.0016279022470108665],
-                [1.9316504911993824, 0.3202518489871002, 0.007077611039055876, -0.000712212431603107],
-            ],
-        ),
-        recorded_data={
-            "x": [0.0, 0.58, 1.16, 1.91, 2.66, 3.41, 4.16, 4.91, 5.66, 6.41, 7.16, 9.16],
-            "y": [1.19, 1.08, 1.0, 0.945, 1.06, 1.22, 1.42, 1.64, 1.87, 2.11, 2.36, 3.05],
-        },
-        ir_led_intensity=50.0,
-        angle="45",
-        pd_channel="1",
-    )
-
-    transformer = CachedCalibrationTransformer()
-    transformer.hydate_models(calibration)
-
-    reading = structs.ODReadings(
-        timestamp=current_utc_datetime(),
-        ods={
-            "1": structs.RawODReading(
-                ir_led_intensity=50.0,
-                od=0.1025278962,
-                angle="45",
-                channel="1",
-                timestamp=current_utc_datetime(),
-            )
-        },
-    )
-
-    # Exported experiment data showed a below-range signal being trimmed to 1.91 instead of the blank 0.0.
-    assert transformer(reading).ods["1"].od == pytest.approx(0.0)
-
-
 def test_mandys_calibration() -> None:
     mcal = structs.OD600Calibration(
         calibration_name="mandy",

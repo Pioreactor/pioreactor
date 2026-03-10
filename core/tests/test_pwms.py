@@ -266,6 +266,32 @@ def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.Monke
         assert 17 not in cache
 
 
+def test_cleanup_failure_is_still_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    monkeypatch.setattr(pwm_module, "is_testing_env", lambda: False)
+    exp = "test_cleanup_failure_is_still_terminal"
+    unit = get_unit_name()
+
+    pwm = PWM(17, 10, experiment=exp, unit=unit)
+    pwm.lock()
+    pwm.start(20)
+
+    state["raise_when_dc"] = 0.0
+
+    with pytest.raises(PWMError, match="Failed to set software PWM"):
+        pwm.clean_up()
+
+    assert pwm._is_cleaned_up is True
+
+    tx_calls = state["tx_calls"]
+    assert isinstance(tx_calls, list)
+    tx_call_count_after_failed_cleanup = len(tx_calls)
+
+    pwm._exit("test")
+
+    assert len(tx_calls) == tx_call_count_after_failed_cleanup
+
+
 def test_exit_path_cleans_up_pwm_to_zero(monkeypatch: pytest.MonkeyPatch) -> None:
     state = _install_fake_lgpio(monkeypatch)
     monkeypatch.setattr(pwm_module, "is_testing_env", lambda: False)

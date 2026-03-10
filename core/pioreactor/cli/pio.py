@@ -963,10 +963,12 @@ def view_cache(cache: str, key: str | None) -> None:
 
     for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
         with cacher(cache) as c:
-            keys_to_show = [key] if key is not None else sorted(list(c.iterkeys()))
-            for key_to_show in keys_to_show:
-                if key_to_show in c:
-                    click.echo(f"{click.style(key_to_show, bold=True)} = {c[key_to_show]}")
+            for key_ in c.iterkeys():
+                if key is not None and key_ == key:
+                    click.echo(f"{click.style(key_, bold=True)} = {c[key_]}")
+                    return
+                else:
+                    click.echo(f"{click.style(key_, bold=True)} = {c[key_]}")
 
 
 @cache.command(name="purge", short_help="remove a key from a cache")

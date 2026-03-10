@@ -117,7 +117,7 @@ def test_caches_can_have_tuple_or_singleton_keys() -> None:
         c["5"] = 5
 
     with local_persistent_storage("test_caches_can_have_tuple_keys") as c:
-        assert list(c.iterkeys()) == [4, "5", ["a", "b"], ["a", None], [1, 2]]
+        assert list(c.iterkeys()) == [4, "5", ("a", "b"), ("a", None), (1, 2)]
 
 
 def test_caches_integer_keys() -> None:

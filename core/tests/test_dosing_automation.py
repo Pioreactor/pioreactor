@@ -1687,6 +1687,13 @@ def test_dosing_automation_initial_values_for_volumes() -> None:
         assert ca.current_volume_ml == 11.0
         assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6
 
+
+def test_dosing_automation_uses_stored_values_when_none_provided() -> None:
+    exp = "test_dosing_automation_uses_stored_values_when_none_provided"
+
+    bioreactor.set_bioreactor_value(exp, "current_volume_ml", 11.0)
+    bioreactor.set_bioreactor_value(exp, "alt_media_fraction", 0.4545454545)
+
     with Silent(
         unit=unit,
         experiment=exp,
@@ -1697,3 +1704,14 @@ def test_dosing_automation_initial_values_for_volumes() -> None:
         assert ca.current_volume_ml == 11.0
         assert ca.max_working_volume_ml == 16.0
         assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6
+
+
+def test_dosing_automation_rejects_legacy_initial_volume_ml_kwarg() -> None:
+    exp = "test_dosing_automation_rejects_legacy_initial_volume_ml_kwarg"
+
+    with pytest.raises(TypeError, match="current_volume_ml"):
+        Silent(
+            unit=unit,
+            experiment=exp,
+            initial_volume_ml=9.0,
+        )
