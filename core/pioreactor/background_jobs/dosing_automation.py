@@ -94,9 +94,7 @@ class DosingAutomationJob(AutomationJob):
 
     automation_name = "dosing_automation_base"  # is overwritten in subclasses
     job_name = "dosing_automation"
-    published_settings: dict[str, pt.PublishableSetting] = (
-        {}
-    )  # see methods in init for dynamic additions, like current_volume_ml
+    published_settings: dict[str, pt.PublishableSetting] = {}
 
     latest_event: Optional[events.AutomationEvent] = None
     _latest_run_at: Optional[datetime] = None
@@ -487,14 +485,6 @@ class DosingAutomationJob(AutomationJob):
             cache[self.experiment] = self.media_throughput
 
     def _init_alt_media_fraction(self, alt_media_fraction: float | None) -> None:
-        self.add_to_published_settings(
-            "alt_media_fraction",
-            {
-                "datatype": "float",
-                "settable": True,
-            },
-        )
-
         if alt_media_fraction is None:
             resolved_alt_media_fraction = bioreactor.get_bioreactor_value(
                 self.experiment,
@@ -514,25 +504,6 @@ class DosingAutomationJob(AutomationJob):
     def _init_liquid_volume(
         self, current_volume_ml: float | None, max_working_volume_ml: float | None
     ) -> None:
-        self.add_to_published_settings(
-            "current_volume_ml",
-            {
-                "datatype": "float",
-                "settable": True,
-                "unit": "mL",
-                "persist": True,
-            },
-        )
-        self.add_to_published_settings(
-            "max_working_volume_ml",
-            {
-                "datatype": "float",
-                "settable": True,
-                "unit": "mL",
-                "persist": True,
-            },
-        )
-
         if max_working_volume_ml is None:
             resolved_max_working_volume_ml = bioreactor.get_bioreactor_value(
                 self.experiment,

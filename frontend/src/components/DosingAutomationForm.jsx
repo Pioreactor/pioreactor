@@ -15,7 +15,8 @@ function DosingAutomationForm(props) {
   const threshold = props.threshold;
   const [warning, setWarning] = useState("");
   const safetyBufferMl = 1;
-  const volumeInputBounds = { min: 0, max: threshold + 2};
+  const capacity = Number.isFinite(props.capacity) ? props.capacity : null;
+  const volumeInputBounds = capacity !== null ? { min: 0, max: capacity } : { min: 0 };
 
   const defaults = Object.assign({}, ...props.fields.map(field => ({ [field.key]: field.default })));
   const defaultsWithoutVolumeFields = Object.fromEntries(
@@ -184,7 +185,7 @@ function DosingAutomationForm(props) {
           <VialVolumePreview
             initialVolumeMl={props.algoSettings.current_volume_ml}
             maxWorkingVolumeMl={props.algoSettings.max_working_volume_ml}
-            maxVolumeMl={props.threshold + 2}
+            maxVolumeMl={capacity}
           />
         </Box>
       </Box>

@@ -119,10 +119,14 @@ const EMPTY_STATE_ILLUSTRATIONS = [
   "/static/svgs/bacteria-three-bacillus-touching.svg",
 ];
 
-function createBioreactorSettingsGroup(descriptors, values, config, { valueMode = "confirmed" } = {}) {
+function createBioreactorSettingsGroup(descriptors, values, config, modelDetails, { valueMode = "confirmed" } = {}) {
   if (!Array.isArray(descriptors) || descriptors.length === 0) {
     return null;
   }
+
+  const capacityMax = Number.isFinite(modelDetails?.reactor_capacity_ml)
+    ? modelDetails.reactor_capacity_ml
+    : null;
 
   const publishedSettings = descriptors.reduce((acc, descriptor) => {
     const settingValue =
@@ -130,11 +134,18 @@ function createBioreactorSettingsGroup(descriptors, values, config, { valueMode 
         ? ""
         : getBioreactorConfirmedValue(values, config, descriptor.key)
 
+    const max = (
+      capacityMax !== null &&
+      (descriptor.key === "current_volume_ml" || descriptor.key === "max_working_volume_ml")
+    ) ? capacityMax : descriptor.max;
+
     acc[descriptor.key] = {
       value: settingValue,
       label: descriptor.label,
       type: descriptor.type,
       unit: descriptor.unit || null,
+      min: descriptor.min,
+      max,
       display: true,
       description: descriptor.description,
       editable: true,
@@ -1444,6 +1455,8 @@ function SettingsActionsDialog({
       setSnackbarOpen: setSnackbarOpen,
       value: setting.value,
       units: setting.unit,
+      min: setting.min,
+      max: setting.max,
       job: job_key,
       setting: setting_key,
       disabled: state === "disconnected",
@@ -1746,6 +1759,7 @@ function SettingsActionsDialog({
                   configSections={config || {}}
                   maxVolume={dosingMaxVolume}
                   liquidVolume={dosingLiquidVolume}
+                  capacity={modelDetails.reactor_capacity_ml}
                   threshold={modelDetails.reactor_max_fill_volume_ml}
                 />
                </React.Fragment>
@@ -1763,6 +1777,7 @@ function SettingsActionsDialog({
               no_skip_first_run={false}
               maxVolume={dosingMaxVolume}
               liquidVolume={dosingLiquidVolume}
+              capacity={modelDetails.reactor_capacity_ml}
               threshold={modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
@@ -2189,7 +2204,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     [selfTestDefinition]
   );
   const bioreactorSettingsGroup = useMemo(
-    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config, { valueMode: "blank" }),
+    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config, null, { valueMode: "blank" }),
     [bioreactorDescriptors, bioreactorValues, config]
   );
   const editableSettingsGroups = useMemo(() => {
@@ -3050,7 +3065,7 @@ function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage,
 }
 
 
-function SettingNumericField({ value: initialValue, units, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id }){
+function SettingNumericField({ value: initialValue, units, min, max, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id }){
   const [value, setValue] = useState(initialValue || "");
   const [error, setError] = useState(false);
   const [activeSubmit, setActiveSubmit] = useState(false);
@@ -3106,10 +3121,15 @@ function SettingNumericField({ value: initialValue, units, onUpdate, setSnackbar
           endAdornment: <InputAdornment position="end">{units}</InputAdornment>,
           autoComplete: 'new-password',
         }}
+        inputProps={{
+          min,
+          max,
+          step: (min===0 && max===1) ? 0.01 : null
+        }}
         variant="outlined"
         onChange={onChange}
         onKeyPress={onKeyPress}
-        sx={{mt: 2, maxWidth: textFieldMaxWidth}}
+        sx={{mt: 2, minWidth: "180px", maxWidth: textFieldMaxWidth}}
       />
       <Button
         size="small"
@@ -3495,6 +3515,8 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       setSnackbarOpen: () => {},
       value: setting.value,
       units: setting.unit,
+      min: setting.min,
+      max: setting.max,
       job: job_key,
       setting: setting_key,
       disabled: state === "disconnected" || !isUnitActive,
@@ -3549,8 +3571,8 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
   const quickSettingEditorOpen = Boolean(quickSettingAnchorEl && quickSettingSelection)
   const bioreactorSettingsGroup = useMemo(
-    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config),
-    [bioreactorDescriptors, bioreactorValues, config]
+    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config, modelDetails),
+    [bioreactorDescriptors, bioreactorValues, config, modelDetails]
   )
   const settingsCollections = bioreactorSettingsGroup
     ? { ...jobs, bioreactor: bioreactorSettingsGroup }
@@ -3832,6 +3854,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         no_skip_first_run={false}
         maxVolume={dosingMaxVolume}
         liquidVolume={dosingLiquidVolume}
+        capacity={modelDetails.reactor_capacity_ml}
         threshold={modelDetails.reactor_max_fill_volume_ml}
       />
 

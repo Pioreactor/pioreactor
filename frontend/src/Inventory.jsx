@@ -916,19 +916,33 @@ function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
 
 function InventoryDisplay({isLoading, workers, config}){
   const [leaderVersion, setLeaderVersion] = React.useState(null)
+  const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
+  const leaderHostname = config['cluster.topology']?.leader_hostname;
+
+  const onLeaderMonitorData = React.useCallback((topic, message, _packet) => {
+    if (!message || !topic) return;
+
+    try {
+      const payload = JSON.parse(message.toString());
+      setLeaderVersion(payload?.app || null);
+    } catch (_error) {
+      setLeaderVersion(null);
+    }
+  }, []);
 
   React.useEffect(() => {
-    async function getLeaderVersion() {
-       await fetch("/unit_api/versions/app")
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setLeaderVersion(data['version'])
-      });
+    if (!client || !leaderHostname) {
+      setLeaderVersion(null);
+      return undefined;
     }
-    getLeaderVersion()
-  }, [])
+
+    const topic = `pioreactor/${leaderHostname}/$experiment/monitor/versions`;
+    subscribeToTopic(topic, onLeaderMonitorData, "InventoryDisplay-leader-version");
+
+    return () => {
+      unsubscribeFromTopic(topic, "InventoryDisplay-leader-version");
+    };
+  }, [client, leaderHostname, onLeaderMonitorData, subscribeToTopic, unsubscribeFromTopic])
 
   return (
     <Grid container spacing={2}>

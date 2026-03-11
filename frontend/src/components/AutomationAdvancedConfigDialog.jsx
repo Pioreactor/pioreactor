@@ -33,6 +33,7 @@ export default function AutomationAdvancedConfigButton({
   // Dosing extras for ChangeDosingAutomationsDialog
   maxVolume,
   liquidVolume,
+  capacity,
   threshold,
   no_skip_first_run = false,
 }) {
@@ -198,6 +199,7 @@ export default function AutomationAdvancedConfigButton({
           no_skip_first_run={false}
           maxVolume={maxVolume}
           liquidVolume={liquidVolume}
+          capacity={capacity}
           threshold={threshold}
           configOverrides={configOverrides}
         />

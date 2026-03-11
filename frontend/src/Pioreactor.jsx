@@ -142,17 +142,28 @@ const getFauxChipHoverSx = (isInteractive) => ({
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
-function createBioreactorSettingsGroup(descriptors, values, config) {
+function createBioreactorSettingsGroup(descriptors, values, config, modelDetails) {
   if (!Array.isArray(descriptors) || descriptors.length === 0) {
     return null;
   }
 
+  const capacityMax = Number.isFinite(modelDetails?.reactor_capacity_ml)
+    ? modelDetails.reactor_capacity_ml
+    : null;
+
   const publishedSettings = descriptors.reduce((acc, descriptor) => {
+    const max = (
+      capacityMax !== null &&
+      (descriptor.key === "current_volume_ml" || descriptor.key === "max_working_volume_ml")
+    ) ? capacityMax : descriptor.max;
+
     acc[descriptor.key] = {
       value: getBioreactorConfirmedValue(values, config, descriptor.key),
       label: descriptor.label,
       type: descriptor.type,
       unit: descriptor.unit || null,
+      min: descriptor.min,
+      max,
       display: true,
       description: descriptor.description,
       editable: true,
@@ -1169,6 +1180,8 @@ function SettingsActionsDialog(props) {
       setSnackbarOpen: setSnackbarOpen,
       value: setting.value,
       units: setting.unit,
+      min: setting.min,
+      max: setting.max,
       job: job_key,
       setting: setting_key,
       disabled: state === "disconnected",
@@ -1472,6 +1485,7 @@ function SettingsActionsDialog(props) {
                   configSections={props.config || {}}
                   maxVolume={dosingMaxVolume}
                   liquidVolume={dosingLiquidVolume}
+                  capacity={props.modelDetails.reactor_capacity_ml}
                   threshold={props.modelDetails.reactor_max_fill_volume_ml}
                 />
                </React.Fragment>
@@ -1489,6 +1503,7 @@ function SettingsActionsDialog(props) {
               no_skip_first_run={false}
               maxVolume={dosingMaxVolume}
               liquidVolume={dosingLiquidVolume}
+              capacity={props.modelDetails.reactor_capacity_ml}
               threshold={props.modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
@@ -1947,10 +1962,15 @@ function SettingNumericField(props) {
           endAdornment: <InputAdornment position="end">{props.units}</InputAdornment>,
           autoComplete: 'new-password',
         }}
+        inputProps={{
+          min: props.min,
+          max: props.max,
+          step: (props.min===0 && props.max===1) ? 0.01 : null
+        }}
         variant="outlined"
         onChange={onChange}
         onKeyPress={onKeyPress}
-        sx={{mt: 2, maxWidth: textFieldMaxWidth}}
+        sx={{mt: 2, minWidth: "180px", maxWidth: textFieldMaxWidth}}
       />
       <Button
         size="small"
@@ -2071,8 +2091,8 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
   }, [])
 
   const bioreactorSettingsGroup = useMemo(
-    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config),
-    [bioreactorDescriptors, bioreactorValues, config]
+    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config, modelDetails),
+    [bioreactorDescriptors, bioreactorValues, config, modelDetails]
   )
   const settingsCollections = bioreactorSettingsGroup
     ? { ...jobs, bioreactor: bioreactorSettingsGroup }
@@ -2295,6 +2315,8 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       setSnackbarOpen: () => {},
       value: setting.value,
       units: setting.unit,
+      min: setting.min,
+      max: setting.max,
       job: job_key,
       setting: setting_key,
       disabled: state === "disconnected" || !isUnitActive,
@@ -2624,6 +2646,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         no_skip_first_run={false}
         maxVolume={dosingMaxVolume}
         liquidVolume={dosingLiquidVolume}
+        capacity={modelDetails.reactor_capacity_ml}
         threshold={modelDetails.reactor_max_fill_volume_ml}
       />
 

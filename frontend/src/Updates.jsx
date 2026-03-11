@@ -30,6 +30,8 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import CloseIcon from '@mui/icons-material/Close';
+import { useMQTT } from './providers/MQTTContext';
+import { getConfig } from "./utilities";
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -464,21 +466,42 @@ function UpdateSoftwareConfirmDialog() {
 
 
 function PageHeader() {
+  const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
+  const [config, setConfig] = React.useState({})
   const [version, setVersion] = React.useState("")
   const [latestVersion, setLatestVersion] = React.useState("")
+  const leaderHostname = config['cluster.topology']?.leader_hostname;
 
+  const onLeaderMonitorData = React.useCallback((topic, message, _packet) => {
+    if (!message || !topic) return;
+
+    try {
+      const payload = JSON.parse(message.toString());
+      setVersion(payload?.app || "");
+    } catch (_error) {
+      setVersion("");
+    }
+  }, []);
 
   React.useEffect(() => {
-    async function getCurrentAppVersion() {
-         await fetch("/unit_api/versions/app")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setVersion(data['version'])
-        });
-      }
+    getConfig(setConfig)
+  }, [])
 
+  React.useEffect(() => {
+    if (!client || !leaderHostname) {
+      setVersion("");
+      return undefined;
+    }
+
+    const topic = `pioreactor/${leaderHostname}/$experiment/monitor/versions`;
+    subscribeToTopic(topic, onLeaderMonitorData, "UpdatesPageHeader-leader-version");
+
+    return () => {
+      unsubscribeFromTopic(topic, "UpdatesPageHeader-leader-version");
+    };
+  }, [client, leaderHostname, onLeaderMonitorData, subscribeToTopic, unsubscribeFromTopic])
+
+  React.useEffect(() => {
     async function getLatestAppVersion() {
          await fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
         .then((response) => {
@@ -492,7 +515,6 @@ function PageHeader() {
         })
       }
 
-      getCurrentAppVersion()
       getLatestAppVersion()
   }, [])
 
