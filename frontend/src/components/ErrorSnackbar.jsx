@@ -89,7 +89,7 @@ function ErrorSnackbar() {
     return [...head, "...", ...tail].join("\n");
   }, [msg]);
 
-  const showLogsHelper = level === "ERROR";
+  const showLogsHelper = ["ERROR", "WARNING"].includes(level);
   const logsRoute = experiment === "$experiment" ? "/system-logs" : "/logs";
   const logsLabel = experiment === "$experiment" ? "View System Logs" : "View Logs";
 

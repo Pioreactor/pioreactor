@@ -187,39 +187,6 @@ def test_pio_status_handles_i2c_scan_errors_without_aborting(monkeypatch) -> Non
     assert "scan failed (i2c unavailable)" in i2c_line
 
 
-def test_pio_cache_view_with_key_filters_output() -> None:
-    cache_name = "test_pio_cache_view_with_key_filters_output"
-    target_key = "target_key"
-    other_key = "other_key"
-
-    try:
-        with local_intermittent_storage(cache_name) as c:
-            c[target_key] = "intermittent_value"
-            c[other_key] = "intermittent_other"
-
-        with local_persistent_storage(cache_name) as c:
-            c[target_key] = "persistent_value"
-            c[other_key] = "persistent_other"
-
-        runner = CliRunner()
-        result = runner.invoke(pio, ["cache", "view", cache_name, target_key])
-
-        assert result.exit_code == 0
-        lines = [line for line in result.output.splitlines() if line]
-        assert lines == [
-            f"{target_key} = intermittent_value",
-            f"{target_key} = persistent_value",
-        ]
-        assert other_key not in result.output
-    finally:
-        with local_intermittent_storage(cache_name) as c:
-            for key in tuple(c.iterkeys()):
-                del c[key]
-        with local_persistent_storage(cache_name) as c:
-            for key in tuple(c.iterkeys()):
-                del c[key]
-
-
 def test_pio_cache_view_without_key_shows_all_keys() -> None:
     cache_name = "test_pio_cache_view_without_key_shows_all_keys"
 

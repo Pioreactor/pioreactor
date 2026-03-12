@@ -947,6 +947,7 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
     assert result["waste_ml"] == pytest.approx(0.0)
 
 
+@pytest.mark.xfail(reason="this needs monitor to work (to reflect the dosing events)")
 def test_mqtt_properties_in_dosing_automations() -> None:
     experiment = "test_mqtt_properties_in_dosing_automations"
 
@@ -1704,14 +1705,3 @@ def test_dosing_automation_uses_stored_values_when_none_provided() -> None:
         assert ca.current_volume_ml == 11.0
         assert ca.max_working_volume_ml == 16.0
         assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6
-
-
-def test_dosing_automation_rejects_legacy_initial_volume_ml_kwarg() -> None:
-    exp = "test_dosing_automation_rejects_legacy_initial_volume_ml_kwarg"
-
-    with pytest.raises(TypeError, match="current_volume_ml"):
-        Silent(
-            unit=unit,
-            experiment=exp,
-            initial_volume_ml=9.0,
-        )

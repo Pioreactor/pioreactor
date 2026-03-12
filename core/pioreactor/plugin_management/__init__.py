@@ -123,4 +123,5 @@ def get_plugins() -> dict[str, Plugin]:
     return plugins
 
 
-load_plugins = get_plugins
+def load_plugins() -> dict[str, Plugin]:
+    return get_plugins()

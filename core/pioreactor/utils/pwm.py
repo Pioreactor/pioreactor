@@ -322,6 +322,8 @@ class PWM:
         self._serialize()
 
     def stop(self) -> None:
+        if self._is_cleaned_up:
+            return
         self._pwm.off()
         self.change_duty_cycle(0.0)
 
@@ -377,13 +379,12 @@ class PWM:
         if self._is_cleaned_up:
             return
 
-        self._is_cleaned_up = True
-
         try:
             with suppress(ValueError):
                 # this is thrown if the _pwm hasn't started yet.
                 self.stop()
         finally:
+            self._is_cleaned_up = True
             try:
                 self._pwm.close()
             finally:
