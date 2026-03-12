@@ -52,10 +52,9 @@ def test_invalid_update_target(client) -> None:
     assert resp.status_code == 404
     data = resp.get_json()
     assert data.get("error") == "Invalid target"
-    error_info = data.get("error_info", {})
-    assert error_info.get("status") == 404
-    assert error_info.get("cause") == "Invalid target"
-    assert isinstance(error_info.get("remediation"), str)
+    assert data.get("status") == 404
+    assert data.get("cause") == "Invalid target"
+    assert data.get("remediation") is None
 
 
 @pytest.mark.parametrize("endpoint", ["/unit_api/system/reboot", "/unit_api/system/shutdown"])
@@ -80,9 +79,8 @@ def test_set_clock_non_leader(client) -> None:
     resp = client.patch("/unit_api/system/utc_clock", json={})
     assert resp.status_code == 400  # need to provide clock data, else it errors
     data = resp.get_json()
-    error_info = data.get("error_info", {})
-    assert error_info.get("status") == 400
-    assert isinstance(error_info.get("remediation"), str)
+    assert data.get("status") == 400
+    assert isinstance(data.get("remediation"), str)
 
 
 def test_set_clock_time_sync_branch(client, monkeypatch) -> None:
@@ -208,10 +206,9 @@ def test_hardware_check_requires_model_payload(client) -> None:
     assert resp.status_code == 400
     data = resp.get_json()
     assert data["error"] == "Missing model_name or model_version"
-    error_info = data.get("error_info", {})
-    assert error_info.get("status") == 400
-    assert "model_name or model_version" in (error_info.get("cause") or "")
-    assert isinstance(error_info.get("remediation"), str)
+    assert data.get("status") == 400
+    assert "model_name or model_version" in (data.get("cause") or "")
+    assert isinstance(data.get("remediation"), str)
 
 
 def test_hardware_check_queues_task(client, monkeypatch) -> None:
