@@ -32,6 +32,8 @@ from uuid import uuid4
 from huey.exceptions import ResultTimeout
 from huey.exceptions import TaskException
 from msgspec import DecodeError
+from msgspec.json import decode as json_decode
+from msgspec.json import encode as json_encode
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
@@ -47,9 +49,13 @@ from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import post_into
+from pioreactor.structs import CalibrationBase
+from pioreactor.structs import EstimatorBase
+from pioreactor.structs import subclass_union
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.web.config import huey
+from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
 
 CalibrationActionHandler = tuple[
@@ -544,11 +550,6 @@ def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict
 
 @huey.task()
 def calibration_save_calibration(device: str, calibration_payload: dict[str, object]) -> dict[str, str]:
-    from msgspec.json import decode as json_decode
-    from msgspec.json import encode as json_encode
-    from pioreactor.structs import CalibrationBase
-    from pioreactor.structs import subclass_union
-
     logger.debug(
         "Starting calibration save: device=%s payload_keys=%s",
         device,
@@ -569,10 +570,6 @@ def calibration_save_calibration(device: str, calibration_payload: dict[str, obj
 
 @huey.task()
 def estimator_save_estimator(device: str, estimator_payload: dict[str, object]) -> dict[str, str]:
-    from msgspec.json import decode as json_decode
-    from msgspec.json import encode as json_encode
-    from pioreactor.structs import EstimatorBase
-    from pioreactor.structs import subclass_union
 
     logger.debug(
         "Starting estimator save: device=%s payload_keys=%s",
@@ -1040,6 +1037,7 @@ def write_config_and_sync(
 def post_into_unit(
     unit: str, endpoint: str, json: dict | None = None, params: dict | None = None
 ) -> tuple[str, Any]:
+    r: Response | None = None
     try:
         address = resolve_to_address(unit)
         r = post_into(address, endpoint, json=json, params=params, timeout=2.0)
@@ -1053,12 +1051,13 @@ def post_into_unit(
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not post to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
+            f"Could not post to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
+            f"{_summarize_unit_api_error(r)}"
         )
         return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, None
 
@@ -1084,6 +1083,42 @@ def _collect_multicast_results(
                 _, response = value
                 results[unit] = response
         return results
+
+
+def _summarize_unit_api_error(response: Response | None) -> str:
+    if response is None or not response.body:
+        return ""
+
+    try:
+        payload = json_decode(response.body, type=UnitApiErrorPayload)
+    except DecodeError:
+        return ""
+
+    details: list[str] = []
+
+    if payload.error.strip():
+        details.append(f"error={payload.error.strip()!r}")
+
+    if payload.cause is not None and payload.cause.strip():
+        details.append(f"cause={payload.cause.strip()!r}")
+
+    if payload.remediation is not None and payload.remediation.strip():
+        details.append(f"remediation={payload.remediation.strip()!r}")
+
+    if not details:
+        return ""
+
+    return f" Response details: {', '.join(details)}."
+
+
+def _response_body_for_logging(response: Response | None) -> str:
+    if response is None:
+        return "<no response body>"
+
+    try:
+        return response.body.decode()
+    except UnicodeDecodeError:
+        return repr(response.body)
 
 
 @huey.task(priority=50)
@@ -1127,6 +1162,7 @@ def _get_from_unit(
     return_raw=False,
     max_attempts: int = 60,
 ) -> tuple[str, Any]:
+    r: Response | None = None
     try:
         address = resolve_to_address(unit)
 
@@ -1141,12 +1177,13 @@ def _get_from_unit(
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not get from {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
+            f"Could not get from {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}."
+            f"{_summarize_unit_api_error(r)}"
         )
         return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, None
 
@@ -1175,6 +1212,7 @@ def multicast_get(
 
 @huey.task(priority=50)
 def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
+    r: Response | None = None
     try:
         address = resolve_to_address(unit)
         r = patch_into(address, endpoint, json=json, timeout=2.0)
@@ -1188,12 +1226,13 @@ def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not PATCH to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
+            f"Could not PATCH to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
+            f"{_summarize_unit_api_error(r)}"
         )
         return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, None
 
@@ -1214,6 +1253,7 @@ def multicast_patch(
 
 @huey.task(priority=10)
 def delete_from_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
+    r: Response | None = None
     try:
         r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=2.0)
         r.raise_for_status()
@@ -1221,11 +1261,12 @@ def delete_from_unit(unit: str, endpoint: str, json: dict | None = None) -> tupl
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
             f"Could not DELETE {unit}'s {endpoint=}, sent {json=} and returned {e}. Check connection?"
+            f"{_summarize_unit_api_error(r)}"
         )
         return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, None
 

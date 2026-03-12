@@ -10,34 +10,37 @@ from flask import abort
 from flask import jsonify
 from flask import Response
 from flask.typing import ResponseReturnValue
+from msgspec import Struct
+from msgspec import to_builtins
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
+
+
+class UnitApiErrorPayload(Struct, omit_defaults=True):
+    error: str
+    status: int
+    cause: str | None = None
+    remediation: str | None = None
 
 
 def abort_with(
     status: int,
     description: str,
     *,
-    error_info: dict[str, t.Any] | None = None,
     remediation: str | None = None,
     cause: str | None = None,
 ) -> NoReturn:
-    if error_info is None and remediation is None and cause is None:
+    if remediation is None and cause is None:
         abort(status, description=description)
         raise AssertionError("abort should not return")
 
-    payload: dict[str, t.Any] = {"error": description}
-    merged_error_info: dict[str, t.Any] = {}
-    if isinstance(error_info, dict):
-        merged_error_info.update(error_info)
-    if remediation is not None:
-        merged_error_info["remediation"] = remediation
-    if cause is not None:
-        merged_error_info["cause"] = cause
-    if merged_error_info:
-        payload["error_info"] = merged_error_info
-
-    response = jsonify(payload)
+    payload = UnitApiErrorPayload(
+        error=description,
+        status=status,
+        cause=cause,
+        remediation=remediation,
+    )
+    response = jsonify(t.cast(dict[str, t.Any], to_builtins(payload)))
     response.status_code = status
     abort(response)
     raise AssertionError("abort should not return")
@@ -45,21 +48,21 @@ def abort_with(
 
 def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any]:
     message = _extract_error_message(payload)
-    if not isinstance(payload.get("error"), str):
-        payload["error"] = message
+    cause = payload.get("cause")
+    normalized_cause = cause.strip() if isinstance(cause, str) and cause.strip() else message
+    remediation = payload.get("remediation")
+    normalized_remediation = (
+        remediation.strip() if isinstance(remediation, str) and remediation.strip() else None
+    )
 
-    error_info = payload.get("error_info")
-    if not isinstance(error_info, dict):
-        error_info = {}
-    if "message" in error_info:
-        error_info.pop("message", None)
+    normalized_payload = UnitApiErrorPayload(
+        status=status,
+        error=message,
+        cause=normalized_cause,
+        remediation=normalized_remediation,
+    )
 
-    error_info.setdefault("cause", message)
-    error_info.setdefault("remediation", _default_remediation_for_status(status))
-    error_info.setdefault("status", status)
-
-    payload["error_info"] = error_info
-    return payload
+    return t.cast(dict[str, t.Any], to_builtins(normalized_payload))
 
 
 def _extract_error_message(payload: dict[str, t.Any]) -> str:
@@ -72,22 +75,6 @@ def _extract_error_message(payload: dict[str, t.Any]) -> str:
             if isinstance(nested_value, str) and nested_value.strip():
                 return nested_value.strip()
     return "Request failed."
-
-
-_DEFAULT_REMEDIATIONS = {
-    400: "Check required fields and request format, then retry.",
-    401: "Authenticate and retry the request.",
-    403: "Verify permissions and configuration allow this action.",
-    404: "Confirm the resource exists and the URL is correct.",
-    409: "Resolve the conflicting state, then retry.",
-    429: "Wait briefly before retrying to avoid rate limits.",
-    502: "Check leader/worker connectivity and retry.",
-    503: "Service is unavailable; retry after a short delay.",
-}
-
-
-def _default_remediation_for_status(status: int) -> str:
-    return _DEFAULT_REMEDIATIONS.get(status, "Check server logs for details and retry.")
 
 
 def attach_cache_control(response: Response, max_age=5) -> Response:
