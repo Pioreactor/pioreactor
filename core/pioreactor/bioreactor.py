@@ -9,86 +9,94 @@ from pioreactor.config import config
 from pioreactor.pubsub import publish as mqtt_publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import local_persistent_storage
+from pioreactor.whoami import get_pioreactor_model
 
 
-
-type _BioreactorDefaultResolver = t.Callable[[], float]
-type BioreactorDescriptor = dict[str, str | float | None]
-
-
-_BIOREACTOR_VARIABLES: dict[str, dict[str, str | float | None | _BioreactorDefaultResolver]] = {
-    "current_volume_ml": {
-        "label": "Current volume",
-        "description": "Current estimated liquid volume in the vial.",
-        "unit": "mL",
-        "min": 0.0,
-        "max": None,
-        "default_resolver": lambda: config.getfloat("bioreactor", "initial_volume_ml", fallback=14.0),
-    },
-    "max_working_volume_ml": {
-        "label": "Max working volume",
-        "description": "Target overflow height for normal waste removal calculations.",
-        "unit": "mL",
-        "min": 0.0,
-        "max": None,
-        "default_resolver": lambda: config.getfloat("bioreactor", "max_working_volume_ml", fallback=14.0),
-    },
-    "alt_media_fraction": {
-        "label": "Alt media fraction",
-        "description": "Fraction of the vial estimated to contain alt media.",
-        "unit": None,
-        "min": 0.0,
-        "max": 1.0,
-        "default_resolver": lambda: config.getfloat(
-            "bioreactor",
-            "initial_alt_media_fraction",
-            fallback=0.0,
-        ),
-    },
+_BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
+    "current_volume_ml": structs.BioreactorVariableDefinition(
+        key="current_volume_ml",
+        label="Current volume",
+        description="Current estimated liquid volume in the vial.",
+        unit="mL",
+        minimum=0.0,
+        maximum=None,
+        default_config_key="initial_volume_ml",
+        default_value=14.0,
+    ),
+    "max_working_volume_ml": structs.BioreactorVariableDefinition(
+        key="max_working_volume_ml",
+        label="Max working volume",
+        description="Target overflow height for normal waste removal calculations.",
+        unit="mL",
+        minimum=0.0,
+        maximum=None,
+        default_config_key="max_working_volume_ml",
+        default_value=14.0,
+    ),
+    "alt_media_fraction": structs.BioreactorVariableDefinition(
+        key="alt_media_fraction",
+        label="Alt media fraction",
+        description="Fraction of the vial estimated to contain alt media.",
+        unit=None,
+        minimum=0.0,
+        maximum=1.0,
+        default_config_key="initial_alt_media_fraction",
+        default_value=0.0,
+    ),
 }
 
 
+def _get_bioreactor_variable_definition(variable_name: str) -> structs.BioreactorVariableDefinition:
+    return _BIOREACTOR_VARIABLES[variable_name]
+
+
 def get_default_bioreactor_value(variable_name: str) -> float:
-    metadata = _BIOREACTOR_VARIABLES[variable_name]
-    resolver = t.cast(_BioreactorDefaultResolver, metadata["default_resolver"])
-    return validate_bioreactor_value(variable_name, resolver())
+    metadata = _get_bioreactor_variable_definition(variable_name)
+    resolved_default = config.getfloat(
+        "bioreactor",
+        metadata.default_config_key,
+        fallback=metadata.default_value,
+    )
+    return validate_bioreactor_value(variable_name, resolved_default)
 
 
-def get_bioreactor_descriptors() -> list[BioreactorDescriptor]:
-    descriptors: list[BioreactorDescriptor] = []
+def get_bioreactor_descriptors() -> list[structs.BioreactorDescriptor]:
+    descriptors: list[structs.BioreactorDescriptor] = []
 
-    for variable_name, metadata in _BIOREACTOR_VARIABLES.items():
+    for metadata in _BIOREACTOR_VARIABLES.values():
         descriptors.append(
-            {
-                "key": variable_name,
-                "label": t.cast(str, metadata["label"]),
-                "description": t.cast(str, metadata["description"]),
-                "type": "numeric",
-                "unit": t.cast(str | None, metadata["unit"]),
-                "min": t.cast(float | None, metadata["min"]),
-                "max": t.cast(float | None, metadata["max"]),
-                "default": get_default_bioreactor_value(variable_name),
-            }
+            structs.BioreactorDescriptor(
+                key=metadata.key,
+                label=metadata.label,
+                description=metadata.description,
+                type="numeric",
+                unit=metadata.unit,
+                min=metadata.minimum,
+                max=metadata.maximum,
+                default=get_default_bioreactor_value(metadata.key),
+            )
         )
 
     return descriptors
 
 
 def validate_bioreactor_value(variable_name: str, value: object) -> float:
-    metadata = _BIOREACTOR_VARIABLES[variable_name]
+    metadata = _get_bioreactor_variable_definition(variable_name)
 
     try:
         parsed = _coerce_to_float(value)
     except (TypeError, ValueError) as e:
         raise ValueError(f"Invalid value for bioreactor variable `{variable_name}`.") from e
 
-    minimum = t.cast(float | None, metadata["min"])
-    maximum = t.cast(float | None, metadata["max"])
+    minimum = metadata.minimum
+    maximum = get_pioreactor_model().reactor_max_fill_volume_ml
+    if metadata.maximum is not None:
+        maximum = min(maximum, metadata.maximum)
 
-    if (minimum is not None) and (parsed < minimum):
+    if parsed < minimum:
         raise ValueError(f"Value for bioreactor variable `{variable_name}` must be >= {minimum}.")
 
-    if (maximum is not None) and (parsed > maximum):
+    if parsed > maximum:
         raise ValueError(f"Value for bioreactor variable `{variable_name}` must be <= {maximum}.")
 
     return parsed
@@ -108,7 +116,7 @@ def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float
 def get_all_bioreactor_values(experiment: pt.Experiment) -> dict[str, float]:
     return {
         variable_name: get_bioreactor_value(experiment, variable_name)
-        for variable_name in _BIOREACTOR_VARIABLES.keys()
+        for variable_name in _BIOREACTOR_VARIABLES
     }
 
 

@@ -2315,7 +2315,7 @@ def get_job_descriptors() -> ResponseReturnValue:
 
 @api_bp.route("/bioreactor/descriptors", methods=["GET"])
 def get_bioreactor_variable_descriptors() -> ResponseReturnValue:
-    return attach_cache_control(jsonify(get_bioreactor_descriptors()), max_age=0)
+    return attach_cache_control(jsonify(to_builtins(get_bioreactor_descriptors())), max_age=0)
 
 
 @api_bp.route("/charts/descriptors", methods=["GET"])

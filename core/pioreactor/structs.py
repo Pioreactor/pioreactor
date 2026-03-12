@@ -191,6 +191,28 @@ class Voltage(JSONPrintedStruct):
     voltage: pt.Voltage
 
 
+class BioreactorVariableDefinition(Struct, frozen=True):
+    key: str
+    label: str
+    description: str
+    unit: str | None
+    minimum: float
+    maximum: float | None
+    default_config_key: str
+    default_value: float
+
+
+class BioreactorDescriptor(Struct, frozen=True):
+    key: str
+    label: str
+    description: str
+    type: t.Literal["numeric"]
+    unit: str | None
+    min: float | None
+    max: float | None
+    default: float
+
+
 X = float
 Y = float
 

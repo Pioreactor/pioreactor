@@ -152,6 +152,24 @@ def test_update_bioreactor_values_endpoint_persists_and_publishes(client, monkey
     ]
 
 
+def test_update_bioreactor_values_endpoint_rejects_out_of_range_values(client, monkeypatch) -> None:
+    def fake_set_and_publish_bioreactor_value(_mqtt_client, _unit, experiment, variable_name, value) -> float:
+        return set_bioreactor_value(experiment, variable_name, value)
+
+    monkeypatch.setattr(
+        "pioreactor.web.unit_api.set_and_publish_bioreactor_value",
+        fake_set_and_publish_bioreactor_value,
+    )
+
+    resp = client.patch(
+        "/unit_api/bioreactor/experiments/exp1",
+        json={"values": {"max_working_volume_ml": 38.1}},
+    )
+
+    assert resp.status_code == 400
+    assert "max_working_volume_ml" in resp.get_json()["error"]
+
+
 def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 

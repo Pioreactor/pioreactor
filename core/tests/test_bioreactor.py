@@ -22,6 +22,17 @@ def test_set_bioreactor_value_persists() -> None:
     assert bioreactor.get_all_bioreactor_values(experiment)["current_volume_ml"] == pytest.approx(12.5)
 
 
+def test_get_bioreactor_descriptors_returns_structs() -> None:
+    descriptors = bioreactor.get_bioreactor_descriptors()
+
+    assert all(isinstance(descriptor, structs.BioreactorDescriptor) for descriptor in descriptors)
+    assert [descriptor.key for descriptor in descriptors] == [
+        "current_volume_ml",
+        "max_working_volume_ml",
+        "alt_media_fraction",
+    ]
+
+
 @pytest.mark.parametrize(
     ("variable_name", "value"),
     [
@@ -33,6 +44,56 @@ def test_set_bioreactor_value_persists() -> None:
 def test_validate_bioreactor_value_rejects_out_of_bounds(variable_name: str, value: float) -> None:
     with pytest.raises(ValueError):
         bioreactor.validate_bioreactor_value(variable_name, value)
+
+
+def test_validate_bioreactor_value_rejects_current_volume_above_model_capacity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        bioreactor,
+        "get_pioreactor_model",
+        lambda: structs.Model(
+            model_name="test_model",
+            model_version="1.0",
+            display_name="Test model",
+            reactor_capacity_ml=20.0,
+            reactor_max_fill_volume_ml=18.0,
+            reactor_diameter_mm=27.0,
+            max_temp_to_reduce_heating=63.0,
+            max_temp_to_disable_heating=65.0,
+            max_temp_to_shutdown=66.0,
+            is_legacy=False,
+            is_contrib=False,
+        ),
+    )
+
+    with pytest.raises(ValueError):
+        bioreactor.validate_bioreactor_value("current_volume_ml", 20.1)
+
+
+def test_validate_bioreactor_value_rejects_max_working_volume_above_model_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        bioreactor,
+        "get_pioreactor_model",
+        lambda: structs.Model(
+            model_name="test_model",
+            model_version="1.0",
+            display_name="Test model",
+            reactor_capacity_ml=20.0,
+            reactor_max_fill_volume_ml=18.0,
+            reactor_diameter_mm=27.0,
+            max_temp_to_reduce_heating=63.0,
+            max_temp_to_disable_heating=65.0,
+            max_temp_to_shutdown=66.0,
+            is_legacy=False,
+            is_contrib=False,
+        ),
+    )
+
+    with pytest.raises(ValueError):
+        bioreactor.validate_bioreactor_value("max_working_volume_ml", 18.1)
 
 
 def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_waste() -> None:

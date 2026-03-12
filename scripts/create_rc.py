@@ -155,7 +155,7 @@ def update_version_py_to(version: str, dry_run: bool) -> None:
 
 
 def list_update_scripts_for(version_base: str) -> list[Path]:
-    version_dir = UPDATE_SCRIPTS_DIR / version_base
+    version_dir = UPDATE_SCRIPTS_DIR / "upcoming"
     if not version_dir.exists() or not version_dir.is_dir():
         return []
     return sorted(path for path in version_dir.rglob("*") if path.is_file())

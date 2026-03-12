@@ -147,15 +147,14 @@ function createBioreactorSettingsGroup(descriptors, values, config, modelDetails
     return null;
   }
 
-  const capacityMax = Number.isFinite(modelDetails?.reactor_capacity_ml)
-    ? modelDetails.reactor_capacity_ml
+  const maxWorkingVolumeMax = Number.isFinite(modelDetails?.reactor_max_fill_volume_ml)
+    ? modelDetails.reactor_max_fill_volume_ml
     : null;
 
   const publishedSettings = descriptors.reduce((acc, descriptor) => {
-    const max = (
-      capacityMax !== null &&
-      (descriptor.key === "current_volume_ml" || descriptor.key === "max_working_volume_ml")
-    ) ? capacityMax : descriptor.max;
+    const max = (descriptor.key === "current_volume_ml" || descriptor.key === "max_working_volume_ml")
+        ? maxWorkingVolumeMax ?? descriptor.max
+        : descriptor.max;
 
     acc[descriptor.key] = {
       value: getBioreactorConfirmedValue(values, config, descriptor.key),
@@ -1946,7 +1945,28 @@ function SettingNumericField(props) {
 
   const validateNumericInput = (input) => {
     const numericPattern = /^-?\d*\.?\d*$/; // Allows negative and decimal numbers
-    return numericPattern.test(input);
+    if (!numericPattern.test(input)) {
+      return false;
+    }
+
+    if (input === "" || input === "-" || input === "." || input === "-.") {
+      return false;
+    }
+
+    const parsedValue = Number.parseFloat(input);
+    if (!Number.isFinite(parsedValue)) {
+      return false;
+    }
+
+    if (props.min != null && parsedValue < props.min) {
+      return false;
+    }
+
+    if (props.max != null && parsedValue > props.max) {
+      return false;
+    }
+
+    return true;
   };
 
   const onChange = (e) => {
