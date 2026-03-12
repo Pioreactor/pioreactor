@@ -11,6 +11,7 @@
    - `GET /unit_api/bioreactor/experiments/<experiment>`
  - Added live bioreactor controls to the Pioreactor UI so users can inspect and edit per-unit bioreactor values, with updated vessel diagrams for supported 20 mL and 40 mL models.
  - Dosing workflows now project manual pump actions and dosing-automation events into persisted bioreactor state, keeping tracked volume and alternative-media fraction synchronized across jobs and restarts.
+ - Updated the leader UI's dosing-related chart and job descriptors to read live bioreactor state from `bioreactor/current_volume_ml` and `bioreactor/alt_media_fraction`, and to stop exposing the hidden duplicate dosing-automation volume settings. The app update also refreshes the deployed YAML descriptors automatically on leaders.
  - Added plugin hooks for custom self-tests. Plugins can now register additional checks that run with `pio run self_test`, for example:
 
    ```python
@@ -22,6 +23,16 @@
 
 
    register_self_tests(test_air_bubble_is_running)
+   ```
+
+#### Breaking changes
+
+ - Removed the legacy dosing-automation MQTT settings/topic surface for bioreactor values. `current_volume_ml`, `max_working_volume_ml`, and `alt_media_fraction` are no longer published as `dosing_automation` settings or exposed as dosing-automation capability flags. Use the retained bioreactor topics and APIs instead:
+
+   ```
+   pioreactor/<unit>/<experiment>/bioreactor/current_volume_ml
+   pioreactor/<unit>/<experiment>/bioreactor/max_working_volume_ml
+   pioreactor/<unit>/<experiment>/bioreactor/alt_media_fraction
    ```
 
 #### Bug fixes

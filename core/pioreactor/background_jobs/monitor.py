@@ -679,6 +679,7 @@ class Monitor(LongRunningBackgroundJob):
             qos=QOS.AT_LEAST_ONCE,
         )
 
+        # TODO: change me!
         self.subscribe_and_callback(
             self.update_bioreactor_state_from_dosing_event,
             f"pioreactor/{self.unit}/+/dosing_events",

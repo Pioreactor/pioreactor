@@ -50,11 +50,6 @@ def pause_between_subdoses() -> float:
     return d
 
 
-"""
-Calculators should ideally be state-less
-"""
-
-
 class ThroughputCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
