@@ -44,7 +44,7 @@ export default function ActionPumpForm(props) {
   const hasDurationInput = duration !== EMPTYSTATE;
   const hasSafetyThreshold = isAddAction && currentVolumeMl != null && thresholdMl != null;
   const hardRemainingMl = hasSafetyThreshold ? thresholdMl - currentVolumeMl : null;
-  const exceedsSafetyThreshold = hasSafetyThreshold && isVolumeMode && parsedML != null && parsedML >= hardRemainingMl;
+  const exceedsSafetyThreshold = hasSafetyThreshold && isVolumeMode && parsedML != null && parsedML > hardRemainingMl;
 
   function onSubmit(e) {
     e.preventDefault();
