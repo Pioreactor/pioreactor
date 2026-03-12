@@ -60,16 +60,16 @@ def save_results(
 
 
 def _get_execute_pump_for_device(pump_device: PumpCalibrationDevices) -> Callable:
-    from pioreactor.actions.pump import add_alt_media_via_pump
-    from pioreactor.actions.pump import add_media_via_pump
-    from pioreactor.actions.pump import remove_waste_via_pump
+    from pioreactor.actions.pump import add_alt_media
+    from pioreactor.actions.pump import add_media
+    from pioreactor.actions.pump import remove_waste
 
     if pump_device == "media_pump":
-        return add_media_via_pump
+        return add_media
     if pump_device == "alt_media_pump":
-        return add_alt_media_via_pump
+        return add_alt_media
     if pump_device == "waste_pump":
-        return remove_waste_via_pump
+        return remove_waste
     raise ValueError(f"Unknown pump device: {pump_device}")
 
 

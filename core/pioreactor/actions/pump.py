@@ -548,14 +548,9 @@ def _get_action_name_for_pump_device(pump_device: PumpCalibrationDevices) -> str
 
 circulate_media = partial(_liquid_circulation, "media_pump")
 circulate_alt_media = partial(_liquid_circulation, "alt_media_pump")
-add_media_via_pump = partial(_pump_action, "media_pump")
-remove_waste_via_pump = partial(_pump_action, "waste_pump")
-add_alt_media_via_pump = partial(_pump_action, "alt_media_pump")
-# Public pump actions are intentionally raw again. Monitor projects dosing_events into
-# retained bioreactor state, which keeps this module free of runtime ownership checks.
-add_media = add_media_via_pump
-remove_waste = remove_waste_via_pump
-add_alt_media = add_alt_media_via_pump
+add_media = partial(_pump_action, "media_pump")
+remove_waste = partial(_pump_action, "waste_pump")
+add_alt_media = partial(_pump_action, "alt_media_pump")
 
 
 @click.command(name="add_alt_media")

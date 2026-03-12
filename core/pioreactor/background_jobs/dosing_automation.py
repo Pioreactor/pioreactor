@@ -13,9 +13,9 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.actions.pump import add_alt_media_via_pump
-from pioreactor.actions.pump import add_media_via_pump
-from pioreactor.actions.pump import remove_waste_via_pump
+from pioreactor.actions.pump import add_alt_media
+from pioreactor.actions.pump import add_media
+from pioreactor.actions.pump import remove_waste
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
@@ -99,16 +99,19 @@ class DosingAutomationJob(AutomationJob):
     # overwrite to use your own dosing programs.
     # interface must look like types.DosingProgram
     add_media_to_bioreactor: pt.DosingProgram = staticmethod(
-        partial(add_media_via_pump, duration=None, calibration=None, continuously=False)
+        partial(add_media, duration=None, calibration=None, continuously=False)
     )
     remove_waste_from_bioreactor: pt.DosingProgram = staticmethod(
-        partial(remove_waste_via_pump, duration=None, calibration=None, continuously=False)
+        partial(remove_waste, duration=None, calibration=None, continuously=False)
     )
     add_alt_media_to_bioreactor: pt.DosingProgram = staticmethod(
-        partial(add_alt_media_via_pump, duration=None, calibration=None, continuously=False)
+        partial(add_alt_media, duration=None, calibration=None, continuously=False)
     )
 
-    # dosing metrics that are available, and published to MQTT
+    # Runtime dosing state used by the control loop. Throughput is published by this job.
+    # Liquid metadata is different: these attributes are only an in-memory mirror of the
+    # retained bioreactor state so the automation can react immediately after dosing events.
+    # Persistence and retained publishing for liquid metadata are owned by bioreactor.py.
     alt_media_fraction: float  # fraction of the vial that is alt-media (vs regular media).
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
@@ -434,9 +437,10 @@ class DosingAutomationJob(AutomationJob):
         self._update_liquid_volume(dosing_event)
 
     def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
-        # Monitor persists retained bioreactor state from dosing_events. The automation keeps
-        # a local mirror for control decisions only, so it can temporarily diverge from the
-        # retained bioreactor values while MQTT callbacks are still in flight.
+        # This updates only the automation's in-memory mirror. Monitor separately observes the
+        # same dosing event and persists/publishes the shared bioreactor state. We update here
+        # too so the control loop does not wait on that asynchronous round-trip before making
+        # volume-dependent decisions.
         self.alt_media_fraction = round(
             bioreactor.calculate_updated_alt_media_fraction(
                 dosing_event,
@@ -497,6 +501,8 @@ class DosingAutomationJob(AutomationJob):
         else:
             resolved_alt_media_fraction = alt_media_fraction
 
+        # Seed the shared bioreactor state, and initialize the automation's local mirror from
+        # the same value.
         self.alt_media_fraction = bioreactor.set_and_publish_bioreactor_value(
             self.pub_client,
             self.unit,
@@ -521,6 +527,8 @@ class DosingAutomationJob(AutomationJob):
         else:
             resolved_current_volume_ml = current_volume_ml
 
+        # Seed the shared bioreactor state, and initialize the automation's local mirror from
+        # the same values.
         self.max_working_volume_ml = bioreactor.set_and_publish_bioreactor_value(
             self.pub_client,
             self.unit,
@@ -559,6 +567,9 @@ class DosingAutomationJob(AutomationJob):
             self._update_dosing_metrics,
             f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
         )
+        # Keep the automation's in-memory bioreactor mirror synchronized with the shared
+        # retained bioreactor state. This covers manual UI/API edits, retained-state replay on
+        # startup/reconnect, and any bioreactor updates that did not originate in this process.
         self.subscribe_and_callback(
             self._set_bioreactor_value_from_mqtt,
             [
@@ -568,34 +579,9 @@ class DosingAutomationJob(AutomationJob):
             ],
         )
 
-    def set_alt_media_fraction(self, value: float) -> None:
-        self.alt_media_fraction = bioreactor.set_and_publish_bioreactor_value(
-            self.pub_client,
-            self.unit,
-            self.experiment,
-            "alt_media_fraction",
-            value,
-        )
-
-    def set_current_volume_ml(self, value: float) -> None:
-        self.current_volume_ml = bioreactor.set_and_publish_bioreactor_value(
-            self.pub_client,
-            self.unit,
-            self.experiment,
-            "current_volume_ml",
-            value,
-        )
-
-    def set_max_working_volume_ml(self, value: float) -> None:
-        self.max_working_volume_ml = bioreactor.set_and_publish_bioreactor_value(
-            self.pub_client,
-            self.unit,
-            self.experiment,
-            "max_working_volume_ml",
-            value,
-        )
-
     def _set_bioreactor_value_from_mqtt(self, message: pt.MQTTMessage) -> None:
+        # This updates only the automation's local mirror from shared bioreactor topics. It does
+        # not persist or publish anything itself.
         if not message.payload:
             return
 
