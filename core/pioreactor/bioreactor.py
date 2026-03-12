@@ -10,7 +10,6 @@ from pioreactor.pubsub import publish as mqtt_publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import local_persistent_storage
 
-BIOREACTOR_STORAGE_NAME = "bioreactor"
 
 
 type _BioreactorDefaultResolver = t.Callable[[], float]
@@ -97,7 +96,7 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
 
 def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
 
-    with local_persistent_storage(BIOREACTOR_STORAGE_NAME) as cache:
+    with local_persistent_storage("bioreactor") as cache:
         stored_value = cache.get((experiment, variable_name))
 
     if stored_value is None:
@@ -116,7 +115,7 @@ def get_all_bioreactor_values(experiment: pt.Experiment) -> dict[str, float]:
 def set_bioreactor_value(experiment: pt.Experiment, variable_name: str, value: object) -> float:
     parsed_value = validate_bioreactor_value(variable_name, value)
 
-    with local_persistent_storage(BIOREACTOR_STORAGE_NAME) as cache:
+    with local_persistent_storage("bioreactor") as cache:
         cache[(experiment, variable_name)] = parsed_value
 
     return parsed_value

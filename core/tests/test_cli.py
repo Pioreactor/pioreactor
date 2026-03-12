@@ -222,13 +222,13 @@ def test_pio_cache_view_handles_tuple_keys() -> None:
         bioreactor.set_bioreactor_value(experiment, "alt_media_fraction", 0.3)
 
         runner = CliRunner()
-        result = runner.invoke(pio, ["cache", "view", bioreactor.BIOREACTOR_STORAGE_NAME])
+        result = runner.invoke(pio, ["cache", "view", "bioreactor"])
 
         assert result.exit_code == 0
         assert "('test_pio_cache_view_handles_tuple_keys', 'alt_media_fraction') = 0.3" in result.output
         assert "('test_pio_cache_view_handles_tuple_keys', 'current_volume_ml') = 12.5" in result.output
     finally:
-        with local_persistent_storage(bioreactor.BIOREACTOR_STORAGE_NAME) as c:
+        with local_persistent_storage("bioreactor") as c:
             c.pop((experiment, "current_volume_ml"), None)
             c.pop((experiment, "alt_media_fraction"), None)
 
