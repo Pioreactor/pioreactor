@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import math
 import typing as t
 
 from pioreactor import structs

@@ -10,6 +10,7 @@ from tempfile import NamedTemporaryFile
 from time import sleep
 from typing import Any
 from typing import cast
+from typing import SupportsFloat
 
 from flask import after_this_request
 from flask import Blueprint
@@ -28,6 +29,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.bioreactor import get_all_bioreactor_values
+from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import get_calibration_protocols as get_calibration_protocols_registry
@@ -557,6 +559,14 @@ def run_job(job_name: str) -> DelayedResponseReturnValue:
     }
     config_overrides = json.config_overrides
 
+    # check for bad pumping ideas
+    if is_manual_dosing_volume_unsafe(job_name, options, env):
+        abort_with(
+            400,
+            "Requested dose would meet or exceed the reactor safety threshold.",
+            remediation="Reduce the requested volume or remove waste before dosing again.",
+        )
+
     config_overrides_as_flags: tuple[str, ...] = sum(
         [("--config-override",) + tuple(_args) for _args in config_overrides], tuple()
     )
@@ -570,6 +580,44 @@ def run_job(job_name: str) -> DelayedResponseReturnValue:
 
     task = tasks.pio_run(*commands, env=env, config_overrides=config_overrides_as_flags)
     return create_task_response(task)
+
+
+def is_manual_dosing_volume_unsafe(
+    job_name: str,
+    options: dict[str, object],
+    env: dict[str, str],
+) -> bool:
+    if job_name not in {"add_media", "add_alt_media"}:
+        return False
+
+    ml = options.get("ml")
+    if ml is None:
+        return False
+
+    experiment = env.get("EXPERIMENT")
+    if not experiment:
+        return False
+
+    addition_ml = float(cast(SupportsFloat, ml))
+    if addition_ml < 0:
+        return False
+
+    model_name = env.get("MODEL_NAME")
+    model_version = env.get("MODEL_VERSION")
+
+    if model_name and model_version:
+        try:
+            safety_threshold_ml = get_registered_models()[
+                (model_name, model_version)
+            ].reactor_max_fill_volume_ml
+        except KeyError:
+            safety_threshold_ml = whoami.get_pioreactor_model().reactor_max_fill_volume_ml
+    else:
+        safety_threshold_ml = whoami.get_pioreactor_model().reactor_max_fill_volume_ml
+
+    current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
+
+    return (current_volume_ml + addition_ml) >= safety_threshold_ml
 
 
 @unit_api_bp.route("/jobs/stop/all", methods=["PATCH", "POST"])

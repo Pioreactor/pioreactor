@@ -598,10 +598,20 @@ def test_stop_specific_job_returns_task_response_when_mqtt_publish_fails(client,
         def wait_for_publish(self, timeout: float) -> None:
             raise RuntimeError("mqtt down")
 
+    class FailingClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def publish(self, *_args, **_kwargs) -> FailingPublish:
+            return FailingPublish()
+
     class DummyTask:
         id = "fallback-task"
 
-    monkeypatch.setattr(mod.client, "publish", lambda *_args, **_kwargs: FailingPublish())
+    monkeypatch.setattr(mod, "create_client", lambda *_args, **_kwargs: FailingClient())
     monkeypatch.setattr(mod.tasks, "multicast_post", lambda *_args, **_kwargs: DummyTask())
 
     response = client.post("/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1")

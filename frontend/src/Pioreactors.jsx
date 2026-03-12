@@ -1930,7 +1930,15 @@ function SettingsActionsDialog({
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
           </Typography>
-          <ActionDosingForm action="add_media" unit={unit} experiment={experiment} job={jobs.add_media} />
+          <ActionDosingForm
+            action="add_media"
+            unit={unit}
+            experiment={experiment}
+            job={jobs.add_media}
+            currentVolumeMl={dosingLiquidVolume}
+            maxWorkingVolumeMl={dosingMaxVolume}
+            thresholdMl={modelDetails.reactor_max_fill_volume_ml}
+          />
           <ControlDivider/>
           <Typography  gutterBottom>
             Remove waste
@@ -1941,7 +1949,15 @@ function SettingsActionsDialog({
           <Typography variant="body2" component="p">
             Specify how you’d like to remove waste:
           </Typography>
-          <ActionDosingForm action="remove_waste" unit={unit} experiment={experiment} job={jobs.remove_waste} />
+          <ActionDosingForm
+            action="remove_waste"
+            unit={unit}
+            experiment={experiment}
+            job={jobs.remove_waste}
+            currentVolumeMl={dosingLiquidVolume}
+            maxWorkingVolumeMl={dosingMaxVolume}
+            thresholdMl={modelDetails.reactor_max_fill_volume_ml}
+          />
           <ControlDivider/>
           <Typography gutterBottom>
             Add alternative media
@@ -1952,7 +1968,15 @@ function SettingsActionsDialog({
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:
           </Typography>
-          <ActionDosingForm action="add_alt_media" unit={unit} experiment={experiment} job={jobs.add_alt_media} />
+          <ActionDosingForm
+            action="add_alt_media"
+            unit={unit}
+            experiment={experiment}
+            job={jobs.add_alt_media}
+            currentVolumeMl={dosingLiquidVolume}
+            maxWorkingVolumeMl={dosingMaxVolume}
+            thresholdMl={modelDetails.reactor_max_fill_volume_ml}
+          />
 
 
         </TabPanel>

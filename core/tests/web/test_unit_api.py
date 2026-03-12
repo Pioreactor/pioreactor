@@ -154,6 +154,55 @@ def test_update_bioreactor_values_endpoint_persists_and_publishes(client, monkey
     ]
 
 
+def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    set_bioreactor_value("exp1", "current_volume_ml", 12.0)
+    monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
+    monkeypatch.setattr(
+        mod.tasks,
+        "pio_run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    response = client.patch(
+        "/unit_api/jobs/run/job_name/add_media",
+        json={
+            "args": [],
+            "options": {"ml": 6.0},
+            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "config_overrides": [],
+        },
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data["error"] == "Requested dose would meet or exceed the reactor safety threshold."
+
+
+def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class DummyTask:
+        id = "task-allow-add-media"
+
+    set_bioreactor_value("exp1", "current_volume_ml", 12.0)
+    monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
+    monkeypatch.setattr(mod.tasks, "pio_run", lambda *_args, **_kwargs: DummyTask())
+
+    response = client.patch(
+        "/unit_api/jobs/run/job_name/add_media",
+        json={
+            "args": [],
+            "options": {"ml": 5.9},
+            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "config_overrides": [],
+        },
+    )
+
+    assert response.status_code == 202
+
+
 def test_hardware_check_requires_model_payload(client) -> None:
     resp = client.post("/unit_api/hardware/check", json={})
     assert resp.status_code == 400

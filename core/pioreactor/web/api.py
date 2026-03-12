@@ -34,6 +34,7 @@ from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response as MureqResponse
+from pioreactor.pubsub import create_client
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.structs import CalibrationBase
@@ -43,7 +44,6 @@ from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.web import tasks
-from pioreactor.web.app import client
 from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
 from pioreactor.web.app import get_all_workers_in_experiment
@@ -340,11 +340,12 @@ def stop_specific_job_on_unit(
 ) -> ResponseReturnValue:
     """Kills specified job on unit"""
 
-    msg = client.publish(
-        f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/$state/set", b"disconnected", qos=1
-    )
     try:
-        msg.wait_for_publish(timeout=2.0)
+        with create_client() as client:
+            msg = client.publish(
+                f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/$state/set", b"disconnected", qos=1
+            )
+            msg.wait_for_publish(timeout=2.0)
     except Exception as e:
         publish_to_error_log(str(e), "stop_specific_job_on_unit")
         # Fall back to the unit API stop endpoint instead of surfacing a false failure.
@@ -495,12 +496,13 @@ def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/workers/<pioreactor_unit>/blink", methods=["POST"])
 def blink_worker(pioreactor_unit: str) -> ResponseReturnValue:
-    msg = client.publish(
-        f"pioreactor/{pioreactor_unit}/{UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
-        1,
-        qos=0,
-    )
-    msg.wait_for_publish(timeout=2.0)
+    with create_client() as client:
+        msg = client.publish(
+            f"pioreactor/{pioreactor_unit}/{UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
+            1,
+            qos=0,
+        )
+        msg.wait_for_publish(timeout=2.0)
     return {"status": "success"}, 202
 
 
@@ -539,12 +541,13 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
     ```
     """
     try:
-        for setting, value in request.get_json()["settings"].items():
-            client.publish(
-                f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/{setting}/set",
-                value,
-                qos=2,
-            )
+        with create_client() as client:
+            for setting, value in request.get_json()["settings"].items():
+                client.publish(
+                    f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/{setting}/set",
+                    value,
+                    qos=2,
+                )
     except Exception as e:
         publish_to_error_log(str(e), "update_job_on_unit")
         abort_with(400, str(e))
@@ -808,12 +811,23 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
     body = request.get_json()
     source_ = body.get("source_", "ui")
 
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        assigned_units = get_all_workers_in_experiment(experiment)
-        for assigned_pioreactor_unit in assigned_units:
-            topic = (
-                f"pioreactor/{assigned_pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
-            )
+    with create_client() as client:
+        if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+            assigned_units = get_all_workers_in_experiment(experiment)
+            for assigned_pioreactor_unit in assigned_units:
+                topic = f"pioreactor/{assigned_pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
+                client.publish(
+                    topic,
+                    msg_to_JSON(
+                        msg=body["message"],
+                        source=body["source"],
+                        level=body["level"].upper(),
+                        timestamp=body["timestamp"],
+                        task=body["task"] or "",
+                    ),
+                )
+        else:
+            topic = f"pioreactor/{pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
             client.publish(
                 topic,
                 msg_to_JSON(
@@ -824,18 +838,6 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
                     task=body["task"] or "",
                 ),
             )
-    else:
-        topic = f"pioreactor/{pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
-        client.publish(
-            topic,
-            msg_to_JSON(
-                msg=body["message"],
-                source=body["source"],
-                level=body["level"].upper(),
-                timestamp=body["timestamp"],
-                task=body["task"] or "",
-            ),
-        )
     return {"status": "success"}, 202
 
 

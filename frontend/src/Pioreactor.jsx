@@ -1656,7 +1656,15 @@ function SettingsActionsDialog(props) {
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
           </Typography>
-          <ActionDosingForm action="add_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_media} />
+          <ActionDosingForm
+            action="add_media"
+            unit={props.unit}
+            experiment={props.experiment}
+            job={props.jobs.add_media}
+            currentVolumeMl={dosingLiquidVolume}
+            maxWorkingVolumeMl={dosingMaxVolume}
+            thresholdMl={props.modelDetails.reactor_max_fill_volume_ml}
+          />
           <ControlDivider/>
           <Typography  gutterBottom>
             Remove waste
@@ -1667,7 +1675,15 @@ function SettingsActionsDialog(props) {
           <Typography variant="body2" component="p">
             Specify how you’d like to remove waste:
           </Typography>
-          <ActionDosingForm action="remove_waste" unit={props.unit} experiment={props.experiment} job={props.jobs.remove_waste} />
+          <ActionDosingForm
+            action="remove_waste"
+            unit={props.unit}
+            experiment={props.experiment}
+            job={props.jobs.remove_waste}
+            currentVolumeMl={dosingLiquidVolume}
+            maxWorkingVolumeMl={dosingMaxVolume}
+            thresholdMl={props.modelDetails.reactor_max_fill_volume_ml}
+          />
           <ControlDivider/>
           <Typography gutterBottom>
             Add alternative media
@@ -1678,7 +1694,15 @@ function SettingsActionsDialog(props) {
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:
           </Typography>
-          <ActionDosingForm action="add_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_alt_media} />
+          <ActionDosingForm
+            action="add_alt_media"
+            unit={props.unit}
+            experiment={props.experiment}
+            job={props.jobs.add_alt_media}
+            currentVolumeMl={dosingLiquidVolume}
+            maxWorkingVolumeMl={dosingMaxVolume}
+            thresholdMl={props.modelDetails.reactor_max_fill_volume_ml}
+          />
 
 
         </TabPanel>

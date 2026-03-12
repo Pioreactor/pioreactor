@@ -257,6 +257,14 @@ class DosingAutomationJob(AutomationJob):
             brief_pause()
         return True
 
+    def stop_active_pumps(self) -> None:
+        for pump_job_name in ("add_media", "add_alt_media", "remove_waste"):
+            self.pub_client.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{pump_job_name}/$state/set",
+                b"disconnected",
+                qos=1,
+            )
+
     def execute_io_action(
         self,
         waste_ml: float = 0.0,
@@ -340,6 +348,7 @@ class DosingAutomationJob(AutomationJob):
                     self.logger.error(
                         f"Pausing all pumping since {projected_volume_ml:g} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
+                    self.stop_active_pumps()
                     self.set_state(self.SLEEPING)
                     return volumes_moved
 

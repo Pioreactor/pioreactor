@@ -5,7 +5,6 @@ from base64 import b64decode
 from datetime import datetime
 from datetime import timezone
 
-import paho.mqtt.client as mqtt
 from flask import Flask
 from flask import g
 from flask import jsonify
@@ -13,7 +12,6 @@ from flask import request
 from flask.json.provider import JSONProvider
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-from paho.mqtt.enums import CallbackAPIVersion
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
@@ -37,12 +35,6 @@ logger = create_logger(
 
 
 logger.debug(f"Starting {NAME}={VERSION} on {HOSTNAME}...")
-
-client = mqtt.Client(client_id="pioreactor_ui", callback_api_version=CallbackAPIVersion.VERSION2)
-client.username_pw_set(
-    pioreactor_config.get("mqtt", "username", fallback="pioreactor"),
-    pioreactor_config.get("mqtt", "password", fallback="raspberry"),
-)
 
 
 try:
@@ -71,18 +63,6 @@ def create_app():
 
         app.register_blueprint(api_bp)
         app.register_blueprint(mcp_bp)
-
-    broker_address = pioreactor_config.get("mqtt", "broker_address", fallback="localhost").split(";")[0]
-    broker_port = pioreactor_config.getint("mqtt", "broker_port", fallback=1883)
-    try:
-        client.connect(
-            host=broker_address,
-            port=broker_port,
-        )
-        client.loop_start()
-        logger.debug(f"Starting MQTT client at {broker_address}:{broker_port}, {client.is_connected()=}")
-    except Exception:
-        raise
 
     @app.teardown_appcontext
     def close_connection(exception) -> None:

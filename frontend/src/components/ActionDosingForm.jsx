@@ -7,6 +7,7 @@ import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
+import Alert from "@mui/material/Alert";
 import {runPioreactorJob} from "../utilities"
 
 
@@ -23,6 +24,7 @@ const actionToAct = {
 }
 
 export default function ActionPumpForm(props) {
+  const { action, currentVolumeMl, experiment, job, thresholdMl, unit } = props;
   const EMPTYSTATE = "";
   const [mL, setML] = useState(EMPTYSTATE);
   const [duration, setDuration] = useState(EMPTYSTATE);
@@ -34,25 +36,38 @@ export default function ActionPumpForm(props) {
   const [formErrorDuration, setFormErrorDuration] = useState(false)
   const [formErrorML, setFormErrorML] = useState(false)
 
+  const parsedML = mL === EMPTYSTATE ? null : Number.parseFloat(mL);
+  const isAddAction = action.startsWith("add")
+  const isVolumeMode = dosingMethod === "volume";
+  const isDurationMode = dosingMethod === "duration";
+  const hasVolumeInput = mL !== EMPTYSTATE;
+  const hasDurationInput = duration !== EMPTYSTATE;
+  const hasSafetyThreshold = isAddAction && currentVolumeMl != null && thresholdMl != null;
+  const hardRemainingMl = hasSafetyThreshold ? thresholdMl - currentVolumeMl : null;
+  const exceedsSafetyThreshold = hasSafetyThreshold && isVolumeMode && parsedML != null && parsedML >= hardRemainingMl;
 
   function onSubmit(e) {
     e.preventDefault();
-    if ((dosingMethod === "continuously") || (dosingMethod === 'volume' && mL !== EMPTYSTATE) || (dosingMethod === 'duration' && duration !== EMPTYSTATE)) {
+    if (exceedsSafetyThreshold) {
+      setTextfieldError(true)
+      return
+    }
+    if (dosingMethod === "continuously" || (isVolumeMode && hasVolumeInput) || (isDurationMode && hasDurationInput)) {
 
       var params = {}
       var msg = ""
-      if (dosingMethod === 'volume'){
+      if (isVolumeMode){
         params = { ml: parseFloat(mL), source_of_event: "UI"};
-        msg = actionToAct[props.action] + (" until " + mL + "mL is reached.")
-      } else if (dosingMethod === 'duration') {
+        msg = actionToAct[action] + (" until " + mL + "mL is reached.")
+      } else if (isDurationMode) {
         params = { duration: parseFloat(duration), source_of_event: "UI"}
-        msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
+        msg = actionToAct[action] + (" for " +  duration + " seconds.")
       } else {
         params = {continuously: null, source_of_event: "UI"}
-        msg = actionToAct[props.action] + " continuously"
+        msg = actionToAct[action] + " continuously"
       }
 
-      runPioreactorJob(props.unit, props.experiment, props.action, [], params)
+      runPioreactorJob(unit, experiment, action, [], params)
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
     }
@@ -63,7 +78,7 @@ export default function ActionPumpForm(props) {
   }
 
   function stopPump() {
-    fetch(`/api/workers/${props.unit}/jobs/stop/job_name/${props.action}/experiments/${props.experiment}`, {method: "PATCH"})
+    fetch(`/api/workers/${unit}/jobs/stop/job_name/${action}/experiments/${experiment}`, {method: "PATCH"})
     .catch(() => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)
@@ -74,39 +89,18 @@ export default function ActionPumpForm(props) {
     setOpenSnackbar(false);
   };
 
-  function handleMLChange(e) {
-    const re = /^[0-9.\b]+$/;
+  function handleNumericChange(e, setValue, setError) {
     setTextfieldError(false)
-
-    setML(e.target.value);
-
-    if (e.target.value === EMPTYSTATE || re.test(e.target.value)) {
-      setFormErrorML(false)
-    }
-    else {
-      setFormErrorML(true)
-    }
+    setValue(e.target.value);
+    setError(e.target.value !== EMPTYSTATE && Number.isNaN(Number(e.target.value)))
   }
 
   function handleRadioChange(e) {
     setDosingMethod(e.target.value);
   }
 
-  function handleDurationChange(e) {
-    const re = /^[0-9.\b]+$/;
-    setTextfieldError(false)
-
-    setDuration(e.target.value);
-
-    if (e.target.value === EMPTYSTATE || re.test(e.target.value)) {
-      setFormErrorDuration(false)
-    }
-    else {
-      setFormErrorDuration(true)
-    }
-  }
   return (
-    <div id={props.action} style={{padding: "10px 0px 0px 0px"}}>
+    <div id={action} style={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
         <RadioGroup
           aria-label="how to dose"
@@ -122,11 +116,17 @@ export default function ActionPumpForm(props) {
               error={formErrorML || textfieldError}
               value={mL}
               size="small"
-              id={props.action + "_mL"}
+              id={action + "_mL"}
               variant="outlined"
-              onChange={handleMLChange}
-              disabled={dosingMethod !== 'volume'}
+              type="number"
+              onChange={(e) => handleNumericChange(e, setML, setFormErrorML)}
+              disabled={!isVolumeMode}
               sx={actionTextField}
+              inputProps={{
+                min: 0,
+                step: 1,
+                ...(hardRemainingMl != null ? { max: Math.max(hardRemainingMl, 0) } : {}),
+              }}
               InputProps={{
                 endAdornment: <InputAdornment position="end">mL</InputAdornment>,
               }}
@@ -140,10 +140,11 @@ export default function ActionPumpForm(props) {
               value={duration}
               error={formErrorDuration || textfieldError}
               size="small"
-              id={props.action + "_duration"}
+              id={action + "_duration"}
               variant="outlined"
-              disabled={dosingMethod !== 'duration'}
-              onChange={handleDurationChange}
+              type="number"
+              disabled={!isDurationMode}
+              onChange={(e) => handleNumericChange(e, setDuration, setFormErrorDuration)}
               sx={actionTextField}
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
@@ -157,7 +158,7 @@ export default function ActionPumpForm(props) {
 
       <div style={{display: "flex", marginTop: '5px'}}>
         <Button
-          disabled={(formErrorML && dosingMethod === 'volume') || (formErrorDuration && dosingMethod === 'duration') || (props?.job?.state === "ready")}
+          disabled={(formErrorML && isVolumeMode) || (formErrorDuration && isDurationMode) || exceedsSafetyThreshold || (job?.state === "ready")}
           type="submit"
           variant="contained"
           size="small"
@@ -171,19 +172,24 @@ export default function ActionPumpForm(props) {
           size="small"
           color="secondary"
           variant="contained"
-          disabled={ (props?.job?.state !== "ready") && (props.unit !== "$broadcast")} // always allow for "stop" in the "Manage all" dialog
+          disabled={ (job?.state !== "ready") && (unit !== "$broadcast")} // always allow for "stop" in the "Manage all" dialog
           onClick={stopPump}
         >
           Stop
         </Button>
       </div>
+      {isAddAction && exceedsSafetyThreshold && (
+        <Alert severity="warning" sx={{ mt: 1 }}>
+          Entered volume exceeds the estimated headroom.
+        </Alert>
+      )}
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         onClose={handleSnackbarClose}
         message={snackbarMsg}
         autoHideDuration={7000}
-        key={"snackbar" + props.unit + props.action}
+        key={"snackbar" + unit + action}
       />
     </div>
   );
