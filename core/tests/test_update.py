@@ -45,10 +45,10 @@ def test_get_non_prerelease_tags_of_pioreactor(monkeypatch) -> None:
 
 def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatch) -> None:
     fake_releases = [
-        {"prerelease": False, "tag_name": "23.4.5"},
-        {"prerelease": False, "tag_name": "23.4.4"},
-        {"prerelease": False, "tag_name": "23.4.15"},
-        {"prerelease": False, "tag_name": "22.12.1"},
+        {"prerelease": False, "tag_name": "26.3.10"},
+        {"prerelease": False, "tag_name": "26.3.2"},
+        {"prerelease": False, "tag_name": "26.3.1"},
+        {"prerelease": False, "tag_name": "26.2.26"},
     ]
 
     def mock_get_request(url, headers):
@@ -58,10 +58,10 @@ def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatc
 
     result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
     assert [str(r) for r in result] == [
-        "22.12.1",
-        "23.4.4",
-        "23.4.5",
-        "23.4.15",
+        "26.2.26",
+        "26.3.1",
+        "26.3.2",
+        "26.3.10",
     ]
 
 
@@ -117,10 +117,10 @@ def test_get_tag_to_install_with_empty_version_history(monkeypatch) -> None:
 
 def test_get_tag_to_install_with_large_version_history(monkeypatch) -> None:
     # Test with a large version history to simulate stress testing
-    fake_versions = [f"23.4.{i}" for i in range(1, 1000)]
+    fake_versions = [f"26.3.{i}" for i in range(1000)]
     monkeypatch.setattr("pioreactor.cli.pio.get_non_prerelease_tags_of_pioreactor", lambda _: fake_versions)
-    monkeypatch.setattr("pioreactor.version.__version__", "23.4.500")
-    assert get_tag_to_install("pioreactor/pioreactor", None) == "tags/23.4.501"
+    monkeypatch.setattr("pioreactor.version.__version__", "26.3.500")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "tags/26.3.501"
 
 
 def test_get_tag_to_install_handles_dev_and_rc_versions(monkeypatch) -> None:

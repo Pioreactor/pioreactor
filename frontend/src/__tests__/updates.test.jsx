@@ -42,7 +42,7 @@ describe("Updates page", () => {
       if (url === "https://api.github.com/repos/pioreactor/pioreactor/releases/latest") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ tag_name: "26.3.1" }),
+          json: () => Promise.resolve({ tag_name: "26.3.10" }),
         });
       }
 
@@ -75,10 +75,10 @@ describe("Updates page", () => {
     await act(async () => {
       subscribedHandler(
         "pioreactor/leader1/$experiment/monitor/versions",
-        { toString: () => JSON.stringify({ app: "26.2.26" }) },
+        { toString: () => JSON.stringify({ app: "26.3.0" }) },
       );
     });
 
-    expect(screen.getByText("26.2.26")).toBeTruthy();
+    expect(screen.getByText("26.3.0")).toBeTruthy();
   });
 });

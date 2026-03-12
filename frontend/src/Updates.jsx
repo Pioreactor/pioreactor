@@ -77,7 +77,7 @@ function UploadArchiveAndConfirm(props) {
   const handleFileChange = (event) => {
     const file = event.target.files[0]
 
-    if (/^release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$/.test(file.name)) {
+    if (/^release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$/.test(file.name)) {
       setSelectedFile(event.target.files[0]);
       setErrorMsg(null)
     }

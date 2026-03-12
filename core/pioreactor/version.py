@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
 
-# pioreactor version
+# pioreactor version (YY.M.N)
 # Append ".dev0" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
-__version__ = "26.2.26.dev0"
+__version__ = "26.3.0.dev0"
 
 
 def get_hardware_version() -> tuple[int, int] | tuple[int, int, str] | None:

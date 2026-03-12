@@ -1,17 +1,19 @@
 ### Upcoming
 
+Going forward, we are changing our versioning scheme from YY.M.D to YY.M.N, where N is a release counter within the month starting at 0.
+
+We expect YY.M.0 releases to carry the larger changes, including system-level updates when needed. Subsequent releases in the same month, such as YY.M.1, YY.M.2, and so on, will typically be smaller bug-fix or incremental releases.
+
 #### Enhancements
 
  - Redesigned the Experiments UI page into a management-focused table with search, status/tag filters, tag editing, and quick actions for exporting, ending, or deleting experiments.
- - Added experiment tags to the UI and API: tags can now be created when starting a new experiment, edited later from the Experiments page, and used to organize/filter experiments.
+ - Added experiment tags to the UI and API: tags can now be created when starting a new experiment, edited later from the Experiments and Overview page, and used to organize/filter experiments.
  - Calibration protocol sessions now persist a tab-scoped resume handle in the UI, so reloading the Protocols page in the same browser tab restores the existing `Resume protocol` action instead of losing the in-progress session.
  - Added persisted bioreactor state for each experiment, including `current_volume_ml`, `max_working_volume_ml`, and `alt_media_fraction`. These values are now exposed over MQTT plus new API endpoints:
    - `GET /api/bioreactor/descriptors`
    - `GET|PATCH /api/workers/<unit>/experiments/<experiment>/bioreactor`
    - `GET /unit_api/bioreactor/experiments/<experiment>`
  - Added live bioreactor controls to the Pioreactor UI so users can inspect and edit per-unit bioreactor values, with updated vessel diagrams for supported 20 mL and 40 mL models.
- - Dosing workflows now project manual pump actions and dosing-automation events into persisted bioreactor state, keeping tracked volume and alternative-media fraction synchronized across jobs and restarts.
- - Updated the leader UI's dosing-related chart and job descriptors to read live bioreactor state from `bioreactor/current_volume_ml` and `bioreactor/alt_media_fraction`, and to stop exposing the hidden duplicate dosing-automation volume settings. The app update also refreshes the deployed YAML descriptors automatically on leaders.
  - Added plugin hooks for custom self-tests. Plugins can now register additional checks that run with `pio run self_test`, for example:
 
    ```python
@@ -27,7 +29,8 @@
 
 #### Breaking changes
 
- - Removed the legacy dosing-automation MQTT settings/topic surface for bioreactor values. `current_volume_ml`, `max_working_volume_ml`, and `alt_media_fraction` are no longer published as `dosing_automation` settings or exposed as dosing-automation capability flags. Use the retained bioreactor topics and APIs instead:
+ - Updated the leader UI's dosing-related chart and job descriptors to read live bioreactor state from `bioreactor/current_volume_ml` and `bioreactor/alt_media_fraction`, and to stop exposing the hidden duplicate dosing-automation volume settings. The app update also refreshes the deployed YAML descriptors automatically on leaders.
+ - Removed the legacy dosing-automation MQTT settings/topic surface for bioreactor values. `current_volume_ml`, `max_working_volume_ml`, and `alt_media_fraction` are no longer published as `dosing_automation` settings or exposed as dosing-automation capability flags. Use the retained `bioreactor` topics and APIs instead:
 
    ```
    pioreactor/<unit>/<experiment>/bioreactor/current_volume_ml
@@ -37,7 +40,7 @@
 
 #### Bug fixes
 
- - Fixed a UI crash when MQTT `button_down` events triggered tactile-button notifications: custom snackbar content now renders with a ref-able root element so notistack transitions no longer throw `Custom snackbar is not refForwarding`.
+ - Fixed a UI crash when MQTT `button_down` events triggered tactile-button notifications.
  - Fix plugins not being loaded correctly in the background task worker. This affected mostly plugin-sourced calibrations.
  - Added a `<System>` experiment option in Export Data and mapped it to `"$experiment"` so users can export system logs from the UI.
  - Fixed calibration session resume so reopening a saved protocol session returns to the current step instead of accidentally starting the protocol from the beginning again.

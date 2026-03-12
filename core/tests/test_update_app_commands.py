@@ -111,7 +111,7 @@ def test_app_commands_with_4_char_sha() -> None:
 
 
 def test_app_commands_with_release_zip(tmp_path) -> None:
-    version = "1.2.3"
+    version = "26.3.0"
     # construct a source path matching release zip pattern
     source_path = tmp_path / f"release_{version}.zip"
     # no need to create the file on disk; path string is enough
@@ -188,11 +188,11 @@ def test_app_commands_branch_with_special_chars() -> None:
 def test_app_commands_from_release_metadata_include_restart_by_default(monkeypatch) -> None:
     def mock_get(_url: str, **_kwargs) -> Response:
         release_metadata = {
-            "tag_name": "26.2.23",
+            "tag_name": "26.3.0",
             "assets": [
                 {
-                    "name": "pioreactor-26.2.23-py3-none-any.whl",
-                    "browser_download_url": "https://example.com/pioreactor-26.2.23-py3-none-any.whl",
+                    "name": "pioreactor-26.3.0-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/pioreactor-26.3.0-py3-none-any.whl",
                 }
             ],
         }
@@ -214,11 +214,11 @@ def test_app_commands_from_release_metadata_include_restart_by_default(monkeypat
 def test_app_commands_from_release_metadata_skip_restart_when_deferred(monkeypatch) -> None:
     def mock_get(_url: str, **_kwargs) -> Response:
         release_metadata = {
-            "tag_name": "26.2.23",
+            "tag_name": "26.3.0",
             "assets": [
                 {
-                    "name": "pioreactor-26.2.23-py3-none-any.whl",
-                    "browser_download_url": "https://example.com/pioreactor-26.2.23-py3-none-any.whl",
+                    "name": "pioreactor-26.3.0-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/pioreactor-26.3.0-py3-none-any.whl",
                 }
             ],
         }

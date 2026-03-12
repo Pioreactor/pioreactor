@@ -29,6 +29,7 @@ if whoami.am_I_leader():
 
 
 GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{4,40}$")
+RELEASE_ARCHIVE_PATTERN = re.compile(r"release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$")
 
 
 def validate_git_sha(value: Optional[str]) -> Optional[str]:
@@ -71,7 +72,7 @@ def get_update_app_commands(
     # source overrides branch/version/sha
     if source is not None:
         source = quote(source)
-        if re.search(r"release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$", source):
+        if RELEASE_ARCHIVE_PATTERN.search(source):
             # provided a release archive
             version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
             tmp_dir = tempfile.gettempdir()
