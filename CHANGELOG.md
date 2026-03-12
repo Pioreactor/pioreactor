@@ -1,4 +1,4 @@
-### Upcoming
+### 26.3.0
 
 Going forward, we are changing our versioning scheme from YY.M.D to YY.M.N, where N is a release counter within the month starting at 0.
 
