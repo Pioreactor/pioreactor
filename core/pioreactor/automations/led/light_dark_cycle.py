@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+from typing import Any
 from typing import Optional
 
+from pioreactor import structs
 from pioreactor.automations import events
 from pioreactor.automations.led.base import LEDAutomationJob
 from pioreactor.types import LedChannel
@@ -28,7 +30,7 @@ class LightDarkCycle(LEDAutomationJob):
         light_intensity: float | str,
         light_duration_minutes: int | str,
         dark_duration_minutes: int | str,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.minutes_online: int = -1
@@ -38,12 +40,12 @@ class LightDarkCycle(LEDAutomationJob):
         self.light_duration_minutes = float(light_duration_minutes)
         self.dark_duration_minutes = float(dark_duration_minutes)
 
-    def execute(self) -> Optional[events.AutomationEvent]:
+    def execute(self) -> Optional[structs.AutomationEvent]:
         # runs every minute
         self.minutes_online += 1
         return self.trigger_leds(self.minutes_online)
 
-    def trigger_leds(self, minutes: int) -> Optional[events.AutomationEvent]:
+    def trigger_leds(self, minutes: int) -> Optional[structs.AutomationEvent]:
         """
         Changes the LED state based on the current minute in the cycle.
 
@@ -76,17 +78,17 @@ class LightDarkCycle(LEDAutomationJob):
             return None
 
     # minutes setters
-    def set_dark_duration_minutes(self, minutes: int):
+    def set_dark_duration_minutes(self, minutes: int) -> None:
         self.dark_duration_minutes = minutes
 
         self.trigger_leds(self.minutes_online)
 
-    def set_light_duration_minutes(self, minutes: int):
+    def set_light_duration_minutes(self, minutes: int) -> None:
         self.light_duration_minutes = minutes
 
         self.trigger_leds(self.minutes_online)
 
-    def set_light_intensity(self, intensity: float | str):
+    def set_light_intensity(self, intensity: float | str) -> None:
         # this is the settr of light_intensity attribute, eg. called when updated over MQTT
         self.light_intensity = float(intensity)
         if self.light_active:

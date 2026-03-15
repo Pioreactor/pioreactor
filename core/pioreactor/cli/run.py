@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from contextlib import ExitStack
+from typing import Any
 
 import click
 from pioreactor import plugin_management
@@ -37,7 +38,7 @@ if am_I_leader():
 
 
 class RunLazyGroup(LazyGroup):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._plugins_loaded = False
 
@@ -50,11 +51,11 @@ class RunLazyGroup(LazyGroup):
                     self.add_command(getattr(plugin.module, possible_entry_point))
         self._plugins_loaded = True
 
-    def list_commands(self, ctx):
+    def list_commands(self, ctx: click.Context) -> list[str]:
         self._load_plugins()
         return super().list_commands(ctx)
 
-    def get_command(self, ctx, cmd_name):
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
         self._load_plugins()
         # Prefer plugin-registered commands over lazy defaults so plugins can
         # intentionally replace built-in command entrypoints.
@@ -77,7 +78,7 @@ class RunLazyGroup(LazyGroup):
     help="Temporarily override a config value",
 )
 @click.pass_context
-def run(ctx, config_override: list[tuple[str, str, str | None]]) -> None:
+def run(ctx: click.Context, config_override: list[tuple[str, str, str | None]]) -> None:
     """
     Run a job. Override the config with, example:
 

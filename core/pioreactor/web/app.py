@@ -48,10 +48,10 @@ def decode_base64(string: str) -> str:
     return b64decode(string).decode("utf-8")
 
 
-def create_app():
+def create_app() -> Flask:
     # load plugins
     app = Flask(NAME)
-    app.logger = logger
+    app.logger = t.cast(t.Any, logger)
 
     from pioreactor.web.unit_api import unit_api_bp
 
@@ -65,7 +65,7 @@ def create_app():
         app.register_blueprint(mcp_bp)
 
     @app.teardown_appcontext
-    def close_connection(exception) -> None:
+    def close_connection(exception: BaseException | None) -> None:
         db = getattr(g, "_app_database", None)
         if db is not None:
             db.close()
@@ -75,7 +75,7 @@ def create_app():
             db.close()
 
     @app.errorhandler(404)
-    def handle_not_found(e):
+    def handle_not_found(e: HTTPException) -> t.Any:
         # Return JSON for API requests
 
         # check if accessing /api/ when not leader. User had the wrong leader_hostname on their leader image. This would have helped them.
@@ -92,31 +92,31 @@ def create_app():
         return jsonify({"error": e.description}), 404
 
     @app.errorhandler(400)
-    def handle_bad_request(e):
+    def handle_bad_request(e: HTTPException) -> t.Any:
         # Return JSON for API requests
         return jsonify({"error": e.description}), 400
 
     @app.errorhandler(403)
-    def handle_not_auth(e):
+    def handle_not_auth(e: HTTPException) -> t.Any:
         # Return JSON for API requests
         return jsonify({"error": e.description}), 403
 
     @app.errorhandler(500)
-    def handle_server_error(e):
+    def handle_server_error(e: HTTPException) -> t.Any:
         return (
             jsonify({"error": f"{e.description}"}),
             500,
         )
 
     @app.errorhandler(502)
-    def handle_bad_gateway(e):
+    def handle_bad_gateway(e: HTTPException) -> t.Any:
         return (
             jsonify({"error": f"{e.description}"}),
             502,
         )
 
     @app.errorhandler(HTTPException)
-    def handle_http_exception(e: HTTPException):
+    def handle_http_exception(e: HTTPException) -> t.Any:
         return jsonify({"error": e.description}), e.code or 500
 
     @app.after_request
@@ -137,7 +137,6 @@ def create_app():
         return response
 
     app.json = MsgspecJsonProvider(app)
-    app.get_json = app.json.loads
 
     return app
 
@@ -156,11 +155,11 @@ def msg_to_JSON(msg: str, task: str, level: str, timestamp: None | str = None, s
     )
 
 
-def publish_to_log(msg: str, task: str, level="DEBUG") -> None:
+def publish_to_log(msg: str, task: str, level: str = "DEBUG") -> None:
     publish_to_experiment_log(msg, "$experiment", task, level)
 
 
-def publish_to_experiment_log(msg: str | t.Any, experiment: str, task: str, level="DEBUG") -> None:
+def publish_to_experiment_log(msg: t.Any, experiment: str, task: str, level: str = "DEBUG") -> None:
     if not isinstance(msg, str):
         # attempt to serialize
         try:
@@ -171,15 +170,15 @@ def publish_to_experiment_log(msg: str | t.Any, experiment: str, task: str, leve
     getattr(logger, level.lower())(msg)
 
 
-def publish_to_error_log(msg, task: str) -> None:
+def publish_to_error_log(msg: t.Any, task: str) -> None:
     publish_to_log(msg, task, "ERROR")
 
 
-def _make_dicts(cursor, row) -> dict:
+def _make_dicts(cursor: sqlite3.Cursor, row: tuple[t.Any, ...]) -> dict[str, t.Any]:
     return dict((cursor.description[idx][0], value) for idx, value in enumerate(row))
 
 
-def _get_app_db_connection():
+def _get_app_db_connection() -> sqlite3.Connection:
     db = getattr(g, "_app_database", None)
     if db is None:
         try:
@@ -211,7 +210,7 @@ def _get_app_db_connection():
     return db
 
 
-def _get_temp_local_metadata_db_connection():
+def _get_temp_local_metadata_db_connection() -> sqlite3.Connection:
     db = getattr(g, "_local_metadata_database", None)
     if db is None:
         db = g._local_metadata_database = sqlite3.connect(
@@ -230,7 +229,9 @@ def _get_temp_local_metadata_db_connection():
     return db
 
 
-def query_app_db(query: str, args=(), one: bool = False) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
+def query_app_db(
+    query: str, args: tuple[t.Any, ...] = (), one: bool = False
+) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
     assert am_I_leader()
     con = _get_app_db_connection()
     try:
@@ -250,7 +251,7 @@ def query_app_db(query: str, args=(), one: bool = False) -> dict[str, t.Any] | l
 
 
 def query_temp_local_metadata_db(
-    query: str, args=(), one: bool = False
+    query: str, args: tuple[t.Any, ...] = (), one: bool = False
 ) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
     cur = _get_temp_local_metadata_db_connection().execute(query, args)
     rv = cur.fetchall()
@@ -258,7 +259,7 @@ def query_temp_local_metadata_db(
     return (rv[0] if rv else None) if one else rv
 
 
-def modify_app_db(statement: str, args=()) -> int:
+def modify_app_db(statement: str, args: tuple[t.Any, ...] = ()) -> int:
     assert am_I_leader()
     con = _get_app_db_connection()
     cur = con.cursor()
@@ -279,14 +280,15 @@ def modify_app_db(statement: str, args=()) -> int:
 
 
 class MsgspecJsonProvider(JSONProvider):
-    def dumps(self, obj, **kwargs):
-        return dumps(obj)
+    def dumps(self, obj: t.Any, **kwargs: t.Any) -> str:
+        return dumps(obj).decode("utf-8")
 
-    def loads(self, obj, type=None, **kwargs):
+    def loads(self, s: str | bytes, **kwargs: t.Any) -> t.Any:
+        type = kwargs.pop("type", None)
         if type is not None:
-            return loads(obj, type=type)
+            return loads(s, type=type)
         else:
-            return loads(obj)
+            return loads(s)
 
 
 def get_all_workers_in_experiment(experiment: str) -> list[str]:

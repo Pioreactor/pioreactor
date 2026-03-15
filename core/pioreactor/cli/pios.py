@@ -4,6 +4,7 @@ CLI for running the commands on workers, or otherwise interacting with the worke
 """
 import os
 import re
+import typing as t
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from shlex import quote
@@ -52,7 +53,7 @@ def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value:
 
 @click.group(invoke_without_command=True)
 @click.pass_context
-def pios(ctx) -> None:
+def pios(ctx: click.Context) -> None:
     """
     Command each of the worker Pioreactors with the `pios` command.
 
@@ -166,7 +167,7 @@ if am_I_leader() or is_testing_env():
             raise click.BadParameter("No target workers matched the selection. Check --units/--experiments.")
         return tuple(sorted(units_set))
 
-    def which_units(f):
+    def which_units(f: t.Callable[..., t.Any]) -> t.Callable[..., t.Any]:
         """Add common targeting options to a `pios` command.
 
         This only defines the options; it does not resolve them. Command handlers must
@@ -350,7 +351,7 @@ if am_I_leader() or is_testing_env():
             return tuple(u for u in set(workers) if u in active_workers)
 
     def universal_identifier_to_all_workers(
-        workers: tuple[str, ...], filter_out_non_workers=True
+        workers: tuple[str, ...], filter_out_non_workers: bool = True
     ) -> tuple[str, ...]:
         try:
             all_workers = get_workers_in_inventory()
@@ -541,7 +542,7 @@ if am_I_leader() or is_testing_env():
     @json_output
     @click.pass_context
     def update(
-        ctx,
+        ctx: click.Context,
         source: str | None,
         branch: str | None,
         sha: str | None,
@@ -714,7 +715,7 @@ if am_I_leader() or is_testing_env():
             raise click.Abort()
 
     @pios.group()
-    def plugins():
+    def plugins() -> None:
         """
         Manage plugins on workers.
 
@@ -921,14 +922,14 @@ if am_I_leader() or is_testing_env():
             raise click.Abort()
 
     @pios.group(name="jobs", short_help="job-related commands")
-    def jobs():
+    def jobs() -> None:
         """Interact with worker jobs."""
         pass
 
     @jobs.group(name="list", short_help="list jobs current and previous", invoke_without_command=True)
     @which_units
     @click.pass_context
-    def list_jobs(ctx, units: tuple[str, ...], experiments: tuple[str, ...]) -> None:
+    def list_jobs(ctx: click.Context, units: tuple[str, ...], experiments: tuple[str, ...]) -> None:
         if ctx.invoked_subcommand is None:
             _show_cluster_job_history(units, experiments, running_only=False)
 
@@ -1005,7 +1006,7 @@ if am_I_leader() or is_testing_env():
     @json_output
     @click.pass_context
     def run(
-        ctx,
+        ctx: click.Context,
         job: str,
         config_override: tuple[tuple[str, str, str], ...],
         units: tuple[str, ...],
@@ -1150,7 +1151,7 @@ if am_I_leader() or is_testing_env():
     @confirmation
     @click.pass_context
     def update_settings(
-        ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
+        ctx: click.Context, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
     ) -> None:
         """
         Update settings on a running job across workers.

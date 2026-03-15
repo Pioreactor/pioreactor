@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 
 from dotenv import load_dotenv
-from huey import SqliteHuey
+from huey.api import SqliteHuey
 
 
 load_dotenv()

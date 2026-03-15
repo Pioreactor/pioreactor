@@ -18,7 +18,9 @@ registered_pumps: dict[str, Callable[..., float]] = {
 }
 
 
-def _validate_and_parse_pump_args_callback(ctx, param, value) -> list[tuple[str, float]]:
+def _validate_and_parse_pump_args_callback(
+    ctx: click.Context, param: click.Parameter, value: tuple[str, ...] | None
+) -> list[tuple[str, float]]:
     """Validate and normalize pump/sleep pairs coming in as extra args.
 
     Accepts tokens like: ["--media", "2", "--sleep", "1", "--waste_", "0.5"].
@@ -62,7 +64,7 @@ def _validate_and_parse_pump_args_callback(ctx, param, value) -> list[tuple[str,
 )
 @click.argument("pump_script", nargs=-1, callback=_validate_and_parse_pump_args_callback)
 @click.pass_context
-def click_pumps(ctx, pump_script: list[tuple[str, float]]) -> None:
+def click_pumps(ctx: click.Context, pump_script: list[tuple[str, float]]) -> None:
     """
     Run pumps in sequence. Accepts pairs of arguments where the first is the pump name (e.g., 'media', 'alt_media', 'waste') and the second is the volume in milliliters to pump.
     Also accepts a "sleep" command (with the second arg being the number of seconds to sleep).

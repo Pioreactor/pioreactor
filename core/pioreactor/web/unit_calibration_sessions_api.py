@@ -42,14 +42,14 @@ def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[st
     return normalize(result)
 
 
-def _get_step_registry(protocol) -> Any:
+def _get_step_registry(protocol: Any) -> Any:
     step_registry = getattr(protocol, "step_registry", None)
     if step_registry is None:
         abort_with(400, description="Protocol does not define a step registry.")
     return step_registry
 
 
-def _get_calibration_step(session) -> Any:
+def _get_calibration_step(session: Any) -> Any:
     protocol = get_protocol_for_session(session)
     step_registry = _get_step_registry(protocol)
     return get_session_step(step_registry, session)

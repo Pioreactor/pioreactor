@@ -2,17 +2,19 @@
 import time
 from contextlib import suppress
 from datetime import datetime
+from typing import Any
 from typing import Optional
 
 import click
 from pioreactor import exc
+from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor import whoami
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
-from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
@@ -37,10 +39,10 @@ class LEDAutomationJob(AutomationJob):
 
     _latest_run_at: Optional[datetime] = None
 
-    latest_event: Optional[events.AutomationEvent] = None
+    latest_event: Optional[structs.AutomationEvent] = None
     run_thread: RepeatedTimer
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # this registers all subclasses of LEDAutomationJob
         if hasattr(cls, "automation_name") and getattr(cls, "automation_name") != "led_automation_base":
@@ -52,7 +54,7 @@ class LEDAutomationJob(AutomationJob):
         experiment: pt.Experiment,
         duration: float,
         skip_first_run: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super(LEDAutomationJob, self).__init__(unit, experiment)
 
@@ -98,7 +100,7 @@ class LEDAutomationJob(AutomationJob):
             logger=self.logger,
         ).start()
 
-    def run(self, timeout: float = 60.0) -> Optional[events.AutomationEvent]:
+    def run(self, timeout: float = 60.0) -> Optional[structs.AutomationEvent]:
         """
         Parameters
         -----------
@@ -107,7 +109,7 @@ class LEDAutomationJob(AutomationJob):
             Default 60s.
 
         """
-        event: Optional[events.AutomationEvent]
+        event: Optional[structs.AutomationEvent]
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
@@ -204,7 +206,7 @@ def start_led_automation(
     skip_first_run: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> LEDAutomationJob:
     from pioreactor.automations import led  # noqa: F401
 
@@ -256,7 +258,9 @@ available_led_automations: dict[str, type[LEDAutomationJob]] = {}
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_led_automation(ctx, automation_name, duration, skip_first_run):
+def click_led_automation(
+    ctx: click.Context, automation_name: str, duration: float, skip_first_run: int
+) -> None:
     """
     Start an LED automation
     """

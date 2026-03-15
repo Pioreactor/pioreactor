@@ -8,6 +8,7 @@ from typing import Literal
 
 import click
 from msgspec import to_builtins
+from pioreactor import structs
 from pioreactor.calibrations import cli_helpers
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
@@ -20,6 +21,27 @@ SessionMode = Literal["ui", "cli"]
 Str = str
 Float = float
 SessionExecutor = Callable[[Str, dict[Str, object]], dict[Str, object]]
+
+__all__ = [
+    "CalibrationComplete",
+    "CalibrationEnded",
+    "CalibrationSession",
+    "CalibrationStep",
+    "CalibrationStepField",
+    "SessionContext",
+    "SessionExecutor",
+    "SessionInputs",
+    "SessionMode",
+    "SessionStep",
+    "StepLike",
+    "StepRegistry",
+    "fields",
+    "resolve_step",
+    "save_calibration_session",
+    "steps",
+    "utc_iso_timestamp",
+    "with_terminal_steps",
+]
 
 
 def _parse_float_input(name: Str, value: object) -> Float:
@@ -261,7 +283,7 @@ class SessionContext:
 
     def store_calibration(
         self,
-        calibration,
+        calibration: structs.CalibrationBase,
         device: Str,
     ) -> dict[Str, str | None]:
         self.collected_calibrations.append(calibration)
@@ -278,7 +300,7 @@ class SessionContext:
 
     def store_estimator(
         self,
-        estimator,
+        estimator: structs.EstimatorBase,
         device: Str,
     ) -> dict[Str, str | None]:
         self.collected_calibrations.append(estimator)

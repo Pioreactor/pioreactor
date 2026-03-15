@@ -77,7 +77,7 @@ def _extract_error_message(payload: dict[str, t.Any]) -> str:
     return "Request failed."
 
 
-def attach_cache_control(response: Response, max_age=5) -> Response:
+def attach_cache_control(response: Response, max_age: int = 5) -> Response:
     """
     Takes in a Flask Response object and sets the Cache-Control header
     to 'public, max-age=<max_age>'.
@@ -89,7 +89,7 @@ def attach_cache_control(response: Response, max_age=5) -> Response:
 DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseReturnValue)  # type: ignore
 
 
-def create_task_response(task) -> DelayedResponseReturnValue:
+def create_task_response(task: t.Any) -> DelayedResponseReturnValue:
     return (  # type: ignore
         jsonify(
             {
@@ -138,7 +138,7 @@ def is_valid_unix_filename(name: str, *, max_bytes: int = 255) -> bool:
     return bool(_ALLOWED.fullmatch(name))
 
 
-def is_rate_limited(job: str, expire_time_seconds=1.0) -> bool:
+def is_rate_limited(job: str, expire_time_seconds: float = 1.0) -> bool:
     """
     Check if the user has made a request within the debounce duration.
     """

@@ -16,6 +16,7 @@ import shutil
 import stat
 import zipfile
 from collections.abc import Callable
+from collections.abc import Mapping
 from pathlib import Path
 from shlex import join
 from subprocess import check_call
@@ -192,13 +193,16 @@ def validate_dot_pioreactor_archive(
         return metadata
 
 
-def filter_to_allowed_env(env: dict):
+def filter_to_allowed_env(env: Mapping[str, str | None]) -> dict[str, str]:
     """
     Filter the environment dictionary to only include allowed keys.
     This is used to prevent passing sensitive or unnecessary environment variables.
     """
-    env = os.environ | env
-    return {k: v for k, v in env.items() if k in ALLOWED_ENV and v is not None and v != "" and v != "None"}
+    merged_env: dict[str, str | None] = dict(os.environ)
+    merged_env.update(env)
+    return {
+        k: v for k, v in merged_env.items() if k in ALLOWED_ENV and v is not None and v != "" and v != "None"
+    }
 
 
 def _process_delayed_json_response(
@@ -230,7 +234,7 @@ def _process_delayed_json_response(
 
 
 @huey.on_startup()
-def initialized():
+def initialized() -> None:
     logger.debug("Starting Huey consumer...")
     logger.debug("Loading plugins...")
     try:
@@ -961,7 +965,7 @@ def shutdown() -> bool:
 
 @huey.task()
 @huey.lock_task("power-lock")
-def reboot(wait=0) -> bool:
+def reboot(wait: int = 0) -> bool:
     sleep(wait)
     logger.debug("Rebooting now")
     if whoami.is_testing_env():
@@ -1035,7 +1039,10 @@ def write_config_and_sync(
 
 @huey.task(priority=10)
 def post_into_unit(
-    unit: str, endpoint: str, json: dict | None = None, params: dict | None = None
+    unit: str,
+    endpoint: str,
+    json: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
 ) -> tuple[str, Any]:
     r: Response | None = None
     try:
@@ -1125,8 +1132,8 @@ def _response_body_for_logging(response: Response | None) -> str:
 def multicast_post(
     endpoint: str,
     units: list[str],
-    json: dict | list[dict | None] | None = None,
-    params: dict | list[dict | None] | None = None,
+    json: dict[str, Any] | list[dict[str, Any] | None] | None = None,
+    params: dict[str, Any] | list[dict[str, Any] | None] | None = None,
     timeout: float = 30.0,
 ) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
@@ -1149,7 +1156,11 @@ def multicast_post(
 
 @huey.task(priority=10)
 def get_from_unit(
-    unit: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
+    unit: str,
+    endpoint: str,
+    json: dict[str, Any] | None = None,
+    timeout: float = 5.0,
+    return_raw: bool = False,
 ) -> tuple[str, Any]:
     return _get_from_unit(unit, endpoint, json=json, timeout=timeout, return_raw=return_raw)
 
@@ -1157,9 +1168,9 @@ def get_from_unit(
 def _get_from_unit(
     unit: str,
     endpoint: str,
-    json: dict | None = None,
-    timeout=5.0,
-    return_raw=False,
+    json: dict[str, Any] | None = None,
+    timeout: float = 5.0,
+    return_raw: bool = False,
     max_attempts: int = 60,
 ) -> tuple[str, Any]:
     r: Response | None = None
@@ -1192,9 +1203,9 @@ def _get_from_unit(
 def multicast_get(
     endpoint: str,
     units: list[str],
-    json: dict | list[dict | None] | None = None,
+    json: dict[str, Any] | list[dict[str, Any] | None] | None = None,
     timeout: float = 5.0,
-    return_raw=False,
+    return_raw: bool = False,
 ) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
@@ -1211,7 +1222,7 @@ def multicast_get(
 
 
 @huey.task(priority=50)
-def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
+def patch_into_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
     r: Response | None = None
     try:
         address = resolve_to_address(unit)
@@ -1239,7 +1250,7 @@ def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple
 
 @huey.task(priority=50)
 def multicast_patch(
-    endpoint: str, units: list[str], json: dict | None = None, timeout: float = 30.0
+    endpoint: str, units: list[str], json: dict[str, Any] | None = None, timeout: float = 30.0
 ) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
@@ -1252,7 +1263,7 @@ def multicast_patch(
 
 
 @huey.task(priority=10)
-def delete_from_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
+def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
     r: Response | None = None
     try:
         r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=2.0)
@@ -1273,7 +1284,7 @@ def delete_from_unit(unit: str, endpoint: str, json: dict | None = None) -> tupl
 
 @huey.task(priority=5)
 def multicast_delete(
-    endpoint: str, units: list[str], json: dict | None = None, timeout: float = 30.0
+    endpoint: str, units: list[str], json: dict[str, Any] | None = None, timeout: float = 30.0
 ) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")

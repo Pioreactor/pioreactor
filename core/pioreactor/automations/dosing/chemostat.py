@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+from typing import Any
+
 from pioreactor.automations import events
-from pioreactor.automations.dosing.base import DosingAutomationJob
+from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.exc import CalibrationError
 from pioreactor.utils import local_persistent_storage
 
@@ -15,7 +17,7 @@ class Chemostat(DosingAutomationJob):
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
     }
 
-    def __init__(self, exchange_volume_ml: float | str, **kwargs) -> None:
+    def __init__(self, exchange_volume_ml: float | str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 # types
+import datetime
 import typing as t
 
 from msgspec import Meta
-from pioreactor.states import JobState  # noqa: F401
+from pioreactor.states import JobState as JobState
 
 if t.TYPE_CHECKING:
     from pioreactor.pubsub import Client
@@ -44,6 +45,7 @@ class MQTTMessage:
 
 
 type PublishableSettingDataType = str | float | int | bool
+type Sqlite3CompatibleTypes = str | float | int | bytes | datetime.datetime | None
 
 
 class PublishableSetting(t.TypedDict, total=False):

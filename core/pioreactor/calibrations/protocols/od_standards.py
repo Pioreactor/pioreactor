@@ -22,6 +22,7 @@ from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.registry import CalibrationProtocol
+from pioreactor.calibrations.registry import SessionCleanupExecutor
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import run_session_in_cli
@@ -46,7 +47,7 @@ def to_struct(
     curve_data_: structs.CalibrationCurveData,
     voltages: list[pt.Voltage],
     od600s: list[pt.OD],
-    angle,
+    angle: pt.PdAngle,
     name: str,
     pd_channel: pt.PdChannel,
     unit: str,
@@ -644,7 +645,7 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     def on_session_abort(
         cls,
         _session: CalibrationSession,
-        executor=None,
+        executor: SessionCleanupExecutor | None = None,
     ) -> None:
         experiment = get_testing_experiment_name()
         unit = get_unit_name()

@@ -47,7 +47,7 @@ if whoami.is_testing_env():
 
 
 class classproperty(property):
-    def __get__(self, obj, objtype=None):
+    def __get__(self, obj: object, objtype: type[object] | None = None) -> object:
         return self.fget(objtype)
 
 
@@ -174,7 +174,7 @@ class Monitor(LongRunningBackgroundJob):
         cls._post_button.append(function)
 
     def _setup_GPIO(self) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         if not whoami.is_testing_env():
             self._handle = lgpio.gpiochip_open(determine_gpiochip())
@@ -440,7 +440,7 @@ class Monitor(LongRunningBackgroundJob):
 
     def on_ready(self) -> None:
         self.flicker_led_response_okay()
-        self.logger.notice(f"{self.unit} is online and ready.")  # type: ignore
+        self.logger.notice(f"{self.unit} is online and ready.")
 
         # we can delay this check until ready.
 
@@ -449,7 +449,7 @@ class Monitor(LongRunningBackgroundJob):
             Thread(target=self.announce_new_workers, daemon=True).start()
 
     def on_disconnected(self) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         self.led_off()
         with suppress(AttributeError):
@@ -460,7 +460,7 @@ class Monitor(LongRunningBackgroundJob):
         if not is_HAT_present() or not hasattr(self, "_handle"):
             return
 
-        import lgpio  # type: ignore
+        import lgpio
 
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, self._led_pin, 1)
@@ -469,12 +469,12 @@ class Monitor(LongRunningBackgroundJob):
         if not is_HAT_present() or not hasattr(self, "_handle"):
             return
 
-        import lgpio  # type: ignore
+        import lgpio
 
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, self._led_pin, 0)
 
-    def button_down_and_up(self, chip, gpio, level, tick) -> None:
+    def button_down_and_up(self, chip: int, gpio: int, level: int, tick: int) -> None:
         # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
         if level == 1:
@@ -556,13 +556,13 @@ class Monitor(LongRunningBackgroundJob):
         }
         return
 
-    def flicker_led_response_okay_and_publish_state(self, *args) -> None:
+    def flicker_led_response_okay_and_publish_state(self, *args: object) -> None:
         self.flicker_led_response_okay()
 
     def _republish_state(self) -> None:
         self._publish_setting("state")
 
-    def flicker_led_response_okay(self, *args) -> None:
+    def flicker_led_response_okay(self, *args: object) -> None:
         if not is_HAT_present():
             self._republish_state()
             return
@@ -617,7 +617,7 @@ class Monitor(LongRunningBackgroundJob):
         error_code = int(message.payload)
         Thread(target=self.flicker_led_with_error_code, args=(error_code,), daemon=True).start()
 
-    def set_versions(self, data: dict):
+    def set_versions(self, data: dict[str, str | None]) -> None:
         # first remove any extra keys
         for key in data:
             if key not in self.versions:
@@ -641,9 +641,7 @@ class Monitor(LongRunningBackgroundJob):
         for worker in discover_workers_on_network():
             # not in current cluster, and not leader
             if (worker not in get_workers_in_inventory()) and (worker != leader_hostname):
-                self.logger.notice(  # type: ignore
-                    f"Pioreactor worker, {worker}, is available to be added to your cluster."
-                )
+                self.logger.notice(f"Pioreactor worker, {worker}, is available to be added to your cluster.")
 
     def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
         try:

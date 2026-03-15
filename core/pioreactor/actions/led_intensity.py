@@ -44,7 +44,7 @@ def change_leds_intensities_temporarily(
     old_state = {}
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: cache.get(c, 0.0) for c in desired_state.keys()}
+            old_state = {c: float(cache.get(c, 0.0)) for c in desired_state.keys()}
         if not led_intensity(desired_state, **kwargs):
             raise ValueError("Unable to update LED.")
 
@@ -150,7 +150,7 @@ def led_intensity(
     if not is_testing_env():
         from pioreactor.utils.dacs import DAC
     else:
-        from pioreactor.utils.mock import Mock_DAC as DAC  # type: ignore
+        from pioreactor.utils.mock import Mock_DAC as DAC
 
     if pubsub_client is None:
         mqtt_publishing = create_client(client_id=f"led_intensity-{unit}-{experiment}")

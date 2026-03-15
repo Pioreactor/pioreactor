@@ -403,7 +403,7 @@ def voltage_in_aux(precision: float = 0.1) -> float:
     if not is_testing_env():
         aux_adc = get_adc_curriers()["aux"]
     else:
-        from pioreactor.utils.mock import Mock_ADC  # type: ignore
+        from pioreactor.utils.mock import Mock_ADC
 
         aux_adc = ADCCurrier(Mock_ADC, 0x00, 0)
 

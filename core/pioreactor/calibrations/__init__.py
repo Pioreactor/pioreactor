@@ -23,6 +23,16 @@ else:
 
 Device = TypeVar("Device", bound=str)
 
+__all__ = [
+    "CALIBRATION_PATH",
+    "CalibrationProtocol",
+    "get_calibration_protocols",
+    "list_devices",
+    "list_of_calibrations_by_device",
+    "load_active_calibration",
+    "load_calibration",
+]
+
 
 @overload
 def load_active_calibration(device: pt.ODCalibrationDevices) -> structs.ODCalibration | None:
@@ -43,7 +53,7 @@ def load_active_calibration(device: Literal["stirring"]) -> structs.SimpleStirri
 
 def load_active_calibration(device: Device) -> structs.AnyCalibration | None:
     with local_persistent_storage("active_calibrations") as c:
-        active_cal_name = c.get(device)
+        active_cal_name = str(c.get(device))
 
     if active_cal_name is None:
         return None

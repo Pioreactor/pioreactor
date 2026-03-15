@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from typing import Any
+
 from pioreactor.automations.events import UpdatedHeaterDC
 from pioreactor.background_jobs.temperature_automation import classproperty
 from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
@@ -17,7 +19,7 @@ class Thermostat(TemperatureAutomationJob):
     automation_name = "thermostat"
     published_settings = {"target_temperature": {"datatype": "float", "unit": "℃", "settable": True}}
 
-    def __init__(self, target_temperature: float | str, **kwargs) -> None:
+    def __init__(self, target_temperature: float | str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         assert target_temperature is not None, "target_temperature must be set"
 
@@ -36,7 +38,7 @@ class Thermostat(TemperatureAutomationJob):
 
         self.set_target_temperature(target_temperature)
 
-    def on_init_to_ready(self):
+    def on_init_to_ready(self) -> None:
         super().on_init_to_ready()
         if not is_pio_job_running("stirring"):
             self.logger.warning("It's recommended to have stirring on when using the thermostat.")

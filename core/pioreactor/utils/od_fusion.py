@@ -5,6 +5,7 @@ from math import log
 from math import log10
 from statistics import mean
 from statistics import median
+from typing import Callable
 from typing import Iterable
 from typing import Mapping
 
@@ -64,7 +65,7 @@ def _curve_eval_derivative(curve: structs.AkimaFitData, x: float) -> float:
 
 
 def _golden_section_minimize(
-    fn,
+    fn: Callable[[float], float],
     lower: float,
     upper: float,
     *,
@@ -115,7 +116,7 @@ def _golden_section_minimize(
 
 
 def _global_minimize(
-    fn,
+    fn: Callable[[float], float],
     lower: float,
     upper: float,
     *,

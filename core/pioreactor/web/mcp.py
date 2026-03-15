@@ -4,6 +4,8 @@ import sys
 from functools import wraps
 from time import sleep
 from typing import Any
+from typing import Callable
+from typing import cast
 from typing import Dict
 from typing import List
 
@@ -45,9 +47,9 @@ Use this MCP server to control a Pioreactor cluster of workers. Basic summary:
 """
 
 
-def wrap_result_as_dict(func):
+def wrap_result_as_dict(func: Callable[..., object]) -> Callable[..., dict[str, object]]:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: object, **kwargs: object) -> dict[str, object]:
         result = func(*args, **kwargs)
         return result if isinstance(result, dict) else {"result": result}
 
@@ -57,7 +59,7 @@ def wrap_result_as_dict(func):
 mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=SQLiteResponseQueue(), instructions=INSTRUCTIONS)
 
 
-def get_from_leader(endpoint: str) -> dict:
+def get_from_leader(endpoint: str) -> dict[str, Any]:
     """Wrapper around `get_from_leader` to handle errors and callback checks."""
     try:
         r = _get_from_leader(endpoint)
@@ -83,7 +85,7 @@ def get_from_leader(endpoint: str) -> dict:
         raise
 
 
-def post_into_leader(endpoint: str, json: dict | None = None) -> dict:
+def post_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `post_into_leader` to handle errors."""
     try:
         r = _post_into_leader(endpoint, json=json)
@@ -100,7 +102,7 @@ def post_into_leader(endpoint: str, json: dict | None = None) -> dict:
         raise
 
 
-def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
+def patch_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `patch_into_leader` to handle errors."""
     try:
         r = _patch_into_leader(endpoint, json=json)
@@ -117,7 +119,7 @@ def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
         raise
 
 
-def put_into_leader(endpoint: str, json: dict | None = None) -> dict:
+def put_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `put_into_leader` to handle errors."""
     try:
         r = _put_into_leader(endpoint, json=json)
@@ -134,7 +136,7 @@ def put_into_leader(endpoint: str, json: dict | None = None) -> dict:
         raise
 
 
-def delete_from_leader(endpoint: str, json: dict | None = None) -> dict:
+def delete_from_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `delete_from_leader` to handle errors."""
     try:
         r = _delete_from_leader(endpoint, json=json)
@@ -153,7 +155,7 @@ def delete_from_leader(endpoint: str, json: dict | None = None) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_experiments(active_only: bool) -> dict:
+def get_experiments(active_only: bool) -> dict[str, Any]:
     """
     List experiments (name, creation timestamp, description, hours since creation).
 
@@ -170,7 +172,7 @@ def get_experiments(active_only: bool) -> dict:
 def create_experiment(
     experiment: str,
     description: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Create a new experiment record with optional metadata about media and organism.
     """
@@ -182,20 +184,20 @@ def create_experiment(
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_pioreactor_workers(active_only: bool) -> list:
+def get_pioreactor_workers(active_only: bool) -> list[dict[str, Any]]:
     """
     Return the worker inventory with experiment assignments. If *active_only*, filter by `is_active`.
 
     Common requests include "list worker assignments", "list pioreactors", "list cluster inventory"
     or "which pioreactors are running experiments".
     """
-    workers = get_from_leader("/api/workers/assignments")
+    workers = cast(list[dict[str, Any]], get_from_leader("/api/workers/assignments"))
     return [w for w in workers if w.get("is_active")] if active_only else [w for w in workers]
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def assign_workers_to_experiment(experiment: str, pioreactor_unit: str) -> dict:
+def assign_workers_to_experiment(experiment: str, pioreactor_unit: str) -> dict[str, Any]:
     """
     Assign a specific worker to an experiment so it can participate in experiment activities.
     """
@@ -205,7 +207,7 @@ def assign_workers_to_experiment(experiment: str, pioreactor_unit: str) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def unassign_worker_from_experiment(experiment: str, pioreactor_unit: str) -> dict:
+def unassign_worker_from_experiment(experiment: str, pioreactor_unit: str) -> dict[str, Any]:
     """
     Remove a worker from an experiment and stop any jobs scoped to that experiment on the worker.
     """
@@ -236,14 +238,16 @@ def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[di
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_pioreactor_unit_capabilties(pioreactor_unit: str, condensed: bool = False) -> dict:
+def get_pioreactor_unit_capabilties(pioreactor_unit: str, condensed: bool = False) -> dict[str, Any]:
     """
     List all `pio run` subcommands and their args/options, and published settings.
 
     If condensed is True, return a summary of each capability including only
     the job name, automation name (if any), and lists of argument and option names.
     """
-    caps = get_from_leader(f"/api/units/{pioreactor_unit}/capabilities")
+    caps = cast(
+        dict[str, list[dict[str, Any]]], get_from_leader(f"/api/units/{pioreactor_unit}/capabilities")
+    )
     return caps if not condensed else {unit_: _condense_capabilities(caps_) for unit_, caps_ in caps.items()}
 
 
@@ -254,7 +258,7 @@ def run_job_or_action_on_pioreactor_unit(
     experiment: str,
     options: Dict[str, Any] | None = None,
     arguments: List[str] | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Launch an action or job on a *pioreactor_unit/worker* within *experiment*.
 
@@ -282,7 +286,7 @@ def run_job_or_action_on_pioreactor_unit(
 @mcp.tool()
 def update_pioreactor_unit_job_settings(
     pioreactor_unit: str, job: str, experiment: str, settings: dict[str, Any]
-) -> dict:
+) -> dict[str, Any]:
     """
     Update the current settings for a job on a unit/worker within an experiment.
     Target all units with "$broadcast".
@@ -296,7 +300,7 @@ def update_pioreactor_unit_job_settings(
 @mcp.tool()
 def stop_job_on_pioreactor_unit(
     experiment: str, job: str | None, pioreactor_unit: str = UNIVERSAL_IDENTIFIER
-) -> dict:
+) -> dict[str, Any]:
     """
     Stop running jobs. If `job` parameter is None, stop all jobs associated the experiment for the unit.
     Use the unit param to scope to individual units, or all units in the experiment.
@@ -314,7 +318,7 @@ def stop_job_on_pioreactor_unit(
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_jobs_running_on_pioreactor_unit(pioreactor_unit: str) -> dict:
+def get_jobs_running_on_pioreactor_unit(pioreactor_unit: str) -> dict[str, Any]:
     """
     Return list of running jobs on *unit/worker*.
     Target all units with "$broadcast".
@@ -324,7 +328,7 @@ def get_jobs_running_on_pioreactor_unit(pioreactor_unit: str) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict:
+def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict[str, Any]:
     """
     Tail the last `lines` of logs for a given experiment.
     """
@@ -332,7 +336,7 @@ def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict:
 
 
 @mcp.tool()
-def blink_pioreactor_unit(pioreactor_unit: str) -> dict:
+def blink_pioreactor_unit(pioreactor_unit: str) -> dict[str, Any]:
     """
     Blink the onboard blue LED of a specific unit.
     Target all units with "$broadcast".
@@ -341,7 +345,7 @@ def blink_pioreactor_unit(pioreactor_unit: str) -> dict:
 
 
 @mcp.tool()
-def reboot_pioreactor_unit(pioreactor_unit: str) -> dict:
+def reboot_pioreactor_unit(pioreactor_unit: str) -> dict[str, Any]:
     """
     Reboot/restart a specific unit/worker.
     Target all units with "$broadcast".
@@ -351,7 +355,7 @@ def reboot_pioreactor_unit(pioreactor_unit: str) -> dict:
 
 
 @mcp.tool()
-def shutdown_pioreactor_unit(pioreactor_unit: str) -> dict:
+def shutdown_pioreactor_unit(pioreactor_unit: str) -> dict[str, Any]:
     """
     Shutdown a specific unit/worker.
     Target all units with "$broadcast".
@@ -363,7 +367,7 @@ def shutdown_pioreactor_unit(pioreactor_unit: str) -> dict:
 @wrap_result_as_dict
 def get_current_job_settings_for_pioreactor_unit(
     pioreactor_unit: str, job_name: str, experiment: str
-) -> dict:
+) -> dict[str, Any]:
     """
     List settings for a job on a unit/worker.
 
@@ -376,7 +380,7 @@ def get_current_job_settings_for_pioreactor_unit(
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_experiment_profiles() -> dict:
+def get_experiment_profiles() -> dict[str, Any]:
     """
     Profiles are pre-defined "scripts" that execute commands as certain times (like a recipe.)
 
@@ -390,7 +394,7 @@ def run_experiment_profile(
     profile: str,
     experiment: str,
     dry_run: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """
     Profiles are pre-defined "scripts" that execute commands as certain times (like a recipe.)
 
@@ -405,7 +409,7 @@ def run_experiment_profile(
 
 @mcp.tool()
 @wrap_result_as_dict
-def db_get_tables() -> list:
+def db_get_tables() -> list[dict[str, Any]]:
     """List tables in the application database."""
     tables = query_app_db(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
@@ -416,7 +420,7 @@ def db_get_tables() -> list:
 
 @mcp.tool()
 @wrap_result_as_dict
-def db_get_table_schema(table_name: str) -> list:
+def db_get_table_schema(table_name: str) -> list[dict[str, Any]]:
     """Get schema for the specified table."""
     exists = query_app_db("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
     if not exists:
@@ -428,7 +432,7 @@ def db_get_table_schema(table_name: str) -> list:
 
 @mcp.tool()
 @wrap_result_as_dict
-def db_query_db(query: str) -> list:
+def db_query_db(query: str) -> list[dict[str, Any]]:
     """Read-only query the database."""
     rows = query_app_db(query)
     assert isinstance(rows, list)
@@ -436,7 +440,7 @@ def db_query_db(query: str) -> list:
 
 
 @mcp.tool()
-def get_pioreactor_unit_configuration(pioreactor_unit: str) -> dict:
+def get_pioreactor_unit_configuration(pioreactor_unit: str) -> dict[str, Any]:
     """Get merged configuration for a given unit (global config.ini and unit-specific unit_config.ini)."""
     return get_from_leader(f"/api/config/units/{pioreactor_unit}")
 
@@ -449,7 +453,7 @@ mcp_bp = Blueprint("mcp", __name__, url_prefix="/mcp")
 
 
 @mcp_bp.post("/")
-def handle_mcp():
+def handle_mcp() -> Response:
     payload = request.get_json(force=True, silent=False)
 
     result = mcp.handle_message(payload)

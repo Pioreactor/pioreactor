@@ -147,7 +147,7 @@ def add_worker(
         logger.error(f"Not able to connect to leader's backend at {leader_address}.")
         raise HTTPException(f"Not able to connect to leader's backend at {leader_address}.")
 
-    logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
+    logger.notice(f"New pioreactor {hostname} successfully added to cluster.")
 
 
 @click.command(name="remove", short_help="remove a pioreactor worker")
@@ -284,7 +284,7 @@ def discover_workers(terminate: bool) -> None:
 def cluster_status() -> None:
     import socket
 
-    def get_metadata(hostname):
+    def get_metadata(hostname: str) -> tuple[str, str, bool, str, str]:
         resolved_address = "localhost"
         # get ip
         if whoami.get_unit_name() == hostname:

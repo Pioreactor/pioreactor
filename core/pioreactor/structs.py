@@ -27,7 +27,7 @@ def subclass_union(cls: t.Type[T]) -> t.Type[T]:
 
     classes = set()
 
-    def _add(cls):
+    def _add(cls: t.Type[T]) -> None:
         for c in cls.__subclasses__():
             _add(c)
         classes.add(cls)
@@ -38,7 +38,7 @@ def subclass_union(cls: t.Type[T]) -> t.Type[T]:
 
 
 class JSONPrintedStruct(Struct):
-    def __str__(self):
+    def __str__(self) -> str:
         return encode(self).decode()  # this is a valid JSON str, decode() for bytes->str
 
 
@@ -46,7 +46,7 @@ class PolyFitCoefficients(Struct, tag="poly"):
     coefficients: list[float]
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self.__struct_config__.tag
 
 
@@ -55,7 +55,7 @@ class SplineFitData(Struct, tag="spline"):
     coefficients: list[list[float]]
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self.__struct_config__.tag
 
 
@@ -64,7 +64,7 @@ class AkimaFitData(Struct, tag="akima"):
     coefficients: list[list[float]]
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self.__struct_config__.tag
 
 
@@ -84,7 +84,7 @@ class AutomationSettings(JSONPrintedStruct):
     settings: bytes
 
 
-class AutomationEvent(JSONPrintedStruct, tag=True, tag_field="event_name"):  # type: ignore
+class AutomationEvent(JSONPrintedStruct, tag=True, tag_field="event_name"):
     """
     Automations can return an AutomationEvent from their `execute` method, and it
     will get published to MQTT under /latest_event
@@ -226,12 +226,12 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     y: str
     recorded_data: dict[t.Literal["x", "y"], list[X | Y]]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if len(self.recorded_data["x"]) != len(self.recorded_data["y"]):
             raise ValueError("Lists in `recorded_data` should have the same lengths")
 
     @property
-    def calibration_type(self):
+    def calibration_type(self) -> str:
         return self.__struct_config__.tag
 
     def path_on_disk_for_device(self, device: str) -> Path:
@@ -313,7 +313,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
         raise NotImplementedError(f"Unsupported curve_type: {self.curve_data_.type}")
 
-    def y_to_x(self, y: Y, enforce_bounds=False) -> X:
+    def y_to_x(self, y: Y, enforce_bounds: bool = False) -> X:
         """
         predict x given y
         """
@@ -397,7 +397,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
     created_at: t.Annotated[datetime, Meta(tz=True)]
 
     @property
-    def estimator_type(self):
+    def estimator_type(self) -> str:
         return self.__struct_config__.tag
 
     def path_on_disk_for_device(self, device: str) -> Path:
@@ -571,7 +571,7 @@ class Model(Struct):
 #### Jobs
 
 
-class PublishedSettingsDescriptor(Struct, forbid_unknown_fields=True):  # type: ignore
+class PublishedSettingsDescriptor(Struct, forbid_unknown_fields=True):
     key: str
     type: t.Literal["numeric", "boolean", "string", "json"]
     display: bool
@@ -582,7 +582,7 @@ class PublishedSettingsDescriptor(Struct, forbid_unknown_fields=True):  # type: 
     editable: bool = True
 
 
-class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):  # type: ignore
+class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):
     display_name: str
     job_name: str
     display: bool
@@ -596,7 +596,7 @@ class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):  # type: igno
 #### Automations
 
 
-class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):  # type: ignore
+class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):
     key: str
     default: t.Union[str, float, int, None]
     label: str
@@ -606,7 +606,7 @@ class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):  # type: i
     options: t.Optional[list[str]] = None
 
 
-class AutomationDescriptor(Struct, forbid_unknown_fields=True):  # type: ignore
+class AutomationDescriptor(Struct, forbid_unknown_fields=True):
     display_name: str
     automation_name: str
     description: str
@@ -617,7 +617,7 @@ class AutomationDescriptor(Struct, forbid_unknown_fields=True):  # type: ignore
 #### Charts
 
 
-class ChartDescriptor(Struct, forbid_unknown_fields=True):  # type: ignore
+class ChartDescriptor(Struct, forbid_unknown_fields=True):
     chart_key: str
     data_source: str  # SQL table
     title: str

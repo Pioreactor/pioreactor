@@ -9,6 +9,7 @@ from subprocess import run
 from tempfile import NamedTemporaryFile
 from time import sleep
 from typing import Any
+from typing import Callable
 from typing import cast
 from typing import SupportsFloat
 
@@ -32,10 +33,11 @@ from pioreactor.bioreactor import get_all_bioreactor_values
 from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
-from pioreactor.calibrations import get_calibration_protocols as get_calibration_protocols_registry
+from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -58,7 +60,7 @@ from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
 from werkzeug.exceptions import HTTPException
-from werkzeug.utils import safe_join
+from werkzeug.security import safe_join
 
 AllCalibrations = subclass_union(CalibrationBase)
 AllEstimators = subclass_union(structs.EstimatorBase)
@@ -110,7 +112,7 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
 @unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
-def get_task_status(task_id: str):
+def get_task_status(task_id: str) -> ResponseReturnValue:
     blob = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
     try:
         task = huey.result(task_id)
@@ -200,9 +202,9 @@ def _build_calibration_protocol_payloads() -> list[dict[str, Any]]:
     return sorted(protocols, key=lambda item: (item["target_device"], item["priority"], item["title"]))
 
 
-def require_leader(view_func):
+def require_leader(view_func: Callable[..., ResponseReturnValue]) -> Callable[..., ResponseReturnValue]:
     @wraps(view_func)
-    def _wrapped(*args, **kwargs):
+    def _wrapped(*args: object, **kwargs: object) -> ResponseReturnValue:
         if HOSTNAME != get_leader_hostname():
             abort_with(403, "This endpoint is only available on the leader.")
         return view_func(*args, **kwargs)
@@ -389,7 +391,7 @@ def remove_file() -> DelayedResponseReturnValue:
 
 # GET clock time
 @unit_api_bp.route("/system/utc_clock", methods=["GET"])
-def get_clock_time():
+def get_clock_time() -> ResponseReturnValue:
     try:
         current_time = current_utc_timestamp()
         return jsonify({"status": "success", "clock_time": current_time}), 200
@@ -404,7 +406,7 @@ def get_clock_time():
 
 # PATCH / POST to set clock time
 @unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
-def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
+def set_clock_time() -> DelayedResponseReturnValue:
     if _task_is_locked("clock-lock"):
         return _locked_task_response("clock-lock")
 
@@ -450,7 +452,7 @@ def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
 #### DIR
 @unit_api_bp.route("/system/path/", defaults={"req_path": ""})
 @unit_api_bp.route("/system/path/<path:req_path>")
-def list_system_path(req_path: str):
+def list_system_path(req_path: str) -> ResponseReturnValue:
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
         abort_with(
             403,
@@ -786,7 +788,7 @@ def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
         with create_client() as mqtt_client:
             for variable_name, value in values.items():
                 set_and_publish_bioreactor_value(
-                    cast("pt.Client", mqtt_client), HOSTNAME, experiment, variable_name, value
+                    cast(Client, mqtt_client), HOSTNAME, experiment, variable_name, value
                 )
     except Exception as e:
         publish_to_error_log(str(e), "update_bioreactor_values")
@@ -1101,7 +1103,7 @@ def get_all_calibrations() -> ResponseReturnValue:
             remediation="Create the calibration directory or restore from backup.",
         )
 
-    all_calibrations: dict[str, list] = {}
+    all_calibrations: dict[str, list[dict[str, Any]]] = {}
 
     with local_persistent_storage("active_calibrations") as cache:
         for file in sorted(calibration_dir.glob("*/*.yaml")):
@@ -1132,7 +1134,7 @@ def get_all_active_calibrations() -> ResponseReturnValue:
             remediation="Create the calibration directory or restore from backup.",
         )
 
-    all_calibrations: dict[str, dict] = {}
+    all_calibrations: dict[str, dict[str, Any]] = {}
 
     with local_persistent_storage("active_calibrations") as cache:
         for device in cache.iterkeys():
@@ -1158,7 +1160,7 @@ def get_all_active_estimators() -> ResponseReturnValue:
     if not estimator_dir.exists():
         return attach_cache_control(jsonify({}), max_age=10)
 
-    all_estimators: dict[str, dict] = {}
+    all_estimators: dict[str, dict[str, Any]] = {}
 
     with local_persistent_storage("active_estimators") as cache:
         for device in cache.iterkeys():
@@ -1186,7 +1188,7 @@ def get_all_estimators() -> ResponseReturnValue:
     if not estimator_dir.exists():
         return attach_cache_control(jsonify({}), max_age=10)
 
-    all_estimators: dict[str, list] = {}
+    all_estimators: dict[str, list[dict[str, Any]]] = {}
 
     with local_persistent_storage("active_estimators") as cache:
         for file in sorted(estimator_dir.glob("*/*.yaml")):
@@ -1437,7 +1439,7 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
             remediation="Create the calibration directory or restore from backup.",
         )
 
-    calibrations: list[dict] = []
+    calibrations: list[dict[str, Any]] = []
 
     with local_persistent_storage("active_calibrations") as c:
         for file in sorted(calibration_dir.glob("*.yaml")):
@@ -1487,7 +1489,7 @@ def get_estimators_by_device(device: str) -> ResponseReturnValue:
     if not estimator_dir.exists():
         return attach_cache_control(jsonify([]), max_age=10)
 
-    estimators: list[dict] = []
+    estimators: list[dict[str, Any]] = []
     with local_persistent_storage("active_estimators") as c:
         for file in sorted(estimator_dir.glob("*.yaml")):
             try:

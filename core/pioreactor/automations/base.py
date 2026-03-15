@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from time import sleep
+from typing import Any
 from typing import cast
 
 from msgspec.json import decode
@@ -66,7 +67,7 @@ class AutomationJob(BackgroundJob):
 
         self.start_passive_listeners()
 
-    def execute(self) -> events.AutomationEvent | None:
+    def execute(self) -> structs.AutomationEvent | None:
         """
         Overwrite in subclass
         """
@@ -256,7 +257,7 @@ class AutomationJob(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def __setattr__(self, name, value) -> None:
+    def __setattr__(self, name: str, value: Any) -> None:
         super().__setattr__(name, value)
         if name in self.published_settings and name != "state" and self.published_settings[name]["settable"]:
             self._latest_settings_ended_at = current_utc_datetime()

@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
+from typing import Any
 from typing import Optional
 from typing import TYPE_CHECKING
 
+
 try:
     # previously, this was part of this library. It's moved to another library. Here for bc reasons.
-    from grpredict import CultureGrowthEKF  # noqa: F401
-    from grpredict import ExponentialMovingAverage  # noqa: F401
-    from grpredict import ExponentialMovingStd  # noqa: F401
+    from grpredict import CultureGrowthEKF as CultureGrowthEKF
+    from grpredict import ExponentialMovingAverage as ExponentialMovingAverage
+    from grpredict import ExponentialMovingStd as ExponentialMovingStd
 except ImportError:
     # leader-only doesn't have this installed.
     pass
@@ -30,7 +32,7 @@ class PID:
         experiment: Optional[str] = None,
         job_name: Optional[str] = None,
         target_name: Optional[str] = None,
-        derivative_smoothing=0.0,
+        derivative_smoothing: float = 0.0,
         pub_client: Optional["Client"] = None,
     ) -> None:
         # PID coefficients
@@ -118,7 +120,7 @@ class PID:
         self.publish_pid_stats()
         return output
 
-    def clean_up(self):
+    def clean_up(self) -> None:
         if not self._external_client:
             self.pub_client.loop_stop()
             self.pub_client.disconnect()

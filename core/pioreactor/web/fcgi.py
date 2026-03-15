@@ -5,7 +5,7 @@ from pioreactor.web import tasks  # noqa: F401
 from pioreactor.web.app import create_app
 
 
-def main():
+def main() -> None:
     WSGIServer(create_app()).run()
 
 

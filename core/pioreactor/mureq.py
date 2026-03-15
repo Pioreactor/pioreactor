@@ -26,6 +26,24 @@ from typing import Tuple
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
+__all__ = [
+    "DEFAULT_TIMEOUT",
+    "DEFAULT_UA",
+    "HTTPErrorStatus",
+    "HTTPException",
+    "Response",
+    "TooManyRedirects",
+    "basic_auth",
+    "delete",
+    "get",
+    "head",
+    "patch",
+    "post",
+    "put",
+    "request",
+    "yield_response",
+]
+
 
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_UA = "Python/Pioreactor"
@@ -65,7 +83,7 @@ def request(
         except IOError as e:
             raise HTTPException(str(e)) from e
         return Response(
-            response.url,  # type: ignore
+            response.url,
             response.status,
             _prepare_incoming_headers(response.headers),
             body,
@@ -166,7 +184,7 @@ def yield_response(
     method = method.upper()
     headers = _prepare_outgoing_headers(headers)
     enc_params = _prepare_params(params)
-    body = _prepare_body(body, form, json, headers)
+    prepared_body = _prepare_body(body, form, json, headers)
 
     visited_urls: list[str] = []
 
@@ -185,7 +203,7 @@ def yield_response(
         visited_urls.append(url)
         try:
             try:
-                conn.request(method, path, headers=dict(headers), body=body)
+                conn.request(method, path, headers=dict(headers), body=prepared_body)
                 response = conn.getresponse()
             except HTTPException:
                 raise
@@ -386,7 +404,12 @@ def _setdefault_header(headers: HTTPMessage, name: str, value: str) -> None:
         headers[name] = value
 
 
-def _prepare_body(body, form, json, headers):
+def _prepare_body(
+    body: bytes | None,
+    form: Mapping[str, Any] | None,
+    json: Any,
+    headers: HTTPMessage,
+) -> bytes | str | None:
     if body is not None:
         if not isinstance(body, bytes):
             raise TypeError("body must be bytes or None", type(body))
@@ -403,22 +426,22 @@ def _prepare_body(body, form, json, headers):
     return None
 
 
-def _prepare_params(params):
+def _prepare_params(params: Mapping[str, Any] | None) -> str:
     if params is None:
         return ""
     return urllib.parse.urlencode(params, doseq=True)
 
 
 def _prepare_request(
-    method,
-    url,
+    method: str,
+    url: str,
     *,
-    enc_params="",
-    timeout=DEFAULT_TIMEOUT,
-    source_address=None,
-    unix_socket=None,
-    verify=True,
-    ssl_context=None,
+    enc_params: str = "",
+    timeout: float | None = DEFAULT_TIMEOUT,
+    source_address: str | tuple[str, int] | None = None,
+    unix_socket: str | None = None,
+    verify: bool = True,
+    ssl_context: ssl.SSLContext | None = None,
 ) -> tuple[str, HTTPConnection | HTTPSConnection, str]:
     import ssl
 
@@ -437,6 +460,8 @@ def _prepare_request(
 
     is_https = scheme == "https"
     host = parsed_url.hostname
+    if host is None:
+        raise ValueError("URL is missing a hostname")
     port = 443 if is_https else 80
     if parsed_url.port:
         port = parsed_url.port
@@ -471,7 +496,7 @@ def _prepare_request(
                 ssl_context.verify_mode = ssl.CERT_NONE
         conn = HTTPSConnection(
             host,
-            port,  # type: ignore
+            port,
             source_address=source_address,
             timeout=timeout,
             context=ssl_context,

@@ -95,7 +95,7 @@ class SoftwarePWMOutputDevice:
     _started = False
 
     def __init__(self, pin: GpioPin, frequency: float = 100) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         self.pin = pin
         self.frequency = frequency

@@ -7,11 +7,11 @@ from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
 from pioreactor.calibrations import CALIBRATION_PATH
-from pioreactor.calibrations import get_calibration_protocols
 from pioreactor.calibrations import list_devices
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
+from pioreactor.calibrations.registry import get_calibration_protocols
 from pioreactor.calibrations.utils import crunch_data_and_confirm_with_user
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
@@ -85,7 +85,7 @@ def _display_calibrations_by_device(device: str) -> None:
 @click.option("--protocol-name", required=False, help="name of protocol, defaults to basic builtin protocol")
 @click.option("-y", is_flag=True, help="Skip asking for confirmation for active.")
 @click.pass_context
-def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> None:
+def run_calibration(ctx: click.Context, device: str, protocol_name: str | None, y: bool) -> None:
     """
     Run an interactive calibration assistant for a specific protocol.
     On completion, stores a YAML file in: /home/pioreactor/.pioreactor/storage/calibrations/<device>/<calibration_name>.yaml

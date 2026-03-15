@@ -38,7 +38,7 @@ STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
 FLEXIBLE_EXPRESSION_PATTERN = r"\${{(.*?)}}"
 
 
-def coalesce(*args):
+def coalesce(*args: Any) -> Any:
     for a in args:
         if a is not None:
             return a
@@ -46,7 +46,7 @@ def coalesce(*args):
 
 
 class ActionMetrics:
-    def __init__(self):
+    def __init__(self) -> None:
         self.count = 0
         self._start = perf_counter()
 
@@ -58,8 +58,8 @@ class ActionMetrics:
         return self.count
 
 
-def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
-    def inner_function(*args, **kwargs) -> None:
+def wrap_in_try_except(func: Callable[..., Any], logger: CustomLogger) -> Callable[..., None]:
+    def inner_function(*args: Any, **kwargs: Any) -> None:
         try:
             func(*args, **kwargs)
         except Exception as e:
@@ -88,7 +88,7 @@ def strip_expression_brackets(value: str) -> str:
     return match.group(1)
 
 
-def evaluate_options(options: dict, env: dict) -> dict:
+def evaluate_options(options: dict[str, Any], env: Env) -> dict[str, Any]:
     """
     Users can provide options like {'target_rpm': '${{ bioreactor_A:stirring:target_rpm + 10 }}'}, and the latter
     should be evaluated
@@ -106,7 +106,7 @@ def evaluate_options(options: dict, env: dict) -> dict:
     return options_expressed
 
 
-def evaluate_log_message(message: str, env: dict) -> str:
+def evaluate_log_message(message: str, env: Env) -> str:
     import re
     from pioreactor.experiment_profiles.parser import parse_profile_expression
 
@@ -119,7 +119,7 @@ def evaluate_log_message(message: str, env: dict) -> str:
     return result_string
 
 
-def evaluate_bool_expression(bool_expression: BoolExpression, env: dict) -> bool:
+def evaluate_bool_expression(bool_expression: BoolExpression, env: Env) -> bool:
     from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 
     if isinstance(bool_expression, bool):
@@ -197,7 +197,7 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             raise ValueError()
 
 
-def get_simple_priority(action: struct.Action):
+def get_simple_priority(action: struct.Action) -> int:
     match action:
         case struct.Start():
             return 0
@@ -385,7 +385,7 @@ def when(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
     condition_: BoolExpression,
@@ -463,7 +463,7 @@ def repeat(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
     repeat_action: struct.Repeat,
@@ -549,7 +549,7 @@ def log(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
     options: struct._LogOptions,
@@ -596,11 +596,11 @@ def start_job(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
-    options: dict,
-    args: list,
+    options: dict[str, Any],
+    args: list[str],
     config_overrides: dict[str, str],
 ) -> Callable[..., None]:
     def _callable() -> None:
@@ -658,7 +658,7 @@ def pause_job(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
@@ -701,7 +701,7 @@ def resume_job(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
@@ -745,7 +745,7 @@ def stop_job(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
@@ -785,10 +785,10 @@ def update_job(
     job_name: str,
     dry_run: bool,
     if_: BoolExpression,
-    env: dict,
+    env: Env,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
-    options: dict,
+    options: dict[str, Any],
 ) -> Callable[..., None]:
     def _callable() -> None:
         action_count = action_metrics.increment()
@@ -912,17 +912,17 @@ def _verify_experiment_profile(profile: struct.Profile) -> bool:
     for job in actions_per_job:
         for action in actions_per_job[job]:
             if hasattr(action, "if_") and action.if_:
-                error = check_syntax_of_bool_expression(action.if_)  # type: ignore
+                error = check_syntax_of_bool_expression(action.if_)
                 if error:
                     raise SyntaxError(f"{error} In {job}.{action}: `{action.if_}`")
 
             if hasattr(action, "condition_") and action.condition_:
-                error = check_syntax_of_bool_expression(action.condition_)  # type: ignore
+                error = check_syntax_of_bool_expression(action.condition_)
                 if error:
                     raise SyntaxError(f"{error} In {job}.{action}: `{action.condition_}`")
 
             if hasattr(action, "while_") and action.while_:
-                error = check_syntax_of_bool_expression(action.while_)  # type: ignore
+                error = check_syntax_of_bool_expression(action.while_)
                 if error:
                     raise SyntaxError(f"{error} In {job}.{action}: `{action.while_}`")
 
@@ -1025,11 +1025,11 @@ def execute_experiment_profile(
         )
 
         if dry_run:
-            logger.notice(  # type: ignore
+            logger.notice(
                 f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}. See logs."
             )
         else:
-            logger.notice(  # type: ignore
+            logger.notice(
                 f"Executing profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}."
             )
 
@@ -1117,7 +1117,9 @@ def execute_experiment_profile(
             if mananged_job.exit_event.is_set():
                 # ended early
 
-                logger.notice(f"Stopping profile `{profile.experiment_profile_name}` early: {action_metrics.count} actions(s) completed, {len(sched.queue)} action(s) not started. Stopping all started jobs.")  # type: ignore
+                logger.notice(
+                    f"Stopping profile `{profile.experiment_profile_name}` early: {action_metrics.count} actions(s) completed, {len(sched.queue)} action(s) not started. Stopping all started jobs."
+                )
                 # stop all jobs started
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)
@@ -1141,7 +1143,7 @@ def execute_experiment_profile(
 
 
 @click.group(name="experiment_profile")
-def click_experiment_profile():
+def click_experiment_profile() -> None:
     """
     (leader only) Run and manage experiment profiles
     """

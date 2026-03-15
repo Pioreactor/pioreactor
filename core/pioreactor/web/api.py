@@ -65,7 +65,7 @@ from pioreactor.web.utils import scrub_to_valid
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
-from werkzeug.utils import safe_join
+from werkzeug.security import safe_join
 from werkzeug.utils import secure_filename
 
 AllCalibrations = structs.subclass_union(CalibrationBase)
@@ -216,7 +216,7 @@ def _extract_unit_api_error(response: MureqResponse | None) -> str | None:
     return None
 
 
-def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw=False) -> Result:
+def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw: bool = False) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
         endpoint=endpoint, units=get_all_units(), timeout=timeout, return_raw=return_raw
@@ -225,26 +225,30 @@ def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw
 
 def broadcast_post_across_cluster(
     endpoint: str,
-    json: dict | None = None,
-    params: dict | None = None,
+    json: dict[str, t.Any] | None = None,
+    params: dict[str, t.Any] | None = None,
     timeout: float = 30.0,
 ) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_post(endpoint, get_all_units(), json=json, params=params, timeout=timeout)
 
 
-def broadcast_delete_across_cluster(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
+def broadcast_delete_across_cluster(
+    endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
+) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_delete(endpoint, get_all_units(), json=json, timeout=timeout)
 
 
-def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
+def broadcast_patch_across_cluster(
+    endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
+) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_patch(endpoint, get_all_units(), json=json, timeout=timeout)
 
 
 # send only to workers
-def broadcast_get_across_workers(endpoint: str, timeout: float = 5.0, return_raw=False) -> Result:
+def broadcast_get_across_workers(endpoint: str, timeout: float = 5.0, return_raw: bool = False) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
         endpoint=endpoint, units=get_all_workers(), timeout=timeout, return_raw=return_raw
@@ -265,20 +269,24 @@ def broadcast_get_across_workers_in_experiment(
 
 def broadcast_post_across_workers(
     endpoint: str,
-    json: dict | None = None,
-    params: dict | None = None,
+    json: dict[str, t.Any] | None = None,
+    params: dict[str, t.Any] | None = None,
     timeout: float = 30.0,
 ) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_post(endpoint, get_all_workers(), json=json, params=params, timeout=timeout)
 
 
-def broadcast_delete_across_workers(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
+def broadcast_delete_across_workers(
+    endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
+) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_delete(endpoint, get_all_workers(), json=json, timeout=timeout)
 
 
-def broadcast_patch_across_workers(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
+def broadcast_patch_across_workers(
+    endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
+) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_patch(endpoint, get_all_workers(), json=json, timeout=timeout)
 
@@ -2037,7 +2045,9 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
 
 
 @api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<calibration_name>", methods=["PATCH"])
-def set_active_calibration(pioreactor_unit, device, calibration_name) -> DelayedResponseReturnValue:
+def set_active_calibration(
+    pioreactor_unit: str, device: str, calibration_name: str
+) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_patch_across_workers(f"/unit_api/active_calibrations/{device}/{calibration_name}")
     else:
@@ -2049,7 +2059,9 @@ def set_active_calibration(pioreactor_unit, device, calibration_name) -> Delayed
 
 
 @api_bp.route("/workers/<pioreactor_unit>/active_estimators/<device>/<estimator_name>", methods=["PATCH"])
-def set_active_estimator(pioreactor_unit, device, estimator_name) -> DelayedResponseReturnValue:
+def set_active_estimator(
+    pioreactor_unit: str, device: str, estimator_name: str
+) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_patch_across_workers(f"/unit_api/active_estimators/{device}/{estimator_name}")
     else:
@@ -2060,7 +2072,7 @@ def set_active_estimator(pioreactor_unit, device, estimator_name) -> DelayedResp
 
 
 @api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>", methods=["DELETE"])
-def remove_active_status_calibration(pioreactor_unit, device) -> DelayedResponseReturnValue:
+def remove_active_status_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/active_calibrations/{device}")
     else:
@@ -2069,7 +2081,7 @@ def remove_active_status_calibration(pioreactor_unit, device) -> DelayedResponse
 
 
 @api_bp.route("/workers/<pioreactor_unit>/active_estimators/<device>", methods=["DELETE"])
-def remove_active_status_estimator(pioreactor_unit, device) -> DelayedResponseReturnValue:
+def remove_active_status_estimator(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/active_estimators/{device}")
     else:
@@ -2078,7 +2090,9 @@ def remove_active_status_estimator(pioreactor_unit, device) -> DelayedResponseRe
 
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<calibration_name>", methods=["DELETE"])
-def delete_calibration(pioreactor_unit, device, calibration_name) -> DelayedResponseReturnValue:
+def delete_calibration(
+    pioreactor_unit: str, device: str, calibration_name: str
+) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/calibrations/{device}/{calibration_name}")
     else:
@@ -2090,7 +2104,7 @@ def delete_calibration(pioreactor_unit, device, calibration_name) -> DelayedResp
 
 
 @api_bp.route("/workers/<pioreactor_unit>/estimators/<device>/<estimator_name>", methods=["DELETE"])
-def delete_estimator(pioreactor_unit, device, estimator_name) -> DelayedResponseReturnValue:
+def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/estimators/{device}/{estimator_name}")
     else:
@@ -2755,7 +2769,7 @@ def get_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     else:
         pioreactor_units = [pioreactor_unit]
 
-    result: dict[str, dict[str, dict]] = {}
+    result: dict[str, dict[str, dict[str, str]]] = {}
 
     for unit in pioreactor_units:
         try:
@@ -2815,10 +2829,10 @@ def get_config_files() -> ResponseReturnValue:
     }  # should be same as current HOSTNAME since this runs on the leader.
     pioreactors_bucket = workers_bucket | leader_bucket
 
-    def strip_worker_name_from_config(file_name):
+    def strip_worker_name_from_config(file_name: str) -> str:
         return file_name.removeprefix("config_").removesuffix(".ini")
 
-    def allow_file_through(file_name: str):
+    def allow_file_through(file_name: str) -> bool:
         if file_name == "config.ini":
             return True
         else:
@@ -3534,7 +3548,7 @@ def get_experiment_assignment_for_worker(pioreactor_unit: str) -> ResponseReturn
             cause=f"Worker '{pioreactor_unit}' not in leader database.",
             remediation="Check the unit name or add the worker to the inventory.",
         )
-    elif result["experiment"] is None:  # type: ignore
+    elif result["experiment"] is None:
         abort_with(
             404,
             f"Worker `{pioreactor_unit}` is not assigned to any experiment.",

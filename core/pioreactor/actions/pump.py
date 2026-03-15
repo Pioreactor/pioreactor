@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from configparser import NoOptionError
 from functools import partial
 from threading import Event
+from typing import Any
 from typing import cast
 from typing import Optional
 
@@ -46,7 +47,7 @@ def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
     )
 
 
-def is_default_calibration(cal: structs.SimplePeristalticPumpCalibration):
+def is_default_calibration(cal: structs.SimplePeristalticPumpCalibration) -> bool:
     return cal.calibration_name == "__default_pump_calibration"
 
 
@@ -132,7 +133,7 @@ class PWMPump:
     def __enter__(self) -> "PWMPump":
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: object) -> None:
         self.stop()
         self.clean_up()
 
@@ -152,7 +153,7 @@ def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeris
         return cal
 
 
-def publish_async(client, topic, payload, **kwargs):
+def publish_async(client: Client, topic: str, payload: bytes, **kwargs: Any) -> None:
     _thread_pool.submit(client.publish, topic, payload, **kwargs)
 
 
@@ -418,7 +419,7 @@ def _liquid_circulation(
     mqtt_client: Optional[Client] = None,
     logger: Optional[CustomLogger] = None,
     source_of_event: Optional[str] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[pt.mL, pt.mL]:
     """
     This function runs a continuous circulation of liquid using two pumps - one for waste and the other for the specified

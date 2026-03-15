@@ -6,7 +6,7 @@ from typing import Final
 from typing import Protocol
 from typing import runtime_checkable
 
-from busio import I2C  # type: ignore
+from busio import I2C
 from pioreactor import exc
 from pioreactor import types as pt
 
@@ -59,8 +59,8 @@ class ADS1115_ADC:
     def __init__(
         self, scl: pt.I2CPin, sda: pt.I2CPin, i2c_addr: pt.I2CAddress, adc_channel: pt.AdcChannel
     ) -> None:
-        from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
-        from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
+        from adafruit_ads1x15.analog_in import AnalogIn
+        from adafruit_ads1x15.ads1115 import ADS1115 as ADS
 
         assert 0 <= adc_channel <= 3
         self.adc_channel = adc_channel
@@ -238,7 +238,7 @@ class ADS1114_ADC:
         self._next_conversion_ready_at = 0.0
         self.set_ads_gain(self.gain)  # also writes continuous-mode config
 
-    def check_on_gain(self, value, tol: float = 0.85) -> None:
+    def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None:
         # Auto-select gain that keeps the value inside a comfortable portion of its FSR
         for gain, (lb, ub) in self.ADS1X14_GAIN_THRESHOLDS.items():
             if (tol * lb <= value < tol * ub) and (self.gain != gain):
@@ -257,14 +257,14 @@ class ADS1114_ADC:
         # Ensure next read waits for one full conversion period.
         self._next_conversion_ready_at = time.monotonic() + self._seconds_per_conversion
 
-    def from_voltage_to_raw(self, voltage):
+    def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
         # 16-bit two's complement, FS code = +32767 for +FS
         return int(voltage * 32767 / self.ADS1X14_PGA_RANGE[self.gain])
 
-    def from_voltage_to_raw_precise(self, voltage):
+    def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> pt.AnalogValue:
         return voltage * 32767 / self.ADS1X14_PGA_RANGE[self.gain]
 
-    def from_raw_to_voltage(self, raw):
+    def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
         return raw / 32767 * self.ADS1X14_PGA_RANGE[self.gain]
 
     def read_from_channel(self) -> int:

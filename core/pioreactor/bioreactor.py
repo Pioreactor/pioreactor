@@ -6,6 +6,7 @@ import typing as t
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import publish as mqtt_publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import local_persistent_storage
@@ -134,7 +135,7 @@ def get_bioreactor_topic(unit: pt.Unit, experiment: pt.Experiment, variable_name
 
 
 def publish_bioreactor_value(
-    mqtt_client: "pt.Client",
+    mqtt_client: Client,
     unit: pt.Unit,
     experiment: pt.Experiment,
     variable_name: str,
@@ -152,7 +153,7 @@ def publish_bioreactor_value(
 
 
 def set_and_publish_bioreactor_value(
-    mqtt_client: "pt.Client",
+    mqtt_client: Client,
     unit: pt.Unit,
     experiment: pt.Experiment,
     variable_name: str,
@@ -214,7 +215,7 @@ def apply_dosing_event_to_bioreactor(
     unit: pt.Unit,
     experiment: pt.Experiment,
     dosing_event: structs.DosingEvent,
-    mqtt_client: pt.Client | None = None,
+    mqtt_client: Client | None = None,
 ) -> dict[str, float]:
     current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
     max_working_volume_ml = get_bioreactor_value(experiment, "max_working_volume_ml")
@@ -299,7 +300,7 @@ def _publish_updated_bioreactor_value(
     experiment: pt.Experiment,
     variable_name: str,
     value: float,
-    mqtt_client: pt.Client | None = None,
+    mqtt_client: Client | None = None,
 ) -> None:
     if mqtt_client is not None:
         publish_bioreactor_value(mqtt_client, unit, experiment, variable_name, value)

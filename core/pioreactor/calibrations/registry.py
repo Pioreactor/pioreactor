@@ -26,7 +26,7 @@ class CalibrationProtocol(Generic[Device]):
     priority: ClassVar[int] = 99
     step_registry: ClassVar[dict[str, type[Any]]]
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
 
     def run(self, target_device: Device) -> structs.CalibrationBase | list[structs.CalibrationBase]:
@@ -68,5 +68,5 @@ def get_protocol(target_device: str, protocol_name: ProtocolName) -> type[Calibr
     raise KeyError(f"Unknown protocol '{protocol_name}' for target device '{target_device}'.")
 
 
-def get_protocol_for_session(session) -> type[CalibrationProtocol[Any]]:
+def get_protocol_for_session(session: "CalibrationSession") -> type[CalibrationProtocol[Any]]:
     return get_protocol(session.target_device, session.protocol_name)

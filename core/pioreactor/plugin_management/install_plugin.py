@@ -23,7 +23,7 @@ def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
     result = subprocess.run(command, capture_output=True, text=True)
 
     if result.returncode == 0:
-        logger.notice(f"Successfully installed plugin {name_of_plugin}.")  # type: ignore
+        logger.notice(f"Successfully installed plugin {name_of_plugin}.")
     else:
         logger.error(f"Failed to install plugin {name_of_plugin}. See logs.")
         logger.debug(result.stdout)

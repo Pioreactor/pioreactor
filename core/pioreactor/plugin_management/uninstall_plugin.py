@@ -18,7 +18,7 @@ def uninstall_plugin(name_of_plugin: str) -> None:
     for py_file in discover_plugins_in_local_folder():
         if py_file.stem == name_of_plugin:
             py_file.unlink()
-            logger.notice(f"Successfully uninstalled plugin {name_of_plugin} from local plugins folder.")  # type: ignore
+            logger.notice(f"Successfully uninstalled plugin {name_of_plugin} from local plugins folder.")
             return
 
     result = subprocess.run(
@@ -33,7 +33,7 @@ def uninstall_plugin(name_of_plugin: str) -> None:
     if "as it is not installed" in result.stderr:
         logger.warning(f"Unable to uninstall: plugin {name_of_plugin} is not installed.")
     elif result.returncode == 0:
-        logger.notice(f"Successfully uninstalled plugin {name_of_plugin}.")  # type: ignore
+        logger.notice(f"Successfully uninstalled plugin {name_of_plugin}.")
     else:
         logger.error(f"Failed to uninstall plugin {name_of_plugin}. See logs.")
         logger.debug(result.stdout)

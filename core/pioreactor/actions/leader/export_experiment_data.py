@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 # export experiment data
 # See create_tables.sql for all tables
+import sqlite3
 import sys
+import zipfile
 from base64 import b64decode
 from contextlib import closing
 from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from typing import Sequence
 
 import click
 from msgspec import DecodeError
@@ -19,7 +22,7 @@ from pioreactor.structs import Dataset
 from pioreactor.whoami import is_testing_env
 
 
-def rounded_row_factory(cursor, row):
+def rounded_row_factory(cursor: sqlite3.Cursor, row: tuple[Any, ...]) -> tuple[Any, ...]:
     """
     For each value in row, if it's a Python float, round it to N decimals.
     Otherwise, leave it alone.
@@ -35,7 +38,7 @@ def rounded_row_factory(cursor, row):
     return tuple(rounded)
 
 
-def source_exists(cursor, table_name_to_check: str) -> bool:
+def source_exists(cursor: sqlite3.Cursor, table_name_to_check: str) -> bool:
     query = "SELECT 1 FROM sqlite_master WHERE (type='table' or type='view') and name = ?"
     return cursor.execute(query, (table_name_to_check,)).fetchone() is not None
 
@@ -84,7 +87,7 @@ def decode_base64(string: str) -> str:
     return b64decode(string).decode("utf-8")
 
 
-def add_directory_to_zip_with_current_timestamp(zf, dir_name: str) -> None:
+def add_directory_to_zip_with_current_timestamp(zf: zipfile.ZipFile, dir_name: str) -> None:
     """
     Create a directory entry in the zip archive with a sane timestamp.
 
@@ -95,8 +98,6 @@ def add_directory_to_zip_with_current_timestamp(zf, dir_name: str) -> None:
     - We explicitly construct a ZipInfo for the directory and set the
       date_time to now so folder metadata looks reasonable.
     """
-    import zipfile
-
     # Ensure trailing slash to mark entry as a directory in ZIP
     name = dir_name if dir_name.endswith("/") else f"{dir_name}/"
 
@@ -110,7 +111,7 @@ def add_directory_to_zip_with_current_timestamp(zf, dir_name: str) -> None:
     zf.writestr(info, b"")
 
 
-def validate_dataset_information(dataset: Dataset, cursor) -> None:
+def validate_dataset_information(dataset: Dataset, cursor: sqlite3.Cursor) -> None:
     if not (dataset.table or dataset.query):
         raise ValueError("query or table must be defined.")
 
@@ -121,7 +122,7 @@ def validate_dataset_information(dataset: Dataset, cursor) -> None:
 
 
 def create_experiment_clause(
-    experiments: list[str], existing_placeholders: dict[str, str]
+    experiments: Sequence[str], existing_placeholders: dict[str, str]
 ) -> tuple[str, dict[str, str]]:
     if not experiments:  # Simplified check for an empty list
         return "TRUE", existing_placeholders
@@ -185,8 +186,8 @@ def create_sql_query(
 
 
 def export_experiment_data(
-    experiments: list[str],
-    dataset_names: list[str],
+    experiments: Sequence[str],
+    dataset_names: Sequence[str],
     output: str,
     start_time: str | None = None,
     end_time: str | None = None,
@@ -351,8 +352,14 @@ def export_experiment_data(
 @click.option("--start-time", help="iso8601")
 @click.option("--end-time", help="iso8601")
 def click_export_experiment_data(
-    experiment, output, partition_by_unit, partition_by_experiment, dataset_name, start_time, end_time
-):
+    experiment: tuple[str, ...],
+    output: str,
+    partition_by_unit: bool,
+    partition_by_experiment: bool,
+    dataset_name: tuple[str, ...],
+    start_time: str | None,
+    end_time: str | None,
+) -> None:
     """
     (leader only) Export datasets from db.
     """

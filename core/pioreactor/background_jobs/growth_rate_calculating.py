@@ -40,6 +40,7 @@ from statistics import mean
 from threading import Event
 from threading import Thread
 from time import sleep
+from typing import Any
 from typing import cast
 from typing import Generator
 from typing import Iterator
@@ -197,7 +198,7 @@ class GrowthRateCalculator(BackgroundJob):
             ekf_outlier_std_threshold,
         )
 
-    def _create_obs_noise_covariance(self, obs_std):  # type: ignore
+    def _create_obs_noise_covariance(self, obs_std: float) -> Any:
         """
         Our sensor measurements have initial variance V, but in our KF, we scale them their
         initial mean, M. Hence the observed variance of the _normalized_ measurements is
@@ -401,7 +402,7 @@ class GrowthRateCalculator(BackgroundJob):
         updated_state_, covariance_ = self.ekf.update(
             list(scaled_observations.values()), dt, self._recent_dilution
         )
-        latest_od_filtered, latest_growth_rate = float(updated_state_[0]), float(updated_state_[1])  # type: ignore
+        latest_od_filtered, latest_growth_rate = float(updated_state_[0]), float(updated_state_[1])
 
         if self._obs_since_last_dose is not None and self._obs_required_to_reset is not None:
             self._obs_since_last_dose += 1
@@ -421,8 +422,8 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         kf_outputs = structs.KalmanFilterOutput(
-            state=self.ekf.state_.tolist(),  # type: ignore
-            covariance_matrix=covariance_.tolist(),  # type: ignore
+            state=self.ekf.state_.tolist(),
+            covariance_matrix=covariance_.tolist(),
             timestamp=timestamp,
         )
 
@@ -529,7 +530,7 @@ class GrowthRateCalculator(BackgroundJob):
 @click.group(invoke_without_command=True, name="growth_rate_calculating")
 @click.option("--ignore-cache", is_flag=True, help="Ignore the cached values (rerun)")
 @click.pass_context
-def click_growth_rate_calculating(ctx, ignore_cache):
+def click_growth_rate_calculating(ctx: click.Context, ignore_cache: bool) -> None:
     """
     Start calculating growth rate
     """
