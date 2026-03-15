@@ -53,12 +53,12 @@ def load_active_calibration(device: Literal["stirring"]) -> structs.SimpleStirri
 
 def load_active_calibration(device: Device) -> structs.AnyCalibration | None:
     with local_persistent_storage("active_calibrations") as c:
-        active_cal_name = str(c.get(device))
+        active_cal_name = c.get(device)
 
     if active_cal_name is None:
         return None
 
-    return load_calibration(device, active_cal_name)
+    return load_calibration(device, str(active_cal_name))
 
 
 def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibration:
