@@ -2925,7 +2925,7 @@ def update_config_file(filename: str) -> ResponseReturnValue:
         abort_with(500, msg)
 
     # if the config file is unit specific, we only need to run sync-config on that unit.
-    result = tasks.write_config_and_sync(config_path, code, units, flags)
+    result = tasks.write_config_and_sync(str(config_path), code, units, flags)
 
     try:
         status, msg_or_exception = result(blocking=True, timeout=75)
@@ -3042,7 +3042,7 @@ def create_experiment_profile() -> ResponseReturnValue:
 
     # save file to disk
     tasks.save_file(
-        filepath,
+        str(filepath),
         experiment_profile_body,
     )
 
@@ -3080,7 +3080,7 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
 
     # save file to disk
     tasks.save_file(
-        filepath,
+        str(filepath),
         experiment_profile_body,
     )
 
@@ -3150,7 +3150,7 @@ def delete_experiment_profile(filename: str) -> ResponseReturnValue:
             raise IOError("must provide a YAML file")
 
         specific_profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / file
-        tasks.rm(specific_profile_path)
+        tasks.rm(str(specific_profile_path))
         publish_to_log(f"Deleted profile {filename}.", "delete_experiment_profile")
         return {"status": "success"}, 200
     except IOError as e:
@@ -3258,7 +3258,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
             # delete config on disk
             config_path = Path(os.environ["DOT_PIOREACTOR"]) / unit_config
-            tasks.rm(config_path)
+            tasks.rm(str(config_path))
 
             # delete from histories
             modify_app_db("DELETE FROM config_files_histories WHERE filename=?;", (unit_config,))

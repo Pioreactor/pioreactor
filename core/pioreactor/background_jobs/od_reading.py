@@ -789,7 +789,7 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
                 cached = float(cached.decode())
             except ValueError:
                 return None
-        return float(cached)
+        return float(cached)  # type: ignore[arg-type]
 
     def update(self, ir_output_reading: pt.Voltage) -> None:
         if self.initial_ref is None:

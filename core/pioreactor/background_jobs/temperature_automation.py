@@ -3,6 +3,7 @@ from contextlib import suppress
 from threading import Event
 from time import sleep
 from typing import Any
+from typing import cast
 from typing import Optional
 
 import click
@@ -165,7 +166,9 @@ class TemperatureAutomationJob(AutomationJob):
     def seconds_since_last_active_heating() -> float:
         with local_intermittent_storage("temperature_and_heating") as cache:
             if "last_heating_timestamp" in cache:
-                return (current_utc_datetime() - to_datetime(cache["last_heating_timestamp"])).total_seconds()
+                return (
+                    current_utc_datetime() - to_datetime(cast(str, cache["last_heating_timestamp"]))
+                ).total_seconds()
             else:
                 return 1_000_000
 

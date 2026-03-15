@@ -321,18 +321,18 @@ class GrowthRateCalculator(BackgroundJob):
             result = cache.get(self.experiment)
 
         if result is not None:
-            od_blanks = result
+            od_blanks = cast(bytes | str, result)
             return loads(od_blanks)
         else:
             return defaultdict(lambda: 0.0)
 
     def _get_growth_rate_from_cache(self) -> float:
         with local_persistent_storage("growth_rate") as cache:
-            return cache.get(self.experiment, 0.0)
+            return float(cast(float | int, cache.get(self.experiment, 0.0)))
 
     def _get_filtered_od_from_cache(self) -> float:
         with local_persistent_storage("od_filtered") as cache:
-            return cache.get(self.experiment, 1.0)
+            return float(cast(float | int, cache.get(self.experiment, 1.0)))
 
     def _get_filtered_od_from_iterator(self, od_iter: Iterator[structs.ODReadings]) -> float:
         scaled_od_readings = self.scale_raw_observations(next(od_iter))
@@ -340,12 +340,12 @@ class GrowthRateCalculator(BackgroundJob):
 
     def _get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistent_storage("od_normalization_mean") as cache:
-            result = cache[self.experiment]
+            result = cast(bytes | str, cache[self.experiment])
             return loads(result)
 
     def _get_od_variances_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistent_storage("od_normalization_variance") as cache:
-            result = cache[self.experiment]
+            result = cast(bytes | str, cache[self.experiment])
             return loads(result)
 
     @staticmethod
@@ -402,7 +402,9 @@ class GrowthRateCalculator(BackgroundJob):
         updated_state_, covariance_ = self.ekf.update(
             list(scaled_observations.values()), dt, self._recent_dilution
         )
-        latest_od_filtered, latest_growth_rate = float(updated_state_[0]), float(updated_state_[1])
+        updated_state = cast(Any, updated_state_)
+        covariance = cast(Any, covariance_)
+        latest_od_filtered, latest_growth_rate = float(updated_state[0]), float(updated_state[1])
 
         if self._obs_since_last_dose is not None and self._obs_required_to_reset is not None:
             self._obs_since_last_dose += 1
@@ -422,8 +424,8 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         kf_outputs = structs.KalmanFilterOutput(
-            state=self.ekf.state_.tolist(),
-            covariance_matrix=covariance_.tolist(),
+            state=cast(Any, self.ekf.state_).tolist(),
+            covariance_matrix=covariance.tolist(),
             timestamp=timestamp,
         )
 
@@ -539,6 +541,7 @@ def click_growth_rate_calculating(ctx: click.Context, ignore_cache: bool) -> Non
         experiment = whoami.get_assigned_experiment_name(unit)
 
         use_fused_od = _should_use_fused_od(unit)
+        od_stream: MqttODSource | MqttODFusedSource
         if use_fused_od:
             od_stream = MqttODFusedSource(unit=unit, experiment=experiment, skip_first=5)
         else:

@@ -47,7 +47,7 @@ class PolyFitCoefficients(Struct, tag="poly"):
 
     @property
     def type(self) -> str:
-        return self.__struct_config__.tag
+        return t.cast(str, self.__struct_config__.tag)
 
 
 class SplineFitData(Struct, tag="spline"):
@@ -56,7 +56,7 @@ class SplineFitData(Struct, tag="spline"):
 
     @property
     def type(self) -> str:
-        return self.__struct_config__.tag
+        return t.cast(str, self.__struct_config__.tag)
 
 
 class AkimaFitData(Struct, tag="akima"):
@@ -65,7 +65,7 @@ class AkimaFitData(Struct, tag="akima"):
 
     @property
     def type(self) -> str:
-        return self.__struct_config__.tag
+        return t.cast(str, self.__struct_config__.tag)
 
 
 type CalibrationCurveData = PolyFitCoefficients | SplineFitData | AkimaFitData
@@ -232,7 +232,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
     @property
     def calibration_type(self) -> str:
-        return self.__struct_config__.tag
+        return t.cast(str, self.__struct_config__.tag)
 
     def path_on_disk_for_device(self, device: str) -> Path:
         from pioreactor.calibrations import CALIBRATION_PATH
@@ -398,7 +398,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
 
     @property
     def estimator_type(self) -> str:
-        return self.__struct_config__.tag
+        return t.cast(str, self.__struct_config__.tag)
 
     def path_on_disk_for_device(self, device: str) -> Path:
         from pioreactor.estimators import ESTIMATOR_PATH

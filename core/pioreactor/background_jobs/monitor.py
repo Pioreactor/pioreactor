@@ -5,6 +5,7 @@ from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import Callable
+from typing import cast
 from typing import Optional
 
 import click
@@ -47,8 +48,10 @@ if whoami.is_testing_env():
 
 
 class classproperty(property):
-    def __get__(self, obj: object, objtype: type[object] | None = None) -> object:
-        return self.fget(objtype)
+    def __get__(self, obj: object | None, objtype: type[object] | None = None) -> object:  # type: ignore[override]
+        assert self.fget is not None
+        owner = objtype if objtype is not None else type(obj)
+        return self.fget(owner)
 
 
 class Monitor(LongRunningBackgroundJob):
@@ -119,7 +122,7 @@ class Monitor(LongRunningBackgroundJob):
 
         # previously I had pioreactor_version and model name here, but this starts before the webserver is online, and it
         # would crash this job.
-        self.versions = {
+        self.versions: dict[str, str | None] = {
             "app": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
             "firmware": pretty_version(version.get_firmware_version()),
@@ -373,7 +376,7 @@ class Monitor(LongRunningBackgroundJob):
 
         observed_tmp = tmp_driver.get_temperature()
 
-        if observed_tmp >= self.MAX_TEMP_TO_SHUTDOWN:
+        if observed_tmp >= cast(float, self.MAX_TEMP_TO_SHUTDOWN):
             # something is wrong - temperature_automation should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
             # we're going to just shutdown to be safe.
             self.logger.error(
@@ -382,9 +385,9 @@ class Monitor(LongRunningBackgroundJob):
 
             subprocess.call("sudo shutdown now --poweroff", shell=True)
 
-        elif observed_tmp >= self.MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION and not utils.is_pio_job_running(
-            "temperature_automation"
-        ):
+        elif observed_tmp >= cast(
+            float, self.MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION
+        ) and not utils.is_pio_job_running("temperature_automation"):
             # errant PWM?
             # false positive: small chance this is in an incubator?
 
@@ -431,7 +434,7 @@ class Monitor(LongRunningBackgroundJob):
     def check_for_last_backup(self) -> None:
         with utils.local_persistent_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
-                latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
+                latest_backup_at = to_datetime(cast(str, cache["latest_backup_timestamp"]))
 
                 if (current_utc_datetime() - latest_backup_at).days > 30:
                     self.logger.warning(

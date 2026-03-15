@@ -2,6 +2,7 @@
 # mock pieces for testing
 import random
 from typing import Any
+from typing import cast
 
 import pioreactor.types as pt
 from pioreactor.config import config
@@ -59,7 +60,8 @@ class Mock_ADC(_I2C_ADC):
         import numpy as np
 
         with local_intermittent_storage("leds") as leds:
-            is_ir_on = float(leds.get(config.get("leds_reverse", "IR"), 0.0)) > 0.0
+            ir_intensity = cast(float | int | str, leds.get(config.get("leds_reverse", "IR"), 0.0))
+            is_ir_on = float(ir_intensity) > 0.0
 
         if not is_ir_on:
             return self.OFFSET

@@ -8,6 +8,7 @@ from os import environ
 from os import getpid
 from time import sleep
 from time import time
+from types import FunctionType
 from typing import Self
 
 from msgspec.json import decode as loads
@@ -271,7 +272,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     pass
                 raise
 
-        cls.__init__ = wrapped_init
+        setattr(cls, "__init__", t.cast(FunctionType, wrapped_init))
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment, source: str = "app") -> None:
         if self.job_name in DISALLOWED_JOB_NAMES:
@@ -367,6 +368,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
     @property
     def job_key(self) -> str:
         return f"{self.job_name}/{self.job_id}"
+
+    @staticmethod
+    def _ignore_future_sighups(*args: t.Any) -> None:
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
     def start_passive_listeners(self) -> None:
         # overwrite this to in subclasses to subscribe to topics in MQTT
@@ -738,7 +743,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     [
                         exit_gracefully,
                         # add a "ignore all future SIGUPs" onto the top of the stack.
-                        lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
+                        self._ignore_future_sighups,
                     ],
                 )
             except AttributeError:

@@ -1137,8 +1137,9 @@ def get_all_active_calibrations() -> ResponseReturnValue:
     all_calibrations: dict[str, dict[str, Any]] = {}
 
     with local_persistent_storage("active_calibrations") as cache:
-        for device in cache.iterkeys():
-            cal_name = cache[device]
+        for device_ in cache.iterkeys():
+            device = cast(str, device_)
+            cal_name = str(cache[device])
             cal_file_path = calibration_dir / device / f"{cal_name}.yaml"
             try:
                 cal = to_builtins(yaml_decode(cal_file_path.read_bytes(), type=AllCalibrations))
@@ -1163,8 +1164,9 @@ def get_all_active_estimators() -> ResponseReturnValue:
     all_estimators: dict[str, dict[str, Any]] = {}
 
     with local_persistent_storage("active_estimators") as cache:
-        for device in cache.iterkeys():
-            estimator_name = cache[device]
+        for device_ in cache.iterkeys():
+            device = cast(str, device_)
+            estimator_name = str(cache[device])
             estimator_file_path = estimator_dir / device / f"{estimator_name}.yaml"
             if not estimator_file_path.exists():
                 continue

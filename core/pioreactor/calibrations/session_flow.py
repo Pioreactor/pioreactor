@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 from typing import Callable
+from typing import cast
 from typing import Iterable
 from typing import Literal
 
@@ -293,7 +294,7 @@ class SessionContext:
                 "save_calibration",
                 {"device": device, "calibration": to_builtins(calibration)},
             )
-            path = payload.get("path")
+            path = cast(str | None, payload.get("path"))
         else:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}

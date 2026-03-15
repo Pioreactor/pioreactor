@@ -9,6 +9,7 @@ from os import getpid
 from time import sleep
 from typing import Any
 from typing import Callable
+from typing import cast
 from typing import Iterator
 from typing import Optional
 
@@ -307,7 +308,8 @@ class PWM:
                 # this will raise a keyerror when we try to retrieve it.
                 value = cache.get(k, 0)
                 if value != 0:
-                    current_values[k] = value
+                    duty_cycle_value = cast(float | int | str, value)
+                    current_values[cast(pt.GpioPin, k)] = float(duty_cycle_value)
 
         self.pub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
@@ -349,6 +351,10 @@ class PWM:
         with suppress(Exception):
             self.clean_up()
 
+    @staticmethod
+    def _ignore_future_sighups(*args: Any) -> None:
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
     def _set_up_exit_protocol(self) -> None:
         if threading.current_thread() is not threading.main_thread():
             return
@@ -368,7 +374,7 @@ class PWM:
                 [
                     self._exit,
                     # add a "ignore all future SIGHUPs" onto the top of the stack.
-                    lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
+                    self._ignore_future_sighups,
                 ],
             )
         except AttributeError:

@@ -44,7 +44,7 @@ def change_leds_intensities_temporarily(
     old_state = {}
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: float(cache.get(c, 0.0)) for c in desired_state.keys()}
+            old_state = {c: float(cache.get(c, 0.0)) for c in desired_state.keys()}  # type: ignore[arg-type]
         if not led_intensity(desired_state, **kwargs):
             raise ValueError("Unable to update LED.")
 
@@ -86,7 +86,8 @@ def _update_current_state(
     with local_intermittent_storage("leds") as led_cache:
         # rehydrate old cache
         old_state: LEDsToIntensityMapping = {
-            channel: led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS
+            channel: float(led_cache.get(str(channel), 0.0))  # type: ignore[arg-type]
+            for channel in ALL_LED_CHANNELS
         }
 
         # update cache
@@ -94,7 +95,8 @@ def _update_current_state(
             led_cache[channel] = intensity
 
         new_state: LEDsToIntensityMapping = {
-            channel: led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS
+            channel: float(led_cache.get(str(channel), 0.0))  # type: ignore[arg-type]
+            for channel in ALL_LED_CHANNELS
         }
 
         return new_state, old_state

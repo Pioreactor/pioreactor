@@ -148,7 +148,9 @@ def is_rate_limited(job: str, expire_time_seconds: float = 1.0) -> bool:
             return False
 
         last_request_time = cache.get(job)
-        if (last_request_time is not None) and ((now - float(last_request_time)) < expire_time_seconds):
+        if (last_request_time is not None) and (
+            (now - float(t.cast(float | int | str, last_request_time))) < expire_time_seconds
+        ):
             return True
 
         cache.set(job, now)

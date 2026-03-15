@@ -148,7 +148,7 @@ class AutomationJob(BackgroundJob):
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
 
-        return cast(float, self._latest_growth_rate)
+        return self._latest_growth_rate
 
     @property
     def latest_normalized_od(self) -> float:
@@ -169,7 +169,7 @@ class AutomationJob(BackgroundJob):
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
 
-        return cast(float, self._latest_normalized_od)
+        return self._latest_normalized_od
 
     @property
     def latest_od(self) -> dict[pt.PdChannel, float]:
@@ -211,7 +211,7 @@ class AutomationJob(BackgroundJob):
                 f"fused readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_fused_at}."
             )
 
-        return cast(float, self._latest_od_fused)
+        return self._latest_od_fused
 
     def latest_biomass_value(
         self,

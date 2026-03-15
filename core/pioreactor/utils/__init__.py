@@ -205,10 +205,14 @@ class managed_lifecycle:
             self._externally_provided_client = True
         else:
             self._externally_provided_client = False
+            combined_mqtt_client_kwargs = cast(
+                dict[str, Any],
+                default_mqtt_client_kwargs | (mqtt_client_kwargs or {}),
+            )
             self.mqtt_client = create_client(
                 last_will=last_will,
                 on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
-                **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),
+                **combined_mqtt_client_kwargs,
             )
         assert self.mqtt_client is not None
 
@@ -503,14 +507,16 @@ def is_pio_job_running(target_jobs: str | list[str]) -> bool | list[bool]:
     """
     is_single_job_name = isinstance(target_jobs, str)
     if is_single_job_name:
-        target_jobs = (target_jobs,)
+        jobs_to_check: list[str] = [target_jobs]  # type: ignore[list-item]
+    else:
+        jobs_to_check = target_jobs  # type: ignore[assignment]
 
     results = []
 
     from pioreactor.utils.job_manager import JobManager
 
     with JobManager() as jm:
-        for job in target_jobs:
+        for job in jobs_to_check:
             results.append(jm.is_job_running(job))
 
     if is_single_job_name:

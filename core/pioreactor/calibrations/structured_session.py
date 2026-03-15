@@ -3,6 +3,7 @@
 Protocol session structures used by calibrator/estimator workflows.
 """
 from typing import Any
+from typing import cast
 from typing import Literal
 
 from msgspec import Struct
@@ -64,7 +65,7 @@ def save_calibration_session(session: CalibrationSession) -> None:
 
 def load_calibration_session(session_id: str) -> CalibrationSession | None:
     with local_persistent_storage("calibration_sessions") as store:
-        payload = store.get(session_id)
+        payload = cast(bytes | str | None, store.get(session_id))
     if payload is None:
         return None
     return json_decode(payload, type=CalibrationSession)

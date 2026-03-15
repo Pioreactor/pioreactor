@@ -198,6 +198,7 @@ class Stirrer(BackgroundJobWithDodging):
         "measured_rpm": {"datatype": "MeasuredRPM", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
+    rpm_check_repeated_timer: RepeatedTimer
     # the _estimate_duty_cycle parameter is like the unrealized DC, and the duty_cycle is the realized DC.
     _estimate_duty_cycle: float
     duty_cycle: float = 0
@@ -374,10 +375,10 @@ class Stirrer(BackgroundJobWithDodging):
     ) -> Callable[[float | None], float]:
         if self.rpm_calculator is None:
             assert self.target_rpm is None, "Can't target an RPM without rpm_calculator."
-            return lambda rpm: self._estimate_duty_cycle
+            return lambda rpm: float(self._estimate_duty_cycle)
 
         if self.target_rpm is None:
-            return lambda rpm: self._estimate_duty_cycle
+            return lambda rpm: float(self._estimate_duty_cycle)
 
         assert isinstance(self.target_rpm, float)
 
@@ -407,10 +408,13 @@ class Stirrer(BackgroundJobWithDodging):
             # we also aim slightly higher, so less likely to stall the fan. We'll converge later via updates.
             # Factor of 1.05
 
-            def adjust_towards_rpm(rpm: float):
-                return 1.05 * (
-                    self._estimate_duty_cycle - 0.90 * (self._estimate_duty_cycle - (cal.y_to_x(rpm)))
-                )
+            def adjust_towards_rpm(rpm: float | None) -> float:
+                if rpm is None:
+                    return self._estimate_duty_cycle
+                else:
+                    return 1.05 * (
+                        self._estimate_duty_cycle - 0.90 * (self._estimate_duty_cycle - (cal.y_to_x(rpm)))
+                    )
 
             return adjust_towards_rpm
         else:
@@ -419,7 +423,7 @@ class Stirrer(BackgroundJobWithDodging):
                     "OD dodging is enabled without a stirring calibration. "
                     "This can increase OD reading noise. Run a stirring calibration for better stability."
                 )
-            return lambda rpm: self._estimate_duty_cycle
+            return lambda rpm: float(self._estimate_duty_cycle)
 
     def on_disconnected(self) -> None:
         super().on_disconnected()

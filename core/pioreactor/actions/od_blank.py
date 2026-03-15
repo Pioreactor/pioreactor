@@ -4,6 +4,7 @@ from contextlib import nullcontext
 from json import dumps
 from json import loads
 from typing import Any
+from typing import cast
 from typing import Iterator
 from typing import Optional
 
@@ -113,7 +114,7 @@ def delete_od_blank(unit: pt.Unit | None = None, experiment: pt.Experiment | Non
             retain=True,
         )
 
-        means = loads(cache[experiment])
+        means = loads(cast(str | bytes | bytearray, cache[experiment]))
         for channel, mean in means.items():
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",

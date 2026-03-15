@@ -132,7 +132,9 @@ def test_REF_is_in_correct_position(
     reference_channel = cast(PdChannel, next((k for k, v in pd_channels.items() if v == REF_keyword), None))
     assert reference_channel is not None, "REF required for this self-test"
 
-    signal_channels = [channel for channel, angle in pd_channels.items() if angle != REF_keyword]
+    signal_channels: list[PdChannel] = [
+        cast(PdChannel, channel) for channel, angle in pd_channels.items() if angle != REF_keyword
+    ]
 
     test_channels = {str(channel): "90" for channel, angle in pd_channels.items()}
 
@@ -467,6 +469,7 @@ def test_PD_is_near_0_volts_for_blank(
     signal_pd_channels = {k: v for k, v in pd_channels.items() if v != REF_keyword}
 
     for channel, angle in signal_pd_channels.items():
+        channel = cast(PdChannel, channel)
         assert angle in ["90", "45", "135"], f"Angle {angle} not valid for this test."
 
         signals = []
