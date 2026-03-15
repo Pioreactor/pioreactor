@@ -27,7 +27,6 @@ from huey.exceptions import TaskLockedException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
-from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.bioreactor import get_all_bioreactor_values
 from pioreactor.bioreactor import get_bioreactor_value
@@ -37,7 +36,6 @@ from pioreactor.calibrations.registry import get_calibration_protocols as get_ca
 from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
-from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -55,10 +53,15 @@ from pioreactor.web.plugin_registry import registered_unit_api_routes
 from pioreactor.web.unit_calibration_sessions_api import register_calibration_session_routes
 from pioreactor.web.utils import abort_with
 from pioreactor.web.utils import attach_cache_control
+from pioreactor.web.utils import CompleteTaskResultPayload
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
+from pioreactor.web.utils import FailedTaskResultPayload
+from pioreactor.web.utils import InProgressTaskResultPayload
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import PendingTaskResultPayload
+from pioreactor.web.utils import TaskResultErrorInfoPayload
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import safe_join
 
@@ -113,60 +116,74 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
 @unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
 def get_task_status(task_id: str) -> ResponseReturnValue:
-    blob = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
+    result_url_path = "/unit_api/task_results/" + task_id
     try:
         task = huey.result(task_id)
     except TaskLockedException:
-        return (
-            jsonify(
-                blob
-                | {
-                    "status": "in_progress",
-                    "error": "task is locked and already running.",
-                    "error_info": {
-                        "cause": "Another task with this ID is currently running.",
-                        "remediation": "Wait for the task to finish, then retry.",
-                    },
-                }
+        in_progress_payload = InProgressTaskResultPayload(
+            task_id=task_id,
+            result_url_path=result_url_path,
+            error="task is locked and already running.",
+            error_info=TaskResultErrorInfoPayload(
+                cause="Another task with this ID is currently running.",
+                remediation="Wait for the task to finish, then retry.",
             ),
+        )
+        return (
+            jsonify(in_progress_payload),
             202,
         )
     except TaskException as e:
         # huey wraps the exception, so lets reraise it.
-        return (
-            jsonify(
-                blob
-                | {
-                    "status": "failed",
-                    "error": str(e),
-                    "error_info": {
-                        "cause": "Huey task failed with an exception.",
-                        "remediation": "Check logs and retry.",
-                    },
-                }
+        failed_payload = FailedTaskResultPayload(
+            task_id=task_id,
+            result_url_path=result_url_path,
+            error=str(e),
+            error_info=TaskResultErrorInfoPayload(
+                cause="Huey task failed with an exception.",
+                remediation="Check logs and retry.",
             ),
+        )
+        return (
+            jsonify(failed_payload),
             500,
         )
 
     if task is None:
-        return jsonify(blob | {"status": "pending or not present"}), 202
-    elif isinstance(task, Exception):
         return (
             jsonify(
-                blob
-                | {
-                    "status": "failed",
-                    "error": str(task),
-                    "error_info": {
-                        "cause": "Huey task failed with an exception.",
-                        "remediation": "Check logs and retry.",
-                    },
-                }
+                PendingTaskResultPayload(
+                    task_id=task_id,
+                    result_url_path=result_url_path,
+                )
             ),
+            202,
+        )
+    elif isinstance(task, Exception):
+        failed_payload = FailedTaskResultPayload(
+            task_id=task_id,
+            result_url_path=result_url_path,
+            error=str(task),
+            error_info=TaskResultErrorInfoPayload(
+                cause="Huey task failed with an exception.",
+                remediation="Check logs and retry.",
+            ),
+        )
+        return (
+            jsonify(failed_payload),
             500,
         )
     else:
-        return jsonify(blob | {"status": "complete", "result": task}), 200
+        return (
+            jsonify(
+                CompleteTaskResultPayload(
+                    task_id=task_id,
+                    result_url_path=result_url_path,
+                    result=task,
+                )
+            ),
+            200,
+        )
 
 
 def _format_protocol_text(value: str, device: str) -> str:
@@ -787,9 +804,7 @@ def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
     try:
         with create_client() as mqtt_client:
             for variable_name, value in values.items():
-                set_and_publish_bioreactor_value(
-                    cast(Client, mqtt_client), HOSTNAME, experiment, variable_name, value
-                )
+                set_and_publish_bioreactor_value(mqtt_client, HOSTNAME, experiment, variable_name, value)
     except Exception as e:
         publish_to_error_log(str(e), "update_bioreactor_values")
         abort_with(400, str(e))

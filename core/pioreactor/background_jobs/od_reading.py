@@ -110,6 +110,10 @@ REF_keyword = "REF"
 IR_keyword = "IR"
 
 RawPDReadings = dict[pt.PdChannel, structs.RawPDReading]
+PreReadHook = Callable[["ODReader"], None]
+BoundPreReadHook = Callable[[], None]
+PostReadHook = Callable[["ODReader", structs.ODReadings | None], None]
+BoundPostReadHook = Callable[[structs.ODReadings | None], None]
 
 
 def average_over_raw_pd_readings(*multiple_raw_pd_readings: RawPDReadings) -> RawPDReadings:
@@ -687,7 +691,7 @@ class IrLedReferenceTracker(LoggerMixin):
         return ref_reading, raw_readings
 
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
-        return cast(pt.OD, pd_reading)
+        return pd_reading
 
 
 class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
@@ -1151,8 +1155,8 @@ class ODReader(BackgroundJob):
         "od_fused": {"datatype": "ODFused", "settable": False},
     }
 
-    _pre_read: list[Callable] = []
-    _post_read: list[Callable] = []
+    _pre_read: list[PreReadHook] = []
+    _post_read: list[PostReadHook] = []
     od1: structs.ODReading | None = None
     od2: structs.ODReading | None = None
     od3: structs.ODReading | None = None
@@ -1403,30 +1407,30 @@ class ODReader(BackgroundJob):
                 # cancel any existing one
                 self.record_from_adc_timer.cancel()
 
-    def _prepare_post_callbacks(self) -> list[Callable]:
-        callbacks: list[Callable] = []
+    def _prepare_post_callbacks(self) -> list[BoundPostReadHook]:
+        callbacks: list[BoundPostReadHook] = []
 
         # user created callbacks, this binds the callback to the instance so def cb(self, ... ) makes sense.
         for func in self._post_read:
             setattr(self, func.__name__, types.MethodType(func, self))
-            callbacks.append(getattr(self, func.__name__))
+            callbacks.append(cast(BoundPostReadHook, getattr(self, func.__name__)))
         return callbacks
 
-    def _prepare_pre_callbacks(self) -> list[Callable]:
-        callbacks: list[Callable] = []
+    def _prepare_pre_callbacks(self) -> list[BoundPreReadHook]:
+        callbacks: list[BoundPreReadHook] = []
 
         # user created callbacks, this binds the callback to the instance so def cb(self, ... ) makes sense.
         for func in self._pre_read:
             setattr(self, func.__name__, types.MethodType(func, self))
-            callbacks.append(getattr(self, func.__name__))
+            callbacks.append(cast(BoundPreReadHook, getattr(self, func.__name__)))
         return callbacks
 
     @classmethod
-    def add_pre_read_callback(cls, function: Callable) -> None:
+    def add_pre_read_callback(cls, function: PreReadHook) -> None:
         cls._pre_read.append(function)
 
     @classmethod
-    def add_post_read_callback(cls, function: Callable) -> None:
+    def add_post_read_callback(cls, function: PostReadHook) -> None:
         cls._post_read.append(function)
 
     @property

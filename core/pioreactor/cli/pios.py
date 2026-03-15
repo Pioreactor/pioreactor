@@ -12,7 +12,10 @@ from typing import Any
 
 import click
 from msgspec import DecodeError
+from msgspec import Struct
+from msgspec.json import decode as json_decode
 from msgspec.json import encode as dumps
+from pioreactor import structs
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.cluster_management import get_workers_in_inventory
@@ -38,6 +41,29 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{4,40}$")
+
+
+class CLIUnitTaskDispatchResult(Struct):
+    unit: str
+    status: t.Literal["success", "error"]
+    task_id: str | None = None
+    result_url_path: str | None = None
+
+
+def _successful_cli_dispatch_result(payload: bytes) -> CLIUnitTaskDispatchResult:
+    task_response_payload = json_decode(payload, type=structs.TaskResponsePayload)
+    return CLIUnitTaskDispatchResult(
+        unit=task_response_payload.unit,
+        status="success",
+        task_id=task_response_payload.task_id,
+        result_url_path=task_response_payload.result_url_path,
+    )
+
+
+def _status_only_cli_dispatch_result(
+    unit: str, status: t.Literal["success", "error"]
+) -> CLIUnitTaskDispatchResult:
+    return CLIUnitTaskDispatchResult(unit=unit, status=status)
 
 
 def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value: str | None) -> str | None:
@@ -202,7 +228,7 @@ if am_I_leader() or is_testing_env():
     confirmation = click.option("--yes", "-y", is_flag=True, help="Skip asking for confirmation.")
     json_output = click.option("--json", is_flag=True, help="output as json")
 
-    def parse_click_arguments(input_list: list[str]) -> dict:  # TODO: typed dict
+    def parse_click_arguments(input_list: list[str]) -> dict[str, Any]:
         args: list[str] = []
         opts: dict[str, str | None] = {}
 
@@ -360,10 +386,10 @@ if am_I_leader() or is_testing_env():
             click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
             all_workers = tuple()
 
-        if filter_out_non_workers:
-            include = lambda u: u in all_workers  # noqa: E731
-        else:
-            include = lambda u: True  # noqa: E731
+        def include(unit: str) -> bool:
+            if filter_out_non_workers:
+                return unit in all_workers
+            return True
 
         if workers == (UNIVERSAL_IDENTIFIER,):
             return all_workers
@@ -586,31 +612,30 @@ if am_I_leader() or is_testing_env():
                 options["no_deps"] = None
                 args = f"{args} --no-deps".strip()
 
-            def _thread_function(unit: str) -> tuple[bool, dict]:
+            def _thread_function(unit: str) -> tuple[bool, CLIUnitTaskDispatchResult]:
                 try:
                     r = post_into(
                         resolve_to_address(unit), "/unit_api/system/update", json={"options": options}
                     )
                     r.raise_for_status()
-                    return True, r.json()
-                except HTTPException as e:
+                    return True, _successful_cli_dispatch_result(r.content)
+                except (HTTPException, DecodeError) as e:
                     logger.error(
                         f"Unable to update on {unit} due to server error: {e}. Attempting SSH method..."
                     )
                     try:
                         ssh(resolve_to_address(unit), f"pio update {args}")
-                        return True, {"unit": unit}
+                        return True, _status_only_cli_dispatch_result(unit, status="success")
                     except SSHError as e:
                         logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
 
-                    return False, {"unit": unit}
+                    return False, _status_only_cli_dispatch_result(unit, status="error")
 
             with ThreadPoolExecutor(max_workers=len(units)) as executor:
                 results = executor.map(_thread_function, units)
 
             if json:
                 for success, api_result in results:
-                    api_result["status"] = "success" if success else "error"
                     click.echo(dumps(api_result))
 
             if not all(success for (success, _) in results):
@@ -687,28 +712,27 @@ if am_I_leader() or is_testing_env():
             options["repo"] = repo
             args = f"{args} --repo {quote(repo)}".strip()
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: str) -> tuple[bool, CLIUnitTaskDispatchResult]:
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/system/update/app", json={"options": options}
                 )
                 r.raise_for_status()
-                return True, r.json()
-            except HTTPException as e:
+                return True, _successful_cli_dispatch_result(r.content)
+            except (HTTPException, DecodeError) as e:
                 logger.error(f"Unable to update on {unit} due to server error: {e}. Attempting SSH method...")
                 try:
                     ssh(resolve_to_address(unit), f"pio update app {args}")
-                    return True, {"unit": unit}
+                    return True, _status_only_cli_dispatch_result(unit, status="success")
                 except SSHError as e:
                     logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
-                return False, {"unit": unit}
+                return False, _status_only_cli_dispatch_result(unit, status="error")
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
         if json:
             for success, api_result in results:
-                api_result["status"] = "success" if success else "error"
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
@@ -771,23 +795,22 @@ if am_I_leader() or is_testing_env():
         if source:
             commands["options"] = {"source": source}
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: str) -> tuple[bool, CLIUnitTaskDispatchResult]:
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
                 )
                 r.raise_for_status()
-                return True, r.json()
-            except HTTPException as e:
+                return True, _successful_cli_dispatch_result(r.content)
+            except (HTTPException, DecodeError) as e:
                 logger.error(f"Unable to install plugin on {unit} due to server error: {e}.")
-                return False, {"unit": unit}
+                return False, _status_only_cli_dispatch_result(unit, status="error")
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
         if json:
             for success, api_result in results:
-                api_result["status"] = "success" if success else "error"
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
@@ -823,24 +846,23 @@ if am_I_leader() or is_testing_env():
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         commands = {"args": [plugin]}
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: str) -> tuple[bool, CLIUnitTaskDispatchResult]:
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
                 )
                 r.raise_for_status()
-                return True, r.json()
+                return True, _successful_cli_dispatch_result(r.content)
 
-            except HTTPException as e:
+            except (HTTPException, DecodeError) as e:
                 logger.error(f"Unable to uninstall plugin on {unit} due to server error: {e}.")
-                return False, {"unit": unit}
+                return False, _status_only_cli_dispatch_result(unit, status="error")
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
         if json:
             for success, api_result in results:
-                api_result["status"] = "success" if success else "error"
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
@@ -1047,21 +1069,20 @@ if am_I_leader() or is_testing_env():
         data = parse_click_arguments(extra_args)
         data["config_overrides"] = [list(override) for override in config_override]
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: str) -> tuple[bool, CLIUnitTaskDispatchResult]:
             try:
                 r = post_into(resolve_to_address(unit), f"/unit_api/jobs/run/job_name/{job}", json=data)
                 r.raise_for_status()
-                return True, r.json()
-            except HTTPException as e:
+                return True, _successful_cli_dispatch_result(r.content)
+            except (HTTPException, DecodeError) as e:
                 click.echo(f"Unable to execute run command on {unit} due to server error: {e}.")
-                return False, {"unit": unit}
+                return False, _status_only_cli_dispatch_result(unit, status="error")
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
         if json:
             for success, api_result in results:
-                api_result["status"] = "success" if success else "error"
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):

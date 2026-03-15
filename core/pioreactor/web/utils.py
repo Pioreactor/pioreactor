@@ -23,6 +23,48 @@ class UnitApiErrorPayload(Struct, omit_defaults=True):
     remediation: str | None = None
 
 
+class TaskResultErrorInfoPayload(Struct):
+    cause: str
+    remediation: str
+
+
+class TaskResponsePayload(Struct):
+    unit: str
+    task_id: str
+    result_url_path: str
+
+
+class BaseTaskResultPayload(Struct, tag_field="status"):
+    task_id: str
+    result_url_path: str
+
+
+class PendingTaskResultPayload(BaseTaskResultPayload, tag="pending_or_not_present"):
+    pass
+
+
+class InProgressTaskResultPayload(BaseTaskResultPayload, tag="in_progress"):
+    error: str
+    error_info: TaskResultErrorInfoPayload
+
+
+class FailedTaskResultPayload(BaseTaskResultPayload, tag="failed"):
+    error: str
+    error_info: TaskResultErrorInfoPayload
+
+
+class CompleteTaskResultPayload(BaseTaskResultPayload, tag="complete"):
+    result: t.Any
+
+
+type TaskResultPayload = (
+    PendingTaskResultPayload
+    | InProgressTaskResultPayload
+    | FailedTaskResultPayload
+    | CompleteTaskResultPayload
+)
+
+
 def abort_with(
     status: int,
     description: str,
@@ -40,7 +82,7 @@ def abort_with(
         cause=cause,
         remediation=remediation,
     )
-    response = jsonify(t.cast(dict[str, t.Any], to_builtins(payload)))
+    response = jsonify(payload)
     response.status_code = status
     abort(response)
     raise AssertionError("abort should not return")
@@ -90,14 +132,13 @@ DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseRetur
 
 
 def create_task_response(task: t.Any) -> DelayedResponseReturnValue:
+    payload = TaskResponsePayload(
+        unit=get_unit_name(),
+        task_id=task.id,
+        result_url_path=f"/unit_api/task_results/{task.id}",
+    )
     return (  # type: ignore
-        jsonify(
-            {
-                "unit": get_unit_name(),
-                "task_id": task.id,
-                "result_url_path": f"/unit_api/task_results/{task.id}",
-            }
-        ),
+        jsonify(payload),
         202,
     )
 

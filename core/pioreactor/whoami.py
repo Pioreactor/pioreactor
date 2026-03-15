@@ -4,6 +4,7 @@ import sys
 import time
 import warnings
 from functools import cache
+from typing import cast
 from typing import TYPE_CHECKING
 
 from pioreactor import mureq
@@ -55,7 +56,9 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
             result = get_from_leader(f"/api/workers/{unit_name}/experiment")
             result.raise_for_status()
             data = result.json()
-            return data["experiment"]
+            experiment = data["experiment"]
+            assert isinstance(experiment, str)
+            return experiment
         except mureq.HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
@@ -120,7 +123,7 @@ def get_hostname() -> str:
     elif is_testing_env():
         from pioreactor.config import leader_hostname
 
-        return leader_hostname
+        return cast(str, leader_hostname)
     else:
         return socket.gethostname()
 
@@ -142,7 +145,7 @@ def am_I_leader() -> bool:
 
     from pioreactor.config import leader_hostname
 
-    return get_unit_name() == leader_hostname
+    return get_unit_name() == cast(str, leader_hostname)
 
 
 @cache
@@ -200,7 +203,9 @@ def _get_pioreactor_model_version(unit_name: "pt.Unit") -> str | None:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
-        return data["model_version"]
+        model_version = data["model_version"]
+        assert model_version is None or isinstance(model_version, str)
+        return model_version
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
@@ -224,7 +229,9 @@ def _get_pioreactor_model_name(unit_name: "pt.Unit") -> str | None:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
-        return data["model_name"]
+        model_name = data["model_name"]
+        assert model_name is None or isinstance(model_name, str)
+        return model_name
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not found.")

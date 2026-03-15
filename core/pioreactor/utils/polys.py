@@ -66,7 +66,7 @@ def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
         return float("inf")
     sse = max(weighted_sse, np.finfo(float).tiny)
     correction = (2 * n_params * (n_params + 1)) / (n_obs - n_params - 1)
-    return n_obs * np.log(sse / n_obs) + 2 * n_params + correction
+    return float(n_obs * np.log(sse / n_obs) + 2 * n_params + correction)
 
 
 def _normalize_degree(

@@ -46,7 +46,7 @@ DISALLOWED_JOB_NAMES = {
 }
 
 
-def cast_bytes_to_type(value: bytes, type_: str) -> t.Any:
+def cast_bytes_to_type(value: bytes | bytearray, type_: str) -> t.Any:
     try:
         if type_ == "string":
             return value.decode()
@@ -434,7 +434,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def publish(
         self,
         topic: str,
-        payload: pt.PublishableSettingDataType | dict | bytes | None,
+        payload: pt.PublishableSettingDataType | dict[str, t.Any] | bytes | None,
         qos: int = QOS.EXACTLY_ONCE,
         **kwargs: t.Any,
     ) -> None:

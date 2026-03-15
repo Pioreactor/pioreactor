@@ -293,7 +293,7 @@ class long_running_managed_lifecycle(managed_lifecycle):
         name: str,
         mqtt_client: "Client | None" = None,
         exit_on_mqtt_disconnect: bool = False,
-        mqtt_client_kwargs: dict | None = None,
+        mqtt_client_kwargs: dict[str, Any] | None = None,
         source: str = "app",
         job_source: str | None = None,
     ) -> None:
@@ -562,7 +562,7 @@ def argextrema(x: Sequence[float | int]) -> tuple[int, int]:
     return argmin_, argmax_
 
 
-class SummableDict(dict):
+class SummableDict(dict[str, Any]):
     """
     SummableDict is a subclass of dict that allows for easy addition of two dictionaries by key.
     If a key exists in both dictionaries, the values are added together.
@@ -609,7 +609,7 @@ class SummableDict(dict):
     def __iadd__(self, other: "SummableDict") -> "SummableDict":
         return self + other
 
-    def __getitem__(self, key: str) -> float:
+    def __getitem__(self, key: str) -> Any:
         if key not in self:
             return 0.0  # TODO: later could be generalized for the init to accept a zero element.
         else:
@@ -620,8 +620,8 @@ def boolean_retry(
     func: Callable[..., bool],
     retries: int = 3,
     sleep_for: float = 0.25,
-    args: tuple = (),
-    kwargs: dict = {},
+    args: tuple[Any, ...] = (),
+    kwargs: dict[str, Any] = {},
 ) -> bool:
     """
     Retries a function upon encountering an False return until it succeeds or the maximum number of retries is exhausted.

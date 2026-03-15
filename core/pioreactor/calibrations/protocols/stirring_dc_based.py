@@ -6,6 +6,7 @@ This should be run with a vial in, with a stirbar. Water is fine.
 """
 import uuid
 from contextlib import nullcontext
+from typing import cast
 from typing import ClassVar
 from typing import Literal
 
@@ -286,4 +287,4 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
             max_dc=float(max_dc) if max_dc is not None else None,
         )
         calibrations = run_session_in_cli(_DC_BASED_STEPS, session)
-        return calibrations[0]
+        return cast(SimpleStirringCalibration, calibrations[0])

@@ -17,9 +17,17 @@ def _response(status_code: int, payload: dict[str, Any]) -> Response:
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulate two pending responses followed by a completed task.
     responses = [
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-        _response(200, {"task_id": "abc", "result": {"ok": True}}),
+        _response(202, {"unit": "unit1", "task_id": "abc", "result_url_path": "/unit_api/task_results/abc"}),
+        _response(202, {"unit": "unit1", "task_id": "abc", "result_url_path": "/unit_api/task_results/abc"}),
+        _response(
+            200,
+            {
+                "task_id": "abc",
+                "result_url_path": "/unit_api/task_results/abc",
+                "status": "complete",
+                "result": {"ok": True},
+            },
+        ),
     ]
 
     # Each request pops the next response in sequence.
@@ -43,8 +51,8 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
 def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulate a pending response that never resolves within the attempt limit.
     responses = [
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
+        _response(202, {"unit": "unit1", "task_id": "abc", "result_url_path": "/unit_api/task_results/abc"}),
+        _response(202, {"unit": "unit1", "task_id": "abc", "result_url_path": "/unit_api/task_results/abc"}),
     ]
 
     # Each request pops the next response in sequence.
@@ -63,6 +71,27 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
     assert unit == "unit1"
     assert result is None
     assert responses == []
+
+
+def test_get_from_unit_ignores_non_task_202_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    response = _response(
+        202, {"unit": "unit1", "task_id": "abc", "result_url_path": "/unit_api/task_results/abc"}
+    )
+
+    monkeypatch.setattr(tasks, "_get_from_unit", lambda *_args, **_kwargs: ("unit1", {"ok": True}))
+    unit, result = tasks._process_delayed_json_response("unit1", response)
+
+    assert unit == "unit1"
+    assert result == {"ok": True}
+
+    malformed_response = _response(
+        202,
+        {"unit": "unit1", "task_id": 123, "result_url_path": "/unit_api/task_results/abc"},
+    )
+    unit, result = tasks._process_delayed_json_response("unit1", malformed_response)
+
+    assert unit == "unit1"
+    assert result is None
 
 
 def test_collect_multicast_results_returns_partial_on_timeout() -> None:

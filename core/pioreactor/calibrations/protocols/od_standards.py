@@ -620,7 +620,7 @@ def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
             valid_devices.append(cast(pt.ODCalibrationDevices, device))
 
     if len(valid_devices) >= 2:
-        valid_devices.append(cast(pt.ODCalibrationDevices, "od"))
+        valid_devices.append("od")
 
     return valid_devices
 

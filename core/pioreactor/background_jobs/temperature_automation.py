@@ -35,9 +35,10 @@ class classproperty(property):
 
 
 def is_20ml_v1() -> bool:
-    return get_pioreactor_model().model_name.startswith(
-        "pioreactor_20ml"
-    ) and get_pioreactor_model().model_version == (1, 0)
+    return (
+        get_pioreactor_model().model_name.startswith("pioreactor_20ml")
+        and get_pioreactor_model().model_version == "1.0"
+    )
 
 
 class TemperatureAutomationJob(AutomationJob):
@@ -436,7 +437,7 @@ class TemperatureAutomationJob(AutomationJob):
         """
 
         if features["previous_heater_dc"] == 0:
-            return features["time_series_of_temp"][-1]
+            return float(features["time_series_of_temp"][-1])
 
         import numpy as np
         from numpy import exp
@@ -522,7 +523,7 @@ class TemperatureAutomationJob(AutomationJob):
         This uses linear regression from historical data
         """
         if features["previous_heater_dc"] == 0:
-            return features["time_series_of_temp"][-1]
+            return float(features["time_series_of_temp"][-1])
 
         X = [features["previous_heater_dc"]] + features["time_series_of_temp"]
 
@@ -567,7 +568,7 @@ class TemperatureAutomationJob(AutomationJob):
                 raise ValueError(f"Vectors must be of the same length. Got {len(vec1)=}, {len(vec2)=}")
             return sum(x * y for x, y in zip(vec1, vec2))
 
-        return dot_product(coefs, X) + intercept
+        return float(dot_product(coefs, X) + intercept)
 
     def _set_latest_temperature(self, temperature: structs.Temperature) -> None:
         # Note: this doesn't use MQTT data (previously it use to)

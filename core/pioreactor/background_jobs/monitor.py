@@ -46,6 +46,9 @@ if whoami.is_testing_env():
     from pioreactor.utils.mock import MockCallback
     from pioreactor.utils.mock import MockHandle
 
+ButtonCallback = Callable[[], None]
+VersionTuple = tuple[object, ...]
+
 
 class classproperty(property):
     def __get__(self, obj: object | None, objtype: type[object] | None = None) -> object:  # type: ignore[override]
@@ -106,15 +109,15 @@ class Monitor(LongRunningBackgroundJob):
         "wlan_mac_address": {"datatype": "string", "settable": False},
         "eth_mac_address": {"datatype": "string", "settable": False},
     }
-    computer_statistics: Optional[dict] = None
+    computer_statistics: dict[str, object] | None = None
     led_in_use: bool = False
-    _pre_button: list[Callable] = []
-    _post_button: list[Callable] = []
+    _pre_button: list[ButtonCallback] = []
+    _post_button: list[ButtonCallback] = []
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         super().__init__(unit=unit, experiment=experiment)
 
-        def pretty_version(info: tuple | None) -> str:
+        def pretty_version(info: VersionTuple | None) -> str:
             if info is None:
                 return ""
             else:
@@ -169,11 +172,11 @@ class Monitor(LongRunningBackgroundJob):
         self.start_passive_listeners()
 
     @classmethod
-    def add_pre_button_callback(cls, function: Callable) -> None:
+    def add_pre_button_callback(cls, function: ButtonCallback) -> None:
         cls._pre_button.append(function)
 
     @classmethod
-    def add_post_button_callback(cls, function: Callable) -> None:
+    def add_post_button_callback(cls, function: ButtonCallback) -> None:
         cls._post_button.append(function)
 
     def _setup_GPIO(self) -> None:

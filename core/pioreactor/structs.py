@@ -42,6 +42,12 @@ class JSONPrintedStruct(Struct):
         return encode(self).decode()  # this is a valid JSON str, decode() for bytes->str
 
 
+class TaskResponsePayload(Struct):
+    unit: str
+    task_id: str
+    result_url_path: str
+
+
 class PolyFitCoefficients(Struct, tag="poly"):
     coefficients: list[float]
 
@@ -91,7 +97,7 @@ class AutomationEvent(JSONPrintedStruct, tag=True, tag_field="event_name"):
     """
 
     message: t.Optional[str] = None
-    data: t.Optional[dict] = None
+    data: t.Optional[dict[str, t.Any]] = None
 
     def display(self) -> str:
         if self.message:
@@ -490,10 +496,10 @@ class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simpl
     y: str = "Volume"
 
     def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
-        return t.cast(pt.Seconds, self.y_to_x(ml))
+        return self.y_to_x(ml)
 
     def duration_to_ml(self, duration: pt.Seconds) -> pt.mL:
-        return t.cast(pt.mL, self.x_to_y(duration))
+        return self.x_to_y(duration)
 
 
 class SimpleStirringCalibration(CalibrationBase, kw_only=True, tag="simple_stirring"):

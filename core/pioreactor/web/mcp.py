@@ -25,6 +25,9 @@ from pioreactor.pubsub import post_into_leader as _post_into_leader
 from pioreactor.pubsub import put_into_leader as _put_into_leader
 from pioreactor.web.app import query_app_db
 from pioreactor.web.plugin_registry import registered_mcp_tools
+from pioreactor.web.utils import CompleteTaskResultPayload
+from pioreactor.web.utils import TaskResponsePayload
+from pioreactor.web.utils import TaskResultPayload
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -59,6 +62,20 @@ def wrap_result_as_dict(func: Callable[..., object]) -> Callable[..., dict[str, 
 mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=SQLiteResponseQueue(), instructions=INSTRUCTIONS)
 
 
+def _decode_task_response_content(content: bytes) -> TaskResponsePayload | None:
+    try:
+        return msgspec.json.decode(content, type=TaskResponsePayload)
+    except msgspec.DecodeError:
+        return None
+
+
+def _decode_task_result_content(content: bytes) -> TaskResultPayload | None:
+    try:
+        return cast(TaskResultPayload, msgspec.json.decode(content, type=TaskResultPayload))
+    except msgspec.DecodeError:
+        return None
+
+
 def get_from_leader(endpoint: str) -> dict[str, Any]:
     """Wrapper around `get_from_leader` to handle errors and callback checks."""
     try:
@@ -66,18 +83,20 @@ def get_from_leader(endpoint: str) -> dict[str, Any]:
         r.raise_for_status()
 
         content = r.json()
-        if r.status_code == 202 and "result_url_path" in content:
+        delayed_task_response = _decode_task_response_content(r.content)
+        if r.status_code == 202 and delayed_task_response is not None:
             # task not completed yet, try again recursively
             sleep(0.25)
-            # get the url
-            return get_from_leader(content["result_url_path"])
+            return get_from_leader(delayed_task_response.result_url_path)
 
         elif r.status_code == 200:
-            if "task_id" in r.json():
+            task_result_payload = _decode_task_result_content(r.content)
+            if isinstance(task_result_payload, CompleteTaskResultPayload):
                 # result of a delayed response - just provide the result to reduce noise.
-                return r.json()["result"]
+                result = task_result_payload.result
+                return cast(dict[str, Any], result)
             else:
-                return r.json()
+                return cast(dict[str, Any], content)
         else:
             raise HTTPException(f"Unexpected status code {r.status_code} for GET {endpoint}.")
     except HTTPException as e:
@@ -91,11 +110,13 @@ def post_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[
         r = _post_into_leader(endpoint, json=json)
         r.raise_for_status()
         content = r.json()
-        if r.status_code == 202 and "result_url_path" in content:
+        delayed_task_response = _decode_task_response_content(r.content)
+        if r.status_code == 202 and delayed_task_response is not None:
             sleep(0.25)
-            return get_from_leader(content["result_url_path"])
+            return get_from_leader(delayed_task_response.result_url_path)
         else:
-            return content
+            assert isinstance(content, dict)
+            return cast(dict[str, Any], content)
 
     except HTTPException as e:
         logger.error(f"Failed to POST into leader: {e}")
@@ -108,11 +129,13 @@ def patch_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict
         r = _patch_into_leader(endpoint, json=json)
         r.raise_for_status()
         content = r.json()
-        if r.status_code == 202 and "result_url_path" in content:
+        delayed_task_response = _decode_task_response_content(r.content)
+        if r.status_code == 202 and delayed_task_response is not None:
             sleep(0.25)
-            return get_from_leader(content["result_url_path"])
+            return get_from_leader(delayed_task_response.result_url_path)
         else:
-            return content
+            assert isinstance(content, dict)
+            return cast(dict[str, Any], content)
 
     except HTTPException as e:
         logger.error(f"Failed to PATCH into leader: {e}")
@@ -125,9 +148,10 @@ def put_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[s
         r = _put_into_leader(endpoint, json=json)
         r.raise_for_status()
         content = r.json() if r.content else {}
-        if r.status_code == 202 and "result_url_path" in content:
+        delayed_task_response = _decode_task_response_content(r.content) if r.content else None
+        if r.status_code == 202 and delayed_task_response is not None:
             sleep(0.25)
-            return get_from_leader(content["result_url_path"])
+            return get_from_leader(delayed_task_response.result_url_path)
         else:
             return content
 
@@ -142,9 +166,10 @@ def delete_from_leader(endpoint: str, json: dict[str, Any] | None = None) -> dic
         r = _delete_from_leader(endpoint, json=json)
         r.raise_for_status()
         content = r.json() if r.content else {}
-        if r.status_code == 202 and "result_url_path" in content:
+        delayed_task_response = _decode_task_response_content(r.content) if r.content else None
+        if r.status_code == 202 and delayed_task_response is not None:
             sleep(0.25)
-            return get_from_leader(content["result_url_path"])
+            return get_from_leader(delayed_task_response.result_url_path)
         else:
             return content
 

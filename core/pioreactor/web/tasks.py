@@ -56,6 +56,9 @@ from pioreactor.structs import subclass_union
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.web.config import huey
+from pioreactor.web.utils import CompleteTaskResultPayload
+from pioreactor.web.utils import TaskResponsePayload
+from pioreactor.web.utils import TaskResultPayload
 from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
 
@@ -186,11 +189,13 @@ def validate_dot_pioreactor_archive(
             metadata = json.loads(metadata_bytes.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise ValueError("Archive metadata invalid") from exc
+        if not isinstance(metadata, dict):
+            raise ValueError("Archive metadata must be a JSON object")
 
         exported_name = metadata.get("name")
         if exported_name and exported_name != expected_hostname:
             raise ValueError(f"Archive prepared for {exported_name}, cannot import into {expected_hostname}")
-        return metadata
+        return cast(dict[str, Any], metadata)
 
 
 def filter_to_allowed_env(env: Mapping[str, str | None]) -> dict[str, str]:
@@ -216,20 +221,42 @@ def _process_delayed_json_response(
     Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
     Returns the unit and the appropriate JSON data or result value.
     """
-    data = response.json()
-    if response.status_code == 202 and "result_url_path" in data:
+    delayed_task_response: TaskResponsePayload | None = None
+    if response.content:
+        try:
+            delayed_task_response = json_decode(response.content, type=TaskResponsePayload)
+        except DecodeError:
+            delayed_task_response = None
+
+    if response.status_code == 202 and delayed_task_response is not None:
         # Follow up shortly on async responses where the unit returns a result URL.
         if max_attempts <= 0:
             return unit, None
         sleep(retry_sleep_s)
-        return _get_from_unit(unit, data["result_url_path"], max_attempts=max_attempts - 1)
+        return _get_from_unit(
+            unit,
+            delayed_task_response.result_url_path,
+            max_attempts=max_attempts - 1,
+        )
+    if response.status_code == 202:
+        return unit, None
     if 200 <= response.status_code < 300:
         # Normalize immediate responses: unwrap Huey-style payloads to just the result,
         # otherwise return the full JSON body for non-task responses.
-        if "task_id" in data:
-            return unit, data["result"]
+        task_result_payload: TaskResultPayload | None = None
+        if response.content:
+            try:
+                task_result_payload = cast(
+                    TaskResultPayload,
+                    json_decode(response.content, type=TaskResultPayload),
+                )
+            except DecodeError:
+                task_result_payload = None
+
+        if isinstance(task_result_payload, CompleteTaskResultPayload):
+            return unit, task_result_payload.result
         else:
-            return unit, data
+            return unit, response.json()
     return unit, None
 
 

@@ -302,7 +302,7 @@ def export_experiment_data(
             else:
                 iloc_unit = None
 
-            parition_to_writer_map: dict[tuple, Any] = {}
+            parition_to_writer_map: dict[tuple[str, str], Any] = {}
             count = 0
             with ExitStack() as stack:
                 for row in cursor:

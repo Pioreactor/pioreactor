@@ -216,7 +216,9 @@ def _extract_unit_api_error(response: MureqResponse | None) -> str | None:
     return None
 
 
-def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw: bool = False) -> Result:
+def broadcast_get_across_cluster(
+    endpoint: str, timeout: float = 5.0, return_raw: bool = False
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
         endpoint=endpoint, units=get_all_units(), timeout=timeout, return_raw=return_raw
@@ -228,27 +230,29 @@ def broadcast_post_across_cluster(
     json: dict[str, t.Any] | None = None,
     params: dict[str, t.Any] | None = None,
     timeout: float = 30.0,
-) -> Result:
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_post(endpoint, get_all_units(), json=json, params=params, timeout=timeout)
 
 
 def broadcast_delete_across_cluster(
     endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
-) -> Result:
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_delete(endpoint, get_all_units(), json=json, timeout=timeout)
 
 
 def broadcast_patch_across_cluster(
     endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
-) -> Result:
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_patch(endpoint, get_all_units(), json=json, timeout=timeout)
 
 
 # send only to workers
-def broadcast_get_across_workers(endpoint: str, timeout: float = 5.0, return_raw: bool = False) -> Result:
+def broadcast_get_across_workers(
+    endpoint: str, timeout: float = 5.0, return_raw: bool = False
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
         endpoint=endpoint, units=get_all_workers(), timeout=timeout, return_raw=return_raw
@@ -257,7 +261,7 @@ def broadcast_get_across_workers(endpoint: str, timeout: float = 5.0, return_raw
 
 def broadcast_get_across_workers_in_experiment(
     endpoint: str, experiment: str, timeout: float = 5.0, return_raw: bool = False
-) -> Result:
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
         endpoint=endpoint,
@@ -272,21 +276,21 @@ def broadcast_post_across_workers(
     json: dict[str, t.Any] | None = None,
     params: dict[str, t.Any] | None = None,
     timeout: float = 30.0,
-) -> Result:
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_post(endpoint, get_all_workers(), json=json, params=params, timeout=timeout)
 
 
 def broadcast_delete_across_workers(
     endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
-) -> Result:
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_delete(endpoint, get_all_workers(), json=json, timeout=timeout)
 
 
 def broadcast_patch_across_workers(
     endpoint: str, json: dict[str, t.Any] | None = None, timeout: float = 30.0
-) -> Result:
+) -> "Result[dict[str, t.Any]]":
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_patch(endpoint, get_all_workers(), json=json, timeout=timeout)
 

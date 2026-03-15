@@ -60,7 +60,7 @@ def save_results(
     return pump_calibration_result
 
 
-def _get_execute_pump_for_device(pump_device: PumpCalibrationDevices) -> Callable:
+def _get_execute_pump_for_device(pump_device: PumpCalibrationDevices) -> Callable[..., object]:
     from pioreactor.actions.pump import add_alt_media
     from pioreactor.actions.pump import add_media
     from pioreactor.actions.pump import remove_waste
@@ -574,10 +574,10 @@ def run_pump_calibration(
 ) -> structs.SimplePeristalticPumpCalibration:
     session = start_duration_based_session(pump_device)
     calibrations = run_session_in_cli(_PUMP_DURATION_STEPS, session)
-    return calibrations[0]
+    return cast(structs.SimplePeristalticPumpCalibration, calibrations[0])
 
 
-class DurationBasedPumpProtocol(CalibrationProtocol):
+class DurationBasedPumpProtocol(CalibrationProtocol[PumpCalibrationDevices]):
     target_device = cast(list[pt.PumpCalibrationDevices], pt.PUMP_DEVICES)
     protocol_name = "duration_based"
     title = "Duration-based pump calibration"

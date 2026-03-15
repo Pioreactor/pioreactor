@@ -50,7 +50,9 @@ def _local_available_space(path: str) -> int:
 
 def count_writes_occurring() -> int:
     with local_intermittent_storage("mqtt_to_db_streaming") as c:
-        return int(c.get("inserts_in_last_60s", 0))  # type: ignore[call-overload]
+        count = c.get("inserts_in_last_60s", 0)
+        assert isinstance(count, int | float | str)
+        return int(count)
 
 
 def backup_database(output_file: str, force: bool = False, backup_to_workers: int = 0) -> None:

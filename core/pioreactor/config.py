@@ -6,6 +6,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 from typing import Callable
+from typing import cast
 from typing import Final
 from typing import Mapping
 from typing import TYPE_CHECKING
@@ -231,17 +232,18 @@ config = get_config()
 
 @cache
 def get_leader_hostname() -> str:
-    return get_config().get("cluster.topology", "leader_hostname", fallback="localhost")
+    return cast(str, get_config().get("cluster.topology", "leader_hostname", fallback="localhost"))
 
 
 @cache
 def _get_leader_address() -> str:
-    return get_config().get("cluster.topology", "leader_address", fallback="localhost")
+    return cast(str, get_config().get("cluster.topology", "leader_address", fallback="localhost"))
 
 
 @cache
 def _get_mqtt_address() -> str:
-    return get_config().get("mqtt", "broker_address", fallback=_get_leader_address()).split(";")[0]
+    broker_address = cast(str, get_config().get("mqtt", "broker_address", fallback=_get_leader_address()))
+    return broker_address.split(";")[0]
 
 
 def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str) -> Any:

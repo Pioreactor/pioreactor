@@ -40,7 +40,7 @@ def test_task_results_pending(client) -> None:
     resp = client.get("/unit_api/task_results/does_not_exist")
     assert resp.status_code == 202
     data = resp.get_json()
-    assert data["status"] == "pending or not present"
+    assert data["status"] == "pending_or_not_present"
 
 
 def test_invalid_update_target(client) -> None:

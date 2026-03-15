@@ -68,7 +68,7 @@ def _channel_angle_map_from_config() -> dict[pt.PdChannel, pt.PdAngle]:
 def _aggregate_angles(readings: structs.ODReadings) -> dict[pt.PdAngle, float]:
     by_angle: dict[pt.PdAngle, list[float]] = {}
     for reading in readings.ods.values():
-        angle = cast(pt.PdAngle, reading.angle)
+        angle = reading.angle
         if angle not in FUSION_ANGLES:
             continue
         by_angle.setdefault(angle, []).append(float(reading.od))

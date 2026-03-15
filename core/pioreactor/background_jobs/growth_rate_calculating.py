@@ -322,7 +322,9 @@ class GrowthRateCalculator(BackgroundJob):
 
         if result is not None:
             od_blanks = cast(bytes | str, result)
-            return loads(od_blanks)
+            decoded = loads(od_blanks)
+            assert isinstance(decoded, dict)
+            return decoded
         else:
             return defaultdict(lambda: 0.0)
 
@@ -341,12 +343,16 @@ class GrowthRateCalculator(BackgroundJob):
     def _get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistent_storage("od_normalization_mean") as cache:
             result = cast(bytes | str, cache[self.experiment])
-            return loads(result)
+            decoded = loads(result)
+            assert isinstance(decoded, dict)
+            return decoded
 
     def _get_od_variances_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistent_storage("od_normalization_variance") as cache:
             result = cast(bytes | str, cache[self.experiment])
-            return loads(result)
+            decoded = loads(result)
+            assert isinstance(decoded, dict)
+            return decoded
 
     @staticmethod
     def _scale_and_shift(obs: float, shift: float, scale: float) -> float:

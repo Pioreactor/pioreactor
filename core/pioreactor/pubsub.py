@@ -244,7 +244,9 @@ def subscribe(
         client.loop_stop()
         client.disconnect()
 
-    return userdata["messages"]
+    message = userdata["messages"]
+    assert message is None or isinstance(message, pt.MQTTMessage)
+    return message
 
 
 def subscribe_and_callback(

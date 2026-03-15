@@ -529,7 +529,7 @@ def _render_chart_for_cli(chart: dict[Str, Any]) -> None:
     title = chart.get("title", "")
     x_label = chart.get("x_label", "")
     y_label = chart.get("y_label", "")
-    series: list = chart.get("series", [])
+    series: list[dict[str, Any]] = chart.get("series", [])
 
     multiple_series = len(series) > 1
     for entry in series:

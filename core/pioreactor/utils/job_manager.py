@@ -3,6 +3,7 @@ import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from subprocess import run
 from typing import Any
+from typing import cast
 
 from msgspec import Struct
 from msgspec.json import encode as dumps
@@ -315,7 +316,10 @@ class JobManager:
             WHERE job_id = ?
         """
         self.cursor.execute(select_query, (job_id,))
-        return self.cursor.fetchone()
+        return cast(
+            tuple[int, str, str, str | None, str, str, str | None, int, str, int, int] | None,
+            self.cursor.fetchone(),
+        )
 
     def list_job_settings(self, job_id: int) -> list[tuple[str, Any, str, str | None]]:
         select_query = """
@@ -376,7 +380,7 @@ class ClusterJobManager:
         job_name: str | None = None,
         job_source: str | None = None,
         job_id: int | None = None,
-    ) -> list[tuple[bool, dict]]:
+    ) -> list[tuple[bool, dict[str, Any]]]:
         if len(units) == 0:
             return []
 
@@ -396,11 +400,13 @@ class ClusterJobManager:
             if job_id:
                 body["job_id"] = job_id
 
-        def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
+        def _thread_function(unit: pt.Unit) -> tuple[bool, dict[str, Any]]:
             try:
                 r = patch_into(resolve_to_address(unit), endpoint, json=body)
                 r.raise_for_status()
-                return True, r.json()
+                response_json = r.json()
+                assert isinstance(response_json, dict)
+                return True, response_json
             except Exception as e:
                 print(f"Failed to send kill command to {unit}: {e}")
                 return False, {"unit": unit}
