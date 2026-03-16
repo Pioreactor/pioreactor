@@ -46,7 +46,7 @@ def abort_with(
     raise AssertionError("abort should not return")
 
 
-def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any]:
+def ensure_error_info(payload: dict[str, t.Any], status: int) -> UnitApiErrorPayload:
     message = _extract_error_message(payload)
     cause = payload.get("cause")
     normalized_cause = cause.strip() if isinstance(cause, str) and cause.strip() else message
@@ -62,18 +62,13 @@ def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any
         remediation=normalized_remediation,
     )
 
-    return t.cast(dict[str, t.Any], to_builtins(normalized_payload))
+    return normalized_payload
 
 
 def _extract_error_message(payload: dict[str, t.Any]) -> str:
-    for key in ("error", "description"):
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-        if isinstance(value, dict):
-            nested_value = value.get("error") or value.get("description")
-            if isinstance(nested_value, str) and nested_value.strip():
-                return nested_value.strip()
+    value = payload.get("error")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
     return "Request failed."
 
 

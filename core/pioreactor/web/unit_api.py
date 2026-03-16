@@ -121,10 +121,8 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
                 | {
                     "status": "in_progress",
                     "error": "task is locked and already running.",
-                    "error_info": {
-                        "cause": "Another task with this ID is currently running.",
-                        "remediation": "Wait for the task to finish, then retry.",
-                    },
+                    "cause": "Another task with this ID is currently running.",
+                    "remediation": "Wait for the task to finish, then retry.",
                 }
             ),
             202,
@@ -137,10 +135,8 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
                 | {
                     "status": "failed",
                     "error": str(e),
-                    "error_info": {
-                        "cause": "Huey task failed with an exception.",
-                        "remediation": "Check logs and retry.",
-                    },
+                    "cause": "Huey task failed with an exception.",
+                    "remediation": "Check logs and retry.",
                 }
             ),
             500,
@@ -155,10 +151,8 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
                 | {
                     "status": "failed",
                     "error": str(task),
-                    "error_info": {
-                        "cause": "Huey task failed with an exception.",
-                        "remediation": "Check logs and retry.",
-                    },
+                    "cause": "Huey task failed with an exception.",
+                    "remediation": "Check logs and retry.",
                 }
             ),
             500,
