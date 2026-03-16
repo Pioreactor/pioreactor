@@ -2329,7 +2329,7 @@ def get_job_descriptors() -> ResponseReturnValue:
 
 @api_bp.route("/bioreactor/descriptors", methods=["GET"])
 def get_bioreactor_variable_descriptors() -> ResponseReturnValue:
-    return attach_cache_control(jsonify(to_builtins(get_bioreactor_descriptors())), max_age=0)
+    return attach_cache_control(jsonify(to_builtins(get_bioreactor_descriptors())), max_age=100_000)
 
 
 @api_bp.route("/charts/descriptors", methods=["GET"])
@@ -2476,7 +2476,7 @@ def get_experiments() -> ResponseReturnValue:
         )
         assert isinstance(experiments, list)
         response = jsonify(_serialize_experiment_rows(experiments))
-        return response
+        return attach_cache_control(response, max_age=5)
 
     except Exception as e:
         publish_to_error_log(str(e), "get_experiments")
@@ -3520,10 +3520,7 @@ def get_experiments_worker_assignments() -> ResponseReturnValue:
         HAVING count(a.pioreactor_unit) > 0
         """,
     )
-    if result:
-        return attach_cache_control(jsonify(result), max_age=2)
-    else:
-        return attach_cache_control(jsonify([]), max_age=2)
+    return attach_cache_control(jsonify(result) if result else [], max_age=3)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/experiment", methods=["GET"])
@@ -3556,7 +3553,7 @@ def get_experiment_assignment_for_worker(pioreactor_unit: str) -> ResponseReturn
             remediation="Assign the worker to an experiment before querying its assignment.",
         )
     else:
-        return attach_cache_control(jsonify(result), max_age=2)
+        return attach_cache_control(jsonify(result), max_age=0)
 
 
 @api_bp.route("/experiments/<experiment>/workers", methods=["GET"])
