@@ -3520,7 +3520,7 @@ def get_experiments_worker_assignments() -> ResponseReturnValue:
         HAVING count(a.pioreactor_unit) > 0
         """,
     )
-    return attach_cache_control(jsonify(result) if result else [], max_age=3)
+    return attach_cache_control(jsonify(result or []), max_age=3)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/experiment", methods=["GET"])

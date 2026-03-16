@@ -34,15 +34,14 @@ repos:
         - "--ignore=E203,E266,E501,W503,E402,E401,E704,E202,E201,E231"
         - "--per-file-ignores=*/__init__.py: F401"
 
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.18.2'  # Use the sha / tag you want to point at
+-   repo: local
     hooks:
     -   id: mypy
-        args: ["--strict-equality"]
-        additional_dependencies: [
-            msgspec==0.19.0,
-            types-pkg_resources==0.1.3,
-        ]
+        name: mypy
+        entry: .venv/bin/mypy --config-file=mypy.ini core/pioreactor
+        language: system
+        pass_filenames: false
+        files: ^core/pioreactor/
 
 
 -   repo: https://github.com/asottile/reorder_python_imports
