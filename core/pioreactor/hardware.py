@@ -132,7 +132,9 @@ def get_layered_mod_config_for_model(mod: str, model_name: str, model_version: s
 def determine_gpiochip() -> pt.GpioChip:
     """Return the GPIO chip index for the current Raspberry Pi."""
 
-    return cast(pt.GpioChip, 4 if rpi_version_info.startswith("Raspberry Pi 5") else 0)
+    if rpi_version_info.startswith("Raspberry Pi 5"):
+        return 4
+    return 0
 
 
 @cache

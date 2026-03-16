@@ -27,7 +27,6 @@ from huey.exceptions import TaskLockedException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
-from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.bioreactor import get_all_bioreactor_values
 from pioreactor.bioreactor import get_bioreactor_value
@@ -37,7 +36,6 @@ from pioreactor.calibrations.registry import get_calibration_protocols as get_ca
 from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
-from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -787,9 +785,7 @@ def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
     try:
         with create_client() as mqtt_client:
             for variable_name, value in values.items():
-                set_and_publish_bioreactor_value(
-                    cast(Client, mqtt_client), HOSTNAME, experiment, variable_name, value
-                )
+                set_and_publish_bioreactor_value(mqtt_client, HOSTNAME, experiment, variable_name, value)
     except Exception as e:
         publish_to_error_log(str(e), "update_bioreactor_values")
         abort_with(400, str(e))

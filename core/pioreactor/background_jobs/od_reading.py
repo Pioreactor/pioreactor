@@ -687,7 +687,7 @@ class IrLedReferenceTracker(LoggerMixin):
         return ref_reading, raw_readings
 
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
-        return cast(pt.OD, pd_reading)
+        return pd_reading
 
 
 class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):

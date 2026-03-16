@@ -615,12 +615,15 @@ def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
     for _, angle in pd_channels.items():
         if angle in (None, "", REF_keyword):
             continue
-        device = f"od{angle}"
-        if device in pt.OD_DEVICES and device not in valid_devices:
-            valid_devices.append(cast(pt.ODCalibrationDevices, device))
+        if angle == "45" and "od45" not in valid_devices:
+            valid_devices.append("od45")
+        elif angle == "90" and "od90" not in valid_devices:
+            valid_devices.append("od90")
+        elif angle == "135" and "od135" not in valid_devices:
+            valid_devices.append("od135")
 
     if len(valid_devices) >= 2:
-        valid_devices.append(cast(pt.ODCalibrationDevices, "od"))
+        valid_devices.append("od")
 
     return valid_devices
 
