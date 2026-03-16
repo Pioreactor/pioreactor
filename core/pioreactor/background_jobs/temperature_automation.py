@@ -33,9 +33,10 @@ class classproperty(property):
 
 
 def is_20ml_v1() -> bool:
-    return get_pioreactor_model().model_name.startswith(
-        "pioreactor_20ml"
-    ) and get_pioreactor_model().model_version == (1, 0)
+    return (
+        get_pioreactor_model().model_name.startswith("pioreactor_20ml")
+        and get_pioreactor_model().model_version == "1.0"
+    )
 
 
 class TemperatureAutomationJob(AutomationJob):

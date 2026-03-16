@@ -210,7 +210,6 @@ class BioreactorDescriptor(Struct, frozen=True):
     unit: str | None
     min: float | None
     max: float | None
-    default: float
 
 
 X = float
