@@ -140,9 +140,12 @@ tail-log:  ## Show last $$LINES lines of the merged pioreactor log (override wit
 
 
 # --- release helpers ----------------------------------------------------------
-.PHONY: create-release create-rc
+.PHONY: create-release create-hotfix-release create-rc
 create-release:  ## Perform production release workflow; pass args via ARGS="--dry-run"
 	@$(PYTHON) scripts/create_release.py $(ARGS)
+
+create-hotfix-release:  ## Perform hotfix release workflow from current branch; pass args via ARGS="--dry-run"
+	@$(PYTHON) scripts/create_hotfix_release.py $(ARGS)
 
 create-rc:  ## Create release-candidate; pass args via ARGS="--dry-run --rc 1"
 	@$(PYTHON) scripts/create_rc.py $(ARGS)

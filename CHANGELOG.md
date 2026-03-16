@@ -1,5 +1,12 @@
 ### 26.3.0
 
+#### Bug fixes
+
+ - Fix temperature automation not recognizing Pioreactor 20ml v1.0 correctly
+ - Fix bug that was causing `/api/bioreactor/descriptors` to fail on leader-only units.
+
+### 26.3.0
+
 Going forward, we are changing our versioning scheme from YY.M.D to YY.M.N, where N is a release counter within the month starting at 0.
 
 We expect YY.M.0 releases to carry the larger changes, including system-level updates when needed. Subsequent releases in the same month, such as YY.M.1, YY.M.2, and so on, will typically be smaller bug-fix or incremental releases.

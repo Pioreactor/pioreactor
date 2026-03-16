@@ -74,7 +74,6 @@ def get_bioreactor_descriptors() -> list[structs.BioreactorDescriptor]:
                 unit=metadata.unit,
                 min=metadata.minimum,
                 max=metadata.maximum,
-                default=get_default_bioreactor_value(metadata.key),
             )
         )
 
@@ -91,6 +90,7 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
 
     minimum = metadata.minimum
     maximum = get_pioreactor_model().reactor_max_fill_volume_ml
+
     if metadata.maximum is not None:
         maximum = min(maximum, metadata.maximum)
 

@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
+from types import SimpleNamespace
+
 import pytest
 from pioreactor.background_jobs import temperature_automation
+
+
+def test_20ml_v1_model_uses_v1_inference_constants(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        temperature_automation,
+        "get_pioreactor_model",
+        lambda: SimpleNamespace(model_name="pioreactor_20ml", model_version="1.0"),
+    )
+
+    assert temperature_automation.is_20ml_v1()
+    assert temperature_automation.TemperatureAutomationJob.INFERENCE_N_SAMPLES == 29
+    assert temperature_automation.TemperatureAutomationJob.INFERENCE_EVERY_N_SECONDS == 225.0
 
 
 class TestTemperatureApproximation_1_0:
