@@ -65,6 +65,52 @@ def cancel_run_thread(job: Any) -> None:
         run_thread.cancel()
 
 
+def publish_turbidostat_observations(
+    *,
+    experiment: str,
+    raw_od: float,
+    normalized_od: float,
+    od_fused: float | None = None,
+    growth_rate: float = 0.01,
+    channel: str = "2",
+    angle: str = "45",
+) -> None:
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/ods",
+        encode(
+            structs.ODReadings(
+                timestamp=current_utc_datetime(),
+                ods={
+                    channel: structs.RawODReading(
+                        ir_led_intensity=80.0,
+                        timestamp=current_utc_datetime(),
+                        angle=angle,
+                        od=raw_od,
+                        channel=channel,
+                    )
+                },
+            )
+        ),
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        encode(structs.GrowthRate(growth_rate=growth_rate, timestamp=current_utc_datetime())),
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+        encode(structs.ODFiltered(od_filtered=normalized_od, timestamp=current_utc_datetime())),
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_fused",
+        encode(
+            structs.ODFused(
+                od_fused=normalized_od if od_fused is None else od_fused,
+                timestamp=current_utc_datetime(),
+            )
+        ),
+    )
+
+
 @pytest.fixture
 def fast_dosing_timers(monkeypatch):
     def make_short_pause(seconds: float) -> Callable[[], float]:
@@ -300,6 +346,78 @@ def test_turbidostat_automation() -> None:
         )
         pause()
         assert algo.run() is None
+
+
+@pytest.mark.parametrize(
+    ("biomass_signal", "below_threshold", "at_threshold", "above_threshold"),
+    [
+        ("normalized_od", 0.999, 1.0, 1.001),
+        ("od", 0.099, 0.1, 0.101),
+        ("od_fused", 0.499, 0.5, 0.501),
+    ],
+)
+def test_turbidostat_triggers_at_threshold_boundary_for_biomass_signal(
+    monkeypatch,
+    biomass_signal: str,
+    below_threshold: float,
+    at_threshold: float,
+    above_threshold: float,
+) -> None:
+    experiment = f"test_turbidostat_triggers_at_threshold_boundary_{biomass_signal}"
+    target_biomass = at_threshold
+
+    monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+
+    with Turbidostat(
+        target_biomass=target_biomass,
+        biomass_signal=biomass_signal,
+        duration=60,
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+        skip_first_run=True,
+    ) as algo:
+        monkeypatch.setattr(
+            algo,
+            "execute_io_action",
+            lambda **kwargs: {"media_ml": kwargs["media_ml"], "waste_ml": kwargs["waste_ml"]},
+        )
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=below_threshold,
+            normalized_od=below_threshold,
+            od_fused=below_threshold,
+        )
+        pause()
+        assert algo.run() is None
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=at_threshold,
+            normalized_od=at_threshold,
+            od_fused=at_threshold,
+        )
+        pause()
+        at_threshold_event = algo.run()
+        assert isinstance(at_threshold_event, events.DilutionEvent)
+        assert at_threshold_event.data is not None
+        assert at_threshold_event.data["latest_biomass"] == at_threshold
+        assert at_threshold_event.data["target_biomass"] == target_biomass
+        assert at_threshold_event.data["resolved_biomass_signal"] == biomass_signal
+        assert at_threshold_event.data["exchange_volume_ml"] == 0.25
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=above_threshold,
+            normalized_od=above_threshold,
+            od_fused=above_threshold,
+        )
+        pause()
+        above_threshold_event = algo.run()
+        assert isinstance(above_threshold_event, events.DilutionEvent)
+        assert above_threshold_event.data is not None
+        assert above_threshold_event.data["latest_biomass"] == above_threshold
 
 
 def test_rejects_invalid_biomass_signal_in_turbidostat() -> None:
