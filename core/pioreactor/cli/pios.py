@@ -532,6 +532,12 @@ if am_I_leader() or is_testing_env():
     @click.option("-b", "--branch", help="specify a branch in repos")
     @click.option("--sha", callback=validate_git_sha_option, help="specify a commit SHA in repos")
     @click.option(
+        "-r",
+        "--repo",
+        help="install from a repo on github. Format: username/project",
+    )
+    @click.option("-v", "--version", help="install a specific version, default is latest")
+    @click.option(
         "--no-deps",
         is_flag=True,
         default=False,
@@ -546,6 +552,8 @@ if am_I_leader() or is_testing_env():
         source: str | None,
         branch: str | None,
         sha: str | None,
+        repo: str | None,
+        version: str | None,
         no_deps: bool,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
@@ -558,63 +566,19 @@ if am_I_leader() or is_testing_env():
         If no subcommand is provided, this behaves like `pios update app`.
         """
         if ctx.invoked_subcommand is None:
-            units = resolve_target_units(units, experiments, active_only=False, include_leader=None)
-
-            if len(units) == 0:
-                return
-
-            if not yes:
-                confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip().upper()
-                if confirm != "Y":
-                    raise click.Abort()
-
-            logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-            options: dict[str, str | None] = {}
-            args = ""
-
-            if branch is not None:
-                options["branch"] = branch
-                args = f"--branch {quote(branch)}"
-            elif sha is not None:
-                options["sha"] = sha
-                args = f"--sha {quote(sha)}"
-            elif source is not None:
-                options["source"] = source
-                args = f"--source {quote(source)}"
-
-            if no_deps:
-                options["no_deps"] = None
-                args = f"{args} --no-deps".strip()
-
-            def _thread_function(unit: str) -> tuple[bool, dict]:
-                try:
-                    r = post_into(
-                        resolve_to_address(unit), "/unit_api/system/update", json={"options": options}
-                    )
-                    r.raise_for_status()
-                    return True, r.json()
-                except HTTPException as e:
-                    logger.error(
-                        f"Unable to update on {unit} due to server error: {e}. Attempting SSH method..."
-                    )
-                    try:
-                        ssh(resolve_to_address(unit), f"pio update {args}")
-                        return True, {"unit": unit}
-                    except SSHError as e:
-                        logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
-
-                    return False, {"unit": unit}
-
-            with ThreadPoolExecutor(max_workers=len(units)) as executor:
-                results = executor.map(_thread_function, units)
-
-            if json:
-                for success, api_result in results:
-                    api_result["status"] = "success" if success else "error"
-                    click.echo(dumps(api_result))
-
-            if not all(success for (success, _) in results):
-                raise click.Abort()
+            ctx.invoke(
+                update_app,
+                branch=branch,
+                sha=sha,
+                no_deps=no_deps,
+                repo=repo,
+                version=version,
+                source=source,
+                units=units,
+                experiments=experiments,
+                yes=yes,
+                json=json,
+            )
 
     @update.command(name="app", short_help="update Pioreactor app on workers")
     @click.option("-b", "--branch", help="update to the github branch")
