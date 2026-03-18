@@ -7,6 +7,11 @@ export default function PatientButton({buttonText, onClick, color, variant, disa
   const [error, setError] = React.useState(null)
   const [isPending, setIsPending] = React.useState(false)
 
+  React.useEffect(() => {
+    setError(null);
+    setIsPending(false);
+  }, [buttonText]);
+
   const buttonContent = isPending
     ? <CircularProgress color="inherit" size={21}/>
     : error
@@ -23,7 +28,6 @@ export default function PatientButton({buttonText, onClick, color, variant, disa
       await onClick();
     } catch (error) {
       setError(error?.message || "Something went wrong.")
-    } finally {
       setIsPending(false);
     }
   };

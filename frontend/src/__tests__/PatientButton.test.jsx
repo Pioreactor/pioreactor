@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import PatientButton from "../components/PatientButton";
 
@@ -14,7 +14,7 @@ describe("PatientButton", () => {
     expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
   });
 
-  test("shows a spinner while an async click is pending and restores the prop label on success", async () => {
+  test("shows a spinner while an async click is pending and keeps it until the prop label updates", async () => {
     let resolveClick;
     const onClick = jest.fn(
       () =>
@@ -23,7 +23,7 @@ describe("PatientButton", () => {
         }),
     );
 
-    render(<PatientButton buttonText="Start" onClick={onClick} />);
+    const { rerender } = render(<PatientButton buttonText="Start" onClick={onClick} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
@@ -33,7 +33,34 @@ describe("PatientButton", () => {
 
     resolveClick();
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+
+    rerender(<PatientButton buttonText="Pause" onClick={onClick} />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument());
+  });
+
+  test("keeps the spinner visible until buttonText changes after a successful click", async () => {
+    const onClick = jest.fn(() => Promise.resolve());
+    const { rerender } = render(<PatientButton buttonText="Start" onClick={onClick} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+
+    rerender(<PatientButton buttonText="Pause" onClick={onClick} />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument());
   });
 
   test("shows error feedback and a retry label after a failed click", async () => {
