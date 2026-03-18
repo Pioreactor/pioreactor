@@ -3710,7 +3710,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
               <Tooltip title={indicatorLabel} placement="left">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
-              <PioreactorIconWithModel badgeContent={modelBadgeContent} />
+              <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isUnitActive ? undefined : disabledColor} />
               <Typography sx={{
                   fontSize: 20,
                   color: "rgba(0, 0, 0, 0.87)",
@@ -3997,6 +3997,14 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
 
 
 function InactiveUnits({ units, config, experiment, availableModels }){
+  const [relabelMap, setRelabelMap] = useState({})
+
+  useEffect(() => {
+    if (experiment) {
+      getRelabelMap(setRelabelMap, experiment)
+    }
+  }, [experiment])
+
   return (
   <React.Fragment>
     <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
@@ -4010,11 +4018,13 @@ function InactiveUnits({ units, config, experiment, availableModels }){
       const modelDetails = (availableModels || []).find(
         ({ model_name, model_version }) => model_name === unit.model_name && model_version === unit.model_version
       );
+      const unitName = unit.pioreactor_unit || unit.pioreactor_name;
       return (
         <PioreactorCard
-          key={unit.pioreactor_name}
+          key={unitName}
           isUnitActive={false}
-          unit={unit.pioreactor_name}
+          unit={unitName}
+          originalLabel={relabelMap[unitName]}
           modelDetails={modelDetails || {}}
           config={config}
           experiment={experiment}
