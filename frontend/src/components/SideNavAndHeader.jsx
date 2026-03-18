@@ -38,6 +38,10 @@ const ExpIcon = PlayCircleOutlinedIcon
 
 const drawerWidth = 230;
 
+export function pathnameMatchesAnySubmenu(pathname, prefixes) {
+  return prefixes.some((prefix) => pathname.startsWith(`/${prefix}`));
+}
+
 const DrawerStyled = styled(Drawer)(({ theme }) => ({
   width: drawerWidth,
   flexShrink: 0,
@@ -183,7 +187,6 @@ export default function SideNavAndHeader() {
   const [version, setVersion] = React.useState(null)
   const [lap, setLAP] = React.useState(false)
   const [latestVersion, setLatestVersion] = React.useState(null)
-  const [openSubmenu, setOpenSubmenu] = React.useState("")
   const {experimentMetadata, selectExperiment, allExperiments} = useExperiment()
   const allExperimentNames = Array.isArray(allExperiments) ? allExperiments.map((v) => v.experiment) : [];
 
@@ -229,20 +232,12 @@ export default function SideNavAndHeader() {
 
   }, [])
 
-  React.useEffect(() => {
-    setOpenSubmenu(location.pathname.substr(1))
-  }, [location.pathname])
-
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
   function isSelected(path) {
     return (location.pathname.startsWith(path))
-  }
-
-  function isOpen(path) {
-    return (openSubmenu.startsWith(path))
   }
 
 
@@ -372,7 +367,7 @@ export default function SideNavAndHeader() {
                 </MenuItem>
 
                 <SubMenu label="Inventory"
-                  open={isOpen("inventory") || isOpen("leader") || isOpen("system-logs")}
+                  open={pathnameMatchesAnySubmenu(location.pathname, ["inventory", "leader", "system-logs"])}
                   icon={<PioreactorsIcon sx={{fontSize: "23px"}} />}
                   component={<Link to="/inventory" className="link" />}
                   active={isSelected("/inventory")}
@@ -396,7 +391,10 @@ export default function SideNavAndHeader() {
                 </SubMenu>
 
                 <SubMenu  label="Calibrations"
-                  open={isOpen("calibrations") || isOpen("protocols") || isOpen("estimators") || isSelected("/calibration-coverage")}
+                  open={
+                    pathnameMatchesAnySubmenu(location.pathname, ["calibrations", "protocols", "estimators"]) ||
+                    isSelected("/calibration-coverage")
+                  }
                   icon={<TuneIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/calibrations" className="link" />}
                   active={isSelected("/calibrations") || isSelected("/estimators") || isSelected("/protocols") || isSelected("/calibration-coverage")}
