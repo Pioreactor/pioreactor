@@ -139,8 +139,6 @@ function ProtocolCard({
 function Protocols(props) {
   const { pioreactorUnit, device } = useParams();
   const [workers, setWorkers] = React.useState([]);
-  const [selectedUnit, setSelectedUnit] = React.useState(pioreactorUnit || "");
-  const [selectedDevice, setSelectedDevice] = React.useState(device || "");
   const [protocols, setProtocols] = React.useState([]);
   const [workersError, setWorkersError] = React.useState("");
   const [isLoadingWorkers, setIsLoadingWorkers] = React.useState(true);
@@ -157,6 +155,26 @@ function Protocols(props) {
   const navigate = useNavigate();
 
   const isSessionDialogOpen = Boolean(activeSessionProtocol);
+  const selectedUnit =
+    pioreactorUnit && pioreactorUnit !== "$broadcast"
+      ? pioreactorUnit
+      : workers[0] || "";
+  const displayedSelectedUnit = workers.includes(selectedUnit) ? selectedUnit : "";
+  const deviceOptions = React.useMemo(
+    () => Array.from(new Set(protocols.map((protocol) => protocol.target_device))),
+    [protocols],
+  );
+  const selectedDevice = React.useMemo(() => {
+    if (deviceOptions.length === 0) {
+      return "";
+    }
+
+    if (device && deviceOptions.includes(device)) {
+      return device;
+    }
+
+    return deviceOptions[0];
+  }, [device, deviceOptions]);
 
   React.useEffect(() => {
     document.title = props.title;
@@ -174,12 +192,6 @@ function Protocols(props) {
         const data = await response.json();
         const units = data.map((worker) => worker.pioreactor_unit);
         setWorkers(units);
-        if (!pioreactorUnit && units.length > 0) {
-          setSelectedUnit(units[0]);
-        }
-        if (pioreactorUnit === "$broadcast" && units.length > 0) {
-          setSelectedUnit(units[0]);
-        }
       } catch (err) {
         setWorkersError(err.message || "Failed to load workers.");
       } finally {
@@ -220,24 +232,6 @@ function Protocols(props) {
     fetchProtocols();
   }, [selectedUnit]);
 
-  React.useEffect(() => {
-    if (protocols.length === 0) {
-      if (selectedDevice !== "") {
-        setSelectedDevice("");
-      }
-      return;
-    }
-    if (device && protocols.some((protocol) => protocol.target_device === device)) {
-      if (selectedDevice !== device) {
-        setSelectedDevice(device);
-      }
-      return;
-    }
-    if (!protocols.some((protocol) => protocol.target_device === selectedDevice)) {
-      setSelectedDevice(protocols[0].target_device);
-    }
-  }, [device, protocols, selectedDevice]);
-
   const handleSnackbarClose = (_event, reason) => {
     if (reason === "clickaway") {
       return;
@@ -246,14 +240,12 @@ function Protocols(props) {
   };
 
   const handleSelectDeviceChange = (event) => {
-    setSelectedDevice(event.target.value);
     if (selectedUnit) {
       navigate(`/protocols/${selectedUnit}/${event.target.value}`);
     }
   };
 
   const handleSelectUnitChange = (event) => {
-    setSelectedUnit(event.target.value);
     setActiveSessionProtocol(null);
     if (selectedDevice) {
       navigate(`/protocols/${event.target.value}/${selectedDevice}`);
@@ -398,7 +390,7 @@ function Protocols(props) {
               <FormControl variant="standard" sx={{ minWidth: 220 }}>
                 <FormLabel component="legend">Pioreactor</FormLabel>
                 <Select
-                  value={selectedUnit}
+                  value={displayedSelectedUnit}
                   onChange={handleSelectUnitChange}
                   disabled={isLoadingWorkers || workers.length === 0}
                 >
@@ -423,9 +415,7 @@ function Protocols(props) {
                   onChange={handleSelectDeviceChange}
                   disabled={isLoadingProtocols || protocols.length === 0}
                 >
-                  {Array.from(
-                    new Set(protocols.map((protocol) => protocol.target_device))
-                  ).map((targetDevice) => (
+                  {deviceOptions.map((targetDevice) => (
                     <MenuItem key={targetDevice} value={targetDevice}>
                       {targetDevice}
                     </MenuItem>
