@@ -654,6 +654,10 @@ function AssignPioreactors({ experiment, variant="text" }) {
     return labelParts.join(", ");
   }
 
+  function getWorkersSelectableByBulkAction() {
+    return workers.filter((worker) => worker.experiment === null || worker.experiment === experiment);
+  }
+
   const updateAssignments = async () => {
     const delta = compareObjects(assigned, initialAssigned);
     const promises = [];
@@ -701,7 +705,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
     const newValue = event.target.checked;
     const newAssigned = { ...assigned };
 
-    workers.forEach((worker) => {
+    getWorkersSelectableByBulkAction().forEach((worker) => {
       newAssigned[worker.pioreactor_unit] = newValue;
     });
     setAssigned(newAssigned);
@@ -709,19 +713,22 @@ function AssignPioreactors({ experiment, variant="text" }) {
   };
 
   useEffect(() => {
-    if (workers.length === 0) {
+    const workersSelectableByBulkAction = getWorkersSelectableByBulkAction();
+
+    if (workersSelectableByBulkAction.length === 0) {
       setSelectAll(false);
       return;
     }
 
-    const allSelected = workers.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
-    const noneSelected = workers.every((worker) => !Boolean(assigned[worker.pioreactor_unit]));
+    const allSelected = workersSelectableByBulkAction.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
+    const noneSelected = workersSelectableByBulkAction.every((worker) => !Boolean(assigned[worker.pioreactor_unit]));
     setSelectAll(allSelected ? true : (noneSelected ? false : null));
   }, [assigned, workers, experiment]);
 
   const assignmentDelta = compareObjects(assigned, initialAssigned);
   const assignmentDeltaCount = Object.keys(assignmentDelta).length;
   const assignmentDeltaLabel = getAssignmentDeltaLabel(assignmentDelta);
+  const workersSelectableByBulkAction = getWorkersSelectableByBulkAction();
 
   return (
     <React.Fragment>
@@ -761,7 +768,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
           </Typography>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
-            {workers.length > 1 &&
+            {workersSelectableByBulkAction.length > 1 &&
             <FormControlLabel
               control={
                 <Checkbox
@@ -770,7 +777,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
                   onChange={handleSelectAllChange}
                 />
               }
-              label={<span><i>Select all</i></span>}
+              label={<span><i>Select all available</i></span>}
               sx={{mb: 1}}
             />
             }
@@ -787,24 +794,48 @@ function AssignPioreactors({ experiment, variant="text" }) {
             >
               {(workers || []).map((worker) => {
                 const unit = worker.pioreactor_unit;
-                const exp = worker.experiment;
-                const assignedToAnotherExperiment = exp !== null && exp !== experiment;
+                const worker_exp = worker.experiment;
+                const assignedToAnotherExperiment = worker_exp !== null && worker_exp !== experiment;
                 const isSelectedForAssignment = Boolean(assigned[unit]);
                 const sublabel = assignedToAnotherExperiment
                   ? (
-                    <>
-                      {isSelectedForAssignment ? "Will be unassigned from " : "Currently assigned to "}
+                    isSelectedForAssignment ? <>
+                        Will be unassigned from{" "}
+                        <Chip
+                          icon={<PlayCircleOutlinedIcon/>}
+                          size="small"
+                          label={worker_exp}
+                          clickable
+                          component={Link}
+                          onClick={() => selectExperiment(worker_exp)}
+                          data-experiment-name={worker_exp}
+                        />
+                         {" "}and re-assigned to{" "}
+                        <Chip
+                          icon={<PlayCircleOutlinedIcon/>}
+                          size="small"
+                          label={experiment}
+                          clickable
+                          component={Link}
+                          onClick={() => selectExperiment(experiment)}
+                          data-experiment-name={experiment}
+                        />
+                      </>
+                  : <>
+                    Currently assigned to{" "}
                       <Chip
                         icon={<PlayCircleOutlinedIcon/>}
                         size="small"
-                        label={exp}
+                        label={worker_exp}
                         clickable
                         component={Link}
-                        onClick={() => selectExperiment(exp)}
-                        data-experiment-name={exp}
+                        onClick={() => selectExperiment(worker_exp)}
+                        data-experiment-name={worker_exp}
                       />
-                    </>
+                  </>
                   )
+
+
                   : null;
 
                 return (
