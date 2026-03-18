@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -42,7 +42,26 @@ const experiments = [
   },
 ];
 
-const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+const mockExperimentContext = ({
+  initialExperiments = experiments,
+  experimentMetadata = { experiment: "exp1" },
+  selectExperiment = jest.fn(),
+  updateExperiment = jest.fn(),
+} = {}) => {
+  useExperiment.mockImplementation(() => {
+    const [allExperiments, setAllExperiments] = React.useState(initialExperiments);
+
+    return {
+      allExperiments,
+      experimentMetadata,
+      selectExperiment,
+      updateExperiment,
+      setAllExperiments,
+    };
+  });
+
+  return { selectExperiment, updateExperiment };
+};
 
 describe("Experiments page", () => {
   beforeEach(() => {
@@ -52,14 +71,7 @@ describe("Experiments page", () => {
         json: () => Promise.resolve(experiments),
       }),
     );
-
-    useExperiment.mockReturnValue({
-      allExperiments: experiments,
-      experimentMetadata: { experiment: "exp1" },
-      selectExperiment: jest.fn(),
-      updateExperiment: jest.fn(),
-      setAllExperiments: jest.fn(),
-    });
+    mockExperimentContext();
   });
 
   afterEach(() => {
@@ -67,14 +79,7 @@ describe("Experiments page", () => {
   });
 
   test("clicking the experiment chip selects the experiment", async () => {
-    const selectExperiment = jest.fn();
-    useExperiment.mockReturnValue({
-      allExperiments: experiments,
-      experimentMetadata: { experiment: "exp1" },
-      selectExperiment,
-      updateExperiment: jest.fn(),
-      setAllExperiments: jest.fn(),
-    });
+    const { selectExperiment } = mockExperimentContext();
 
     render(
       <MemoryRouter>
@@ -101,9 +106,39 @@ describe("Experiments page", () => {
       target: { value: "beta" },
     });
 
-    await flushPromises();
-
-    expect(screen.queryByText("Alpha description")).toBeNull();
+    await waitFor(() => expect(screen.queryByText("Alpha description")).toBeNull());
     expect(screen.getByText("Beta condition")).toBeTruthy();
+  });
+
+  test("refresh updates the displayed list through provider state", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            {
+              experiment: "exp3",
+              created_at: "2026-03-03T12:00:00Z",
+              description: "Gamma condition",
+              delta_hours: 1,
+              worker_count: 1,
+              tags: ["pilot"],
+            },
+          ]),
+      }),
+    );
+
+    mockExperimentContext({ initialExperiments: [] });
+
+    render(
+      <MemoryRouter>
+        <Experiments title="Pioreactor ~ Experiments" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Gamma condition")).toBeNull();
+    expect(global.fetch).toHaveBeenCalledWith("/api/experiments");
+
+    expect(await screen.findByText("Gamma condition")).toBeTruthy();
   });
 });
