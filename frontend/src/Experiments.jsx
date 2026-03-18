@@ -32,6 +32,7 @@ import { Link, useNavigate } from "react-router";
 
 import ExperimentMetadataDialog from "./components/ExperimentMetadataDialog";
 import { useExperiment } from "./providers/ExperimentContext";
+import UnderlineSpan from "./components/UnderlineSpan";
 
 const TAGS_TO_SHOW = 6;
 
@@ -376,7 +377,7 @@ function ExperimentsContainer(props) {
               <TableRow>
                 <TableCell sx={{backgroundColor: "white" }}>Experiment</TableCell>
                 <TableCell sx={{backgroundColor: "white", whiteSpace: "nowrap" }}>Created at</TableCell>
-                <TableCell sx={{backgroundColor: "white" }}>Status</TableCell>
+                <TableCell sx={{backgroundColor: "white" }}><UnderlineSpan title="Active means at least one Pioreactor is assigned">Status</UnderlineSpan></TableCell>
                 <TableCell sx={{backgroundColor: "white" }} align="right" />
               </TableRow>
             </TableHead>
