@@ -1,17 +1,9 @@
-import { useState, useEffect } from 'react';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
-export function TimeFormatSwitch({ initTimeScale, setTimeScale }) {
-  const [state, setState] = useState(initTimeScale);
-
-  useEffect(() => {
-    setState(initTimeScale);
-  }, [initTimeScale]);
-
+export function TimeFormatSwitch({ timeScale, setTimeScale }) {
   const onChange = (_, newAlignment) => {
     if (newAlignment !== null) {
-      setState(newAlignment);
       setTimeScale(newAlignment);
       localStorage.setItem('timeScale', newAlignment);
     }
@@ -20,7 +12,7 @@ export function TimeFormatSwitch({ initTimeScale, setTimeScale }) {
   return (
     <ToggleButtonGroup
       color="primary"
-      value={state}
+      value={timeScale}
       exclusive
       onChange={onChange}
       size="small"
@@ -31,16 +23,9 @@ export function TimeFormatSwitch({ initTimeScale, setTimeScale }) {
   );
 }
 
-export function TimeWindowSwitch({ initTimeWindow, setTimeWindow }) {
-  const [state, setState] = useState(initTimeWindow);
-
-  useEffect(() => {
-    setState(initTimeWindow);
-  }, [initTimeWindow]);
-
+export function TimeWindowSwitch({ timeWindow, setTimeWindow }) {
   const onChange = (_, newAlignment) => {
     if (newAlignment !== null) {
-      setState(newAlignment);
       setTimeWindow(newAlignment);
       localStorage.setItem('timeWindow', newAlignment.toString());
     }
@@ -49,7 +34,7 @@ export function TimeWindowSwitch({ initTimeWindow, setTimeWindow }) {
   return (
     <ToggleButtonGroup
       color="primary"
-      value={state}
+      value={timeWindow}
       exclusive
       onChange={onChange}
       size="small"
