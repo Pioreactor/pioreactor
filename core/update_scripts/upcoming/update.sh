@@ -42,6 +42,9 @@ install_checked_asset() {
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     install_checked_asset \
+        "$SCRIPT_DIR/04_dosing_automation.yaml" \
+        "$DOT_PIOREACTOR/ui/jobs/04_dosing_automation.yaml"
+    install_checked_asset \
         "$SCRIPT_DIR/50_self_test.yaml" \
         "$DOT_PIOREACTOR/ui/jobs/50_self_test.yaml"
 fi
