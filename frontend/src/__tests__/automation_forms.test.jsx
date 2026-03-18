@@ -87,6 +87,34 @@ describe("automation forms", () => {
     expect(updateParent).toHaveBeenCalledWith({ target_temperature: 39 });
   });
 
+  test("AutomationForm keeps cleared numeric inputs empty instead of restoring defaults", () => {
+    function Harness() {
+      const [settings, setSettings] = React.useState({ target_temperature: 37 });
+
+      return (
+        <AutomationForm
+          fields={[
+            { key: "target_temperature", label: "Target temperature", type: "numeric", default: 37, unit: "C" },
+          ]}
+          description="Keep temperature steady."
+          updateParent={(partial) => setSettings((previous) => ({ ...previous, ...partial }))}
+          name="thermostat"
+          settings={settings}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    const input = screen.getByLabelText("Target temperature");
+
+    fireEvent.change(input, {
+      target: { id: "target_temperature", value: "" },
+    });
+
+    expect(input).toHaveDisplayValue("");
+  });
+
   test("DosingAutomationForm renders derived warnings from props and only reports user-driven changes", () => {
     const updateParent = jest.fn();
 
@@ -118,6 +146,42 @@ describe("automation forms", () => {
     });
 
     expect(updateParent).toHaveBeenCalledWith({ current_volume_ml: 9 });
+  });
+
+  test("DosingAutomationForm keeps cleared numeric inputs empty instead of restoring defaults", () => {
+    function Harness() {
+      const [algoSettings, setAlgoSettings] = React.useState({
+        duration: 30,
+        exchange_volume_ml: 1.5,
+        current_volume_ml: 11,
+        max_working_volume_ml: 18,
+      });
+
+      return (
+        <DosingAutomationForm
+          fields={[
+            { key: "duration", label: "Duration", type: "numeric", default: 30, unit: "min" },
+            { key: "exchange_volume_ml", label: "Exchange volume", type: "numeric", default: 1.5, unit: "ml" },
+          ]}
+          description="Maintain a fixed dilution rate."
+          updateParent={(partial) => setAlgoSettings((previous) => ({ ...previous, ...partial }))}
+          name="chemostat"
+          capacity={20}
+          threshold={10}
+          algoSettings={algoSettings}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    const input = screen.getByLabelText("Duration");
+
+    fireEvent.change(input, {
+      target: { id: "duration", value: "" },
+    });
+
+    expect(input).toHaveDisplayValue("");
   });
 
   test("ChangeAutomationsDialog initializes defaults in the parent before start", async () => {

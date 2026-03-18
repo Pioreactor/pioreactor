@@ -11,7 +11,8 @@ function AutomationForm(props){
   };
 
   const listOfDisplayFields = props.fields.map(field => {
-    const value = props.settings[field.key] ?? field.default ?? "";
+    const hasExplicitValue = Object.prototype.hasOwnProperty.call(props.settings, field.key);
+    const value = hasExplicitValue ? (props.settings[field.key] ?? "") : (field.default ?? "");
     const commonProps = {
       size: "small",
       autoComplete: "off",

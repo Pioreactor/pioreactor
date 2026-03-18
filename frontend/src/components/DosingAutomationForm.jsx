@@ -59,7 +59,8 @@ function DosingAutomationForm(props) {
     : null;
 
   const listOfDisplayFields = props.fields.map(field => {
-    const value = props.algoSettings[field.key] ?? field.default ?? "";
+    const hasExplicitValue = Object.prototype.hasOwnProperty.call(props.algoSettings, field.key);
+    const value = hasExplicitValue ? (props.algoSettings[field.key] ?? "") : (field.default ?? "");
     const commonProps = {
       size: "small",
       autoComplete: "off",
