@@ -22,6 +22,21 @@ import {runPioreactorJob} from "../utilities"
 import PioreactorIcon from "./PioreactorIcon"
 import DosingAutomationForm from "./DosingAutomationForm"
 
+const getDefaultDosingSettings = (fields) => (
+  Object.fromEntries(
+    (fields || [])
+      .filter((field) => field.key !== "current_volume_ml" && field.key !== "max_working_volume_ml")
+      .map((field) => [field.key, field.default])
+  )
+)
+
+const getPreferredDosingAutomationName = (automations) => {
+  if (automations.chemostat) {
+    return "chemostat"
+  }
+
+  return Object.keys(automations)[0] || ""
+}
 
 
 function ChangeDosingAutomationsDialog(props) {
@@ -35,6 +50,7 @@ function ChangeDosingAutomationsDialog(props) {
   const [automations, setAutomations] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const selectedAutomation = automations[automationName]
 
   useEffect(() => {
     function fetchAutomations() {
@@ -56,16 +72,19 @@ function ChangeDosingAutomationsDialog(props) {
   }, [automationType])
 
   useEffect(() => {
-    if (!props.open) {
+    if (!props.open || Object.keys(automations).length === 0) {
       return;
     }
 
-    setAlgoSettings((prev) => ({
-      ...prev,
+    const nextAutomationName = getPreferredDosingAutomationName(automations);
+    setAutomationName(nextAutomationName);
+    setAlgoSettings({
+      ...( !props.no_skip_first_run && { skip_first_run: 0 }),
+      ...getDefaultDosingSettings(automations[nextAutomationName]?.fields),
       max_working_volume_ml: props.maxVolume,
       current_volume_ml: props.liquidVolume,
-    }));
-  }, [props.open, props.maxVolume, props.liquidVolume]);
+    });
+  }, [props.open, automations, props.no_skip_first_run]);
 
 
   const removeEmpty = (obj) => {
@@ -78,18 +97,20 @@ function ChangeDosingAutomationsDialog(props) {
   };
 
   const handleSkipFirstRunChange = (e) => {
-    setAlgoSettings({...algoSettings, skip_first_run: e.target.checked ? 1 : 0})
+    setAlgoSettings((prevSettings) => ({...prevSettings, skip_first_run: e.target.checked ? 1 : 0}))
   }
 
   const handleAlgoSelectionChange = (e) => {
     const newAlgoName = e.target.value;
+    const skipFirstRun = algoSettings.skip_first_run ?? 0;
     setAutomationName(newAlgoName);
 
-    setAlgoSettings((prev) => ({
-      ...( !props.no_skip_first_run && { skip_first_run: prev.skip_first_run }),
-      max_working_volume_ml: prev.max_working_volume_ml ?? props.maxVolume,
-      current_volume_ml: prev.current_volume_ml ?? props.liquidVolume,
-    }));
+    setAlgoSettings({
+      ...( !props.no_skip_first_run && { skip_first_run: skipFirstRun }),
+      ...getDefaultDosingSettings(automations[newAlgoName]?.fields),
+      max_working_volume_ml: algoSettings.max_working_volume_ml ?? props.maxVolume,
+      current_volume_ml: algoSettings.current_volume_ml ?? props.liquidVolume,
+    });
   };
 
   const updateFromChild = (setting) => {
@@ -161,10 +182,10 @@ function ChangeDosingAutomationsDialog(props) {
               {Object.keys(automations).map((key) => <MenuItem id={key} value={key} key={"change-io" + key}>{automations[key].display_name}</MenuItem>)}
 
             </Select>
-            {Object.keys(automations).length > 0 &&
+            {selectedAutomation &&
               <DosingAutomationForm
-                fields={automations[automationName].fields}
-                description={automations[automationName].description}
+                fields={selectedAutomation.fields}
+                description={selectedAutomation.description}
                 updateParent={updateFromChild}
                 name={automationName}
                 maxVolume={props.maxVolume}

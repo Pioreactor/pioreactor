@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import TextField from "@mui/material/TextField";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 import InputAdornment from "@mui/material/InputAdornment";
 import Box from "@mui/material/Box";
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import IconButton from '@mui/material/IconButton';
 import Alert from "@mui/material/Alert";
 import UnderlineSpan from "./UnderlineSpan";
 import MenuItem from "@mui/material/MenuItem";
@@ -13,21 +11,9 @@ import VialVolumePreview from "./VialVolumePreview";
 
 function DosingAutomationForm(props) {
   const threshold = props.threshold;
-  const [warning, setWarning] = useState("");
   const safetyBufferMl = 1;
   const capacity = Number.isFinite(props.capacity) ? props.capacity : null;
   const volumeInputBounds = capacity !== null ? { min: 0, max: capacity } : { min: 0 };
-
-  const defaults = Object.assign({}, ...props.fields.map(field => ({ [field.key]: field.default })));
-  const defaultsWithoutVolumeFields = Object.fromEntries(
-    Object.entries(defaults).filter(
-      ([key]) => key !== "current_volume_ml" && key !== "max_working_volume_ml"
-    )
-  );
-
-  useEffect(() => {
-    props.updateParent(defaultsWithoutVolumeFields);
-  }, [props.fields]);
 
   const computeWarning = (currentVolume, maxWorkingVolume) => {
     if (currentVolume != null && currentVolume >= threshold) {
@@ -49,27 +35,37 @@ function DosingAutomationForm(props) {
     return "";
   };
 
-  useEffect(() => {
-    setWarning(computeWarning(props.algoSettings.current_volume_ml, props.algoSettings.max_working_volume_ml));
-  }, [props.algoSettings.current_volume_ml, props.algoSettings.max_working_volume_ml, threshold]);
-
   const parseNumericInput = (event) => (
     Number.isNaN(event.target.valueAsNumber) ? null : event.target.valueAsNumber
   );
 
   const onSettingsChange = (id, value) => {
-    const nextSettings = { ...props.algoSettings, [id]: value };
-    setWarning(computeWarning(nextSettings.current_volume_ml, nextSettings.max_working_volume_ml));
     props.updateParent({ [id]: value });
   };
 
+  const warning = computeWarning(
+    props.algoSettings.current_volume_ml,
+    props.algoSettings.max_working_volume_ml,
+  );
+
+  const dilutionRate = (
+    Number.isFinite(props.algoSettings.exchange_volume_ml) &&
+    Number.isFinite(props.algoSettings.duration) &&
+    Number.isFinite(props.algoSettings.max_working_volume_ml) &&
+    props.algoSettings.duration > 0 &&
+    props.algoSettings.max_working_volume_ml > 0
+  )
+    ? props.algoSettings.exchange_volume_ml * (60 / props.algoSettings.duration) / props.algoSettings.max_working_volume_ml
+    : null;
+
   const listOfDisplayFields = props.fields.map(field => {
+    const value = props.algoSettings[field.key] ?? field.default ?? "";
     const commonProps = {
       size: "small",
       autoComplete: "off",
       id: field.key,
       label: field.label,
-      defaultValue: field.default,
+      value,
       disabled: field.disabled,
       variant: "outlined",
       onKeyPress: (e) => { e.key === 'Enter' && e.preventDefault(); },
@@ -117,9 +113,9 @@ function DosingAutomationForm(props) {
       <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 3, mb: 1, padding: "6px 6px" }}>
         {props.description}
       </Typography>
-      {props.name === "chemostat" &&
+      {props.name === "chemostat" && dilutionRate !== null &&
         <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 0, mb: 1, padding: "6px 6px" }}>
-          The current computed <UnderlineSpan title="Exchange volume * (60 / Time between dosing) / (Max working volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{(props.algoSettings.exchange_volume_ml * (60/props.algoSettings.duration) / props.algoSettings.max_working_volume_ml).toFixed(2)} h⁻¹</code>.
+          The current computed <UnderlineSpan title="Exchange volume * (60 / Time between dosing) / (Max working volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{dilutionRate.toFixed(2)} h⁻¹</code>.
         </Typography>
       }
 
