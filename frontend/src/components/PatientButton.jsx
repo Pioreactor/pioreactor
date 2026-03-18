@@ -4,21 +4,27 @@ import Button from "@mui/material/Button";
 import { lostRed } from "../color";
 
 export default function PatientButton({buttonText, onClick, color, variant, disabled}) {
-  const [text, setText] = React.useState(buttonText)
   const [error, setError] = React.useState(null)
+  const [isPending, setIsPending] = React.useState(false)
 
-  React.useEffect(() => {
-    setText(buttonText);
-  }, [buttonText]);
+  const buttonContent = isPending
+    ? <CircularProgress color="inherit" size={21}/>
+    : error
+      ? "Retry"
+      : buttonText;
 
   const handleClick = async () => {
+    if (!onClick || isPending) {
+      return;
+    }
     setError(null)
-    setText(<CircularProgress color="inherit" size={21}/>);
+    setIsPending(true);
     try {
       await onClick();
     } catch (error) {
-      setError(error.message)
-      setTimeout(() => setText(buttonText), 1000); // Reset to original text after a delay
+      setError(error?.message || "Something went wrong.")
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -30,11 +36,11 @@ export default function PatientButton({buttonText, onClick, color, variant, disa
       sx={{width: "70px", mt: "5px", height: "31px",}}
       color={color}
       variant={variant}
-      disabled={disabled}
+      disabled={disabled || isPending}
       size="small"
       onClick={handleClick}
     >
-      {text}
+      {buttonContent}
     </Button>
     </>
   )
