@@ -16,6 +16,7 @@ else:
     _ConfigSectionName = str
 
 _FALLBACK_SENTINEL: Final = object()
+_CONFIGPARSER_UNSET: Final = getattr(configparser, "_UNSET")
 
 
 def __getattr__(attr: str) -> Any:
@@ -63,10 +64,15 @@ class ConfigParserMod(configparser.ConfigParser):
         fallback: Any = _FALLBACK_SENTINEL,
         **kwargs: Any,
     ) -> Any:
+        fallback_provided = fallback is not _FALLBACK_SENTINEL and fallback is not _CONFIGPARSER_UNSET
+
         try:
+            if not fallback_provided:
+                return super()._get_conv(section, option, conv, raw=raw, vars=vars, **kwargs)
+
             return super()._get_conv(section, option, conv, raw=raw, vars=vars, fallback=fallback, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError, TypeError) as e:
-            if fallback is _FALLBACK_SENTINEL:
+            if not fallback_provided:
                 from pioreactor.logging import create_logger
 
                 create_logger("read config").error(f"Error in [{section}] parameter {option}: {e}")
@@ -110,11 +116,13 @@ class ConfigParserMod(configparser.ConfigParser):
             raise e
 
     def get(self, section: str, option: str, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
+        fallback = kwargs.get("fallback", _CONFIGPARSER_UNSET)
+
         try:
             return super().get(section, option, *args, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError) as e:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
+            if fallback is not _CONFIGPARSER_UNSET:
+                return fallback
 
             from pioreactor.logging import create_logger
 
