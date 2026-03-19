@@ -12,7 +12,7 @@ from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
 
 
-def ssh(address: str, command: str):
+def ssh(address: str, command: str) -> None:
     try:
         detached_command = f"nohup {command} > /dev/null 2>&1 &"  # this assumes I want to detach!
         subprocess.run(
@@ -40,7 +40,7 @@ def rsync(*args: str) -> None:
 
 
 def cp_file_across_cluster(
-    unit: pt.Unit, localpath: str, remotepath: str, timeout: int = 5, user="pioreactor"
+    unit: pt.Unit, localpath: str, remotepath: str, timeout: int = 5, user: str = "pioreactor"
 ) -> None:
     try:
         rsync(
@@ -129,7 +129,7 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
     This is very similar to `avahi-browse _pio-worker._tcp -tpr`
     """
 
-    def worker_hostnames(queue: Queue) -> None:
+    def worker_hostnames(queue: Queue[str]) -> None:
         with subprocess.Popen(
             ["avahi-browse", "_pio-worker._tcp", "-rp"],
             stdout=subprocess.PIPE,

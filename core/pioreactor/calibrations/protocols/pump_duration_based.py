@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import uuid
 from configparser import NoOptionError
+from typing import Any
 from typing import Callable
 from typing import cast
 from typing import ClassVar
@@ -594,6 +595,6 @@ class DurationBasedPumpProtocol(CalibrationProtocol):
         return start_duration_based_session(target_device)
 
     def run(
-        self, target_device: pt.PumpCalibrationDevices, **kwargs
+        self, target_device: pt.PumpCalibrationDevices, **kwargs: Any
     ) -> structs.SimplePeristalticPumpCalibration:
         return run_pump_calibration(target_device)

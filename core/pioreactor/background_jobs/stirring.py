@@ -55,7 +55,7 @@ class RpmCalculator:
         pass
 
     def setup(self) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
@@ -80,7 +80,7 @@ class RpmCalculator:
         self._edge_callback.cancel()
 
     def turn_on_collection(self) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         self.collecting = True
 
@@ -90,7 +90,7 @@ class RpmCalculator:
             )
 
     def clean_up(self) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         with suppress(AttributeError):
             self._edge_callback.cancel()
@@ -99,7 +99,7 @@ class RpmCalculator:
     def estimate(self, seconds_to_observe: float) -> float:
         return 0.0
 
-    def callback(self, *args) -> None:
+    def callback(self, *args: object) -> None:
         pass
 
     def sleep_for(self, seconds: float) -> None:
@@ -108,7 +108,7 @@ class RpmCalculator:
     def __enter__(self) -> "RpmCalculator":
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: object) -> None:
         self.clean_up()
 
 
@@ -125,7 +125,7 @@ class RpmFromFrequency(RpmCalculator):
     _running_count = 0
     _start_time = None
 
-    def callback(self, *args) -> None:
+    def callback(self, *args: object) -> None:
         _start_time = self._start_time
         obs_time = perf_counter()
         if not self.collecting:
@@ -198,6 +198,7 @@ class Stirrer(BackgroundJobWithDodging):
         "measured_rpm": {"datatype": "MeasuredRPM", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
+    rpm_check_repeated_timer: RepeatedTimer
     # the _estimate_duty_cycle parameter is like the unrealized DC, and the duty_cycle is the realized DC.
     _estimate_duty_cycle: float
     duty_cycle: float = 0
@@ -297,7 +298,7 @@ class Stirrer(BackgroundJobWithDodging):
         )
 
     @override
-    def action_to_do_before_od_reading(self):
+    def action_to_do_before_od_reading(self) -> None:
         if self.rpm_calculator is None:
             return
         assert self.target_rpm_during_od_reading is not None
@@ -306,7 +307,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.poll_and_update_dc()
 
     @override
-    def action_to_do_after_od_reading(self):
+    def action_to_do_after_od_reading(self) -> None:
         if self.rpm_calculator is None:
             return
 
@@ -317,7 +318,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.poll_and_update_dc()
 
     @override
-    def initialize_dodging_operation(self):
+    def initialize_dodging_operation(self) -> None:
         self.logger.debug("Starting initialize_dodging_operation")
         with JobManager() as jm:
             interval = float(jm.get_setting_from_running_job("od_reading", "interval", timeout=5))
@@ -350,7 +351,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.logger.debug("Finished initialize_dodging_operation")
 
     @override
-    def initialize_continuous_operation(self):
+    def initialize_continuous_operation(self) -> None:
         self.logger.debug("Starting initialize_continuous_operation")
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_timer = RepeatedTimer(
@@ -371,13 +372,13 @@ class Stirrer(BackgroundJobWithDodging):
 
     def initialize_rpm_to_dc_lookup(
         self, calibration: bool | structs.SimpleStirringCalibration | None
-    ) -> Callable:
+    ) -> Callable[[float | None], float]:
         if self.rpm_calculator is None:
             assert self.target_rpm is None, "Can't target an RPM without rpm_calculator."
-            return lambda rpm: self._estimate_duty_cycle
+            return lambda rpm: float(self._estimate_duty_cycle)
 
         if self.target_rpm is None:
-            return lambda rpm: self._estimate_duty_cycle
+            return lambda rpm: float(self._estimate_duty_cycle)
 
         assert isinstance(self.target_rpm, float)
 
@@ -406,16 +407,23 @@ class Stirrer(BackgroundJobWithDodging):
             # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
             # we also aim slightly higher, so less likely to stall the fan. We'll converge later via updates.
             # Factor of 1.05
-            return lambda rpm: 1.05 * (
-                self._estimate_duty_cycle - 0.90 * (self._estimate_duty_cycle - (cal.y_to_x(rpm)))
-            )
+
+            def adjust_towards_rpm(rpm: float | None) -> float:
+                if rpm is None:
+                    return self._estimate_duty_cycle
+                else:
+                    return 1.05 * (
+                        self._estimate_duty_cycle - 0.90 * (self._estimate_duty_cycle - (cal.y_to_x(rpm)))
+                    )
+
+            return adjust_towards_rpm
         else:
             if self.enable_dodging_od:
                 self.logger.warning(
                     "OD dodging is enabled without a stirring calibration. "
                     "This can increase OD reading noise. Run a stirring calibration for better stability."
                 )
-            return lambda rpm: self._estimate_duty_cycle
+            return lambda rpm: float(self._estimate_duty_cycle)
 
     def on_disconnected(self) -> None:
         super().on_disconnected()
@@ -568,7 +576,7 @@ class Stirrer(BackgroundJobWithDodging):
 
         self.set_duty_cycle(self._estimate_duty_cycle)
 
-    def sleep_if_ready(self, seconds):
+    def sleep_if_ready(self, seconds: float) -> None:
         if self.state is st.READY:
             sleep(seconds)
 

@@ -174,7 +174,7 @@ function Overview(props) {
               md: 7
             }}>
             <Stack direction="row" justifyContent="start">
-              <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={timeWindow}/>
+              <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
             </Stack>
           </Grid>
           <Grid
@@ -183,7 +183,7 @@ function Overview(props) {
               md: 5
             }}>
             <Stack direction="row" justifyContent="end">
-              <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
+              <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
             </Stack>
           </Grid>
 

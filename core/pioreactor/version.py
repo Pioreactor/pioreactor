@@ -5,7 +5,7 @@ import os
 # Append ".dev0" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
-__version__ = "26.3.1"
+__version__ = "26.3.2"
 
 
 def get_hardware_version() -> tuple[int, int] | tuple[int, int, str] | None:
@@ -79,7 +79,7 @@ def get_firmware_version() -> tuple[int, int] | None:
         return None
 
 
-def tuple_to_text(t: tuple | None) -> str:
+def tuple_to_text(t: tuple[int | str, ...] | None) -> str:
     if t is None:
         return ""
     else:
@@ -90,7 +90,7 @@ def version_text_to_tuple(s: str) -> tuple[int, int]:
     return tuple((safe_int(_) for _ in s.split(".")))  # type: ignore
 
 
-def safe_int(s) -> int:
+def safe_int(s: str) -> int | str:
     try:
         return int(s)
     except (ValueError, TypeError):

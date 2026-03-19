@@ -132,7 +132,9 @@ def get_layered_mod_config_for_model(mod: str, model_name: str, model_version: s
 def determine_gpiochip() -> pt.GpioChip:
     """Return the GPIO chip index for the current Raspberry Pi."""
 
-    return cast(pt.GpioChip, 4 if rpi_version_info.startswith("Raspberry Pi 5") else 0)
+    if rpi_version_info.startswith("Raspberry Pi 5"):
+        return 4
+    return 0
 
 
 @cache
@@ -403,7 +405,7 @@ def voltage_in_aux(precision: float = 0.1) -> float:
     if not is_testing_env():
         aux_adc = get_adc_curriers()["aux"]
     else:
-        from pioreactor.utils.mock import Mock_ADC  # type: ignore
+        from pioreactor.utils.mock import Mock_ADC
 
         aux_adc = ADCCurrier(Mock_ADC, 0x00, 0)
 

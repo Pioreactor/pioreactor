@@ -56,7 +56,7 @@ def curve_to_callable(curve_data: structs.CalibrationCurveData) -> Callable[[flo
     if curve_type == "poly":
         poly_data = cast(structs.PolyFitCoefficients, curve_data)
 
-        def curve_callable(x: float):
+        def curve_callable(x: float) -> float:
             return poly_eval(poly_data, x)
 
         return curve_callable
@@ -66,7 +66,7 @@ def curve_to_callable(curve_data: structs.CalibrationCurveData) -> Callable[[flo
 
         spline_data = cast(structs.SplineFitData, curve_data)
 
-        def curve_callable(x: float):
+        def curve_callable(x: float) -> float:
             return spline_eval(spline_data, x)
 
         return curve_callable
@@ -76,7 +76,7 @@ def curve_to_callable(curve_data: structs.CalibrationCurveData) -> Callable[[flo
 
         akima_data = cast(structs.AkimaFitData, curve_data)
 
-        def curve_callable(x: float):
+        def curve_callable(x: float) -> float:
             return akima_eval(akima_data, x)
 
         return curve_callable
@@ -105,12 +105,12 @@ def plot_data(
     title: str,
     x_label: str,
     y_label: str,
-    x_min=None,
-    x_max=None,
-    interpolation_curve=None,
-    highlight_recent_point=False,
-):
-    import plotext as plt  # type: ignore
+    x_min: float | None = None,
+    x_max: float | None = None,
+    interpolation_curve: Callable[[float], float] | None = None,
+    highlight_recent_point: bool = False,
+) -> None:
+    import plotext as plt
 
     plt.clf()
 

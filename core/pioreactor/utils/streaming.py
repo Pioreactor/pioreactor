@@ -53,7 +53,7 @@ class MqttODSource(ODObservationSource):
     def set_stop_event(self, ev: Event) -> None:
         self._stop_event = ev
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[ODReadings]:
         counter = 0
         while not self._stop_event.is_set():
             msg = subscribe(
@@ -80,7 +80,7 @@ class MqttODFusedSource(ODObservationSource):
     def set_stop_event(self, ev: Event) -> None:
         self._stop_event = ev
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[ODReadings]:
         counter = 0
         while not self._stop_event.is_set():
             msg = subscribe(
@@ -123,7 +123,7 @@ class MqttDosingSource(DosingObservationSource):
     def set_stop_event(self, ev: Event) -> None:
         self._stop_event = ev
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[DosingEvent]:
         while not self._stop_event.is_set():
             msg = subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/dosing_events", allow_retained=False, timeout=1
@@ -150,7 +150,7 @@ def merge_live_streams(
     `stop_event.set()` is called (or when every iterable is exhausted).
     """
     stop_event = stop_event or Event()
-    q: Queue = Queue()
+    q: Queue[T] = Queue()
 
     def _drain(it: Iterable[T]) -> None:
         for item in it:

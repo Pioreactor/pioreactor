@@ -199,7 +199,7 @@ class JobManager:
         result = self.cursor.fetchone()
         return int(result[0]) if result else None
 
-    def get_setting_from_running_job(self, job_name: str, setting: str, timeout=None) -> Any:
+    def get_setting_from_running_job(self, job_name: str, setting: str, timeout: float | None = None) -> Any:
         if timeout is not None and not self.is_job_running(job_name):
             raise JobRequiredError(f"Job {job_name} is not running.")
 
@@ -221,7 +221,7 @@ class JobManager:
                         f"Setting `{setting}` was not found in published settings of `{job_name}`."
                     )
 
-    def _get_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int, int]]:
+    def _get_jobs(self, all_jobs: bool = False, **query: str | int | None) -> list[tuple[str, int, int]]:
         if not all_jobs:
             # Construct the WHERE clause based on the query parameters
             where_clause = " AND ".join([f"{key} = :{key}" for key in query.keys() if query[key] is not None])
@@ -271,7 +271,7 @@ class JobManager:
 
         return self.cursor.fetchall()
 
-    def list_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int, int]]:
+    def list_jobs(self, all_jobs: bool = False, **query: str | int | None) -> list[tuple[str, int, int]]:
         """Return job rows matching *query* using the same filters as kill_jobs."""
         return self._get_jobs(all_jobs, **query)
 
@@ -332,7 +332,7 @@ class JobManager:
         self.cursor.execute("DELETE FROM pio_job_metadata WHERE job_id = ?", (job_id,))
         return self.cursor.rowcount
 
-    def kill_jobs(self, all_jobs: bool = False, **query) -> int:
+    def kill_jobs(self, all_jobs: bool = False, **query: str | int | None) -> int:
         # ex: kill_jobs(experiment="testing_exp") should end all jobs with experiment='testing_exp'
 
         shell_kill = ShellKill()
@@ -357,7 +357,7 @@ class JobManager:
     def __enter__(self) -> "JobManager":
         return self
 
-    def __exit__(self, exc_type, exc_val, tb) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, tb: object) -> None:
         self.close()
         return
 
@@ -413,5 +413,5 @@ class ClusterJobManager:
     def __enter__(self) -> "ClusterJobManager":
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: object) -> None:
         return

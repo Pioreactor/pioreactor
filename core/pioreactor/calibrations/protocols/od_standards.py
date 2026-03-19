@@ -22,6 +22,7 @@ from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.registry import CalibrationProtocol
+from pioreactor.calibrations.registry import SessionCleanupExecutor
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import run_session_in_cli
@@ -46,7 +47,7 @@ def to_struct(
     curve_data_: structs.CalibrationCurveData,
     voltages: list[pt.Voltage],
     od600s: list[pt.OD],
-    angle,
+    angle: pt.PdAngle,
     name: str,
     pd_channel: pt.PdChannel,
     unit: str,
@@ -614,12 +615,15 @@ def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
     for _, angle in pd_channels.items():
         if angle in (None, "", REF_keyword):
             continue
-        device = f"od{angle}"
-        if device in pt.OD_DEVICES and device not in valid_devices:
-            valid_devices.append(cast(pt.ODCalibrationDevices, device))
+        if angle == "45" and "od45" not in valid_devices:
+            valid_devices.append("od45")
+        elif angle == "90" and "od90" not in valid_devices:
+            valid_devices.append("od90")
+        elif angle == "135" and "od135" not in valid_devices:
+            valid_devices.append("od135")
 
     if len(valid_devices) >= 2:
-        valid_devices.append(cast(pt.ODCalibrationDevices, "od"))
+        valid_devices.append("od")
 
     return valid_devices
 
@@ -644,7 +648,7 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     def on_session_abort(
         cls,
         _session: CalibrationSession,
-        executor=None,
+        executor: SessionCleanupExecutor | None = None,
     ) -> None:
         experiment = get_testing_experiment_name()
         unit = get_unit_name()

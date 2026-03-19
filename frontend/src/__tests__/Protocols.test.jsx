@@ -9,9 +9,18 @@ jest.mock("../utilities", () => ({
   fetchTaskResult: jest.fn(),
 }));
 
-const { MemoryRouter } = require("react-router");
+const { MemoryRouter, Route, Routes } = require("react-router");
 const Protocols = require("../Protocols").default;
 const { fetchTaskResult } = require("../utilities");
+
+const renderProtocols = (initialEntry = "/protocols") =>
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="/protocols/:pioreactorUnit?/:device?" element={<Protocols title="Pioreactor ~ Protocols" />} />
+      </Routes>
+    </MemoryRouter>,
+  );
 
 describe("Protocols", () => {
   beforeEach(() => {
@@ -27,6 +36,14 @@ describe("Protocols", () => {
             title: "DC-based stirring calibration",
             description: "Maps duty cycle to RPM.",
             requirements: ["Vial"],
+          },
+          {
+            id: "od_standards",
+            target_device: "od",
+            protocol_name: "standards",
+            title: "OD standards calibration",
+            description: "Builds OD standards.",
+            requirements: ["Standards"],
           },
         ],
       },
@@ -73,15 +90,25 @@ describe("Protocols", () => {
       }),
     );
 
-    render(
-      <MemoryRouter>
-        <Protocols title="Pioreactor ~ Protocols" />
-      </MemoryRouter>,
-    );
+    renderProtocols();
 
     await screen.findByText("Resume protocol");
 
     expect(fetchTaskResult).toHaveBeenCalledWith("/api/workers/unit-1/calibration_protocols");
     expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit-1/calibrations/sessions/session-1");
+  });
+
+  test("falls back to the first available device when the route device is invalid", async () => {
+    renderProtocols("/protocols/unit-1/not-a-device");
+
+    expect(await screen.findByText("DC-based stirring calibration")).toBeInTheDocument();
+    expect(screen.queryByText("OD standards calibration")).toBeNull();
+  });
+
+  test("prefers the route device when it matches an available protocol device", async () => {
+    renderProtocols("/protocols/unit-1/od");
+
+    expect(await screen.findByText("OD standards calibration")).toBeInTheDocument();
+    expect(screen.queryByText("DC-based stirring calibration")).toBeNull();
   });
 });

@@ -11,6 +11,7 @@ from typing import Literal
 
 from pioreactor.background_jobs import stirring
 from pioreactor.calibrations.registry import CalibrationProtocol
+from pioreactor.calibrations.registry import SessionCleanupExecutor
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
@@ -269,7 +270,7 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     def on_session_abort(
         cls,
         _session: CalibrationSession,
-        executor=None,
+        executor: SessionCleanupExecutor | None = None,
     ) -> None:
         experiment = get_testing_experiment_name()
         unit = get_unit_name()

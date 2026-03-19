@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import yaml from "js-yaml";
 
 
@@ -44,25 +44,14 @@ function convertYamlToJson(yamlString){
   }
 }
 
-const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
-  const [code, setCode] = useState("");
-  const [parsedCode, setParsedCode] = useState({});
+export const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
+  const [code, setCode] = useState(initialCode);
+  const [parsedCode, setParsedCode] = useState(() => convertYamlToJson(initialCode));
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [isChanged, setIsChanged] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  useEffect(() => {
-    if (initialCode !== code) {
-      setCode(initialCode);
-      try {
-        setParsedCode(convertYamlToJson(initialCode));
-      } catch (error) {
-        //pass
-      }
-    }
-  }, [initialCode]);
 
   const onTextChange = newCode => {
     setCode(newCode);
@@ -196,19 +185,40 @@ const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
 function ProfilesContainer(){
   const {profileFilename} = useParams();
   const [source, setSource] = React.useState('')
+  const [isLoadingSource, setIsLoadingSource] = React.useState(true)
   const [openCapabilities, setOpenCapabilities] = React.useState(false)
 
   React.useEffect(() => {
+    let isActive = true;
+
+    setIsLoadingSource(true);
+    setSource('');
+
     fetch(`/api/experiment_profiles/${encodeURIComponent(profileFilename)}`, {
           method: "GET",
       }).then(res => {
         if (res.ok) {
           return res.text();
         }
+        return '';
       }).then(text => {
-        setSource(text)
+        if (!isActive) {
+          return;
+        }
+        setSource(text || '')
+        setIsLoadingSource(false)
+      }).catch(() => {
+        if (!isActive) {
+          return;
+        }
+        setSource('')
+        setIsLoadingSource(false)
       })
-  })
+
+    return () => {
+      isActive = false;
+    };
+  }, [profileFilename])
 
   return(
     <React.Fragment>
@@ -227,7 +237,13 @@ function ProfilesContainer(){
       </Box>
       <Card sx={{marginTop: "15px"}}>
         <CardContent sx={{padding: "10px"}}>
-          <EditExperimentProfilesContent initialCode={source} profileFilename={profileFilename}/>
+          {!isLoadingSource && (
+            <EditExperimentProfilesContent
+              key={profileFilename}
+              initialCode={source}
+              profileFilename={profileFilename}
+            />
+          )}
         </CardContent>
       </Card>
       <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about editing <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>

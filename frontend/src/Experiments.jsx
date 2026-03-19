@@ -9,7 +9,6 @@ import Card from "@mui/material/Card";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
-import LinearProgress from "@mui/material/LinearProgress";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
@@ -32,6 +31,7 @@ import { Link, useNavigate } from "react-router";
 
 import ExperimentMetadataDialog from "./components/ExperimentMetadataDialog";
 import { useExperiment } from "./providers/ExperimentContext";
+import UnderlineSpan from "./components/UnderlineSpan";
 
 const TAGS_TO_SHOW = 6;
 
@@ -119,8 +119,8 @@ function ExperimentsContainer(props) {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { allExperiments, experimentMetadata, selectExperiment, updateExperiment, setAllExperiments } = useExperiment();
-  const [experiments, setExperiments] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const experiments = Array.isArray(allExperiments) ? allExperiments : [];
+  const [loading, setLoading] = React.useState(experiments.length === 0);
   const [loadError, setLoadError] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -145,7 +145,6 @@ function ExperimentsContainer(props) {
       }
 
       const data = await response.json();
-      setExperiments(data);
       setAllExperiments(data);
     } catch (error) {
       console.error("Failed to fetch experiments:", error);
@@ -154,13 +153,6 @@ function ExperimentsContainer(props) {
       setLoading(false);
     }
   }, [setAllExperiments]);
-
-  React.useEffect(() => {
-    if (Array.isArray(allExperiments) && allExperiments.length > 0) {
-      setExperiments(allExperiments);
-      setLoading(false);
-    }
-  }, [allExperiments]);
 
   React.useEffect(() => {
     refreshExperiments();
@@ -227,11 +219,6 @@ function ExperimentsContainer(props) {
       }
 
       const savedExperiment = await response.json();
-      setExperiments((previousExperiments) =>
-        previousExperiments.map((experiment) =>
-          experiment.experiment === savedExperiment.experiment ? savedExperiment : experiment,
-        ),
-      );
       updateExperiment(savedExperiment);
       setDialogError("");
       setIsSavingDialog(false);
@@ -291,7 +278,6 @@ function ExperimentsContainer(props) {
 
       const responseAfterDelete = await fetch("/api/experiments");
       const nextExperiments = responseAfterDelete.ok ? await responseAfterDelete.json() : [];
-      setExperiments(nextExperiments);
       setAllExperiments(nextExperiments);
 
       if (experimentMetadata.experiment === experiment.experiment && nextExperiments.length > 0) {
@@ -376,7 +362,7 @@ function ExperimentsContainer(props) {
               <TableRow>
                 <TableCell sx={{backgroundColor: "white" }}>Experiment</TableCell>
                 <TableCell sx={{backgroundColor: "white", whiteSpace: "nowrap" }}>Created at</TableCell>
-                <TableCell sx={{backgroundColor: "white" }}>Status</TableCell>
+                <TableCell sx={{backgroundColor: "white" }}><UnderlineSpan title="Active means at least one Pioreactor is assigned">Status</UnderlineSpan></TableCell>
                 <TableCell sx={{backgroundColor: "white" }} align="right" />
               </TableRow>
             </TableHead>

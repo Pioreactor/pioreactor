@@ -29,17 +29,31 @@ const defaultAutomations = {
   led: "light_dark_cycle"
 }
 
+const getDefaultSettingsForAutomation = (fields) => (
+  Object.fromEntries((fields || []).map((field) => [field.key, field.default]))
+)
+
+const getPreferredAutomationName = (automationType, automations) => {
+  const defaultAutomationName = defaultAutomations[automationType]
+  if (defaultAutomationName && automations[defaultAutomationName]) {
+    return defaultAutomationName
+  }
+
+  return Object.keys(automations)[0] || ""
+}
+
 
 function ChangeAutomationsDialog(props) {
   const automationType = props.automationType
   const automationTypeForDisplay = (automationType === "led") ? "LED" : automationType
   const [automationName, setAutomationName] = useState(defaultAutomations[automationType])
   const [algoSettings, setAlgoSettings] = useState({
-    skip_first_run: 0 //TODO: this should be not included if !props.no_skip_first_run
+    ...( !props.no_skip_first_run && {skip_first_run: 0})
   })
   const [automations, setAutomations] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const selectedAutomation = automations[automationName]
 
   useEffect(() => {
     function fetchAutomations() {
@@ -60,6 +74,19 @@ function ChangeAutomationsDialog(props) {
     fetchAutomations();
   }, [automationType])
 
+  useEffect(() => {
+    if (!props.open || Object.keys(automations).length === 0) {
+      return
+    }
+
+    const nextAutomationName = getPreferredAutomationName(automationType, automations)
+    setAutomationName(nextAutomationName)
+    setAlgoSettings({
+      ...( !props.no_skip_first_run && {skip_first_run: 0}),
+      ...getDefaultSettingsForAutomation(automations[nextAutomationName]?.fields),
+    })
+  }, [props.open, automations, automationType, props.no_skip_first_run])
+
 
   const removeEmpty = (obj) => {
     return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null));
@@ -71,13 +98,16 @@ function ChangeAutomationsDialog(props) {
   };
 
   const handleSkipFirstRunChange = (e) => {
-    setAlgoSettings({...algoSettings, skip_first_run: e.target.checked ? 1 : 0})
+    setAlgoSettings((prevSettings) => ({...prevSettings, skip_first_run: e.target.checked ? 1 : 0}))
   }
 
   const handleAlgoSelectionChange = (e) => {
-    setAutomationName(e.target.value)
+    const nextAutomationName = e.target.value
+    const skipFirstRun = algoSettings.skip_first_run ?? 0
+    setAutomationName(nextAutomationName)
     setAlgoSettings({
-        ...( !props.no_skip_first_run && {skip_first_run: algoSettings.skip_first_run})
+        ...( !props.no_skip_first_run && {skip_first_run: skipFirstRun}),
+        ...getDefaultSettingsForAutomation(automations[nextAutomationName]?.fields),
     })
   }
 
@@ -150,7 +180,7 @@ function ChangeAutomationsDialog(props) {
               {Object.keys(automations).map((key) => <MenuItem id={key} value={key} key={"change-io" + key}>{automations[key].display_name}</MenuItem>)}
 
             </Select>
-            {Object.keys(automations).length > 0 && <AutomationForm fields={automations[automationName].fields} description={automations[automationName].description} updateParent={updateFromChild} name={automationName}/>}
+            {selectedAutomation && <AutomationForm fields={selectedAutomation.fields} description={selectedAutomation.description} updateParent={updateFromChild} name={automationName} settings={algoSettings}/>}
 
             {!props.no_skip_first_run ?
               <Box sx={{mt: 1}}>

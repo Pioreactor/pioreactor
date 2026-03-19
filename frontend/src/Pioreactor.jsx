@@ -1173,6 +1173,7 @@ function SettingsActionsDialog(props) {
 
   // Define a function to determine which component to render based on the type of setting
   function renderSettingComponent(setting, job_key, setting_key, state) {
+    const componentKey = `${job_key}-${setting_key}`;
     const commonProps = {
       onUpdate: setPioreactorJobAttr,
       setSnackbarMessage: setSnackbarMessage,
@@ -1188,11 +1189,11 @@ function SettingsActionsDialog(props) {
 
     switch (setting.type) {
       case "boolean":
-        return <SettingSwitchField {...commonProps} />;
+        return <SettingSwitchField key={componentKey} {...commonProps} />;
       case "numeric":
-        return <SettingNumericField {...commonProps} />;
+        return <SettingNumericField key={componentKey} {...commonProps} />;
       default:
-        return <SettingTextField {...commonProps} />;
+        return <SettingTextField key={componentKey} {...commonProps} />;
     }
   }
 
@@ -1837,22 +1838,23 @@ function SettingsActionsDialog(props) {
 
 
 function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, units, disabled, job, setting, id }) {
-
-    const [value, setValue] = useState(initialValue || "")
+    const committedValue = initialValue ?? ""
+    const [draftValue, setDraftValue] = useState(committedValue)
     const [activeSubmit, setActiveSumbit] = useState(false)
+    const [isPendingConfirmation, setIsPendingConfirmation] = useState(false)
     const unitSize = (units || "").length > 8 ? "large" : "normal";
     const textFieldMaxWidth = unitSize === "large" ? "240px" : "180px";
 
-    useEffect(() => {
-      if (initialValue !== value) {
-        setValue(initialValue || "");
-      }
-    }, [initialValue]);
+    if (isPendingConfirmation && draftValue === committedValue) {
+      setIsPendingConfirmation(false)
+    }
 
+    const value = (activeSubmit || isPendingConfirmation) ? draftValue : committedValue;
 
     const onChange = (e) => {
       setActiveSumbit(true)
-      setValue(e.target.value)
+      setIsPendingConfirmation(false)
+      setDraftValue(e.target.value)
     }
 
     const onKeyPress = (e) => {
@@ -1862,7 +1864,7 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
     }
 
     const onSubmit = () => {
-        onUpdate(job, setting, value);
+        onUpdate(job, setting, draftValue);
         if (value !== "") {
           setSnackbarMessage(`Updating to ${value}${(!units) ? "" : (" "+units)}.`)
         } else {
@@ -1870,6 +1872,7 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
         }
         setSnackbarOpen(true)
         setActiveSumbit(false)
+        setIsPendingConfirmation(true)
     }
 
     return (
@@ -1903,17 +1906,20 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
 
 
 function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id }) {
-  const [value, setValue] = useState(initialValue || false)
+  const committedValue = Boolean(initialValue)
+  const [draftValue, setDraftValue] = useState(committedValue)
+  const [isPendingConfirmation, setIsPendingConfirmation] = useState(false)
 
-    useEffect(() => {
-      if (initialValue !== value) {
-        setValue(initialValue || false);
-      }
-    }, [initialValue]);
+    if (isPendingConfirmation && draftValue === committedValue) {
+      setIsPendingConfirmation(false)
+    }
+
+    const value = isPendingConfirmation ? draftValue : committedValue;
 
     const onChange = (e) => {
       const checked = e.target.checked;
-      setValue(checked)
+      setDraftValue(checked)
+      setIsPendingConfirmation(true)
       onUpdate(job, setting, checked ? 1 : 0);
       setSnackbarMessage(`Updating to ${checked ? "on" : "off"}.`)
       setSnackbarOpen(true)
@@ -1930,18 +1936,20 @@ function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage,
 
 
 function SettingNumericField(props) {
-
-  const [value, setValue] = useState(props.value || "");
+  const committedValue = props.value ?? "";
+  const [draftValue, setDraftValue] = useState(committedValue);
   const [error, setError] = useState(false);
+  const [hasLocalEdits, setHasLocalEdits] = useState(false);
   const [activeSubmit, setActiveSubmit] = useState(false);
+  const [isPendingConfirmation, setIsPendingConfirmation] = useState(false);
   const unitSize = (props.units || "").length > 8 ? "large" : "normal";
   const textFieldMaxWidth = unitSize === "large" ? "220px" : "160px";
 
-  useEffect(() => {
-    if (props.value !== value) {
-      setValue(props.value || "");
-    }
-  }, [props.value]);
+  if (isPendingConfirmation && draftValue === committedValue) {
+    setIsPendingConfirmation(false);
+  }
+
+  const value = (hasLocalEdits || isPendingConfirmation) ? draftValue : committedValue;
 
   const validateNumericInput = (input) => {
     const numericPattern = /^-?\d*\.?\d*$/; // Allows negative and decimal numbers
@@ -1973,8 +1981,10 @@ function SettingNumericField(props) {
     const input = e.target.value;
     const isValid = validateNumericInput(input);
     setError(!isValid);
+    setHasLocalEdits(true);
     setActiveSubmit(isValid);
-    setValue(input);
+    setIsPendingConfirmation(false);
+    setDraftValue(input);
   };
 
   const onKeyPress = (e) => {
@@ -1985,11 +1995,13 @@ function SettingNumericField(props) {
 
   const onSubmit = () => {
     if (!error) {
-      props.onUpdate(props.job, props.setting, value);
+      props.onUpdate(props.job, props.setting, draftValue);
       const message = value !== "" ? `Updating to ${value}${props.units ? " " + props.units : ""}.` : "Updating.";
       props.setSnackbarMessage(message);
       props.setSnackbarOpen(true);
+      setHasLocalEdits(false);
       setActiveSubmit(false);
+      setIsPendingConfirmation(true);
     }
   };
 
@@ -2354,6 +2366,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       handleQuickSettingClose()
     }
 
+    const componentKey = `${unit}-${job_key}-${setting_key}`;
     const commonProps = {
       setSnackbarMessage: () => {},
       setSnackbarOpen: () => {},
@@ -2369,11 +2382,11 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
 
     switch (setting.type) {
       case "boolean":
-        return <SettingSwitchField {...commonProps} onUpdate={setPioreactorJobAttr} />
+        return <SettingSwitchField key={componentKey} {...commonProps} onUpdate={setPioreactorJobAttr} />
       case "numeric":
-        return <SettingNumericField {...commonProps} onUpdate={onUpdateAndClose} />
+        return <SettingNumericField key={componentKey} {...commonProps} onUpdate={onUpdateAndClose} />
       default:
-        return <SettingTextField {...commonProps} onUpdate={onUpdateAndClose} />
+        return <SettingTextField key={componentKey} {...commonProps} onUpdate={onUpdateAndClose} />
     }
   }
 
@@ -2983,7 +2996,7 @@ function Pioreactor({title}) {
                 md: 7
               }}>
               <Stack direction="row" justifyContent="start">
-                <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={timeWindow}/>
+                <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
               </Stack>
             </Grid>
             <Grid
@@ -2992,7 +3005,7 @@ function Pioreactor({title}) {
                 md: 5
               }}>
               <Stack direction="row" justifyContent="end">
-                <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
+                <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
               </Stack>
             </Grid>
             <Grid size={12}>

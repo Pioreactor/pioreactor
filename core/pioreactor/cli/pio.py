@@ -2,6 +2,7 @@
 import os
 import re
 import subprocess
+import typing as t
 from os import geteuid
 from pathlib import Path
 from shlex import quote
@@ -225,7 +226,7 @@ def get_update_app_commands(
     "--version", "show_version", is_flag=True, help="print the Pioreactor software version and exit"
 )
 @click.pass_context
-def pio(ctx, show_version: bool) -> None:
+def pio(ctx: click.Context, show_version: bool) -> None:
     """
     Execute commands on this Pioreactor.
 
@@ -285,7 +286,7 @@ def _resolve_config_paths_like_runtime() -> tuple[str, str]:
     return global_config_path, local_config_path
 
 
-def _load_config_file(path: str):
+def _load_config_file(path: str) -> t.Any:
     from pioreactor.config import ConfigParserMod
 
     parser = ConfigParserMod(strict=False)
@@ -434,7 +435,7 @@ def logs(n: int, f: bool) -> None:
     help="logger name to display in the log record",
 )
 @click.option("--local-only", is_flag=True, help="don't send to MQTT; write only to local disk")
-def log(message: str, level: str, name: str, local_only: bool):
+def log(message: str, level: str, name: str, local_only: bool) -> None:
     """
     Append a single log entry from the CLI.
 
@@ -495,7 +496,7 @@ def kill(
 
 
 @pio.group(name="jobs", short_help="job-related commands")
-def jobs():
+def jobs() -> None:
     """Interact with Pioreactor jobs."""
     pass
 
@@ -942,7 +943,7 @@ def status() -> None:
 
 
 @pio.group(short_help="manage the local caches")
-def cache():
+def cache() -> None:
     """Inspect or clear local caches."""
     pass
 
@@ -1010,7 +1011,7 @@ def purge_cache(cache: str, key: str, as_int: bool) -> None:
 )
 @click.argument("job", type=click.STRING)
 @click.pass_context
-def update_settings(ctx, job: str) -> None:
+def update_settings(ctx: click.Context, job: str) -> None:
     """
     Examples
     ----------
@@ -1038,7 +1039,7 @@ def update_settings(ctx, job: str) -> None:
 @click.option("-b", "--branch", help="specify a branch")
 @click.option("--sha", callback=validate_git_sha_option, help="specify a commit SHA")
 @click.pass_context
-def update(ctx, source: Optional[str], branch: Optional[str], sha: Optional[str]) -> None:
+def update(ctx: click.Context, source: Optional[str], branch: Optional[str], sha: Optional[str]) -> None:
     """
     update software for the app (it's an alias for pio update app)
     """
@@ -1052,7 +1053,7 @@ def update(ctx, source: Optional[str], branch: Optional[str], sha: Optional[str]
             ctx.invoke(update_app, sha=sha)
 
 
-def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
+def get_non_prerelease_tags_of_pioreactor(repo: str) -> list[str]:
     """
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
@@ -1211,7 +1212,7 @@ def update_app(
         if p.stderr:
             logger.debug("Update step %s stderr: %s", index, p.stderr)
 
-    logger.notice(f"Updated Pioreactor app to version {version_installed}.")  # type: ignore
+    logger.notice(f"Updated Pioreactor app to version {version_installed}.")
     # everything work? Let's publish to MQTT. This is a terrible hack, as monitor should do this.
     from pioreactor.pubsub import publish
 
@@ -1277,7 +1278,7 @@ def update_firmware(version: Optional[str]) -> None:
             # end early
             raise click.Abort()
 
-    logger.info(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
+    logger.info(f"Updated Pioreactor firmware to version {version_installed}.")
 
 
 if whoami.am_I_leader():

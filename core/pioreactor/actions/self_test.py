@@ -12,6 +12,7 @@ from contextlib import nullcontext
 from functools import cache
 from json import dumps
 from time import sleep
+from types import FrameType
 from typing import Callable
 from typing import cast
 from typing import Iterator
@@ -36,7 +37,6 @@ from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
-from pioreactor.pubsub import Client
 from pioreactor.states import JobState
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
@@ -69,14 +69,15 @@ ORDERED_SELF_TEST_NAMES: tuple[str, ...] = (
     "test_positive_correlation_between_rpm_and_stirring",
     "test_aux_power_is_not_too_high",
 )
-REGISTERED_SELF_TESTS: list[Callable[..., None]] = []
+type SelfTest = Callable[[managed_lifecycle, CustomLogger, str, str], None]
+REGISTERED_SELF_TESTS: list[SelfTest] = []
 
 
 class SelfTestTimedOut(TimeoutError):
     pass
 
 
-def register_self_tests(*tests: Callable[..., None]) -> None:
+def register_self_tests(*tests: SelfTest) -> None:
     for test in tests:
         if test not in REGISTERED_SELF_TESTS:
             REGISTERED_SELF_TESTS.append(test)
@@ -87,9 +88,9 @@ def _ensure_plugin_self_tests_registered() -> None:
     plugin_management.load_plugins()
 
 
-def get_builtin_self_tests() -> list[Callable[..., None]]:
+def get_builtin_self_tests() -> list[SelfTest]:
     current_module = globals()
-    return [current_module[name] for name in ORDERED_SELF_TEST_NAMES]
+    return [cast(SelfTest, current_module[name]) for name in ORDERED_SELF_TEST_NAMES]
 
 
 @contextmanager
@@ -97,7 +98,7 @@ def timeout_self_test(test_name: str, timeout_seconds: float) -> Iterator[None]:
     previous_handler = signal.getsignal(signal.SIGALRM)
     previous_timer = signal.getitimer(signal.ITIMER_REAL)
 
-    def alarm_handler(_signum, _frame) -> None:
+    def alarm_handler(_signum: int, _frame: FrameType | None) -> None:
         raise SelfTestTimedOut(f"{test_name} timed out after {SELF_TEST_TIMEOUT_SECONDS}s.")
 
     signal.signal(signal.SIGALRM, alarm_handler)
@@ -112,11 +113,15 @@ def timeout_self_test(test_name: str, timeout_seconds: float) -> Iterator[None]:
             signal.setitimer(signal.ITIMER_REAL, previous_timer[0], previous_timer[1])
 
 
-def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_pioreactor_HAT_present(
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
+) -> None:
     assert is_HAT_present(), "HAT is not connected"
 
 
-def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_REF_is_in_correct_position(
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
+) -> None:
     # Toggle stirring between SLEEPING and READY. The REF channel should have a much smaller
     # ON/OFF effect than signal channels if it is physically in the REF position.
     from statistics import median
@@ -127,24 +132,29 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     reference_channel = cast(PdChannel, next((k for k, v in pd_channels.items() if v == REF_keyword), None))
     assert reference_channel is not None, "REF required for this self-test"
 
-    signal_channels = [channel for channel, angle in pd_channels.items() if angle != REF_keyword]
+    signal_channels: list[PdChannel] = [
+        cast(PdChannel, channel) for channel, angle in pd_channels.items() if angle != REF_keyword
+    ]
 
     test_channels = {str(channel): "90" for channel, angle in pd_channels.items()}
 
     all_channels = [cast(PdChannel, channel) for channel in test_channels]
     relative_effect_per_channel: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
-    with stirring.start_stirring(
-        target_rpm=None, duty_cycle=90, unit=unit, experiment=experiment, enable_dodging_od=False
-    ) as st, start_od_reading(
-        channels=test_channels,
-        interval=None,
-        unit=unit,
-        fake_data=is_testing_env(),
-        experiment=experiment,
-        calibration=False,
-        estimator=False,
-    ) as od_reader:
+    with (
+        stirring.start_stirring(
+            target_rpm=None, duty_cycle=90, unit=unit, experiment=experiment, enable_dodging_od=False
+        ) as st,
+        start_od_reading(
+            channels=test_channels,
+            interval=None,
+            unit=unit,
+            fake_data=is_testing_env(),
+            experiment=experiment,
+            calibration=False,
+            estimator=False,
+        ) as od_reader,
+    ):
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
         warmup_samples = 5
@@ -210,7 +220,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
 
 
 def test_all_positive_correlations_between_pds_and_leds(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     """
     This tests that there is a positive correlation between the IR LED channel, and the photodiodes
@@ -365,7 +375,9 @@ def test_all_positive_correlations_between_pds_and_leds(
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}, correlation: {results[(ir_led_channel, ir_pd_channel)]:0.2f}"
 
 
-def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_ambient_light_interference(
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
+) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     assert is_HAT_present(), "HAT is not detected."
     pd_channels_available = list(get_available_pd_channels())
@@ -392,7 +404,7 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
 
 
 def test_REF_is_lower_than_0_dot_256_volts(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT is not detected."
     pd_channels = config["od_config.photodiode_channel"]
@@ -449,7 +461,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
 
 def test_PD_is_near_0_volts_for_blank(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT is not detected."
 
@@ -457,6 +469,7 @@ def test_PD_is_near_0_volts_for_blank(
     signal_pd_channels = {k: v for k, v in pd_channels.items() if v != REF_keyword}
 
     for channel, angle in signal_pd_channels.items():
+        channel = cast(PdChannel, channel)
         assert angle in ["90", "45", "135"], f"Angle {angle} not valid for this test."
 
         signals = []
@@ -484,12 +497,14 @@ def test_PD_is_near_0_volts_for_blank(
         ), f"Blank signal too high for pd{channel}: {mean_signal=} > {THRESHOLD}"
 
 
-def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_detect_heating_pcb(
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
+) -> None:
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
 
 def test_positive_correlation_between_temperature_and_heating(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
@@ -512,13 +527,15 @@ def test_positive_correlation_between_temperature_and_heating(
         ), f"Temp and DC% correlation was not high enough {dcs=}, {measured_pcb_temps=}"
 
 
-def test_aux_power_is_not_too_high(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_aux_power_is_not_too_high(
+    client: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
+) -> None:
     assert is_HAT_present(), "HAT was not detected."
     assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
 
 
 def test_positive_correlation_between_rpm_and_stirring(
-    client, logger: CustomLogger, unit: str, experiment: str
+    client: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT was not detected."
     assert is_heating_pcb_present(), "Heating PCB was not detected."
@@ -562,8 +579,8 @@ def test_positive_correlation_between_rpm_and_stirring(
 
 
 def run_tests(
-    tests_to_run: list[Callable],
-    managed_state,
+    tests_to_run: list[SelfTest],
+    managed_state: managed_lifecycle,
     logger: CustomLogger,
     unit: str,
     testing_experiment: str,
@@ -620,7 +637,7 @@ def get_failed_test_names() -> Iterator[str]:
                 yield name
 
 
-def get_all_tests() -> list[Callable[..., None]]:
+def get_all_tests() -> list[SelfTest]:
     _ensure_plugin_self_tests_registered()
     return get_builtin_self_tests() + list(REGISTERED_SELF_TESTS)
 
@@ -651,7 +668,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
             )
             raise click.Abort()
 
-        tests_to_run: list[Callable[..., None]]
+        tests_to_run: list[SelfTest]
         if retry_failed:
             failed_test_name_set = set(get_failed_test_names())
             tests_to_run = [test for test in get_all_tests() if test.__name__ in failed_test_name_set]

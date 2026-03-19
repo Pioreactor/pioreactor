@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
 from typing import Any
+from typing import Callable
 from typing import Final
 from typing import Mapping
 from typing import TYPE_CHECKING
@@ -15,9 +16,10 @@ else:
     _ConfigSectionName = str
 
 _FALLBACK_SENTINEL: Final = object()
+_CONFIGPARSER_UNSET: Final = getattr(configparser, "_UNSET")
 
 
-def __getattr__(attr):  # type: ignore
+def __getattr__(attr: str) -> Any:
     """
     This dynamically creates the module level variables, so if
     we don't call them, they are never created, saving time - mostly in the CLI.
@@ -28,8 +30,6 @@ def __getattr__(attr):  # type: ignore
         return _get_leader_address()
     elif attr == "mqtt_address":
         return _get_mqtt_address()
-    elif attr == "config":
-        return get_config()
     else:
         raise AttributeError
 
@@ -42,7 +42,7 @@ class ConfigParserMod(configparser.ConfigParser):
         **{k: True for k in ("1", "yes", "true", "on")},
     }
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, allow_no_value=True, **kwargs)
 
     def invert_section(self, section: str) -> dict[str, str]:
@@ -53,13 +53,26 @@ class ConfigParserMod(configparser.ConfigParser):
         reversed_section = {v: k for k, v in section_without_empties.items()}
         return reversed_section
 
-    def _get_conv(
-        self, section, option, conv, *, raw=False, vars=None, fallback=configparser._UNSET, **kwargs
-    ):
+    def _get_conv(  # type: ignore[override]
+        self,
+        section: str,
+        option: str,
+        conv: Callable[[str], Any],
+        *,
+        raw: bool = False,
+        vars: Mapping[str, str] | None = None,
+        fallback: Any = _FALLBACK_SENTINEL,
+        **kwargs: Any,
+    ) -> Any:
+        fallback_provided = fallback is not _FALLBACK_SENTINEL and fallback is not _CONFIGPARSER_UNSET
+
         try:
-            return self._get(section, conv, option, raw=raw, vars=vars, fallback=fallback, **kwargs)
+            if not fallback_provided:
+                return super()._get_conv(section, option, conv, raw=raw, vars=vars, **kwargs)
+
+            return super()._get_conv(section, option, conv, raw=raw, vars=vars, fallback=fallback, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError, TypeError) as e:
-            if fallback is configparser._UNSET:
+            if not fallback_provided:
                 from pioreactor.logging import create_logger
 
                 create_logger("read config").error(f"Error in [{section}] parameter {option}: {e}")
@@ -102,12 +115,14 @@ class ConfigParserMod(configparser.ConfigParser):
             logger.warning(msg)
             raise e
 
-    def get(self, section: str, option: str, *args, **kwargs) -> str:  # type: ignore[override]
+    def get(self, section: str, option: str, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
+        fallback = kwargs.get("fallback", _CONFIGPARSER_UNSET)
+
         try:
             return super().get(section, option, *args, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError) as e:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
+            if fallback is not _CONFIGPARSER_UNSET:
+                return fallback
 
             from pioreactor.logging import create_logger
 
@@ -219,6 +234,9 @@ def get_config() -> ConfigParserMod:
     return config
 
 
+config = get_config()
+
+
 @cache
 def get_leader_hostname() -> str:
     return get_config().get("cluster.topology", "leader_hostname", fallback="localhost")
@@ -234,7 +252,7 @@ def _get_mqtt_address() -> str:
     return get_config().get("mqtt", "broker_address", fallback=_get_leader_address()).split(";")[0]
 
 
-def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str):
+def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str) -> Any:
     """
     A context manager to temporarily change a value in a ConfigParser object.
     """
@@ -242,7 +260,7 @@ def temporary_config_change(config: ConfigParserMod, section: str, parameter: st
 
 
 @contextmanager
-def temporary_config_changes(config, changes: list[tuple[str, str, str | None]]):
+def temporary_config_changes(config: ConfigParserMod, changes: list[tuple[str, str, str | None]]) -> Any:
     """
     A context manager to temporarily change multiple values in a ConfigParser object.
 

@@ -104,6 +104,7 @@ wheel: venv  ## Build core wheel (stage 1 artifact)
 
 frontend-build:
 	cd $(NODE_DIR) && npm run --silent  build
+	git add core/pioreactor/web/static/
 
 # --- live dev servers ---------------------------------------------------------
 web-dev: venv  ## Run Flask API on 127.0.0.1:5000

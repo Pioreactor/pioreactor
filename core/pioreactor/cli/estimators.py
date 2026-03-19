@@ -6,7 +6,7 @@ import click
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.calibrations import get_calibration_protocols
+from pioreactor.calibrations.registry import get_calibration_protocols
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import curve_to_functional_form
 from pioreactor.estimators import ESTIMATOR_PATH
@@ -112,7 +112,7 @@ def set_active_estimator(device: str, estimator_name: str | None) -> None:
 
     if estimator_name is None:
         try:
-            present = load_active_estimator(device)  # type: ignore
+            present = load_active_estimator(device)
         except FileNotFoundError:
             present = None
 

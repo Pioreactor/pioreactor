@@ -1,4 +1,4 @@
-import React, {useEffect } from "react";
+import React from "react";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Typography from "@mui/material/Typography";
@@ -6,23 +6,19 @@ import MenuItem from "@mui/material/MenuItem";
 
 
 function AutomationForm(props){
-  const defaults = Object.assign({}, ...props.fields.map(field => ({[field.key]: field.default})))
-  useEffect(() => {
-    props.updateParent(defaults)
-  }, [props.fields])
-
-
   const onSettingsChange = (id, value) => {
     props.updateParent({ [id]: value });
   };
 
   const listOfDisplayFields = props.fields.map(field => {
+    const hasExplicitValue = Object.prototype.hasOwnProperty.call(props.settings, field.key);
+    const value = hasExplicitValue ? (props.settings[field.key] ?? "") : (field.default ?? "");
     const commonProps = {
       size: "small",
       autoComplete: "off",
       id: field.key,
       label: field.label,
-      defaultValue: field.default,
+      value,
       disabled: field.disabled,
       variant: "outlined",
       onKeyPress: (e) => { e.key === 'Enter' && e.preventDefault(); },
@@ -56,8 +52,8 @@ function AutomationForm(props){
         type={field.type === "numeric" ? "number" : "text"}
         onChange={
           field.type === "numeric"
-            ? (e) => onSettingsChange(e.target.id, e.target.valueAsNumber || null)
-            : (e) => onSettingsChange((e.target.id, e.target.value))
+            ? (e) => onSettingsChange(e.target.id, Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)
+            : (e) => onSettingsChange(e.target.id, e.target.value)
         }
         InputProps={inputProps}
         {...commonProps}

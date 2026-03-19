@@ -61,14 +61,14 @@ class callable_stack:
     Hello, Alice!
     """
 
-    def __init__(self, default_function_if_empty: Callable = lambda *args: None) -> None:
-        self._callables: list[Callable] = []
+    def __init__(self, default_function_if_empty: Callable[..., None] = lambda *args: None) -> None:
+        self._callables: list[Callable[..., None]] = []
         self.default = default_function_if_empty
 
-    def append(self, function: Callable) -> None:
+    def append(self, function: Callable[..., None]) -> None:
         self._callables.append(function)
 
-    def __call__(self, *args) -> None:
+    def __call__(self, *args: object) -> None:
         if not self._callables:
             self.default(*args)
 
@@ -77,7 +77,7 @@ class callable_stack:
             function(*args)
 
 
-def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) -> None:
+def append_signal_handler(signal_value: signal.Signals, new_callback: Callable[..., None]) -> None:
     """
     The current api of signal.signal is a global stack of size 1, so if
     we have multiple jobs started in the same python process, we
@@ -107,7 +107,7 @@ def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) 
         raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
 
 
-def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Callable]) -> None:
+def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Callable[..., None]]) -> None:
     for callback in new_callbacks:
         append_signal_handler(signal_value, callback)
 
@@ -148,9 +148,9 @@ class managed_lifecycle:
         name: str,
         mqtt_client: "Client | None" = None,
         exit_on_mqtt_disconnect: bool = False,
-        mqtt_client_kwargs: dict | None = None,
-        ignore_is_active_state=False,  # hack and kinda gross
-        is_long_running_job=False,
+        mqtt_client_kwargs: dict[str, Any] | None = None,
+        ignore_is_active_state: bool = False,  # hack and kinda gross
+        is_long_running_job: bool = False,
         source: str = "app",
         job_source: str | None = None,
     ) -> None:
@@ -205,10 +205,14 @@ class managed_lifecycle:
             self._externally_provided_client = True
         else:
             self._externally_provided_client = False
+            combined_mqtt_client_kwargs = cast(
+                dict[str, Any],
+                default_mqtt_client_kwargs | (mqtt_client_kwargs or {}),
+            )
             self.mqtt_client = create_client(
                 last_will=last_will,
                 on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
-                **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),  # type: ignore
+                **combined_mqtt_client_kwargs,
             )
         assert self.mqtt_client is not None
 
@@ -218,14 +222,14 @@ class managed_lifecycle:
         self.start_passive_listeners()
 
     @property
-    def job_key(self):
+    def job_key(self) -> str:
         return self.name
 
-    def _exit(self, *args) -> None:
+    def _exit(self, *args: object) -> None:
         # recall: we can't publish in a callback!
         self.exit_event.set()
 
-    def _on_disconnect(self, *args):
+    def _on_disconnect(self, *args: object) -> None:
         self._exit()
 
     def __enter__(self) -> Self:
@@ -234,7 +238,7 @@ class managed_lifecycle:
 
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: object) -> None:
         self.state = st("disconnected")
         self._exit()
         self.publish_setting("$state", self.state)
@@ -307,7 +311,7 @@ class long_running_managed_lifecycle(managed_lifecycle):
         )
 
     @property
-    def job_key(self):
+    def job_key(self) -> str:
         # shitty proxy for "allow duplicate jobs", see #551
         # eventually, we will move all of mqtt topics to this format
         # the backslash here is deliberate and does change the mqtt topics
@@ -318,13 +322,13 @@ class long_running_managed_lifecycle(managed_lifecycle):
 
 class cache:
     @staticmethod
-    def adapt_key(key):
+    def adapt_key(key: object) -> bytes:
         # keys can be tuples!
         return dumps(key)
 
     @staticmethod
-    def convert_key(s):
-        def _restore_tuple_keys(value):
+    def convert_key(s: str | bytes) -> object:
+        def _restore_tuple_keys(value: object) -> object:
             if isinstance(value, list):
                 return tuple(_restore_tuple_keys(item) for item in value)
             return value
@@ -337,11 +341,11 @@ class cache:
         else:
             return s
 
-    def __init__(self, table_name, db_path) -> None:
+    def __init__(self, table_name: str, db_path: str) -> None:
         self.table_name = f"cache_{table_name}"
         self.db_path = db_path
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         sqlite3.register_adapter(tuple, self.adapt_key)
         # sqlite3.register_converter("_key_BLOB", self.convert_key)
 
@@ -359,10 +363,10 @@ class cache:
         self._initialize_table()
         return self
 
-    def __exit__(self, exc_type, exc_val, tb):
+    def __exit__(self, exc_type: object, exc_val: object, tb: object) -> None:
         self.conn.close()
 
-    def _initialize_table(self):
+    def _initialize_table(self) -> None:
         self.cursor.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {self.table_name} (
@@ -372,7 +376,7 @@ class cache:
         """
         )
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: object, value: object) -> None:
         self.cursor.execute(
             f"""
             INSERT INTO {self.table_name} (key, value)
@@ -382,10 +386,10 @@ class cache:
             (key, value),
         )
 
-    def set(self, key, value):
+    def set(self, key: object, value: object) -> None:
         return self.__setitem__(key, value)
 
-    def set_if_absent(self, key, value) -> bool:
+    def set_if_absent(self, key: object, value: object) -> bool:
         self.cursor.execute(
             f"""
             INSERT OR IGNORE INTO {self.table_name} (key, value)
@@ -395,16 +399,16 @@ class cache:
         )
         return self.cursor.rowcount == 1
 
-    def get(self, key, default=None):
+    def get(self, key: object, default: object = None) -> object:
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
         result = self.cursor.fetchone()
         return result[0] if result else default
 
-    def iterkeys(self):
+    def iterkeys(self) -> Generator[object, None, None]:
         self.cursor.execute(f"SELECT key FROM {self.table_name}")
         return (self.convert_key(row[0]) for row in self.cursor.fetchall())
 
-    def pop(self, key, default=None):
+    def pop(self, key: object, default: object = None) -> object:
         self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ? RETURNING value", (key,))
         result = self.cursor.fetchone()
 
@@ -413,20 +417,20 @@ class cache:
         else:
             return result[0]
 
-    def empty(self):
+    def empty(self) -> None:
         self.cursor.execute(f"DELETE FROM {self.table_name}")
 
-    def __contains__(self, key):
+    def __contains__(self, key: object) -> bool:
         self.cursor.execute(f"SELECT 1 FROM {self.table_name} WHERE key = ?", (key,))
         return self.cursor.fetchone() is not None
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[object, None, None]:
         return self.iterkeys()
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: object) -> None:
         self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: object) -> object:
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
         result = self.cursor.fetchone()
         if result is None:
@@ -490,7 +494,7 @@ def is_pio_job_running(target_jobs: list[str]) -> list[bool]: ...
 def is_pio_job_running(target_jobs: str) -> bool: ...
 
 
-def is_pio_job_running(target_jobs):
+def is_pio_job_running(target_jobs: str | list[str]) -> bool | list[bool]:
     """
     pass in jobs to check if they are running
     ex:
@@ -503,14 +507,16 @@ def is_pio_job_running(target_jobs):
     """
     is_single_job_name = isinstance(target_jobs, str)
     if is_single_job_name:
-        target_jobs = (target_jobs,)
+        jobs_to_check: list[str] = [target_jobs]  # type: ignore[list-item]
+    else:
+        jobs_to_check = target_jobs  # type: ignore[assignment]
 
     results = []
 
     from pioreactor.utils.job_manager import JobManager
 
     with JobManager() as jm:
-        for job in target_jobs:
+        for job in jobs_to_check:
             results.append(jm.is_job_running(job))
 
     if is_single_job_name:
@@ -540,7 +546,7 @@ def get_cpu_temperature() -> float:
     return cpu_temperature_celcius
 
 
-def argextrema(x: Sequence) -> tuple[int, int]:
+def argextrema(x: Sequence[float | int]) -> tuple[int, int]:
     if len(x) == 0:
         raise ValueError("argextrema() arg is an empty sequence")
 
@@ -585,7 +591,7 @@ class SummableDict(dict):
 
     """
 
-    def __init__(self, *arg, **kwargs) -> None:
+    def __init__(self, *arg: object, **kwargs: object) -> None:
         dict.__init__(self, *arg, **kwargs)
 
     def __add__(self, other: "SummableDict") -> "SummableDict":

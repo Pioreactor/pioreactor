@@ -3,28 +3,31 @@ import ast
 import os
 import re
 import sys
+from collections.abc import Sequence
+from typing import Any
 
 ROUTE_DECORATOR_NAMES = {"route", "add_url_rule"}
 ROUTE_ARG_PATTERN = re.compile(r"<(\w+)>")
 
 
-def extract_placeholders(route_string):
+def extract_placeholders(route_string: str) -> list[str]:
     return list(ROUTE_ARG_PATTERN.findall(route_string))
 
 
 class RouteParamChecker(ast.NodeVisitor):
-    def __init__(self, filename):
+    def __init__(self, filename: str) -> None:
         self.filename = filename
-        self.mismatches = []
+        self.mismatches: list[dict[str, Any]] = []
 
-    def visit_FunctionDef(self, node):
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         route_placeholders = list()
         for deco in node.decorator_list:
             if isinstance(deco, ast.Call) and isinstance(deco.func, ast.Attribute):
                 if deco.func.attr in ROUTE_DECORATOR_NAMES:
                     if deco.args and isinstance(deco.args[0], ast.Constant):
                         route = deco.args[0].value
-                        route_placeholders.extend(extract_placeholders(route))
+                        if isinstance(route, str):
+                            route_placeholders.extend(extract_placeholders(route))
         if route_placeholders:
             func_args = [arg.arg for arg in node.args.args]
             extra = set(route_placeholders) - set(func_args)
@@ -45,7 +48,7 @@ class RouteParamChecker(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def check_file(filepath):
+def check_file(filepath: str) -> list[dict[str, Any]]:
     with open(filepath, "r", encoding="utf-8") as f:
         source = f.read()
     tree = ast.parse(source, filename=filepath)
@@ -54,7 +57,7 @@ def check_file(filepath):
     return checker.mismatches
 
 
-def main(directory):
+def main(directory: str) -> None:
     for root, _, files in os.walk(directory):
         for fname in files:
             if fname.endswith(".py"):
@@ -70,7 +73,8 @@ def main(directory):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    argv: Sequence[str] = sys.argv
+    if len(argv) != 2:
         print("Usage: python flask_route_checker.py <path_to_your_flask_app_directory>")
         sys.exit(1)
-    main(sys.argv[1])
+    main(argv[1])

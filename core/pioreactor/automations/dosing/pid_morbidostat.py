@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from contextlib import suppress
+from typing import Any
 
+from pioreactor import structs
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
@@ -21,7 +23,9 @@ class PIDMorbidostat(DosingAutomationJob):
         "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
     }
 
-    def __init__(self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs) -> None:
+    def __init__(
+        self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs: Any
+    ) -> None:
         super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_normalized_od is not None, "`target_normalized_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
@@ -60,7 +64,7 @@ class PIDMorbidostat(DosingAutomationJob):
             self.target_growth_rate * self.max_working_volume_ml * (self.duration / 60), 4
         )  # ???
 
-    def execute(self) -> events.AutomationEvent:
+    def execute(self) -> structs.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:
             return events.NoEvent(f"latest OD less than OD to start diluting, {self.min_od:.2f}")
         else:
@@ -102,14 +106,14 @@ class PIDMorbidostat(DosingAutomationJob):
             )
 
     @property
-    def min_od(self):
+    def min_od(self) -> float:
         return 0.7 * self.target_normalized_od
 
     @property
-    def max_od(self):
+    def max_od(self) -> float:
         return 1.25 * self.target_normalized_od
 
-    def set_target_growth_rate(self, value: str | float | int):
+    def set_target_growth_rate(self, value: str | float | int) -> None:
         self.target_growth_rate = float(value)
         with suppress(AttributeError):
             self.pid.set_setpoint(self.target_growth_rate)

@@ -377,11 +377,11 @@ def test_pios_update_requests_with_sha() -> None:
         result = runner.invoke(pios, ["update", "--sha", git_sha, "-y"])
 
     assert result.exit_code == 0
-    update_requests = [req for req in bucket if req.path == "/unit_api/system/update"]
+    update_requests = [req for req in bucket if req.path == "/unit_api/system/update/app"]
     assert len(update_requests) >= 2
     update_urls = {req.url for req in update_requests}
-    assert "http://unit1.local:4999/unit_api/system/update" in update_urls
-    assert "http://unit2.local:4999/unit_api/system/update" in update_urls
+    assert "http://unit1.local:4999/unit_api/system/update/app" in update_urls
+    assert "http://unit2.local:4999/unit_api/system/update/app" in update_urls
     assert all(req.json == {"options": {"sha": git_sha}} for req in update_requests)
 
 
@@ -422,6 +422,32 @@ def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert len(commands) >= 1
+    assert all("--repo org/repo" in command for command in commands)
+
+
+def test_pios_update_alias_ssh_fallback_includes_repo(monkeypatch) -> None:
+    from pioreactor.mureq import HTTPException
+
+    runner = CliRunner()
+    commands: list[str] = []
+
+    def fail_post_into(*_args, **_kwargs):
+        raise HTTPException("worker webserver unavailable")
+
+    def record_ssh(_address: str, command: str) -> None:
+        commands.append(command)
+
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", fail_post_into)
+    monkeypatch.setattr("pioreactor.cli.pios.ssh", record_ssh)
+
+    result = runner.invoke(
+        pios,
+        ["update", "--version", "1.2.3", "--repo", "org/repo", "-y"],
+    )
+
+    assert result.exit_code == 0
+    assert len(commands) >= 1
+    assert all(command.startswith("pio update app ") for command in commands)
     assert all("--repo org/repo" in command for command in commands)
 
 

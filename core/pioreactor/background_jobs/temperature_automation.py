@@ -3,6 +3,7 @@ from contextlib import suppress
 from threading import Event
 from time import sleep
 from typing import Any
+from typing import cast
 from typing import Optional
 
 import click
@@ -11,13 +12,13 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor import whoami
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import whoami
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -28,7 +29,8 @@ from pioreactor.whoami import get_pioreactor_model
 
 
 class classproperty(property):
-    def __get__(self, obj, objtype=None):
+    def __get__(self, obj: object, objtype: type | None = None) -> Any:
+        assert self.fget is not None
         return self.fget(objtype)
 
 
@@ -83,7 +85,7 @@ class TemperatureAutomationJob(AutomationJob):
 
     published_settings: dict[str, pt.PublishableSetting] = {}
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
 
         # this registers all subclasses of TemperatureAutomationJob
@@ -97,7 +99,7 @@ class TemperatureAutomationJob(AutomationJob):
         self,
         unit: pt.Unit,
         experiment: pt.Experiment,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super(TemperatureAutomationJob, self).__init__(unit, experiment)
 
@@ -151,7 +153,7 @@ class TemperatureAutomationJob(AutomationJob):
 
         self.latest_temperture_at = current_utc_datetime()
 
-    def on_init_to_ready(self):
+    def on_init_to_ready(self) -> None:
         if whoami.is_testing_env() or self.seconds_since_last_active_heating() >= 10:
             # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
             self.temperature = Temperature(
@@ -165,7 +167,9 @@ class TemperatureAutomationJob(AutomationJob):
     def seconds_since_last_active_heating() -> float:
         with local_intermittent_storage("temperature_and_heating") as cache:
             if "last_heating_timestamp" in cache:
-                return (current_utc_datetime() - to_datetime(cache["last_heating_timestamp"])).total_seconds()
+                return (
+                    current_utc_datetime() - to_datetime(cast(str, cache["last_heating_timestamp"]))
+                ).total_seconds()
             else:
                 return 1_000_000
 
@@ -314,7 +318,7 @@ class TemperatureAutomationJob(AutomationJob):
         return pwm
 
     @staticmethod
-    def _get_room_temperature():
+    def _get_room_temperature() -> float:
         # TODO: improve somehow
         return 22.0
 
@@ -559,7 +563,7 @@ class TemperatureAutomationJob(AutomationJob):
 
         intercept = -6.171633633597331
 
-        def dot_product(vec1: list, vec2: list) -> float:
+        def dot_product(vec1: list[float], vec2: list[float]) -> float:
             if len(vec1) != len(vec2):
                 raise ValueError(f"Vectors must be of the same length. Got {len(vec1)=}, {len(vec2)=}")
             return sum(x * y for x, y in zip(vec1, vec2))
@@ -586,7 +590,7 @@ def start_temperature_automation(
     automation_name: str,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> TemperatureAutomationJob:
     from pioreactor.automations import temperature  # noqa: F401
 
@@ -633,7 +637,7 @@ available_temperature_automations: dict[str, type[TemperatureAutomationJob]] = {
     required=True,
 )
 @click.pass_context
-def click_temperature_automation(ctx, automation_name):
+def click_temperature_automation(ctx: click.Context, automation_name: str) -> None:
     """
     Start an Temperature automation
     """

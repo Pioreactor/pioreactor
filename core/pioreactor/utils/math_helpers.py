@@ -18,7 +18,7 @@ def mean(x: Sequence[Number]) -> float:
     return mean(x)
 
 
-def trimmed_variance(x: Sequence[Number], cut_off_n=1) -> float:
+def trimmed_variance(x: Sequence[Number], cut_off_n: int = 1) -> float:
     from statistics import variance
 
     if cut_off_n >= len(x) / 2:
@@ -29,7 +29,7 @@ def trimmed_variance(x: Sequence[Number], cut_off_n=1) -> float:
     return variance(x[cut_off_n:-cut_off_n])
 
 
-def trimmed_mean(x: Sequence[Number], cut_off_n=1) -> float:
+def trimmed_mean(x: Sequence[Number], cut_off_n: int = 1) -> float:
     from statistics import mean
 
     x = list(x)  # copy it
@@ -88,7 +88,7 @@ def simple_linear_regression_with_forced_nil_intercept(
 
 
 def residuals_of_simple_linear_regression(
-    x: Sequence[Number], y: Sequence[Number], trimmed=False
+    x: Sequence[Number], y: Sequence[Number], trimmed: bool = False
 ) -> list[float]:
     if trimmed:
         argmin_y_, argmax_y_ = argextrema(y)

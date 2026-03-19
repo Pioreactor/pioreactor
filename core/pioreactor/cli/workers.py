@@ -6,7 +6,7 @@ if am_I_leader():
     from pioreactor import cluster_management
 
     @click.group(short_help="manage workers")
-    def workers():
+    def workers() -> None:
         pass
 
     workers.add_command(cluster_management.add_worker)

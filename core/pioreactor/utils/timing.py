@@ -50,7 +50,7 @@ def current_utc_datestamp() -> str:
     return current_utc_datetime().strftime("%Y-%m-%d")
 
 
-def default_datetime_for_pioreactor(delta_seconds=0) -> datetime:
+def default_datetime_for_pioreactor(delta_seconds: float = 0) -> datetime:
     return (datetime(2000, 1, 1) + timedelta(seconds=delta_seconds)).replace(tzinfo=timezone.utc)
 
 
@@ -99,20 +99,20 @@ class RepeatedTimer:
     def __init__(
         self,
         interval: float,
-        function: t.Callable,
+        function: t.Callable[..., t.Any],
         job_name: t.Optional[str] = None,
         run_immediately: bool = False,
         run_after: t.Optional[float] = None,
-        logger=None,
-        args=(),
-        kwargs={},
+        logger: t.Any = None,
+        args: tuple[t.Any, ...] = (),
+        kwargs: dict[str, t.Any] | None = None,
     ) -> None:
         from pioreactor.logging import create_logger
 
         self.interval = interval
         self.function = function
         self.args = args
-        self.kwargs = kwargs
+        self.kwargs = kwargs or {}
         if logger is None:
             self.logger = create_logger(job_name or "RepeatedTimer")
         else:
@@ -201,7 +201,7 @@ class RepeatedTimer:
 
 
 @contextmanager
-def paused_timer(timer):
+def paused_timer(timer: RepeatedTimer) -> t.Generator[None, None, None]:
     """
     Context manager to pause and unpause a timer object automatically.
     """

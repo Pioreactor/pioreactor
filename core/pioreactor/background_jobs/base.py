@@ -8,6 +8,7 @@ from os import environ
 from os import getpid
 from time import sleep
 from time import time
+from types import FunctionType
 from typing import Self
 
 from msgspec.json import decode as loads
@@ -19,6 +20,7 @@ from pioreactor.exc import DodgingTimingError
 from pioreactor.exc import JobPresentError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.logging import create_logger
+from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
@@ -81,17 +83,17 @@ def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Op
 
 
 class LoggerMixin:
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: t.Any, **kwargs: t.Any) -> None:
         super().__init__(*args, **kwargs)
-        self._logger = None
-        self._external_logger = False
+        self._logger: CustomLogger | None = None
+        self._external_logger: bool = False
 
-    def add_external_logger(self, logger) -> None:
+    def add_external_logger(self, logger: CustomLogger) -> None:
         self._logger = logger
         self._external_logger = True
 
     @property
-    def logger(self):
+    def logger(self) -> CustomLogger:
         if self._logger is None:
             self._logger = create_logger(
                 name=self._logger_name if hasattr(self, "_logger_name") else self.__class__.__name__
@@ -99,13 +101,13 @@ class LoggerMixin:
             self._external_logger = False
         return self._logger
 
-    def __del__(self):
+    def __del__(self) -> None:
         if self._logger and not self._external_logger:
             self._logger.clean_up()
 
 
 class PostInitCaller(type):
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: t.Any, **kwargs: t.Any) -> t.Any:
         obj = type.__call__(cls, *args, **kwargs)
         obj.__post__init__()
         return obj
@@ -256,11 +258,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # See pt.PublishableSetting type
     published_settings: dict[str, pt.PublishableSetting] = dict()
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: t.Any) -> None:
         super().__init_subclass__(**kwargs)
         orig_init = cls.__init__
 
-        def wrapped_init(self, *args, **kwargs):
+        def wrapped_init(self: t.Any, *args: t.Any, **kwargs: t.Any) -> None:
             try:
                 orig_init(self, *args, **kwargs)
             except Exception:
@@ -270,7 +272,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     pass
                 raise
 
-        cls.__init__ = wrapped_init
+        setattr(cls, "__init__", t.cast(FunctionType, wrapped_init))
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment, source: str = "app") -> None:
         if self.job_name in DISALLOWED_JOB_NAMES:
@@ -364,8 +366,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.set_state(st.READY)
 
     @property
-    def job_key(self):
+    def job_key(self) -> str:
         return f"{self.job_name}/{self.job_id}"
+
+    @staticmethod
+    def _ignore_future_sighups(*args: t.Any) -> None:
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
     def start_passive_listeners(self) -> None:
         # overwrite this to in subclasses to subscribe to topics in MQTT
@@ -430,7 +436,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         topic: str,
         payload: pt.PublishableSettingDataType | dict | bytes | None,
         qos: int = QOS.EXACTLY_ONCE,
-        **kwargs,
+        **kwargs: t.Any,
     ) -> None:
         """
         Publish payload to topic.
@@ -466,7 +472,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
 
         def wrap_callback[T](actual_callback: t.Callable[..., T]) -> t.Callable[..., t.Optional[T]]:
-            def _callback(client, userdata, message: pt.MQTTMessage) -> t.Optional[T]:
+            def _callback(client: Client, userdata: t.Any, message: pt.MQTTMessage) -> t.Optional[T]:
                 if not allow_retained and message.retain:
                     return None
                 try:
@@ -628,7 +634,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # we can only set last wills _before_ connecting, so we put this here.
             client.will_set(**last_will)  # type: ignore
 
-        def reconnect_protocol(client: Client, userdata: t.Any, flags, rc: int, properties=None) -> None:
+        def reconnect_protocol(
+            client: Client, userdata: t.Any, flags: t.Any, rc: int, properties: t.Any = None
+        ) -> None:
             if not self._reconnect_callbacks_ready:
                 return
             self.logger.info("Sub client reconnected to the MQTT broker on leader.")
@@ -636,7 +644,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._start_general_passive_listeners()
             self.start_passive_listeners()
 
-        def on_disconnect(client, userdata, flags, reason_code, properties) -> None:
+        def on_disconnect(
+            client: Client, userdata: t.Any, flags: t.Any, reason_code: int, properties: t.Any
+        ) -> None:
             self._on_mqtt_disconnect(client, reason_code)
 
         client = create_client(
@@ -692,7 +702,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-        def exit_gracefully(reason: int | str, *args) -> None:
+        def exit_gracefully(reason: int | str, *args: object) -> None:
             if self._is_cleaned_up:
                 return
 
@@ -733,7 +743,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     [
                         exit_gracefully,
                         # add a "ignore all future SIGUPs" onto the top of the stack.
-                        lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
+                        self._ignore_future_sighups,
                     ],
                 )
             except AttributeError:
@@ -978,7 +988,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def __enter__(self: Self) -> Self:
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: object) -> None:
         self.clean_up()
 
 
@@ -1022,7 +1032,7 @@ class BackgroundJobContrib(_BackgroundJob):
     Plugin jobs should inherit from this class.
     """
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: t.Any) -> None:
         super().__init_subclass__(**kwargs)
         if cls.job_name == "background_job":
             raise NameError(f"must provide a job_name property to this BackgroundJob class {cls}.")
@@ -1031,7 +1041,7 @@ class BackgroundJobContrib(_BackgroundJob):
         super().__init__(unit, experiment, source=plugin_name)
 
 
-def _noop():
+def _noop() -> None:
     pass
 
 
@@ -1157,7 +1167,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self._dodging_init_called_once = False
         self.enable_dodging_od = enable_dodging_od
 
-    def __post__init__(self):
+    def __post__init__(self) -> None:
         # this method runs after the subclass' init
         self.set_enable_dodging_od(self.enable_dodging_od)
         # now that `enable_dodging_od` is set, we can check for OD changes
@@ -1181,7 +1191,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             return False
         return False
 
-    def set_currently_dodging_od(self, value: bool):
+    def set_currently_dodging_od(self, value: bool) -> None:
         """
         Recall: currently_dodging_od is read-only. This function is called when other settings & variables are satisfied (it's "computed").
         """
@@ -1212,7 +1222,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             self._action_to_do_before_od_reading = _noop
             self._action_to_do_after_od_reading = _noop
 
-    def set_enable_dodging_od(self, value: bool):
+    def set_enable_dodging_od(self, value: bool) -> None:
         """Turn dodging on/off based on user intent, then align mode with current OD state."""
         self.enable_dodging_od = value
         od_state = st.READY if is_pio_job_running("od_reading") else st.DISCONNECTED
@@ -1343,7 +1353,7 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
     Plugin jobs should inherit from this class.
     """
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: t.Any) -> None:
         super().__init_subclass__(**kwargs)
         if cls.job_name == "background_job":
             raise NameError(f"must provide a job_name property to this BackgroundJob class {cls}.")

@@ -687,7 +687,7 @@ class IrLedReferenceTracker(LoggerMixin):
         return ref_reading, raw_readings
 
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
-        return cast(pt.OD, pd_reading)
+        return pd_reading
 
 
 class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
@@ -789,7 +789,7 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
                 cached = float(cached.decode())
             except ValueError:
                 return None
-        return float(cached)
+        return float(cached)  # type: ignore[arg-type]
 
     def update(self, ir_output_reading: pt.Voltage) -> None:
         if self.initial_ref is None:

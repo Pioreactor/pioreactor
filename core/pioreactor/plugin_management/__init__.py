@@ -57,6 +57,17 @@ class Plugin(Struct):
     source: str
 
 
+__all__ = [
+    "Plugin",
+    "click_install_plugin",
+    "click_list_plugins",
+    "click_uninstall_plugin",
+    "get_plugin_api_url",
+    "get_plugins",
+    "load_plugins",
+]
+
+
 def get_plugin_api_url(py_file: str) -> str:
     endpoint = f"/unit_api/plugins/installed/{py_file}"
     return pubsub.create_webserver_path(networking.resolve_to_address(get_unit_name()), endpoint)

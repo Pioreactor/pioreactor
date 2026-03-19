@@ -66,8 +66,8 @@ class Sqlite3Worker(threading.Thread):
             PRAGMA cache_size = -4000;
         """
         )
-        self._sql_queue: Queue[tuple[str, str, tuple]] = Queue(maxsize=max_queue_size)
-        self._results: dict[str, list | str] = {}
+        self._sql_queue: Queue[tuple[str, str, tuple[Any, ...]]] = Queue(maxsize=max_queue_size)
+        self._results: dict[str, list[Any] | str] = {}
         self._max_queue_size = max_queue_size
         self._raise_on_error = raise_on_error
         # Event that is triggered once the run_query has been executed.
@@ -111,7 +111,7 @@ class Sqlite3Worker(threading.Thread):
                 self._sqlite3_conn.close()
                 return
 
-    def _run_query(self, token: str, query: str, values: tuple) -> None:
+    def _run_query(self, token: str, query: str, values: tuple[Any, ...]) -> None:
         """Run a query.
 
         Args:
@@ -156,7 +156,7 @@ class Sqlite3Worker(threading.Thread):
             # Check that the thread is done before returning.
             self.join()
 
-    def _query_results(self, token: str):
+    def _query_results(self, token: str) -> list[Any] | str:
         """Get the query results for a specific token.
 
         Args:
@@ -175,7 +175,7 @@ class Sqlite3Worker(threading.Thread):
             del self._results[token]
             del self._select_events[token]
 
-    def execute(self, query: str, values: Optional[tuple] = None):
+    def execute(self, query: str, values: Optional[tuple[Any, ...]] = None) -> list[Any] | str | None:
         """Execute a query.
 
         Args:
@@ -196,3 +196,4 @@ class Sqlite3Worker(threading.Thread):
         # into the output queue so we know what results are ours.
         if query.lower().strip().startswith("select"):
             return self._query_results(token)
+        return None

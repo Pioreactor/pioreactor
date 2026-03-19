@@ -3,6 +3,8 @@ from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
 from json import loads
+from typing import Any
+from typing import cast
 from typing import Iterator
 from typing import Optional
 
@@ -27,7 +29,7 @@ def od_statistics(
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
     n_samples: int = 30,
-    logger=None,
+    logger: Any = None,
     skip_stirring: bool = False,
 ) -> tuple[dict[pt.PdChannel, pt.OD], dict[pt.PdChannel, pt.OD]]:
     """
@@ -96,7 +98,7 @@ def od_statistics(
         return means, variances
 
 
-def delete_od_blank(unit: pt.Unit | None = None, experiment: pt.Experiment | None = None):
+def delete_od_blank(unit: pt.Unit | None = None, experiment: pt.Experiment | None = None) -> None:
     action_name = "od_blank"
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
@@ -112,7 +114,7 @@ def delete_od_blank(unit: pt.Unit | None = None, experiment: pt.Experiment | Non
             retain=True,
         )
 
-        means = loads(cache[experiment])
+        means = loads(cast(str | bytes | bytearray, cache[experiment]))
         for channel, mean in means.items():
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
@@ -192,7 +194,7 @@ def od_blank(
     show_default=True,
     help="Number of samples",
 )
-def click_od_blank(ctx, n_samples: int) -> None:
+def click_od_blank(ctx: click.Context, n_samples: int) -> None:
     """
     Compute statistics about the blank OD time series
     """
@@ -212,7 +214,7 @@ def click_od_blank(ctx, n_samples: int) -> None:
     "--experiment",
     help="delete particular experiment",
 )
-def click_delete_od_blank(experiment):
+def click_delete_od_blank(experiment: str | None) -> None:
     unit = whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
 

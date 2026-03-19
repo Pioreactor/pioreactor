@@ -37,7 +37,7 @@ class Client(PahoClient):
     def __enter__(self) -> "Client":
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: object) -> None:
         self.loop_stop()
         self.disconnect()
 
@@ -67,16 +67,16 @@ class QOS:
 
 def create_client(
     hostname: str = mqtt_address,
-    last_will: Optional[dict] = None,
+    last_will: Optional[dict[str, Any]] = None,
     client_id: str = "",
-    keepalive=60,
-    max_connection_attempts=3,
-    clean_session=None,
-    on_connect: Optional[Callable] = None,
-    on_disconnect: Optional[Callable] = None,
-    on_subscribe: Optional[Callable] = None,
-    on_message: Optional[Callable] = None,
-    userdata: Optional[dict] = None,
+    keepalive: int = 60,
+    max_connection_attempts: int = 3,
+    clean_session: bool | None = None,
+    on_connect: Optional[Callable[..., Any]] = None,
+    on_disconnect: Optional[Callable[..., Any]] = None,
+    on_subscribe: Optional[Callable[..., Any]] = None,
+    on_message: Optional[Callable[..., Any]] = None,
+    userdata: Optional[dict[str, Any]] = None,
     port: int = config.getint("mqtt", "broker_port", fallback=1883),
     tls: bool = config.getboolean("mqtt", "use_tls", fallback="0"),
     skip_loop: bool = False,
@@ -85,7 +85,9 @@ def create_client(
     Create a MQTT client and connect to a host.
     """
 
-    def default_on_connect(client: Client, userdata, flags, rc: int, properties=None):
+    def default_on_connect(
+        client: Client, userdata: Any, flags: Any, rc: int, properties: Any = None
+    ) -> None:
         if rc > 1:
             from pioreactor.logging import create_logger
             from paho.mqtt.client import connack_string
@@ -114,7 +116,7 @@ def create_client(
         client.tls_set(tls_version=ssl.PROTOCOL_TLS)
 
     if on_connect:
-        client.on_connect = on_connect  # type: ignore
+        client.on_connect = on_connect
     else:
         client.on_connect = default_on_connect  # type: ignore
 
@@ -144,7 +146,9 @@ def create_client(
     return client
 
 
-def publish(topic: str, message, retries: int = 3, **mqtt_kwargs) -> None:
+def publish(
+    topic: str, message: str | bytes | bytearray | int | float | None, retries: int = 3, **mqtt_kwargs: Any
+) -> None:
     for retry_count in range(retries):
         try:
             with create_client() as client:
@@ -181,7 +185,7 @@ def subscribe(
     timeout: Optional[float] = None,
     allow_retained: bool = True,
     name: Optional[str] = None,
-    **mqtt_kwargs,
+    **mqtt_kwargs: Any,
 ) -> Optional[pt.MQTTMessage]:
     """
     Modeled closely after the paho version, this also includes some try/excepts and
@@ -199,11 +203,13 @@ def subscribe(
 
     lock: Optional[threading.Lock]
 
-    def on_connect(client: Client, userdata, flags, reason_code, properties) -> None:
+    def on_connect(
+        client: Client, userdata: dict[str, Any], flags: Any, reason_code: Any, properties: Any
+    ) -> None:
         client.subscribe(userdata["topics"])
         return
 
-    def on_message(client: Client, userdata, message: pt.MQTTMessage) -> None:
+    def on_message(client: Client, userdata: dict[str, Any], message: pt.MQTTMessage) -> None:
         if not allow_retained and message.retain:
             return
 
@@ -244,11 +250,11 @@ def subscribe(
 def subscribe_and_callback(
     callback: Callable[[pt.MQTTMessage], Any],
     topics: str | list[str],
-    last_will: Optional[dict] = None,
+    last_will: Optional[dict[str, Any]] = None,
     name: Optional[str] = None,
     allow_retained: bool = True,
     client: Optional[Client] = None,
-    **mqtt_kwargs,
+    **mqtt_kwargs: Any,
 ) -> Client:
     """
     Creates a new thread, wrapping around paho's subscribe.callback. Callbacks only accept a single parameter, message.
@@ -267,8 +273,8 @@ def subscribe_and_callback(
     """
     assert callable(callback), "callback should be callable - do you need to change the order of arguments?"
 
-    def wrap_callback(actual_callback: Callable[[pt.MQTTMessage], Any]) -> Callable:
-        def _callback(client: Client, userdata: dict, message):
+    def wrap_callback(actual_callback: Callable[[pt.MQTTMessage], Any]) -> Callable[..., Any]:
+        def _callback(client: Client, userdata: dict[str, Any], message: pt.MQTTMessage) -> Any:
             try:
                 if not allow_retained and message.retain:
                     return
@@ -288,10 +294,16 @@ def subscribe_and_callback(
 
     if client is None:
         # create a new client
-        def on_connect(client: Client, userdata: dict, *args):
+        def on_connect(client: Client, userdata: dict[str, Any], *args: Any) -> None:
             client.subscribe(userdata["topics"])
 
-        def on_subscribe(client, userdata, mid, granted_qos, properties=None):
+        def on_subscribe(
+            client: Client,
+            userdata: dict[str, Any],
+            mid: int,
+            granted_qos: tuple[int, ...],
+            properties: Any = None,
+        ) -> None:
             sub_ready.set()
 
         sub_ready = threading.Event()
@@ -324,7 +336,7 @@ def subscribe_and_callback(
 def prune_retained_messages(topics_to_prune: str = "#") -> None:
     topics = []
 
-    def on_message(message):
+    def on_message(message: pt.MQTTMessage) -> None:
         topics.append(message.topic)
 
     client = subscribe_and_callback(on_message, topics_to_prune, allow_retained=True)
@@ -347,7 +359,7 @@ class collect_all_logs_of_level:
         self.unit = unit
         self.experiment = experiment
         # create a bucket for the logs
-        self.bucket: list[dict] = []
+        self.bucket: list[dict[str, Any]] = []
         # subscribe to the logs
 
         self.client: Client = subscribe_and_callback(
@@ -364,10 +376,10 @@ class collect_all_logs_of_level:
         if log["level"] == self.log_level:
             self.bucket.append(log)
 
-    def __enter__(self) -> list[dict]:
+    def __enter__(self) -> list[dict[str, Any]]:
         return self.bucket
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: object) -> None:
         # stop listening for messages
         self.client.loop_stop()
         # disconnect from the broker
@@ -391,58 +403,82 @@ def create_webserver_path(address: str, endpoint: str) -> str:
     return f"{proto}://{address}:{port}/{endpoint}"
 
 
-def get_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
+def get_from(address: str, endpoint: str, **kwargs: Any) -> mureq.Response:
     # pioreactor cluster specific
     return mureq.get(create_webserver_path(address, endpoint), **kwargs)
 
 
-def get_from_leader(endpoint: str, timeout=5, **kwargs) -> mureq.Response:
+def get_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> mureq.Response:
     return get_from(leader_address, endpoint, timeout=timeout, **kwargs)
 
 
 def put_into(
-    address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+    address: str,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    **kwargs: Any,
 ) -> mureq.Response:
     # pioreactor cluster specific
     return mureq.put(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
 def put_into_leader(
-    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, timeout=5, **kwargs
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    timeout: int = 5,
+    **kwargs: Any,
 ) -> mureq.Response:
     return put_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
 def patch_into(
-    address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+    address: str,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    **kwargs: Any,
 ) -> mureq.Response:
     # pioreactor cluster specific
     return mureq.patch(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
 def patch_into_leader(
-    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, timeout=5, **kwargs
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    timeout: int = 5,
+    **kwargs: Any,
 ) -> mureq.Response:
     return patch_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
 def post_into(
-    address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+    address: str,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    **kwargs: Any,
 ) -> mureq.Response:
     # pioreactor cluster specific
     return mureq.post(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
 def post_into_leader(
-    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, timeout=5, **kwargs
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    timeout: int = 5,
+    **kwargs: Any,
 ) -> mureq.Response:
     return post_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
-def delete_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
+def delete_from(address: str, endpoint: str, **kwargs: Any) -> mureq.Response:
     # pioreactor cluster specific
     return mureq.delete(create_webserver_path(address, endpoint), **kwargs)
 
 
-def delete_from_leader(endpoint: str, timeout=5, **kwargs) -> mureq.Response:
+def delete_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> mureq.Response:
     return delete_from(leader_address, endpoint, timeout=timeout, **kwargs)

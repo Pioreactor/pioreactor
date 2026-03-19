@@ -1,3 +1,11 @@
+### 26.3.2
+
+#### Bug fixes
+
+ - Adjusted the UI's "Assign Pioreactors" dialog so `Select all available` no longer includes workers already assigned to another experiment, reducing accidental bulk reassignments while preserving individual reassignment.
+ - fixed new images now having the `experiment_tags` table
+ - fixed some UI bugs
+
 ### 26.3.1
 
 #### Bug fixes

@@ -5,6 +5,7 @@ from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import Callable
+from typing import cast
 from typing import Optional
 
 import click
@@ -47,8 +48,10 @@ if whoami.is_testing_env():
 
 
 class classproperty(property):
-    def __get__(self, obj, objtype=None):
-        return self.fget(objtype)
+    def __get__(self, obj: object | None, objtype: type[object] | None = None) -> object:  # type: ignore[override]
+        assert self.fget is not None
+        owner = objtype if objtype is not None else type(obj)
+        return self.fget(owner)
 
 
 class Monitor(LongRunningBackgroundJob):
@@ -119,7 +122,7 @@ class Monitor(LongRunningBackgroundJob):
 
         # previously I had pioreactor_version and model name here, but this starts before the webserver is online, and it
         # would crash this job.
-        self.versions = {
+        self.versions: dict[str, str | None] = {
             "app": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
             "firmware": pretty_version(version.get_firmware_version()),
@@ -174,7 +177,7 @@ class Monitor(LongRunningBackgroundJob):
         cls._post_button.append(function)
 
     def _setup_GPIO(self) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         if not whoami.is_testing_env():
             self._handle = lgpio.gpiochip_open(determine_gpiochip())
@@ -373,7 +376,7 @@ class Monitor(LongRunningBackgroundJob):
 
         observed_tmp = tmp_driver.get_temperature()
 
-        if observed_tmp >= self.MAX_TEMP_TO_SHUTDOWN:
+        if observed_tmp >= cast(float, self.MAX_TEMP_TO_SHUTDOWN):
             # something is wrong - temperature_automation should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
             # we're going to just shutdown to be safe.
             self.logger.error(
@@ -382,9 +385,9 @@ class Monitor(LongRunningBackgroundJob):
 
             subprocess.call("sudo shutdown now --poweroff", shell=True)
 
-        elif observed_tmp >= self.MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION and not utils.is_pio_job_running(
-            "temperature_automation"
-        ):
+        elif observed_tmp >= cast(
+            float, self.MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION
+        ) and not utils.is_pio_job_running("temperature_automation"):
             # errant PWM?
             # false positive: small chance this is in an incubator?
 
@@ -431,7 +434,7 @@ class Monitor(LongRunningBackgroundJob):
     def check_for_last_backup(self) -> None:
         with utils.local_persistent_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
-                latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
+                latest_backup_at = to_datetime(cast(str, cache["latest_backup_timestamp"]))
 
                 if (current_utc_datetime() - latest_backup_at).days > 30:
                     self.logger.warning(
@@ -440,7 +443,7 @@ class Monitor(LongRunningBackgroundJob):
 
     def on_ready(self) -> None:
         self.flicker_led_response_okay()
-        self.logger.notice(f"{self.unit} is online and ready.")  # type: ignore
+        self.logger.notice(f"{self.unit} is online and ready.")
 
         # we can delay this check until ready.
 
@@ -449,7 +452,7 @@ class Monitor(LongRunningBackgroundJob):
             Thread(target=self.announce_new_workers, daemon=True).start()
 
     def on_disconnected(self) -> None:
-        import lgpio  # type: ignore
+        import lgpio
 
         self.led_off()
         with suppress(AttributeError):
@@ -460,7 +463,7 @@ class Monitor(LongRunningBackgroundJob):
         if not is_HAT_present() or not hasattr(self, "_handle"):
             return
 
-        import lgpio  # type: ignore
+        import lgpio
 
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, self._led_pin, 1)
@@ -469,12 +472,12 @@ class Monitor(LongRunningBackgroundJob):
         if not is_HAT_present() or not hasattr(self, "_handle"):
             return
 
-        import lgpio  # type: ignore
+        import lgpio
 
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, self._led_pin, 0)
 
-    def button_down_and_up(self, chip, gpio, level, tick) -> None:
+    def button_down_and_up(self, chip: int, gpio: int, level: int, tick: int) -> None:
         # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
         if level == 1:
@@ -556,13 +559,13 @@ class Monitor(LongRunningBackgroundJob):
         }
         return
 
-    def flicker_led_response_okay_and_publish_state(self, *args) -> None:
+    def flicker_led_response_okay_and_publish_state(self, *args: object) -> None:
         self.flicker_led_response_okay()
 
     def _republish_state(self) -> None:
         self._publish_setting("state")
 
-    def flicker_led_response_okay(self, *args) -> None:
+    def flicker_led_response_okay(self, *args: object) -> None:
         if not is_HAT_present():
             self._republish_state()
             return
@@ -617,7 +620,7 @@ class Monitor(LongRunningBackgroundJob):
         error_code = int(message.payload)
         Thread(target=self.flicker_led_with_error_code, args=(error_code,), daemon=True).start()
 
-    def set_versions(self, data: dict):
+    def set_versions(self, data: dict[str, str | None]) -> None:
         # first remove any extra keys
         for key in data:
             if key not in self.versions:
@@ -641,9 +644,7 @@ class Monitor(LongRunningBackgroundJob):
         for worker in discover_workers_on_network():
             # not in current cluster, and not leader
             if (worker not in get_workers_in_inventory()) and (worker != leader_hostname):
-                self.logger.notice(  # type: ignore
-                    f"Pioreactor worker, {worker}, is available to be added to your cluster."
-                )
+                self.logger.notice(f"Pioreactor worker, {worker}, is available to be added to your cluster.")
 
     def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
         try:

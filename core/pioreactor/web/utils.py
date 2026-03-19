@@ -46,7 +46,7 @@ def abort_with(
     raise AssertionError("abort should not return")
 
 
-def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any]:
+def ensure_error_info(payload: dict[str, t.Any], status: int) -> UnitApiErrorPayload:
     message = _extract_error_message(payload)
     cause = payload.get("cause")
     normalized_cause = cause.strip() if isinstance(cause, str) and cause.strip() else message
@@ -62,22 +62,17 @@ def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any
         remediation=normalized_remediation,
     )
 
-    return t.cast(dict[str, t.Any], to_builtins(normalized_payload))
+    return normalized_payload
 
 
 def _extract_error_message(payload: dict[str, t.Any]) -> str:
-    for key in ("error", "description"):
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-        if isinstance(value, dict):
-            nested_value = value.get("error") or value.get("description")
-            if isinstance(nested_value, str) and nested_value.strip():
-                return nested_value.strip()
+    value = payload.get("error")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
     return "Request failed."
 
 
-def attach_cache_control(response: Response, max_age=5) -> Response:
+def attach_cache_control(response: Response, max_age: int = 5) -> Response:
     """
     Takes in a Flask Response object and sets the Cache-Control header
     to 'public, max-age=<max_age>'.
@@ -89,7 +84,7 @@ def attach_cache_control(response: Response, max_age=5) -> Response:
 DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseReturnValue)  # type: ignore
 
 
-def create_task_response(task) -> DelayedResponseReturnValue:
+def create_task_response(task: t.Any) -> DelayedResponseReturnValue:
     return (  # type: ignore
         jsonify(
             {
@@ -138,7 +133,7 @@ def is_valid_unix_filename(name: str, *, max_bytes: int = 255) -> bool:
     return bool(_ALLOWED.fullmatch(name))
 
 
-def is_rate_limited(job: str, expire_time_seconds=1.0) -> bool:
+def is_rate_limited(job: str, expire_time_seconds: float = 1.0) -> bool:
     """
     Check if the user has made a request within the debounce duration.
     """
@@ -148,7 +143,9 @@ def is_rate_limited(job: str, expire_time_seconds=1.0) -> bool:
             return False
 
         last_request_time = cache.get(job)
-        if (last_request_time is not None) and ((now - float(last_request_time)) < expire_time_seconds):
+        if (last_request_time is not None) and (
+            (now - float(t.cast(float | int | str, last_request_time))) < expire_time_seconds
+        ):
             return True
 
         cache.set(job, now)

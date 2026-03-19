@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from typing import Any
 from typing import cast
 from typing import Optional
 
@@ -35,7 +36,7 @@ class Turbidostat(DosingAutomationJob):
         exchange_volume_ml: float | str,
         target_biomass: Optional[float | str] = None,
         biomass_signal: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
@@ -60,7 +61,7 @@ class Turbidostat(DosingAutomationJob):
 
         self.exchange_volume_ml = float(exchange_volume_ml)
 
-    def set_duration(self, value: float | None):
+    def set_duration(self, value: float | None) -> None:
         # force duration to always be 0.25 - we want to check often.
         super().set_duration(0.25)
 

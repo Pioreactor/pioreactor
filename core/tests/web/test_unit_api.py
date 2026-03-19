@@ -57,6 +57,13 @@ def test_invalid_update_target(client) -> None:
     assert data.get("remediation") is None
 
 
+def test_extract_error_message_uses_error_field_only() -> None:
+    from pioreactor.web.utils import _extract_error_message
+
+    assert _extract_error_message({"error": " Invalid target "}) == "Invalid target"
+    assert _extract_error_message({"description": "Invalid target"}) == "Request failed."
+
+
 @pytest.mark.parametrize("endpoint", ["/unit_api/system/reboot", "/unit_api/system/shutdown"])
 def test_reboot_and_shutdown_schedule_task(client, endpoint) -> None:
     """Reboot and shutdown endpoints should schedule background tasks."""

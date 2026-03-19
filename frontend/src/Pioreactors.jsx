@@ -654,6 +654,10 @@ function AssignPioreactors({ experiment, variant="text" }) {
     return labelParts.join(", ");
   }
 
+  function getWorkersSelectableByBulkAction() {
+    return workers.filter((worker) => worker.experiment === null || worker.experiment === experiment);
+  }
+
   const updateAssignments = async () => {
     const delta = compareObjects(assigned, initialAssigned);
     const promises = [];
@@ -701,7 +705,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
     const newValue = event.target.checked;
     const newAssigned = { ...assigned };
 
-    workers.forEach((worker) => {
+    getWorkersSelectableByBulkAction().forEach((worker) => {
       newAssigned[worker.pioreactor_unit] = newValue;
     });
     setAssigned(newAssigned);
@@ -709,19 +713,22 @@ function AssignPioreactors({ experiment, variant="text" }) {
   };
 
   useEffect(() => {
-    if (workers.length === 0) {
+    const workersSelectableByBulkAction = getWorkersSelectableByBulkAction();
+
+    if (workersSelectableByBulkAction.length === 0) {
       setSelectAll(false);
       return;
     }
 
-    const allSelected = workers.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
-    const noneSelected = workers.every((worker) => !Boolean(assigned[worker.pioreactor_unit]));
+    const allSelected = workersSelectableByBulkAction.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
+    const noneSelected = workersSelectableByBulkAction.every((worker) => !Boolean(assigned[worker.pioreactor_unit]));
     setSelectAll(allSelected ? true : (noneSelected ? false : null));
   }, [assigned, workers, experiment]);
 
   const assignmentDelta = compareObjects(assigned, initialAssigned);
   const assignmentDeltaCount = Object.keys(assignmentDelta).length;
   const assignmentDeltaLabel = getAssignmentDeltaLabel(assignmentDelta);
+  const workersSelectableByBulkAction = getWorkersSelectableByBulkAction();
 
   return (
     <React.Fragment>
@@ -761,7 +768,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
           </Typography>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
-            {workers.length > 1 &&
+            {workersSelectableByBulkAction.length > 1 &&
             <FormControlLabel
               control={
                 <Checkbox
@@ -770,7 +777,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
                   onChange={handleSelectAllChange}
                 />
               }
-              label={<span><i>Select all</i></span>}
+              label={<span><i>Select all available</i></span>}
               sx={{mb: 1}}
             />
             }
@@ -787,24 +794,48 @@ function AssignPioreactors({ experiment, variant="text" }) {
             >
               {(workers || []).map((worker) => {
                 const unit = worker.pioreactor_unit;
-                const exp = worker.experiment;
-                const assignedToAnotherExperiment = exp !== null && exp !== experiment;
+                const worker_exp = worker.experiment;
+                const assignedToAnotherExperiment = worker_exp !== null && worker_exp !== experiment;
                 const isSelectedForAssignment = Boolean(assigned[unit]);
                 const sublabel = assignedToAnotherExperiment
                   ? (
-                    <>
-                      {isSelectedForAssignment ? "Will be unassigned from " : "Currently assigned to "}
+                    isSelectedForAssignment ? <>
+                        Will be unassigned from{" "}
+                        <Chip
+                          icon={<PlayCircleOutlinedIcon/>}
+                          size="small"
+                          label={worker_exp}
+                          clickable
+                          component={Link}
+                          onClick={() => selectExperiment(worker_exp)}
+                          data-experiment-name={worker_exp}
+                        />
+                         {" "}and re-assigned to{" "}
+                        <Chip
+                          icon={<PlayCircleOutlinedIcon/>}
+                          size="small"
+                          label={experiment}
+                          clickable
+                          component={Link}
+                          onClick={() => selectExperiment(experiment)}
+                          data-experiment-name={experiment}
+                        />
+                      </>
+                  : <>
+                    Currently assigned to{" "}
                       <Chip
                         icon={<PlayCircleOutlinedIcon/>}
                         size="small"
-                        label={exp}
+                        label={worker_exp}
                         clickable
                         component={Link}
-                        onClick={() => selectExperiment(exp)}
-                        data-experiment-name={exp}
+                        onClick={() => selectExperiment(worker_exp)}
+                        data-experiment-name={worker_exp}
                       />
-                    </>
+                  </>
                   )
+
+
                   : null;
 
                 return (
@@ -1448,6 +1479,7 @@ function SettingsActionsDialog({
 
   // Define a function to determine which component to render based on the type of setting
   function renderSettingComponent(setting, job_key, setting_key, state) {
+    const componentKey = `${job_key}-${setting_key}`;
     const commonProps = {
       onUpdate: setPioreactorJobAttr,
       setSnackbarMessage: setSnackbarMessage,
@@ -1463,11 +1495,11 @@ function SettingsActionsDialog({
 
     switch (setting.type) {
       case "boolean":
-        return <SettingSwitchField {...commonProps} />;
+        return <SettingSwitchField key={componentKey} {...commonProps} />;
       case "numeric":
-        return <SettingNumericField {...commonProps} />;
+        return <SettingNumericField key={componentKey} {...commonProps} />;
       default:
-        return <SettingTextField {...commonProps} />;
+        return <SettingTextField key={componentKey} {...commonProps} />;
     }
   }
 
@@ -2995,21 +3027,23 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
 
 function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, units, disabled, job, setting, id }){
-  const [value, setValue] = useState(initialValue || "");
+  const committedValue = initialValue ?? "";
+  const [draftValue, setDraftValue] = useState(committedValue);
   const [activeSubmit, setActiveSumbit] = useState(false);
+  const [isPendingConfirmation, setIsPendingConfirmation] = useState(false);
   const unitSize = (units || "").length > 8 ? "large" : "normal";
   const textFieldMaxWidth = unitSize === "large" ? "240px" : "180px";
 
-  useEffect(() => {
-    if (initialValue !== value) {
-      setValue(initialValue || "");
-    }
-  }, [initialValue]);
+  if (isPendingConfirmation && draftValue === committedValue) {
+    setIsPendingConfirmation(false);
+  }
 
+  const value = (activeSubmit || isPendingConfirmation) ? draftValue : committedValue;
 
   const onChange = (e) => {
     setActiveSumbit(true);
-    setValue(e.target.value);
+    setIsPendingConfirmation(false);
+    setDraftValue(e.target.value);
   };
 
   const onKeyPress = (e) => {
@@ -3019,7 +3053,7 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
   };
 
   const onSubmit = () => {
-    onUpdate(job, setting, value);
+    onUpdate(job, setting, draftValue);
     if (value !== "") {
       setSnackbarMessage(`Updating to ${value}${!units ? "" : ` ${units}`}.`);
     } else {
@@ -3027,6 +3061,7 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
     }
     setSnackbarOpen(true);
     setActiveSumbit(false);
+    setIsPendingConfirmation(true);
   };
 
     return (
@@ -3061,17 +3096,20 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
 
 
 function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id }){
-  const [value, setValue] = useState(initialValue || false);
+  const committedValue = Boolean(initialValue);
+  const [draftValue, setDraftValue] = useState(committedValue);
+  const [isPendingConfirmation, setIsPendingConfirmation] = useState(false);
 
-  useEffect(() => {
-    if (initialValue !== value) {
-      setValue(initialValue || false);
-    }
-  }, [initialValue]);
+  if (isPendingConfirmation && draftValue === committedValue) {
+    setIsPendingConfirmation(false);
+  }
+
+  const value = isPendingConfirmation ? draftValue : committedValue;
 
   const onChange = (e) => {
     const checked = e.target.checked;
-    setValue(checked);
+    setDraftValue(checked);
+    setIsPendingConfirmation(true);
     onUpdate(job, setting, checked ? 1 : 0);
     setSnackbarMessage(`Updating to ${checked ? "on" : "off"}.`);
     setSnackbarOpen(true);
@@ -3089,17 +3127,20 @@ function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage,
 
 
 function SettingNumericField({ value: initialValue, units, min, max, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id }){
-  const [value, setValue] = useState(initialValue || "");
+  const committedValue = initialValue ?? "";
+  const [draftValue, setDraftValue] = useState(committedValue);
   const [error, setError] = useState(false);
+  const [hasLocalEdits, setHasLocalEdits] = useState(false);
   const [activeSubmit, setActiveSubmit] = useState(false);
+  const [isPendingConfirmation, setIsPendingConfirmation] = useState(false);
   const unitSize = (units || "").length > 8 ? "large" : "normal";
   const textFieldMaxWidth = unitSize === "large" ? "220px" : "160px";
 
-  useEffect(() => {
-    if (initialValue !== value) {
-      setValue(initialValue || "");
-    }
-  }, [initialValue]);
+  if (isPendingConfirmation && draftValue === committedValue) {
+    setIsPendingConfirmation(false);
+  }
+
+  const value = (hasLocalEdits || isPendingConfirmation) ? draftValue : committedValue;
 
   const validateNumericInput = (input) => {
     const numericPattern = /^-?\d*\.?\d*$/; // Allows negative and decimal numbers
@@ -3131,8 +3172,10 @@ function SettingNumericField({ value: initialValue, units, min, max, onUpdate, s
     const input = e.target.value;
     const isValid = validateNumericInput(input);
     setError(!isValid);
+    setHasLocalEdits(true);
     setActiveSubmit(isValid);
-    setValue(input);
+    setIsPendingConfirmation(false);
+    setDraftValue(input);
   };
 
   const onKeyPress = (e) => {
@@ -3143,11 +3186,13 @@ function SettingNumericField({ value: initialValue, units, min, max, onUpdate, s
 
   const onSubmit = () => {
     if (!error) {
-      onUpdate(job, setting, value);
+      onUpdate(job, setting, draftValue);
       const message = value !== "" ? `Updating to ${value}${units ? ` ${units}` : ""}.` : "Updating.";
       setSnackbarMessage(message);
       setSnackbarOpen(true);
+      setHasLocalEdits(false);
       setActiveSubmit(false);
+      setIsPendingConfirmation(true);
     }
   };
 
@@ -3554,6 +3599,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       handleQuickSettingClose()
     }
 
+    const componentKey = `${unit}-${job_key}-${setting_key}`;
     const commonProps = {
       setSnackbarMessage: () => {},
       setSnackbarOpen: () => {},
@@ -3569,11 +3615,11 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
 
     switch (setting.type) {
       case "boolean":
-        return <SettingSwitchField {...commonProps} onUpdate={setPioreactorJobAttr} />
+        return <SettingSwitchField key={componentKey} {...commonProps} onUpdate={setPioreactorJobAttr} />
       case "numeric":
-        return <SettingNumericField {...commonProps} onUpdate={onUpdateAndClose} />
+        return <SettingNumericField key={componentKey} {...commonProps} onUpdate={onUpdateAndClose} />
       default:
-        return <SettingTextField {...commonProps} onUpdate={onUpdateAndClose} />
+        return <SettingTextField key={componentKey} {...commonProps} onUpdate={onUpdateAndClose} />
     }
   }
 
@@ -3664,7 +3710,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
               <Tooltip title={indicatorLabel} placement="left">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
-              <PioreactorIconWithModel badgeContent={modelBadgeContent} />
+              <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isUnitActive ? undefined : disabledColor} />
               <Typography sx={{
                   fontSize: 20,
                   color: "rgba(0, 0, 0, 0.87)",
@@ -3951,6 +3997,14 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
 
 
 function InactiveUnits({ units, config, experiment, availableModels }){
+  const [relabelMap, setRelabelMap] = useState({})
+
+  useEffect(() => {
+    if (experiment) {
+      getRelabelMap(setRelabelMap, experiment)
+    }
+  }, [experiment])
+
   return (
   <React.Fragment>
     <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
@@ -3964,11 +4018,13 @@ function InactiveUnits({ units, config, experiment, availableModels }){
       const modelDetails = (availableModels || []).find(
         ({ model_name, model_version }) => model_name === unit.model_name && model_version === unit.model_version
       );
+      const unitName = unit.pioreactor_unit || unit.pioreactor_name;
       return (
         <PioreactorCard
-          key={unit.pioreactor_name}
+          key={unitName}
           isUnitActive={false}
-          unit={unit.pioreactor_name}
+          unit={unitName}
+          originalLabel={relabelMap[unitName]}
           modelDetails={modelDetails || {}}
           config={config}
           experiment={experiment}

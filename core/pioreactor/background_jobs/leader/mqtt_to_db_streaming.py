@@ -4,6 +4,7 @@ import sqlite3
 from json import dumps
 from json import loads
 from typing import Callable
+from typing import cast
 from typing import Optional
 
 import click
@@ -29,6 +30,9 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 sqlite3.register_adapter(datetime.datetime, to_iso_format)
 
 
+type ParsedSqliteRow = dict[str, pt.Sqlite3CompatibleTypes]
+
+
 class MetaData(Struct):
     pioreactor_unit: pt.Unit
     experiment: pt.Experiment
@@ -45,10 +49,10 @@ class TopicToParserToTable(Struct):
     """
 
     topic: str | list[str]
-    parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict | list[dict]]]
+    parser: Callable[[str, pt.MQTTMessagePayload], Optional[ParsedSqliteRow | list[ParsedSqliteRow]]]
     table: str
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"TopicToParserToTable(topic='{self.topic}', table='{self.table}', parser=...)"
 
 
@@ -102,9 +106,9 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
 
     def create_on_message_callback(
         self,
-        parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict | list[dict]]],
+        parser: Callable[[str, pt.MQTTMessagePayload], Optional[ParsedSqliteRow | list[ParsedSqliteRow]]],
         table: str,
-    ) -> Callable:
+    ) -> Callable[[pt.MQTTMessage], None]:
         def callback(message: pt.MQTTMessage) -> None:
             if "/_testing_" in message.topic:
                 # filter out testing data from DB
@@ -136,7 +140,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
                 values_placeholder = ", ".join(":" + c for c in new_row.keys())
                 SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
                 try:
-                    self.sqliteworker.execute(SQL, new_row)  # type: ignore
+                    self.sqliteworker.execute(SQL, cast(object, new_row))  # type: ignore[arg-type]
                 except Exception as e:
                     self.logger.warning(e)
                     self.logger.debug(f"SQL that caused error: `{SQL}`")
@@ -161,7 +165,7 @@ def produce_metadata(topic: str) -> MetaData:
     return MetaData(split_topic[1], split_topic[2], split_topic[3:])
 
 
-def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODReading)
     return {
@@ -174,7 +178,7 @@ def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_od_fused(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_od_fused(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODFused)
     return {
@@ -185,7 +189,7 @@ def parse_od_fused(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.RawODReading)
     return {
@@ -197,7 +201,7 @@ def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODFiltered)
 
@@ -209,7 +213,7 @@ def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODReading)
 
@@ -223,7 +227,7 @@ def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
 
     payload_dict = loads(payload)
@@ -235,7 +239,7 @@ def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     dosing_event = msgspec_loads(payload, type=structs.DosingEvent)
     metadata = produce_metadata(topic)
 
@@ -249,7 +253,7 @@ def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_experiment_profile_runs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_experiment_profile_runs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     return {
         "started_at": current_utc_datetime(),
@@ -258,7 +262,7 @@ def parse_experiment_profile_runs(topic: str, payload: pt.MQTTMessagePayload) ->
     }
 
 
-def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     led_event = msgspec_loads(payload, type=structs.LEDChangeEvent)
     metadata = produce_metadata(topic)
 
@@ -272,7 +276,7 @@ def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     gr = msgspec_loads(payload, type=structs.GrowthRate)
 
@@ -284,7 +288,7 @@ def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     temp = msgspec_loads(payload, type=structs.Temperature)
 
@@ -296,7 +300,7 @@ def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     event = msgspec_loads(payload, type=structs.subclass_union(structs.AutomationEvent))
 
@@ -310,7 +314,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     payload = loads(payload)
 
@@ -322,7 +326,7 @@ def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict
     }
 
 
-def parse_liquid_volume(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_liquid_volume(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     payload = loads(payload)
 
@@ -334,7 +338,7 @@ def parse_liquid_volume(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     log = msgspec_loads(payload, type=structs.Log)
 
@@ -349,7 +353,7 @@ def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     kf_output = msgspec_loads(payload, type=structs.KalmanFilterOutput)
     return {
@@ -368,12 +372,11 @@ def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> d
     }
 
 
-def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-    payload_dict = loads(payload)
-    return payload_dict
+def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
+    return cast(ParsedSqliteRow, loads(payload))
 
 
-def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     rpms = msgspec_loads(payload, type=structs.MeasuredRPM)
 
@@ -385,7 +388,7 @@ def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_pwm_dcs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_pwm_dcs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     pin_to_dc = loads(payload)
 

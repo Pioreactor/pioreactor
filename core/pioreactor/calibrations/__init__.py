@@ -23,6 +23,16 @@ else:
 
 Device = TypeVar("Device", bound=str)
 
+__all__ = [
+    "CALIBRATION_PATH",
+    "CalibrationProtocol",
+    "get_calibration_protocols",
+    "list_devices",
+    "list_of_calibrations_by_device",
+    "load_active_calibration",
+    "load_calibration",
+]
+
 
 @overload
 def load_active_calibration(device: pt.ODCalibrationDevices) -> structs.ODCalibration | None:
@@ -48,7 +58,7 @@ def load_active_calibration(device: Device) -> structs.AnyCalibration | None:
     if active_cal_name is None:
         return None
 
-    return load_calibration(device, active_cal_name)
+    return load_calibration(device, str(active_cal_name))
 
 
 def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibration:

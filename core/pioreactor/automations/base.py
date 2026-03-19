@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from time import sleep
+from typing import Any
 from typing import cast
 
 from msgspec.json import decode
@@ -66,7 +67,7 @@ class AutomationJob(BackgroundJob):
 
         self.start_passive_listeners()
 
-    def execute(self) -> events.AutomationEvent | None:
+    def execute(self) -> structs.AutomationEvent | None:
         """
         Overwrite in subclass
         """
@@ -147,7 +148,7 @@ class AutomationJob(BackgroundJob):
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
 
-        return cast(float, self._latest_growth_rate)
+        return self._latest_growth_rate
 
     @property
     def latest_normalized_od(self) -> float:
@@ -168,7 +169,7 @@ class AutomationJob(BackgroundJob):
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
 
-        return cast(float, self._latest_normalized_od)
+        return self._latest_normalized_od
 
     @property
     def latest_od(self) -> dict[pt.PdChannel, float]:
@@ -210,7 +211,7 @@ class AutomationJob(BackgroundJob):
                 f"fused readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_fused_at}."
             )
 
-        return cast(float, self._latest_od_fused)
+        return self._latest_od_fused
 
     def latest_biomass_value(
         self,
@@ -256,7 +257,7 @@ class AutomationJob(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def __setattr__(self, name, value) -> None:
+    def __setattr__(self, name: str, value: Any) -> None:
         super().__setattr__(name, value)
         if name in self.published_settings and name != "state" and self.published_settings[name]["settable"]:
             self._latest_settings_ended_at = current_utc_datetime()

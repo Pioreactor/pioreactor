@@ -12,7 +12,7 @@ _unit_api_routes: list[RouteEntry] = []
 _mcp_tools: list[tuple[Callable[..., Any], Dict[str, Any]]] = []
 
 
-def register_api_route(rule: str, **options: Any):
+def register_api_route(rule: str, **options: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         _api_routes.append((rule, dict(options), func))
         return func
@@ -20,7 +20,7 @@ def register_api_route(rule: str, **options: Any):
     return decorator
 
 
-def register_unit_api_route(rule: str, **options: Any):
+def register_unit_api_route(rule: str, **options: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         _unit_api_routes.append((rule, dict(options), func))
         return func
@@ -28,7 +28,9 @@ def register_unit_api_route(rule: str, **options: Any):
     return decorator
 
 
-def register_mcp_tool(*, tool_kwargs: Dict[str, Any] | None = None):
+def register_mcp_tool(
+    *, tool_kwargs: Dict[str, Any] | None = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     tool_kwargs = dict(tool_kwargs or {})
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:

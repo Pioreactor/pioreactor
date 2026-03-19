@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # pump X ml every period (minute, 30min, hour, etc.)
+from typing import Any
+
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.exc import CalibrationError
@@ -16,7 +18,7 @@ class FedBatch(DosingAutomationJob):
         "dosing_volume_ml": {"datatype": "float", "unit": "mL", "settable": True},
     }
 
-    def __init__(self, dosing_volume_ml, **kwargs) -> None:
+    def __init__(self, dosing_volume_ml: float | str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:
@@ -28,7 +30,7 @@ class FedBatch(DosingAutomationJob):
         )
         self.dosing_volume_ml = float(dosing_volume_ml)
 
-    def execute(self):
+    def execute(self) -> events.AddMediaEvent:
         vol = self.add_media_to_bioreactor(
             ml=self.dosing_volume_ml,
             source_of_event=f"{self.job_name}:{self.automation_name}",

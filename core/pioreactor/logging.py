@@ -3,6 +3,7 @@ import logging
 import re
 from logging import handlers
 from time import sleep
+from typing import Any
 from typing import TYPE_CHECKING
 
 from pioreactor import types as pt
@@ -46,11 +47,11 @@ def add_logging_level(levelName: str, levelNum: int) -> None:
     """
     methodName = levelName.lower()
 
-    def logForLevel(self: logging.Logger, message: str, *args, **kwargs) -> None:
+    def logForLevel(self: logging.Logger, message: str, *args: Any, **kwargs: Any) -> None:
         if self.isEnabledFor(levelNum):
             self._log(levelNum, message, args, **kwargs)
 
-    def logToRoot(message: str, *args, **kwargs) -> None:
+    def logToRoot(message: str, *args: Any, **kwargs: Any) -> None:
         logging.log(levelNum, message, *args, **kwargs)
 
     logging.addLevelName(levelNum, levelName)
@@ -64,11 +65,11 @@ NOTICE = logging.INFO + 5
 add_logging_level("NOTICE", NOTICE)
 
 
-class CustomLogger(logging.LoggerAdapter):
-    def notice(self, msg, *args, **kwargs):
+class CustomLogger(logging.LoggerAdapter[logging.Logger]):
+    def notice(self, msg: object, *args: object, **kwargs: Any) -> None:
         self.log(NOTICE, msg, *args, **kwargs)
 
-    def clean_up(self):
+    def clean_up(self) -> None:
         handlers = self.logger.handlers[:]
         for handler in handlers:
             self.logger.removeHandler(handler)
@@ -91,14 +92,14 @@ class CustomisedJSONFormatter(JSONFormatter):
         message = message.replace("\r\n", "\n").replace("\r", "\n")
         return ANSI_ESCAPE_RE.sub("", message)
 
-    def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
+    def json_record(self, message: str, extra: dict[str, Any], record: logging.LogRecord) -> dict[str, Any]:
         from pioreactor.utils.timing import current_utc_timestamp
 
         extra["message"] = self._normalize_mqtt_message(message, record)
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_timestamp()
-        extra["source"] = getattr(record, "source", None)  # type: ignore
+        extra["source"] = getattr(record, "source", None)
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)
@@ -118,7 +119,7 @@ class MQTTHandler(logging.Handler):
         client: "Client",
         qos: int = 0,
         retain: bool = False,
-        **mqtt_kwargs,
+        **mqtt_kwargs: Any,
     ) -> None:
         logging.Handler.__init__(self)
         self.topic_prefix = topic_prefix
@@ -127,7 +128,7 @@ class MQTTHandler(logging.Handler):
         self.mqtt_kwargs = mqtt_kwargs
         self.client = client
 
-    def emit(self, record) -> None:
+    def emit(self, record: logging.LogRecord) -> None:
         payload = self.format(record)
 
         attempts = 0
@@ -161,7 +162,7 @@ def create_logger(
     source: str = "app",
     to_mqtt: bool = True,
     pub_client: "Client | None" = None,
-    log_file_location=config["logging"]["log_file"],
+    log_file_location: str = config["logging"]["log_file"],
 ) -> CustomLogger:
     """
 
@@ -180,7 +181,7 @@ def create_logger(
     logger = logging.getLogger(name)
 
     if len(logger.handlers) > 0:
-        return CustomLogger(logger, {"source": source})  # type: ignore
+        return CustomLogger(logger, {"source": source})
 
     logger.setLevel(logging.DEBUG)
 
@@ -243,4 +244,4 @@ def create_logger(
         # add MQTT/remote log handlers
         logger.addHandler(mqtt_to_db_handler)
 
-    return CustomLogger(logger, {"source": source})  # type: ignore
+    return CustomLogger(logger, {"source": source})

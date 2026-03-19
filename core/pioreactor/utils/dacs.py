@@ -2,7 +2,7 @@
 # dacs.py
 from typing import cast
 
-import busio  # type: ignore
+import busio
 from pioreactor import hardware
 from pioreactor.exc import HardwareNotFoundError
 from pioreactor.types import FloatBetween0and100
@@ -40,7 +40,7 @@ class DAC43608_DAC(_DAC):
             self.dac.power_down(channel)
         else:
             self.dac.power_up(channel)
-            self.dac.set_intensity_to(channel, intensity / 100.0)  # type: ignore
+            self.dac.set_intensity_to(channel, intensity / 100.0)
 
 
 class Pico_DAC(_DAC):

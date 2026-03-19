@@ -48,7 +48,7 @@ def _load_all_modules() -> None:
     if _MODULES_LOADED:
         return
 
-    for module in pkgutil.walk_packages(pioreactor.__path__, pioreactor.__name__ + "."):  # type: ignore
+    for module in pkgutil.walk_packages(pioreactor.__path__, pioreactor.__name__ + "."):
         if module.name.startswith("pioreactor.web."):
             continue
         try:
@@ -223,7 +223,7 @@ def collect_background_jobs() -> Tuple[Dict[str, Any], ...]:
     return tuple(entries)
 
 
-def generate_command_metadata(cmd, name: str) -> Dict[str, Any]:
+def generate_command_metadata(cmd: click.Command, name: str) -> Dict[str, Any]:
     entry: Dict[str, Any] = {
         "name": name,
         "help": (cmd.help or "").strip(),
@@ -264,7 +264,7 @@ def collect_actions() -> List[Dict[str, Any]]:
 
     lazy_subcommands = getattr(run, "lazy_subcommands", {})
     for name in lazy_subcommands:
-        cmd = run.get_command(None, name)
+        cmd = run.get_command(click.Context(run), name)
         if cmd is not None:
             run.commands[name] = cmd
 

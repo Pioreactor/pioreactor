@@ -4,6 +4,7 @@ from contextlib import suppress
 from datetime import datetime
 from functools import partial
 from threading import Event
+from typing import Any
 from typing import Optional
 
 import click
@@ -28,7 +29,8 @@ from pioreactor.utils.timing import RepeatedTimer
 
 
 class classproperty(property):
-    def __get__(self, obj, objtype=None):
+    def __get__(self, obj: object, objtype: type | None = None) -> Any:
+        assert self.fget is not None
         return self.fget(objtype)
 
 
@@ -91,7 +93,7 @@ class DosingAutomationJob(AutomationJob):
     job_name = "dosing_automation"
     published_settings: dict[str, pt.PublishableSetting] = {}
 
-    latest_event: Optional[events.AutomationEvent] = None
+    latest_event: Optional[structs.AutomationEvent] = None
     _latest_run_at: Optional[datetime] = None
     run_thread: RepeatedTimer
     duration: float | None
@@ -131,7 +133,7 @@ class DosingAutomationJob(AutomationJob):
             "dosing_automation.config", "max_subdose", fallback=1.0
         )  # arbitrary, but should be some value that the pump is well calibrated for.
 
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
 
         # this registers all subclasses of DosingAutomationJob
@@ -147,7 +149,7 @@ class DosingAutomationJob(AutomationJob):
         alt_media_fraction: float | None = None,
         current_volume_ml: float | None = None,
         max_working_volume_ml: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
 
@@ -186,7 +188,7 @@ class DosingAutomationJob(AutomationJob):
             self.duration = float(duration)
 
             with suppress(AttributeError):
-                self.run_thread.cancel()  # type: ignore
+                self.run_thread.cancel()
 
             if self._latest_run_at is not None:
                 # what's the correct logic when changing from duration N and duration M?
@@ -210,7 +212,7 @@ class DosingAutomationJob(AutomationJob):
                 logger=self.logger,
             ).start()
 
-    def run(self, timeout: float = 60.0) -> Optional[events.AutomationEvent]:
+    def run(self, timeout: float = 60.0) -> Optional[structs.AutomationEvent]:
         """
         Parameters
         -----------
@@ -219,7 +221,7 @@ class DosingAutomationJob(AutomationJob):
             Default 60s.
 
         """
-        event: Optional[events.AutomationEvent]
+        event: Optional[structs.AutomationEvent]
 
         self._latest_run_at = current_utc_datetime()
 
@@ -555,10 +557,10 @@ class DosingAutomationJob(AutomationJob):
         )
 
         with local_persistent_storage("alt_media_throughput") as cache:
-            self.alt_media_throughput = cache.get(self.experiment, 0.0)
+            self.alt_media_throughput = float(cache.get(self.experiment, 0.0))  # type: ignore[arg-type]
 
         with local_persistent_storage("media_throughput") as cache:
-            self.media_throughput = cache.get(self.experiment, 0.0)
+            self.media_throughput = float(cache.get(self.experiment, 0.0))  # type: ignore[arg-type]
 
         return
 
@@ -605,7 +607,7 @@ def start_dosing_automation(
     skip_first_run: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> DosingAutomationJob:
     from pioreactor.automations import dosing  # noqa: F401
 
@@ -656,7 +658,9 @@ available_dosing_automations: dict[str, type[DosingAutomationJob]] = {}
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_dosing_automation(ctx, automation_name, duration, skip_first_run):
+def click_dosing_automation(
+    ctx: click.Context, automation_name: str, duration: float, skip_first_run: int
+) -> None:
     """
     Start a dosing automation
     """

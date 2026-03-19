@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import cast
 from typing import overload
 from typing import TypeVar
 
@@ -35,7 +36,7 @@ def load_active_estimator(device: Device) -> structs.AnyEstimator | None:
 
 def load_active_estimator(device: Device) -> structs.AnyEstimator | None:
     with local_persistent_storage("active_estimators") as storage:
-        active_name = storage.get(device)
+        active_name = cast(str | None, storage.get(device))
 
     if active_name is None:
         return None
