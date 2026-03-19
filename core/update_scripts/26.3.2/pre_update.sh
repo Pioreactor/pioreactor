@@ -5,7 +5,7 @@ set -xeu
 export LC_ALL=C
 
 # Lower bound version
-min_version="26.3.1"
+min_version="26.3.0"
 
 # Get the current version of pio
 current_version=$(sudo -u pioreactor -i pio version)
