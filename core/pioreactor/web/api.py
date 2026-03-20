@@ -760,6 +760,7 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
             FROM logs AS l
             JOIN experiment_worker_assignments_history h
                on h.pioreactor_unit = l.pioreactor_unit
+               and h.experiment = l.experiment
                and h.assigned_at <= l.timestamp
                and DATETIME(l.timestamp) <= DATETIME(coalesce(h.unassigned_at, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')), '+5 seconds')
             WHERE (l.experiment=?)
