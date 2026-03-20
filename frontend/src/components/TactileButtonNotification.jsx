@@ -20,14 +20,7 @@ function TactileButtonNotification() {
     setOpen(false);
   };
 
-  React.useEffect(() => {
-    if (client) {
-      subscribeToTopic(topic, onMessage, "TactileButtonNotification");
-      return () => unsubscribeFromTopic(topic, "TactileButtonNotification");
-    }
-  }, [client]);
-
-  const onMessage = (topic, msg) => {
+  const onMessage = React.useCallback((topic, msg) => {
     if (msg.toString() === "True"){
       var unit = topic.toString().split("/")[1]
       setUnit(unit)
@@ -36,7 +29,14 @@ function TactileButtonNotification() {
     else {
       setOpen(false)
     }
-  }
+  }, []);
+
+  React.useEffect(() => {
+    if (client) {
+      subscribeToTopic(topic, onMessage, "TactileButtonNotification");
+      return () => unsubscribeFromTopic(topic, "TactileButtonNotification");
+    }
+  }, [client, onMessage, subscribeToTopic, unsubscribeFromTopic]);
 
   return (
     <Snackbar

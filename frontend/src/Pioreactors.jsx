@@ -654,9 +654,10 @@ function AssignPioreactors({ experiment, variant="text" }) {
     return labelParts.join(", ");
   }
 
-  function getWorkersSelectableByBulkAction() {
-    return workers.filter((worker) => worker.experiment === null || worker.experiment === experiment);
-  }
+  const workersSelectableByBulkAction = useMemo(
+    () => workers.filter((worker) => worker.experiment === null || worker.experiment === experiment),
+    [experiment, workers]
+  );
 
   const updateAssignments = async () => {
     const delta = compareObjects(assigned, initialAssigned);
@@ -705,7 +706,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
     const newValue = event.target.checked;
     const newAssigned = { ...assigned };
 
-    getWorkersSelectableByBulkAction().forEach((worker) => {
+    workersSelectableByBulkAction.forEach((worker) => {
       newAssigned[worker.pioreactor_unit] = newValue;
     });
     setAssigned(newAssigned);
@@ -713,8 +714,6 @@ function AssignPioreactors({ experiment, variant="text" }) {
   };
 
   useEffect(() => {
-    const workersSelectableByBulkAction = getWorkersSelectableByBulkAction();
-
     if (workersSelectableByBulkAction.length === 0) {
       setSelectAll(false);
       return;
@@ -723,13 +722,11 @@ function AssignPioreactors({ experiment, variant="text" }) {
     const allSelected = workersSelectableByBulkAction.every((worker) => Boolean(assigned[worker.pioreactor_unit]));
     const noneSelected = workersSelectableByBulkAction.every((worker) => !Boolean(assigned[worker.pioreactor_unit]));
     setSelectAll(allSelected ? true : (noneSelected ? false : null));
-  }, [assigned, workers, experiment]);
+  }, [assigned, workersSelectableByBulkAction]);
 
   const assignmentDelta = compareObjects(assigned, initialAssigned);
   const assignmentDeltaCount = Object.keys(assignmentDelta).length;
   const assignmentDeltaLabel = getAssignmentDeltaLabel(assignmentDelta);
-  const workersSelectableByBulkAction = getWorkersSelectableByBulkAction();
-
   return (
     <React.Fragment>
       <Button variant={variant} style={{ textTransform: "none" }} onClick={handleClickOpen}>
@@ -1323,7 +1320,7 @@ function SettingsActionsDialog({
     });
 
 
-  }, [open]);
+  }, [open, unit]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -2173,7 +2170,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const contribJobsList = useContribJobsList();
   const selfTestExperiment = "$experiment";
-  const assignedUnits = units || [];
+  const assignedUnits = useMemo(() => units || [], [units]);
   const assignedUnitNames = useMemo(
     () => assignedUnits.map((worker) => worker?.pioreactor_unit).filter(Boolean),
     [assignedUnits]
@@ -3379,80 +3376,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     setJobFetchComplete(true);
   }, [contribJobsList])
 
-  useEffect(() => {
-    if (!isUnitActive) {
-      return undefined;
-    }
-
-    if (!jobFetchComplete) {
-      return undefined;
-    }
-
-    if (!experiment) {
-      return undefined;
-    }
-
-    if (!client) {
-      return undefined;
-    }
-
-    const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
-    for (const job of Object.keys(jobs)) {
-      topics.push(`pioreactor/${unit}/${experiment}/${job}/$state`);
-      for (const setting of Object.keys(jobs[job].publishedSettings)) {
-        topics.push(
-          [
-            "pioreactor",
-            unit,
-            (job === "monitor" ? "$experiment" : experiment),
-            job,
-            setting,
-          ].join("/")
-        );
-      }
-    }
-
-    subscribeToTopic(topics, onMessage, "PioreactorCard");
-
-    return () => {
-      unsubscribeFromTopic(topics, "PioreactorCard");
-    };
-  }, [experiment, jobFetchComplete, isUnitActive, client, subscribeToTopic, unsubscribeFromTopic, unit])
-
-  const onBioreactorMessage = useCallback((topic, message) => {
-    if (!topic || !message) {
-      return;
-    }
-
-    const parts = topic.toString().split('/');
-    const variableName = parts[4];
-    const parsedValue = parseNumericValue(message.toString());
-
-    if (!variableName || parsedValue === null) {
-      return;
-    }
-
-    setBioreactorValues((previous) => ({
-      ...previous,
-      [variableName]: parsedValue,
-    }));
-  }, []);
-
-  useEffect(() => {
-    if (!client || !unit || !experiment) {
-      return undefined;
-    }
-
-    const topics = getBioreactorSubscriptionTopics(unit, experiment);
-
-    subscribeToTopic(topics, onBioreactorMessage, "PioreactorCardBioreactor");
-
-    return () => {
-      unsubscribeFromTopic(topics, "PioreactorCardBioreactor");
-    };
-  }, [client, experiment, onBioreactorMessage, subscribeToTopic, unsubscribeFromTopic, unit])
-
-  const onMessage = (topic, message, _packet) => {
+  const onMessage = useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
 
     const [job, setting] = topic.toString().split('/').slice(-2)
@@ -3490,7 +3414,79 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         return { ...prev, [job]: updatedJob };
       });
     }
-  }
+  }, []);
+
+  const jobTopics = useMemo(() => {
+    if (!jobFetchComplete || !experiment) {
+      return [];
+    }
+
+    const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
+    for (const job of Object.keys(jobs)) {
+      topics.push(`pioreactor/${unit}/${experiment}/${job}/$state`);
+      for (const setting of Object.keys(jobs[job].publishedSettings)) {
+        topics.push(
+          [
+            "pioreactor",
+            unit,
+            (job === "monitor" ? "$experiment" : experiment),
+            job,
+            setting,
+          ].join("/")
+        );
+      }
+    }
+    return topics;
+  }, [experiment, jobFetchComplete, jobs, unit]);
+
+  useEffect(() => {
+    if (!isUnitActive) {
+      return undefined;
+    }
+
+    if (!client || jobTopics.length === 0) {
+      return undefined;
+    }
+
+    subscribeToTopic(jobTopics, onMessage, "PioreactorCard");
+
+    return () => {
+      unsubscribeFromTopic(jobTopics, "PioreactorCard");
+    };
+  }, [client, isUnitActive, jobTopics, onMessage, subscribeToTopic, unsubscribeFromTopic])
+
+  const onBioreactorMessage = useCallback((topic, message) => {
+    if (!topic || !message) {
+      return;
+    }
+
+    const parts = topic.toString().split('/');
+    const variableName = parts[4];
+    const parsedValue = parseNumericValue(message.toString());
+
+    if (!variableName || parsedValue === null) {
+      return;
+    }
+
+    setBioreactorValues((previous) => ({
+      ...previous,
+      [variableName]: parsedValue,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!client || !unit || !experiment) {
+      return undefined;
+    }
+
+    const topics = getBioreactorSubscriptionTopics(unit, experiment);
+
+    subscribeToTopic(topics, onBioreactorMessage, "PioreactorCardBioreactor");
+
+    return () => {
+      unsubscribeFromTopic(topics, "PioreactorCardBioreactor");
+    };
+  }, [client, experiment, onBioreactorMessage, subscribeToTopic, unsubscribeFromTopic, unit])
 
   const setPioreactorJobAttr = (job, setting, value) => {
     if (job === "bioreactor") {
@@ -4051,28 +4047,11 @@ function Pioreactors({title}) {
     getConfig(setConfig)
   }, [title]);
 
-  useEffect(() => {
-    if (experimentMetadata.experiment) {
-      fetchWorkers();
+  const fetchWorkers = useCallback(async () => {
+    if (!experimentMetadata.experiment) {
+      return;
     }
-  }, [experimentMetadata.experiment]);
 
-  useEffect(() => {
-    fetch('/api/models')
-      .then((r) => r.json())
-      .then((data) => setAvailableModels(data.models))
-  }, []);
-
-  const workersMissingModel = workers.some(workerMissingModelDetails);
-
-  useEffect(() => {
-    if (workersMissingModel) {
-      setModelCheckKey((key) => key + 1);
-    }
-  }, [workersMissingModel]);
-
-
-  const fetchWorkers = async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/experiments/${experimentMetadata.experiment}/workers`);
@@ -4087,8 +4066,25 @@ function Pioreactors({title}) {
     } finally {
       setIsLoading(false)
     }
-  };
+  }, [experimentMetadata.experiment]);
 
+  useEffect(() => {
+    fetchWorkers();
+  }, [fetchWorkers]);
+
+  useEffect(() => {
+    fetch('/api/models')
+      .then((r) => r.json())
+      .then((data) => setAvailableModels(data.models))
+  }, []);
+
+  const workersMissingModel = workers.some(workerMissingModelDetails);
+
+  useEffect(() => {
+    if (workersMissingModel) {
+      setModelCheckKey((key) => key + 1);
+    }
+  }, [workersMissingModel]);
 
   const renderCards = () => {
       const activeUnits = workers.filter(worker => worker.is_active === 1);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -90,34 +90,6 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
     }
   }, [experiment, config]);
 
-  useEffect(() => {
-    if (!client || !Object.keys(config).length) return undefined;
-
-    const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
-    const ix = LEVELS.indexOf(levelRequested);
-    const topics = LEVELS.slice(ix).map((level) => `pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`);
-
-    subscribeToTopic(topics, onMessage, 'LogTable');
-
-    return () => {
-      topics.forEach((topic) => unsubscribeFromTopic(topic, 'LogTable'));
-    };
-  }, [client, config, subscribeToTopic, unsubscribeFromTopic]);
-
-  useEffect(() => {
-    if (!experiment || !client || !Object.keys(config).length) return undefined;
-
-    const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
-    const ix = LEVELS.indexOf(levelRequested);
-    const topics = LEVELS.slice(ix).map((level) => `pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`);
-
-    subscribeToTopic(topics, onMessage, 'LogTable');
-
-    return () => {
-      topics.forEach((topic) => unsubscribeFromTopic(topic, 'LogTable'));
-    };
-  }, [client, experiment, config, subscribeToTopic, unsubscribeFromTopic]);
-
   const relabelUnit = (unit) => {
     if (unit === '$broadcast') {
       return 'All Pioreactors';
@@ -143,7 +115,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
     }
   };
 
-  const onMessage = (topic, message, _packet) => {
+  const onMessage = useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
 
     const unit = topic.toString().split('/')[1];
@@ -163,7 +135,35 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         return a.timestamp > b.timestamp;
       })
     );
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!client || !Object.keys(config).length) return undefined;
+
+    const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map((level) => `pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`);
+
+    subscribeToTopic(topics, onMessage, 'LogTable');
+
+    return () => {
+      topics.forEach((topic) => unsubscribeFromTopic(topic, 'LogTable'));
+    };
+  }, [client, config, onMessage, subscribeToTopic, unsubscribeFromTopic]);
+
+  useEffect(() => {
+    if (!experiment || !client || !Object.keys(config).length) return undefined;
+
+    const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map((level) => `pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`);
+
+    subscribeToTopic(topics, onMessage, 'LogTable');
+
+    return () => {
+      topics.forEach((topic) => unsubscribeFromTopic(topic, 'LogTable'));
+    };
+  }, [client, experiment, config, onMessage, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSubmitDialog = async (newLog) => {

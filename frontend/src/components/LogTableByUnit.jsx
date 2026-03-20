@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -91,37 +91,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
     if (experiment) {
       getData();
     }
-  }, [experiment, unit]);
-
-  useEffect(() => {
-    if (!client) {
-      return undefined;
-    }
-    const levelRequested = 'INFO';
-    const ix = LEVELS.indexOf(levelRequested);
-    const topics = LEVELS.slice(ix).map(
-      (level) => `pioreactor/${unit}/$experiment/logs/+/${level.toLowerCase()}`
-    );
-    subscribeToTopic(topics, onMessage, 'LogTableByUnit');
-    return () => {
-      unsubscribeFromTopic(topics, 'LogTableByUnit');
-    };
-  }, [client, unit, subscribeToTopic, unsubscribeFromTopic]);
-
-  useEffect(() => {
-    if (!experiment || !client) {
-      return undefined;
-    }
-    const levelRequested = 'INFO';
-    const ix = LEVELS.indexOf(levelRequested);
-    const topics = LEVELS.slice(ix).map(
-      (level) => `pioreactor/${unit}/${experiment}/logs/+/${level.toLowerCase()}`
-    );
-    subscribeToTopic(topics, onMessage, 'LogTableByUnit');
-    return () => {
-      unsubscribeFromTopic(topics, 'LogTableByUnit');
-    };
-  }, [client, experiment, unit, subscribeToTopic, unsubscribeFromTopic]);
+  }, [experiment, level, unit]);
 
   const toTimestampObject = (timestamp) => {
     if (dayjs.isDayjs(timestamp)) {
@@ -142,7 +112,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
     return <span title={localTs.format('YYYY-MM-DD HH:mm:ss')}>{localTs.format('HH:mm:ss')}</span>;
   };
 
-  const onMessage = (topic, message, _packet) => {
+  const onMessage = useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
 
     const unit = topic.toString().split('/')[1];
@@ -162,7 +132,37 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
         return a.timestamp > b.timestamp;
       })
     );
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!client) {
+      return undefined;
+    }
+    const levelRequested = 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map(
+      (level) => `pioreactor/${unit}/$experiment/logs/+/${level.toLowerCase()}`
+    );
+    subscribeToTopic(topics, onMessage, 'LogTableByUnit');
+    return () => {
+      unsubscribeFromTopic(topics, 'LogTableByUnit');
+    };
+  }, [client, onMessage, unit, subscribeToTopic, unsubscribeFromTopic]);
+
+  useEffect(() => {
+    if (!experiment || !client) {
+      return undefined;
+    }
+    const levelRequested = 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map(
+      (level) => `pioreactor/${unit}/${experiment}/logs/+/${level.toLowerCase()}`
+    );
+    subscribeToTopic(topics, onMessage, 'LogTableByUnit');
+    return () => {
+      unsubscribeFromTopic(topics, 'LogTableByUnit');
+    };
+  }, [client, experiment, onMessage, unit, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSubmitDialog = async (newLog) => {

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 
 function roundTo1(x) {
@@ -62,7 +62,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
   const shiftedBaseLow = baseLow + diagramYOffset;
   const shiftedBaseHigh = baseHigh + diagramYOffset;
 
-  const bioreactor = {
+  const bioreactor = useMemo(() => ({
     width: 200,
     height: bioreactorHeight,
     x: (canvasDim.width - 200) / 2,
@@ -75,14 +75,14 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       y: (canvasDim.height - 10) / 2 + stirBarOffset + diagramYOffset,
       radius: 3,
     },
-  };
-  const cap = {
+  }), [bioreactorHeight, canvasDim.height, canvasDim.width, diagramYOffset, stirBarOffset]);
+  const cap = useMemo(() => ({
     width: bioreactor.width * 0.95,
     height: 52,
     x: bioreactor.x + 5,
     y: bioreactor.y - 63,
     radius: 3,
-  };
+  }), [bioreactor.width, bioreactor.x, bioreactor.y]);
 
   const canvasRef = useRef(null);
   const stirBarFrame = useRef(0);
@@ -105,11 +105,10 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     size,
   );
 
-  let now, then, elapsed;
   const fps = 45;
   const fpsInterval = 1000 / fps;
 
-  function onMessage(topic, message) {
+  const onMessage = useCallback((topic, message) => {
     if (!message || !topic) return;
 
     const topicString = topic.toString();
@@ -162,7 +161,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     } else if (topicString.endsWith('leds/intensity')) {
       setLeds(messageString ? JSON.parse(messageString) : { A: 0, B: 0, C: 0, D: 0 });
     }
-  }
+  }, [config, rpmClampMax]);
 
   useEffect(() => {
     if (!client || !experiment || !config || Object.keys(config).length === 0) {
@@ -182,12 +181,17 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     return () => {
       unsubscribeFromTopic(topics, 'BioreactorDiagram');
     };
-  }, [client, experiment, config, subscribeToTopic, unsubscribeFromTopic, unit]);
+  }, [client, config, experiment, onMessage, subscribeToTopic, unsubscribeFromTopic, unit]);
 
   useEffect(() => {
     let animationFrameId;
     const canvas = canvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
     const ctx = canvas.getContext('2d');
+    let now;
+    let elapsed;
     const liquidLevel = (volume / size) * bioreactor.height;
     const bottomOfWasteTube = bioreactor.height - (cappedMaxVolume / size) * bioreactor.height + 53; // bioreactor.height - maxVolume / 40 * bioreactor.height + 20
 
@@ -427,24 +431,25 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       if (pumps.size) drawWarning(warningRects);
     }
 
-    function update() {
-      animationFrameId = window.requestAnimationFrame(update);
-      now = window.performance.now();
-      elapsed = now - then;
-      if (elapsed > fpsInterval) {
-        then = now - (elapsed % fpsInterval);
-        stirBarFrame.current = (stirBarFrame.current + 1) % Math.round(frameFactor * fps / rpm);
-        drawBioreactor();
-      }
-    }
-
     function startAnimating() {
-      then = window.performance.now();
+      let then = window.performance.now();
+
+      function update() {
+        animationFrameId = window.requestAnimationFrame(update);
+        now = window.performance.now();
+        elapsed = now - then;
+        if (elapsed > fpsInterval) {
+          then = now - (elapsed % fpsInterval);
+          stirBarFrame.current = (stirBarFrame.current + 1) % Math.round(frameFactor * fps / rpm);
+          drawBioreactor();
+        }
+      }
+
       update();
     }
     startAnimating();
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [rpm, temperature, nOD, leds, pumps, volume, cappedMaxVolume, heat, size]);
+  }, [bioreactor, canvasDim, cap, cappedMaxVolume, fpsInterval, frameFactor, heat, leds, nOD, pumps, rpm, shiftedBaseHigh, shiftedBaseLow, size, temperature, volume]);
 
   return (
     <div>

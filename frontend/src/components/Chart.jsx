@@ -706,7 +706,7 @@ function Chart(props) {
       console.log(error);
       setFetched(true);
     }
-  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartTime, getUnitColor, isPartitionedBySensor, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
+  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartTime, getUnitColor, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
 
   useEffect(() => {
     getHistoricalDataFromServer();

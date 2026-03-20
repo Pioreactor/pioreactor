@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import { useConfirm } from 'material-ui-confirm';
 import { CircularProgress, Button, Typography, Box, Divider } from "@mui/material";
@@ -205,7 +205,7 @@ function SingleEstimatorPage(props) {
     document.title = props.title;
   }, [props.title]);
 
-  const fetchSingleEstimator = async () => {
+  const fetchSingleEstimator = useCallback(async () => {
     setLoading(true);
     const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`;
     try {
@@ -221,11 +221,11 @@ function SingleEstimatorPage(props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [device, estimatorName, pioreactorUnit]);
 
   useEffect(() => {
     fetchSingleEstimator();
-  }, [pioreactorUnit, device, estimatorName]);
+  }, [fetchSingleEstimator]);
 
   const handleSnackbarClose = (e, reason) => {
     if (reason === 'clickaway') {

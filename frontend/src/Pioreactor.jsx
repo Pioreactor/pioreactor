@@ -2183,43 +2183,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
     fetchContribBackgroundJobs();
   }, [])
 
-  useEffect(() => {
-    if (!jobFetchComplete) {
-      return undefined;
-    }
-
-    if (!experiment) {
-      return undefined;
-    }
-
-    if (!client) {
-      return undefined;
-    }
-
-    const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
-    for (const job of Object.keys(jobs)) {
-      topics.push(`pioreactor/${unit}/${experiment}/${job}/$state`);
-      for (const setting of Object.keys(jobs[job].publishedSettings)) {
-        topics.push(
-          [
-            "pioreactor",
-            unit,
-            (job === "monitor" ? "$experiment" : experiment),
-            job,
-            setting,
-          ].join("/")
-        );
-      }
-    }
-
-    subscribeToTopic(topics, onMessage, "PioreactorCard");
-
-    return () => {
-      unsubscribeFromTopic(topics, "PioreactorCard");
-    };
-  }, [experiment, jobFetchComplete, client, subscribeToTopic, unsubscribeFromTopic, unit])
-
-  const onMessage = (topic, message, _packet) => {
+  const onMessage = useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
 
     const [job, setting] = topic.toString().split('/').slice(-2)
@@ -2257,7 +2221,42 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         return { ...prev, [job]: updatedJob };
       });
     }
-  }
+  }, []);
+
+  const jobTopics = useMemo(() => {
+    if (!jobFetchComplete || !experiment) {
+      return [];
+    }
+
+    const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
+    for (const job of Object.keys(jobs)) {
+      topics.push(`pioreactor/${unit}/${experiment}/${job}/$state`);
+      for (const setting of Object.keys(jobs[job].publishedSettings)) {
+        topics.push(
+          [
+            "pioreactor",
+            unit,
+            (job === "monitor" ? "$experiment" : experiment),
+            job,
+            setting,
+          ].join("/")
+        );
+      }
+    }
+    return topics;
+  }, [experiment, jobFetchComplete, jobs, unit]);
+
+  useEffect(() => {
+    if (!client || jobTopics.length === 0) {
+      return undefined;
+    }
+
+    subscribeToTopic(jobTopics, onMessage, "PioreactorCard");
+
+    return () => {
+      unsubscribeFromTopic(jobTopics, "PioreactorCard");
+    };
+  }, [client, jobTopics, onMessage, subscribeToTopic, unsubscribeFromTopic])
 
   const setPioreactorJobAttr = (job, setting, value) => {
     if (job === "bioreactor") {
@@ -2860,7 +2859,7 @@ function Pioreactor({title}) {
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
     });
-  }, []);
+  }, [unit]);
 
   useEffect(() => {
     function getWorkerAssignment() {
@@ -2886,7 +2885,7 @@ function Pioreactor({title}) {
     if (experimentMetadata){
       getWorkerAssignment()
     }
-  }, [experimentMetadata])
+  }, [experimentMetadata, unit])
 
   useEffect(() => {
     function getModelDetails() {
@@ -2908,7 +2907,7 @@ function Pioreactor({title}) {
       });
     }
     getModelDetails()
-  }, [])
+  }, [unit])
 
 
 

@@ -2,7 +2,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -20,10 +20,48 @@ import { Link } from 'react-router';
 function MediaCard({experiment, relabelMap, activeUnits}) {
   const [mediaThroughputPerUnit, setMediaThroughputPerUnit] = useState({});
   const [altMediaThroughputPerUnit, setAltMediaThroughputPerUnit] = useState({});
-  const [mediaThroughput, setMediaThroughput] = useState(0);
-  const [altMediaThroughput, setAltMediaThroughput] = useState(0);
   const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+
+  const onMessage = useCallback((topic, message, _packet) => {
+    if (!message || !topic) return;
+
+    const topicParts = topic.toString().split('/');
+    const payload = parseFloat(message.toString());
+    const unit = topicParts[1];
+    const isAltMedia = topicParts.at(-1) === 'alt_media_throughput';
+
+    if (Number.isNaN(payload)) {
+      return;
+    }
+
+    if (isAltMedia) {
+      setAltMediaThroughputPerUnit((previous) => ({
+        ...previous,
+        [unit]: (previous[unit] || 0) + payload,
+      }));
+      return;
+    }
+
+    setMediaThroughputPerUnit((previous) => ({
+      ...previous,
+      [unit]: (previous[unit] || 0) + payload,
+    }));
+  }, []);
+
+  const mediaThroughput = useMemo(
+    () => Object.values(mediaThroughputPerUnit).reduce((total, value) => total + value, 0),
+    [mediaThroughputPerUnit]
+  );
+  const altMediaThroughput = useMemo(
+    () => Object.values(altMediaThroughputPerUnit).reduce((total, value) => total + value, 0),
+    [altMediaThroughputPerUnit]
+  );
+
+  useEffect(() => {
+    setMediaThroughputPerUnit({});
+    setAltMediaThroughputPerUnit({});
+  }, [experiment]);
 
   useEffect(() => {
     if (!experiment || !client) {
@@ -37,7 +75,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     return () => {
       unsubscribeFromTopic(topics, "MediaCard");
     };
-  }, [experiment, client, subscribeToTopic, unsubscribeFromTopic]);
+  }, [client, experiment, onMessage, subscribeToTopic, unsubscribeFromTopic]);
 
   useEffect(() => {
     async function getRecentRates() {
@@ -50,46 +88,6 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
       getRecentRates();
     }
   }, [experiment]);
-
-
-
-
-  function addOrUpdate(hash, object, value) {
-    if (Object.hasOwnProperty(hash)) {
-      object[hash] = value + object[hash];
-    } else {
-      object[hash] = value;
-    }
-    return object;
-  }
-
-  function onMessage(topic, message, _packet) {
-    if (!message || !topic) return;
-
-    const topicParts = topic.toString().split('/');
-    const payload = parseFloat(message.toString());
-    const unit = topicParts[1];
-    const objectRef =
-      topicParts.slice(-1)[0] === 'alt_media_throughput' ? 'altMediaThroughputPerUnit' : 'mediaThroughputPerUnit';
-    const totalRef =
-      topicParts.slice(-1)[0] === 'alt_media_throughput' ? 'altMediaThroughput' : 'mediaThroughput';
-
-    const updatedObject = addOrUpdate(unit, objectRef === 'altMediaThroughputPerUnit' ? altMediaThroughputPerUnit : mediaThroughputPerUnit, payload);
-
-    if (objectRef === 'altMediaThroughputPerUnit') {
-      setAltMediaThroughputPerUnit(updatedObject || 0);
-    } else {
-      setMediaThroughputPerUnit(updatedObject || 0);
-    }
-
-    var total = Object.values(updatedObject).reduce((a, b) => a + b, 0);
-
-    if (totalRef === 'altMediaThroughput') {
-      setAltMediaThroughput(total || 0);
-    } else {
-      setMediaThroughput(total || 0);
-    }
-  }
 
   function relabelUnit(unit) {
     return relabelMap && relabelMap[unit] ? `${relabelMap[unit]} / ${unit}` : unit;

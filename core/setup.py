@@ -6,21 +6,21 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 
 CORE_REQUIREMENTS = [
-    "click==8.1.7",
+    "click==8.3.1",
     "paho-mqtt==2.1.0",
-    "colorlog==6.7.0",
+    "colorlog==6.10.1",
     "msgspec==0.19.0",
-    "crudini==0.9.5",
+    "crudini==0.9.6",
     "iniparse==0.5",
     "blinker==1.9.0",
-    "Flask==3.1.0",
+    "Flask==3.1.3",
     "flup6==1.1.1",
     "huey==2.5.2",
     "itsdangerous==2.2.0",
-    "Jinja2==3.1.4",
+    "Jinja2==3.1.6",
     "MarkupSafe==2.1.5",
-    "python-dotenv==1.0.1",
-    "Werkzeug==3.1.0",
+    "python-dotenv==1.2.2",
+    "Werkzeug==3.1.6",
     "packaging==24.1",
     # preinstalled on base images
     # "pyyaml==6.0.2",

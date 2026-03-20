@@ -105,7 +105,7 @@ export function runPioreactorJobViaUnitAPI(job, args = [], options = {}) {
 
 
 // Use when you already have a result_url_path from a task response.
-export async function checkTaskCallback(callbackURL, {maxRetries = 100, delayMs = 200} = {}) {
+export async function checkTaskCallback(callbackURL, {maxRetries = 150, delayMs = 100} = {}) {
   if (maxRetries <= 0) {
     throw new Error('Max retries reached. Stopping.');
   }

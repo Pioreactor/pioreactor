@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -158,25 +158,11 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
 
 
 
-  useEffect(() => {
-    if (experiment && client) {
-      subscribeToTopic(
-        LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
-        onMessage,
-        'PagLogTable'
-      );
-    }
-    return () => {
-      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
-    };
-  }, [client, experiment, pioreactorUnit, logLevel]);
-
-
   const handleSwitchChange = (event) => {
     setOnlyAssignedLogs(!event.target.checked)
   }
 
-  const onMessage = (topic, message, _packet) => {
+  const onMessage = useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
 
     const unit = topic.toString().split('/')[1];
@@ -199,7 +185,20 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
         },
         ...currentLogs,
       ]);
-  };
+  }, [logLevel]);
+
+  useEffect(() => {
+    if (experiment && client) {
+      subscribeToTopic(
+        LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
+        onMessage,
+        'PagLogTable'
+      );
+    }
+    return () => {
+      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
+    };
+  }, [client, experiment, onMessage, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
 
   const relabelUnit = (unit) => {
     return relabelMap && relabelMap[unit] ? `${relabelMap[unit]} / ${unit}` : unit;

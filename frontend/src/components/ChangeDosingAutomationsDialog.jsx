@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -41,6 +41,7 @@ const getPreferredDosingAutomationName = (automations) => {
 
 function ChangeDosingAutomationsDialog(props) {
   const automationType = "dosing"
+  const initializationCompletedForOpenRef = useRef(false);
   const [automationName, setAutomationName] = useState("chemostat")
   const [algoSettings, setAlgoSettings] = useState({
     skip_first_run: 0,
@@ -72,7 +73,12 @@ function ChangeDosingAutomationsDialog(props) {
   }, [automationType])
 
   useEffect(() => {
-    if (!props.open || Object.keys(automations).length === 0) {
+    if (!props.open) {
+      initializationCompletedForOpenRef.current = false;
+      return;
+    }
+
+    if (initializationCompletedForOpenRef.current || Object.keys(automations).length === 0) {
       return;
     }
 
@@ -84,7 +90,8 @@ function ChangeDosingAutomationsDialog(props) {
       max_working_volume_ml: props.maxVolume,
       current_volume_ml: props.liquidVolume,
     });
-  }, [props.open, automations, props.no_skip_first_run]);
+    initializationCompletedForOpenRef.current = true;
+  }, [props.liquidVolume, props.maxVolume, props.no_skip_first_run, props.open, automations]);
 
 
   const removeEmpty = (obj) => {

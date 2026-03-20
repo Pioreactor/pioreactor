@@ -119,7 +119,10 @@ function ExperimentsContainer(props) {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { allExperiments, experimentMetadata, selectExperiment, updateExperiment, setAllExperiments } = useExperiment();
-  const experiments = Array.isArray(allExperiments) ? allExperiments : [];
+  const experiments = React.useMemo(
+    () => (Array.isArray(allExperiments) ? allExperiments : []),
+    [allExperiments],
+  );
   const [loading, setLoading] = React.useState(experiments.length === 0);
   const [loadError, setLoadError] = React.useState("");
   const [search, setSearch] = React.useState("");

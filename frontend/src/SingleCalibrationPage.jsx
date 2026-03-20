@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams,  useNavigate,  Link } from "react-router";
 import { useConfirm } from 'material-ui-confirm';
 import { CircularProgress, Button, Typography, Box, Divider } from "@mui/material";
@@ -254,7 +254,7 @@ function SingleCalibrationPage(props) {
     document.title = props.title;
   }, [props.title]);
 
-  const fetchSingleCalibration = async () => {
+  const fetchSingleCalibration = useCallback(async () => {
     setLoading(true);
     const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
     try {
@@ -271,11 +271,11 @@ function SingleCalibrationPage(props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [calibrationName, device, pioreactorUnit]);
 
   useEffect(() => {
     fetchSingleCalibration();
-  }, [pioreactorUnit, device, calibrationName]);
+  }, [fetchSingleCalibration]);
 
   const handleSnackbarClose = (e, reason) => {
     if (reason === 'clickaway') {

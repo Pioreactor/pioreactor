@@ -200,6 +200,7 @@ function MultipleSelectChip({availableValues, parentHandleChange, values}) {
 
 
 function ExperimentSelection(props) {
+  const { experimentSelection, handleChange, onExperimentsLoaded } = props;
 
   const [experiments, setExperiments] = React.useState([])
 
@@ -215,22 +216,22 @@ function ExperimentSelection(props) {
         // Ensure "<System>" and "<All experiments>" are always available and at the bottom.
         const allExperiments = [...experimentNames, SYSTEM_EXPERIMENT_LABEL, ALL_EXPERIMENTS_LABEL];
         setExperiments(allExperiments);
-        props.onExperimentsLoaded(allExperiments);
+        onExperimentsLoaded(allExperiments);
       } catch (error) {
         console.error("Failed to fetch experiments:", error);
       }
     }
 
     getData();
-  }, []);
+  }, [onExperimentsLoaded]);
 
 
   return (
     <Box sx={{ m: 1}}>
       <MultipleSelectChip
         availableValues={experiments}
-        parentHandleChange={props.handleChange}
-        values={props.experimentSelection}
+        parentHandleChange={handleChange}
+        values={experimentSelection}
       />
     </Box>
   )

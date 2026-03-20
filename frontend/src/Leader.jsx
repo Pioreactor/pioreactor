@@ -795,7 +795,7 @@ function ClusterClockCard({leaderHostname}){
   const [timestampLocal, setTimestampLocal] = React.useState(dayjs().local().format('YYYY-MM-DD HH:mm:ss'));
   const hasUserEditedTimestamp = React.useRef(false);
 
-  const normalizeClockData = (result) => Object.fromEntries(
+  const normalizeClockData = React.useCallback((result) => Object.fromEntries(
     Object.entries(result || {}).map(([unitName, info]) => {
       const baseInfo = info || {};
       const clockTimeMs = baseInfo.clock_time
@@ -803,9 +803,9 @@ function ClusterClockCard({leaderHostname}){
         : null;
       return [unitName, { ...baseInfo, clock_time_ms: clockTimeMs }];
     })
-  );
+  ), []);
 
-  async function fetchBroadcastData() {
+  const fetchBroadcastData = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -830,11 +830,11 @@ function ClusterClockCard({leaderHostname}){
     } finally {
       setLoading(false);
     }
-  }
+  }, [normalizeClockData]);
 
   React.useEffect(() => {
     fetchBroadcastData();
-  }, []);
+  }, [fetchBroadcastData]);
 
   React.useEffect(() => {
     const intervalId = setInterval(() => {
@@ -959,14 +959,7 @@ function ClusterClockCard({leaderHostname}){
 }
 
 function LeaderContainer({config}) {
-
-  const [leaderHostname, setLeaderHostname] = React.useState(null)
-
-  React.useEffect(()=>{
-    if (config?.['cluster.topology']){
-      setLeaderHostname(config['cluster.topology']['leader_hostname'])
-    }
-  })
+  const leaderHostname = config?.["cluster.topology"]?.leader_hostname ?? null;
 
   return (
     <React.Fragment>

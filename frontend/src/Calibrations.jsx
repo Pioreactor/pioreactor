@@ -403,9 +403,7 @@ function CalibrationData() {
     setDevices(deviceArray);
     setCalibrationDataByDevice(deviceMap);
 
-    if (selectedDevice === '') {
-      setSelectedDevice(deviceArray[0]);
-    }
+    setSelectedDevice((currentSelectedDevice) => currentSelectedDevice || deviceArray[0] || '');
   }, [rawData]);
 
   const handleSelectDeviceChange = (event) => {

@@ -114,9 +114,7 @@ function EstimatorData() {
     setDevices(deviceArray);
     setEstimatorDataByDevice(deviceMap);
 
-    if (selectedDevice === '') {
-      setSelectedDevice(deviceArray[0]);
-    }
+    setSelectedDevice((currentSelectedDevice) => currentSelectedDevice || deviceArray[0] || '');
   }, [rawData]);
 
   const handleSelectDeviceChange = (event) => {
