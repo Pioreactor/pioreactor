@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -93,6 +93,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     return EMPTY_STATE_ILLUSTRATIONS[randomIndex];
   }, []);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const subscriptionKeyRef = useRef(`PagLogTable-${Math.random().toString(36).slice(2)}`);
 
   const getAPIURL = (unit, onlyAssignedLogs, experiment) => {
     if (unit && experiment === "$experiment"){
@@ -108,31 +109,56 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     }
   }
 
+  const toTimestampObject = useCallback((timestamp) => {
+    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+  }, []);
+
+  const buildLogKey = useCallback((log) => {
+    const normalizedTimestamp = dayjs.isDayjs(log.timestamp)
+      ? log.timestamp.toISOString()
+      : String(log.timestamp);
+    return `${normalizedTimestamp}-${log.pioreactor_unit}-${log.task}-${log.level}-${String(log.message)}`;
+  }, []);
+
+  const hydrateLogs = useCallback((logs) => {
+    return logs.map((log) => ({
+      ...log,
+      key: buildLogKey(log),
+    }));
+  }, [buildLogKey]);
+
   useEffect(() => {
+    const abortController = new AbortController();
+
     const getData = async () => {
       if (!experiment) return;
       setLoading(true);
       try {
-        const response = await fetch(getAPIURL(pioreactorUnit, onlyAssignedLogs, experiment) + "?min_level=" + logLevel);
-        const logs = await response.json();
-        setListOfLogs(
-          logs.map((log, index) => ({
-            ...log,
-            key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}-${index}`,
-          }))
+        const response = await fetch(
+          getAPIURL(pioreactorUnit, onlyAssignedLogs, experiment) + "?min_level=" + logLevel,
+          { signal: abortController.signal }
         );
+        const logs = await response.json();
+        setListOfLogs(hydrateLogs(logs));
         setSkip(logs.length); // Set the initial skip value
       } catch (error) {
-        console.error("Failed to fetch logs:", error);
+        if (error.name !== "AbortError") {
+          console.error("Failed to fetch logs:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     setSkip(0)
     getData();
+    return () => {
+      abortController.abort();
+    };
 
-  }, [experiment, pioreactorUnit, onlyAssignedLogs, logLevel]);
+  }, [experiment, pioreactorUnit, onlyAssignedLogs, logLevel, hydrateLogs]);
 
   const loadMoreLogs = async () => {
     setLoading(true);
@@ -142,10 +168,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
       if (logs.length > 0) {
         setListOfLogs((prevLogs) => [
           ...prevLogs,
-          ...logs.map((log, index) => ({
-            ...log,
-            key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}-${index}`,
-          })),
+          ...hydrateLogs(logs).filter((log) => !prevLogs.some((existingLog) => existingLog.key === log.key)),
         ]);
         setSkip((prevSkip) => prevSkip + logs.length);
       }
@@ -173,39 +196,43 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
       return
     }
 
-    setListOfLogs((currentLogs) =>
-      [
-        {
-          timestamp: toTimestampObject(payload.timestamp),
-          pioreactor_unit: unit,
-          message: String(payload.message),
-          task: payload.task,
-          level: payload.level.toUpperCase(),
-          key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
-        },
-        ...currentLogs,
-      ]);
-  }, [logLevel]);
+    const nextLog = {
+      timestamp: toTimestampObject(payload.timestamp),
+      pioreactor_unit: unit,
+      message: String(payload.message),
+      task: payload.task,
+      level: payload.level.toUpperCase(),
+    };
+    const nextLogWithKey = {
+      ...nextLog,
+      key: buildLogKey(nextLog),
+    };
+
+    setListOfLogs((currentLogs) => {
+      if (currentLogs.some((log) => log.key === nextLogWithKey.key)) {
+        return currentLogs;
+      }
+      return [nextLogWithKey, ...currentLogs];
+    });
+  }, [buildLogKey, logLevel, toTimestampObject]);
 
   useEffect(() => {
     if (experiment && client) {
+      const topics = LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`);
       subscribeToTopic(
-        LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
+        topics,
         onMessage,
-        'PagLogTable'
+        subscriptionKeyRef.current
       );
+      return () => {
+        unsubscribeFromTopic(topics, subscriptionKeyRef.current);
+      };
     }
-    return () => {
-      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
-    };
+    return undefined;
   }, [client, experiment, onMessage, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
 
   const relabelUnit = (unit) => {
     return relabelMap && relabelMap[unit] ? `${relabelMap[unit]} / ${unit}` : unit;
-  };
-
-  const toTimestampObject = (timestamp) => {
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
   };
 
   const timestampCell = (timestamp) => {

@@ -68,11 +68,18 @@ venv: $(VENV_DIR)/bin/activate  ## Alias – ensure venv exists
 install: venv  ## Install *all* python dependencies
 	@$(ACTIVATE) && pip install -r requirements/requirements_dev.txt -r requirements/requirements.txt  -e core/ $(PIP_FLAGS)
 
-node_modules/.installed: $(NODE_DIR)/package.json  ## Install Node deps
-	cd $(NODE_DIR) && npm ci
+$(NODE_DIR)/node_modules/.installed: $(NODE_DIR)/package.json  ## Install Node deps
+	@if [ -x "$(NODE_DIR)/node_modules/.bin/react-scripts" ]; then \
+		echo ">> Reusing existing frontend node_modules"; \
+	elif [ -d "$(NODE_DIR)/node_modules" ]; then \
+		echo ">> Repairing partial frontend node_modules"; \
+		cd $(NODE_DIR) && npm install --no-audit --no-fund; \
+	else \
+		cd $(NODE_DIR) && npm ci; \
+	fi
 	@date > $@
 
-frontend-install: node_modules/.installed ## Alias
+frontend-install: $(NODE_DIR)/node_modules/.installed ## Alias
 
 # --- quality gates ------------------------------------------------------------
 
@@ -97,6 +104,9 @@ core-test: venv  ## Backend tests only
 
 web-test: venv  ## API (Flask) tests only
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests/web/ --timeout 300 --random-order --durations 15 -vv
+
+frontend-test: frontend-install  ## Frontend tests only
+	cd $(NODE_DIR) && CI=true npm test -- --watchAll=false
 
 # --- build --------------------------------------------------------------------
 wheel: venv  ## Build core wheel (stage 1 artifact)
@@ -125,7 +135,7 @@ huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 clean:  ## Delete bytecode, build artefacts, node deps
 	rm -rf $(VENV_DIR) dist/ build/ *.egg-info
 	find . -name '__pycache__' -exec rm -rf {} +
-	rm -rf $(NODE_DIR)/build node_modules .pytest_cache .pioreactor/storage/local_intermittent_pioreactor_metadata.sqlite .pioreactor/storage/local_persistent_pioreactor_metadata.sqlite
+	rm -rf $(NODE_DIR)/build $(NODE_DIR)/node_modules node_modules .pytest_cache .pioreactor/storage/local_intermittent_pioreactor_metadata.sqlite .pioreactor/storage/local_persistent_pioreactor_metadata.sqlite
 
 reinstall: clean install frontend-install  ## Freshen everything
 

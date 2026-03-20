@@ -38,14 +38,14 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     if (isAltMedia) {
       setAltMediaThroughputPerUnit((previous) => ({
         ...previous,
-        [unit]: (previous[unit] || 0) + payload,
+        [unit]: payload,
       }));
       return;
     }
 
     setMediaThroughputPerUnit((previous) => ({
       ...previous,
-      [unit]: (previous[unit] || 0) + payload,
+      [unit]: payload,
     }));
   }, []);
 
