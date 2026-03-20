@@ -105,6 +105,14 @@ function Overview(props) {
   }, [props.title])
 
   useEffect(() => {
+    if (!experimentMetadata.experiment) {
+      return;
+    }
+
+    getRelabelMap(setRelabelMap, experimentMetadata.experiment)
+  }, [experimentMetadata.experiment])
+
+  useEffect(() => {
     async function fetchWorkers(experiment) {
       try {
         const response = await fetch(`/api/experiments/${experiment}/workers`);
@@ -122,12 +130,11 @@ function Overview(props) {
 
 
     if (experimentMetadata.experiment){
-        getRelabelMap(setRelabelMap, experimentMetadata.experiment)
         setHasFetchedUnits(false)
         setUnits([])
         fetchWorkers(experimentMetadata.experiment)
     }
-  }, [experimentMetadata])
+  }, [experimentMetadata.experiment])
 
   const activeUnits = units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)
   const assignedUnits = units.map(unit => unit.pioreactor_unit)
