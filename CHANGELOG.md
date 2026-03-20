@@ -1,3 +1,10 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Fixed reassignment history tracking in the leader web app's SQLite connection by enabling recursive triggers, preventing stale open rows from accumulating in `experiment_worker_assignments_history`.
+ - Added an app-update database migration to repair stale open assignment-history rows in existing leader databases.
+
 ### 26.3.2
 
 #### Bug fixes
