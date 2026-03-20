@@ -196,7 +196,7 @@ function Overview(props) {
 
           {( cardsConfig['dosings'] === "1") &&
             <Grid size={12}>
-              <MediaCard activeUnits={activeUnits} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
+              <MediaCard key={experimentMetadata.experiment} activeUnits={activeUnits} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
             </Grid>
           }
 
