@@ -6,7 +6,6 @@ from functools import partial
 from threading import Event
 from typing import Any
 from typing import Optional
-from typing import TYPE_CHECKING
 
 import click
 from msgspec.json import decode
@@ -27,10 +26,6 @@ from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
-
-if TYPE_CHECKING:
-    from pioreactor.logging import CustomLogger
-    from pioreactor.pubsub import Client
 
 
 class classproperty(property):
@@ -179,124 +174,15 @@ class DosingAutomationJob(AutomationJob):
                 "It's recommended to have stirring on to improve mixing during dosing events."
             )
 
-    def _log_automation_dose_request(
-        self,
-        action_name: str,
-        unit: pt.Unit,
-        experiment: pt.Experiment,
-        ml: pt.mL,
-        source_of_event: str,
-        mqtt_client: "Client | None",
-        logger: "CustomLogger | None",
-    ) -> "CustomLogger":
-        active_logger = logger or self.logger
-        if source_of_event.startswith(f"{self.job_name}:"):
-            active_logger.info(
-                "Automation issuing pump action: action=%s requested_ml=%.5f unit=%s experiment=%s source_of_event=%s shared_mqtt_client=%s",
-                action_name,
-                ml,
-                unit,
-                experiment,
-                source_of_event,
-                mqtt_client is self.pub_client,
-            )
-        return active_logger
-
-    def add_media_to_bioreactor(
-        self,
-        unit: pt.Unit,
-        experiment: pt.Experiment,
-        ml: pt.mL,
-        source_of_event: str,
-        mqtt_client: "Client | None" = None,
-        logger: "CustomLogger | None" = None,
-    ) -> float:
-        active_logger = self._log_automation_dose_request(
-            "add_media", unit, experiment, ml, source_of_event, mqtt_client, logger
-        )
-        moved_ml = add_media(
-            unit=unit,
-            experiment=experiment,
-            ml=ml,
-            source_of_event=source_of_event,
-            mqtt_client=mqtt_client,
-            logger=active_logger,
-            duration=None,
-            calibration=None,
-            continuously=False,
-        )
-        if source_of_event.startswith(f"{self.job_name}:"):
-            active_logger.info(
-                "Automation pump action returned: action=add_media requested_ml=%.5f moved_ml=%.5f source_of_event=%s",
-                ml,
-                moved_ml,
-                source_of_event,
-            )
-        return moved_ml
-
-    def remove_waste_from_bioreactor(
-        self,
-        unit: pt.Unit,
-        experiment: pt.Experiment,
-        ml: pt.mL,
-        source_of_event: str,
-        mqtt_client: "Client | None" = None,
-        logger: "CustomLogger | None" = None,
-    ) -> float:
-        active_logger = self._log_automation_dose_request(
-            "remove_waste", unit, experiment, ml, source_of_event, mqtt_client, logger
-        )
-        moved_ml = remove_waste(
-            unit=unit,
-            experiment=experiment,
-            ml=ml,
-            source_of_event=source_of_event,
-            mqtt_client=mqtt_client,
-            logger=active_logger,
-            duration=None,
-            calibration=None,
-            continuously=False,
-        )
-        if source_of_event.startswith(f"{self.job_name}:"):
-            active_logger.info(
-                "Automation pump action returned: action=remove_waste requested_ml=%.5f moved_ml=%.5f source_of_event=%s",
-                ml,
-                moved_ml,
-                source_of_event,
-            )
-        return moved_ml
-
-    def add_alt_media_to_bioreactor(
-        self,
-        unit: pt.Unit,
-        experiment: pt.Experiment,
-        ml: pt.mL,
-        source_of_event: str,
-        mqtt_client: "Client | None" = None,
-        logger: "CustomLogger | None" = None,
-    ) -> float:
-        active_logger = self._log_automation_dose_request(
-            "add_alt_media", unit, experiment, ml, source_of_event, mqtt_client, logger
-        )
-        moved_ml = add_alt_media(
-            unit=unit,
-            experiment=experiment,
-            ml=ml,
-            source_of_event=source_of_event,
-            mqtt_client=mqtt_client,
-            logger=active_logger,
-            duration=None,
-            calibration=None,
-            continuously=False,
-        )
-        if source_of_event.startswith(f"{self.job_name}:"):
-            active_logger.info(
-                "Automation pump action returned: action=add_alt_media requested_ml=%.5f moved_ml=%.5f source_of_event=%s",
-                ml,
-                moved_ml,
-                source_of_event,
-            )
-        return moved_ml
+    add_media_to_bioreactor: pt.DosingProgram = staticmethod(
+        partial(add_media, duration=None, calibration=None, continuously=False)
+    )
+    remove_waste_from_bioreactor: pt.DosingProgram = staticmethod(
+        partial(remove_waste, duration=None, calibration=None, continuously=False)
+    )
+    add_alt_media_to_bioreactor: pt.DosingProgram = staticmethod(
+        partial(add_alt_media, duration=None, calibration=None, continuously=False)
+    )
 
     def set_duration(self, duration: Optional[float]) -> None:
         if duration:

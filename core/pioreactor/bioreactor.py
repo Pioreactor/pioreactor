@@ -9,6 +9,7 @@ from pioreactor.config import config
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import publish as mqtt_publish
 from pioreactor.pubsub import QOS
+from pioreactor.utils import clamp
 from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import get_pioreactor_model
 
@@ -276,7 +277,14 @@ def _calculate_alt_media_fraction_after_addition(
         return current_alt_media_fraction
 
     updated = (current_alt_media_fraction * current_volume_ml + alt_media_delta) / denominator
-    return min(max(updated, 0.0), 1.0)
+
+    tol = 1e-12
+
+    if abs(updated) < tol:
+        return 0.0
+    if abs(1.0 - updated) < tol:
+        return 1.0
+    return clamp(0.0, updated, 1.0)
 
 
 def _coerce_to_float(value: object) -> float:

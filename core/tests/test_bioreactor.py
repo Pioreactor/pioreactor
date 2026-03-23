@@ -267,3 +267,15 @@ def test_calculate_updated_alt_media_fraction_ignores_unknown_events() -> None:
         current_alt_media_fraction=0.25,
         current_volume_ml=10.0,
     ) == pytest.approx(0.25)
+
+
+def test_calculate_updated_alt_media_fraction_snaps_extreme_dilutions_to_zero() -> None:
+    assert (
+        bioreactor._calculate_alt_media_fraction_after_addition(
+            current_alt_media_fraction=9.470347204675955e-37,
+            media_delta=1.0,
+            alt_media_delta=0.0,
+            current_volume_ml=1.0,
+        )
+        == 0.0
+    )
