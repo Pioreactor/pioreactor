@@ -129,7 +129,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
         },
         ...currentLogs.slice(0, 49),
       ].sort((a, b) => {
-        return a.timestamp > b.timestamp;
+        return toTimestampObject(b.timestamp).valueOf() - toTimestampObject(a.timestamp).valueOf();
       })
     );
   }, []);

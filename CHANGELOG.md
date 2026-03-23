@@ -7,6 +7,7 @@
  - Fixed worker reassignment so moving a Pioreactor from one experiment to another now stops jobs still running under the previous experiment.
  - Fixed pump `dosing_events` MQTT publishes for very small dosing volumes, where fast runs could finish before an event was emitted.
  - Fixed missed pump `dosing_events` observations by publishing them with MQTT QoS 2 (`EXACTLY_ONCE`), and updated `pio mqtt` to subscribe at the same QoS when tailing topics.
+ - Fixed recent log tables in the UI so live MQTT log events stay sorted by timestamp even if they arrive slightly out of order, instead of appearing under older events until refresh.
 
 ### 26.3.2
 

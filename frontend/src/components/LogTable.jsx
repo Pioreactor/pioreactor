@@ -101,6 +101,9 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
   };
 
   const toTimestampObject = (timestamp) => {
+    if (dayjs.isDayjs(timestamp)) {
+      return timestamp;
+    }
     return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
   };
 
@@ -132,7 +135,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         },
         ...currentLogs.slice(0, 49),
       ].sort((a, b) => {
-        return a.timestamp > b.timestamp;
+        return toTimestampObject(b.timestamp).valueOf() - toTimestampObject(a.timestamp).valueOf();
       })
     );
   }, []);
