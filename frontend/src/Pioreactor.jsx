@@ -54,7 +54,7 @@ import Alert from '@mui/material/Alert';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
-import {Link, useParams, useNavigate} from 'react-router'
+import {Link, useParams} from 'react-router'
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
@@ -285,12 +285,7 @@ function ShieldAlertOutlineIcon(props) {
 
 
 
-const StylizedCode = styled('code')(({ theme }) => ({
-  backgroundColor: "rgba(0, 0, 0, 0.07)",
-  padding: "1px 4px"
-}));
-
-const DisplaySettingsTable = styled('span')(({ theme }) => ({
+const DisplaySettingsTable = styled('span')(() => ({
   width: "55px",
   display: "inline-block"
 }));
@@ -300,7 +295,7 @@ const ControlDivider = styled(Divider)(({ theme }) => ({
   marginBottom: theme.spacing(1.25) // equivalent to 10px
 }));
 
-const RowOfUnitSettingDisplayBox  = styled(Box)(({ theme }) => ({
+const RowOfUnitSettingDisplayBox  = styled(Box)(() => ({
     display: "flex",
     flexDirection: "row",
     flexWrap: "wrap",
@@ -566,8 +561,6 @@ function ButtonStopProcess({experiment, unit}) {
 
 
 function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
-  const navigate = useNavigate()
-
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
   }
@@ -1199,7 +1192,7 @@ function SettingsActionsDialog(props) {
 
 
   const LEDMap = props.config['leds'] || {}
-  const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
+  const buttons = Object.fromEntries(Object.entries(props.jobs).map(([job_key, job]) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const isXrModel = Boolean(props.modelDetails?.model_name?.toLowerCase().includes("xr"));
 
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
@@ -1331,8 +1324,8 @@ function SettingsActionsDialog(props) {
         <TabPanel value={tabValue} index={0}>
           {/* Unit Specific Activites */}
           {Object.entries(props.jobs)
-            .filter(([job_key, job]) => job.metadata.display)
-            .filter(([job_key, job]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key)) //these are added later
+            .filter(([_, job]) => job.metadata.display)
+            .filter(([job_key]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key)) //these are added later
             .map(([job_key, job]) =>
             <div key={job_key}>
               <div style={{justifyContent: "space-between", display: "flex"}}>
@@ -1602,7 +1595,7 @@ function SettingsActionsDialog(props) {
 
           {editableSettingsGroups
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
-            .map(([state, job_key, settings], index) => (
+            .map(([state, job_key, settings]) => (
               Object.entries(settings)
                 .filter(([_, setting],__) => setting.display && setting.editable)
                 .map(([setting_key, setting],_) =>
@@ -1837,7 +1830,7 @@ function SettingsActionsDialog(props) {
 }
 
 
-function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, units, disabled, job, setting, id }) {
+function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, units, disabled, job, setting, id: _id }) {
     const committedValue = initialValue ?? ""
     const [draftValue, setDraftValue] = useState(committedValue)
     const [activeSubmit, setActiveSumbit] = useState(false)
@@ -1905,7 +1898,7 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
 }
 
 
-function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id }) {
+function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id: _id }) {
   const committedValue = Boolean(initialValue)
   const [draftValue, setDraftValue] = useState(committedValue)
   const [isPendingConfirmation, setIsPendingConfirmation] = useState(false)
@@ -2438,7 +2431,6 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
     stateActionJobKey && jobs[stateActionJobKey]
       ? createStateActions(stateActionJobKey, jobs[stateActionJobKey].state)
       : []
-  const dosingControlJob = jobs.dosing_automation
   const dosingMaxVolume = getBioreactorConfirmedValue(
     bioreactorValues,
     config,
@@ -2833,7 +2825,6 @@ function Pioreactor({title}) {
   const [isActive, setIsActive] = useState(true)
   const [modelDetails, setModelDetails] = useState({})
   const [error, setError] = useState(null)
-  const navigate = useNavigate()
 
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);

@@ -3,6 +3,7 @@ import csv
 import json
 import time
 from threading import Event
+from threading import Thread
 from typing import cast
 from typing import Iterator
 
@@ -1261,6 +1262,129 @@ class TestGrowthRateCalculating:
                 )
                 assert calc._initialization_complete.is_set()
                 assert calc.ekf is not None
+
+    def test_empty_cached_normalization_dicts_are_recomputed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        experiment = "test_empty_cached_normalization_dicts_are_recomputed"
+        unit = get_unit_name()
+        expected_means = {"2": 1.23}
+        expected_variances = {"2": 1e-6}
+
+        with local_persistent_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({})
+
+        with local_persistent_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({})
+
+        od_stream = HistoricalODReadingsListSource([])
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            monkeypatch.setattr(
+                calc,
+                "_compute_and_cache_od_statistics",
+                lambda _: (expected_means, expected_variances),
+            )
+
+            means, variances, od_blank = calc._get_precomputed_values(od_stream)
+
+        assert means == expected_means
+        assert variances == expected_variances
+        assert dict(od_blank) == {"2": 0.0}
+
+    def test_interrupted_live_run_persists_empty_normalization_cache(self) -> None:
+        experiment = "test_interrupted_live_run_persists_empty_normalization_cache"
+        unit = get_unit_name()
+
+        class BlockingEmptyLiveODSource:
+            is_live = True
+
+            def __init__(self) -> None:
+                self._stop_event = Event()
+
+            def __iter__(self) -> Iterator[structs.ODReadings]:
+                while not self._stop_event.is_set():
+                    time.sleep(0.05)
+                return iter(())
+
+            def set_stop_event(self, ev: Event) -> None:
+                self._stop_event = ev
+
+        def run_until_interrupted(calc: GrowthRateCalculator) -> list[Exception]:
+            exceptions: list[Exception] = []
+
+            def consume() -> None:
+                try:
+                    for _ in calc.process_until_disconnected_or_exhausted(
+                        BlockingEmptyLiveODSource(),
+                        EmptyLiveDosingSource(),
+                    ):
+                        pass
+                except Exception as exc:
+                    exceptions.append(exc)
+
+            thread = Thread(target=consume, daemon=True)
+            thread.start()
+            time.sleep(0.2)
+            calc._blocking_event.set()
+            thread.join(timeout=8.0)
+            assert not thread.is_alive()
+            return exceptions
+
+        def normalization_caches_are_empty_dicts() -> bool:
+            with local_persistent_storage("od_normalization_mean") as cache:
+                means = cache.get(experiment)
+            with local_persistent_storage("od_normalization_variance") as cache:
+                variances = cache.get(experiment)
+
+            if means is None or variances is None:
+                return False
+
+            return json.loads(means) == {} and json.loads(variances) == {}
+
+        with temporary_config_changes(
+            config,
+            [
+                ("od_config.photodiode_channel", "1", "90"),
+                ("od_config.photodiode_channel", "2", "135"),
+                ("growth_rate_calculating.config", "samples_for_od_statistics", "20"),
+            ],
+        ):
+            for cache_name in ("od_normalization_mean", "od_normalization_variance"):
+                with local_persistent_storage(cache_name) as cache:
+                    cache.pop(experiment)
+
+            with collect_all_logs_of_level("DEBUG", unit, experiment) as first_debug_logs:
+                with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                    first_run_exceptions = run_until_interrupted(calc)
+
+                assert wait_for(normalization_caches_are_empty_dicts, timeout=8.0)
+                assert any(isinstance(exc, IndexError) for exc in first_run_exceptions)
+                assert wait_for(
+                    lambda: any("measured mean: {}" in log["message"] for log in first_debug_logs),
+                    timeout=8.0,
+                )
+
+                first_debug_messages = [log["message"] for log in first_debug_logs]
+                assert any("measured mean: {}" in message for message in first_debug_messages)
+                assert any("measured variances: {}" in message for message in first_debug_messages)
+
+            with collect_all_logs_of_level("DEBUG", unit, experiment) as second_debug_logs:
+                with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                    second_run_exceptions = run_until_interrupted(calc)
+
+                assert wait_for(
+                    lambda: any(
+                        "Observation noise covariance matrix:" in log["message"] for log in second_debug_logs
+                    ),
+                    timeout=8.0,
+                )
+
+                assert any(isinstance(exc, IndexError) for exc in second_run_exceptions)
+                second_debug_messages = [log["message"] for log in second_debug_logs]
+                assert any("od_normalization_mean={}" in message for message in second_debug_messages)
+                assert any("od_normalization_variance={}" in message for message in second_debug_messages)
+                assert any(
+                    "array([], shape=(0, 0), dtype=float64)" in message for message in second_debug_messages
+                )
 
     def test_historical_processing_persists_latest_values_to_cache(self) -> None:
         experiment = "test_historical_processing_persists_latest_values_to_cache"

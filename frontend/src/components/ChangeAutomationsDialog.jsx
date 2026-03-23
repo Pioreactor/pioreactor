@@ -69,7 +69,7 @@ function ChangeAutomationsDialog(props) {
           setIsLoading(false)
           setAutomations(Object.assign({}, ...listOfAuto.map(auto => ({ [auto.automation_name]: auto}))))
         })
-        .catch((error) => {})
+        .catch((_error) => {})
     }
     fetchAutomations();
   }, [automationType])

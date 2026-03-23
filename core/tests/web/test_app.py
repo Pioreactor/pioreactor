@@ -115,6 +115,37 @@ def test_add_worker_to_experiment(client) -> None:
     assert "unit4" in units
 
 
+def test_reassign_worker_to_experiment_stops_jobs_from_previous_experiment(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_multicast_post(
+        endpoint: str,
+        units: list[str],
+        json: dict[str, object] | list[dict[str, object] | None] | None = None,
+        **_kwargs,
+    ) -> dict[str, object]:
+        captured["endpoint"] = endpoint
+        captured["units"] = units
+        captured["json"] = json
+        return {}
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", fake_multicast_post)
+
+    response = client.put("/api/experiments/exp2/workers", json={"pioreactor_unit": "unit2"})
+    assert response.status_code == 200
+
+    assert captured["endpoint"] == "/unit_api/jobs/stop"
+    assert captured["units"] == ["unit2"]
+    assert captured["json"] == {"experiment": "exp1"}
+
+    response = client.get("/api/workers/unit2/experiment")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["experiment"] == "exp2"
+
+
 def test_remove_worker_from_experiment(client) -> None:
     # Remove unit2 from exp1
     response = client.delete("/api/experiments/exp1/workers/unit2")

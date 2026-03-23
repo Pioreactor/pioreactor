@@ -225,12 +225,7 @@ const getFauxChipHoverSx = (isInteractive) => ({
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
-const StylizedCode = styled('code')(() => ({
-  backgroundColor: "rgba(0, 0, 0, 0.07)",
-  padding: "1px 4px"
-}));
-
-const DisplaySettingsTable = styled('span')(({ theme }) => ({
+const DisplaySettingsTable = styled('span')(() => ({
   width: "55px",
   display: "inline-block"
 }));
@@ -240,7 +235,7 @@ const ControlDivider = styled(Divider)(({ theme }) => ({
   marginBottom: theme.spacing(1.25) // equivalent to 10px
 }));
 
-const RowOfUnitSettingDisplayBox  = styled(Box)(({ theme }) => ({
+const RowOfUnitSettingDisplayBox  = styled(Box)(() => ({
     display: "flex",
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1635,7 +1630,7 @@ function SettingsActionsDialog({
           {/* Unit Specific Activites */}
           {Object.entries(jobs)
             .filter(([_, job]) => job.metadata.display)
-            .filter(([job_key, job]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key)) // added later
+            .filter(([job_key]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key)) // added later
             .map(([job_key, job]) =>
             <div key={job_key}>
               <div style={{justifyContent: "space-between", display: "flex"}}>
@@ -1904,9 +1899,9 @@ function SettingsActionsDialog({
 
           {editableSettingsGroups
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
-            .map(([state, job_key, settings], index) => (
+            .map(([state, job_key, settings]) => (
               Object.entries(settings)
-                .filter(([setting_key, setting],_) => setting.display && setting.editable)
+                .filter(([_, setting]) => setting.display && setting.editable)
                 .map(([setting_key, setting],_) =>
                         <React.Fragment key={setting_key}>
                           <Typography gutterBottom>
@@ -2535,7 +2530,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   }
 
 
-  const buttons = Object.fromEntries(Object.entries(jobs || {}).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job)]))
+  const buttons = Object.fromEntries(Object.entries(jobs || {}).map(([job_key, job]) => [job_key, createUserButtonsBasedOnState(job)]))
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
   var dosingControlJob = jobs.dosing_automation
   var ledControlJob = jobs.led_automation
@@ -2673,8 +2668,8 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
         <TabPanel value={tabValue} index={0}>
           {Object.entries(jobs)
-            .filter(([job_key, job]) => job.metadata.display)
-            .filter(([job_key, job]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key))
+            .filter(([_, job]) => job.metadata.display)
+            .filter(([job_key]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key))
             .map(([job_key, job]) =>
             <div key={job_key}>
               <Typography gutterBottom>
@@ -2786,9 +2781,9 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         <TabPanel value={tabValue} index={1}>
           {editableSettingsGroups
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
-            .map(([state, job_key, settings], index) => (
+            .map(([state, job_key, settings]) => (
               Object.entries(settings)
-                .filter(([setting_key, setting],_) => setting.display && setting.editable)
+                .filter(([_, setting]) => setting.display && setting.editable)
                 .map(([setting_key, setting],_) =>
               <React.Fragment key={job_key + setting_key}>
                 <Typography  gutterBottom>
@@ -3675,7 +3670,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     stateActionJobKey && jobs[stateActionJobKey]
       ? createStateActions(stateActionJobKey, jobs[stateActionJobKey].state)
       : []
-  const dosingControlJob = jobs.dosing_automation
   const dosingMaxVolume = getBioreactorConfirmedValue(
     bioreactorValues,
     config,

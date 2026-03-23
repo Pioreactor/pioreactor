@@ -262,11 +262,11 @@ class GrowthRateCalculator(BackgroundJob):
 
         if not self.ignore_cache:
             with local_persistent_storage("od_normalization_mean") as cache:
-                if self.experiment not in cache:
+                if self._is_empty_normalization_cache(cache.get(self.experiment)):
                     cache[self.experiment] = dumps(means)
 
             with local_persistent_storage("od_normalization_variance") as cache:
-                if self.experiment not in cache:
+                if self._is_empty_normalization_cache(cache.get(self.experiment)):
                     cache[self.experiment] = dumps(variances)
 
         return means, variances
@@ -289,6 +289,8 @@ class GrowthRateCalculator(BackgroundJob):
             try:
                 od_normalization_factors = self._get_od_normalization_from_cache()
                 od_variances = self._get_od_variances_from_cache()
+                if (not od_normalization_factors) or (not od_variances):
+                    raise KeyError("Empty cached normalization statistics.")
             except KeyError:
                 self.logger.debug(
                     "OD normalization factors or variances not found in cache. Computing them now."
@@ -347,6 +349,14 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistent_storage("od_normalization_variance") as cache:
             result = cast(bytes | str, cache[self.experiment])
             return loads(result)
+
+    @staticmethod
+    def _is_empty_normalization_cache(cache_value: object) -> bool:
+        if cache_value is None:
+            return True
+
+        decoded_cache = loads(cast(bytes | str, cache_value))
+        return decoded_cache == {}
 
     @staticmethod
     def _scale_and_shift(obs: float, shift: float, scale: float) -> float:

@@ -3600,11 +3600,33 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
             remediation="Provide a pioreactor_unit in the JSON payload.",
         )
 
+    # Reassignment is modeled as replacing the worker's current assignment row.
+    # With recursive triggers enabled on the app DB connection, the implicit delete
+    # from INSERT OR REPLACE updates experiment_worker_assignments_history correctly.
+    existing_assignment = query_app_db(
+        "SELECT experiment FROM experiment_worker_assignments WHERE pioreactor_unit = ?",
+        (pioreactor_unit,),
+        one=True,
+    )
+    previous_experiment = None
+    if isinstance(existing_assignment, dict):
+        previous_experiment = existing_assignment.get("experiment")
+
     row_counts = modify_app_db(
         "INSERT OR REPLACE INTO experiment_worker_assignments (pioreactor_unit, experiment, assigned_at) VALUES (?, ?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))",
         (pioreactor_unit, experiment),
     )
     if row_counts > 0:
+        # The SQLite replace updates assignment history, but it does not stop any
+        # still-running jobs from the previous experiment. That cleanup is an
+        # application-level side effect, so we do it explicitly here on reassignment.
+        if previous_experiment and previous_experiment != experiment:
+            tasks.multicast_post(
+                "/unit_api/jobs/stop",
+                [pioreactor_unit],
+                json={"experiment": previous_experiment},
+            )
+
         publish_to_experiment_log(
             f"Assigned {pioreactor_unit} to {experiment}.",
             experiment=experiment,
