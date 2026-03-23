@@ -233,6 +233,46 @@ def test_pio_cache_view_handles_tuple_keys() -> None:
             c.pop((experiment, "alt_media_fraction"), None)
 
 
+def test_pio_cache_view_with_key_filters_integer_keys() -> None:
+    cache_name = "test_pio_cache_view_with_key_filters_integer_keys"
+
+    try:
+        with local_persistent_storage(cache_name) as c:
+            c[12] = "twelve"
+            c[13] = "thirteen"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "view", cache_name, "12"])
+
+        assert result.exit_code == 0
+        assert "12 = twelve" in result.output
+        assert "13 = thirteen" not in result.output
+    finally:
+        with local_persistent_storage(cache_name) as c:
+            c.pop(12, None)
+            c.pop(13, None)
+
+
+def test_pio_cache_view_with_key_filters_tuple_keys() -> None:
+    cache_name = "test_pio_cache_view_with_key_filters_tuple_keys"
+
+    try:
+        with local_persistent_storage(cache_name) as c:
+            c[("a", "b")] = "first"
+            c[("c", "d")] = "second"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "view", cache_name, "('a', 'b')"])
+
+        assert result.exit_code == 0
+        assert "('a', 'b') = first" in result.output
+        assert "('c', 'd') = second" not in result.output
+    finally:
+        with local_persistent_storage(cache_name) as c:
+            c.pop(("a", "b"), None)
+            c.pop(("c", "d"), None)
+
+
 def test_led_intensity() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "led_intensity", "--A", "1"])

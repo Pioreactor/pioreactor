@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import ast
 import os
 import re
 import subprocess
@@ -963,14 +964,28 @@ def view_cache(cache: str, key: str | None) -> None:
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
+    parsed_key = None
+    if key is not None:
+        try:
+            parsed_key = ast.literal_eval(key)
+        except (ValueError, SyntaxError):
+            parsed_key = None
+
     for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
         with cacher(cache) as c:
-            if key and key in c:
-                click.echo(f"{click.style(key, bold=True)} = {c[key]}")
-                return
-            else:
-                for key_ in c.iterkeys():
-                    click.echo(f"{click.style(key_, bold=True)} = {c[key_]}")
+            if key is not None:
+                if key in c:
+                    click.echo(f"{click.style(key, bold=True)} = {c[key]}")
+                    return
+
+                if parsed_key is not None and parsed_key != key and parsed_key in c:
+                    click.echo(f"{click.style(parsed_key, bold=True)} = {c[parsed_key]}")
+                    return
+
+                continue
+
+            for key_ in c.iterkeys():
+                click.echo(f"{click.style(key_, bold=True)} = {c[key_]}")
 
 
 @cache.command(name="purge", short_help="remove a key from a cache")
