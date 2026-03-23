@@ -4,6 +4,8 @@ import threading
 import time
 from datetime import datetime
 from datetime import timezone
+from typing import Any
+from typing import cast
 
 import pytest
 from pioreactor import bioreactor
@@ -11,6 +13,7 @@ from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import circulate_media
+from pioreactor.actions.pump import publish_and_wait
 from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.background_jobs.monitor import Monitor
@@ -19,6 +22,7 @@ from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
+from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import local_intermittent_storage
@@ -69,6 +73,30 @@ def test_pump_io() -> None:
     assert ml == add_media(duration=ml, unit=unit, experiment=exp)
     assert ml == add_alt_media(duration=ml, unit=unit, experiment=exp)
     assert ml == remove_waste(duration=ml, unit=unit, experiment=exp)
+
+
+def test_publish_and_wait_uses_exactly_once_when_requested() -> None:
+    publish_calls: list[tuple[str, bytes, dict[str, int]]] = []
+    wait_timeouts: list[float] = []
+
+    class FakePublishResult:
+        def wait_for_publish(self, timeout: float) -> None:
+            wait_timeouts.append(timeout)
+
+    class FakeClient:
+        def publish(self, topic: str, payload: bytes, **kwargs) -> FakePublishResult:
+            publish_calls.append((topic, payload, kwargs))
+            return FakePublishResult()
+
+    publish_and_wait(
+        cast(Any, FakeClient()),
+        "pioreactor/unit/exp/dosing_events",
+        b"{}",
+        qos=QOS.EXACTLY_ONCE,
+    )
+
+    assert publish_calls == [("pioreactor/unit/exp/dosing_events", b"{}", {"qos": QOS.EXACTLY_ONCE})]
+    assert wait_timeouts == [2]
 
 
 @pytest.mark.skip(reason="...")

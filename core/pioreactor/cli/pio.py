@@ -1321,6 +1321,8 @@ if whoami.am_I_leader():
                 "-v",
                 "-t",
                 topic,
+                "-q",
+                "2",
                 "-F",
                 "%19.19I||%t||%p",
                 "-u",

@@ -2,8 +2,11 @@
 # test_cli.py
 import json
 import re
+import subprocess
 import time
 from pathlib import Path
+from typing import cast
+from typing import Iterator
 
 import click
 import pytest
@@ -43,6 +46,42 @@ def test_run() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run"])
     assert result.exit_code == 0
+
+
+def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
+    captured_args: list[str] = []
+
+    class FakePopen:
+        def __init__(self, args: list[str], **kwargs) -> None:
+            captured_args.extend(args)
+            self.stdout: Iterator[str] = iter([])
+
+        def __enter__(self) -> "FakePopen":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(subprocess, "Popen", FakePopen)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["mqtt", "-t", "pioreactor/unit/exp/dosing_events"])
+
+    assert result.exit_code == 0
+    assert captured_args == [
+        "mosquitto_sub",
+        "-v",
+        "-t",
+        "pioreactor/unit/exp/dosing_events",
+        "-q",
+        "2",
+        "-F",
+        "%19.19I||%t||%p",
+        "-u",
+        "pioreactor",
+        "-P",
+        "raspberry",
+    ]
 
 
 def test_pio_config_show_json_with_sources(tmp_path: Path, monkeypatch) -> None:
@@ -278,7 +317,7 @@ def test_led_intensity() -> None:
     result = runner.invoke(pio, ["run", "led_intensity", "--A", "1"])
     assert result.exit_code == 0
     with local_intermittent_storage("leds") as c:
-        assert float(c["A"]) == 1.0
+        assert float(cast(float, c["A"])) == 1.0
 
 
 @pytest.mark.xfail

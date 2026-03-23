@@ -21,6 +21,7 @@ from pioreactor.hardware import get_pwm_to_pin_map
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
+from pioreactor.pubsub import QOS
 from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
@@ -362,6 +363,7 @@ def _pump_action(
                         mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
+                        qos=QOS.EXACTLY_ONCE,
                     )
                     if is_dosing_automation_event:
                         logger.info(
@@ -403,6 +405,7 @@ def _pump_action(
                             mqtt_client,
                             f"pioreactor/{unit}/{experiment}/dosing_events",
                             encode(dosing_event),
+                            qos=QOS.EXACTLY_ONCE,
                         )
                         if is_dosing_automation_event:
                             logger.info(
@@ -435,6 +438,7 @@ def _pump_action(
                         mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
+                        qos=QOS.EXACTLY_ONCE,
                     )
 
                     if state.exit_event.wait(sub_duration):
@@ -457,6 +461,7 @@ def _pump_action(
                             mqtt_client,
                             f"pioreactor/{unit}/{experiment}/dosing_events",
                             encode(dosing_event),
+                            qos=QOS.EXACTLY_ONCE,
                         )
 
                         logger.info(f"Stopped {pump_device}.")
@@ -558,6 +563,7 @@ def _liquid_circulation(
                 mqtt_client,
                 f"pioreactor/{unit}/{experiment}/dosing_events",
                 encode(dosing_event),
+                qos=QOS.EXACTLY_ONCE,
             )
 
             with catchtime() as running_waste_duration:
