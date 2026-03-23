@@ -3,7 +3,7 @@
 #### Bug fixes
 
  - Fixed reassignment history tracking in the leader web app's SQLite connection by enabling recursive triggers, preventing stale open rows from accumulating in `experiment_worker_assignments_history`.
- - Added an app-update database migration to repair stale open assignment-history rows in existing leader databases.
+ - Added an app-update database migration to repair stale open assignment-history rows in existing leader databases. This was caused by the new "re-assignment" dialog box in the Pioreactor's page. The biggest impact was duplicate logs showing up on the Logs UI page.
  - Fixed worker reassignment so moving a Pioreactor from one experiment to another now stops jobs still running under the previous experiment.
 
 ### 26.3.2

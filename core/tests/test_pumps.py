@@ -307,6 +307,27 @@ def test_pump_stop_is_safe_after_pwm_cleanup() -> None:
         assert cache.get(13, 0) == 0
 
 
+def test_add_media_publishes_single_empty_pwm_payload_on_shutdown() -> None:
+    experiment = "test_add_media_publishes_single_empty_pwm_payload_on_shutdown"
+
+    mqtt_items: list[dict[str, float]] = []
+
+    def collect(msg) -> None:
+        payload = msg.payload.decode()
+        if not payload:
+            return
+        mqtt_items.append(json.loads(payload))
+
+    subscribe_and_callback(collect, f"pioreactor/{unit}/{experiment}/pwms/dc", allow_retained=False)
+
+    moved_ml = add_media(ml=1.0, unit=unit, experiment=experiment)
+    pause()
+
+    assert moved_ml == pytest.approx(1.0)
+    assert mqtt_items[-1] == {}
+    assert sum(payload == {} for payload in mqtt_items) == 1
+
+
 def test_pumps_can_run_in_background() -> None:
     experiment = "test_pumps_can_run_in_background"
 

@@ -327,6 +327,8 @@ class PWM:
         if self._is_cleaned_up:
             return
         self._pwm.off()
+        if self.duty_cycle == 0.0:
+            return
         self.change_duty_cycle(0.0)
 
     def change_duty_cycle(self, duty_cycle: pt.FloatBetween0and100) -> None:
