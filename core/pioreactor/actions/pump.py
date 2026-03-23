@@ -255,6 +255,7 @@ def _pump_action(
         job_source=job_source,
     ) as state:
         mqtt_client = state.mqtt_client
+        is_dosing_automation_event = (source_of_event or "").startswith("dosing_automation:")
 
         if ml is not None:
             if is_default_calibration(calibration):
@@ -279,6 +280,16 @@ def _pump_action(
 
         assert duration is not None
         assert ml is not None
+
+        if is_dosing_automation_event:
+            logger.info(
+                "Automation pump action entered: action=%s requested_ml=%.5f duration_s=%.5f source_of_event=%s external_mqtt_client=%s",
+                action_name,
+                ml,
+                duration,
+                source_of_event,
+                state._externally_provided_client,
+            )
 
         empty_dosing_event = structs.DosingEvent(
             volume_change=0.0,
@@ -339,11 +350,27 @@ def _pump_action(
                     )
                     volume_moved_ml += sub_volume_moved_ml
 
+                    if is_dosing_automation_event:
+                        logger.info(
+                            "Publishing dosing_event: action=%s volume_change=%.5f cumulative_volume_ml=%.5f source_of_event=%s",
+                            action_name,
+                            sub_volume_moved_ml,
+                            volume_moved_ml,
+                            source_of_event,
+                        )
                     publish_and_wait(
                         mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
                     )
+                    if is_dosing_automation_event:
+                        logger.info(
+                            "Published dosing_event: action=%s volume_change=%.5f cumulative_volume_ml=%.5f source_of_event=%s",
+                            action_name,
+                            sub_volume_moved_ml,
+                            volume_moved_ml,
+                            source_of_event,
+                        )
 
                     if time_left <= 0:
                         pump.interrupt.wait()
@@ -364,11 +391,27 @@ def _pump_action(
                             timestamp=current_utc_datetime(),
                             volume_change=correction_factor,
                         )
+                        if is_dosing_automation_event:
+                            logger.info(
+                                "Publishing dosing_event correction: action=%s correction_volume_change=%.5f cumulative_volume_ml=%.5f source_of_event=%s",
+                                action_name,
+                                correction_factor,
+                                volume_moved_ml,
+                                source_of_event,
+                            )
                         publish_and_wait(
                             mqtt_client,
                             f"pioreactor/{unit}/{experiment}/dosing_events",
                             encode(dosing_event),
                         )
+                        if is_dosing_automation_event:
+                            logger.info(
+                                "Published dosing_event correction: action=%s correction_volume_change=%.5f cumulative_volume_ml=%.5f source_of_event=%s",
+                                action_name,
+                                correction_factor,
+                                volume_moved_ml,
+                                source_of_event,
+                            )
 
                         logger.info(f"Stopped {pump_device} early.")
                         return actual_volume_moved_ml
