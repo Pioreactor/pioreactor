@@ -328,6 +328,60 @@ def test_add_media_publishes_single_empty_pwm_payload_on_shutdown() -> None:
     assert sum(payload == {} for payload in mqtt_items) == 1
 
 
+def test_small_volume_still_publishes_dosing_event_if_pump_finishes_immediately(monkeypatch) -> None:
+    experiment = "test_small_volume_still_publishes_dosing_event_if_pump_finishes_immediately"
+    requested_ml = 0.01
+    dosing_events: list[float] = []
+
+    calibration = structs.SimplePeristalticPumpCalibration(
+        calibration_name="fast_finish",
+        curve_data_=_poly_curve([20.0, 0.0]),
+        recorded_data={"x": [], "y": []},
+        dc=60,
+        hz=100,
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        calibrated_on_pioreactor_unit=unit,
+    )
+
+    class FastCompletingPump:
+        def __init__(self, *args, **kwargs) -> None:
+            self.interrupt = threading.Event()
+            self.calibration = kwargs["calibration"]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def by_duration(self, seconds: float, block: bool = True) -> None:
+            self.interrupt.set()
+
+        def continuously(self, block: bool = True) -> None:
+            raise AssertionError("continuous path is not under test")
+
+        def duration_to_ml(self, seconds: float) -> float:
+            return self.calibration.duration_to_ml(seconds)
+
+        def stop(self) -> None:
+            self.interrupt.set()
+
+    def collect_dosing_events(msg) -> None:
+        dosing_events.append(json.loads(msg.payload.decode())["volume_change"])
+
+    subscribe_and_callback(
+        collect_dosing_events, f"pioreactor/{unit}/{experiment}/dosing_events", allow_retained=False
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.PWMPump", FastCompletingPump)
+
+    moved_ml = add_media(ml=requested_ml, unit=unit, experiment=experiment, calibration=calibration)
+    pause()
+
+    assert moved_ml == pytest.approx(requested_ml)
+    assert dosing_events == [pytest.approx(requested_ml)]
+
+
 def test_pumps_can_run_in_background() -> None:
     experiment = "test_pumps_can_run_in_background"
 

@@ -152,8 +152,9 @@ def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeris
         return cal
 
 
-def publish_async(client: Client, topic: str, payload: bytes, **kwargs: Any) -> None:
-    _thread_pool.submit(client.publish, topic, payload, **kwargs)
+def publish_and_wait(client: Client, topic: str, payload: bytes, **kwargs: Any) -> None:
+    msg_info = client.publish(topic, payload, **kwargs)
+    msg_info.wait_for_publish(timeout=2)
 
 
 def _to_human_readable_action(
@@ -311,13 +312,18 @@ def _pump_action(
             if not continuously:
                 pump.by_duration(duration, block=False)  # start pump
 
-                while not pump.interrupt.is_set():
+                while True:
                     sub_volume_moved_ml = 0.0
                     time_left = duration - (time.monotonic() - pump_start_time)
                     if time_left <= 0:
-                        # this is an edge case where the time has surpassed, but the interrupt isn't set yet.
-                        pump.interrupt.wait()
-                        break
+                        if volume_moved_ml == 0.0:
+                            # Fast, small-volume runs can finish before we observe the pump thread.
+                            # Emit the requested dosing event once instead of dropping it.
+                            sub_volume_moved_ml = ml - volume_moved_ml
+                        else:
+                            # this is an edge case where the time has surpassed, but the interrupt isn't set yet.
+                            pump.interrupt.wait()
+                            break
 
                     elif time_left >= sub_duration:
                         sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
@@ -333,11 +339,15 @@ def _pump_action(
                     )
                     volume_moved_ml += sub_volume_moved_ml
 
-                    publish_async(
+                    publish_and_wait(
                         mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
                     )
+
+                    if time_left <= 0:
+                        pump.interrupt.wait()
+                        break
 
                     if state.exit_event.wait(min(sub_duration, time_left)):
                         pump.interrupt.set()
@@ -354,7 +364,7 @@ def _pump_action(
                             timestamp=current_utc_datetime(),
                             volume_change=correction_factor,
                         )
-                        publish_async(
+                        publish_and_wait(
                             mqtt_client,
                             f"pioreactor/{unit}/{experiment}/dosing_events",
                             encode(dosing_event),
@@ -378,7 +388,7 @@ def _pump_action(
                     )
                     volume_moved_ml += sub_volume_moved_ml
 
-                    publish_async(
+                    publish_and_wait(
                         mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
@@ -400,7 +410,7 @@ def _pump_action(
                             timestamp=current_utc_datetime(),
                             volume_change=correction_factor,
                         )
-                        publish_async(
+                        publish_and_wait(
                             mqtt_client,
                             f"pioreactor/{unit}/{experiment}/dosing_events",
                             encode(dosing_event),
@@ -501,7 +511,7 @@ def _liquid_circulation(
                 source_of_event=source_of_event,
                 timestamp=current_utc_datetime(),
             )
-            publish_async(
+            publish_and_wait(
                 mqtt_client,
                 f"pioreactor/{unit}/{experiment}/dosing_events",
                 encode(dosing_event),
