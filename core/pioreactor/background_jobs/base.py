@@ -24,7 +24,7 @@ from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
-from pioreactor.states import JobState as st
+from pioreactor.states import JobState
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import is_pio_job_running
@@ -160,7 +160,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         - the subclass runs their __init__ method
     2. The job moves to `ready`, and can be paused by entering `sleeping`.
     3. We catch key interrupts and kill signals from the underlying machine, and set the state to `disconnected`.
-    4. If the job exits otherwise (kill -9, power loss, bug), the state is `lost`, and a last-will saying so is broadcast.
+    4. If the job exits otherwise (kill -9, power loss, bug), the state is `lost`, and a last-will saying so is broadcaJobState.
 
     When changing state, it's recommend to use `set_state(new_state)`.
 
@@ -208,7 +208,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     > def do_some_stirring():
     >     st = Stirrer(duty_cycle=50, unit=unit, experiment=experiment)
     >     ...
-    >     st.clean_up()
+    >     JobState.clean_up()
     >     return
 
     When Python exits, jobs will also clean themselves up, so this also works as a script:
@@ -222,7 +222,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     > if __name__ == "__main__":
     >    st = Stirrer(...)
     >
-    >    st.block_until_disconnected()
+    >    JobState.block_until_disconnected()
     >
 
 
@@ -239,11 +239,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
     """
 
     # Homie lifecycle (normally per device (i.e. an rpi) but we are using it for "nodes", in Homie parlance)
-    INIT: pt.JobState = st.INIT
-    READY: pt.JobState = st.READY
-    DISCONNECTED: pt.JobState = st.DISCONNECTED
-    SLEEPING: pt.JobState = st.SLEEPING
-    LOST: pt.JobState = st.LOST
+    INIT: JobState = JobState.INIT
+    READY: JobState = JobState.READY
+    DISCONNECTED: JobState = JobState.DISCONNECTED
+    SLEEPING: JobState = JobState.SLEEPING
+    LOST: JobState = JobState.LOST
 
     # initial state is disconnected, set other metadata
     state = DISCONNECTED
@@ -322,7 +322,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         }
 
         # this comes _after_ adding state to published settings
-        self.set_state(st.INIT)
+        self.set_state(JobState.INIT)
 
         self._set_up_exit_protocol()
         self._blocking_event = threading.Event()
@@ -363,7 +363,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._reconnect_callbacks_ready = True
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
-        self.set_state(st.READY)
+        self.set_state(JobState.READY)
 
     @property
     def job_key(self) -> str:
@@ -495,7 +495,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.sub_client.subscribe(str(topic), qos=qos)
         return
 
-    def set_state(self, new_state: pt.JobState) -> None:
+    def set_state(self, new_state: JobState) -> None:
         """
         The preferred way to change st is to use this function (instead of self.state = state). Note:
 
@@ -505,12 +505,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
 
         try:
-            new_state_enum = pt.JobState(new_state)
+            new_state_enum = JobState(new_state)
         except ValueError:
             self.logger.error(f"saw {new_state}: not a valid state")
             return
 
-        current_state = pt.JobState(self.state)
+        current_state = JobState(self.state)
 
         if new_state_enum == current_state:
             return
@@ -559,8 +559,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         Disconnect from brokers, set state to "disconnected", stop any activity.
         """
-        if self.state is not st.DISCONNECTED:
-            self.set_state(st.DISCONNECTED)
+        if self.state is not JobState.DISCONNECTED:
+            self.set_state(JobState.DISCONNECTED)
         self._clean_up_resources()
 
     def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:
@@ -751,7 +751,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 pass
 
     def init(self) -> None:
-        self.state = st.INIT
+        self.state = JobState.INIT
 
         try:
             # we delay the specific on_init until after we have done our important protocols.
@@ -765,7 +765,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
     def ready(self) -> None:
-        self.state = st.READY
+        self.state = JobState.READY
 
         try:
             self.on_ready()
@@ -777,7 +777,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
     def sleeping(self) -> None:
-        self.state = st.SLEEPING
+        self.state = JobState.SLEEPING
 
         try:
             self.on_sleeping()
@@ -794,7 +794,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # 1. Monitor can send a lost signal if `check_against_processes_running` triggers.
         # I think it makes sense to ignore it?
 
-        self.state = st.LOST
+        self.state = JobState.LOST
         self._log_state(self.state)
 
     def disconnected(self) -> None:
@@ -811,10 +811,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Error in on_disconnected:")
             self.logger.debug(e, exc_info=True)
 
-        self.state = st.DISCONNECTED
+        self.state = JobState.DISCONNECTED
         self._log_state(self.state)
 
-        # we "set" the internal event, which will cause any event.waits to end blocking. This should happen last.
+        # we "set" the internal event, which will cause any event.waits to end blocking. This should happen laJobState.
         self._blocking_event.set()
 
     def _remove_from_job_manager(self) -> None:
@@ -868,8 +868,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if hasattr(self, name):
                 self._publish_setting(name)
 
-    def _log_state(self, state: pt.JobState) -> None:
-        if state in {st.READY, st.DISCONNECTED, st.LOST}:
+    def _log_state(self, state: JobState) -> None:
+        if state in {JobState.READY, JobState.DISCONNECTED, JobState.LOST}:
             self.logger.info(state.capitalize() + ".")
         else:
             self.logger.debug(state.capitalize() + ".")
@@ -1178,16 +1178,16 @@ class BackgroundJobWithDodging(_BackgroundJob):
         )
         super().__post__init__()  # set ready
 
-    def _desired_dodging_mode(self, enable_dodging_od: bool, od_state: pt.JobState | None) -> bool:
+    def _desired_dodging_mode(self, enable_dodging_od: bool, od_state: JobState | None) -> bool:
         """Return True if we should dodge based on enable flag and OD state."""
         if not enable_dodging_od:
             return False
         # enable_dodging_od is true - user wants it on
         if od_state is None:
             return False
-        if od_state in {st.READY, st.SLEEPING, st.INIT}:
+        if od_state in {JobState.READY, JobState.SLEEPING, JobState.INIT}:
             return True
-        if od_state in {st.LOST, st.DISCONNECTED}:
+        if od_state in {JobState.LOST, JobState.DISCONNECTED}:
             return False
         return False
 
@@ -1225,7 +1225,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def set_enable_dodging_od(self, value: bool) -> None:
         """Turn dodging on/off based on user intent, then align mode with current OD state."""
         self.enable_dodging_od = value
-        od_state = st.READY if is_pio_job_running("od_reading") else st.DISCONNECTED
+        od_state = JobState.READY if is_pio_job_running("od_reading") else JobState.DISCONNECTED
 
         desired = self._desired_dodging_mode(self.enable_dodging_od, od_state)
         self.set_currently_dodging_od(desired)
@@ -1235,7 +1235,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         if not self.enable_dodging_od:
             return
 
-        new_state = pt.JobState(state_msg.payload.decode())
+        new_state = JobState(state_msg.payload.decode())
         desired = self._desired_dodging_mode(self.enable_dodging_od, new_state)
         self.set_currently_dodging_od(desired)
 

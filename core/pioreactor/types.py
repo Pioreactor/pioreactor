@@ -4,7 +4,6 @@ import datetime
 import typing as t
 
 from msgspec import Meta
-from pioreactor.states import JobState as JobState
 
 if t.TYPE_CHECKING:
     from pioreactor.pubsub import Client
@@ -26,8 +25,8 @@ class DosingProgram(t.Protocol):
         experiment: str,
         ml: float,
         source_of_event: str,
-        mqtt_client: t.Optional["Client"] = None,
-        logger: t.Optional["CustomLogger"] = None,
+        mqtt_client: "Client",
+        logger: "CustomLogger",
     ) -> float:
         # don't forget to return a float!
         ...

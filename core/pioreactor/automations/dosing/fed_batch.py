@@ -36,6 +36,8 @@ class FedBatch(DosingAutomationJob):
             source_of_event=f"{self.job_name}:{self.automation_name}",
             unit=self.unit,
             experiment=self.experiment,
+            mqtt_client=self.pub_client,
+            logger=self.logger,
         )
         if vol != self.dosing_volume_ml:
             self.logger.warning("Under-dosed!")

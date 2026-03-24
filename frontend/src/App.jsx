@@ -99,7 +99,7 @@ function App() {
             <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline />
-              <SnackbarProvider maxSnack={6}>
+              <SnackbarProvider maxSnack={4}>
                 <MainSite />
               </SnackbarProvider>
             </ConfirmProvider>
