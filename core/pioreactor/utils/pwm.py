@@ -24,6 +24,7 @@ from pioreactor.types import GpioPin
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import remove_signal_handlers
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -254,6 +255,9 @@ class PWM:
         self.duty_cycle = 0.0
         self._is_cleaned_up = False
         self._lock_id = f"{getpid()}:{id(self)}"
+        self._registered_signal_handlers = False
+        self._registered_sighup_handler = False
+        self._registered_atexit_handler = False
 
         if self.is_locked():
             msg = f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache clear pwm_locks {self.pin} --as-int` on the command line for {self.unit}."
@@ -362,12 +366,14 @@ class PWM:
             return
 
         atexit.register(self._exit, "Python atexit")
+        self._registered_atexit_handler = True
 
         # terminate command, ex: pkill, kill
         append_signal_handlers(signal.SIGTERM, [self._exit])
 
         # keyboard interrupt
         append_signal_handlers(signal.SIGINT, [self._exit])
+        self._registered_signal_handlers = True
 
         try:
             # ssh closes
@@ -379,9 +385,24 @@ class PWM:
                     self._ignore_future_sighups,
                 ],
             )
+            self._registered_sighup_handler = True
         except AttributeError:
             # SIGHUP is only available on unix machines
             pass
+
+    def _remove_exit_protocol(self) -> None:
+        if self._registered_atexit_handler:
+            atexit.unregister(self._exit)
+            self._registered_atexit_handler = False
+
+        if self._registered_signal_handlers:
+            remove_signal_handlers(signal.SIGTERM, [self._exit])
+            remove_signal_handlers(signal.SIGINT, [self._exit])
+            self._registered_signal_handlers = False
+
+        if self._registered_sighup_handler:
+            remove_signal_handlers(signal.SIGHUP, [self._exit, self._ignore_future_sighups])
+            self._registered_sighup_handler = False
 
     def clean_up(self) -> None:
         if self._is_cleaned_up:
@@ -396,6 +417,7 @@ class PWM:
             try:
                 self._pwm.close()
             finally:
+                self._remove_exit_protocol()
                 self.unlock()
 
                 with local_intermittent_storage("pwm_dc") as cache:

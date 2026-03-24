@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # test_pubsub.py
 import socket
+from typing import Callable
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -18,6 +19,7 @@ from pioreactor.pubsub import post_into
 from pioreactor.pubsub import post_into_leader
 from pioreactor.pubsub import put_into
 from pioreactor.pubsub import put_into_leader
+from pioreactor.pubsub import subscribe_and_callback
 from tests.conftest import capture_requests
 
 
@@ -91,6 +93,30 @@ def test_create_client_max_connection_attempts(mock_client) -> None:
     create_client(hostname=hostname, max_connection_attempts=max_connection_attempts)
 
     assert client_instance.connect.call_count == max_connection_attempts
+
+
+def test_subscribe_and_callback_registers_cleanup_for_existing_client() -> None:
+    client = MagicMock(spec=Client)
+    cleanup_callables: list[Callable[[], None]] = []
+
+    subscribe_and_callback(
+        lambda message: None,
+        ["test/topic/1", "test/topic/2"],
+        client=client,
+        on_cleanup=cleanup_callables,
+    )
+
+    assert client.message_callback_add.call_count == 2
+    assert client.subscribe.call_count == 2
+    assert len(cleanup_callables) == 2
+
+    for cleanup in cleanup_callables:
+        cleanup()
+
+    client.message_callback_remove.assert_any_call("test/topic/1")
+    client.message_callback_remove.assert_any_call("test/topic/2")
+    client.unsubscribe.assert_any_call("test/topic/1")
+    client.unsubscribe.assert_any_call("test/topic/2")
 
 
 def test_post_into() -> None:

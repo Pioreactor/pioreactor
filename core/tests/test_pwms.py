@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 # test_pwms
+import gc
 import json
 import logging
 import signal
 import sys
 import time
 import types
+import weakref
 from typing import Any
 
 import pytest
@@ -225,6 +227,57 @@ def test_software_pwm_close_warns_and_keeps_dc_if_force_low_fails(
         "Unable to confirm GPIO-17 low during software PWM close" in record.message
         for record in caplog.records
     )
+
+
+class DummyMQTTClient:
+    def publish(self, *args: Any, **kwargs: Any) -> None:
+        return
+
+
+def test_pwm_clean_up_unregisters_exit_protocol(monkeypatch: pytest.MonkeyPatch) -> None:
+    register_call_count = 0
+    unregister_call_count = 0
+
+    def fake_register(callback: object, *args: object) -> None:
+        nonlocal register_call_count
+        register_call_count += 1
+
+    def fake_unregister(callback: object) -> None:
+        nonlocal unregister_call_count
+        unregister_call_count += 1
+
+    monkeypatch.setattr(
+        pwm_module.atexit,
+        "register",
+        fake_register,
+    )
+    monkeypatch.setattr(
+        pwm_module.atexit,
+        "unregister",
+        fake_unregister,
+    )
+
+    initial_sigterm_handler = signal.getsignal(signal.SIGTERM)
+    initial_sigint_handler = signal.getsignal(signal.SIGINT)
+
+    pwm_ref: weakref.ReferenceType[PWM] | None = None
+
+    try:
+        pwm = PWM(12, 10, experiment="test_pwm_cleanup", unit=get_unit_name(), pub_client=DummyMQTTClient())
+        pwm_ref = weakref.ref(pwm)
+        pwm.clean_up()
+        del pwm
+        gc.collect()
+
+        assert register_call_count == 1
+        assert unregister_call_count == 1
+        assert signal.getsignal(signal.SIGTERM) == initial_sigterm_handler
+        assert signal.getsignal(signal.SIGINT) == initial_sigint_handler
+        assert pwm_ref is not None
+        assert pwm_ref() is None
+    finally:
+        signal.signal(signal.SIGTERM, initial_sigterm_handler)
+        signal.signal(signal.SIGINT, initial_sigint_handler)
 
 
 def test_software_pwm_close_infos_if_pwm_stops_but_low_unconfirmed(

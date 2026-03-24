@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 # test_utils
+import gc
+import signal
+import weakref
 from contextlib import redirect_stdout
 from io import StringIO
 
@@ -21,15 +24,24 @@ from pioreactor.whoami import get_unit_name
 class DummyMQTTClient:
     def __init__(self):
         self.published: list[tuple[str, str, bool]] = []
+        self.callbacks: dict[str, object] = {}
+        self.subscriptions: list[str] = []
+        self.unsubscribed: list[str] = []
 
     def publish(self, topic, payload, retain=True):
         self.published.append((topic, payload, retain))
 
-    def message_callback_add(self, *args, **kwargs):
-        return None
+    def message_callback_add(self, topic, callback):
+        self.callbacks[topic] = callback
 
-    def subscribe(self, *args, **kwargs):
-        return None
+    def message_callback_remove(self, topic):
+        self.callbacks.pop(topic, None)
+
+    def subscribe(self, topic, *args, **kwargs):
+        self.subscriptions.append(topic)
+
+    def unsubscribe(self, topic):
+        self.unsubscribed.append(topic)
 
 
 def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache() -> None:
@@ -218,6 +230,42 @@ def test_managed_lifecycle_can_ignore_inactive_state(monkeypatch) -> None:
 
     assert lifecycle.exit_event.is_set()
     assert [payload for _, payload, _ in client.published] == ["init", "ready", "disconnected"]
+
+
+def test_managed_lifecycle_cleans_up_signal_handlers_and_reused_client_callbacks() -> None:
+    unit = "test_unit"
+    experiment = "test_managed_lifecycle_cleanup"
+    name = "test_job"
+    client = DummyMQTTClient()
+
+    initial_sigterm_handler = signal.getsignal(signal.SIGTERM)
+    initial_sigint_handler = signal.getsignal(signal.SIGINT)
+
+    lifecycle_ref: weakref.ReferenceType[managed_lifecycle] | None = None
+
+    try:
+        with managed_lifecycle(
+            unit,
+            experiment,
+            name,
+            mqtt_client=client,
+            ignore_is_active_state=True,
+        ) as lifecycle:
+            lifecycle_ref = weakref.ref(lifecycle)
+            assert len(client.callbacks) == 4
+        del lifecycle
+
+        gc.collect()
+
+        assert client.callbacks == {}
+        assert len(client.unsubscribed) == 4
+        assert signal.getsignal(signal.SIGTERM) == initial_sigterm_handler
+        assert signal.getsignal(signal.SIGINT) == initial_sigint_handler
+        assert lifecycle_ref is not None
+        assert lifecycle_ref() is None
+    finally:
+        signal.signal(signal.SIGTERM, initial_sigterm_handler)
+        signal.signal(signal.SIGINT, initial_sigint_handler)
 
 
 def greet(name):

@@ -3,6 +3,7 @@ import random
 import socket
 import string
 import threading
+from contextlib import suppress
 from time import sleep
 from typing import Any
 from typing import Callable
@@ -254,6 +255,7 @@ def subscribe_and_callback(
     name: Optional[str] = None,
     allow_retained: bool = True,
     client: Optional[Client] = None,
+    on_cleanup: list[Callable[[], None]] | None = None,
     **mqtt_kwargs: Any,
 ) -> Client:
     """
@@ -327,10 +329,31 @@ def subscribe_and_callback(
     else:
         # user provided a client
         for topic in topics:
-            client.message_callback_add(topic, wrap_callback(callback))
+            wrapped_callback = wrap_callback(callback)
+            client.message_callback_add(topic, wrapped_callback)
             client.subscribe(topic)
 
+            if on_cleanup is not None:
+
+                def cleanup_subscription(topic: str = topic) -> None:
+                    _remove_callback_subscription(client, topic)
+
+                on_cleanup.append(cleanup_subscription)
+
     return client
+
+
+def _remove_callback_subscription(client: Client, topic: str) -> None:
+    # This cleanup assumes effective ownership of this topic filter on the provided client.
+    # Paho stores one callback per topic filter, and unsubscribe() removes the filter for the
+    # whole client. On a genuinely shared long-lived client, this can clobber another caller's
+    # callback/subscription if they reused the same topic. Today we accept that exclusivity risk
+    # to avoid unbounded listener growth, but it is a known failure mode of this teardown path.
+    with suppress(KeyError, ValueError):
+        client.message_callback_remove(topic)
+
+    with suppress(ValueError):
+        client.unsubscribe(topic)
 
 
 def prune_retained_messages(topics_to_prune: str = "#") -> None:

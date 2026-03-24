@@ -61,20 +61,43 @@ class callable_stack:
     Hello, Alice!
     """
 
-    def __init__(self, default_function_if_empty: Callable[..., None] = lambda *args: None) -> None:
+    def __init__(
+        self,
+        default_function_if_empty: Callable[..., None] = lambda *args: None,
+        original_handler: Any = signal.SIG_DFL,
+        call_original_handler_after_callbacks: bool = False,
+    ) -> None:
         self._callables: list[Callable[..., None]] = []
         self.default = default_function_if_empty
+        self.original_handler = original_handler
+        self.call_original_handler_after_callbacks = call_original_handler_after_callbacks
 
     def append(self, function: Callable[..., None]) -> None:
         self._callables.append(function)
 
+    def remove(self, function: Callable[..., None]) -> bool:
+        for index in range(len(self._callables) - 1, -1, -1):
+            if self._callables[index] == function:
+                del self._callables[index]
+                return True
+
+        return False
+
+    @property
+    def is_empty(self) -> bool:
+        return not self._callables
+
     def __call__(self, *args: object) -> None:
         if not self._callables:
             self.default(*args)
+            return
 
         while self._callables:
             function = self._callables.pop()
             function(*args)
+
+        if self.call_original_handler_after_callbacks and callable(self.original_handler):
+            self.original_handler(*args)
 
 
 def append_signal_handler(signal_value: signal.Signals, new_callback: Callable[..., None]) -> None:
@@ -92,17 +115,23 @@ def append_signal_handler(signal_value: signal.Signals, new_callback: Callable[.
             signal.signal(signal_value, current_callback)
         else:
             # no stack yet, default callable was present. Don't forget to add new callback, too
-            stack = callable_stack(signal.default_int_handler)
-            stack.append(current_callback)
+            stack = callable_stack(
+                signal.default_int_handler,
+                original_handler=current_callback,
+                call_original_handler_after_callbacks=True,
+            )
             stack.append(new_callback)
             signal.signal(signal_value, stack)
     elif (current_callback is signal.SIG_DFL) or (current_callback is signal.SIG_IGN):
         # no stack yet.
-        stack = callable_stack(signal.default_int_handler)
+        stack = callable_stack(signal.default_int_handler, original_handler=current_callback)
         stack.append(new_callback)
         signal.signal(signal_value, stack)
     elif current_callback is None:
-        signal.signal(signal_value, callable_stack(signal.default_int_handler))
+        signal.signal(
+            signal_value,
+            callable_stack(signal.default_int_handler, original_handler=signal.SIG_DFL),
+        )
     else:
         raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
 
@@ -110,6 +139,27 @@ def append_signal_handler(signal_value: signal.Signals, new_callback: Callable[.
 def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Callable[..., None]]) -> None:
     for callback in new_callbacks:
         append_signal_handler(signal_value, callback)
+
+
+def remove_signal_handler(signal_value: signal.Signals, callback_to_remove: Callable[..., None]) -> None:
+    current_callback = signal.getsignal(signal_value)
+
+    if not isinstance(current_callback, callable_stack):
+        return
+
+    current_callback.remove(callback_to_remove)
+
+    if current_callback.is_empty:
+        signal.signal(signal_value, current_callback.original_handler)
+    else:
+        signal.signal(signal_value, current_callback)
+
+
+def remove_signal_handlers(
+    signal_value: signal.Signals, callbacks_to_remove: list[Callable[..., None]]
+) -> None:
+    for callback in callbacks_to_remove:
+        remove_signal_handler(signal_value, callback)
 
 
 class managed_lifecycle:
@@ -165,6 +215,8 @@ class managed_lifecycle:
         self._source = source
         self.is_long_running_job = is_long_running_job
         self._job_source = job_source or os.environ.get("JOB_SOURCE", "user")
+        self._registered_signal_handlers = False
+        self._mqtt_cleanup_callables: list[Callable[[], None]] = []
 
         try:
             # this only works on the main thread.
@@ -172,6 +224,7 @@ class managed_lifecycle:
             append_signal_handlers(
                 signal.SIGINT, [self._exit]
             )  # ignore future sigints so we clean up properly.
+            self._registered_signal_handlers = True
         except ValueError:
             pass
 
@@ -219,6 +272,10 @@ class managed_lifecycle:
         self.state = st("init")
         self.publish_setting("$state", self.state)
 
+        # Teardown for signal handlers and passive MQTT listeners is centralized in __exit__.
+        # If construction fails after we register one of those resources but before the context
+        # manager is entered, cleanup won't run automatically. We accept that initialization-time
+        # leak risk for now, but it is a known failure mode of this lifecycle design.
         self.start_passive_listeners()
 
     @property
@@ -241,16 +298,21 @@ class managed_lifecycle:
     def __exit__(self, *args: object) -> None:
         self.state = st("disconnected")
         self._exit()
-        self.publish_setting("$state", self.state)
-        if not self._externally_provided_client:
-            assert self.mqtt_client is not None
-            self.mqtt_client.loop_stop()
-            self.mqtt_client.disconnect()
+        try:
+            self.publish_setting("$state", self.state)
+        finally:
+            self._remove_passive_listeners()
+            self._remove_signal_handlers()
 
-        from pioreactor.utils.job_manager import JobManager
+            if not self._externally_provided_client:
+                assert self.mqtt_client is not None
+                self.mqtt_client.loop_stop()
+                self.mqtt_client.disconnect()
 
-        with JobManager() as jm:
-            jm.set_not_running(self.job_id)
+            from pioreactor.utils.job_manager import JobManager
+
+            with JobManager() as jm:
+                jm.set_not_running(self.job_id)
 
         return
 
@@ -268,8 +330,22 @@ class managed_lifecycle:
                 f"pioreactor/{self.unit}/{whoami.UNIVERSAL_EXPERIMENT}/{self.job_key}/$state/set",
             ],
             client=self.mqtt_client,
+            on_cleanup=self._mqtt_cleanup_callables,
         )
         return
+
+    def _remove_passive_listeners(self) -> None:
+        while self._mqtt_cleanup_callables:
+            cleanup = self._mqtt_cleanup_callables.pop()
+            cleanup()
+
+    def _remove_signal_handlers(self) -> None:
+        if not self._registered_signal_handlers:
+            return
+
+        remove_signal_handlers(signal.SIGTERM, [self._exit])
+        remove_signal_handlers(signal.SIGINT, [self._exit])
+        self._registered_signal_handlers = False
 
     def block_until_disconnected(self) -> None:
         self.exit_event.wait()
