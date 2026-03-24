@@ -256,14 +256,33 @@ def stage_update_scripts_changes(version: str, dry_run: bool) -> None:
     target = UPDATE_SCRIPTS_DIR / version
     upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
 
+    tracked_upcoming_paths = subprocess.check_output(
+        ["git", "ls-files", upcoming.as_posix()],
+        text=True,
+    ).splitlines()
+    paths_to_stage: list[str] = [target.as_posix()]
+
+    if upcoming.exists():
+        paths_to_stage.append(upcoming.as_posix())
+
+    paths_to_stage.extend(tracked_upcoming_paths)
+
+    unique_paths_to_stage: list[str] = []
+    seen: set[str] = set()
+    for path in paths_to_stage:
+        if path not in seen:
+            unique_paths_to_stage.append(path)
+            seen.add(path)
+
     if dry_run:
-        print(f"DRY-RUN: $ git add -A {target.as_posix()} {upcoming.as_posix()}")
+        print(f"DRY-RUN: $ git add -A {' '.join(unique_paths_to_stage)}")
         return
 
     if target.exists() and target.is_dir() and not any(target.iterdir()):
         (target / ".gitkeep").touch(exist_ok=True)
 
-    subprocess.run(["git", "add", "-A", target.as_posix(), upcoming.as_posix()], check=True)
+    for path in unique_paths_to_stage:
+        subprocess.run(["git", "add", "-A", path], check=True)
 
 
 def build_github_release_url(version: str, branch: str) -> str:
