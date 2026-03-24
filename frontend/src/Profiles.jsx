@@ -32,6 +32,7 @@ import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
+import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
 /**
  * 1) Child component that displays the experiment profile dropdown,
@@ -47,6 +48,7 @@ function RunExperimentProfilesContent({
   setViewSource,
   source,
   setSource,
+  previewComments,
   dryRun,
   setDryRun
 }) {
@@ -203,7 +205,7 @@ function RunExperimentProfilesContent({
       </Grid>
       <Grid size={12}>
         {selectedExperimentProfile !== "" && !viewSource &&
-          <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile].profile} />
+          <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile].profile} comments={previewComments} />
         }
         {selectedExperimentProfile !== "" && viewSource &&
           <DisplaySourceCode sourceCode={source} />
@@ -337,6 +339,7 @@ function Profiles(props) {
   const [confirmed, setConfirmed] = React.useState(false);
   const [viewSource, setViewSource] = React.useState(false);
   const [source, setSource] = React.useState("Loading...");
+  const [previewComments, setPreviewComments] = React.useState({});
   const [dryRun, setDryRun] = React.useState(false);
   const [recentRuns, setRecentRuns] = React.useState([]);
   const [recentLoading, setRecentLoading] = React.useState(false);
@@ -443,6 +446,47 @@ function Profiles(props) {
   React.useEffect(() => {
     fetchRecentRuns();
   }, [fetchRecentRuns]);
+
+  React.useEffect(() => {
+    if (!selectedExperimentProfile) {
+      setSource("Loading...");
+      setPreviewComments({});
+      return;
+    }
+
+    let isActive = true;
+
+    fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
+      method: "GET",
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load profile source");
+        }
+        return res.text();
+      })
+      .then((text) => {
+        if (!isActive) {
+          return;
+        }
+
+        setSource(text);
+        setPreviewComments(convertYamlToProfilePreview(text).comments);
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+
+        setSource("");
+        setPreviewComments({});
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedExperimentProfile]);
+
   return (
     <RunningProfilesProvider experiment={experimentMetadata.experiment}>
       <Grid container spacing={2}>
@@ -493,6 +537,7 @@ function Profiles(props) {
             setViewSource={setViewSource}
             source={source}
             setSource={setSource}
+            previewComments={previewComments}
             dryRun={dryRun}
             setDryRun={setDryRun}
           />

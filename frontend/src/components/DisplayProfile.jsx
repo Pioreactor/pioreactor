@@ -10,6 +10,7 @@ import PioreactorIcon from "./PioreactorIcon"
 import PioreactorsIcon from './PioreactorsIcon';
 import { Link } from 'react-router';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
+import { getInlineCommentForPath } from "../utils/experimentProfilePreview";
 
 
 const DisplayProfileCard = {
@@ -50,6 +51,12 @@ const highlightedLogMessage = {
   backgroundColor: "#f3f3f3",
 }
 
+const inlineCommentSx = {
+  color: "text.secondary",
+  fontFamily: "monospace",
+  fontSize: "0.85em",
+  ml: 1,
+};
 
 
 
@@ -286,9 +293,22 @@ const actionTimeKey = (action) => {
   return timeLiteralToSeconds(action?.t) ?? timeLiteralToSeconds(action?.hours_elapsed) ?? 0;
 };
 
+const InlineComment = ({ comment }) => (
+  <>
+    {comment ? (
+      <Typography component="span" variant="body2" sx={inlineCommentSx}>
+        #{comment}
+      </Typography>
+    ) : null}
+  </>
+);
 
-const ActionDetails = ({ action, jobName, index }) => {
+const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
   const scheduledTime = action?.t ?? action?.hours_elapsed;
+  const actionComment = getInlineCommentForPath(
+    comments,
+    action?.t !== undefined ? `${actionPath}.t` : `${actionPath}.hours_elapsed`,
+  );
   var if_;
   if (action?.if !== undefined && action?.if !== null && action?.if !== true) {
     if_ = <>
@@ -303,16 +323,17 @@ const ActionDetails = ({ action, jobName, index }) => {
     if (action?.options && typeof action.options === 'object' && !Array.isArray(action.options)) {
       return Object.keys(action.options).map((option, idx) => {
         const optionValue = action.options[option];
+        const optionComment = getInlineCommentForPath(comments, `${actionPath}.options.${option}`);
         if (typeof optionValue === 'object') {
           return (
             <Typography key={`option-${idx}`} variant="body2" sx={level3}>
-              — {verb} {displayVariable(option)} → <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan>
+              — {verb} {displayVariable(option)} → <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan> <InlineComment comment={optionComment} />
             </Typography>
           ); // intermediate state when typing
         }
         return (
           <Typography key={`option-${idx}`} variant="body2" sx={level3}>
-            — {verb} {displayVariable(option)} → {processBracketedExpression(optionValue)}
+            — {verb} {displayVariable(option)} → {processBracketedExpression(optionValue)} <InlineComment comment={optionComment} />
           </Typography>
         );
       });
@@ -324,6 +345,7 @@ const ActionDetails = ({ action, jobName, index }) => {
     if (action?.config_overrides && typeof action.config_overrides === 'object' && !Array.isArray(action.config_overrides)) {
       return Object.keys(action.config_overrides).map((option, idx) => {
         const optionValue = action.config_overrides[option];
+        const optionComment = getInlineCommentForPath(comments, `${actionPath}.config_overrides.${option}`);
         if (typeof optionValue === 'object') {
           return (
             ""
@@ -331,7 +353,7 @@ const ActionDetails = ({ action, jobName, index }) => {
         }
         return (
           <Typography key={`option-${idx}`} variant="body2" sx={level3}>
-            — set {displayVariable(`[${jobName}.config].${option}`)} → {processBracketedExpression(optionValue)}
+            — set {displayVariable(`[${jobName}.config].${option}`)} → {processBracketedExpression(optionValue)} <InlineComment comment={optionComment} />
           </Typography>
         );
       });
@@ -363,7 +385,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span>
+            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> <InlineComment comment={actionComment} />
           </Typography>
           {renderOptions(action?.type)}
           {renderInvalidOptionsMessage()}
@@ -374,7 +396,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>log</span> the message:
+            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>log</span> the message: <InlineComment comment={actionComment} />
           </Typography>
             {action.options?.message &&
             <Typography variant="body2" sx={level3}>
@@ -389,7 +411,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}
+            {index + 1}. {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)} <InlineComment comment={actionComment} />
           </Typography>
         </>
       );
@@ -397,11 +419,21 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, wait until <span style={highlightedIf}>{processOptionalBracketedExpression(action?.wait_until || action?.condition, "missing `wait_until`")}</span>, then do:
+            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, wait until <span style={highlightedIf}>{processOptionalBracketedExpression(action?.wait_until || action?.condition, "missing `wait_until`")}</span>, then do: <InlineComment comment={actionComment} />
           </Typography>
           <Box sx={level1}>
-          {Array.isArray(action.actions) && action.actions.sort((a, b) => actionTimeKey(a) - actionTimeKey(b)).map((action, index) => (
-            <ActionDetails key={index} action={action} jobName={jobName} index={index} />
+          {Array.isArray(action.actions) && action.actions
+            .map((nestedAction, originalIndex) => ({ nestedAction, originalIndex }))
+            .sort((a, b) => actionTimeKey(a.nestedAction) - actionTimeKey(b.nestedAction))
+            .map(({ nestedAction, originalIndex }, displayIndex) => (
+            <ActionDetails
+              key={originalIndex}
+              action={nestedAction}
+              jobName={jobName}
+              index={displayIndex}
+              actionPath={`${actionPath}.actions[${originalIndex}]`}
+              comments={comments}
+            />
           ))}
           </Box>
         </>
@@ -424,11 +456,21 @@ const ActionDetails = ({ action, jobName, index }) => {
             </>
           )}
 
-            <span style={highlightedActionType}>repeat</span> the following every {humanReadableLiteral(repeatEvery, 'every')},
+            <span style={highlightedActionType}>repeat</span> the following every {humanReadableLiteral(repeatEvery, 'every')}, <InlineComment comment={actionComment} />
           </Typography>
           <Box sx={level1}>
-            {Array.isArray(action.actions) && action.actions.sort((a, b) => actionTimeKey(a) - actionTimeKey(b)).map((action, index) => (
-              <ActionDetails key={index} action={action} jobName={jobName} index={index} />
+            {Array.isArray(action.actions) && action.actions
+              .map((nestedAction, originalIndex) => ({ nestedAction, originalIndex }))
+              .sort((a, b) => actionTimeKey(a.nestedAction) - actionTimeKey(b.nestedAction))
+              .map(({ nestedAction, originalIndex }, displayIndex) => (
+              <ActionDetails
+                key={originalIndex}
+                action={nestedAction}
+                jobName={jobName}
+                index={displayIndex}
+                actionPath={`${actionPath}.actions[${originalIndex}]`}
+                comments={comments}
+              />
             ))}
           </Box>
           {(action.actions === undefined) &&
@@ -449,7 +491,7 @@ const ActionDetails = ({ action, jobName, index }) => {
 };
 
 
-const DescriptionSection = ({ description, sx }) => (
+const DescriptionSection = ({ description, sx, comment }) => (
   <>
     {description &&  (typeof description === 'string' || description instanceof String) && (
       <Box sx={sx}>
@@ -458,22 +500,23 @@ const DescriptionSection = ({ description, sx }) => (
         </Typography>
         <Typography variant="body2" sx={{whiteSpace: "pre-line"}}>
         {description}
+        <InlineComment comment={comment} />
         </Typography>
       </Box>
     )}
   </>
 );
 
-const PluginsSection = ({ plugins }) => (
+const PluginsSection = ({ plugins, comments }) => (
   <>
     {plugins && Array.isArray(plugins) && plugins.length > 0 && (
       <>
         <Typography variant="body2">
           <b>Plugins required:</b>
         </Typography>
-        {plugins.map(plugin => (
+        {plugins.map((plugin, index) => (
           <Typography key={plugin?.name} variant="body2" sx={level1}>
-            {plugin?.name || <UnderlineSpan title="require `name` key"> name?? </UnderlineSpan>} {plugin?.version || <UnderlineSpan title="require `version` as string"> version?? </UnderlineSpan>}
+            {plugin?.name || <UnderlineSpan title="require `name` key"> name?? </UnderlineSpan>} {plugin?.version || <UnderlineSpan title="require `version` as string"> version?? </UnderlineSpan>} <InlineComment comment={getInlineCommentForPath(comments, `plugins[${index}].version`)} />
           </Typography>
         ))}
         <br />
@@ -493,11 +536,21 @@ const PluginsSection = ({ plugins }) => (
   </>
 );
 
-const JobActions = ({ jobActions, jobName }) => {
+const JobActions = ({ jobActions, jobName, comments, actionsPath }) => {
   return (<>
     {Array.isArray(jobActions) && jobActions &&
-      jobActions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
-        <ActionDetails key={`${jobName}-action-${index}`} action={action} jobName={jobName} index={index} />
+      jobActions
+        .map((action, originalIndex) => ({ action, originalIndex }))
+        .sort((a, b) => actionTimeKey(a.action) - actionTimeKey(b.action))
+        .map(({ action, originalIndex }, displayIndex) => (
+        <ActionDetails
+          key={`${jobName}-action-${originalIndex}`}
+          action={action}
+          jobName={jobName}
+          index={displayIndex}
+          actionPath={`${actionsPath}[${originalIndex}]`}
+          comments={comments}
+        />
       ))}
     {!Array.isArray(jobActions) && jobActions &&
       <Typography sx={level2} variant="body2">
@@ -514,7 +567,7 @@ const JobActions = ({ jobActions, jobName }) => {
 
 
 
-const JobSection = ({ jobs }) => {
+const JobSection = ({ jobs, comments, jobsPath }) => {
   return (<>
     {jobs && (typeof jobs === 'object') && Object.keys(jobs).length > 0 && (
       <>
@@ -523,8 +576,17 @@ const JobSection = ({ jobs }) => {
             <Typography variant="subtitle2" sx={level1}>
               {["temperature_control", "dosing_control", "led_control"].includes(job) ? <UnderlineSpan title={`Change to ${job.replace("_control", "")}_automation`}>{job}</UnderlineSpan> : job}:
             </Typography>
-            <DescriptionSection sx={{...level2, mb: '10px', mt: '5px' }}  description={jobs[job]?.description}/>
-            <JobActions jobActions={jobs[job]?.actions} jobName={job} />
+            <DescriptionSection
+              sx={{...level2, mb: '10px', mt: '5px' }}
+              description={jobs[job]?.description}
+              comment={getInlineCommentForPath(comments, `${jobsPath}.${job}.description`)}
+            />
+            <JobActions
+              jobActions={jobs[job]?.actions}
+              jobName={job}
+              comments={comments}
+              actionsPath={`${jobsPath}.${job}.actions`}
+            />
           </React.Fragment>
         ))}
         <br />
@@ -538,7 +600,7 @@ const JobSection = ({ jobs }) => {
   </>)
 };
 
-const PioreactorSection = ({ pioreactors }) => (
+const PioreactorSection = ({ pioreactors, comments }) => (
   <>
     {pioreactors && (typeof pioreactors === 'object') &&
       Object.keys(pioreactors).length > 0 &&
@@ -547,30 +609,30 @@ const PioreactorSection = ({ pioreactors }) => (
           <Typography variant="subtitle2">Pioreactor {displayPioreactor(pioreactor)} does:</Typography>
           <Typography variant="body2" sx={level1}>
             {pioreactors[pioreactor]?.label ? (
-              <>Relabel {displayPioreactor(pioreactor)} → {displayPioreactor(pioreactors[pioreactor].label)}</>
+              <>Relabel {displayPioreactor(pioreactor)} → {displayPioreactor(pioreactors[pioreactor].label)} <InlineComment comment={getInlineCommentForPath(comments, `pioreactors.${pioreactor}.label`)} /></>
             ) : (
               <></>
             )}
           </Typography>
-          <JobSection jobs={pioreactors[pioreactor]?.jobs} />
+          <JobSection jobs={pioreactors[pioreactor]?.jobs} comments={comments} jobsPath={`pioreactors.${pioreactor}.jobs`} />
         </React.Fragment>
       ))}
   </>
 );
 
-const AuthorSection = ({ author }) => (
+const AuthorSection = ({ author, comment }) => (
   <>
     {author &&  (typeof author === 'string' || author instanceof String) && (
       <>
         <Typography sx={{ mb: 1.5 }} variant="subtitle1" color="text.secondary" gutterBottom>
-          Created by { author || <UnderlineSpan title="missing `author`">??</UnderlineSpan>}
+          Created by { author || <UnderlineSpan title="missing `author`">??</UnderlineSpan>} <InlineComment comment={comment} />
         </Typography>
       </>
     )}
   </>
 );
 
-const ParametersSection = ({ parameters }) => (
+const ParametersSection = ({ parameters, comments }) => (
   <>
     {parameters && Object.keys(parameters).length > 0 && (
       <>
@@ -579,7 +641,7 @@ const ParametersSection = ({ parameters }) => (
         </Typography>
         { (typeof parameters === 'object' )  && Object.entries(parameters).map(([key, value]) => (
           <Typography key={key}  sx={level1} variant="body2" color="text.primary">
-            — assign {displayVariable(value)} to parameter {displayExpression(key)}
+            — assign {displayVariable(value)} to parameter {displayExpression(key)} <InlineComment comment={getInlineCommentForPath(comments, `inputs.${key}`)} />
           </Typography>
         ))}
         <br/>
@@ -589,23 +651,23 @@ const ParametersSection = ({ parameters }) => (
 );
 
 
-export const DisplayProfile = ({ data }) => {
+export const DisplayProfile = ({ data, comments = {} }) => {
   return (
     <Card sx={DisplayProfileCard}>
       <CardContent sx={{ padding: '10px' }}>
         <Typography variant="h6"><ViewTimelineOutlinedIcon sx={{verticalAlign: "middle", margin:"0px 3px"}}/>{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
-        <AuthorSection author={data?.metadata?.author} />
-        <DescriptionSection description={data?.metadata?.description} />
+        <AuthorSection author={data?.metadata?.author} comment={getInlineCommentForPath(comments, "metadata.author")} />
+        <DescriptionSection description={data?.metadata?.description} comment={getInlineCommentForPath(comments, "metadata.description")} />
         <br/>
-        <PluginsSection plugins={data?.plugins} />
-        <ParametersSection parameters={data?.inputs} />
+        <PluginsSection plugins={data?.plugins} comments={comments} />
+        <ParametersSection parameters={data?.inputs} comments={comments} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
           <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 2px 0px 0px"}} /> do:</Typography>
-          <JobSection jobs={data?.common?.jobs} />
+          <JobSection jobs={data?.common?.jobs} comments={comments} jobsPath="common.jobs" />
           </>
         }
-        <PioreactorSection pioreactors={data.pioreactors} />
+        <PioreactorSection pioreactors={data.pioreactors} comments={comments} />
       </CardContent>
     </Card>
   );

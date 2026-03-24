@@ -1,6 +1,4 @@
 import {useEffect, useState, Fragment } from 'react';
-import yaml from "js-yaml";
-
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
@@ -26,24 +24,7 @@ import DialogContent from '@mui/material/DialogContent';
 import IconButton from '@mui/material/IconButton';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
-
-function addQuotesToBrackets(input) {
-    return input.replace(/(\${0}){{(.*?)}}/g, (match, p1, p2, offset, string) => {
-        if (string[offset - 1] !== '$') {
-            return `"{{${p2}}}"`;
-        }
-        return match;
-    });
-}
-
-function convertYamlToJson(yamlString){
-  try{
-    return yaml.load(addQuotesToBrackets(yamlString))
-  } catch (error) {
-    console.log(error)
-    return {error: error.message}
-  }
-}
+import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
 const EditExperimentProfilesContent = () => {
   const DEFAULT_CODE = `experiment_profile_name:
@@ -61,7 +42,7 @@ metadata:
 
   const [code, setCode] = useState(startingCode);
   const [filename, setFilename] = useState(startingFilename);
-  const [parsedCode, setParsedCode] = useState(convertYamlToJson(startingCode));
+  const [parsedCode, setParsedCode] = useState(convertYamlToProfilePreview(startingCode));
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [isChanged, setIsChanged] = useState(false);
@@ -72,7 +53,7 @@ metadata:
     setCode(newCode);
     setIsChanged(true);
     try {
-      setParsedCode(convertYamlToJson(newCode));
+      setParsedCode(convertYamlToProfilePreview(newCode));
     } catch (error) {
       //pass
     }
@@ -124,7 +105,7 @@ metadata:
     if (parsedCode.error) {
       return <DisplayProfileError error={parsedCode.error} />;
     } else {
-      return <DisplayProfile data={parsedCode} />;
+      return <DisplayProfile data={parsedCode.data} comments={parsedCode.comments} />;
     }
   };
 

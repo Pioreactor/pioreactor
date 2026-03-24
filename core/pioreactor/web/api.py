@@ -570,7 +570,7 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
 
 
 @api_bp.route(
-    "/workers/<pioreactor_unit>/experiments/<experiment>/bioreactor",
+    "/workers/<pioreactor_unit>/bioreactor/update/experiments/<experiment>",
     methods=["PATCH"],
 )
 def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:

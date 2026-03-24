@@ -716,7 +716,7 @@ def test_update_bioreactor_on_unit_queues_multicast_patch(client, monkeypatch: M
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.patch(
-        "/api/workers/unit1/experiments/exp1/bioreactor",
+        "/api/workers/unit1/bioreactor/update/experiments/exp1",
         json={"values": {"current_volume_ml": 12.5, "alt_media_fraction": 0.4}},
     )
 
@@ -724,6 +724,15 @@ def test_update_bioreactor_on_unit_queues_multicast_patch(client, monkeypatch: M
     assert captured["endpoint"] == "/unit_api/bioreactor/experiments/exp1"
     assert captured["units"] == ["unit1"]
     assert captured["json"] == {"values": {"current_volume_ml": 12.5, "alt_media_fraction": 0.4}}
+
+
+def test_update_bioreactor_on_unit_old_route_is_not_available(client) -> None:
+    response = client.patch(
+        "/api/workers/unit1/experiments/exp1/bioreactor",
+        json={"values": {"current_volume_ml": 12.5}},
+    )
+
+    assert response.status_code == 404
 
 
 def test_update_next_version_defaults_to_broadcast(client, monkeypatch: MonkeyPatch) -> None:

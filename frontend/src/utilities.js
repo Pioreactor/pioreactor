@@ -204,7 +204,7 @@ export async function getBioreactorDescriptors() {
 
 
 export async function updateBioreactorValues(unit, experiment, values) {
-  const response = await fetch(`/api/workers/${unit}/experiments/${experiment}/bioreactor`, {
+  const response = await fetch(`/api/workers/${unit}/bioreactor/update/experiments/${experiment}`, {
     method: "PATCH",
     body: JSON.stringify({values}),
     headers: {

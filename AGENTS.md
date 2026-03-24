@@ -203,3 +203,7 @@ The Pioreactor software enables users to control and monitor small-scale bioreac
 * Managing a cluster of Pioreactors via MQTT and HTTP APIs.
 * Applying calibrations for pumps, stirring, and OD readings.
 * Scheduling complex experiment profiles that coordinate multiple jobs across workers.
+
+## Tickets
+
+Tickets looks like `pio-xxxx`. Not sure what to do? Try looks through open tickets.

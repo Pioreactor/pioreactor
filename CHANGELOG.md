@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Changed the leader API route for updating per-unit bioreactor values. `PATCH /api/workers/<unit>/experiments/<experiment>/bioreactor` has been removed; use `PATCH /api/workers/<unit>/bioreactor/update/experiments/<experiment>` instead.
+
 #### Bug fixes
 
  - Fixed reassignment history tracking in the leader web app's SQLite connection by enabling recursive triggers, preventing stale open rows from accumulating in `experiment_worker_assignments_history`.
@@ -8,6 +12,7 @@
  - Fixed pump `dosing_events` MQTT publishes for very small dosing volumes, where fast runs could finish before an event was emitted.
  - Fixed missed pump `dosing_events` observations by publishing them with MQTT QoS 2 (`EXACTLY_ONCE`), and updated `pio mqtt` to subscribe at the same QoS when tailing topics.
  - Fixed recent log tables in the UI so live MQTT log events stay sorted by timestamp even if they arrive slightly out of order, instead of appearing under older events until refresh.
+ - Fixed experiment profile previews so inline YAML comments like `# 1/h`, `# mL`, and timing notes now appear in the human-readable display in the create, edit, and profile preview UIs.
 
 ### 26.3.2
 
