@@ -206,13 +206,15 @@ def ensure_pre_update_script(version: str, dry_run: bool) -> bool:
     return True
 
 
-def ensure_update_scripts_folder(version: str, dry_run: bool) -> bool:
+def ensure_update_scripts_folder(
+    version: str, dry_run: bool, *, pre_update_exists_or_will_exist: bool = False
+) -> bool:
     target = UPDATE_SCRIPTS_DIR / version
     upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
     if target.exists():
         return False
     pre_update_path = upcoming / "pre_update.sh"
-    if not pre_update_path.exists():
+    if not pre_update_path.exists() and not pre_update_exists_or_will_exist:
         raise RuntimeError(f"Missing pre_update.sh in {upcoming}")
     print(f"Renaming update scripts: upcoming -> {version}")
     run_git_command(["mv", upcoming.as_posix(), target.as_posix()], dry_run)
@@ -266,7 +268,11 @@ def main(argv: list[str]) -> int:
         run_git_command(["checkout", "develop"], dry_run=args.dry_run)
 
         pre_update_changed = ensure_pre_update_script(version, dry_run=args.dry_run)
-        update_scripts_changed = ensure_update_scripts_folder(version, dry_run=args.dry_run)
+        update_scripts_changed = ensure_update_scripts_folder(
+            version,
+            dry_run=args.dry_run,
+            pre_update_exists_or_will_exist=pre_update_changed,
+        )
         update_version_py_to(version, dry_run=args.dry_run)
         stage_if_exists(VERSION_FILE, dry_run=args.dry_run)
         if pre_update_changed or update_scripts_changed:
