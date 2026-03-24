@@ -57,13 +57,6 @@ repos:
     -   id: shellcheck
 
 
--   repo: https://github.com/sqlfluff/sqlfluff
-    rev: 3.0.4
-    hooks:
-      - id: sqlfluff-lint
-        args: [--dialect, "sqlite"]
-
-
 -   repo: local
     hooks:
     -   id: ensure-tests-return-none
