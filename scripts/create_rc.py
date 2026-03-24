@@ -252,6 +252,20 @@ def stage_if_exists(path: Path, dry_run: bool) -> None:
         subprocess.run(["git", "add", "-A", path.as_posix()], check=True)
 
 
+def stage_update_scripts_changes(version: str, dry_run: bool) -> None:
+    target = UPDATE_SCRIPTS_DIR / version
+    upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
+
+    if dry_run:
+        print(f"DRY-RUN: $ git add -A {target.as_posix()} {upcoming.as_posix()}")
+        return
+
+    if target.exists() and target.is_dir() and not any(target.iterdir()):
+        (target / ".gitkeep").touch(exist_ok=True)
+
+    subprocess.run(["git", "add", "-A", target.as_posix(), upcoming.as_posix()], check=True)
+
+
 def build_github_release_url(version: str, branch: str) -> str:
     base = "https://github.com/pioreactor/pioreactor/releases/new"
     return f"{base}?tag={version}&target={branch}&title={version}&prerelease=1"
@@ -293,7 +307,8 @@ def main(argv: list[str]) -> int:
         update_version_py_to(version, dry_run=args.dry_run)
         stage_if_exists(VERSION_FILE, dry_run=args.dry_run)
         if pre_update_changed or update_scripts_changed:
-            stage_if_exists(UPDATE_SCRIPTS_DIR, dry_run=args.dry_run)
+            stage_update_scripts_changes(version, dry_run=args.dry_run)
+        update_files = list_update_scripts_for(version)
         run_git_command(["commit", "-m", "bump rc version"], dry_run=args.dry_run)
 
         run_git_command(["push", "origin", release_branch], dry_run=args.dry_run)
@@ -301,7 +316,6 @@ def main(argv: list[str]) -> int:
         run_git_command(["checkout", "develop"], dry_run=args.dry_run)
 
         gh_url = build_github_release_url(version, release_branch)
-        update_files = list_update_scripts_for(version)
 
         print("\nNext steps on GitHub:")
         print(f" - Open: {gh_url}")
