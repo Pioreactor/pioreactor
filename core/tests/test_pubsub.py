@@ -6,8 +6,9 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
-from paho.mqtt.client import Client
+from paho.mqtt.enums import CallbackAPIVersion
 from pioreactor.pubsub import add_hash_suffix
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import delete_from_leader
@@ -93,6 +94,18 @@ def test_create_client_max_connection_attempts(mock_client) -> None:
     create_client(hostname=hostname, max_connection_attempts=max_connection_attempts)
 
     assert client_instance.connect.call_count == max_connection_attempts
+
+
+def test_client_shutdown_disconnects_before_loop_stop(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = Client(callback_api_version=CallbackAPIVersion.VERSION2)
+    calls: list[str] = []
+
+    monkeypatch.setattr(client, "disconnect", lambda: calls.append("disconnect"))
+    monkeypatch.setattr(client, "loop_stop", lambda: calls.append("loop_stop"))
+
+    client.shutdown()
+
+    assert calls == ["disconnect", "loop_stop"]
 
 
 def test_subscribe_and_callback_registers_cleanup_for_existing_client() -> None:

@@ -122,8 +122,7 @@ class PID:
 
     def clean_up(self) -> None:
         if not self._external_client:
-            self.pub_client.loop_stop()
-            self.pub_client.disconnect()
+            self.pub_client.shutdown()
 
     def publish_pid_stats(self) -> None:
         # not currently being saved in database. You could by adding a table and listener to mqtt_to_db_streaming

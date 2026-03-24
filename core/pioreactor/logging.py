@@ -150,8 +150,7 @@ class MQTTHandler(logging.Handler):
         mqtt_msg.wait_for_publish(timeout=2)
 
     def close(self) -> None:
-        self.client.loop_stop()
-        self.client.disconnect()
+        self.client.shutdown()
         super().close()
 
 

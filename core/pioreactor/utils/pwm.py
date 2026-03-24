@@ -426,8 +426,7 @@ class PWM:
                 self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 
                 if not self._external_client:
-                    self.pub_client.loop_stop()
-                    self.pub_client.disconnect()
+                    self.pub_client.shutdown()
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:

@@ -28,7 +28,7 @@ function ErrorSnackbar() {
       case "WARNING":
         return `${taskName} needs attention in ${unitName}`;
       case "SUCCESS":
-        return `${taskName} finished in ${unitName}`;
+        return `${taskName} update in ${unitName}`;
       default:
         return `${taskName} update in ${unitName}`;
     }

@@ -306,8 +306,7 @@ class managed_lifecycle:
 
             if not self._externally_provided_client:
                 assert self.mqtt_client is not None
-                self.mqtt_client.loop_stop()
-                self.mqtt_client.disconnect()
+                self.mqtt_client.shutdown()
 
             from pioreactor.utils.job_manager import JobManager
 

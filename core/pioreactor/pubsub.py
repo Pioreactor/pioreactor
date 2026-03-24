@@ -39,8 +39,14 @@ class Client(PahoClient):
         return self
 
     def __exit__(self, *args: object) -> None:
-        self.loop_stop()
+        self.shutdown()
+
+    def shutdown(self) -> None:
+        # Paho's loop thread is documented to terminate when disconnect() is called.
+        # Calling disconnect() first gives the library a chance to close both the broker
+        # socket and its internal loop wakeup socketpair before we join the thread.
         self.disconnect()
+        self.loop_stop()
 
     def loop_stop(self) -> MQTTErrorCode:
         thread = self._thread
@@ -242,8 +248,7 @@ def subscribe(
         lock.acquire()
         client.loop_start()
         lock.acquire(timeout=timeout)
-        client.loop_stop()
-        client.disconnect()
+        client.shutdown()
 
     return userdata["messages"]
 
@@ -367,7 +372,7 @@ def prune_retained_messages(topics_to_prune: str = "#") -> None:
     for topic in topics.copy():
         client.publish(topic, None, retain=True)
 
-    client.disconnect()
+    client.shutdown()
 
 
 class collect_all_logs_of_level:
@@ -403,10 +408,7 @@ class collect_all_logs_of_level:
         return self.bucket
 
     def __exit__(self, *args: object) -> None:
-        # stop listening for messages
-        self.client.loop_stop()
-        # disconnect from the broker
-        self.client.disconnect()
+        self.client.shutdown()
 
 
 def conform_and_validate_api_endpoint(endpoint: str) -> str:
