@@ -166,9 +166,25 @@ def determine_release_base(series: str, current_version: str) -> str:
     return f"{series}.{next_release}"
 
 
-def compute_rc_version(rc_index: int, series_override: str | None = None) -> tuple[str, str]:
+def determine_next_rc_index(base_version: str) -> int:
+    highest_rc = -1
+    prefix = f"{base_version}rc"
+
+    for version in get_existing_tag_versions():
+        if not version.startswith(prefix):
+            continue
+        suffix = version[len(prefix) :]
+        if suffix.isdigit():
+            highest_rc = max(highest_rc, int(suffix))
+
+    return highest_rc + 1
+
+
+def compute_rc_version(rc_index: int | None, series_override: str | None = None) -> tuple[str, str]:
     series = compute_series(series_override)
     base_version = determine_release_base(series, read_version_value())
+    if rc_index is None:
+        rc_index = determine_next_rc_index(base_version)
     return base_version, f"{base_version}rc{rc_index}"
 
 
@@ -292,7 +308,7 @@ def build_github_release_url(version: str, branch: str) -> str:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Create a release candidate branch and bump version.")
-    parser.add_argument("--rc", type=int, default=0, help="rc index (default: 0), e.g. --rc 1 -> rc1")
+    parser.add_argument("--rc", type=int, default=None, help="rc index override, e.g. --rc 1 -> rc1")
     parser.add_argument("--series", type=str, default=None, help="Override YY.M series, e.g. 26.3")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without executing")
     parser.add_argument("--force", action="store_true", help="Skip branch and clean-tree checks")
