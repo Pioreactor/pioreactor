@@ -1036,6 +1036,7 @@ def update_settings(ctx: click.Context, job: str) -> None:
 
     """
     from pioreactor.pubsub import publish
+    from pioreactor.pubsub import QOS
 
     unit = whoami.get_unit_name()
     exp = whoami.get_assigned_experiment_name(unit)
@@ -1046,7 +1047,8 @@ def update_settings(ctx: click.Context, job: str) -> None:
 
     for setting, value in extra_args.items():
         setting = setting.replace("-", "_")
-        publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
+        # Job setting updates are command messages, not telemetry. Keep delivery above MQTT's QoS 0 default.
+        publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=QOS.AT_LEAST_ONCE)
 
 
 @pio.group(invoke_without_command=True)

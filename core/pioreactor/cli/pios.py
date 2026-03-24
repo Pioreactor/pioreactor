@@ -1126,6 +1126,7 @@ if am_I_leader() or is_testing_env():
           pios update-settings od_reading --interval 10 --experiments testing2
         """
         from pioreactor.pubsub import create_client
+        from pioreactor.pubsub import QOS
 
         extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 
@@ -1143,7 +1144,13 @@ if am_I_leader() or is_testing_env():
                 experiment = get_assigned_experiment_name(unit)
                 for setting, value in extra_args.items():
                     setting = setting.replace("-", "_")
-                    client.publish(f"pioreactor/{unit}/{experiment}/{job}/{setting}/set", value)
+                    # This CLI path is short-lived, so wait before teardown after sending a settings command.
+                    msg = client.publish(
+                        f"pioreactor/{unit}/{experiment}/{job}/{setting}/set",
+                        value,
+                        qos=QOS.AT_LEAST_ONCE,
+                    )
+                    msg.wait_for_publish(timeout=2.0)
 
 
 if __name__ == "__main__":

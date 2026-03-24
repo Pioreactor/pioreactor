@@ -213,7 +213,11 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     pause()
     pause()
     time.sleep(0.1)
-    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
+    publish(
+        f"pioreactor/{unit}/{exp}/add_media/$state/set",
+        b"disconnected",
+        qos=QOS.AT_LEAST_ONCE,
+    )
     pause()
     pause()
 
@@ -248,7 +252,11 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
     pause()
     pause()
     with timing.catchtime() as elapsed_time:
-        publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
+        publish(
+            f"pioreactor/{unit}/{exp}/add_media/$state/set",
+            b"disconnected",
+            qos=QOS.AT_LEAST_ONCE,
+        )
         assert elapsed_time() < 1.5
 
     resulting_ml = t.join()

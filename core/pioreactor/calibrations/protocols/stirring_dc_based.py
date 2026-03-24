@@ -27,6 +27,7 @@ from pioreactor.exc import JobPresentError
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
+from pioreactor.pubsub import QOS
 from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
@@ -274,8 +275,16 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     ) -> None:
         experiment = get_testing_experiment_name()
         unit = get_unit_name()
-        publish(f"pioreactor/{unit}/{experiment}/stirring_calibration/$state/set", b"disconnected", qos=1)
-        publish(f"pioreactor/{unit}/{experiment}/stirring/$state/set", b"disconnected", qos=1)
+        publish(
+            f"pioreactor/{unit}/{experiment}/stirring_calibration/$state/set",
+            b"disconnected",
+            qos=QOS.AT_LEAST_ONCE,
+        )
+        publish(
+            f"pioreactor/{unit}/{experiment}/stirring/$state/set",
+            b"disconnected",
+            qos=QOS.AT_LEAST_ONCE,
+        )
 
     def run(
         self, target_device: Literal["stirring"], min_dc: str | None = None, max_dc: str | None = None

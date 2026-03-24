@@ -37,6 +37,7 @@ from pioreactor.mureq import Response as MureqResponse
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
+from pioreactor.pubsub import QOS
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
 from pioreactor.utils.networking import is_using_local_access_point
@@ -351,7 +352,9 @@ def stop_specific_job_on_unit(
     try:
         with create_client() as client:
             msg = client.publish(
-                f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/$state/set", b"disconnected", qos=1
+                f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/$state/set",
+                b"disconnected",
+                qos=QOS.AT_LEAST_ONCE,
             )
             msg.wait_for_publish(timeout=2.0)
     except Exception as e:
@@ -505,10 +508,11 @@ def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
 @api_bp.route("/workers/<pioreactor_unit>/blink", methods=["POST"])
 def blink_worker(pioreactor_unit: str) -> ResponseReturnValue:
     with create_client() as client:
+        # Blink requests are transient commands; use QoS 1 so the monitor side is not capped at QoS 0.
         msg = client.publish(
             f"pioreactor/{pioreactor_unit}/{UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
             1,
-            qos=0,
+            qos=QOS.AT_LEAST_ONCE,
         )
         msg.wait_for_publish(timeout=2.0)
     return {"status": "success"}, 202
@@ -551,11 +555,13 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
     try:
         with create_client() as client:
             for setting, value in request.get_json()["settings"].items():
-                client.publish(
+                # This request returns immediately after publishing, so wait for broker handoff per setting.
+                msg = client.publish(
                     f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/{setting}/set",
                     value,
-                    qos=2,
+                    qos=QOS.AT_LEAST_ONCE,
                 )
+                msg.wait_for_publish(timeout=2.0)
     except Exception as e:
         publish_to_error_log(str(e), "update_job_on_unit")
         abort_with(400, str(e))
@@ -825,7 +831,8 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
             assigned_units = get_all_workers_in_experiment(experiment)
             for assigned_pioreactor_unit in assigned_units:
                 topic = f"pioreactor/{assigned_pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
-                client.publish(
+                # This endpoint is a short-lived bridge into the audit log stream, so use QoS 2 and wait.
+                msg = client.publish(
                     topic,
                     msg_to_JSON(
                         msg=body["message"],
@@ -834,10 +841,13 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
                         timestamp=body["timestamp"],
                         task=body["task"] or "",
                     ),
+                    qos=QOS.EXACTLY_ONCE,
                 )
+                msg.wait_for_publish(timeout=2.0)
         else:
             topic = f"pioreactor/{pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
-            client.publish(
+            # This endpoint is a short-lived bridge into the audit log stream, so use QoS 2 and wait.
+            msg = client.publish(
                 topic,
                 msg_to_JSON(
                     msg=body["message"],
@@ -846,7 +856,9 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
                     timestamp=body["timestamp"],
                     task=body["task"] or "",
                 ),
+                qos=QOS.EXACTLY_ONCE,
             )
+            msg.wait_for_publish(timeout=2.0)
     return {"status": "success"}, 202
 
 

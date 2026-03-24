@@ -21,6 +21,7 @@ from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
@@ -268,7 +269,7 @@ class DosingAutomationJob(AutomationJob):
             self.pub_client.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{pump_job_name}/$state/set",
                 b"disconnected",
-                qos=1,
+                qos=QOS.AT_LEAST_ONCE,
             )
 
     def execute_io_action(
