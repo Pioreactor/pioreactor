@@ -266,6 +266,7 @@ def main(argv: list[str]) -> int:
         print(f"Creating release candidate for {version} (base={version_base})\n")
 
         run_git_command(["checkout", "develop"], dry_run=args.dry_run)
+        run_git_command(["checkout", "-B", release_branch], dry_run=args.dry_run)
 
         pre_update_changed = ensure_pre_update_script(version, dry_run=args.dry_run)
         update_scripts_changed = ensure_update_scripts_folder(
@@ -279,7 +280,6 @@ def main(argv: list[str]) -> int:
             stage_if_exists(UPDATE_SCRIPTS_DIR, dry_run=args.dry_run)
         run_git_command(["commit", "-m", "bump rc version"], dry_run=args.dry_run)
 
-        run_git_command(["checkout", "-B", release_branch], dry_run=args.dry_run)
         run_git_command(["push", "origin", release_branch], dry_run=args.dry_run)
 
         run_git_command(["checkout", "develop"], dry_run=args.dry_run)
