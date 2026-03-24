@@ -42,11 +42,16 @@ class Client(PahoClient):
         self.shutdown()
 
     def shutdown(self) -> None:
-        # Paho's loop thread is documented to terminate when disconnect() is called.
-        # Calling disconnect() first gives the library a chance to close both the broker
-        # socket and its internal loop wakeup socketpair before we join the thread.
-        self.disconnect()
-        self.loop_stop()
+        try:
+            self.disconnect()
+        finally:
+            try:
+                self.loop_stop()
+            finally:
+                # Paho does not deterministically close the internal wakeup socketpair on
+                # disconnect/loop_stop alone. Close it explicitly so short-lived clients do
+                # not accumulate localhost socketpair FDs while waiting on garbage collection.
+                self._reset_sockets(sockpair_only=True)
 
     def loop_stop(self) -> MQTTErrorCode:
         thread = self._thread
