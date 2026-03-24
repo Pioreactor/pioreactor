@@ -24,6 +24,7 @@ Note: this script invokes git. Run it manually when you are ready.
 import argparse
 import datetime as _dt
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -225,7 +226,10 @@ def ensure_update_scripts_folder(
             return True
         target.mkdir(parents=True, exist_ok=True)
         return True
-    run_git_command(["mv", upcoming.as_posix(), target.as_posix()], dry_run)
+    if dry_run:
+        print(f"DRY-RUN: would move {upcoming} -> {target}")
+        return True
+    shutil.move(upcoming.as_posix(), target.as_posix())
     return True
 
 
@@ -238,14 +242,14 @@ def list_update_scripts_for(version: str) -> list[Path]:
 
 def stage_if_exists(path: Path, dry_run: bool) -> None:
     if dry_run:
-        print(f"DRY-RUN: $ git add {path.as_posix()}")
+        print(f"DRY-RUN: $ git add -A {path.as_posix()}")
         return
     if path.is_dir() and path.name != "update_scripts":
         keep = path / ".gitkeep"
         if not any(path.iterdir()):
             keep.touch(exist_ok=True)
     if path.exists() or path.name == "update_scripts":
-        subprocess.run(["git", "add", path.as_posix()], check=True)
+        subprocess.run(["git", "add", "-A", path.as_posix()], check=True)
 
 
 def build_github_release_url(version: str, branch: str) -> str:
