@@ -36,6 +36,7 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
+from pioreactor.states import JobState
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
@@ -655,12 +656,12 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
         unit = get_unit_name()
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/$state/set",
-            b"disconnected",
+            JobState.DISCONNECTED.to_bytes(),
             qos=QOS.AT_LEAST_ONCE,
         )
         publish(
             f"pioreactor/{unit}/{experiment}/stirring/$state/set",
-            b"disconnected",
+            JobState.DISCONNECTED.to_bytes(),
             qos=QOS.AT_LEAST_ONCE,
         )
 

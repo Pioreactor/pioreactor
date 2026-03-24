@@ -28,6 +28,7 @@ from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
+from pioreactor.states import JobState
 from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
@@ -277,12 +278,12 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
         unit = get_unit_name()
         publish(
             f"pioreactor/{unit}/{experiment}/stirring_calibration/$state/set",
-            b"disconnected",
+            JobState.DISCONNECTED.to_bytes(),
             qos=QOS.AT_LEAST_ONCE,
         )
         publish(
             f"pioreactor/{unit}/{experiment}/stirring/$state/set",
-            b"disconnected",
+            JobState.DISCONNECTED.to_bytes(),
             qos=QOS.AT_LEAST_ONCE,
         )
 

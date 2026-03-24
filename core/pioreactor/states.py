@@ -11,3 +11,6 @@ class JobState(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+    def to_bytes(self) -> bytes:
+        return self.value.encode()

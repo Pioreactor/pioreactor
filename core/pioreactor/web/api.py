@@ -38,6 +38,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import QOS
+from pioreactor.states import JobState
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
 from pioreactor.utils.networking import is_using_local_access_point
@@ -353,7 +354,7 @@ def stop_specific_job_on_unit(
         with create_client() as client:
             msg = client.publish(
                 f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/$state/set",
-                b"disconnected",
+                JobState.DISCONNECTED.to_bytes(),
                 qos=QOS.AT_LEAST_ONCE,
             )
             msg.wait_for_publish(timeout=2.0)

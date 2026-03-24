@@ -190,7 +190,7 @@ class managed_lifecycle:
 
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/$state",
-            "payload": b"lost",
+            "payload": st.LOST.to_bytes(),
             "qos": 2,
             "retain": True,
         }
@@ -255,7 +255,7 @@ class managed_lifecycle:
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
-        if message.payload == b"disconnected":
+        if message.payload == st.DISCONNECTED.to_bytes():
             self._exit()
 
     def start_passive_listeners(self) -> None:
