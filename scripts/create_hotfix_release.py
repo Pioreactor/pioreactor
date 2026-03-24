@@ -22,6 +22,7 @@ Note: this script invokes git. Run it manually when you are ready.
 import argparse
 import datetime as _dt
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -274,16 +275,64 @@ def ensure_update_scripts_folder(version: str, dry_run: bool) -> bool:
     if not pre_update_path.exists():
         raise RuntimeError(f"Missing pre_update.sh in {upcoming}")
     print(f"Renaming update scripts: upcoming -> {version}")
-    run_git_command(["mv", upcoming.as_posix(), target.as_posix()], dry_run)
+    if not upcoming.exists():
+        raise RuntimeError(f"Missing update scripts directory {upcoming}")
+    if not any(upcoming.iterdir()):
+        if dry_run:
+            print(f"DRY-RUN: would create {target}")
+            return True
+        target.mkdir(parents=True, exist_ok=True)
+        return True
+    if dry_run:
+        print(f"DRY-RUN: would move {upcoming} -> {target}")
+        return True
+    shutil.move(upcoming.as_posix(), target.as_posix())
     return True
 
 
 def stage_if_exists(path: Path, dry_run: bool) -> None:
     if dry_run:
-        print(f"DRY-RUN: $ git add {path.as_posix()}")
+        print(f"DRY-RUN: $ git add -A {path.as_posix()}")
         return
+    if path.is_dir() and path.name != "update_scripts":
+        keep = path / ".gitkeep"
+        if not any(path.iterdir()):
+            keep.touch(exist_ok=True)
     if path.exists() or path.name == "update_scripts":
-        subprocess.run(["git", "add", path.as_posix()], check=True)
+        subprocess.run(["git", "add", "-A", path.as_posix()], check=True)
+
+
+def stage_update_scripts_changes(version: str, dry_run: bool) -> None:
+    target = UPDATE_SCRIPTS_DIR / version
+    upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
+
+    tracked_upcoming_paths = subprocess.check_output(
+        ["git", "ls-files", upcoming.as_posix()],
+        text=True,
+    ).splitlines()
+    paths_to_stage: list[str] = [target.as_posix()]
+
+    if upcoming.exists():
+        paths_to_stage.append(upcoming.as_posix())
+
+    paths_to_stage.extend(tracked_upcoming_paths)
+
+    unique_paths_to_stage: list[str] = []
+    seen: set[str] = set()
+    for path in paths_to_stage:
+        if path not in seen:
+            unique_paths_to_stage.append(path)
+            seen.add(path)
+
+    if dry_run:
+        print(f"DRY-RUN: $ git add -A {' '.join(unique_paths_to_stage)}")
+        return
+
+    if target.exists() and target.is_dir() and not any(target.iterdir()):
+        (target / ".gitkeep").touch(exist_ok=True)
+
+    for path in unique_paths_to_stage:
+        subprocess.run(["git", "add", "-A", path], check=True)
 
 
 def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
@@ -333,7 +382,7 @@ def main(argv: list[str]) -> int:
         if changelog_changed:
             stage_if_exists(CHANGELOG_FILE, dry_run=args.dry_run)
         if pre_update_changed or update_scripts_changed:
-            stage_if_exists(UPDATE_SCRIPTS_DIR, dry_run=args.dry_run)
+            stage_update_scripts_changes(release_version, dry_run=args.dry_run)
         if fe_build_changed:
             stage_if_exists(FE_BUILD_DIR, dry_run=args.dry_run)
 

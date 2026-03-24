@@ -5,7 +5,7 @@ Quick helper to create a release candidate branch and bump version.
 
 Actions performed:
  - Ensure we are in a git repo and on `develop` (unless --force)
- - Compute a release candidate as YY.M.N + rcN (default rc0)
+ - Compute a release candidate as YY.M.N + rcN (auto-incremented by default)
  - Update core/pioreactor/version.py `__version__`
  - Commit the change
  - Create and push branch `release/<version>`
@@ -13,7 +13,7 @@ Actions performed:
  - Print a pre-filled GitHub Releases URL and the matching update scripts folder
 
 Usage examples:
-  python3 scripts/create_rc.py                 # use the current YY.M series and rc0
+  python3 scripts/create_rc.py                 # use the current YY.M series and next rcN
   python3 scripts/create_rc.py --rc 1          # create rc1 for the same release
   python3 scripts/create_rc.py --series 26.3   # create an RC in an explicit YY.M series
   python3 scripts/create_rc.py --dry-run       # show actions only
@@ -83,15 +83,14 @@ def assert_git_repo() -> None:
         raise RuntimeError("Not inside a git repository.") from exc
 
 
-def ensure_clean_working_tree(allow_only_version_py_change: bool = True) -> None:
+def ensure_clean_working_tree() -> None:
     out = subprocess.check_output(["git", "status", "--porcelain"], text=True)
     lines = [line for line in out.splitlines() if line.strip()]
     if not lines:
         return
-    if allow_only_version_py_change:
-        other = [line for line in lines if (VERSION_FILE.as_posix() not in line and "??" not in line)]
-        if not other:
-            return
+    other = [line for line in lines if (VERSION_FILE.as_posix() not in line and "??" not in line)]
+    if not other:
+        return
     raise RuntimeError("Working tree has uncommitted changes. Commit or stash them first.")
 
 
@@ -119,11 +118,6 @@ def get_version_series(version: str) -> str:
     return f"{yy}.{month}"
 
 
-def get_version_base(version: str) -> str:
-    yy, month, release, _ = parse_version(version)
-    return f"{yy}.{month}.{release}"
-
-
 def get_series_floor_version(version: str) -> str:
     yy, month, _, _ = parse_version(version)
     return f"{yy}.{month}.0"
@@ -141,12 +135,7 @@ def compute_series(series_override: str | None = None) -> str:
 
 def get_existing_tag_versions() -> list[str]:
     output = subprocess.check_output(["git", "tag", "--list"], text=True)
-    versions: list[str] = []
-    for line in output.splitlines():
-        tag = line.strip()
-        if VERSION_PATTERN.match(tag):
-            versions.append(tag)
-    return versions
+    return [tag for line in output.splitlines() if VERSION_PATTERN.match(tag := line.strip())]
 
 
 def get_existing_release_branch_versions() -> list[str]:
@@ -160,8 +149,8 @@ def get_existing_release_branch_versions() -> list[str]:
         ],
         text=True,
     )
-    versions: list[str] = []
     prefixes = ("release/", "origin/release/")
+    versions: list[str] = []
     for line in output.splitlines():
         ref = line.strip()
         for prefix in prefixes:
