@@ -36,6 +36,29 @@ SERIES_PATTERN = re.compile(r"^\d{2}\.\d{1,2}$")
 VERSION_PATTERN = re.compile(
     r"^(?P<yy>\d{2})\.(?P<month>\d{1,2})\.(?P<release>\d+)(?P<suffix>(?:\.dev\d+|rc\d+)?)$"
 )
+PRE_UPDATE_TEMPLATE = """#!/bin/bash
+
+set -xeu
+
+export LC_ALL=C
+
+# Lower bound version
+min_version="{min_version}"
+
+# Get the current version of pio
+current_version=$(sudo -u pioreactor -i pio version)
+
+# Use sorting to determine if the current version is less than the minimum version
+is_valid=$(printf "%s\\n%s" "$current_version" "$min_version" | sort -V | head -n1)
+
+# If the smallest version isn't the minimum version, then current version is too low
+if [ "$is_valid" != "$min_version" ]; then
+    sudo -u pioreactor -i pio log -l ERROR -m "Version error: installed version $current_version is lower than the minimum required version $min_version."
+    exit 1
+fi
+
+echo "Version check passed: $current_version"
+"""
 
 
 def run_git_command(args: list[str], dry_run: bool) -> None:
@@ -100,6 +123,11 @@ def get_version_base(version: str) -> str:
     return f"{yy}.{month}.{release}"
 
 
+def get_series_floor_version(version: str) -> str:
+    yy, month, _, _ = parse_version(version)
+    return f"{yy}.{month}.0"
+
+
 def compute_series(series_override: str | None = None) -> str:
     if series_override is not None:
         if SERIES_PATTERN.match(series_override) is None:
@@ -154,11 +182,56 @@ def update_version_py_to(version: str, dry_run: bool) -> None:
     VERSION_FILE.write_text(new_src, encoding="utf-8")
 
 
-def list_update_scripts_for(version_base: str) -> list[Path]:
-    version_dir = UPDATE_SCRIPTS_DIR / "upcoming"
+def ensure_pre_update_script(version: str, dry_run: bool) -> bool:
+    upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
+    pre_update_path = upcoming / "pre_update.sh"
+    min_version = get_series_floor_version(version)
+    expected = PRE_UPDATE_TEMPLATE.format(min_version=min_version)
+
+    if pre_update_path.exists():
+        current = pre_update_path.read_text(encoding="utf-8")
+        if current == expected:
+            return False
+        print(f"Updating {pre_update_path} with minimum version {min_version}")
+    else:
+        print(f"Creating {pre_update_path} with minimum version {min_version}")
+
+    if dry_run:
+        print(f"DRY-RUN: would write {pre_update_path}")
+        return True
+
+    upcoming.mkdir(parents=True, exist_ok=True)
+    pre_update_path.write_text(expected, encoding="utf-8")
+    pre_update_path.chmod(0o755)
+    return True
+
+
+def ensure_update_scripts_folder(version: str, dry_run: bool) -> bool:
+    target = UPDATE_SCRIPTS_DIR / version
+    upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
+    if target.exists():
+        return False
+    pre_update_path = upcoming / "pre_update.sh"
+    if not pre_update_path.exists():
+        raise RuntimeError(f"Missing pre_update.sh in {upcoming}")
+    print(f"Renaming update scripts: upcoming -> {version}")
+    run_git_command(["mv", upcoming.as_posix(), target.as_posix()], dry_run)
+    return True
+
+
+def list_update_scripts_for(version: str) -> list[Path]:
+    version_dir = UPDATE_SCRIPTS_DIR / version
     if not version_dir.exists() or not version_dir.is_dir():
         return []
     return sorted(path for path in version_dir.rglob("*") if path.is_file())
+
+
+def stage_if_exists(path: Path, dry_run: bool) -> None:
+    if dry_run:
+        print(f"DRY-RUN: $ git add {path.as_posix()}")
+        return
+    if path.exists() or path.name == "update_scripts":
+        subprocess.run(["git", "add", path.as_posix()], check=True)
 
 
 def build_github_release_url(version: str, branch: str) -> str:
@@ -192,8 +265,12 @@ def main(argv: list[str]) -> int:
 
         run_git_command(["checkout", "develop"], dry_run=args.dry_run)
 
+        pre_update_changed = ensure_pre_update_script(version, dry_run=args.dry_run)
+        update_scripts_changed = ensure_update_scripts_folder(version, dry_run=args.dry_run)
         update_version_py_to(version, dry_run=args.dry_run)
-        run_git_command(["add", VERSION_FILE.as_posix()], dry_run=args.dry_run)
+        stage_if_exists(VERSION_FILE, dry_run=args.dry_run)
+        if pre_update_changed or update_scripts_changed:
+            stage_if_exists(UPDATE_SCRIPTS_DIR, dry_run=args.dry_run)
         run_git_command(["commit", "-m", "bump rc version"], dry_run=args.dry_run)
 
         run_git_command(["checkout", "-B", release_branch], dry_run=args.dry_run)
@@ -202,7 +279,7 @@ def main(argv: list[str]) -> int:
         run_git_command(["checkout", "develop"], dry_run=args.dry_run)
 
         gh_url = build_github_release_url(version, release_branch)
-        update_files = list_update_scripts_for(version_base)
+        update_files = list_update_scripts_for(version)
 
         print("\nNext steps on GitHub:")
         print(f" - Open: {gh_url}")
@@ -211,11 +288,11 @@ def main(argv: list[str]) -> int:
         print(f" - Title: {version}")
         print(" - Mark as a pre-release")
         if update_files:
-            print(" - Attach update scripts:")
+            print(f" - Release archive will package update scripts from core/update_scripts/{version}/:")
             for path in update_files:
                 print(f"    * {path.relative_to(REPO_ROOT)}")
         else:
-            print(f" - (No update scripts found for {version_base})")
+            print(f" - (No update scripts found for {version})")
 
         print("\nSuggested command to test update once published:")
         print(f"   pio update -v {version}")

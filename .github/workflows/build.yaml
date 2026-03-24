@@ -79,6 +79,11 @@ jobs:
         run: |
           cd wheels
           zip -r ../wheels_${{ github.event.release.tag_name }}.zip .
+      - name: Upload zipped wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-zip
+          path: wheels_${{ github.event.release.tag_name }}.zip
       - name: Upload zipped wheels
         uses: svenstaro/upload-release-action@v2
         with:
@@ -94,21 +99,37 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Download release assets
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Download wheels zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-zip
+          path: .
+      - name: Assemble release archive from repo and artifacts
         run: |
-          curl -s https://api.github.com/repos/pioreactor/pioreactor/releases/tags/${{ github.event.release.tag_name }} | jq -r '.assets[].browser_download_url' > assets.txt
+          tag="${{ github.event.release.tag_name }}"
+          update_dir="core/update_scripts/$tag"
+          required_update_files="pre_update.sh update.sh post_update.sh update.sql"
+
+          test -d "$update_dir" || {
+            echo "Missing update scripts directory: $update_dir" >&2
+            exit 1
+          }
+
           mkdir release_assets
-          cd release_assets
-          while read -r line; do
-            echo "$line"
-            wget "$line"
-          done < ../assets.txt
-          [ -f pre_update.sh ] || touch pre_update.sh
-          [ -f update.sh ] || touch update.sh
-          [ -f post_update.sh ] || touch post_update.sh
-          [ -f update.sql ] || touch update.sql
-      - name: Zip the assets and produce hash
-        run: |
+          cp CHANGELOG.md release_assets/
+          cp "dist/pioreactor-$tag-py3-none-any.whl" release_assets/
+          cp "wheels_${tag}.zip" "release_assets/wheels_${tag}.zip"
+          cp "$update_dir"/* release_assets/
+
+          for filename in $required_update_files; do
+            [ -f "release_assets/$filename" ] || : > "release_assets/$filename"
+          done
+
           cd release_assets
           zip -r ../release_${{ github.event.release.tag_name }}.zip .
       - name: Upload zipped assets
