@@ -217,6 +217,14 @@ def ensure_update_scripts_folder(
     if not pre_update_path.exists() and not pre_update_exists_or_will_exist:
         raise RuntimeError(f"Missing pre_update.sh in {upcoming}")
     print(f"Renaming update scripts: upcoming -> {version}")
+    if not upcoming.exists():
+        raise RuntimeError(f"Missing update scripts directory {upcoming}")
+    if not any(upcoming.iterdir()):
+        if dry_run:
+            print(f"DRY-RUN: would create {target}")
+            return True
+        target.mkdir(parents=True, exist_ok=True)
+        return True
     run_git_command(["mv", upcoming.as_posix(), target.as_posix()], dry_run)
     return True
 
@@ -232,6 +240,10 @@ def stage_if_exists(path: Path, dry_run: bool) -> None:
     if dry_run:
         print(f"DRY-RUN: $ git add {path.as_posix()}")
         return
+    if path.is_dir() and path.name != "update_scripts":
+        keep = path / ".gitkeep"
+        if not any(path.iterdir()):
+            keep.touch(exist_ok=True)
     if path.exists() or path.name == "update_scripts":
         subprocess.run(["git", "add", path.as_posix()], check=True)
 
