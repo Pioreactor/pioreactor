@@ -149,6 +149,30 @@ def get_existing_tag_versions() -> list[str]:
     return versions
 
 
+def get_existing_release_branch_versions() -> list[str]:
+    output = subprocess.check_output(
+        [
+            "git",
+            "for-each-ref",
+            "--format=%(refname:short)",
+            "refs/heads/release",
+            "refs/remotes/origin/release",
+        ],
+        text=True,
+    )
+    versions: list[str] = []
+    prefixes = ("release/", "origin/release/")
+    for line in output.splitlines():
+        ref = line.strip()
+        for prefix in prefixes:
+            if ref.startswith(prefix):
+                version = ref[len(prefix) :]
+                if VERSION_PATTERN.match(version):
+                    versions.append(version)
+                break
+    return versions
+
+
 def determine_release_base(series: str, current_version: str) -> str:
     _, _, current_release, _ = parse_version(current_version)
     highest_release = -1
@@ -170,7 +194,7 @@ def determine_next_rc_index(base_version: str) -> int:
     highest_rc = -1
     prefix = f"{base_version}rc"
 
-    for version in get_existing_tag_versions():
+    for version in set(get_existing_tag_versions() + get_existing_release_branch_versions()):
         if not version.startswith(prefix):
             continue
         suffix = version[len(prefix) :]
@@ -326,7 +350,8 @@ def main(argv: list[str]) -> int:
             )
             return 2
 
-        ensure_clean_working_tree()
+        if not args.force:
+            ensure_clean_working_tree()
 
         print(f"Creating release candidate for {version} (base={version_base})\n")
 
