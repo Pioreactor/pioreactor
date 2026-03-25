@@ -754,7 +754,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <Typography component="div">
+          <Typography component="div" gutterBottom>
             Assign and unassign Pioreactors to experiment{" "}
             <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} />.
           </Typography>

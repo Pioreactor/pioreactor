@@ -128,7 +128,7 @@ export async function checkTaskCallback(callbackURL, {maxRetries = 150, delayMs 
 
 
 // Use when calling an endpoint that returns a task response with result_url_path.
-export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries = 100, delayMs = 200} = {}) {
+export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries = 100, delayMs = 50} = {}) {
   const response = await fetch(endpoint, fetchOptions);
   if (!response.ok) {
     let message = `HTTP error! Status: ${response.status}`;

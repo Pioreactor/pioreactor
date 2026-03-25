@@ -9,12 +9,20 @@ import IconButton from '@mui/material/IconButton';
 import DownloadIcon from '@mui/icons-material/Download';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import UpdateIcon from '@mui/icons-material/Update';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import Toolbar from '@mui/material/Toolbar';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import ListSubheader from '@mui/material/ListSubheader';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Stack from '@mui/material/Stack';
+import MuiLink from '@mui/material/Link';
 import {AppBar, Typography, Button} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
 //import Icon2x2Grid from './Icon2x2Grid';
@@ -184,6 +192,7 @@ export default function SideNavAndHeader() {
   const location = useLocation()
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [helpDialogOpen, setHelpDialogOpen] = React.useState(false);
   const [version, setVersion] = React.useState(null)
   const [lap, setLAP] = React.useState(false)
   const [latestVersion, setLatestVersion] = React.useState(null)
@@ -234,6 +243,14 @@ export default function SideNavAndHeader() {
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const openHelpDialog = () => {
+    setHelpDialogOpen(true);
+  };
+
+  const closeHelpDialog = () => {
+    setHelpDialogOpen(false);
   };
 
   function isSelected(path) {
@@ -488,15 +505,67 @@ export default function SideNavAndHeader() {
                     <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
                   </Button>
                 }
-                <Button  target="_blank" rel="noopener noreferrer" href="https://forums.pioreactor.com" color="inherit" style={{textTransform: "none"}}>
-                  <ChatOutlinedIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>Forum
-                </Button>
-                <Button target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com" color="inherit" style={{textTransform: "none"}}>
+                <Button onClick={openHelpDialog} color="inherit" style={{textTransform: "none"}}>
                   <HelpOutlineIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>Help
                 </Button>
               </div>
           </Toolbar>
         </AppBar>
+      <Dialog open={helpDialogOpen} onClose={closeHelpDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ pr: 6 }}>
+          Help
+          <IconButton
+            aria-label="Close"
+            onClick={closeHelpDialog}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} divider={<Divider flexItem />} sx={{ pt: 1 }}>
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <DescriptionOutlinedIcon fontSize="small" color="action" />
+                <Typography variant="subtitle2">Documentation</Typography>
+              </Stack>
+              <Typography variant="body1">
+                Looking for setup instructions, how-to guides, or reference material? Our documentation is available at{" "}
+                <MuiLink href="https://docs.pioreactor.com/user-guide/introduction" target="_blank" rel="noopener noreferrer">
+                  docs.pioreactor.com
+                </MuiLink>
+                .
+              </Typography>
+            </Stack>
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <ChatOutlinedIcon fontSize="small" color="action" />
+                <Typography variant="subtitle2">Community forum</Typography>
+              </Stack>
+              <Typography variant="body1">
+                You can also visit our community forum to browse discussions, share ideas, and learn from other Pioreactor users at{" "}
+                <MuiLink href="https://forum.pioreactor.com" target="_blank" rel="noopener noreferrer">
+                  forum.pioreactor.com
+                </MuiLink>
+                .
+              </Typography>
+            </Stack>
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <EmailOutlinedIcon fontSize="small" color="action" />
+                <Typography variant="subtitle2">Email support</Typography>
+              </Stack>
+              <Typography variant="body1">
+                If you have a question about your Pioreactor, run into an issue, or want direct help from our team, email us at{" "}
+                <MuiLink href="mailto:support@pioreactor.com">
+                  support@pioreactor.com
+                </MuiLink>
+                .
+              </Typography>
+            </Stack>
+          </Stack>
+        </DialogContent>
+      </Dialog>
       <DrawerStyled
         variant="temporary"
         anchor="left"

@@ -160,7 +160,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         - the subclass runs their __init__ method
     2. The job moves to `ready`, and can be paused by entering `sleeping`.
     3. We catch key interrupts and kill signals from the underlying machine, and set the state to `disconnected`.
-    4. If the job exits otherwise (kill -9, power loss, bug), the state is `lost`, and a last-will saying so is broadcaJobState.
+    4. If the job exits otherwise (kill -9, power loss, bug), the state is `lost`, and a last-will saying so is broadcast.
 
     When changing state, it's recommend to use `set_state(new_state)`.
 
@@ -814,7 +814,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.state = JobState.DISCONNECTED
         self._log_state(self.state)
 
-        # we "set" the internal event, which will cause any event.waits to end blocking. This should happen laJobState.
+        # we "set" the internal event, which will cause any event.waits to end blocking. This should happen last.
         self._blocking_event.set()
 
     def _remove_from_job_manager(self) -> None:
