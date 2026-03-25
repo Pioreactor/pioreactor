@@ -3,6 +3,7 @@
 from functools import cache
 from typing import Any
 
+import pytest
 from pioreactor.automations import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_automation import available_dosing_automations
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJobContrib
@@ -46,6 +47,7 @@ def get_automation_yaml_filename(type_: str, automation_name: str) -> str:
     raise FileNotFoundError(f"Unable to locate YAML for automation '{automation_name}' in '{type_}'.")
 
 
+@pytest.mark.slow
 def test_automations_and_their_yamls_have_the_same_data() -> None:
     try:
         for type_, available_automations in [

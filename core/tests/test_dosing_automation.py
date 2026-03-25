@@ -1032,10 +1032,7 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
                 stop_messages.append((topic, payload, qos))
             return None
 
-        def loop_stop(self) -> None:
-            return None
-
-        def disconnect(self) -> None:
+        def shutdown(self) -> None:
             return None
 
     class StubAutomation(DosingAutomationJob):

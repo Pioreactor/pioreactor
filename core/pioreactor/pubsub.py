@@ -54,6 +54,7 @@ class Client(PahoClient):
                 self._reset_sockets(sockpair_only=True)
 
     def loop_stop(self) -> MQTTErrorCode:
+        # fast exits
         thread = self._thread
         if thread is None:
             return MQTTErrorCode.MQTT_ERR_INVAL
@@ -285,6 +286,18 @@ def subscribe_and_callback(
     """
     assert callable(callback), "callback should be callable - do you need to change the order of arguments?"
 
+    def remove_callback_subscription(client: Client, topic: str) -> None:
+        # This cleanup assumes effective ownership of this topic filter on the provided client.
+        # Paho stores one callback per topic filter, and unsubscribe() removes the filter for the
+        # whole client. On a genuinely shared long-lived client, this can clobber another caller's
+        # callback/subscription if they reused the same topic. Today we accept that exclusivity risk
+        # to avoid unbounded listener growth, but it is a known failure mode of this teardown path.
+        with suppress(KeyError, ValueError):
+            client.message_callback_remove(topic)
+
+        with suppress(ValueError):
+            client.unsubscribe(topic)
+
     def wrap_callback(actual_callback: Callable[[pt.MQTTMessage], Any]) -> Callable[..., Any]:
         def _callback(client: Client, userdata: dict[str, Any], message: pt.MQTTMessage) -> Any:
             try:
@@ -346,24 +359,11 @@ def subscribe_and_callback(
             if on_cleanup is not None:
 
                 def cleanup_subscription(topic: str = topic) -> None:
-                    _remove_callback_subscription(client, topic)
+                    remove_callback_subscription(client, topic)
 
                 on_cleanup.append(cleanup_subscription)
 
     return client
-
-
-def _remove_callback_subscription(client: Client, topic: str) -> None:
-    # This cleanup assumes effective ownership of this topic filter on the provided client.
-    # Paho stores one callback per topic filter, and unsubscribe() removes the filter for the
-    # whole client. On a genuinely shared long-lived client, this can clobber another caller's
-    # callback/subscription if they reused the same topic. Today we accept that exclusivity risk
-    # to avoid unbounded listener growth, but it is a known failure mode of this teardown path.
-    with suppress(KeyError, ValueError):
-        client.message_callback_remove(topic)
-
-    with suppress(ValueError):
-        client.unsubscribe(topic)
 
 
 def prune_retained_messages(topics_to_prune: str = "#") -> None:

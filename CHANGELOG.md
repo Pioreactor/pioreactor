@@ -3,6 +3,7 @@
 #### Bug fixes
 
 - Added an app-update database migration to repair stale open assignment-history rows in existing leader databases. This was caused by the new "re-assignment" dialog box in the Pioreactor's page. The biggest impact was duplicate logs showing up on the Logs UI page.
+- Fixed repeated in-process actions such as dosing/pump runs to clean up MQTT listeners, signal handlers, and short-lived MQTT clients more reliably, preventing runaway localhost socket/file-descriptor growth in long-lived jobs.
 
 ### 26.3.3
 

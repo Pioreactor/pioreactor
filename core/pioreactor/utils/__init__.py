@@ -210,7 +210,7 @@ class managed_lifecycle:
         self.unit = unit
         self.experiment = experiment
         self.name = name
-        self.state = st("init")
+        self.state = st.INIT
         self.exit_event = Event()
         self._source = source
         self.is_long_running_job = is_long_running_job
@@ -269,7 +269,7 @@ class managed_lifecycle:
             )
         assert self.mqtt_client is not None
 
-        self.state = st("init")
+        self.state = st.INIT
         self.publish_setting("$state", self.state)
 
         # Teardown for signal handlers and passive MQTT listeners is centralized in __exit__.
@@ -290,13 +290,13 @@ class managed_lifecycle:
         self._exit()
 
     def __enter__(self) -> Self:
-        self.state = st("ready")
+        self.state = st.READY
         self.publish_setting("$state", self.state)
 
         return self
 
     def __exit__(self, *args: object) -> None:
-        self.state = st("disconnected")
+        self.state = st.DISCONNECTED
         self._exit()
         try:
             self.publish_setting("$state", self.state)
@@ -335,8 +335,8 @@ class managed_lifecycle:
 
     def _remove_passive_listeners(self) -> None:
         while self._mqtt_cleanup_callables:
-            cleanup = self._mqtt_cleanup_callables.pop()
-            cleanup()
+            _cleanup = self._mqtt_cleanup_callables.pop()
+            _cleanup()
 
     def _remove_signal_handlers(self) -> None:
         if not self._registered_signal_handlers:
