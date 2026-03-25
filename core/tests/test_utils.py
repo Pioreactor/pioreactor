@@ -3,19 +3,16 @@
 import gc
 import signal
 import weakref
-from contextlib import redirect_stdout
-from io import StringIO
 
 import pytest
 from pioreactor import whoami
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.utils import argextrema
-from pioreactor.utils import callable_stack
+from pioreactor.utils import boolean_retry
+from pioreactor.utils import clamp
 from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import SummableDict
 from pioreactor.whoami import get_unit_name
@@ -42,112 +39,6 @@ class DummyMQTTClient:
 
     def unsubscribe(self, topic):
         self.unsubscribed.append(topic)
-
-
-def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache() -> None:
-    """
-    You can modify caches, and the last assignment is valid.
-    """
-    with local_intermittent_storage("test") as cache:
-        for k in cache.iterkeys():
-            del cache[k]
-
-    with local_intermittent_storage("test") as cache1:
-        cache1["A"] = "0"
-
-        with local_intermittent_storage("test") as cache2:
-            assert cache2["A"] == "0"
-            cache2["B"] = "1"
-
-        assert "B" in cache1
-        cache1["B"] = "2"
-
-    with local_intermittent_storage("test") as cache:
-        assert cache["A"] == "0"
-        assert cache["B"] == "2"
-
-
-def test_caches_will_always_save_the_lastest_value_provided() -> None:
-    with local_intermittent_storage("test") as cache:
-        cache.empty()
-
-    with local_intermittent_storage("test") as cache:
-        cache["A"] = "1"
-        cache["A"] = "0"
-        cache["B"] = "2"
-
-    with local_intermittent_storage("test") as cache:
-        assert cache["A"] == "0"
-        assert cache["B"] == "2"
-
-
-def test_caches_will_delete_when_asked() -> None:
-    with local_intermittent_storage("test") as cache:
-        for k in cache.iterkeys():
-            del cache[k]
-
-    with local_intermittent_storage("test") as cache:
-        cache["test"] = "1"
-
-    with local_intermittent_storage("test") as cache:
-        assert "test" in cache
-        del cache["test"]
-        assert "test" not in cache
-
-
-def test_caches_pop() -> None:
-    with local_intermittent_storage("test") as cache:
-        cache.empty()
-
-    with local_intermittent_storage("test") as cache:
-        cache["A"] = "1"
-
-    with local_intermittent_storage("test") as cache:
-        assert cache.pop("A") == "1"
-        assert cache.pop("B") is None
-        assert cache.pop("C", default=3) == 3
-
-
-def test_cache_set_if_absent() -> None:
-    with local_intermittent_storage("test") as cache:
-        cache.empty()
-
-    with local_intermittent_storage("test") as cache:
-        assert cache.set_if_absent("A", "1")
-        assert not cache.set_if_absent("A", "2")
-
-    with local_intermittent_storage("test") as cache:
-        assert cache["A"] == "1"
-
-
-def test_caches_can_have_tuple_or_singleton_keys() -> None:
-    with local_persistent_storage("test_caches_can_have_tuple_keys") as c:
-        c[(1, 2)] = 1
-        c[("a", "b")] = 2
-        c[("a", None)] = 3
-        c[4] = 4
-        c["5"] = 5
-
-    with local_persistent_storage("test_caches_can_have_tuple_keys") as c:
-        assert list(c.iterkeys()) == [4, "5", ("a", "b"), ("a", None), (1, 2)]
-
-
-def test_caches_integer_keys() -> None:
-    with local_persistent_storage("test_caches_integer_keys") as c:
-        c[1] = "a"
-        c[2] = "b"
-
-    with local_persistent_storage("test_caches_integer_keys") as c:
-        assert list(c.iterkeys()) == [1, 2]
-
-
-def test_caches_str_keys_as_ints_stay_as_str() -> None:
-    with local_persistent_storage("test_caches_str_keys_as_ints_stay_as_str") as c:
-        c["1"] = "a"
-        c["2"] = "b"
-
-    with local_persistent_storage("test_caches_str_keys_as_ints_stay_as_str") as c:
-        assert list(c.iterkeys()) == ["1", "2"]
 
 
 def test_is_pio_job_running_single() -> None:
@@ -268,65 +159,26 @@ def test_managed_lifecycle_cleans_up_signal_handlers_and_reused_client_callbacks
         signal.signal(signal.SIGINT, initial_sigint_handler)
 
 
-def greet(name):
-    print(f"Hello, {name}!")
-
-
-def goodbye(name):
-    print(f"Goodbye, {name}!")
-
-
-def test_callable_stack_append_and_call() -> None:
-    my_stack = callable_stack()
-    my_stack.append(greet)
-    my_stack.append(goodbye)
-
-    with StringIO() as output, redirect_stdout(output):
-        my_stack("Alice")
-        assert output.getvalue() == "Goodbye, Alice!\nHello, Alice!\n"
-
-
-def test_callable_stack_empty_call() -> None:
-    def default_function(name):
-        print(f"Default function called, {name}")
-
-    my_stack = callable_stack(default_function_if_empty=default_function)
-
-    with StringIO() as output, redirect_stdout(output):
-        my_stack("Alice")
-        assert output.getvalue() == "Default function called, Alice\n"
-
-
-def test_callable_stack_no_default() -> None:
-    my_stack = callable_stack()
-
-    with StringIO() as output, redirect_stdout(output):
-        my_stack("Alice")
-        assert output.getvalue() == ""
-
-
-@pytest.mark.parametrize(
-    "functions,expected_output",
-    [
-        ([greet], "Hello, Alice!\n"),
-        ([goodbye], "Goodbye, Alice!\n"),
-        ([greet, goodbye], "Goodbye, Alice!\nHello, Alice!\n"),
-    ],
-)
-def test_callable_stack_multiple_append_and_call(functions, expected_output) -> None:
-    my_stack = callable_stack()
-
-    for function in functions:
-        my_stack.append(function)
-
-    with StringIO() as output, redirect_stdout(output):
-        my_stack("Alice")
-        assert output.getvalue() == expected_output
-
-
 def test_argextrema_with_empty_lists() -> None:
     with pytest.raises(ValueError):
         argextrema([])
+
+
+def test_clamp_returns_bounded_values() -> None:
+    assert clamp(0, -1, 10) == 0
+    assert clamp(0, 3, 10) == 3
+    assert clamp(0, 12, 10) == 10
+
+
+def test_boolean_retry_uses_independent_default_kwargs() -> None:
+    seen_kwargs: list[dict[str, object]] = []
+
+    def func(*, marker: object | None = None) -> bool:
+        seen_kwargs.append({"marker": marker})
+        return len(seen_kwargs) == 2
+
+    assert boolean_retry(func, retries=2, sleep_for=0.0) is True
+    assert seen_kwargs == [{"marker": None}, {"marker": None}]
 
 
 def test_summable_dict_with_list_values() -> None:
@@ -338,3 +190,21 @@ def test_summable_dict_with_list_values() -> None:
     assert result["a"] == [1.0, 2.0, 4.0]
     assert result["b"] == [3.0]
     assert result["c"] == [5.0, 6.0]
+
+
+def test_summable_dict_iadd_mutates_in_place() -> None:
+    first = SummableDict({"a": 1.0})
+    second = SummableDict({"a": 2.0, "b": 3.0})
+
+    result = first
+    result += second
+
+    assert result is first
+    assert first["a"] == 3.0
+    assert first["b"] == 3.0
+
+
+def test_summable_dict_missing_key_returns_zero() -> None:
+    result = SummableDict({"a": 1.0})
+
+    assert result["missing"] == 0.0

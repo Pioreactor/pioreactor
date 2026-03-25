@@ -1,31 +1,23 @@
 # -*- coding: utf-8 -*-
 import os
 import signal
-import sqlite3
-import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
 from functools import wraps
 from subprocess import run
 from threading import Event
 from typing import Any
 from typing import Callable
 from typing import cast
-from typing import Generator
 from typing import overload
 from typing import Self
 from typing import Sequence
 from typing import TYPE_CHECKING
 
-from msgspec import DecodeError
 from msgspec import Struct
-from msgspec.json import decode as loads
-from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.exc import JobRequiredError
 from pioreactor.exc import NotActiveWorkerError
@@ -35,131 +27,19 @@ from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as st
 from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.signal_handlers import append_signal_handler
+from pioreactor.utils.signal_handlers import append_signal_handlers
+from pioreactor.utils.signal_handlers import callable_stack
+from pioreactor.utils.signal_handlers import remove_signal_handler
+from pioreactor.utils.signal_handlers import remove_signal_handlers
+from pioreactor.utils.sqlite_cache import cache
+from pioreactor.utils.sqlite_cache import local_intermittent_storage
+from pioreactor.utils.sqlite_cache import local_persistent_storage
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
 
 if TYPE_CHECKING:
     from pioreactor.pubsub import Client
-
-
-class callable_stack:
-    """
-    A class for managing a stack of callable objects in Python.
-
-    Example:
-    >>> def greet(name):
-    ... print(f"Hello, {name}!")
-    ...
-    >>> def goodbye(name):
-    ... print(f"Goodbye, {name}!")
-    ...
-    >>> my_stack = callable_stack()
-    >>> my_stack.append(greet)
-    >>> my_stack.append(goodbye)
-    >>> my_stack('Alice')
-    Goodbye, Alice!
-    Hello, Alice!
-    """
-
-    def __init__(
-        self,
-        default_function_if_empty: Callable[..., None] = lambda *args: None,
-        original_handler: Any = signal.SIG_DFL,
-        call_original_handler_after_callbacks: bool = False,
-    ) -> None:
-        self._callables: list[Callable[..., None]] = []
-        self.default = default_function_if_empty
-        self.original_handler = original_handler
-        self.call_original_handler_after_callbacks = call_original_handler_after_callbacks
-
-    def append(self, function: Callable[..., None]) -> None:
-        self._callables.append(function)
-
-    def remove(self, function: Callable[..., None]) -> bool:
-        for index in range(len(self._callables) - 1, -1, -1):
-            if self._callables[index] == function:
-                del self._callables[index]
-                return True
-
-        return False
-
-    @property
-    def is_empty(self) -> bool:
-        return not self._callables
-
-    def __call__(self, *args: object) -> None:
-        if not self._callables:
-            self.default(*args)
-            return
-
-        while self._callables:
-            function = self._callables.pop()
-            function(*args)
-
-        if self.call_original_handler_after_callbacks and callable(self.original_handler):
-            self.original_handler(*args)
-
-
-def append_signal_handler(signal_value: signal.Signals, new_callback: Callable[..., None]) -> None:
-    """
-    The current api of signal.signal is a global stack of size 1, so if
-    we have multiple jobs started in the same python process, we
-    need them all to respect each others signal.
-    """
-    current_callback = signal.getsignal(signal_value)
-
-    if callable(current_callback):
-        if isinstance(current_callback, callable_stack):
-            # we've previously added something to the handler..
-            current_callback.append(new_callback)
-            signal.signal(signal_value, current_callback)
-        else:
-            # no stack yet, default callable was present. Don't forget to add new callback, too
-            stack = callable_stack(
-                signal.default_int_handler,
-                original_handler=current_callback,
-                call_original_handler_after_callbacks=True,
-            )
-            stack.append(new_callback)
-            signal.signal(signal_value, stack)
-    elif (current_callback is signal.SIG_DFL) or (current_callback is signal.SIG_IGN):
-        # no stack yet.
-        stack = callable_stack(signal.default_int_handler, original_handler=current_callback)
-        stack.append(new_callback)
-        signal.signal(signal_value, stack)
-    elif current_callback is None:
-        signal.signal(
-            signal_value,
-            callable_stack(signal.default_int_handler, original_handler=signal.SIG_DFL),
-        )
-    else:
-        raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
-
-
-def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Callable[..., None]]) -> None:
-    for callback in new_callbacks:
-        append_signal_handler(signal_value, callback)
-
-
-def remove_signal_handler(signal_value: signal.Signals, callback_to_remove: Callable[..., None]) -> None:
-    current_callback = signal.getsignal(signal_value)
-
-    if not isinstance(current_callback, callable_stack):
-        return
-
-    current_callback.remove(callback_to_remove)
-
-    if current_callback.is_empty:
-        signal.signal(signal_value, current_callback.original_handler)
-    else:
-        signal.signal(signal_value, current_callback)
-
-
-def remove_signal_handlers(
-    signal_value: signal.Signals, callbacks_to_remove: list[Callable[..., None]]
-) -> None:
-    for callback in callbacks_to_remove:
-        remove_signal_handler(signal_value, callback)
 
 
 class managed_lifecycle:
@@ -395,169 +275,7 @@ class long_running_managed_lifecycle(managed_lifecycle):
         return f"{self.name}/{self.job_id}"
 
 
-class cache:
-    @staticmethod
-    def adapt_key(key: object) -> bytes:
-        # keys can be tuples!
-        return dumps(key)
-
-    @staticmethod
-    def convert_key(s: str | bytes) -> object:
-        def _restore_tuple_keys(value: object) -> object:
-            if isinstance(value, list):
-                return tuple(_restore_tuple_keys(item) for item in value)
-            return value
-
-        if isinstance(s, bytes):
-            try:
-                return _restore_tuple_keys(loads(s))
-            except DecodeError:
-                return s.decode()
-        else:
-            return s
-
-    def __init__(self, table_name: str, db_path: str) -> None:
-        self.table_name = f"cache_{table_name}"
-        self.db_path = db_path
-
-    def __enter__(self) -> Self:
-        sqlite3.register_adapter(tuple, self.adapt_key)
-        # sqlite3.register_converter("_key_BLOB", self.convert_key)
-
-        self.conn = sqlite3.connect(
-            self.db_path, detect_types=sqlite3.PARSE_DECLTYPES, isolation_level=None, timeout=10
-        )
-        self.cursor = self.conn.cursor()
-        self.cursor.executescript(
-            """
-            PRAGMA busy_timeout = 5000;
-            PRAGMA temp_store = 2;
-            PRAGMA cache_size = -4000;
-        """
-        )
-        self._initialize_table()
-        return self
-
-    def __exit__(self, exc_type: object, exc_val: object, tb: object) -> None:
-        self.conn.close()
-
-    def _initialize_table(self) -> None:
-        self.cursor.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS {self.table_name} (
-                key _key_BLOB PRIMARY KEY,
-                value BLOB
-            )
-        """
-        )
-
-    def __setitem__(self, key: object, value: object) -> None:
-        self.cursor.execute(
-            f"""
-            INSERT INTO {self.table_name} (key, value)
-            VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value=excluded.value
-        """,
-            (key, value),
-        )
-
-    def set(self, key: object, value: object) -> None:
-        return self.__setitem__(key, value)
-
-    def set_if_absent(self, key: object, value: object) -> bool:
-        self.cursor.execute(
-            f"""
-            INSERT OR IGNORE INTO {self.table_name} (key, value)
-            VALUES (?, ?)
-        """,
-            (key, value),
-        )
-        return self.cursor.rowcount == 1
-
-    def get(self, key: object, default: object = None) -> object:
-        self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
-        result = self.cursor.fetchone()
-        return result[0] if result else default
-
-    def iterkeys(self) -> Generator[object, None, None]:
-        self.cursor.execute(f"SELECT key FROM {self.table_name}")
-        return (self.convert_key(row[0]) for row in self.cursor.fetchall())
-
-    def pop(self, key: object, default: object = None) -> object:
-        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ? RETURNING value", (key,))
-        result = self.cursor.fetchone()
-
-        if result is None:
-            return default
-        else:
-            return result[0]
-
-    def empty(self) -> None:
-        self.cursor.execute(f"DELETE FROM {self.table_name}")
-
-    def __contains__(self, key: object) -> bool:
-        self.cursor.execute(f"SELECT 1 FROM {self.table_name} WHERE key = ?", (key,))
-        return self.cursor.fetchone() is not None
-
-    def __iter__(self) -> Generator[object, None, None]:
-        return self.iterkeys()
-
-    def __delitem__(self, key: object) -> None:
-        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
-
-    def __getitem__(self, key: object) -> object:
-        self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
-        result = self.cursor.fetchone()
-        if result is None:
-            raise KeyError(f"Key '{key}' not found in cache.")
-        return result[0]
-
-
-@contextmanager
-def local_intermittent_storage(
-    cache_name: str,
-) -> Generator[cache, None, None]:
-    """
-
-    The cache is deleted upon a Raspberry Pi restart!
-
-    Examples
-    ---------
-    > with local_intermittent_storage('pwm') as cache:
-    >     assert '1' in cache
-    >     cache['1'] = 0.5
-
-
-    Notes
-    -------
-    Opening the same cache in a context manager is tricky, and should be avoided.
-
-    """
-    with cache(cache_name, db_path=config.get("storage", "temporary_cache")) as c:
-        yield c
-
-
-@contextmanager
-def local_persistent_storage(
-    cache_name: str,
-) -> Generator[cache, None, None]:
-    """
-    Values stored in this storage will stay around between RPi restarts, and until overwritten
-    or deleted.
-
-    Examples
-    ---------
-    > with local_persistent_storage('od_blank') as cache:
-    >     assert '1' in cache
-    >     cache['1'] = 0.5
-
-    """
-
-    with cache(cache_name, db_path=config.get("storage", "persistent_cache")) as c:
-        yield c
-
-
-def clamp(minimum: float | int, x: float | int, maximum: float | int) -> float:
+def clamp(minimum: float | int, x: float | int, maximum: float | int) -> float | int:
     return max(minimum, min(x, maximum))
 
 
@@ -682,9 +400,15 @@ class SummableDict(dict):
         return s
 
     def __iadd__(self, other: "SummableDict") -> "SummableDict":
-        return self + other
+        for key, value in other.items():
+            if key in self:
+                self[key] = self[key] + value
+            else:
+                self[key] = value
 
-    def __getitem__(self, key: str) -> float:
+        return self
+
+    def __getitem__(self, key: Any) -> Any:
         if key not in self:
             return 0.0  # TODO: later could be generalized for the init to accept a zero element.
         else:
@@ -695,15 +419,16 @@ def boolean_retry(
     func: Callable[..., bool],
     retries: int = 3,
     sleep_for: float = 0.25,
-    args: tuple = (),
-    kwargs: dict = {},
+    args: tuple[Any, ...] = (),
+    kwargs: dict[str, Any] | None = None,
 ) -> bool:
     """
     Retries a function upon encountering an False return until it succeeds or the maximum number of retries is exhausted.
 
     """
+    call_kwargs = {} if kwargs is None else kwargs
     for _ in range(retries):
-        res = func(*args, **kwargs)
+        res = func(*args, **call_kwargs)
         if res:
             return res
         time.sleep(sleep_for)
