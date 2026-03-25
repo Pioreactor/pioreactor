@@ -1408,8 +1408,7 @@ def test_dosing_start_and_stop_events_publish_to_mqtt(fast_dosing_timers) -> Non
             automation.execute_io_action(waste_ml=0.2, media_ml=0.1)
             assert wait_for(lambda: len(received_events) >= 2, timeout=2.0)
     finally:
-        client.loop_stop()
-        client.disconnect()
+        client.shutdown()
 
     event_names = [event["event_name"] for event in received_events[:2]]
     assert event_names == ["DosingStarted", "DosingStopped"]

@@ -42,16 +42,9 @@ class Client(PahoClient):
         self.shutdown()
 
     def shutdown(self) -> None:
-        try:
-            self.disconnect()
-        finally:
-            try:
-                self.loop_stop()
-            finally:
-                # Paho does not deterministically close the internal wakeup socketpair on
-                # disconnect/loop_stop alone. Close it explicitly so short-lived clients do
-                # not accumulate localhost socketpair FDs while waiting on garbage collection.
-                self._reset_sockets(sockpair_only=True)
+        self.loop_stop()
+        self.disconnect()
+        self._reset_sockets(sockpair_only=True)  # reduce the FD explosion.
 
     def loop_stop(self) -> MQTTErrorCode:
         # fast exits
