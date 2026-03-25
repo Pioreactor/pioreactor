@@ -306,7 +306,7 @@ function AddNewPioreactor({setWorkers}){
           ) : discoveredWorkers.length === 0 ? (
             <Typography variant="body2" component="p" color="textSecondary">No workers found. This discovery process isn't guaranteed however.</Typography>
           ) : <>
-              <Typography variant="body2" component="p" color="textSecondary">This discovery process isn't guaranteed to find all units.</Typography> (
+              <Typography variant="body2" component="p" color="textSecondary">This discovery process isn't guaranteed to find all units.</Typography>
               {discoveredWorkers.map((w) => (
                 <Chip
                   icon={<PioreactorIcon/>}
@@ -316,7 +316,7 @@ function AddNewPioreactor({setWorkers}){
                   sx={{ mr: 1, mb: 1 }}
                 />
               ))}
-            )
+
             </>
         }
         </Box>

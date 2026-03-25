@@ -23,6 +23,7 @@ from huey.api import Result
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
 from msgspec import DecodeError
+from msgspec import Struct
 from msgspec import to_builtins
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
@@ -70,7 +71,21 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 from werkzeug.security import safe_join
 from werkzeug.utils import secure_filename
 
+
 AllCalibrations = structs.subclass_union(CalibrationBase)
+
+
+class MulticastGetCacheTarget(Struct, frozen=True):
+    namespace: str
+    endpoint: str
+
+
+CALIBRATIONS = MulticastGetCacheTarget("calibrations", "/unit_api/calibrations")
+ACTIVE_CALIBRATIONS = MulticastGetCacheTarget("active_calibrations", "/unit_api/active_calibrations")
+CALIBRATION_PROTOCOLS = MulticastGetCacheTarget("calibration_protocols", "/unit_api/calibration_protocols")
+ACTIVE_ESTIMATORS = MulticastGetCacheTarget("active_estimators", "/unit_api/active_estimators")
+ESTIMATORS = MulticastGetCacheTarget("estimators", "/unit_api/estimators")
+PLUGINS_INSTALLED = MulticastGetCacheTarget("plugins_installed", "/unit_api/plugins/installed")
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -216,6 +231,45 @@ def _extract_unit_api_error(response: MureqResponse | None) -> str | None:
             if isinstance(value, str) and value.strip():
                 return value.strip()
     return None
+
+
+def _cached_multicast_get(
+    target: MulticastGetCacheTarget,
+    units: list[str],
+    *,
+    timeout: float = 5.0,
+) -> Result:
+    return tasks.multicast_get_with_leader_cache(
+        target.namespace,
+        target.endpoint,
+        units,
+        timeout=timeout,
+    )
+
+
+def _invalidate_multicast_get_cache(targets: list[MulticastGetCacheTarget], units: list[str]) -> None:
+    for target in targets:
+        tasks.clear_multicast_get_cache(target.namespace, target.endpoint, units)
+
+
+def _invalidate_calibrations_cache(pioreactor_unit: str) -> None:
+    units = get_all_workers() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
+    _invalidate_multicast_get_cache([CALIBRATIONS, ACTIVE_CALIBRATIONS], units)
+
+
+def _invalidate_calibration_protocols_cache(pioreactor_unit: str) -> None:
+    units = get_all_workers() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
+    _invalidate_multicast_get_cache([CALIBRATION_PROTOCOLS], units)
+
+
+def _invalidate_estimators_cache(pioreactor_unit: str) -> None:
+    units = get_all_workers() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
+    _invalidate_multicast_get_cache([ACTIVE_ESTIMATORS, ESTIMATORS], units)
+
+
+def _invalidate_plugins_installed_cache(pioreactor_unit: str) -> None:
+    units = get_all_units() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
+    _invalidate_multicast_get_cache([PLUGINS_INSTALLED], units)
 
 
 def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw: bool = False) -> Result:
@@ -1582,45 +1636,45 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
 @api_bp.route("/workers/<pioreactor_unit>/calibration_protocols", methods=["GET"])
 def get_calibration_protocols(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_workers("/unit_api/calibration_protocols")
+        task = _cached_multicast_get(CALIBRATION_PROTOCOLS, get_all_workers())
     else:
-        task = tasks.multicast_get("/unit_api/calibration_protocols", [pioreactor_unit])
+        task = _cached_multicast_get(CALIBRATION_PROTOCOLS, [pioreactor_unit])
     return create_task_response(task)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations", methods=["GET"])
 def get_all_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_workers("/unit_api/calibrations")
+        task = _cached_multicast_get(CALIBRATIONS, get_all_workers())
     else:
-        task = tasks.multicast_get("/unit_api/calibrations", [pioreactor_unit])
+        task = _cached_multicast_get(CALIBRATIONS, [pioreactor_unit])
     return create_task_response(task)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/active_calibrations", methods=["GET"])
 def get_all_active_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_workers("/unit_api/active_calibrations")
+        task = _cached_multicast_get(ACTIVE_CALIBRATIONS, get_all_workers())
     else:
-        task = tasks.multicast_get("/unit_api/active_calibrations", [pioreactor_unit])
+        task = _cached_multicast_get(ACTIVE_CALIBRATIONS, [pioreactor_unit])
     return create_task_response(task)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/active_estimators", methods=["GET"])
 def get_all_active_estimators(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_workers("/unit_api/active_estimators")
+        task = _cached_multicast_get(ACTIVE_ESTIMATORS, get_all_workers())
     else:
-        task = tasks.multicast_get("/unit_api/active_estimators", [pioreactor_unit])
+        task = _cached_multicast_get(ACTIVE_ESTIMATORS, [pioreactor_unit])
     return create_task_response(task)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/estimators", methods=["GET"])
 def get_all_estimators(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_workers("/unit_api/estimators")
+        task = _cached_multicast_get(ESTIMATORS, get_all_workers())
     else:
-        task = tasks.multicast_get("/unit_api/estimators", [pioreactor_unit])
+        task = _cached_multicast_get(ESTIMATORS, [pioreactor_unit])
     return create_task_response(task)
 
 
@@ -1887,6 +1941,8 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
 
     payload["set_as_active"] = set_as_active
 
+    _invalidate_calibrations_cache(pioreactor_unit)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_post_across_workers(f"/unit_api/calibrations/{device}", payload)
     else:
@@ -2062,6 +2118,8 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
 def set_active_calibration(
     pioreactor_unit: str, device: str, calibration_name: str
 ) -> DelayedResponseReturnValue:
+    _invalidate_calibrations_cache(pioreactor_unit)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_patch_across_workers(f"/unit_api/active_calibrations/{device}/{calibration_name}")
     else:
@@ -2076,6 +2134,8 @@ def set_active_calibration(
 def set_active_estimator(
     pioreactor_unit: str, device: str, estimator_name: str
 ) -> DelayedResponseReturnValue:
+    _invalidate_estimators_cache(pioreactor_unit)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_patch_across_workers(f"/unit_api/active_estimators/{device}/{estimator_name}")
     else:
@@ -2087,6 +2147,8 @@ def set_active_estimator(
 
 @api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>", methods=["DELETE"])
 def remove_active_status_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
+    _invalidate_calibrations_cache(pioreactor_unit)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/active_calibrations/{device}")
     else:
@@ -2096,6 +2158,8 @@ def remove_active_status_calibration(pioreactor_unit: str, device: str) -> Delay
 
 @api_bp.route("/workers/<pioreactor_unit>/active_estimators/<device>", methods=["DELETE"])
 def remove_active_status_estimator(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
+    _invalidate_estimators_cache(pioreactor_unit)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/active_estimators/{device}")
     else:
@@ -2107,6 +2171,8 @@ def remove_active_status_estimator(pioreactor_unit: str, device: str) -> Delayed
 def delete_calibration(
     pioreactor_unit: str, device: str, calibration_name: str
 ) -> DelayedResponseReturnValue:
+    _invalidate_calibrations_cache(pioreactor_unit)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/calibrations/{device}/{calibration_name}")
     else:
@@ -2119,6 +2185,8 @@ def delete_calibration(
 
 @api_bp.route("/workers/<pioreactor_unit>/estimators/<device>/<estimator_name>", methods=["DELETE"])
 def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> DelayedResponseReturnValue:
+    _invalidate_estimators_cache(pioreactor_unit)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/estimators/{device}/{estimator_name}")
     else:
@@ -2132,9 +2200,9 @@ def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> 
 @api_bp.route("/units/<pioreactor_unit>/plugins/installed", methods=["GET"])
 def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_cluster("/unit_api/plugins/installed", timeout=5)
+        task = _cached_multicast_get(PLUGINS_INSTALLED, get_all_units(), timeout=5)
     else:
-        task = tasks.multicast_get("/unit_api/plugins/installed", [pioreactor_unit], timeout=5)
+        task = _cached_multicast_get(PLUGINS_INSTALLED, [pioreactor_unit], timeout=5)
 
     return create_task_response(task)
 
@@ -2144,6 +2212,9 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "Not UI installed allowed.")
+
+    _invalidate_plugins_installed_cache(pioreactor_unit)
+    _invalidate_calibration_protocols_cache(pioreactor_unit)
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(
@@ -2159,6 +2230,9 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "No UI uninstall allowed")
+
+    _invalidate_plugins_installed_cache(pioreactor_unit)
+    _invalidate_calibration_protocols_cache(pioreactor_unit)
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(

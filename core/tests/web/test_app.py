@@ -8,6 +8,7 @@ from pioreactor.web.config import huey
 from pytest import MonkeyPatch
 
 from .conftest import capture_requests
+from .test_unit_api import _build_valid_calibration_yaml
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
@@ -763,3 +764,239 @@ def test_update_next_version_accepts_unit_selection(client, monkeypatch: MonkeyP
     response = client.post("/api/system/update_next_version", json={"units": "unit2"})
     assert response.status_code == 202
     assert captured["units"] == "unit2"
+
+
+def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.tasks as mod
+
+    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+
+    calls = 0
+
+    def fake_multicast_get_uncached(
+        endpoint: str,
+        units: list[str],
+        json: dict[str, object] | list[dict[str, object] | None] | None = None,
+        timeout: float = 5.0,
+        return_raw: bool = False,
+    ) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        assert endpoint == "/unit_api/calibrations"
+        assert units == ["unit1"]
+        assert json is None
+        assert timeout == 5.0
+        assert return_raw is False
+        return {"unit1": {"od90": [{"calibration_name": "cached-on-leader"}]}}
+
+    monkeypatch.setattr("pioreactor.web.tasks._multicast_get_uncached", fake_multicast_get_uncached)
+
+    first = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    second = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+
+    first_payload = first.get(blocking=True, timeout=1)
+    second_payload = second.get(blocking=True, timeout=1)
+
+    assert first_payload == {"unit1": {"od90": [{"calibration_name": "cached-on-leader"}]}}
+    assert second_payload == first_payload
+    assert calls == 1
+
+    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+
+
+def test_get_all_calibrations_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_cached_multicast_get(target: object, units: list[str], timeout: float = 5.0) -> str:
+        captured["cache_namespace"] = target.namespace
+        captured["endpoint"] = target.endpoint
+        captured["units"] = units
+        captured["timeout"] = timeout
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.get("/api/workers/$broadcast/calibrations")
+
+    assert response.status_code == 202
+    assert captured["cache_namespace"] == "calibrations"
+    assert captured["endpoint"] == "/unit_api/calibrations"
+    assert captured["units"] == ["unit4", "unit3", "unit2", "unit1"]
+    assert captured["timeout"] == 5.0
+
+
+def test_get_calibration_protocols_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_cached_multicast_get(target: object, units: list[str], timeout: float = 5.0) -> str:
+        captured["cache_namespace"] = target.namespace
+        captured["endpoint"] = target.endpoint
+        captured["units"] = units
+        captured["timeout"] = timeout
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.get("/api/workers/$broadcast/calibration_protocols")
+
+    assert response.status_code == 202
+    assert captured["cache_namespace"] == "calibration_protocols"
+    assert captured["endpoint"] == "/unit_api/calibration_protocols"
+    assert captured["units"] == ["unit4", "unit3", "unit2", "unit1"]
+    assert captured["timeout"] == 5.0
+
+
+def test_get_all_active_calibrations_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_cached_multicast_get(target: object, units: list[str], timeout: float = 5.0) -> str:
+        captured["cache_namespace"] = target.namespace
+        captured["endpoint"] = target.endpoint
+        captured["units"] = units
+        captured["timeout"] = timeout
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.get("/api/workers/$broadcast/active_calibrations")
+
+    assert response.status_code == 202
+    assert captured["cache_namespace"] == "active_calibrations"
+    assert captured["endpoint"] == "/unit_api/active_calibrations"
+    assert captured["units"] == ["unit4", "unit3", "unit2", "unit1"]
+    assert captured["timeout"] == 5.0
+
+
+def test_create_calibration_invalidates_cached_worker_payloads(client, monkeypatch: MonkeyPatch) -> None:
+    captured_calls: list[tuple[str, str, list[str]]] = []
+
+    def fake_invalidate_multicast_get_cache(targets: list[object], units: list[str]) -> None:
+        captured_calls.extend((target.namespace, target.endpoint, units) for target in targets)
+
+    monkeypatch.setattr(
+        "pioreactor.web.api._invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
+    )
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", lambda *args, **kwargs: "task")
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.post(
+        "/api/workers/unit1/calibrations/media_pump",
+        json={"calibration_data": _build_valid_calibration_yaml("uploaded_for_cache"), "set_as_active": True},
+    )
+
+    assert response.status_code == 202
+    assert captured_calls == [
+        ("calibrations", "/unit_api/calibrations", ["unit1"]),
+        ("active_calibrations", "/unit_api/active_calibrations", ["unit1"]),
+    ]
+
+
+def test_get_all_estimators_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_cached_multicast_get(target: object, units: list[str], timeout: float = 5.0) -> str:
+        captured["cache_namespace"] = target.namespace
+        captured["endpoint"] = target.endpoint
+        captured["units"] = units
+        captured["timeout"] = timeout
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.get("/api/workers/$broadcast/estimators")
+
+    assert response.status_code == 202
+    assert captured["cache_namespace"] == "estimators"
+    assert captured["endpoint"] == "/unit_api/estimators"
+    assert captured["units"] == ["unit4", "unit3", "unit2", "unit1"]
+    assert captured["timeout"] == 5.0
+
+
+def test_get_all_active_estimators_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_cached_multicast_get(target: object, units: list[str], timeout: float = 5.0) -> str:
+        captured["cache_namespace"] = target.namespace
+        captured["endpoint"] = target.endpoint
+        captured["units"] = units
+        captured["timeout"] = timeout
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.get("/api/workers/$broadcast/active_estimators")
+
+    assert response.status_code == 202
+    assert captured["cache_namespace"] == "active_estimators"
+    assert captured["endpoint"] == "/unit_api/active_estimators"
+    assert captured["units"] == ["unit4", "unit3", "unit2", "unit1"]
+    assert captured["timeout"] == 5.0
+
+
+def test_set_active_estimator_invalidates_estimator_cache(client, monkeypatch: MonkeyPatch) -> None:
+    captured_calls: list[tuple[str, str, list[str]]] = []
+
+    def fake_invalidate_multicast_get_cache(targets: list[object], units: list[str]) -> None:
+        captured_calls.extend((target.namespace, target.endpoint, units) for target in targets)
+
+    monkeypatch.setattr(
+        "pioreactor.web.api._invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
+    )
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_patch", lambda *args, **kwargs: "task")
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.patch("/api/workers/unit1/active_estimators/od90/example-estimator")
+
+    assert response.status_code == 202
+    assert captured_calls == [
+        ("active_estimators", "/unit_api/active_estimators", ["unit1"]),
+        ("estimators", "/unit_api/estimators", ["unit1"]),
+    ]
+
+
+def test_get_plugins_on_machine_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_cached_multicast_get(target: object, units: list[str], timeout: float = 5.0) -> str:
+        captured["cache_namespace"] = target.namespace
+        captured["endpoint"] = target.endpoint
+        captured["units"] = units
+        captured["timeout"] = timeout
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.get("/api/units/$broadcast/plugins/installed")
+
+    assert response.status_code == 202
+    assert captured["cache_namespace"] == "plugins_installed"
+    assert captured["endpoint"] == "/unit_api/plugins/installed"
+    assert set(captured["units"]) == {"localhost", "unit1", "unit2", "unit3", "unit4"}
+    assert captured["timeout"] == 5.0
+
+
+def test_install_plugin_invalidates_plugins_cache(client, monkeypatch: MonkeyPatch) -> None:
+    captured_calls: list[tuple[str, str, list[str]]] = []
+
+    def fake_invalidate_multicast_get_cache(targets: list[object], units: list[str]) -> None:
+        captured_calls.extend((target.namespace, target.endpoint, units) for target in targets)
+
+    monkeypatch.setattr(
+        "pioreactor.web.api._invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
+    )
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", lambda *args, **kwargs: "task")
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.post("/api/units/unit1/plugins/install", json={"args": ["example-plugin"]})
+
+    assert response.status_code == 202
+    assert captured_calls == [
+        ("plugins_installed", "/unit_api/plugins/installed", ["unit1"]),
+        ("calibration_protocols", "/unit_api/calibration_protocols", ["unit1"]),
+    ]
