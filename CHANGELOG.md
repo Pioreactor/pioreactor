@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Enhancements
+
+- Added short-lived leader-side caching for several fan-out metadata APIs, reducing repeated worker fetches and improving UI load times for calibrations, active calibrations, calibration protocols, estimators, active estimators, and installed plugins.
+
 #### Bug fixes
 
 - Fixed repeated in-process actions such as dosing/pump runs to clean up MQTT listeners, signal handlers, and short-lived MQTT clients more reliably, preventing runaway localhost socket/file-descriptor growth in long-lived jobs.
