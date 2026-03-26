@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 from contextlib import suppress
 from threading import RLock
 from time import perf_counter
