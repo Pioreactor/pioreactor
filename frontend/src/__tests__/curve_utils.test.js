@@ -4,7 +4,7 @@ import {
   evaluateAkima,
   evaluateCurve,
   generateCurveData,
-} from "../curve_utils";
+} from "../utils/curve_utils";
 
 describe("curve_utils", () => {
   test("evaluatePolynomial matches expected value", () => {

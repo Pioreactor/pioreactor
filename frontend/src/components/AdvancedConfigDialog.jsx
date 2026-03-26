@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import PioreactorIcon from "./PioreactorIcon";
-import { runPioreactorJob } from "../utilities";
+import { runPioreactorJob } from "../utils/jobs";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ReplayIcon from '@mui/icons-material/Replay';
 import Snackbar from './Snackbar';

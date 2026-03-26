@@ -24,7 +24,7 @@ import {
 } from "victory";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { shiftHue } from "../color";
+import { shiftHue } from "../utils/color";
 
 // Activate the UTC plugin
 dayjs.extend(utc);

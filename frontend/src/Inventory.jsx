@@ -36,8 +36,8 @@ import { useNavigate, Link } from 'react-router';
 import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
-import { getConfig } from "./utilities";
-import { disconnectedGrey, lostRed, inactiveGrey, readyGreen } from "./color";
+import { getConfig } from "./utils/config";
+import { disconnectedGrey, lostRed, inactiveGrey, readyGreen } from "./utils/color";
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import Snackbar from './components/Snackbar';
 import Menu from "@mui/material/Menu";
@@ -242,6 +242,7 @@ function AddNewPioreactor({setWorkers}){
           response.json().then(data => setErrorMsg(`Unable to complete connection. The following error occurred: ${data.error}`))
         } else {
           setIsSuccess(true)
+          setName("")
           setWorkers((prevWorkers) => [...prevWorkers, {pioreactor_unit: name, is_active: true, model_name: model[0], model_version: model[1]}].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
           setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
         }
@@ -291,7 +292,7 @@ function AddNewPioreactor({setWorkers}){
         provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</p>
         <p>Your existing leader will automatically connect the new Pioreactor to the cluster.</p>
         <Box sx={{ mt: 2, mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
             <Typography variant="subtitle1" sx={{ mr: 1 }}>Discovered available workers:</Typography>
             <Tooltip title="Refresh discovered workers">
               <span>
@@ -306,7 +307,7 @@ function AddNewPioreactor({setWorkers}){
           ) : discoveredWorkers.length === 0 ? (
             <Typography variant="body2" component="p" color="textSecondary">No workers found. This discovery process isn't guaranteed however.</Typography>
           ) : <>
-              <Typography variant="body2" component="p" color="textSecondary">This discovery process isn't guaranteed to find all units.</Typography>
+              <Typography variant="body2" component="p" color="textSecondary" gutterBottom>This discovery process isn't guaranteed to find all units.</Typography>
               {discoveredWorkers.map((w) => (
                 <Chip
                   icon={<PioreactorIcon/>}

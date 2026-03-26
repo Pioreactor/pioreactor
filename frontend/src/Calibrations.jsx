@@ -22,8 +22,8 @@ import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { fetchTaskResult } from "./utilities";
-import { colors, ColorCycler, readyGreen } from "./color";
+import { fetchTaskResult } from "./utils/tasks";
+import { colors, ColorCycler, readyGreen } from "./utils/color";
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';

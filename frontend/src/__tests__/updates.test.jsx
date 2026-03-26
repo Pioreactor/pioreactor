@@ -14,7 +14,7 @@ jest.mock("../providers/MQTTContext", () => ({
   }),
 }));
 
-jest.mock("../utilities", () => ({
+jest.mock("../utils/config", () => ({
   getConfig: (setCallback) =>
     setCallback({
       "cluster.topology": {

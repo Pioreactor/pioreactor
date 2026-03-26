@@ -21,7 +21,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link, useParams, useNavigate } from 'react-router';
 import SelectButton from "./components/SelectButton";
-import {fetchTaskResult} from "./utilities";
+import {fetchTaskResult} from "./utils/tasks";
 
 function PageHeader() {
   return (

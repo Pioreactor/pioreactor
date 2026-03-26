@@ -15,7 +15,7 @@ import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { fetchTaskResult } from "./utilities";
+import { fetchTaskResult } from "./utils/tasks";
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
@@ -25,7 +25,7 @@ import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorsIcon from './components/PioreactorsIcon';
 import EstimatorIcon from './components/EstimatorIcon';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
-import { readyGreen } from "./color";
+import { readyGreen } from "./utils/color";
 
 
 const ActiveOrNotCheckBox = ({ onlyActive, setOnlyActive }) => {

@@ -21,7 +21,7 @@ import {
   VictoryTooltip,
   LineSegment
 } from "victory";
-import { generateCurveData } from "../curve_utils";
+import { generateCurveData } from "../utils/curve_utils";
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
   const [exportAnchorEl, setExportAnchorEl] = useState(null);

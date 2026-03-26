@@ -1,7 +1,7 @@
 // RunningProfilesContext.js
 
 import React from 'react';
-import {runPioreactorJobViaUnitAPI} from "../utilities"
+import {runPioreactorJobViaUnitAPI} from "../utils/jobs"
 
 
 // Create the context

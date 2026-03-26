@@ -25,8 +25,8 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
 import PioreactorIcon from "./PioreactorIcon"
 import RequirementsAlert from "./RequirementsAlert"
-import { runPioreactorJob } from "../utilities";
-import { readyGreen, lostRed } from "../color";
+import { runPioreactorJob } from "../utils/jobs";
+import { readyGreen, lostRed } from "../utils/color";
 
 
 const ManageDivider = styled(Divider)(({ theme }) => ({

@@ -6,7 +6,7 @@ import { TextDecoder, TextEncoder } from "util";
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
-jest.mock("../utilities", () => ({
+jest.mock("../utils/tasks", () => ({
   fetchTaskResult: jest.fn(),
 }));
 
@@ -22,7 +22,7 @@ jest.mock("react-simple-code-editor", () => ({
 }));
 
 const { MemoryRouter, Route, Routes } = require("react-router");
-const { fetchTaskResult } = require("../utilities");
+const { fetchTaskResult } = require("../utils/tasks");
 const {
   UploadCalibrationDialog,
   buildCalibrationUploadFailureMessage,

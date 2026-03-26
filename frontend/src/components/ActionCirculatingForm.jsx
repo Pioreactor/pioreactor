@@ -4,7 +4,7 @@ import Button from "@mui/material/Button";
 import Snackbar from './Snackbar';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
-import {runPioreactorJob} from "../utilities"
+import {runPioreactorJob} from "../utils/jobs"
 
 
 const StyledTextField = {

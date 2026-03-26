@@ -17,7 +17,7 @@ import Snackbar from './Snackbar';
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import {runPioreactorJob} from "../utilities"
+import {runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
 import DosingAutomationForm from "./DosingAutomationForm"

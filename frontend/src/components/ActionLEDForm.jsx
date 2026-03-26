@@ -3,7 +3,7 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Snackbar from './Snackbar';
 import InputAdornment from '@mui/material/InputAdornment';
-import {runPioreactorJob} from "../utilities"
+import {runPioreactorJob} from "../utils/jobs"
 
 
 const actionTextField = {

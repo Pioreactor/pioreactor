@@ -9,7 +9,7 @@ import ChangeDosingAutomationsDialog from "../components/ChangeDosingAutomations
 
 const mockRunPioreactorJob = jest.fn();
 
-jest.mock("../utilities", () => ({
+jest.mock("../utils/jobs", () => ({
   runPioreactorJob: (...args) => mockRunPioreactorJob(...args),
 }));
 

@@ -9,7 +9,7 @@ jest.mock("../providers/MQTTContext", () => ({
   useMQTT: jest.fn(),
 }));
 
-jest.mock("../utilities", () => ({
+jest.mock("../utils/config", () => ({
   getConfig: jest.fn((setCallback) =>
     setCallback({
       "ui.overview.cards": {
@@ -37,7 +37,7 @@ jest.mock("../components/TimeControls", () => ({
 
 const { useExperiment } = require("../providers/ExperimentContext");
 const { useMQTT } = require("../providers/MQTTContext");
-const { getRelabelMap } = require("../utilities");
+const { getRelabelMap } = require("../utils/config");
 const Overview = require("../ExperimentOverview").default;
 
 describe("ExperimentOverview", () => {

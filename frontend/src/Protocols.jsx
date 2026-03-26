@@ -16,7 +16,7 @@ import Snackbar from './components/Snackbar';
 import Typography from "@mui/material/Typography";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CalibrationSessionDialog from "./components/CalibrationSessionDialog";
-import { fetchTaskResult } from "./utilities";
+import { fetchTaskResult } from "./utils/tasks";
 import CircularProgress from "@mui/material/CircularProgress";
 import RequirementsAlert from "./components/RequirementsAlert";
 

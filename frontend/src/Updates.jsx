@@ -31,7 +31,7 @@ import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import CloseIcon from '@mui/icons-material/Close';
 import { useMQTT } from './providers/MQTTContext';
-import { getConfig } from "./utilities";
+import { getConfig } from "./utils/config";
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',

@@ -10,7 +10,7 @@ import {
   VictoryTheme,
   VictoryLabel,
 } from "victory";
-import { evaluateCurve } from "../curve_utils";
+import { evaluateCurve } from "../utils/curve_utils";
 
 const SERIES_COLORS = [
   "#1b5e20",

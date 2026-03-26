@@ -10,7 +10,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import PaginatedLogsTable from "./components/PaginatedLogsTable";
-import {getRelabelMap} from "./utilities"
+import {getRelabelMap} from "./utils/config"
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import RecordEventLogDialog from './components/RecordEventLogDialog';

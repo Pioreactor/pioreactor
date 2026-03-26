@@ -5,13 +5,13 @@ import { TextDecoder, TextEncoder } from "util";
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
-jest.mock("../utilities", () => ({
+jest.mock("../utils/tasks", () => ({
   fetchTaskResult: jest.fn(),
 }));
 
 const { MemoryRouter, Route, Routes } = require("react-router");
 const Protocols = require("../Protocols").default;
-const { fetchTaskResult } = require("../utilities");
+const { fetchTaskResult } = require("../utils/tasks");
 
 const renderProtocols = (initialEntry = "/protocols") =>
   render(

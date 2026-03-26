@@ -74,16 +74,15 @@ import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
-  getConfig,
   getBioreactorConfirmedValue,
   getBioreactorDescriptors,
   getBioreactorSubscriptionTopics,
   parseNumericValue,
   updateBioreactorValues,
-  getRelabelMap,
-  runPioreactorJob,
-  fetchTaskResult,
-} from "./utilities";
+} from "./utils/bioreactor";
+import { getConfig, getRelabelMap } from "./utils/config";
+import { runPioreactorJob } from "./utils/jobs";
+import { fetchTaskResult } from "./utils/tasks";
 import {
   colors,
   disconnectedGrey,
@@ -92,7 +91,7 @@ import {
   defaultStateDisplayBackground,
   disabledColor,
   stateDisplay,
-} from "./color";
+} from "./utils/color";
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
 import {

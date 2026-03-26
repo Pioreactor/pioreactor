@@ -8,7 +8,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import Alert from "@mui/material/Alert";
-import {runPioreactorJob} from "../utilities"
+import {runPioreactorJob} from "../utils/jobs"
 
 
 const actionTextField = {

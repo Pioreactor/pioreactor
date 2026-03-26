@@ -33,7 +33,7 @@ import SideNavAndHeader from "./components/SideNavAndHeader";
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
-import {getConfig} from "./utilities"
+import {getConfig} from "./utils/config"
 import { MQTTProvider } from './providers/MQTTContext';
 import { ExperimentProvider } from './providers/ExperimentContext';
 import { SnackbarProvider } from "notistack";

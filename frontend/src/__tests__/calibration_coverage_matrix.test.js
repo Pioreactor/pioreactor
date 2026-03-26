@@ -1,7 +1,7 @@
 import {
   COVERAGE_STATUS,
   deriveCalibrationCoverageMatrix,
-} from "../calibration_coverage_matrix";
+} from "../utils/calibration_coverage_matrix";
 
 describe("deriveCalibrationCoverageMatrix", () => {
   test("maps API payloads into matrix cell statuses", () => {

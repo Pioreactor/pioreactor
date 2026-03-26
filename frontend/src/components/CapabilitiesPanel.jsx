@@ -7,7 +7,7 @@ import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 // copy-to-clipboard removed per app constraints
 
-import {fetchTaskResult} from '../utilities';
+import {fetchTaskResult} from '../utils/tasks';
 import useCapabilityExamplesOverride from '../hooks/useCapabilityExamplesOverride';
 
 function dedupeCapabilitiesAcrossUnits(resultByUnit) {

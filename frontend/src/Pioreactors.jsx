@@ -81,16 +81,15 @@ import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
-  getConfig,
   getBioreactorConfirmedValue,
   getBioreactorDescriptors,
   getBioreactorSubscriptionTopics,
-  getRelabelMap,
   parseNumericValue,
-  runPioreactorJob,
   updateBioreactorValues,
-  fetchTaskResult,
-} from "./utilities";
+} from "./utils/bioreactor";
+import { getConfig, getRelabelMap } from "./utils/config";
+import { runPioreactorJob } from "./utils/jobs";
+import { fetchTaskResult } from "./utils/tasks";
 import {
   disconnectedGrey,
   lostRed,
@@ -98,7 +97,7 @@ import {
   defaultStateDisplayBackground,
   disabledColor,
   stateDisplay,
-} from "./color";
+} from "./utils/color";
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
 import {
   canQuickEditCardSetting,
