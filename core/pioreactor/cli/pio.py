@@ -44,9 +44,7 @@ def validate_git_sha(value: str | None) -> str | None:
     return cleaned_value.lower()
 
 
-def validate_git_sha_option(
-    _ctx: click.Context, _param: click.Parameter, value: str | None
-) -> str | None:
+def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value: str | None) -> str | None:
     return validate_git_sha(value)
 
 
