@@ -5,7 +5,6 @@ from json import dumps
 from json import loads
 from typing import Callable
 from typing import cast
-from typing import Optional
 
 import click
 from msgspec import Struct
@@ -49,7 +48,7 @@ class TopicToParserToTable(Struct):
     """
 
     topic: str | list[str]
-    parser: Callable[[str, pt.MQTTMessagePayload], Optional[ParsedSqliteRow | list[ParsedSqliteRow]]]
+    parser: Callable[[str, pt.MQTTMessagePayload], ParsedSqliteRow | list[ParsedSqliteRow] | None]
     table: str
 
     def __repr__(self) -> str:
@@ -106,7 +105,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
 
     def create_on_message_callback(
         self,
-        parser: Callable[[str, pt.MQTTMessagePayload], Optional[ParsedSqliteRow | list[ParsedSqliteRow]]],
+        parser: Callable[[str, pt.MQTTMessagePayload], ParsedSqliteRow | list[ParsedSqliteRow] | None],
         table: str,
     ) -> Callable[[pt.MQTTMessage], None]:
         def callback(message: pt.MQTTMessage) -> None:

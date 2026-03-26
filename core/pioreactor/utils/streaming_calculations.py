@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from typing import Any
-from typing import Optional
 from typing import TYPE_CHECKING
 
 
@@ -26,14 +25,14 @@ class PID:
         Ki: float,
         Kd: float,
         setpoint: float | None,
-        output_limits: tuple[Optional[float], Optional[float]] = (None, None),
-        sample_time: Optional[float] = None,
-        unit: Optional[str] = None,
-        experiment: Optional[str] = None,
-        job_name: Optional[str] = None,
-        target_name: Optional[str] = None,
+        output_limits: tuple[float | None, float | None] = (None, None),
+        sample_time: float | None = None,
+        unit: str | None = None,
+        experiment: str | None = None,
+        job_name: str | None = None,
+        target_name: str | None = None,
         derivative_smoothing: float = 0.0,
-        pub_client: Optional["Client"] = None,
+        pub_client: "Client" | None = None,
     ) -> None:
         # PID coefficients
         self.Kp = Kp
@@ -49,8 +48,8 @@ class PID:
         self.derivative_smoothing = derivative_smoothing
 
         # State variables
-        self.error_prev: Optional[float] = None
-        self._last_input: Optional[float] = None
+        self.error_prev: float | None = None
+        self._last_input: float | None = None
         self.error_sum = 0.0
         self.derivative_prev = 0.0
 

@@ -4,7 +4,6 @@ from threading import Event
 from time import sleep
 from typing import Any
 from typing import cast
-from typing import Optional
 
 import click
 from pioreactor import error_codes
@@ -588,8 +587,8 @@ class TemperatureAutomationJobContrib(TemperatureAutomationJob):
 
 def start_temperature_automation(
     automation_name: str,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
     **kwargs: Any,
 ) -> TemperatureAutomationJob:
     from pioreactor.automations import temperature  # noqa: F401

@@ -6,7 +6,6 @@ from json import loads
 from typing import Any
 from typing import cast
 from typing import Iterator
-from typing import Optional
 
 import click
 from msgspec.json import encode
@@ -26,8 +25,8 @@ from pioreactor.utils import math_helpers
 def od_statistics(
     od_stream: Iterator[structs.ODReadings],
     action_name: str,
-    experiment: Optional[str] = None,
-    unit: Optional[str] = None,
+    experiment: str | None = None,
+    unit: str | None = None,
     n_samples: int = 30,
     logger: Any = None,
     skip_stirring: bool = False,

@@ -6,7 +6,6 @@ from functools import partial
 from threading import Event
 from typing import Any
 from typing import cast
-from typing import Optional
 
 import click
 from msgspec.json import encode
@@ -64,8 +63,8 @@ class PWMPump:
         experiment: pt.Experiment,
         pin: pt.GpioPin,
         calibration: structs.SimplePeristalticPumpCalibration,
-        mqtt_client: Optional[Client] = None,
-        logger: Optional[CustomLogger] = None,
+        mqtt_client: Client | None = None,
+        logger: CustomLogger | None = None,
     ) -> None:
         if calibration is None:
             raise ValueError("Calibration must be provided to PWMPump.")
@@ -158,7 +157,7 @@ def publish_async(client: Client, topic: str, payload: bytes, **kwargs: Any) -> 
 
 
 def _to_human_readable_action(
-    ml: Optional[float], duration: Optional[float], pump_device: PumpCalibrationDevices
+    ml: float | None, duration: float | None, pump_device: PumpCalibrationDevices
 ) -> str:
     if pump_device == "waste_pump":
         if duration is not None:
@@ -187,16 +186,16 @@ def _to_human_readable_action(
 
 def _pump_action(
     pump_device: PumpCalibrationDevices,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    ml: Optional[pt.mL] = None,
-    duration: Optional[pt.Seconds] = None,
-    source_of_event: Optional[str] = None,
-    calibration: Optional[structs.SimplePeristalticPumpCalibration] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
+    ml: pt.mL | None = None,
+    duration: pt.Seconds | None = None,
+    source_of_event: str | None = None,
+    calibration: structs.SimplePeristalticPumpCalibration | None = None,
     continuously: bool = False,
-    mqtt_client: Optional[Client] = None,
-    logger: Optional[CustomLogger] = None,
-    job_source: Optional[str] = None,
+    mqtt_client: Client | None = None,
+    logger: CustomLogger | None = None,
+    job_source: str | None = None,
 ) -> pt.mL:
     """
     Returns the mL cycled. However,
@@ -418,11 +417,11 @@ def _pump_action(
 def _liquid_circulation(
     pump_device: PumpCalibrationDevices,
     duration: pt.Seconds,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    mqtt_client: Optional[Client] = None,
-    logger: Optional[CustomLogger] = None,
-    source_of_event: Optional[str] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
+    mqtt_client: Client | None = None,
+    logger: CustomLogger | None = None,
+    source_of_event: str | None = None,
     **kwargs: Any,
 ) -> tuple[pt.mL, pt.mL]:
     """
@@ -570,10 +569,10 @@ add_alt_media = partial(_pump_action, "alt_media_pump")
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_add_alt_media(
-    ml: Optional[pt.mL],
-    duration: Optional[pt.Seconds],
+    ml: pt.mL | None,
+    duration: pt.Seconds | None,
     continuously: bool,
-    source_of_event: Optional[str],
+    source_of_event: str | None,
 ) -> pt.mL:
     """
     Add alt-media from unit
@@ -602,10 +601,10 @@ def click_add_alt_media(
     help="who is calling this function - for logging",
 )
 def click_remove_waste(
-    ml: Optional[pt.mL],
-    duration: Optional[pt.Seconds],
+    ml: pt.mL | None,
+    duration: pt.Seconds | None,
     continuously: bool,
-    source_of_event: Optional[str],
+    source_of_event: str | None,
 ) -> pt.mL:
     """
     Remove waste/media from unit
@@ -634,10 +633,10 @@ def click_remove_waste(
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_add_media(
-    ml: Optional[pt.mL],
-    duration: Optional[pt.Seconds],
+    ml: pt.mL | None,
+    duration: pt.Seconds | None,
     continuously: bool,
-    source_of_event: Optional[str],
+    source_of_event: str | None,
 ) -> pt.mL:
     """
     Add media to unit
@@ -665,7 +664,7 @@ def click_add_media(
 )
 def click_circulate_media(
     duration: pt.Seconds,
-    source_of_event: Optional[str],
+    source_of_event: str | None,
 ) -> tuple[pt.mL, pt.mL]:
     """
     Cycle waste/media from unit
@@ -688,7 +687,7 @@ def click_circulate_media(
 )
 def click_circulate_alt_media(
     duration: pt.Seconds,
-    source_of_event: Optional[str],
+    source_of_event: str | None,
 ) -> tuple[pt.mL, pt.mL]:
     """
     Cycle waste/alt media from unit

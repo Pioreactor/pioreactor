@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Any
 from typing import cast
-from typing import Optional
 
 from pioreactor import types as pt
 from pioreactor.automations import events
@@ -34,7 +33,7 @@ class Turbidostat(DosingAutomationJob):
     def __init__(
         self,
         exchange_volume_ml: float | str,
-        target_biomass: Optional[float | str] = None,
+        target_biomass: float | str | None = None,
         biomass_signal: str | None = None,
         **kwargs: Any,
     ) -> None:
@@ -121,7 +120,7 @@ class Turbidostat(DosingAutomationJob):
             )
             return False
 
-    def execute(self) -> Optional[events.DilutionEvent]:
+    def execute(self) -> events.DilutionEvent | None:
         assert self.target_biomass is not None
         resolved_biomass_signal = self.resolved_biomass_signal
         latest_biomass = self.latest_biomass_value(resolved_biomass_signal, od_channel=self._od_channel)

@@ -11,7 +11,6 @@ from typing import Any
 from typing import Callable
 from typing import cast
 from typing import Iterator
-from typing import Optional
 
 from pioreactor import types as pt
 from pioreactor.exc import PWMError
@@ -229,11 +228,11 @@ class PWM:
         self,
         pin: GpioPin,
         hz: float,
-        unit: Optional[str] = None,
-        experiment: Optional[str] = None,
+        unit: str | None = None,
+        experiment: str | None = None,
         always_use_software: bool = False,
-        pub_client: Optional[Client] = None,
-        logger: Optional[CustomLogger] = None,
+        pub_client: Client | None = None,
+        logger: CustomLogger | None = None,
     ) -> None:
         self.unit = unit or get_unit_name()
         self.experiment = experiment or get_assigned_experiment_name(self.unit)

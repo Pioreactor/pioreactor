@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from typing import Any
-from typing import Optional
 
 from pioreactor import structs
 from pioreactor.automations import events
@@ -40,12 +39,12 @@ class LightDarkCycle(LEDAutomationJob):
         self.light_duration_minutes = float(light_duration_minutes)
         self.dark_duration_minutes = float(dark_duration_minutes)
 
-    def execute(self) -> Optional[structs.AutomationEvent]:
+    def execute(self) -> structs.AutomationEvent | None:
         # runs every minute
         self.minutes_online += 1
         return self.trigger_leds(self.minutes_online)
 
-    def trigger_leds(self, minutes: int) -> Optional[structs.AutomationEvent]:
+    def trigger_leds(self, minutes: int) -> structs.AutomationEvent | None:
         """
         Changes the LED state based on the current minute in the cycle.
 

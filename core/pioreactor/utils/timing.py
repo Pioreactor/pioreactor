@@ -100,9 +100,9 @@ class RepeatedTimer:
         self,
         interval: float,
         function: t.Callable[..., t.Any],
-        job_name: t.Optional[str] = None,
+        job_name: str | None = None,
         run_immediately: bool = False,
-        run_after: t.Optional[float] = None,
+        run_after: float | None = None,
         logger: t.Any = None,
         args: tuple[t.Any, ...] = (),
         kwargs: dict[str, t.Any] | None = None,
@@ -177,7 +177,7 @@ class RepeatedTimer:
         """
         self.is_paused = False
 
-    def cancel(self, timeout: t.Optional[float] = None) -> None:
+    def cancel(self, timeout: float | None = None) -> None:
         self.pause()  # this will exit from the _target early.
         self.event.set()  # stop waiting in _target.
 
@@ -192,7 +192,7 @@ class RepeatedTimer:
             self.thread.start()
         return self
 
-    def join(self, timeout: t.Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         # alias for .cancel()
         self.cancel(timeout=timeout)
 

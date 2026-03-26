@@ -6,7 +6,6 @@ from threading import Thread
 from time import sleep
 from typing import Callable
 from typing import cast
-from typing import Optional
 
 import click
 from msgspec.json import decode
@@ -107,7 +106,7 @@ class Monitor(LongRunningBackgroundJob):
         "wlan_mac_address": {"datatype": "string", "settable": False},
         "eth_mac_address": {"datatype": "string", "settable": False},
     }
-    computer_statistics: Optional[dict] = None
+    computer_statistics: dict | None = None
     led_in_use: bool = False
     _pre_button: list[Callable] = []
     _post_button: list[Callable] = []
@@ -139,8 +138,8 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
 
         self.button_down = False
-        self._led_pin: Optional[int] = None
-        self._button_pin: Optional[int] = None
+        self._led_pin: int | None = None
+        self._button_pin: int | None = None
 
         hat_available = True if whoami.is_testing_env() else is_HAT_present()
 

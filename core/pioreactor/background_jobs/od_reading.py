@@ -75,7 +75,6 @@ from time import sleep
 from time import time
 from typing import Callable
 from typing import cast
-from typing import Optional
 from typing import Protocol
 
 import click
@@ -199,7 +198,7 @@ class ADCReader(LoggerMixin):
         self.adcs = self._get_ADCs()
 
         if "local_ac_hz" in config["od_reading.config"]:
-            self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_reading.config", "local_ac_hz")
+            self.most_appropriate_AC_hz: float | None = config.getfloat("od_reading.config", "local_ac_hz")
         else:
             self.most_appropriate_AC_hz = None
 
@@ -375,9 +374,9 @@ class ADCReader(LoggerMixin):
         x: list[float],
         y: list[pt.Voltage],
         freq: float,
-        prior_C: Optional[pt.Voltage] = None,
-        penalizer_C: Optional[pt.Voltage] = 0,
-    ) -> tuple[tuple[pt.Voltage, Optional[float], Optional[float]], float]:
+        prior_C: pt.Voltage | None = None,
+        penalizer_C: pt.Voltage | None = 0,
+    ) -> tuple[tuple[pt.Voltage, float | None, float | None], float]:
         r"""
         Assumes a known frequency.
         Formula is
@@ -502,8 +501,8 @@ class ADCReader(LoggerMixin):
     def _simple_trimmed_mean_with_prior(
         self,
         y: list[pt.AnalogValue],
-        prior_C: Optional[pt.AnalogValue] = None,
-        penalizer_C: Optional[pt.AnalogValue] = 0,
+        prior_C: pt.AnalogValue | None = None,
+        penalizer_C: pt.AnalogValue | None = 0,
     ) -> pt.AnalogValue:
         y_, _ = self._trim_extrema(y)
         n = len(y_)
@@ -1172,13 +1171,13 @@ class ODReader(BackgroundJob):
     def __init__(
         self,
         channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
-        interval: Optional[float],
+        interval: float | None,
         adc_reader: ADCReader,
         unit: pt.Unit,
         experiment: pt.Experiment,
-        ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
-        calibration_transformer: Optional[CalibrationTransformerProtocol] = None,
-        estimator_transformer: Optional[EstimatorTransformerProtocol] = None,
+        ir_led_reference_tracker: IrLedReferenceTracker | None = None,
+        calibration_transformer: CalibrationTransformerProtocol | None = None,
+        estimator_transformer: EstimatorTransformerProtocol | None = None,
         ir_led_intensity: float | None = None,
     ) -> None:
         super(ODReader, self).__init__(unit=unit, experiment=experiment)
@@ -1241,7 +1240,7 @@ class ODReader(BackgroundJob):
 
         self.logger.debug(f"OD setup: calibrations={calibration_status}; estimator={estimator_status}.")
 
-        self.first_od_obs_time: Optional[float] = None
+        self.first_od_obs_time: float | None = None
         self._set_for_iterating = threading.Event()
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
@@ -1373,7 +1372,7 @@ class ODReader(BackgroundJob):
         ir_led_intensity = max(ir_led_intensity, 50)  # always more than X
         return round(ir_led_intensity, 2)
 
-    def set_interval(self, interval: Optional[float]) -> None:
+    def set_interval(self, interval: float | None) -> None:
         if (interval is not None) and interval <= 0:
             raise ValueError("interval must be positive or None")
 
@@ -1636,7 +1635,7 @@ class ODReader(BackgroundJob):
         assert False  # we never reach here - this is to silence mypy
 
 
-def find_ir_led_reference(channels: Mapping[str, str | None]) -> Optional[pt.PdChannel]:
+def find_ir_led_reference(channels: Mapping[str, str | None]) -> pt.PdChannel | None:
     if sum(v == "REF" for v in channels.values()) > 1:
         raise ValueError('"REF" occurs more than once')
 

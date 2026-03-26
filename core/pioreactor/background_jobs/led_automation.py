@@ -3,7 +3,6 @@ import time
 from contextlib import suppress
 from datetime import datetime
 from typing import Any
-from typing import Optional
 
 import click
 from pioreactor import exc
@@ -37,9 +36,9 @@ class LEDAutomationJob(AutomationJob):
 
     published_settings: dict[str, pt.PublishableSetting] = {}
 
-    _latest_run_at: Optional[datetime] = None
+    _latest_run_at: datetime | None = None
 
-    latest_event: Optional[structs.AutomationEvent] = None
+    latest_event: structs.AutomationEvent | None = None
     run_thread: RepeatedTimer
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -100,7 +99,7 @@ class LEDAutomationJob(AutomationJob):
             logger=self.logger,
         ).start()
 
-    def run(self, timeout: float = 60.0) -> Optional[structs.AutomationEvent]:
+    def run(self, timeout: float = 60.0) -> structs.AutomationEvent | None:
         """
         Parameters
         -----------
@@ -109,7 +108,7 @@ class LEDAutomationJob(AutomationJob):
             Default 60s.
 
         """
-        event: Optional[structs.AutomationEvent]
+        event: structs.AutomationEvent | None
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
@@ -204,8 +203,8 @@ def start_led_automation(
     automation_name: str,
     duration: float,
     skip_first_run: bool = False,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
     **kwargs: Any,
 ) -> LEDAutomationJob:
     from pioreactor.automations import led  # noqa: F401

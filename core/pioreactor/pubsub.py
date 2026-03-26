@@ -7,7 +7,6 @@ from contextlib import suppress
 from time import sleep
 from typing import Any
 from typing import Callable
-from typing import Optional
 
 from msgspec import Struct
 from msgspec.json import decode as loads
@@ -73,16 +72,16 @@ class QOS:
 
 def create_client(
     hostname: str = mqtt_address,
-    last_will: Optional[dict[str, Any]] = None,
+    last_will: dict[str, Any] | None = None,
     client_id: str = "",
     keepalive: int = 60,
     max_connection_attempts: int = 3,
     clean_session: bool | None = None,
-    on_connect: Optional[Callable[..., Any]] = None,
-    on_disconnect: Optional[Callable[..., Any]] = None,
-    on_subscribe: Optional[Callable[..., Any]] = None,
-    on_message: Optional[Callable[..., Any]] = None,
-    userdata: Optional[dict[str, Any]] = None,
+    on_connect: Callable[..., Any] | None = None,
+    on_disconnect: Callable[..., Any] | None = None,
+    on_subscribe: Callable[..., Any] | None = None,
+    on_message: Callable[..., Any] | None = None,
+    userdata: dict[str, Any] | None = None,
     port: int = config.getint("mqtt", "broker_port", fallback=1883),
     tls: bool = config.getboolean("mqtt", "use_tls", fallback="0"),
     skip_loop: bool = False,
@@ -188,11 +187,11 @@ def publish(
 
 def subscribe(
     topics: str | list[str],
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     allow_retained: bool = True,
-    name: Optional[str] = None,
+    name: str | None = None,
     **mqtt_kwargs: Any,
-) -> Optional[pt.MQTTMessage]:
+) -> pt.MQTTMessage | None:
     """
     Modeled closely after the paho version, this also includes some try/excepts and
     a timeout. Note that this _does_ disconnect after receiving a single message.
@@ -207,7 +206,7 @@ def subscribe(
         Optional: provide a name, and logging will include it.
     """
 
-    lock: Optional[threading.Lock]
+    lock: threading.Lock | None
 
     def on_connect(
         client: Client, userdata: dict[str, Any], flags: Any, reason_code: Any, properties: Any
@@ -255,10 +254,10 @@ def subscribe(
 def subscribe_and_callback(
     callback: Callable[[pt.MQTTMessage], Any],
     topics: str | list[str],
-    last_will: Optional[dict[str, Any]] = None,
-    name: Optional[str] = None,
+    last_will: dict[str, Any] | None = None,
+    name: str | None = None,
     allow_retained: bool = True,
-    client: Optional[Client] = None,
+    client: Client | None = None,
     on_cleanup: list[Callable[[], None]] | None = None,
     **mqtt_kwargs: Any,
 ) -> Client:

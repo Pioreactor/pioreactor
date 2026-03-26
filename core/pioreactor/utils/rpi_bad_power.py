@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-from typing import Optional
 
 """
 MIT License
@@ -40,7 +39,7 @@ SYSFILE_LEGACY = "/sys/devices/platform/soc/soc:firmware/get_throttled"
 UNDERVOLTAGE_STICKY_BIT = 1 << 16
 
 
-def get_rpi_volt_hwmon() -> Optional[str]:
+def get_rpi_volt_hwmon() -> str | None:
     """Find rpi_volt hwmon device."""
     try:
         hwmons = os.listdir(SYSFILE_HWMON_DIR)
@@ -92,7 +91,7 @@ class UnderVoltageLegacy(UnderVoltage):
         return int(throttled, base=16) & UNDERVOLTAGE_STICKY_BIT == UNDERVOLTAGE_STICKY_BIT
 
 
-def new_under_voltage() -> Optional[UnderVoltage]:
+def new_under_voltage() -> UnderVoltage | None:
     """Create new UnderVoltage object."""
     hwmon = get_rpi_volt_hwmon()
     if hwmon:

@@ -24,7 +24,6 @@ import threading
 import uuid
 from queue import Queue
 from typing import Any
-from typing import Optional
 
 
 class Sqlite3Worker(threading.Thread):
@@ -175,7 +174,7 @@ class Sqlite3Worker(threading.Thread):
             del self._results[token]
             del self._select_events[token]
 
-    def execute(self, query: str, values: Optional[tuple[Any, ...]] = None) -> list[Any] | str | None:
+    def execute(self, query: str, values: tuple[Any, ...] | None = None) -> list[Any] | str | None:
         """Execute a query.
 
         Args:

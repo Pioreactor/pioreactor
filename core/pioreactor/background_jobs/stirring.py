@@ -6,7 +6,6 @@ from time import sleep
 from time import time
 from typing import Callable
 from typing import cast
-from typing import Optional
 from typing import override
 
 import click
@@ -208,10 +207,10 @@ class Stirrer(BackgroundJobWithDodging):
 
     def __init__(
         self,
-        target_rpm: Optional[float],
+        target_rpm: float | None,
         unit: pt.Unit,
         experiment: pt.Experiment,
-        rpm_calculator: "Optional[RpmCalculator | MockRpmCalculator]" = None,
+        rpm_calculator: RpmCalculator | MockRpmCalculator | None = None,
         calibration: bool | structs.SimpleStirringCalibration | None = True,
         enable_dodging_od: bool = False,
         duty_cycle: float | None = None,
@@ -236,7 +235,7 @@ class Stirrer(BackgroundJobWithDodging):
         else:
             self.logger.debug("Operating without RPM feedback loop.")
 
-        channel: Optional[pt.PwmChannel] = cast(pt.PwmChannel, config.get("PWM_reverse", "stirring"))
+        channel: pt.PwmChannel | None = cast(pt.PwmChannel, config.get("PWM_reverse", "stirring"))
 
         if channel is None:
             self.logger.error("Add stirring to [PWM] section to configuration file.")
@@ -257,7 +256,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.duty_cycle_lock = RLock()
 
         if target_rpm is not None and self.rpm_calculator is not None:
-            self.target_rpm: Optional[float] = float(target_rpm)
+            self.target_rpm: float | None = float(target_rpm)
         else:
             self.target_rpm = None
 
@@ -481,7 +480,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.kick_stirring()
         return
 
-    def poll(self, poll_for_seconds: float) -> Optional[float]:
+    def poll(self, poll_for_seconds: float) -> float | None:
         """
         Returns an MeasuredRPM, or None if not measuring RPM.
         """
@@ -513,13 +512,13 @@ class Stirrer(BackgroundJobWithDodging):
 
         return self._measured_rpm
 
-    def update_dc_with_measured_rpm(self, measured_rpm: Optional[float]) -> None:
+    def update_dc_with_measured_rpm(self, measured_rpm: float | None) -> None:
         if measured_rpm is None or self.state is not st.READY:
             return
         self._estimate_duty_cycle += self.pid.update(measured_rpm)
         self.set_duty_cycle(self._estimate_duty_cycle)
 
-    def poll_and_update_dc(self, poll_for_seconds: Optional[float] = None) -> None:
+    def poll_and_update_dc(self, poll_for_seconds: float | None = None) -> None:
         if self.rpm_calculator is None or self.target_rpm is None or self.state is not st.READY:
             return
 
@@ -581,7 +580,7 @@ class Stirrer(BackgroundJobWithDodging):
             sleep(seconds)
 
     def block_until_rpm_is_close_to_target(
-        self, abs_tolerance: float = 20, timeout: Optional[float] = 60
+        self, abs_tolerance: float = 20, timeout: float | None = 60
     ) -> bool:
         """
         This function blocks until the stirring is "close enough" to the target RPM.

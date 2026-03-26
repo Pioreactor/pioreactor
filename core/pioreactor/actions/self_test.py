@@ -16,7 +16,6 @@ from types import FrameType
 from typing import Callable
 from typing import cast
 from typing import Iterator
-from typing import Optional
 
 import click
 from pioreactor import plugin_management
@@ -649,7 +648,7 @@ def get_all_test_names() -> Iterator[str]:
 @click.command(name="self_test")
 @click.option("-k", help="see pytest's -k argument", type=str)
 @click.option("--retry-failed", is_flag=True, help="retry only previous failed tests", type=str)
-def click_self_test(k: Optional[str], retry_failed: bool) -> int:
+def click_self_test(k: str | None, retry_failed: bool) -> int:
     """
     Test the input/output in the Pioreactor
     """

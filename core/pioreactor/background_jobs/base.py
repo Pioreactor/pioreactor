@@ -63,7 +63,7 @@ def cast_bytes_to_type(value: bytes, type_: str) -> t.Any:
         raise e
 
 
-def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Optional[str]) -> str:
+def format_with_optional_units(value: pt.PublishableSettingDataType, units: str | None) -> str:
     """
     Ex:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
@@ -471,8 +471,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             see pioreactor.pubsub.QOS
         """
 
-        def wrap_callback[T](actual_callback: t.Callable[..., T]) -> t.Callable[..., t.Optional[T]]:
-            def _callback(client: Client, userdata: t.Any, message: pt.MQTTMessage) -> t.Optional[T]:
+        def wrap_callback[T](actual_callback: t.Callable[..., T]) -> t.Callable[..., T | None]:
+            def _callback(client: Client, userdata: t.Any, message: pt.MQTTMessage) -> T | None:
                 if not allow_retained and message.retain:
                     return None
                 try:

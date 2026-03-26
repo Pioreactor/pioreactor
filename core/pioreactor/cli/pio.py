@@ -8,7 +8,6 @@ from os import geteuid
 from pathlib import Path
 from shlex import quote
 from typing import Any
-from typing import Optional
 
 import click
 from pioreactor import exc
@@ -34,7 +33,7 @@ GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{4,40}$")
 RELEASE_ARCHIVE_PATTERN = re.compile(r"release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$")
 
 
-def validate_git_sha(value: Optional[str]) -> Optional[str]:
+def validate_git_sha(value: str | None) -> str | None:
     if value is None:
         return None
 
@@ -46,17 +45,17 @@ def validate_git_sha(value: Optional[str]) -> Optional[str]:
 
 
 def validate_git_sha_option(
-    _ctx: click.Context, _param: click.Parameter, value: Optional[str]
-) -> Optional[str]:
+    _ctx: click.Context, _param: click.Parameter, value: str | None
+) -> str | None:
     return validate_git_sha(value)
 
 
 def get_update_app_commands(
-    branch: Optional[str],
+    branch: str | None,
     repo: str,
-    source: Optional[str],
-    version: Optional[str],
-    sha: Optional[str] = None,
+    source: str | None,
+    version: str | None,
+    sha: str | None = None,
     no_deps: bool = False,
     defer_web_restart: bool = False,
 ) -> tuple[list[tuple[str, float]], str]:
@@ -1056,7 +1055,7 @@ def update_settings(ctx: click.Context, job: str) -> None:
 @click.option("-b", "--branch", help="specify a branch")
 @click.option("--sha", callback=validate_git_sha_option, help="specify a commit SHA")
 @click.pass_context
-def update(ctx: click.Context, source: Optional[str], branch: Optional[str], sha: Optional[str]) -> None:
+def update(ctx: click.Context, source: str | None, branch: str | None, sha: str | None) -> None:
     """
     update software for the app (it's an alias for pio update app)
     """
@@ -1093,7 +1092,7 @@ def get_non_prerelease_tags_of_pioreactor(repo: str) -> list[str]:
     return sorted(non_prerelease_tags, key=Version)
 
 
-def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
+def get_tag_to_install(repo: str, version_desired: str | None) -> str:
     """
     The function get_tag_to_install takes an optional argument version_desired and
     returns a string that represents the tag of a particular version of software to install.
@@ -1157,12 +1156,12 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
     help="skip restarting pioreactor-web.target; useful when another process will restart it later",
 )
 def update_app(
-    branch: Optional[str],
-    sha: Optional[str],
+    branch: str | None,
+    sha: str | None,
     no_deps: bool,
     repo: str,
-    source: Optional[str],
-    version: Optional[str],
+    source: str | None,
+    version: str | None,
     defer_web_restart: bool = False,
 ) -> None:
     """
@@ -1241,7 +1240,7 @@ def update_app(
 
 @update.command(name="firmware")
 @click.option("-v", "--version", help="install a specific version, default is latest")
-def update_firmware(version: Optional[str]) -> None:
+def update_firmware(version: str | None) -> None:
     """
     Update the RP2040 firmware.
 

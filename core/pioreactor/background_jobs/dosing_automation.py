@@ -5,7 +5,6 @@ from datetime import datetime
 from functools import partial
 from threading import Event
 from typing import Any
-from typing import Optional
 
 import click
 from msgspec.json import decode
@@ -95,8 +94,9 @@ class DosingAutomationJob(AutomationJob):
     job_name = "dosing_automation"
     published_settings: dict[str, pt.PublishableSetting] = {}
 
-    latest_event: Optional[structs.AutomationEvent] = None
-    _latest_run_at: Optional[datetime] = None
+    latest_event: structs.AutomationEvent | None = None
+    _latest_run_at: datetime | None = None
+    _last_vial_volume_warning_at: float | None = None
     run_thread: RepeatedTimer
     duration: float | None
 
@@ -137,7 +137,7 @@ class DosingAutomationJob(AutomationJob):
         self,
         unit: pt.Unit,
         experiment: pt.Experiment,
-        duration: Optional[float] = None,
+        duration: float | None = None,
         skip_first_run: bool = False,
         alt_media_fraction: float | None = None,
         current_volume_ml: float | None = None,
@@ -186,7 +186,7 @@ class DosingAutomationJob(AutomationJob):
         partial(add_alt_media, duration=None, calibration=None, continuously=False)
     )
 
-    def set_duration(self, duration: Optional[float]) -> None:
+    def set_duration(self, duration: float | None) -> None:
         if duration:
             self.duration = float(duration)
 
@@ -215,7 +215,7 @@ class DosingAutomationJob(AutomationJob):
                 logger=self.logger,
             ).start()
 
-    def run(self, timeout: float = 60.0) -> Optional[structs.AutomationEvent]:
+    def run(self, timeout: float = 60.0) -> structs.AutomationEvent | None:
         """
         Parameters
         -----------
@@ -224,7 +224,7 @@ class DosingAutomationJob(AutomationJob):
             Default 60s.
 
         """
-        event: Optional[structs.AutomationEvent]
+        event: structs.AutomationEvent | None
 
         self._latest_run_at = current_utc_datetime()
 
@@ -538,40 +538,51 @@ class DosingAutomationJob(AutomationJob):
         # This keeps the automation synchronized with monitor-projected dosing events, manual
         # UI/API edits, retained-state replay on startup/reconnect, and other external updates.
         self.subscribe_and_callback(
-            self._set_bioreactor_value_from_mqtt,
-            [
-                bioreactor.get_bioreactor_topic(self.unit, self.experiment, "alt_media_fraction"),
-                bioreactor.get_bioreactor_topic(self.unit, self.experiment, "current_volume_ml"),
-                bioreactor.get_bioreactor_topic(self.unit, self.experiment, "max_working_volume_ml"),
-            ],
+            self._set_alt_media_fraction_from_mqtt,
+            bioreactor.get_bioreactor_topic(self.unit, self.experiment, "alt_media_fraction"),
+        )
+        self.subscribe_and_callback(
+            self._set_current_volume_ml_from_mqtt,
+            bioreactor.get_bioreactor_topic(self.unit, self.experiment, "current_volume_ml"),
+        )
+        self.subscribe_and_callback(
+            self._set_max_working_volume_ml_from_mqtt,
+            bioreactor.get_bioreactor_topic(self.unit, self.experiment, "max_working_volume_ml"),
         )
 
-    def _set_bioreactor_value_from_mqtt(self, message: pt.MQTTMessage) -> None:
+    def _set_alt_media_fraction_from_mqtt(self, message: pt.MQTTMessage) -> None:
         # This updates only the automation's local mirror from shared bioreactor topics. It does
         # not persist or publish anything itself.
         if not message.payload:
             return
 
-        variable_name = message.topic.split("/")[4]
-        parsed_value = bioreactor.validate_bioreactor_value(variable_name, message.payload)
+        self.alt_media_fraction = bioreactor.validate_bioreactor_value("alt_media_fraction", message.payload)
 
-        if variable_name == "alt_media_fraction":
-            self.alt_media_fraction = parsed_value
-        elif variable_name == "current_volume_ml":
-            self.current_volume_ml = parsed_value
-            if (
-                self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN
-                and self._should_warn_about_high_vial_volume()
-            ):
-                self.logger.warning(
-                    f"Vial is calculated to have a volume of {self.current_volume_ml:.2f} mL. Is this expected?"
-                )
-            elif self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
-                pass
-                # TODO: this should publish to pumps to stop them.
-                # but it is checked elsewhere
-        elif variable_name == "max_working_volume_ml":
-            self.max_working_volume_ml = parsed_value
+    def _set_current_volume_ml_from_mqtt(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
+        self.current_volume_ml = bioreactor.validate_bioreactor_value("current_volume_ml", message.payload)
+
+        if (
+            self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN
+            and self._should_warn_about_high_vial_volume()
+        ):
+            self.logger.warning(
+                f"Vial is calculated to have a volume of {self.current_volume_ml:.2f} mL. Is this expected?"
+            )
+        elif self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
+            pass
+            # TODO: this should publish to pumps to stop them.
+            # but it is checked elsewhere
+
+    def _set_max_working_volume_ml_from_mqtt(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
+        self.max_working_volume_ml = bioreactor.validate_bioreactor_value(
+            "max_working_volume_ml", message.payload
+        )
 
 
 class DosingAutomationJobContrib(DosingAutomationJob):
@@ -581,8 +592,8 @@ class DosingAutomationJobContrib(DosingAutomationJob):
 def start_dosing_automation(
     automation_name: str,
     skip_first_run: bool = False,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
     **kwargs: Any,
 ) -> DosingAutomationJob:
     from pioreactor.automations import dosing  # noqa: F401

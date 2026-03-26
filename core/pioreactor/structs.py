@@ -79,7 +79,7 @@ class AutomationSettings(JSONPrintedStruct):
     pioreactor_unit: pt.Unit
     experiment: pt.Experiment
     started_at: t.Annotated[datetime, Meta(tz=True)]
-    ended_at: t.Optional[t.Annotated[datetime, Meta(tz=True)]]
+    ended_at: t.Annotated[datetime, Meta(tz=True)] | None
     automation_name: str
     settings: bytes
 
@@ -90,8 +90,8 @@ class AutomationEvent(JSONPrintedStruct, tag=True, tag_field="event_name"):
     will get published to MQTT under /latest_event
     """
 
-    message: t.Optional[str] = None
-    data: t.Optional[dict] = None
+    message: str | None = None
+    data: dict | None = None
 
     def display(self) -> str:
         if self.message:
@@ -116,7 +116,7 @@ class LEDChangeEvent(JSONPrintedStruct):
 
     channel: pt.LedChannel
     intensity: pt.LedIntensityValue
-    source_of_event: t.Optional[str]
+    source_of_event: str | None
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
@@ -127,7 +127,7 @@ class DosingEvent(JSONPrintedStruct):
 
     volume_change: float  # can be negative!
     event: str
-    source_of_event: t.Optional[str]
+    source_of_event: str | None
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
@@ -502,15 +502,15 @@ class SimpleStirringCalibration(CalibrationBase, kw_only=True, tag="simple_stirr
     y: str = "RPM"
 
 
-AnyCalibration = t.Union[
-    SimpleStirringCalibration,
-    SimplePeristalticPumpCalibration,
-    ODCalibration,
-    OD600Calibration,
-    CalibrationBase,
-]
+AnyCalibration = (
+    SimpleStirringCalibration
+    | SimplePeristalticPumpCalibration
+    | ODCalibration
+    | OD600Calibration
+    | CalibrationBase
+)
 
-AnyEstimator = t.Union[EstimatorBase, ODFusionEstimator]
+AnyEstimator = EstimatorBase | ODFusionEstimator
 
 
 class Log(JSONPrintedStruct):
@@ -529,13 +529,13 @@ class KalmanFilterOutput(JSONPrintedStruct):
 
 class Dataset(JSONPrintedStruct):
     dataset_name: str  # the unique key
-    description: t.Optional[str]
+    description: str | None
     display_name: str
     has_experiment: bool
     has_unit: bool
-    default_order_by: t.Optional[str]
-    table: t.Optional[str] = None
-    query: t.Optional[str] = None
+    default_order_by: str | None
+    table: str | None = None
+    query: str | None = None
     source: str = "app"
     timestamp_columns: list[str] = []
     always_partition_by_unit: bool = False
@@ -574,10 +574,10 @@ class PublishedSettingsDescriptor(Struct, forbid_unknown_fields=True):
     key: str
     type: t.Literal["numeric", "boolean", "string", "json"]
     display: bool
-    description: t.Optional[str] = None
-    default: t.Optional[t.Union[str, bool]] = None  # DEPRECATED DO NOT USE
-    unit: t.Optional[str] = None
-    label: t.Optional[str] = None  # if display is false, this isn't needed
+    description: str | None = None
+    default: str | bool | None = None  # DEPRECATED DO NOT USE
+    unit: str | None = None
+    label: str | None = None  # if display is false, this isn't needed
     editable: bool = True
 
 
@@ -586,9 +586,9 @@ class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):
     job_name: str
     display: bool
     published_settings: list[PublishedSettingsDescriptor]
-    source: t.Optional[str] = None  # what plugin / app created this job? Usually `app`
-    description: t.Optional[str] = None  # if display is false, this isn't needed
-    subtext: t.Optional[str] = None
+    source: str | None = None  # what plugin / app created this job? Usually `app`
+    description: str | None = None  # if display is false, this isn't needed
+    subtext: str | None = None
     is_testing: bool = False  # DEPRECATED DO NOT USE
 
 
@@ -597,19 +597,19 @@ class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):
 
 class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):
     key: str
-    default: t.Union[str, float, int, None]
+    default: str | float | int | None
     label: str
     disabled: bool = False
-    unit: t.Optional[str] = None
+    unit: str | None = None
     type: t.Literal["numeric", "string", "select"] = "numeric"  # TODO we will include boolean
-    options: t.Optional[list[str]] = None
+    options: list[str] | None = None
 
 
 class AutomationDescriptor(Struct, forbid_unknown_fields=True):
     display_name: str
     automation_name: str
     description: str
-    source: t.Optional[str] = None  # what plugin / app created this automation? Usually `app`
+    source: str | None = None  # what plugin / app created this automation? Usually `app`
     fields: list[AutomationFieldsDescriptor] = []
 
 
@@ -624,12 +624,12 @@ class ChartDescriptor(Struct, forbid_unknown_fields=True):
     y_axis_label: str
     fixed_decimals: int
     down_sample: bool = True
-    mqtt_topic: t.Optional[str | list[str]] = None  # leave empty for no live updates from mqtt
-    lookback: t.Union[int, str, float] = 100_000
-    data_source_column: t.Optional[str] = None  # column in sql store
-    payload_key: t.Optional[str] = None
-    y_transformation: t.Optional[str] = "(y) => y"  # default is the identity
-    y_axis_domain: t.Optional[list[float]] = None
+    mqtt_topic: str | list[str] | None = None  # leave empty for no live updates from mqtt
+    lookback: int | str | float = 100_000
+    data_source_column: str | None = None  # column in sql store
+    payload_key: str | None = None
+    y_transformation: str | None = "(y) => y"  # default is the identity
+    y_axis_domain: list[float] | None = None
     interpolation: t.Literal[
         "basis",
         "bundle",
