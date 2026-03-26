@@ -8,8 +8,8 @@ import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
 
 function ErrorSnackbar() {
-  const HEAD_LINE_COUNT = 4;
-  const TAIL_LINE_COUNT = 4;
+  const HEAD_LINE_COUNT = 3;
+  const TAIL_LINE_COUNT = 5;
   const [open, setOpen] = React.useState(false)
   const [unit, setUnit] = React.useState("")
   const [msg, setMsg] = React.useState("")
@@ -99,7 +99,7 @@ function ErrorSnackbar() {
       open={open}
       anchorOrigin={{vertical: "bottom", horizontal: "right"}}
       key="error-snackbar"
-      autoHideDuration={14000}
+      autoHideDuration={7000}
       style={{maxWidth: "500px"}}
       message={`${task}:${level}:${unit}:${formattedMessage}`}
       onClose={handleClose}

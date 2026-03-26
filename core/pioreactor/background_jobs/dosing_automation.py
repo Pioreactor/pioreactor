@@ -435,47 +435,9 @@ class DosingAutomationJob(AutomationJob):
             if self.run_thread.is_alive():
                 self.logger.debug("run_thread still alive!")
 
-    def _update_dosing_metrics(self, message: pt.MQTTMessage) -> None:
+    def _update_throughput_from_dosing_event(self, message: pt.MQTTMessage) -> None:
         dosing_event = decode(message.payload, type=structs.DosingEvent)
-        self._update_alt_media_fraction(dosing_event)
         self._update_throughput(dosing_event)
-        self._update_liquid_volume(dosing_event)
-
-    def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
-        # This updates only the automation's in-memory mirror. Monitor separately observes the
-        # same dosing event and persists/publishes the shared bioreactor state. We update here
-        # too so the control loop does not wait on that asynchronous round-trip before making
-        # volume-dependent decisions.
-        self.alt_media_fraction = round(
-            bioreactor.calculate_updated_alt_media_fraction(
-                dosing_event,
-                current_alt_media_fraction=self.alt_media_fraction,
-                current_volume_ml=self.current_volume_ml,
-            ),
-            10,
-        )
-
-    def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
-        self.current_volume_ml = round(
-            bioreactor.calculate_updated_current_volume(
-                dosing_event,
-                current_volume_ml=self.current_volume_ml,
-                max_working_volume_ml=self.max_working_volume_ml,
-            ),
-            10,
-        )
-
-        if (
-            self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN
-            and self._should_warn_about_high_vial_volume()
-        ):
-            self.logger.warning(
-                f"Vial is calculated to have a volume of {self.current_volume_ml:.2f} mL. Is this expected?"
-            )
-        elif self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
-            pass
-            # TODO: this should publish to pumps to stop them.
-            # but it is checked elsewhere
 
     def _should_warn_about_high_vial_volume(self) -> bool:
         now = time.time()
@@ -569,12 +531,12 @@ class DosingAutomationJob(AutomationJob):
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
-            self._update_dosing_metrics,
+            self._update_throughput_from_dosing_event,
             f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
         )
-        # Keep the automation's in-memory bioreactor mirror synchronized with the shared
-        # retained bioreactor state. This covers manual UI/API edits, retained-state replay on
-        # startup/reconnect, and any bioreactor updates that did not originate in this process.
+        # The shared retained bioreactor topics are the source of truth for liquid metadata.
+        # This keeps the automation synchronized with monitor-projected dosing events, manual
+        # UI/API edits, retained-state replay on startup/reconnect, and other external updates.
         self.subscribe_and_callback(
             self._set_bioreactor_value_from_mqtt,
             [
@@ -597,6 +559,17 @@ class DosingAutomationJob(AutomationJob):
             self.alt_media_fraction = parsed_value
         elif variable_name == "current_volume_ml":
             self.current_volume_ml = parsed_value
+            if (
+                self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN
+                and self._should_warn_about_high_vial_volume()
+            ):
+                self.logger.warning(
+                    f"Vial is calculated to have a volume of {self.current_volume_ml:.2f} mL. Is this expected?"
+                )
+            elif self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
+                pass
+                # TODO: this should publish to pumps to stop them.
+                # but it is checked elsewhere
         elif variable_name == "max_working_volume_ml":
             self.max_working_volume_ml = parsed_value
 

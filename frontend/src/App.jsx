@@ -24,7 +24,6 @@ import Inventory from "./Inventory";
 import Leader from "./Leader";
 import Logs from "./Logs";
 import SystemLogs from "./SystemLogs";
-//import Analysis from "./Analysis";
 import Experiments from "./Experiments";
 import Calibrations from "./Calibrations";
 import CalibrationCoverage from "./CalibrationCoverage";

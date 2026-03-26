@@ -7,6 +7,7 @@
 #### Bug fixes
 
 - Fixed repeated in-process actions such as dosing/pump runs to clean up MQTT listeners, signal handlers, and short-lived MQTT clients more reliably, preventing runaway localhost socket/file-descriptor growth in long-lived jobs.
+- Fixed `dosing_automation` bioreactor state synchronization so `current_volume_ml` and `alt_media_fraction` now follow the retained `bioreactor/*` topics as the shared source of truth, keeping manual edits and projected dosing events consistent.
 
 ### 26.3.3
 

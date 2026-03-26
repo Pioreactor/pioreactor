@@ -71,7 +71,32 @@ def test_validate_bioreactor_value_rejects_current_volume_above_model_capacity(
         bioreactor.validate_bioreactor_value("current_volume_ml", 20.1)
 
 
-def test_validate_bioreactor_value_rejects_max_working_volume_above_model_limit(
+def test_validate_bioreactor_value_allows_max_working_volume_above_max_fill_and_up_to_model_capacity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        bioreactor,
+        "get_pioreactor_model",
+        lambda: structs.Model(
+            model_name="test_model",
+            model_version="1.0",
+            display_name="Test model",
+            reactor_capacity_ml=20.0,
+            reactor_max_fill_volume_ml=18.0,
+            reactor_diameter_mm=27.0,
+            max_temp_to_reduce_heating=63.0,
+            max_temp_to_disable_heating=65.0,
+            max_temp_to_shutdown=66.0,
+            is_legacy=False,
+            is_contrib=False,
+        ),
+    )
+
+    assert bioreactor.validate_bioreactor_value("max_working_volume_ml", 18.1) == pytest.approx(18.1)
+    assert bioreactor.validate_bioreactor_value("max_working_volume_ml", 20.0) == pytest.approx(20.0)
+
+
+def test_validate_bioreactor_value_rejects_max_working_volume_above_model_capacity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -93,7 +118,7 @@ def test_validate_bioreactor_value_rejects_max_working_volume_above_model_limit(
     )
 
     with pytest.raises(ValueError):
-        bioreactor.validate_bioreactor_value("max_working_volume_ml", 18.1)
+        bioreactor.validate_bioreactor_value("max_working_volume_ml", 20.1)
 
 
 def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_waste() -> None:
@@ -109,6 +134,57 @@ def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_
         current_volume_ml=15.0,
         max_working_volume_ml=14.0,
     ) == pytest.approx(14.0)
+
+
+def test_calculate_updated_current_volume_accepts_add_media_events() -> None:
+    dosing_event = structs.DosingEvent(
+        volume_change=6.0,
+        event="add_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    assert bioreactor.calculate_updated_current_volume(
+        dosing_event,
+        current_volume_ml=0.0,
+        max_working_volume_ml=14.0,
+    ) == pytest.approx(6.0)
+
+
+def test_calculate_updated_current_volume_rejects_additions_above_model_capacity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        bioreactor,
+        "get_pioreactor_model",
+        lambda: structs.Model(
+            model_name="test_model",
+            model_version="1.0",
+            display_name="Test model",
+            reactor_capacity_ml=20.0,
+            reactor_max_fill_volume_ml=18.0,
+            reactor_diameter_mm=27.0,
+            max_temp_to_reduce_heating=63.0,
+            max_temp_to_disable_heating=65.0,
+            max_temp_to_shutdown=66.0,
+            is_legacy=False,
+            is_contrib=False,
+        ),
+    )
+
+    dosing_event = structs.DosingEvent(
+        volume_change=2.0,
+        event="add_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    with pytest.raises(ValueError):
+        bioreactor.calculate_updated_current_volume(
+            dosing_event,
+            current_volume_ml=19.0,
+            max_working_volume_ml=14.0,
+        )
 
 
 def test_calculate_updated_current_volume_sequence() -> None:
@@ -267,6 +343,22 @@ def test_calculate_updated_alt_media_fraction_ignores_unknown_events() -> None:
         current_alt_media_fraction=0.25,
         current_volume_ml=10.0,
     ) == pytest.approx(0.25)
+
+
+def test_calculate_updated_alt_media_fraction_rejects_invalid_fraction_on_unknown_event() -> None:
+    dosing_event = structs.DosingEvent(
+        volume_change=1.0,
+        event="add_salty_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    with pytest.raises(ValueError):
+        bioreactor.calculate_updated_alt_media_fraction(
+            dosing_event,
+            current_alt_media_fraction=1.25,
+            current_volume_ml=10.0,
+        )
 
 
 def test_calculate_updated_alt_media_fraction_snaps_extreme_dilutions_to_zero() -> None:

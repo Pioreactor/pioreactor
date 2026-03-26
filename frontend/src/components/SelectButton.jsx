@@ -25,7 +25,6 @@ const SelectButton = React.forwardRef((props, _ref) => {
   };
 
   const handleButtonClick = (e) => {
-    console.log(e)
     const value = valueRef.current;
     Object.defineProperty(e, 'target', { writable: true, value: { value } });
     onClick(e);

@@ -29,6 +29,7 @@ from pioreactor.hardware import get_pcb_led_pin
 from pioreactor.hardware import get_temp_address
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
+from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
@@ -661,7 +662,12 @@ class Monitor(LongRunningBackgroundJob):
                 mqtt_client=self.pub_client,
             )
         except Exception as e:
-            self.logger.warning(str(e))
+            create_logger(
+                "bioreactor",
+                unit=self.unit,
+                experiment=whoami.get_assigned_experiment_name(self.unit),
+                pub_client=self.pub_client,
+            ).warning(str(e))
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

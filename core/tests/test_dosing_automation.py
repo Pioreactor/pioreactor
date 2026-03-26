@@ -24,7 +24,6 @@ from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
-from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.utils import local_persistent_storage
@@ -32,7 +31,7 @@ from pioreactor.utils import SummableDict
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+from tests.utils import dosing_events_to_bioreactor_projector
 
 
 def close(x: float, y: float) -> bool:
@@ -958,16 +957,17 @@ def test_execute_io_action() -> None:
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
-    with Silent(unit=unit, experiment=experiment, current_volume_ml=14.0) as ca:
-        results = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
-        pause()
-        assert results["media_ml"] == 1.25
-        assert results["alt_media_ml"] == 0.01
-        assert results["waste_ml"] == 1.26
-        assert ca.media_throughput == 1.25
-        assert ca.alt_media_throughput == 0.01
-        assert ca.current_volume_ml == 14.0
-        assert close(ca.alt_media_fraction, 0.0006688099108144436)
+    with dosing_events_to_bioreactor_projector(unit, experiment):
+        with Silent(unit=unit, experiment=experiment, current_volume_ml=14.0) as ca:
+            results = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+            pause()
+            assert results["media_ml"] == 1.25
+            assert results["alt_media_ml"] == 0.01
+            assert results["waste_ml"] == 1.26
+            assert ca.media_throughput == 1.25
+            assert ca.alt_media_throughput == 0.01
+            assert ca.current_volume_ml == 14.0
+            assert wait_for(lambda: close(ca.alt_media_fraction, 0.0006688099108144436), timeout=5.0)
 
 
 def test_execute_io_action_outputs1() -> None:
@@ -1467,7 +1467,7 @@ def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
     experiment = "test_pass_in_alt_media_fraction"
     unit = get_unit_name()
 
-    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+    with dosing_events_to_bioreactor_projector(unit, experiment):
         with start_dosing_automation(
             "chemostat",
             False,
@@ -1507,22 +1507,23 @@ def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
     experiment = "test_chemostat_from_0_volume"
     unit = get_unit_name()
 
-    with start_dosing_automation(
-        "chemostat",
-        False,
-        unit,
-        experiment,
-        exchange_volume_ml=0.5,
-        current_volume_ml=0,
-        duration=None,
-    ) as chemostat_job:
-        chemostat = cast(Chemostat, chemostat_job)
-        chemostat.run()
-        assert wait_for(lambda: close(chemostat.media_throughput, 0.5), timeout=5.0)
-        assert wait_for(lambda: close(chemostat.current_volume_ml, 0.5), timeout=5.0)
-        chemostat.run()
-        assert wait_for(lambda: close(chemostat.media_throughput, 1.0), timeout=5.0)
-        assert wait_for(lambda: close(chemostat.current_volume_ml, 1.0), timeout=5.0)
+    with dosing_events_to_bioreactor_projector(unit, experiment):
+        with start_dosing_automation(
+            "chemostat",
+            False,
+            unit,
+            experiment,
+            exchange_volume_ml=0.5,
+            current_volume_ml=0,
+            duration=None,
+        ) as chemostat_job:
+            chemostat = cast(Chemostat, chemostat_job)
+            chemostat.run()
+            assert wait_for(lambda: close(chemostat.media_throughput, 0.5), timeout=5.0)
+            assert wait_for(lambda: close(chemostat.current_volume_ml, 0.5), timeout=5.0)
+            chemostat.run()
+            assert wait_for(lambda: close(chemostat.media_throughput, 1.0), timeout=5.0)
+            assert wait_for(lambda: close(chemostat.current_volume_ml, 1.0), timeout=5.0)
 
 
 @pytest.mark.slow
@@ -1554,32 +1555,33 @@ def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
             )
             return events.DilutionEvent(data=cycled)
 
-    with start_dosing_automation(
-        "_test_chemostat_alt_media",
-        False,
-        unit,
-        experiment,
-        exchange_volume_ml=2.0,
-        alt_media_fraction=0.5,
-        fraction_alt_media=0.5,
-        duration=0.1,
-    ) as automation_job:
-        assert automation_job.alt_media_fraction == 0.5
-        assert wait_for(lambda: automation_job.media_throughput > 0, timeout=5.0)
-        assert close(automation_job.alt_media_fraction, 0.5)
+    with dosing_events_to_bioreactor_projector(unit, experiment):
+        with start_dosing_automation(
+            "_test_chemostat_alt_media",
+            False,
+            unit,
+            experiment,
+            exchange_volume_ml=2.0,
+            alt_media_fraction=0.5,
+            fraction_alt_media=0.5,
+            duration=0.1,
+        ) as automation_job:
+            assert automation_job.alt_media_fraction == 0.5
+            assert wait_for(lambda: automation_job.media_throughput > 0, timeout=5.0)
+            assert wait_for(lambda: close(automation_job.alt_media_fraction, 0.5), timeout=5.0)
 
-    # change fraction_alt_media to increase alt_media being added
-    with start_dosing_automation(
-        "_test_chemostat_alt_media",
-        False,
-        unit,
-        experiment,
-        exchange_volume_ml=2.0,
-        fraction_alt_media=1.0,
-        duration=0.1,
-    ) as automation_job:
-        assert automation_job.alt_media_fraction == 0.5
-        assert wait_for(lambda: automation_job.alt_media_fraction > 0.5, timeout=5.0)
+        # change fraction_alt_media to increase alt_media being added
+        with start_dosing_automation(
+            "_test_chemostat_alt_media",
+            False,
+            unit,
+            experiment,
+            exchange_volume_ml=2.0,
+            fraction_alt_media=1.0,
+            duration=0.1,
+        ) as automation_job:
+            assert close(automation_job.alt_media_fraction, 0.5)
+            assert wait_for(lambda: automation_job.alt_media_fraction > 0.5, timeout=5.0)
 
 
 @pytest.mark.slow
@@ -1589,7 +1591,7 @@ def test_public_add_media_does_not_double_count_with_running_dosing_automation(
 ) -> None:
     experiment = "test_public_add_media_does_not_double_count_with_running_dosing_automation"
 
-    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
+    with dosing_events_to_bioreactor_projector(unit, experiment):
         with Silent(
             unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0
         ) as automation_job:
@@ -1610,7 +1612,7 @@ def test_public_add_media_does_not_double_count_with_running_dosing_automation(
 def test_bioreactor_mqtt_updates_running_dosing_job() -> None:
     experiment = "test_bioreactor_mqtt_updates_running_dosing_job"
 
-    with Monitor(unit=unit, experiment="$experiment"):
+    with dosing_events_to_bioreactor_projector(unit, experiment):
         with DosingAutomationJob(unit=unit, experiment=experiment) as job:
             pubsub.publish(
                 bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
@@ -1808,19 +1810,20 @@ def test_custom_class_without_duration() -> None:
 def test_dosing_automation_initial_values_for_volumes() -> None:
     exp = "test_dosing_automation_initial_values_for_volumes"
 
-    with Silent(
-        unit=unit,
-        experiment=exp,
-        alt_media_fraction=0.5,
-        current_volume_ml=10.0,
-        max_working_volume_ml=15.0,
-    ) as ca:
-        assert ca.current_volume_ml == 10.0
-        assert ca.max_working_volume_ml == 15.0
-        assert ca.alt_media_fraction == 0.5
-        ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
-        assert ca.current_volume_ml == 11.0
-        assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6
+    with dosing_events_to_bioreactor_projector(unit, exp):
+        with Silent(
+            unit=unit,
+            experiment=exp,
+            alt_media_fraction=0.5,
+            current_volume_ml=10.0,
+            max_working_volume_ml=15.0,
+        ) as ca:
+            assert ca.current_volume_ml == 10.0
+            assert ca.max_working_volume_ml == 15.0
+            assert ca.alt_media_fraction == 0.5
+            ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
+            assert wait_for(lambda: close(ca.current_volume_ml, 11.0), timeout=5.0)
+            assert wait_for(lambda: abs(ca.alt_media_fraction - 0.4545454545) < 1e-6, timeout=5.0)
 
 
 def test_dosing_automation_uses_stored_values_when_none_provided() -> None:

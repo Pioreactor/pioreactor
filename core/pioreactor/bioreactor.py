@@ -90,7 +90,7 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
         raise ValueError(f"Invalid value for bioreactor variable `{variable_name}`.") from e
 
     minimum = metadata.minimum
-    maximum = get_pioreactor_model().reactor_max_fill_volume_ml
+    maximum = get_pioreactor_model().reactor_capacity_ml
 
     if metadata.maximum is not None:
         maximum = min(maximum, metadata.maximum)
@@ -173,14 +173,17 @@ def calculate_updated_current_volume(
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
     if event == "add_alt_media" or event.startswith("add_"):
-        return max(current_volume_ml + volume, 0.0)
+        vol = max(current_volume_ml + volume, 0.0)
 
-    if event == "remove_waste":
+    elif event == "remove_waste":
         if current_volume_ml <= max_working_volume_ml:
-            return max(current_volume_ml, 0.0)
-        return max(current_volume_ml - volume, max_working_volume_ml, 0.0)
+            vol = max(current_volume_ml, 0.0)
+        else:
+            vol = max(current_volume_ml - volume, max_working_volume_ml, 0.0)
+    else:
+        raise ValueError(f"Unknown dosing event type `{event}`.")
 
-    raise ValueError(f"Unknown dosing event type `{event}`.")
+    return validate_bioreactor_value("current_volume_ml", vol)
 
 
 def calculate_updated_alt_media_fraction(
@@ -191,25 +194,28 @@ def calculate_updated_alt_media_fraction(
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
     if event == "add_media":
-        return _calculate_alt_media_fraction_after_addition(
+        frac = _calculate_alt_media_fraction_after_addition(
             current_alt_media_fraction,
             media_delta=volume,
             alt_media_delta=0.0,
             current_volume_ml=current_volume_ml,
         )
 
-    if event == "add_alt_media":
-        return _calculate_alt_media_fraction_after_addition(
+    elif event == "add_alt_media":
+        frac = _calculate_alt_media_fraction_after_addition(
             current_alt_media_fraction,
             media_delta=0.0,
             alt_media_delta=volume,
             current_volume_ml=current_volume_ml,
         )
 
-    if event == "remove_waste":
-        return current_alt_media_fraction
+    elif event == "remove_waste":
+        frac = current_alt_media_fraction
 
-    return current_alt_media_fraction
+    else:
+        frac = current_alt_media_fraction
+
+    return validate_bioreactor_value("alt_media_fraction", frac)
 
 
 def apply_dosing_event_to_bioreactor(
