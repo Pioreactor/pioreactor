@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -32,7 +34,7 @@ class PID:
         job_name: str | None = None,
         target_name: str | None = None,
         derivative_smoothing: float = 0.0,
-        pub_client: "Client" | None = None,
+        pub_client: Client | None = None,
     ) -> None:
         # PID coefficients
         self.Kp = Kp

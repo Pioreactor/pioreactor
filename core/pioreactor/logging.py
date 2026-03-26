@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
 import re
 from logging import handlers
@@ -160,7 +162,7 @@ def create_logger(
     experiment: pt.Experiment | None = None,
     source: str = "app",
     to_mqtt: bool = True,
-    pub_client: "Client | None" = None,
+    pub_client: Client | None = None,
     log_file_location: str = config["logging"]["log_file"],
 ) -> CustomLogger:
     """

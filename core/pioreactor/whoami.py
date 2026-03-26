@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import os
 import sys
 import time
@@ -164,7 +166,7 @@ def am_I_a_worker() -> bool:
 
 
 @cache
-def get_pioreactor_model(unit_name: "pt.Unit | None" = None) -> "Model":
+def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
     """
     Return the Pioreactor model for a specific unit. Defaults to the local unit.
     """
@@ -187,7 +189,7 @@ def get_pioreactor_model(unit_name: "pt.Unit | None" = None) -> "Model":
         raise UnknownModelAssignedError(f"Unknown Pioreactor model {name} v{version}.")
 
 
-def _get_pioreactor_model_version(unit_name: "pt.Unit") -> str | None:
+def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
     # pioreactor model version
     local_unit_name = get_unit_name()
 

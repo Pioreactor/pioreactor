@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import os
 import signal
 import time
@@ -76,7 +78,7 @@ class managed_lifecycle:
         unit: pt.Unit,
         experiment: pt.Experiment,
         name: str,
-        mqtt_client: "Client | None" = None,
+        mqtt_client: Client | None = None,
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: dict[str, Any] | None = None,
         ignore_is_active_state: bool = False,  # hack and kinda gross
@@ -246,7 +248,7 @@ class long_running_managed_lifecycle(managed_lifecycle):
         unit: pt.Unit,
         experiment: pt.Experiment,
         name: str,
-        mqtt_client: "Client | None" = None,
+        mqtt_client: Client | None = None,
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: dict | None = None,
         source: str = "app",

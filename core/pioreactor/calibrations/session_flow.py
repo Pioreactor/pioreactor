@@ -96,10 +96,10 @@ def _validate_field_bounds(
 class SessionStep:
     step_id = ""
 
-    def render(self, ctx: "SessionContext") -> CalibrationStep:
+    def render(self, ctx: SessionContext) -> CalibrationStep:
         raise NotImplementedError("Step must implement render().")
 
-    def advance(self, ctx: "SessionContext") -> "StepLike | None":
+    def advance(self, ctx: SessionContext) -> StepLike | None:
         return None
 
 
