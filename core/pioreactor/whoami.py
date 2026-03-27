@@ -42,13 +42,14 @@ def get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
 
 
 def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
-    from pioreactor.pubsub import get_from_leader
-    from pioreactor.config import leader_address
 
     if os.environ.get("EXPERIMENT") is not None:
         return os.environ["EXPERIMENT"]
     elif is_testing_env():
         return "_testing_experiment"
+
+    from pioreactor.pubsub import get_from_leader
+    from pioreactor.config import leader_address
 
     retries = 6
 

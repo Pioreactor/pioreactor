@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import importlib
 from contextlib import ExitStack
 from typing import Any
 
@@ -51,16 +52,55 @@ class RunLazyGroup(LazyGroup):
                     self.add_command(getattr(plugin.module, possible_entry_point))
         self._plugins_loaded = True
 
+    def _command_from_plugin_module(self, module: Any, cmd_name: str) -> click.Command | None:
+        for possible_entry_point in dir(module):
+            if not possible_entry_point.startswith("click_"):
+                continue
+            candidate = getattr(module, possible_entry_point)
+            if isinstance(candidate, click.Command) and candidate.name == cmd_name:
+                self.add_command(candidate)
+                return candidate
+        return None
+
+    def _try_load_plugin_command(self, cmd_name: str) -> click.Command | None:
+        from pioreactor.plugin_management.utils import discover_plugins_in_entry_points
+        from pioreactor.plugin_management.utils import discover_plugins_in_local_folder
+
+        local_plugins = discover_plugins_in_local_folder()
+
+        prioritized_local_plugins = sorted(
+            local_plugins,
+            key=lambda plugin_path: (plugin_path.stem != cmd_name, str(plugin_path)),
+        )
+        for plugin_path in prioritized_local_plugins:
+            try:
+                module = importlib.import_module(plugin_path.stem)
+            except Exception:
+                continue
+            command = self._command_from_plugin_module(module, cmd_name)
+            if command is not None:
+                return command
+
+        for plugin in discover_plugins_in_entry_points():
+            try:
+                module = plugin.load()
+            except Exception:
+                continue
+            command = self._command_from_plugin_module(module, cmd_name)
+            if command is not None:
+                return command
+        return None
+
     def list_commands(self, ctx: click.Context) -> list[str]:
         self._load_plugins()
         return super().list_commands(ctx)
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
-        self._load_plugins()
-        # Prefer plugin-registered commands over lazy defaults so plugins can
-        # intentionally replace built-in command entrypoints.
         if cmd_name in self.commands:
             return self.commands[cmd_name]
+        command = self._try_load_plugin_command(cmd_name)
+        if command is not None:
+            return command
         return super().get_command(ctx, cmd_name)
 
 
