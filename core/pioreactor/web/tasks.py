@@ -58,6 +58,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.web.config import huey
+from pioreactor.web.utils import CachedGetEntry
 from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
 
@@ -1095,7 +1096,7 @@ def _collect_multicast_results(
         return results
 
 
-def _multicast_get_cache_key(cache_namespace: str, endpoint: str, unit: str) -> tuple[str, str, str, str]:
+def _multicast_get_cache_key(cache_namespace: str, endpoint: str, unit: pt.Unit) -> tuple[str, str, str, str]:
     return ("multicast_get", cache_namespace, endpoint, unit)
 
 
@@ -1107,43 +1108,22 @@ def _read_multicast_get_cache_entry(
     unit: str,
     ttl_s: float,
 ) -> tuple[bool, Any]:
-    raw_entry = cache_store.get(_multicast_get_cache_key(cache_namespace, endpoint, unit))
+    key = _multicast_get_cache_key(cache_namespace, endpoint, unit)
+    raw_entry = cache_store.get(key)
     if raw_entry is None:
         return False, None
 
     try:
-        entry = json_decode(raw_entry)
+        entry = json_decode(raw_entry, type=CachedGetEntry)
     except DecodeError:
-        cache_store.pop(_multicast_get_cache_key(cache_namespace, endpoint, unit), None)
+        cache_store.pop(key, None)
         return False, None
 
-    if not isinstance(entry, dict):
-        cache_store.pop(_multicast_get_cache_key(cache_namespace, endpoint, unit), None)
+    if (time() - entry.cached_at) > ttl_s:
+        cache_store.pop(key, None)
         return False, None
 
-    cached_at = entry.get("cached_at")
-    if not isinstance(cached_at, (int, float)):
-        cache_store.pop(_multicast_get_cache_key(cache_namespace, endpoint, unit), None)
-        return False, None
-
-    if (time() - float(cached_at)) > ttl_s:
-        cache_store.pop(_multicast_get_cache_key(cache_namespace, endpoint, unit), None)
-        return False, None
-
-    return True, entry.get("value")
-
-
-def _write_multicast_get_cache_entry(
-    cache_store: Any,
-    *,
-    cache_namespace: str,
-    endpoint: str,
-    unit: str,
-    value: Any,
-) -> None:
-    cache_store[_multicast_get_cache_key(cache_namespace, endpoint, unit)] = json_encode(
-        {"cached_at": time(), "value": value}
-    )
+    return True, entry.value
 
 
 def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[str]) -> None:
@@ -1334,13 +1314,10 @@ def multicast_get_with_leader_cache(
         for unit, value in fetched_results.items():
             if value is None:
                 continue
-            _write_multicast_get_cache_entry(
-                cache_store,
-                cache_namespace=cache_namespace,
-                endpoint=endpoint,
-                unit=unit,
-                value=value,
-            )
+
+            blob = json_encode(CachedGetEntry(cached_at=time(), value=value))
+            key = _multicast_get_cache_key(cache_namespace, endpoint, unit)
+            cache_store[key] = blob
 
     cached_results.update(fetched_results)
     return dict(sorted(cached_results.items()))

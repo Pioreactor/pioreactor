@@ -8,6 +8,7 @@
 
 - Fixed repeated in-process actions such as dosing/pump runs to clean up MQTT listeners, signal handlers, and short-lived MQTT clients more reliably, preventing runaway localhost socket/file-descriptor growth in long-lived jobs.
 - Fixed `dosing_automation` bioreactor state synchronization so `current_volume_ml` and `alt_media_fraction` now follow the retained `bioreactor/*` topics as the shared source of truth, keeping manual edits and projected dosing events consistent.
+- Fixed `fed_batch` dosing to skip additions that would push the vial past the configured hard-stop safety volume, pausing the automation instead of risking overflow.
 - Fixed non-interactive SSH and `nohup` command execution for `pio` and `pios` by installing `/usr/local/bin` wrappers that source `/etc/pioreactor.env` before execing the Pioreactor virtualenv binaries.
 
 ### 26.3.3

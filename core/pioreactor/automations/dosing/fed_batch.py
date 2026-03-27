@@ -30,7 +30,16 @@ class FedBatch(DosingAutomationJob):
         )
         self.dosing_volume_ml = float(dosing_volume_ml)
 
-    def execute(self) -> events.AddMediaEvent:
+    def execute(self) -> events.AddMediaEvent | events.NoEvent:
+        projected_volume_ml = self.current_volume_ml + self.dosing_volume_ml
+        if projected_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
+            self.logger.error(
+                f"Skipping fed-batch dose since {self.current_volume_ml:g} + {self.dosing_volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
+            )
+            self.stop_active_pumps()
+            self.set_state(self.SLEEPING)
+            return events.NoEvent("Skipped dosing to avoid overflow.")
+
         vol = self.add_media_to_bioreactor(
             ml=self.dosing_volume_ml,
             source_of_event=f"{self.job_name}:{self.automation_name}",

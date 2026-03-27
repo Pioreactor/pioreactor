@@ -19,6 +19,7 @@ from pioreactor import structs
 from pioreactor.actions.pump import add_media
 from pioreactor.automations import events
 from pioreactor.automations.dosing.chemostat import Chemostat
+from pioreactor.automations.dosing.fed_batch import FedBatch
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
@@ -1080,6 +1081,40 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
     assert result["media_ml"] == pytest.approx(0.4)
     assert result["alt_media_ml"] == pytest.approx(0.0)
     assert result["waste_ml"] == pytest.approx(0.0)
+
+
+def test_fed_batch_skips_dose_that_would_overflow() -> None:
+    experiment = "test_fed_batch_skips_dose_that_would_overflow"
+    stop_messages: list[tuple[str, bytes, int]] = []
+
+    class FakePubClient:
+        def publish(self, topic: str, payload=None, qos: int = 0, **kwargs):
+            if topic.endswith("/$state/set"):
+                stop_messages.append((topic, payload, qos))
+            return None
+
+        def shutdown(self) -> None:
+            return None
+
+    with FedBatch(
+        unit=unit,
+        experiment=experiment,
+        duration=None,
+        dosing_volume_ml=0.2,
+        current_volume_ml=FedBatch.MAX_VIAL_VOLUME_TO_STOP - 0.1,
+    ) as job:
+        job.pub_client = FakePubClient()
+        event = job.execute()
+
+        assert isinstance(event, events.NoEvent)
+        assert job.state == job.SLEEPING
+        assert job.current_volume_ml == pytest.approx(FedBatch.MAX_VIAL_VOLUME_TO_STOP - 0.1)
+
+    assert stop_messages == [
+        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
+    ]
 
 
 @pytest.mark.xfail(reason="this needs monitor to work (to reflect the dosing events)")

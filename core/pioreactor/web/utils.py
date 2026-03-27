@@ -23,6 +23,11 @@ class UnitApiErrorPayload(Struct, omit_defaults=True):
     remediation: str | None = None
 
 
+class CachedGetEntry(Struct):
+    value: t.Any
+    cached_at: float
+
+
 def abort_with(
     status: int,
     description: str,
