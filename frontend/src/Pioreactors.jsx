@@ -88,7 +88,12 @@ import {
   updateBioreactorValues,
 } from "./utils/bioreactor";
 import { getConfig, getRelabelMap } from "./utils/config";
-import { runPioreactorJob } from "./utils/jobs";
+import {
+  buildJobsStateFromDescriptors,
+  createMonitorJobState,
+  getWorkerJobDescriptors,
+  runPioreactorJob,
+} from "./utils/jobs";
 import { fetchTaskResult } from "./utils/tasks";
 import {
   disconnectedGrey,
@@ -382,6 +387,26 @@ function UnitSettingDisplaySubtext({ subtext }) {
     return <Chip size="small" sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}} label={subtext.replaceAll("_", " ")} />;
   }
   return <Box sx={{minHeight: "24px"}} />;
+}
+
+function DescriptorStatusMessage({ status, errorText = "Job controls unavailable." }) {
+  if (status === "loading") {
+    return (
+      <Box sx={{display: "flex", alignItems: "center", minHeight: "32px"}}>
+        <CircularProgress size={18} />
+      </Box>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <Typography variant="body2" sx={{color: disabledColor}}>
+        {errorText}
+      </Typography>
+    );
+  }
+
+  return null;
 }
 
 
@@ -1187,15 +1212,21 @@ function SettingsActionsDialog({
   const [selfTestResult, setSelfTestResult] = useState(null);
   const [selfTestStartPending, setSelfTestStartPending] = useState(false);
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
-  const contribJobsList = useContribJobsList();
   const selfTestExperiment = "$experiment";
-
   const selfTestDefinition = useMemo(() => {
-    if (!Array.isArray(contribJobsList)) {
+    const selfTestJob = jobs?.self_test;
+    if (!selfTestJob) {
       return null;
     }
-    return contribJobsList.find((job) => job.job_name === "self_test") || null;
-  }, [contribJobsList]);
+    return {
+      published_settings: Object.entries(selfTestJob.publishedSettings).map(([key, setting]) => ({
+        key,
+        type: setting.type,
+        label: setting.label,
+        default: setting.value ?? null,
+      })),
+    };
+  }, [jobs]);
 
   const selfTestSettingTypes = useMemo(() => {
     if (!selfTestDefinition) {
@@ -1226,7 +1257,7 @@ function SettingsActionsDialog({
     }
     for (const field of selfTestDefinition.published_settings) {
       publishedSettings[field.key] = {
-        value: field.default || null,
+        value: field.default ?? null,
         type: field.type,
         label: field.label,
       };
@@ -2075,16 +2106,10 @@ function SettingsActionsDialog({
 
           <ControlDivider/>
 
-          {!selfTestDefinition && Array.isArray(contribJobsList) && (
+          {!selfTestDefinition && (
             <Alert severity="warning">
-              Self-test is unavailable on this cluster.
+              Self-test is unavailable on this Pioreactor.
             </Alert>
-          )}
-
-          {!selfTestDefinition && !Array.isArray(contribJobsList) && (
-            <Box sx={{display: "flex", justifyContent: "center", mt: 2}}>
-              <CircularProgress size={24} />
-            </Box>
           )}
 
           {selfTestDefinition && (
@@ -2178,32 +2203,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     if (!Array.isArray(contribJobsList)) {
       return;
     }
-    const jobsFromApi = {};
-    for (const job of contribJobsList) {
-      const metaData = {
-        publishedSettings: {},
-        metadata: {
-          display_name: job.display_name,
-          display: job.display,
-          description: job.description,
-          key: job.job_name,
-          source: job.source,
-        },
-      };
-      for (const field of job.published_settings) {
-        metaData.publishedSettings[field.key] = {
-          value: field.default || null,
-          label: field.label,
-          type: field.type,
-          unit: field.unit || null,
-          display: field.display,
-          description: field.description,
-          editable: field.editable || true,
-        };
-      }
-      jobsFromApi[job.job_name] = metaData;
-    }
-    setJobs(jobsFromApi);
+    setJobs(buildJobsStateFromDescriptors(contribJobsList, { initialState: null }));
   }, [contribJobsList]);
 
   useEffect(() => {
@@ -2268,7 +2268,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     }
     for (const field of selfTestDefinition.published_settings) {
       publishedSettings[field.key] = {
-        value: field.default || null,
+        value: field.default ?? null,
         type: field.type,
         label: field.label,
       };
@@ -2299,7 +2299,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         for (const field of selfTestDefinition.published_settings) {
           if (!(field.key in currentSettings)) {
             currentSettings[field.key] = {
-              value: field.default || null,
+              value: field.default ?? null,
               type: field.type,
               label: field.label,
             };
@@ -3272,7 +3272,7 @@ function FlashLEDButton({ unit, disabled }){
 
 
 function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelDetails = {}}){
-  const [jobFetchComplete, setJobFetchComplete] = useState(false)
+  const [jobDescriptorsStatus, setJobDescriptorsStatus] = useState("loading")
   const [label, setLabel] = useState("")
   const [bioreactorValues, setBioreactorValues] = useState({})
   const [bioreactorDescriptors, setBioreactorDescriptors] = useState([])
@@ -3285,33 +3285,10 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   const [quickSettingAnchorEl, setQuickSettingAnchorEl] = useState(null)
   const [quickSettingSelection, setQuickSettingSelection] = useState(null)
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
-  const contribJobsList = useContribJobsList();
   const isXrModel = Boolean(modelDetails.model_name?.toLowerCase().includes("xr"));
   const modelBadgeContent = modelDetails.model_name?.endsWith("XR") ? "XR" : modelDetails.reactor_capacity_ml;
 
-  const [jobs, setJobs] = useState({
-    monitor: {
-      state : null,
-      metadata: {display: false},
-      publishedSettings: {
-        versions: {
-            value: null, label: null, type: "json", unit: null, display: false, description: null, editable: false,
-        },
-        voltage_on_pwm_rail: {
-            value: null, label: null, type: "json", unit: null, display: false, description: null, editable: false,
-        },
-        ipv4: {
-            value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
-        },
-        wlan_mac_address: {
-            value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
-        },
-        eth_mac_address: {
-            value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
-        },
-      },
-    },
-  })
+  const [jobs, setJobs] = useState(() => ({ monitor: createMonitorJobState() }))
 
   useEffect(() => {
     setLabel(originalLabel)
@@ -3336,39 +3313,36 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
 
 
   useEffect(() => {
-    if (!Array.isArray(contribJobsList)) {
-      return;
+    let isCancelled = false
+
+    setJobDescriptorsStatus("loading")
+    setJobs({ monitor: createMonitorJobState() })
+
+    getWorkerJobDescriptors(unit)
+      .then((descriptors) => {
+        if (isCancelled) {
+          return
+        }
+        setJobs((previous) =>
+          buildJobsStateFromDescriptors(descriptors, {
+            includeMonitor: true,
+            existingJobs: previous,
+          }),
+        )
+        setJobDescriptorsStatus("ready")
+      })
+      .catch(() => {
+        if (isCancelled) {
+          return
+        }
+        setJobs({ monitor: createMonitorJobState() })
+        setJobDescriptorsStatus("error")
+      })
+
+    return () => {
+      isCancelled = true
     }
-    const jobsFromApi = {};
-    for (const job of contribJobsList) {
-      const metaData = {
-        state: "disconnected",
-        publishedSettings: {},
-        metadata: {
-          display_name: job.display_name,
-          subtext: job.subtext,
-          display: job.display,
-          description: job.description,
-          key: job.job_name,
-          source: job.source,
-        },
-      };
-      for (const field of job.published_settings) {
-        metaData.publishedSettings[field.key] = {
-          value: field.default || null,
-          label: field.label,
-          type: field.type,
-          unit: field.unit || null,
-          display: field.display,
-          description: field.description,
-          editable: field.editable || true,
-        };
-      }
-      jobsFromApi[job.job_name] = metaData;
-    }
-    setJobs((prev) => ({ ...prev, ...jobsFromApi }));
-    setJobFetchComplete(true);
-  }, [contribJobsList])
+  }, [unit])
 
   const onMessage = useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
@@ -3410,44 +3384,67 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     }
   }, []);
 
-  const jobTopics = useMemo(() => {
-    if (!jobFetchComplete || !experiment) {
+  const monitorTopics = useMemo(() => {
+    if (!experiment) {
       return [];
     }
 
     const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
-    for (const job of Object.keys(jobs)) {
-      topics.push(`pioreactor/${unit}/${experiment}/${job}/$state`);
-      for (const setting of Object.keys(jobs[job].publishedSettings)) {
-        topics.push(
-          [
-            "pioreactor",
-            unit,
-            (job === "monitor" ? "$experiment" : experiment),
-            job,
-            setting,
-          ].join("/")
-        );
-      }
+    for (const setting of Object.keys(jobs.monitor?.publishedSettings || {})) {
+      topics.push(["pioreactor", unit, "$experiment", "monitor", setting].join("/"));
     }
     return topics;
-  }, [experiment, jobFetchComplete, jobs, unit]);
+  }, [experiment, jobs.monitor, unit]);
 
   useEffect(() => {
     if (!isUnitActive) {
       return undefined;
     }
 
-    if (!client || jobTopics.length === 0) {
+    if (!client || monitorTopics.length === 0) {
       return undefined;
     }
 
-    subscribeToTopic(jobTopics, onMessage, "PioreactorCard");
+    subscribeToTopic(monitorTopics, onMessage, "PioreactorCardMonitor");
 
     return () => {
-      unsubscribeFromTopic(jobTopics, "PioreactorCard");
+      unsubscribeFromTopic(monitorTopics, "PioreactorCardMonitor");
     };
-  }, [client, isUnitActive, jobTopics, onMessage, subscribeToTopic, unsubscribeFromTopic])
+  }, [client, isUnitActive, monitorTopics, onMessage, subscribeToTopic, unsubscribeFromTopic])
+
+  const dynamicJobTopics = useMemo(() => {
+    if (jobDescriptorsStatus !== "ready" || !experiment) {
+      return [];
+    }
+
+    const topics = [];
+    for (const [jobName, job] of Object.entries(jobs)) {
+      if (jobName === "monitor") {
+        continue;
+      }
+      topics.push(`pioreactor/${unit}/${experiment}/${jobName}/$state`);
+      for (const setting of Object.keys(job.publishedSettings)) {
+        topics.push(["pioreactor", unit, experiment, jobName, setting].join("/"));
+      }
+    }
+    return topics;
+  }, [experiment, jobDescriptorsStatus, jobs, unit]);
+
+  useEffect(() => {
+    if (!isUnitActive) {
+      return undefined;
+    }
+
+    if (!client || dynamicJobTopics.length === 0) {
+      return undefined;
+    }
+
+    subscribeToTopic(dynamicJobTopics, onMessage, "PioreactorCardDynamic");
+
+    return () => {
+      unsubscribeFromTopic(dynamicJobTopics, "PioreactorCardDynamic");
+    };
+  }, [client, dynamicJobTopics, isUnitActive, onMessage, subscribeToTopic, unsubscribeFromTopic])
 
   const onBioreactorMessage = useCallback((topic, message) => {
     if (!topic || !message) {
@@ -3739,7 +3736,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                 client={client}
                 unit={unit}
                 label={label}
-                disabled={!isUnitActive}
+                disabled={!isUnitActive || jobDescriptorsStatus !== "ready"}
                 experiment={experiment}
                 jobs={jobs}
                 setLabel={setLabel}
@@ -3766,6 +3763,9 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
           </Typography>
         </Box>
         <RowOfUnitSettingDisplayBox>
+          {jobDescriptorsStatus !== "ready" ? (
+            <DescriptorStatusMessage status={jobDescriptorsStatus} />
+          ) : null}
           {Object.entries(jobs)
             .filter(([, job]) => job.metadata.display)
             .map(([jobKey, job]) => {

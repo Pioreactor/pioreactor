@@ -57,6 +57,7 @@ from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import load_background_job_descriptors
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import safe_join
 
@@ -792,6 +793,19 @@ def get_capabilities() -> ResponseReturnValue:
     from pioreactor.utils.capabilities import collect_capabilities
 
     return jsonify(collect_capabilities())
+
+
+@unit_api_bp.route("/jobs/descriptors", methods=["GET"])
+def get_job_descriptors() -> ResponseReturnValue:
+    try:
+        descriptors = load_background_job_descriptors(
+            Path(os.environ["DOT_PIOREACTOR"]),
+            report_error=lambda message: publish_to_error_log(message, "unit_api.get_job_descriptors"),
+        )
+        return attach_cache_control(jsonify(descriptors))
+    except Exception as e:
+        publish_to_error_log(str(e), "unit_api.get_job_descriptors")
+        abort_with(400, str(e))
 
 
 ### PLUGINS

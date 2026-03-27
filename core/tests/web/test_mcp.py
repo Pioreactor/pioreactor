@@ -129,5 +129,6 @@ def test_endpoints_exist_in_api_and_unit_api(app) -> None:
     assert "/api/config/units/<pioreactor_unit>" in routes
     assert "/api/automations/descriptors/<automation_type>" in routes
     assert "/api/jobs/descriptors" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/descriptors" in routes
     assert "/api/charts/descriptors" in routes
     assert "/api/datasets/exportable" in routes

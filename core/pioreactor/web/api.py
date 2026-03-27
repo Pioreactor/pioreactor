@@ -64,6 +64,7 @@ from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import scrub_to_valid
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -2394,25 +2395,51 @@ def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
 @api_bp.route("/jobs/descriptors", methods=["GET"])
 def get_job_descriptors() -> ResponseReturnValue:
     try:
-        job_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "jobs"
-        job_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "jobs"
-        files = sorted(job_path_builtins.glob("*.y*ml")) + sorted(job_path_plugins.glob("*.y*ml"))
-
-        # we dedup based on 'job_name'.
-        parsed_yaml = {}
-
-        for file in files:
-            try:
-                decoded_yaml = yaml_decode(file.read_bytes(), type=structs.BackgroundJobDescriptor)
-                parsed_yaml[decoded_yaml.job_name] = decoded_yaml
-            except (ValidationError, DecodeError) as e:
-                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_job_descriptors")
-
-        return attach_cache_control(jsonify(list(parsed_yaml.values())))
+        descriptors = load_background_job_descriptors(
+            Path(os.environ["DOT_PIOREACTOR"]),
+            report_error=lambda message: publish_to_error_log(message, "get_job_descriptors"),
+        )
+        return attach_cache_control(jsonify(descriptors))
 
     except Exception as e:
         publish_to_error_log(str(e), "get_job_descriptors")
         abort_with(400, str(e))
+
+
+@api_bp.route("/workers/<pioreactor_unit>/jobs/descriptors", methods=["GET"])
+def get_job_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch job descriptors with $broadcast; choose a specific Pioreactor.",
+            cause="Worker job descriptors require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_to_address(pioreactor_unit),
+            "/unit_api/jobs/descriptors",
+            timeout=10,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        detail = _extract_unit_api_error(response)
+        if detail:
+            abort_with(502, f"Fetching job descriptors failed on {pioreactor_unit}: {detail}")
+        if response is not None:
+            abort_with(
+                502,
+                f"Fetching job descriptors failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
+        abort_with(502, f"Fetching job descriptors failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
 
 
 @api_bp.route("/bioreactor/descriptors", methods=["GET"])
