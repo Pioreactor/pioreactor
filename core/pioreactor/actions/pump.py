@@ -290,7 +290,7 @@ def _pump_action(
         with local_intermittent_storage("pwm_locks") as pwm_locks:
             if pin in pwm_locks:
                 logger.error(
-                    f"Pump's GPIO pin is already in use by another task. Either too many jobs are trying to access this pump's pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache clear pwm_locks {pin} --as-int` on the command line for {unit}"
+                    f"Pump's GPIO pin is already in use by another task. Either too many jobs are trying to access this pump's pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache purge pwm_locks {pin} --as-int` on the command line for {unit}"
                 )
                 return 0.0
 

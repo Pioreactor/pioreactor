@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import Any
 from typing import Sequence
 
-import numpy as np
 from pioreactor import structs
 
 
@@ -18,6 +18,8 @@ def poly_fit(
     degree: int | str | None = "auto",
     weights: Sequence[float] | None = None,
 ) -> structs.PolyFitCoefficients:
+    import numpy as np
+
     x_values = np.asarray(x, dtype=float)
     y_values = np.asarray(y, dtype=float)
 
@@ -47,10 +49,14 @@ def poly_fit(
 
 
 def poly_eval(poly_data: structs.PolyFitCoefficients, x: float) -> float:
+    import numpy as np
+
     return float(np.polyval(poly_data.coefficients, x))
 
 
 def poly_solve(poly_data: structs.PolyFitCoefficients, y: float) -> list[float]:
+    import numpy as np
+
     if len(poly_data.coefficients) == 0:
         raise ValueError("poly_data must not be empty.")
 
@@ -62,6 +68,8 @@ def poly_solve(poly_data: structs.PolyFitCoefficients, y: float) -> list[float]:
 
 
 def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
+    import numpy as np
+
     if n_obs <= n_params + 1:
         return float("inf")
     sse = max(weighted_sse, np.finfo(float).tiny)
@@ -71,9 +79,9 @@ def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
 
 def _normalize_degree(
     degree: int | str | None,
-    x_values: np.ndarray,
-    y_values: np.ndarray,
-    weight_values: np.ndarray,
+    x_values: Any,
+    y_values: Any,
+    weight_values: Any,
 ) -> int:
     if degree is None or degree == "auto":
         return _auto_select_degree(x_values, y_values, weight_values)
@@ -83,12 +91,14 @@ def _normalize_degree(
 
 
 def _auto_select_degree(
-    x_values: np.ndarray,
-    y_values: np.ndarray,
-    weight_values: np.ndarray,
+    x_values: Any,
+    y_values: Any,
+    weight_values: Any,
     *,
     max_degree: int | None = None,
 ) -> int:
+    import numpy as np
+
     n_obs = x_values.size
     unique_x = np.unique(x_values).size
 

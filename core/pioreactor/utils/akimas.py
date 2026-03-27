@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import Any
 from typing import Iterable
 from typing import Sequence
 
-import numpy as np
 from pioreactor import structs
 
 
@@ -13,6 +13,8 @@ def _to_pyfloat(seq: list[float]) -> list[float]:
 
 
 def akima_fit(x: Sequence[float], y: Sequence[float]) -> structs.AkimaFitData:
+    import numpy as np
+
     x_values = np.asarray(x, dtype=float)
     y_values = np.asarray(y, dtype=float)
 
@@ -34,7 +36,9 @@ def akima_fit(x: Sequence[float], y: Sequence[float]) -> structs.AkimaFitData:
         raise ValueError("At least two unique x values are required.")
 
     x_sorted = np.asarray(unique_x, dtype=float)
-    y_sorted = np.asarray([sum(grouped[x_value]) / len(grouped[x_value]) for x_value in unique_x], dtype=float)
+    y_sorted = np.asarray(
+        [sum(grouped[x_value]) / len(grouped[x_value]) for x_value in unique_x], dtype=float
+    )
 
     derivatives = _akima_derivatives(x_sorted, y_sorted)
     coefficients = _akima_coefficients(x_sorted, y_sorted, derivatives)
@@ -62,6 +66,8 @@ def akima_eval_derivative(akima_data: structs.AkimaFitData, x: float) -> float:
 
 
 def akima_solve(akima_data: structs.AkimaFitData, y: float) -> list[float]:
+    import numpy as np
+
     knots, coefficients = _parse_akima_data(akima_data)
     solutions: list[float] = []
     last_index = len(coefficients) - 1
@@ -87,7 +93,9 @@ def akima_solve(akima_data: structs.AkimaFitData, y: float) -> list[float]:
     return _to_pyfloat(_unique_sorted(solutions))
 
 
-def _akima_derivatives(x_values: np.ndarray, y_values: np.ndarray) -> np.ndarray:
+def _akima_derivatives(x_values: Any, y_values: Any) -> Any:
+    import numpy as np
+
     n = x_values.size
     slopes = np.diff(y_values) / np.diff(x_values)
 
@@ -112,10 +120,12 @@ def _akima_derivatives(x_values: np.ndarray, y_values: np.ndarray) -> np.ndarray
 
 
 def _akima_coefficients(
-    x_values: np.ndarray,
-    y_values: np.ndarray,
-    derivatives: np.ndarray,
-) -> np.ndarray:
+    x_values: Any,
+    y_values: Any,
+    derivatives: Any,
+) -> Any:
+    import numpy as np
+
     n = x_values.size
     coefficients = np.zeros((n - 1, 4), dtype=float)
 
@@ -133,7 +143,9 @@ def _akima_coefficients(
     return coefficients
 
 
-def _interval_index(knots: np.ndarray, x: float) -> int:
+def _interval_index(knots: Any, x: float) -> int:
+    import numpy as np
+
     idx = int(np.searchsorted(knots, x, side="right") - 1)
     if idx < 0:
         return 0
@@ -142,7 +154,9 @@ def _interval_index(knots: np.ndarray, x: float) -> int:
     return idx
 
 
-def _parse_akima_data(akima_data: structs.AkimaFitData) -> tuple[np.ndarray, np.ndarray]:
+def _parse_akima_data(akima_data: structs.AkimaFitData) -> tuple[Any, Any]:
+    import numpy as np
+
     if not isinstance(akima_data, structs.AkimaFitData):
         raise ValueError("akima_data must be an AkimaFitData struct.")
 
@@ -160,6 +174,8 @@ def _parse_akima_data(akima_data: structs.AkimaFitData) -> tuple[np.ndarray, np.
 
 
 def _real_roots_in_interval(coefficients: Iterable[float], start: float, end: float) -> list[float]:
+    import numpy as np
+
     coeff_array = np.array(list(coefficients), dtype=float)
     coeff_array = _trim_leading_zeros(coeff_array)
     if coeff_array.size == 0:
@@ -181,7 +197,7 @@ def _real_roots_in_interval(coefficients: Iterable[float], start: float, end: fl
     return real_roots
 
 
-def _trim_leading_zeros(values: np.ndarray) -> np.ndarray:
+def _trim_leading_zeros(values: Any) -> Any:
     if values.size == 0:
         return values
     idx = 0
