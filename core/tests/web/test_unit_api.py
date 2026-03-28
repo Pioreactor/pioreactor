@@ -123,6 +123,18 @@ def test_get_job_descriptors_endpoint_returns_builtin_and_plugin_jobs(client) ->
     assert "pico_ph_reader" in job_names
 
 
+def test_get_automation_descriptors_endpoint_returns_builtin_and_plugin_automations(client) -> None:
+    response = client.get("/unit_api/automations/descriptors/dosing")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)
+
+    automation_names = {automation["automation_name"] for automation in data}
+    assert "chemostat" in automation_names
+    assert "turbidostat" in automation_names
+
+
 def test_get_bioreactor_values_endpoint_returns_defaults(client) -> None:
     resp = client.get("/unit_api/bioreactor/experiments/exp1")
 

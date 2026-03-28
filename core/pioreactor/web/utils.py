@@ -182,3 +182,26 @@ def load_background_job_descriptors(
                 report_error(f"Yaml error in {file.name}: {e}")
 
     return list(parsed_yaml.values())
+
+
+def load_automation_descriptors(
+    dot_pioreactor_path: Path,
+    automation_type: str,
+    *,
+    report_error: t.Callable[[str], None] | None = None,
+) -> list[structs.AutomationDescriptor]:
+    automation_path_builtins = dot_pioreactor_path / "ui" / "automations" / automation_type
+    automation_path_plugins = dot_pioreactor_path / "plugins" / "ui" / "automations" / automation_type
+    files = sorted(automation_path_builtins.glob("*.y*ml")) + sorted(automation_path_plugins.glob("*.y*ml"))
+
+    parsed_yaml: dict[str, structs.AutomationDescriptor] = {}
+
+    for file in files:
+        try:
+            decoded_yaml = yaml_decode(file.read_bytes(), type=structs.AutomationDescriptor)
+            parsed_yaml[decoded_yaml.automation_name] = decoded_yaml
+        except (ValidationError, DecodeError) as e:
+            if report_error is not None:
+                report_error(f"Yaml error in {file.name}: {e}")
+
+    return list(parsed_yaml.values())

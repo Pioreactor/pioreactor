@@ -64,6 +64,7 @@ from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import scrub_to_valid
 from pioreactor.whoami import is_testing_env
@@ -2368,28 +2369,60 @@ def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
         )
 
     try:
-        automation_path_plugins = (
-            Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "automations" / automation_type
+        descriptors = load_automation_descriptors(
+            Path(os.environ["DOT_PIOREACTOR"]),
+            automation_type,
+            report_error=lambda message: publish_to_error_log(message, "get_automation_descriptors"),
         )
-        automation_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "automations" / automation_type
-        files = sorted(automation_path_builtins.glob("*.y*ml")) + sorted(
-            automation_path_plugins.glob("*.y*ml")
-        )
-
-        # we dedup based on 'automation_name'.
-        parsed_yaml = {}
-        for file in files:
-            try:
-                decoded_yaml = yaml_decode(file.read_bytes(), type=structs.AutomationDescriptor)
-                parsed_yaml[decoded_yaml.automation_name] = decoded_yaml
-            except (ValidationError, DecodeError) as e:
-                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_automation_descriptors")
-
-        return attach_cache_control(jsonify(list(parsed_yaml.values())))
+        return attach_cache_control(jsonify(descriptors))
 
     except Exception as e:
         publish_to_error_log(str(e), "get_automation_descriptors")
         abort_with(400, str(e))
+
+
+@api_bp.route("/workers/<pioreactor_unit>/automations/descriptors/<automation_type>", methods=["GET"])
+def get_automation_descriptors_for_worker(pioreactor_unit: str, automation_type: str) -> ResponseReturnValue:
+    if automation_type not in {"temperature", "dosing", "led"}:
+        abort_with(
+            400, "Not a valid automation type", remediation="choose one of 'temperature', 'dosing', 'led'"
+        )
+
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch automation descriptors with $broadcast; choose a specific Pioreactor.",
+            cause="Worker automation descriptors require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_to_address(pioreactor_unit),
+            f"/unit_api/automations/descriptors/{automation_type}",
+            timeout=10,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        detail = _extract_unit_api_error(response)
+        if detail:
+            abort_with(
+                502,
+                f"Fetching {automation_type} automation descriptors failed on {pioreactor_unit}: {detail}",
+            )
+        if response is not None:
+            abort_with(
+                502,
+                f"Fetching {automation_type} automation descriptors failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
+        abort_with(502, f"Fetching {automation_type} automation descriptors failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
 
 
 @api_bp.route("/jobs/descriptors", methods=["GET"])

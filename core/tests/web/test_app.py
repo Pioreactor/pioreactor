@@ -740,6 +740,44 @@ def test_get_job_descriptors_for_worker_rejects_broadcast(client) -> None:
     assert data["error"] == "Cannot fetch job descriptors with $broadcast; choose a specific Pioreactor."
 
 
+def test_get_automation_descriptors_for_worker_proxies_unit_api(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    def fake_get_from(*_args, **_kwargs) -> MureqResponse:
+        return MureqResponse(
+            "http://unit1.local:4999/unit_api/automations/descriptors/dosing",
+            200,
+            {"Content-Type": "application/json"},
+            b'[{"automation_name":"worker_automation","display_name":"Worker automation","description":"Worker-only automation","fields":[]}]',
+        )
+
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    response = client.get("/api/workers/unit1/automations/descriptors/dosing")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {
+            "automation_name": "worker_automation",
+            "display_name": "Worker automation",
+            "description": "Worker-only automation",
+            "fields": [],
+        }
+    ]
+
+
+def test_get_automation_descriptors_for_worker_rejects_broadcast(client) -> None:
+    response = client.get("/api/workers/$broadcast/automations/descriptors/dosing")
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert (
+        data["error"] == "Cannot fetch automation descriptors with $broadcast; choose a specific Pioreactor."
+    )
+
+
 def test_update_bioreactor_on_unit_queues_multicast_patch(client, monkeypatch: MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 

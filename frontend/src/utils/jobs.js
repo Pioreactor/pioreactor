@@ -1,9 +1,17 @@
 let workerJobDescriptorsCache = new Map();
 let workerJobDescriptorsRequestCache = new Map();
+let workerAutomationDescriptorsCache = new Map();
+let workerAutomationDescriptorsRequestCache = new Map();
+
+function getAutomationCacheKey(unit, automationType) {
+  return `${unit || ""}:${automationType}`;
+}
 
 export function resetWorkerJobDescriptorsCache() {
   workerJobDescriptorsCache = new Map();
   workerJobDescriptorsRequestCache = new Map();
+  workerAutomationDescriptorsCache = new Map();
+  workerAutomationDescriptorsRequestCache = new Map();
 }
 
 export function createMonitorJobState() {
@@ -105,6 +113,46 @@ export async function getWorkerJobDescriptors(unit) {
   }
 
   return workerJobDescriptorsRequestCache.get(unit);
+}
+
+export async function getAutomationDescriptors(unit, automationType) {
+  if (!automationType) {
+    return [];
+  }
+
+  const isWorkerScoped = Boolean(unit && unit !== "$broadcast");
+  const cacheKey = getAutomationCacheKey(isWorkerScoped ? unit : "$leader", automationType);
+
+  if (workerAutomationDescriptorsCache.has(cacheKey)) {
+    return workerAutomationDescriptorsCache.get(cacheKey);
+  }
+
+  if (!workerAutomationDescriptorsRequestCache.has(cacheKey)) {
+    const endpoint = isWorkerScoped
+      ? `/api/workers/${unit}/automations/descriptors/${automationType}`
+      : `/api/automations/descriptors/${automationType}`;
+
+    const pendingRequest = fetch(endpoint)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}.`);
+        }
+        return response.json();
+      })
+      .then((descriptors) => {
+        workerAutomationDescriptorsCache.set(cacheKey, descriptors);
+        workerAutomationDescriptorsRequestCache.delete(cacheKey);
+        return descriptors;
+      })
+      .catch((error) => {
+        workerAutomationDescriptorsRequestCache.delete(cacheKey);
+        throw error;
+      });
+
+    workerAutomationDescriptorsRequestCache.set(cacheKey, pendingRequest);
+  }
+
+  return workerAutomationDescriptorsRequestCache.get(cacheKey);
 }
 
 export function runPioreactorJob(
