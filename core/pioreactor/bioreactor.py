@@ -25,14 +25,14 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
         default_config_key="initial_volume_ml",
         default_value=14.0,
     ),
-    "max_working_volume_ml": structs.BioreactorVariableDefinition(
-        key="max_working_volume_ml",
-        label="Max working volume",
-        description="Target overflow height for normal waste removal calculations.",
+    "efflux_tube_volume_ml": structs.BioreactorVariableDefinition(
+        key="efflux_tube_volume_ml",
+        label="Efflux tube volume",
+        description="Stable volume set by the height of the waste/efflux tube.",
         unit="mL",
         minimum=0.0,
         maximum=None,
-        default_config_key="max_working_volume_ml",
+        default_config_key="efflux_tube_volume_ml",
         default_value=14.0,
     ),
     "alt_media_fraction": structs.BioreactorVariableDefinition(
@@ -168,7 +168,7 @@ def set_and_publish_bioreactor_value(
 def calculate_updated_current_volume(
     dosing_event: structs.DosingEvent,
     current_volume_ml: float,
-    max_working_volume_ml: float,
+    efflux_tube_volume_ml: float,
 ) -> float:
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
@@ -176,10 +176,10 @@ def calculate_updated_current_volume(
         vol = max(current_volume_ml + volume, 0.0)
 
     elif event == "remove_waste":
-        if current_volume_ml <= max_working_volume_ml:
+        if current_volume_ml <= efflux_tube_volume_ml:
             vol = max(current_volume_ml, 0.0)
         else:
-            vol = max(current_volume_ml - volume, max_working_volume_ml, 0.0)
+            vol = max(current_volume_ml - volume, efflux_tube_volume_ml, 0.0)
     else:
         raise ValueError(f"Unknown dosing event type `{event}`.")
 
@@ -225,7 +225,7 @@ def apply_dosing_event_to_bioreactor(
     mqtt_client: Client | None = None,
 ) -> dict[str, float]:
     current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
-    max_working_volume_ml = get_bioreactor_value(experiment, "max_working_volume_ml")
+    efflux_tube_volume_ml = get_bioreactor_value(experiment, "efflux_tube_volume_ml")
     current_alt_media_fraction = get_bioreactor_value(experiment, "alt_media_fraction")
 
     updated_alt_media_fraction = calculate_updated_alt_media_fraction(
@@ -236,7 +236,7 @@ def apply_dosing_event_to_bioreactor(
     updated_current_volume_ml = calculate_updated_current_volume(
         dosing_event,
         current_volume_ml=current_volume_ml,
-        max_working_volume_ml=max_working_volume_ml,
+        efflux_tube_volume_ml=efflux_tube_volume_ml,
     )
 
     updated_alt_media_fraction = set_bioreactor_value(

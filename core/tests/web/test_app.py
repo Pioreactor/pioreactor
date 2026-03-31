@@ -699,7 +699,7 @@ def test_get_bioreactor_descriptors(client) -> None:
     data = response.get_json()
     assert [descriptor["key"] for descriptor in data] == [
         "current_volume_ml",
-        "max_working_volume_ml",
+        "efflux_tube_volume_ml",
         "alt_media_fraction",
     ]
 

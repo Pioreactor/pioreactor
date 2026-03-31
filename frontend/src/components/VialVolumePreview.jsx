@@ -38,17 +38,17 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function VialVolumePreview({
   initialVolumeMl,
-  maxWorkingVolumeMl,
+  effluxTubeVolumeMl,
   maxVolumeMl,
 }) {
   const clipPathId = useId();
   const initialVolume = asNumber(initialVolumeMl);
-  const maxWorkingVolume = asNumber(maxWorkingVolumeMl);
+  const effluxTubeVolume = asNumber(effluxTubeVolumeMl);
   const maxVolume = asNumber(maxVolumeMl);
 
   if (
     initialVolume == null ||
-    maxWorkingVolume == null ||
+    effluxTubeVolume == null ||
     maxVolume == null ||
     maxVolume <= 0
   ) {
@@ -65,7 +65,7 @@ function VialVolumePreview({
   const svgHeight = SVG_BASE_PIXEL_HEIGHT * (viewBoxHeight / SVG_BASE_HEIGHT);
 
   const liquidFraction = clamp(initialVolume / maxVolume, 0, 1);
-  const tubeFraction = clamp(maxWorkingVolume / maxVolume, 0, 1);
+  const tubeFraction = clamp(effluxTubeVolume / maxVolume, 0, 1);
   const liquidHeight = vialBodyInnerHeight * liquidFraction;
   const liquidY = vialBodyInnerBottomY - liquidHeight;
   const tubeBottomY = vialBodyInnerBottomY - vialBodyInnerHeight * tubeFraction;

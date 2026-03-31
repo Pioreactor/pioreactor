@@ -15,21 +15,21 @@ function DosingAutomationForm(props) {
   const capacity = Number.isFinite(props.capacity) ? props.capacity : null;
   const volumeInputBounds = capacity !== null ? { min: 0, max: capacity } : { min: 0 };
 
-  const computeWarning = (currentVolume, maxWorkingVolume) => {
+  const computeWarning = (currentVolume, effluxTubeVolume) => {
     if (currentVolume != null && currentVolume >= threshold) {
       return `Current volume exceeds safe maximum of ${threshold} mL.`;
     }
 
-    if (maxWorkingVolume != null && maxWorkingVolume >= threshold) {
-      return `Max working volume exceeds safe maximum of ${threshold} mL.`;
+    if (effluxTubeVolume != null && effluxTubeVolume >= threshold) {
+      return `Efflux tube volume exceeds safe maximum of ${threshold} mL.`;
     }
 
     if (
-      maxWorkingVolume != null &&
-      maxWorkingVolume >= threshold - safetyBufferMl &&
-      maxWorkingVolume < threshold
+      effluxTubeVolume != null &&
+      effluxTubeVolume >= threshold - safetyBufferMl &&
+      effluxTubeVolume < threshold
     ) {
-      return `Max working volume is very close to the ${threshold} mL safety ceiling.`;
+      return `Efflux tube volume is very close to the ${threshold} mL safety ceiling.`;
     }
 
     return "";
@@ -45,17 +45,17 @@ function DosingAutomationForm(props) {
 
   const warning = computeWarning(
     props.algoSettings.current_volume_ml,
-    props.algoSettings.max_working_volume_ml,
+    props.algoSettings.efflux_tube_volume_ml,
   );
 
   const dilutionRate = (
     Number.isFinite(props.algoSettings.exchange_volume_ml) &&
     Number.isFinite(props.algoSettings.duration) &&
-    Number.isFinite(props.algoSettings.max_working_volume_ml) &&
+    Number.isFinite(props.algoSettings.efflux_tube_volume_ml) &&
     props.algoSettings.duration > 0 &&
-    props.algoSettings.max_working_volume_ml > 0
+    props.algoSettings.efflux_tube_volume_ml > 0
   )
-    ? props.algoSettings.exchange_volume_ml * (60 / props.algoSettings.duration) / props.algoSettings.max_working_volume_ml
+    ? props.algoSettings.exchange_volume_ml * (60 / props.algoSettings.duration) / props.algoSettings.efflux_tube_volume_ml
     : null;
 
   const listOfDisplayFields = props.fields.map(field => {
@@ -116,7 +116,7 @@ function DosingAutomationForm(props) {
       </Typography>
       {props.name === "chemostat" && dilutionRate !== null &&
         <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 0, mb: 1, padding: "6px 6px" }}>
-          The current computed <UnderlineSpan title="Exchange volume * (60 / Time between dosing) / (Max working volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{dilutionRate.toFixed(2)} h⁻¹</code>.
+          The current computed <UnderlineSpan title="Exchange volume * (60 / Time between dosing) / (Steady state volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{dilutionRate.toFixed(2)} h⁻¹</code>.
         </Typography>
       }
 
@@ -156,14 +156,14 @@ function DosingAutomationForm(props) {
             type="number"
             size="small"
             autoComplete="off"
-            id="max_working_volume_ml"
-            label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Max working volume</UnderlineSpan>}
+            id="efflux_tube_volume_ml"
+            label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Efflux tube volume</UnderlineSpan>}
             InputProps={{
               endAdornment: <InputAdornment position="end">ml</InputAdornment>,
             }}
             inputProps={volumeInputBounds}
             variant="outlined"
-            value={props.algoSettings.max_working_volume_ml ?? ""}
+            value={props.algoSettings.efflux_tube_volume_ml ?? ""}
             onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
             onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
             sx={{ mt: 3, mr: 1, mb: 0, width: "18ch" }}
@@ -181,7 +181,7 @@ function DosingAutomationForm(props) {
         >
           <VialVolumePreview
             initialVolumeMl={props.algoSettings.current_volume_ml}
-            maxWorkingVolumeMl={props.algoSettings.max_working_volume_ml}
+            effluxTubeVolumeMl={props.algoSettings.efflux_tube_volume_ml}
             maxVolumeMl={capacity}
           />
         </Box>

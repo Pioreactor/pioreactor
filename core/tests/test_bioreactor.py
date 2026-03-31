@@ -9,7 +9,7 @@ def test_get_bioreactor_value_uses_defaults() -> None:
     experiment = "test_get_bioreactor_value_uses_defaults"
 
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(14.0)
-    assert bioreactor.get_bioreactor_value(experiment, "max_working_volume_ml") == pytest.approx(14.0)
+    assert bioreactor.get_bioreactor_value(experiment, "efflux_tube_volume_ml") == pytest.approx(14.0)
     assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(0.0)
 
 
@@ -28,7 +28,7 @@ def test_get_bioreactor_descriptors_returns_structs() -> None:
     assert all(isinstance(descriptor, structs.BioreactorDescriptor) for descriptor in descriptors)
     assert [descriptor.key for descriptor in descriptors] == [
         "current_volume_ml",
-        "max_working_volume_ml",
+        "efflux_tube_volume_ml",
         "alt_media_fraction",
     ]
 
@@ -92,8 +92,8 @@ def test_validate_bioreactor_value_allows_max_working_volume_above_max_fill_and_
         ),
     )
 
-    assert bioreactor.validate_bioreactor_value("max_working_volume_ml", 18.1) == pytest.approx(18.1)
-    assert bioreactor.validate_bioreactor_value("max_working_volume_ml", 20.0) == pytest.approx(20.0)
+    assert bioreactor.validate_bioreactor_value("efflux_tube_volume_ml", 18.1) == pytest.approx(18.1)
+    assert bioreactor.validate_bioreactor_value("efflux_tube_volume_ml", 20.0) == pytest.approx(20.0)
 
 
 def test_validate_bioreactor_value_rejects_max_working_volume_above_model_capacity(
@@ -118,7 +118,7 @@ def test_validate_bioreactor_value_rejects_max_working_volume_above_model_capaci
     )
 
     with pytest.raises(ValueError):
-        bioreactor.validate_bioreactor_value("max_working_volume_ml", 20.1)
+        bioreactor.validate_bioreactor_value("efflux_tube_volume_ml", 20.1)
 
 
 def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_waste() -> None:
@@ -132,7 +132,7 @@ def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_
     assert bioreactor.calculate_updated_current_volume(
         dosing_event,
         current_volume_ml=15.0,
-        max_working_volume_ml=14.0,
+        efflux_tube_volume_ml=14.0,
     ) == pytest.approx(14.0)
 
 
@@ -147,7 +147,7 @@ def test_calculate_updated_current_volume_accepts_add_media_events() -> None:
     assert bioreactor.calculate_updated_current_volume(
         dosing_event,
         current_volume_ml=0.0,
-        max_working_volume_ml=14.0,
+        efflux_tube_volume_ml=14.0,
     ) == pytest.approx(6.0)
 
 
@@ -183,7 +183,7 @@ def test_calculate_updated_current_volume_rejects_additions_above_model_capacity
         bioreactor.calculate_updated_current_volume(
             dosing_event,
             current_volume_ml=19.0,
-            max_working_volume_ml=14.0,
+            efflux_tube_volume_ml=14.0,
         )
 
 
@@ -208,7 +208,7 @@ def test_calculate_updated_current_volume_sequence() -> None:
         current_volume = bioreactor.calculate_updated_current_volume(
             dosing_event,
             current_volume_ml=current_volume,
-            max_working_volume_ml=max_volume,
+            efflux_tube_volume_ml=max_volume,
         )
         assert current_volume == pytest.approx(target)
 
@@ -229,7 +229,7 @@ def test_calculate_updated_current_volume_with_negative_add_media_values() -> No
         current_volume = bioreactor.calculate_updated_current_volume(
             dosing_event,
             current_volume_ml=current_volume,
-            max_working_volume_ml=max_volume,
+            efflux_tube_volume_ml=max_volume,
         )
         assert current_volume == pytest.approx(target)
 
@@ -256,7 +256,7 @@ def test_calculate_updated_alt_media_fraction_sequence() -> None:
         current_volume = bioreactor.calculate_updated_current_volume(
             dosing_event,
             current_volume_ml=current_volume,
-            max_working_volume_ml=max_volume,
+            efflux_tube_volume_ml=max_volume,
         )
         assert current_alt_media_fraction == pytest.approx(target)
 
@@ -275,7 +275,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
     current_volume = bioreactor.calculate_updated_current_volume(
         event,
         current_volume_ml=current_volume,
-        max_working_volume_ml=max_volume,
+        efflux_tube_volume_ml=max_volume,
     )
 
     event = structs.DosingEvent(6, "add_alt_media", "test", default_datetime_for_pioreactor(1))
@@ -287,7 +287,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
     current_volume = bioreactor.calculate_updated_current_volume(
         event,
         current_volume_ml=current_volume,
-        max_working_volume_ml=max_volume,
+        efflux_tube_volume_ml=max_volume,
     )
 
     event = structs.DosingEvent(6, "add_alt_media", "test", default_datetime_for_pioreactor(2))
@@ -299,7 +299,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
     branch_a_volume = bioreactor.calculate_updated_current_volume(
         event,
         current_volume_ml=current_volume,
-        max_working_volume_ml=max_volume,
+        efflux_tube_volume_ml=max_volume,
     )
 
     correction_event = structs.DosingEvent(-3, "add_alt_media", "test", default_datetime_for_pioreactor(3))
@@ -311,7 +311,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
     corrected_volume = bioreactor.calculate_updated_current_volume(
         correction_event,
         current_volume_ml=branch_a_volume,
-        max_working_volume_ml=max_volume,
+        efflux_tube_volume_ml=max_volume,
     )
 
     direct_event = structs.DosingEvent(3, "add_alt_media", "test", default_datetime_for_pioreactor(2))
@@ -323,7 +323,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
     direct_volume = bioreactor.calculate_updated_current_volume(
         direct_event,
         current_volume_ml=current_volume,
-        max_working_volume_ml=max_volume,
+        efflux_tube_volume_ml=max_volume,
     )
 
     assert corrected_fraction == pytest.approx(direct_fraction)

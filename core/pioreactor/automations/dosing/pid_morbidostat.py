@@ -61,8 +61,8 @@ class PIDMorbidostat(DosingAutomationJob):
 
         assert isinstance(self.duration, float)
         self.exchange_volume_ml = round(
-            self.target_growth_rate * self.max_working_volume_ml * (self.duration / 60), 4
-        )  # ???
+            self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4
+        )
 
     def execute(self) -> structs.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:

@@ -1,6 +1,6 @@
 const BIOREACTOR_CONFIG_KEYS = {
   current_volume_ml: "initial_volume_ml",
-  max_working_volume_ml: "max_working_volume_ml",
+  efflux_tube_volume_ml: "efflux_tube_volume_ml",
   alt_media_fraction: "initial_alt_media_fraction",
 };
 
@@ -30,7 +30,7 @@ export function getBioreactorConfirmedValue(values, config, key) {
 export function getBioreactorSubscriptionTopics(unit, experiment) {
   const baseTopics = [
     `pioreactor/${unit}/${experiment}/bioreactor/current_volume_ml`,
-    `pioreactor/${unit}/${experiment}/bioreactor/max_working_volume_ml`,
+    `pioreactor/${unit}/${experiment}/bioreactor/efflux_tube_volume_ml`,
     `pioreactor/${unit}/${experiment}/bioreactor/alt_media_fraction`,
   ];
 

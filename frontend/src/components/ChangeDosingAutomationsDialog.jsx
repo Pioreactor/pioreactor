@@ -25,7 +25,7 @@ import DosingAutomationForm from "./DosingAutomationForm"
 const getDefaultDosingSettings = (fields) => (
   Object.fromEntries(
     (fields || [])
-      .filter((field) => field.key !== "current_volume_ml" && field.key !== "max_working_volume_ml")
+      .filter((field) => field.key !== "current_volume_ml" && field.key !== "efflux_tube_volume_ml")
       .map((field) => [field.key, field.default])
   )
 )
@@ -45,7 +45,7 @@ function ChangeDosingAutomationsDialog(props) {
   const [automationName, setAutomationName] = useState("chemostat")
   const [algoSettings, setAlgoSettings] = useState({
     skip_first_run: 0,
-    max_working_volume_ml: props.maxVolume,
+    efflux_tube_volume_ml: props.maxVolume,
     current_volume_ml: props.liquidVolume,
   })
   const [automations, setAutomations] = useState({})
@@ -87,7 +87,7 @@ function ChangeDosingAutomationsDialog(props) {
     setAlgoSettings({
       ...( !props.no_skip_first_run && { skip_first_run: 0 }),
       ...getDefaultDosingSettings(automations[nextAutomationName]?.fields),
-      max_working_volume_ml: props.maxVolume,
+      efflux_tube_volume_ml: props.maxVolume,
       current_volume_ml: props.liquidVolume,
     });
     initializationCompletedForOpenRef.current = true;
@@ -115,7 +115,7 @@ function ChangeDosingAutomationsDialog(props) {
     setAlgoSettings({
       ...( !props.no_skip_first_run && { skip_first_run: skipFirstRun }),
       ...getDefaultDosingSettings(automations[newAlgoName]?.fields),
-      max_working_volume_ml: algoSettings.max_working_volume_ml ?? props.maxVolume,
+      efflux_tube_volume_ml: algoSettings.efflux_tube_volume_ml ?? props.maxVolume,
       current_volume_ml: algoSettings.current_volume_ml ?? props.liquidVolume,
     });
   };

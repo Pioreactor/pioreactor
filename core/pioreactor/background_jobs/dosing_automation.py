@@ -111,6 +111,7 @@ class DosingAutomationJob(AutomationJob):
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
     current_volume_ml: float  # amount in the vial
+    efflux_tube_volume_ml: float  # steady-state volume set by the waste/efflux tube height
 
     @classproperty
     def MAX_VIAL_VOLUME_TO_STOP(cls) -> float:
@@ -141,7 +142,7 @@ class DosingAutomationJob(AutomationJob):
         skip_first_run: bool = False,
         alt_media_fraction: float | None = None,
         current_volume_ml: float | None = None,
-        max_working_volume_ml: float | None = None,
+        efflux_tube_volume_ml: float | None = None,
         **kwargs: Any,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
@@ -161,11 +162,11 @@ class DosingAutomationJob(AutomationJob):
 
         self._init_alt_media_fraction(alt_media_fraction)
         self._init_volume_throughput()
-        self._init_liquid_volume(current_volume_ml, max_working_volume_ml)
+        self._init_liquid_volume(current_volume_ml, efflux_tube_volume_ml)
         self._last_vial_volume_warning_at: float | None = None
         self.logger.debug(
             f"Volume settings initialized: current_volume_ml={self.current_volume_ml:.2f} mL, "
-            f"max_working_volume_ml={self.max_working_volume_ml:.2f} mL."
+            f"efflux_tube_volume_ml={self.efflux_tube_volume_ml:.2f} mL."
         )
 
         self.set_duration(duration)
@@ -479,15 +480,15 @@ class DosingAutomationJob(AutomationJob):
         )
 
     def _init_liquid_volume(
-        self, current_volume_ml: float | None, max_working_volume_ml: float | None
+        self, current_volume_ml: float | None, efflux_tube_volume_ml: float | None
     ) -> None:
-        if max_working_volume_ml is None:
-            resolved_max_working_volume_ml = bioreactor.get_bioreactor_value(
+        if efflux_tube_volume_ml is None:
+            resolved_efflux_tube_volume_ml = bioreactor.get_bioreactor_value(
                 self.experiment,
-                "max_working_volume_ml",
+                "efflux_tube_volume_ml",
             )
         else:
-            resolved_max_working_volume_ml = max_working_volume_ml
+            resolved_efflux_tube_volume_ml = efflux_tube_volume_ml
 
         if current_volume_ml is None:
             resolved_current_volume_ml = bioreactor.get_bioreactor_value(self.experiment, "current_volume_ml")
@@ -496,12 +497,12 @@ class DosingAutomationJob(AutomationJob):
 
         # Seed the shared bioreactor state, and initialize the automation's local mirror from
         # the same values.
-        self.max_working_volume_ml = bioreactor.set_and_publish_bioreactor_value(
+        self.efflux_tube_volume_ml = bioreactor.set_and_publish_bioreactor_value(
             self.pub_client,
             self.unit,
             self.experiment,
-            "max_working_volume_ml",
-            resolved_max_working_volume_ml,
+            "efflux_tube_volume_ml",
+            resolved_efflux_tube_volume_ml,
         )
         self.current_volume_ml = bioreactor.set_and_publish_bioreactor_value(
             self.pub_client,
@@ -546,8 +547,8 @@ class DosingAutomationJob(AutomationJob):
             bioreactor.get_bioreactor_topic(self.unit, self.experiment, "current_volume_ml"),
         )
         self.subscribe_and_callback(
-            self._set_max_working_volume_ml_from_mqtt,
-            bioreactor.get_bioreactor_topic(self.unit, self.experiment, "max_working_volume_ml"),
+            self._set_efflux_tube_volume_ml_from_mqtt,
+            bioreactor.get_bioreactor_topic(self.unit, self.experiment, "efflux_tube_volume_ml"),
         )
 
     def _set_alt_media_fraction_from_mqtt(self, message: pt.MQTTMessage) -> None:
@@ -576,12 +577,12 @@ class DosingAutomationJob(AutomationJob):
             # TODO: this should publish to pumps to stop them.
             # but it is checked elsewhere
 
-    def _set_max_working_volume_ml_from_mqtt(self, message: pt.MQTTMessage) -> None:
+    def _set_efflux_tube_volume_ml_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
             return
 
-        self.max_working_volume_ml = bioreactor.validate_bioreactor_value(
-            "max_working_volume_ml", message.payload
+        self.efflux_tube_volume_ml = bioreactor.validate_bioreactor_value(
+            "efflux_tube_volume_ml", message.payload
         )
 
 

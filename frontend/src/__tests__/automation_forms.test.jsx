@@ -133,7 +133,7 @@ describe("automation forms", () => {
           duration: 30,
           exchange_volume_ml: 1.5,
           current_volume_ml: 11,
-          max_working_volume_ml: 18,
+          efflux_tube_volume_ml: 18,
         }}
       />,
     );
@@ -154,7 +154,7 @@ describe("automation forms", () => {
         duration: 30,
         exchange_volume_ml: 1.5,
         current_volume_ml: 11,
-        max_working_volume_ml: 18,
+        efflux_tube_volume_ml: 18,
       });
 
       return (
@@ -229,7 +229,7 @@ describe("automation forms", () => {
     );
 
     await waitFor(() => expect(screen.getByLabelText("Current volume")).toHaveValue(14));
-    expect(screen.getByLabelText("Max working volume")).toHaveValue(16);
+    expect(screen.getByLabelText("Efflux tube volume")).toHaveValue(16);
 
     fireEvent.click(screen.getByText("Start"));
 
@@ -244,7 +244,7 @@ describe("automation forms", () => {
         duration: 30,
         exchange_volume_ml: 1.5,
         current_volume_ml: 14,
-        max_working_volume_ml: 16,
+        efflux_tube_volume_ml: 16,
       },
       [],
     );

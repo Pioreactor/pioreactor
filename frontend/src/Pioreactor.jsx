@@ -146,13 +146,13 @@ function createBioreactorSettingsGroup(descriptors, values, config, modelDetails
     return null;
   }
 
-  const maxWorkingVolumeMax = Number.isFinite(modelDetails?.reactor_max_fill_volume_ml)
+  const effluxTubeVolumeMax = Number.isFinite(modelDetails?.reactor_max_fill_volume_ml)
     ? modelDetails.reactor_max_fill_volume_ml
     : null;
 
   const publishedSettings = descriptors.reduce((acc, descriptor) => {
-    const max = (descriptor.key === "current_volume_ml" || descriptor.key === "max_working_volume_ml")
-        ? maxWorkingVolumeMax ?? descriptor.max
+    const max = (descriptor.key === "current_volume_ml" || descriptor.key === "efflux_tube_volume_ml")
+        ? effluxTubeVolumeMax ?? descriptor.max
         : descriptor.max;
 
     acc[descriptor.key] = {
@@ -254,7 +254,7 @@ function BioreactorDiagramPanel({
         config={config}
         size={modelDetails.reactor_capacity_ml}
         liquidVolume={getBioreactorConfirmedValue(bioreactorValues, config, "current_volume_ml")}
-        maxVolume={getBioreactorConfirmedValue(bioreactorValues, config, "max_working_volume_ml")}
+        maxVolume={getBioreactorConfirmedValue(bioreactorValues, config, "efflux_tube_volume_ml")}
       />
     ) : (
       <Box sx={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
@@ -1201,7 +1201,7 @@ function SettingsActionsDialog(props) {
   const dosingMaxVolume = getBioreactorConfirmedValue(
     props.bioreactorValues,
     props.config,
-    "max_working_volume_ml",
+    "efflux_tube_volume_ml",
   );
   const dosingLiquidVolume = getBioreactorConfirmedValue(
     props.bioreactorValues,
@@ -2433,7 +2433,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
   const dosingMaxVolume = getBioreactorConfirmedValue(
     bioreactorValues,
     config,
-    "max_working_volume_ml",
+    "efflux_tube_volume_ml",
   )
   const dosingLiquidVolume = getBioreactorConfirmedValue(
     bioreactorValues,

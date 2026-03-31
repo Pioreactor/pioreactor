@@ -116,13 +116,13 @@ def test_get_bioreactor_values_endpoint_returns_defaults(client) -> None:
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["values"]["current_volume_ml"] == pytest.approx(14.0)
-    assert data["values"]["max_working_volume_ml"] == pytest.approx(14.0)
+    assert data["values"]["efflux_tube_volume_ml"] == pytest.approx(14.0)
     assert data["values"]["alt_media_fraction"] == pytest.approx(0.0)
 
 
 def test_get_bioreactor_values_endpoint_returns_persisted_values(client) -> None:
     set_bioreactor_value("exp1", "current_volume_ml", 11.2)
-    set_bioreactor_value("exp1", "max_working_volume_ml", 15.0)
+    set_bioreactor_value("exp1", "efflux_tube_volume_ml", 15.0)
     set_bioreactor_value("exp1", "alt_media_fraction", 0.3)
 
     resp = client.get("/unit_api/bioreactor/experiments/exp1")
@@ -130,7 +130,7 @@ def test_get_bioreactor_values_endpoint_returns_persisted_values(client) -> None
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["values"]["current_volume_ml"] == pytest.approx(11.2)
-    assert data["values"]["max_working_volume_ml"] == pytest.approx(15.0)
+    assert data["values"]["efflux_tube_volume_ml"] == pytest.approx(15.0)
     assert data["values"]["alt_media_fraction"] == pytest.approx(0.3)
 
 
@@ -170,11 +170,11 @@ def test_update_bioreactor_values_endpoint_rejects_out_of_range_values(client, m
 
     resp = client.patch(
         "/unit_api/bioreactor/experiments/exp1",
-        json={"values": {"max_working_volume_ml": 38.1}},
+        json={"values": {"efflux_tube_volume_ml": 100.0}},
     )
 
     assert resp.status_code == 400
-    assert "max_working_volume_ml" in resp.get_json()["error"]
+    assert "efflux_tube_volume_ml" in resp.get_json()["error"]
 
 
 def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, monkeypatch) -> None:

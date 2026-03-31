@@ -922,7 +922,7 @@ def test_throughput_calculator_manual_set() -> None:
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
 
-    with Silent(unit=unit, experiment=experiment, current_volume_ml=15.0, max_working_volume_ml=15.0) as ca:
+    with Silent(unit=unit, experiment=experiment, current_volume_ml=15.0, efflux_tube_volume_ml=15.0) as ca:
         ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
         pause()
         assert ca.media_throughput == 0.50
@@ -1851,10 +1851,10 @@ def test_dosing_automation_initial_values_for_volumes() -> None:
             experiment=exp,
             alt_media_fraction=0.5,
             current_volume_ml=10.0,
-            max_working_volume_ml=15.0,
+            efflux_tube_volume_ml=15.0,
         ) as ca:
             assert ca.current_volume_ml == 10.0
-            assert ca.max_working_volume_ml == 15.0
+            assert ca.efflux_tube_volume_ml == 15.0
             assert ca.alt_media_fraction == 0.5
             ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
             assert wait_for(lambda: close(ca.current_volume_ml, 11.0), timeout=5.0)
@@ -1872,8 +1872,8 @@ def test_dosing_automation_uses_stored_values_when_none_provided() -> None:
         experiment=exp,
         alt_media_fraction=None,
         current_volume_ml=None,
-        max_working_volume_ml=16.0,
+        efflux_tube_volume_ml=16.0,
     ) as ca:
         assert ca.current_volume_ml == 11.0
-        assert ca.max_working_volume_ml == 16.0
+        assert ca.efflux_tube_volume_ml == 16.0
         assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6

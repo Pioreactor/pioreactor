@@ -136,7 +136,7 @@ def test_chemostat_inherits_parent_settings_and_options() -> None:
     for key in ("duration", "exchange_volume_ml"):
         assert key in option_names, f"{key} missing in CLI options for chemostat"
 
-    for key in ("alt_media_fraction", "current_volume_ml", "max_working_volume_ml"):
+    for key in ("alt_media_fraction", "current_volume_ml", "efflux_tube_volume_ml"):
         assert key not in settings, f"{key} should not be in published_settings for chemostat"
         assert key not in option_names, f"{key} should not be in CLI options for chemostat"
 

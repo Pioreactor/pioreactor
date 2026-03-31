@@ -100,7 +100,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     size,
   );
   const cappedMaxVolume = clampVolume(
-    maxVolume ?? config?.bioreactor?.max_working_volume_ml,
+    maxVolume ?? config?.bioreactor?.efflux_tube_volume_ml,
     size,
     size,
   );

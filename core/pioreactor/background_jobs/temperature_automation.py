@@ -6,6 +6,7 @@ from typing import Any
 from typing import cast
 
 import click
+from pioreactor import bioreactor
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
@@ -351,10 +352,7 @@ class TemperatureAutomationJob(AutomationJob):
             features["is_rpi_zero"] = rpi_version_info.startswith("Raspberry Pi Zero")
 
             # the amount of liquid in the vial is a factor!
-            features["volume"] = 0.5 * (
-                config.getfloat("bioreactor", "initial_volume_ml")
-                + config.getfloat("bioreactor", "max_working_volume_ml")
-            )
+            features["volume"] = bioreactor.get_bioreactor_value(self.experiment, "current_volume_ml")
 
             # turn off active heating, and start recording decay
             self._update_heater(0)
