@@ -12,11 +12,6 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 ---
 
-## Important rules
-
- * Never run `git add`, `git commit`, `git revert`, `git restore`, or `git checkout` without permission.
- * Git is read-only: you may inspect logs, diffs, and history.
-
 ## Key components
 
 * **Background Jobs**
