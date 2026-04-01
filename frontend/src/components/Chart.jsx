@@ -169,8 +169,7 @@ function Chart(props) {
 
   const relabelAndFormatSeriesForLegend = useCallback(
     (name) => {
-      const nElements = Object.keys(relabelMap || {}).length || 1;
-      const truncateString = breakString(Math.floor(100 / nElements));
+      const truncateString = breakString(12);
 
       if (isPartitionedBySensor) {
         const { base, suffix } = splitPartitionedName(name);
@@ -263,9 +262,10 @@ function Chart(props) {
       const legendColor = applyAngleAlpha(name, line?.color);
       const item = {
         name: reformattedName,
+        originalName: name,
         symbol: { fill: legendColor },
       };
-      if (hiddenSeries.has(reformattedName)) {
+      if (hiddenSeries.has(name)) {
         return { ...item, symbol: { fill: "white" } };
       }
       return item;
@@ -365,7 +365,7 @@ function Chart(props) {
         );
       }
 
-      const isHidden = hiddenSeries.has(reformattedName);
+      const isHidden = hiddenSeries.has(name);
       const chartData = isHidden ? [] : series.data;
 
       return (
@@ -402,7 +402,7 @@ function Chart(props) {
                 childName: legendProps.datum.name,
                 target: "data",
                 mutation: () => {
-                  const seriesName = legendProps.datum.name;
+                  const seriesName = legendProps.datum.originalName;
                   setHiddenSeries((prevHidden) => {
                     const next = new Set(prevHidden);
                     if (next.has(seriesName)) {

@@ -3,17 +3,19 @@
 #### Breaking changes
 
 - Renamed the shared bioreactor volume setting `max_working_volume_ml` to `efflux_tube_volume_ml`, including the UI label (`Efflux tube level`), MQTT/API state, and device config/cache migration during update.
+- Job and Automation controls now use worker-provided descriptors for individual Pioreactors, so worker-only plugin jobs automations appear in per-unit UI even if the leader doesn’t have that plugin installed. Bulk “Control All Pioreactors” automation flows remain leader-driven.
 
 #### Enhancements
 
-- Added short-lived leader-side caching for several fan-out metadata APIs, reducing repeated worker fetches and improving UI load times for calibrations, active calibrations, calibration protocols, estimators, active estimators, and installed plugins.
+- Added short-lived leader-side caching for several fan-out metadata APIs, reducing repeated worker fetches and improving UI load times for calibrations, protocols, estimators, automations, jobs, and installed plugins.
 
 #### Bug fixes
 
-- Fixed repeated in-process actions such as dosing/pump runs to clean up MQTT listeners, signal handlers, and short-lived MQTT clients more reliably, preventing runaway localhost socket/file-descriptor growth in long-lived jobs.
+- Fixed repeated in-process actions such as dosing/pump runs to clean up MQTT listeners, signal handlers, and short-lived MQTT clients more reliably, preventing runaway socket/file-descriptor growth in long-lived jobs.
 - Fixed `fed_batch` dosing to skip additions that would push the vial past the configured hard-stop safety volume, pausing the automation instead of risking overflow.
 - Fixed non-interactive SSH and `nohup` command execution for `pio` and `pios` by installing `/usr/local/bin` wrappers that source `/etc/pioreactor.env` before execing the Pioreactor virtualenv binaries.
 - Fixed pump calibration `dosing_events` from changing retained bioreactor state such as vial volume and alt-media fraction.
+- Fixed overview chart legends so relabelled aliases are truncated consistently and still hide/show the correct series when clicked.
 
 ### 26.3.3
 
