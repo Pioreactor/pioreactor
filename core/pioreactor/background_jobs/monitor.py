@@ -650,6 +650,8 @@ class Monitor(LongRunningBackgroundJob):
         try:
             _, unit, experiment, _ = message.topic.split("/")
             dosing_event = decode(message.payload, type=structs.DosingEvent)
+            if dosing_event.source_of_event == "pump_calibration":
+                return
             # Monitor owns the dosing_events -> bioreactor projection so pump actions can stay
             # hardware-focused and jobs do not need to coordinate who persists retained vial state.
             # This is an expedient home because monitor is always on; if more experiment-domain

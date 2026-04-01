@@ -40,6 +40,8 @@ def dosing_events_to_bioreactor_projector(unit: str, experiment: str):
     def on_message(message) -> None:
         assert publisher_client is not None
         dosing_event = decode(message.payload, type=structs.DosingEvent)
+        if dosing_event.source_of_event == "pump_calibration":
+            return
         bioreactor.apply_dosing_event_to_bioreactor(
             unit,
             experiment,

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # test_monitor
 import time
+from types import SimpleNamespace
 
 import pytest
 import zeroconf
@@ -138,3 +139,74 @@ def test_monitor_projects_custom_add_dosing_events_into_bioreactor() -> None:
 
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(15.0)
     assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(0.0)
+
+
+def test_monitor_ignores_pump_calibration_dosing_events_for_bioreactor_projection(monkeypatch) -> None:
+    unit = get_unit_name()
+    experiment = "test_monitor_ignores_pump_calibration_dosing_events_for_bioreactor_projection"
+    monitor = object.__new__(Monitor)
+    monitor.unit = unit
+    monitor.pub_client = None
+    apply_calls: list[structs.DosingEvent] = []
+
+    def fake_apply_dosing_event_to_bioreactor(
+        unit: str,
+        experiment: str,
+        dosing_event: structs.DosingEvent,
+        mqtt_client=None,
+    ) -> None:
+        apply_calls.append(dosing_event)
+
+    monkeypatch.setattr(bioreactor, "apply_dosing_event_to_bioreactor", fake_apply_dosing_event_to_bioreactor)
+
+    monitor.update_bioreactor_state_from_dosing_event(
+        SimpleNamespace(
+            topic=f"pioreactor/{unit}/{experiment}/dosing_events",
+            payload=encode(
+                structs.DosingEvent(
+                    volume_change=0.4,
+                    event="add_media",
+                    source_of_event="pump_calibration",
+                    timestamp=current_utc_datetime(),
+                )
+            ),
+        )
+    )
+
+    assert apply_calls == []
+
+
+def test_monitor_projects_non_calibration_dosing_events_into_bioreactor(monkeypatch) -> None:
+    unit = get_unit_name()
+    experiment = "test_monitor_projects_non_calibration_dosing_events_into_bioreactor"
+    monitor = object.__new__(Monitor)
+    monitor.unit = unit
+    monitor.pub_client = None
+    apply_calls: list[structs.DosingEvent] = []
+
+    def fake_apply_dosing_event_to_bioreactor(
+        unit: str,
+        experiment: str,
+        dosing_event: structs.DosingEvent,
+        mqtt_client=None,
+    ) -> None:
+        apply_calls.append(dosing_event)
+
+    monkeypatch.setattr(bioreactor, "apply_dosing_event_to_bioreactor", fake_apply_dosing_event_to_bioreactor)
+
+    monitor.update_bioreactor_state_from_dosing_event(
+        SimpleNamespace(
+            topic=f"pioreactor/{unit}/{experiment}/dosing_events",
+            payload=encode(
+                structs.DosingEvent(
+                    volume_change=0.4,
+                    event="add_media",
+                    source_of_event="test",
+                    timestamp=current_utc_datetime(),
+                )
+            ),
+        )
+    )
+
+    assert len(apply_calls) == 1
+    assert apply_calls[0].source_of_event == "test"
