@@ -3,6 +3,7 @@
 import gc
 import signal
 import weakref
+from unittest.mock import MagicMock
 
 import pytest
 from pioreactor import whoami
@@ -25,7 +26,7 @@ class DummyMQTTClient:
         self.subscriptions: list[str] = []
         self.unsubscribed: list[str] = []
 
-    def publish(self, topic, payload, retain=True):
+    def publish(self, topic, payload, retain=True, **kwargs):
         self.published.append((topic, payload, retain))
 
     def message_callback_add(self, topic, callback):
@@ -157,6 +158,24 @@ def test_managed_lifecycle_cleans_up_signal_handlers_and_reused_client_callbacks
     finally:
         signal.signal(signal.SIGTERM, initial_sigterm_handler)
         signal.signal(signal.SIGINT, initial_sigint_handler)
+
+
+def test_managed_lifecycle_waits_for_disconnected_publish_before_shutdown() -> None:
+    client = DummyMQTTClient()
+    publish_info = MagicMock()
+    client.publish = MagicMock(return_value=publish_info)
+    client.shutdown = MagicMock()
+
+    with managed_lifecycle(
+        "test_unit",
+        "test_waits_for_publish",
+        "test_job",
+        mqtt_client=client,
+        ignore_is_active_state=True,
+    ):
+        pass
+
+    publish_info.wait_for_publish.assert_called_once_with(timeout=5)
 
 
 def test_argextrema_with_empty_lists() -> None:

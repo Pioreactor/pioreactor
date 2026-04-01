@@ -26,6 +26,7 @@ from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import patch_into
+from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as st
 from pioreactor.utils.networking import resolve_to_address
@@ -183,10 +184,11 @@ class managed_lifecycle:
         try:
             self.publish_setting("$state", self.state)
         finally:
-            self._remove_passive_listeners()
             self._remove_signal_handlers()
 
-            if not self._externally_provided_client:
+            if self._externally_provided_client:
+                self._remove_passive_listeners()
+            else:
                 assert self.mqtt_client is not None
                 self.mqtt_client.shutdown()
 
@@ -233,9 +235,14 @@ class managed_lifecycle:
 
     def publish_setting(self, setting: str, value: Any) -> None:
         assert self.mqtt_client is not None
-        self.mqtt_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/{setting}", value, retain=True
+        message_info = self.mqtt_client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/{setting}",
+            value,
+            retain=True,
+            qos=QOS.EXACTLY_ONCE,
         )
+        message_info.wait_for_publish(timeout=5)
+
         from pioreactor.utils.job_manager import JobManager
 
         with JobManager() as jm:

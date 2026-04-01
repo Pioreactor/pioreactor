@@ -13,6 +13,7 @@ from typing import Self
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
+from paho.mqtt.client import MQTTMessageInfo
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
@@ -437,7 +438,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         payload: pt.PublishableSettingDataType | dict | bytes | None,
         qos: int = QOS.EXACTLY_ONCE,
         **kwargs: t.Any,
-    ) -> None:
+    ) -> MQTTMessageInfo:
         """
         Publish payload to topic.
 
@@ -447,7 +448,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if not isinstance(payload, (str, bytearray, bytes, int, float)) and (payload is not None):
             payload = dumps(payload)
 
-        self.pub_client.publish(topic, payload=payload, qos=qos, **kwargs)
+        return self.pub_client.publish(topic, payload=payload, qos=qos, **kwargs)
 
     def subscribe_and_callback(
         self,
@@ -691,7 +692,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             setting_name = setting
         value = getattr(self, setting)
 
-        self.publish(
+        msg = self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting_name}",
             value,
             retain=True,
@@ -699,6 +700,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         )
         with JobManager() as jm:
             jm.upsert_setting(self.job_id, setting_name, value)
+
+        msg.wait_for_publish(timeout=5)
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
