@@ -17,7 +17,7 @@ import Snackbar from './Snackbar';
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import {runPioreactorJob} from "../utils/jobs"
+import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
 import DosingAutomationForm from "./DosingAutomationForm"
@@ -54,23 +54,16 @@ function ChangeDosingAutomationsDialog(props) {
   const selectedAutomation = automations[automationName]
 
   useEffect(() => {
-    function fetchAutomations() {
-      fetch("/api/automations/descriptors/" + automationType)
-        .then((response) => {
-            if (response.ok) {
-              return response.json();
-            } else {
-              throw new Error('Something went wrong');
-            }
-          })
-        .then((listOfAuto) => {
-          setIsLoading(false)
-          setAutomations(Object.assign({}, ...listOfAuto.map(auto => ({ [auto.automation_name]: auto}))))
-        })
-        .catch((error) => {console.error(error)})
-    }
-    fetchAutomations();
-  }, [automationType])
+    setIsLoading(true)
+    getAutomationDescriptors(props.unit, automationType)
+      .then((listOfAuto) => {
+        setAutomations(Object.assign({}, ...listOfAuto.map(auto => ({ [auto.automation_name]: auto}))))
+        setIsLoading(false)
+      })
+      .catch((_error) => {
+        setIsLoading(false)
+      })
+  }, [automationType, props.unit])
 
   useEffect(() => {
     if (!props.open) {

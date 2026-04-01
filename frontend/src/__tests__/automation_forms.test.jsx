@@ -10,53 +10,64 @@ import ChangeDosingAutomationsDialog from "../components/ChangeDosingAutomations
 const mockRunPioreactorJob = jest.fn();
 
 jest.mock("../utils/jobs", () => ({
+  getAutomationDescriptors: jest.fn(),
   runPioreactorJob: (...args) => mockRunPioreactorJob(...args),
 }));
+
+const { getAutomationDescriptors } = jest.requireMock("../utils/jobs");
+
+const mockGetAutomationDescriptors = (unit, automationType) => {
+  if (unit === "$broadcast" && automationType === "temperature") {
+    return Promise.resolve([
+      {
+        automation_name: "thermostat",
+        display_name: "Thermostat",
+        description: "Keep temperature steady.",
+        fields: [
+          { key: "target_temperature", label: "Target temperature", type: "numeric", default: 37, unit: "C" },
+          { key: "mode", label: "Mode", type: "select", default: "normal", options: ["normal", "aggressive"] },
+        ],
+      },
+    ]);
+  }
+
+  if (automationType === "temperature") {
+    return Promise.resolve([
+      {
+        automation_name: "thermostat",
+        display_name: "Thermostat",
+        description: "Keep temperature steady.",
+        fields: [
+          { key: "target_temperature", label: "Target temperature", type: "numeric", default: 37, unit: "C" },
+          { key: "mode", label: "Mode", type: "select", default: "normal", options: ["normal", "aggressive"] },
+        ],
+      },
+    ]);
+  }
+
+  if (automationType === "dosing") {
+    return Promise.resolve([
+      {
+        automation_name: "chemostat",
+        display_name: "Chemostat",
+        description: "Maintain a fixed dilution rate.",
+        fields: [
+          { key: "duration", label: "Duration", type: "numeric", default: 30, unit: "min" },
+          { key: "exchange_volume_ml", label: "Exchange volume", type: "numeric", default: 1.5, unit: "ml" },
+        ],
+      },
+    ]);
+  }
+
+  return Promise.reject(new Error(`Unexpected descriptor request: ${unit}:${automationType}`));
+};
 
 const renderWithSnackbar = (ui) => render(<SnackbarProvider>{ui}</SnackbarProvider>);
 
 describe("automation forms", () => {
   beforeEach(() => {
     mockRunPioreactorJob.mockReset();
-    global.fetch = jest.fn((url) => {
-      if (url === "/api/automations/descriptors/temperature") {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              {
-                automation_name: "thermostat",
-                display_name: "Thermostat",
-                description: "Keep temperature steady.",
-                fields: [
-                  { key: "target_temperature", label: "Target temperature", type: "numeric", default: 37, unit: "C" },
-                  { key: "mode", label: "Mode", type: "select", default: "normal", options: ["normal", "aggressive"] },
-                ],
-              },
-            ]),
-        });
-      }
-
-      if (url === "/api/automations/descriptors/dosing") {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              {
-                automation_name: "chemostat",
-                display_name: "Chemostat",
-                description: "Maintain a fixed dilution rate.",
-                fields: [
-                  { key: "duration", label: "Duration", type: "numeric", default: 30, unit: "min" },
-                  { key: "exchange_volume_ml", label: "Exchange volume", type: "numeric", default: 1.5, unit: "ml" },
-                ],
-              },
-            ]),
-        });
-      }
-
-      throw new Error(`Unexpected fetch call: ${url}`);
-    });
+    getAutomationDescriptors.mockImplementation(mockGetAutomationDescriptors);
   });
 
   afterEach(() => {
@@ -212,6 +223,7 @@ describe("automation forms", () => {
       },
       [],
     );
+    expect(getAutomationDescriptors).toHaveBeenCalledWith("unit-1", "temperature");
   });
 
   test("ChangeDosingAutomationsDialog initializes defaults in the parent before start", async () => {
@@ -248,5 +260,22 @@ describe("automation forms", () => {
       },
       [],
     );
+    expect(getAutomationDescriptors).toHaveBeenCalledWith("unit-1", "dosing");
+  });
+
+  test("ChangeAutomationsDialog keeps broadcast automation descriptors leader-driven", async () => {
+    renderWithSnackbar(
+      <ChangeAutomationsDialog
+        open
+        onFinished={jest.fn()}
+        unit="$broadcast"
+        experiment="exp-1"
+        automationType="temperature"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText("Target temperature")).toHaveValue(37));
+
+    expect(getAutomationDescriptors).toHaveBeenCalledWith("$broadcast", "temperature");
   });
 });

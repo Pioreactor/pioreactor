@@ -57,6 +57,8 @@ from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import load_automation_descriptors
+from pioreactor.web.utils import load_background_job_descriptors
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import safe_join
 
@@ -794,6 +796,19 @@ def get_capabilities() -> ResponseReturnValue:
     return jsonify(collect_capabilities())
 
 
+@unit_api_bp.route("/jobs/descriptors", methods=["GET"])
+def get_job_descriptors() -> ResponseReturnValue:
+    try:
+        descriptors = load_background_job_descriptors(
+            Path(os.environ["DOT_PIOREACTOR"]),
+            report_error=lambda message: publish_to_error_log(message, "unit_api.get_job_descriptors"),
+        )
+        return attach_cache_control(jsonify(descriptors))
+    except Exception as e:
+        publish_to_error_log(str(e), "unit_api.get_job_descriptors")
+        abort_with(400, str(e))
+
+
 ### PLUGINS
 
 
@@ -954,6 +969,25 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
 
     task = tasks.uninstall_plugin_task(body.args[0])
     return create_task_response(task)
+
+
+@unit_api_bp.route("/automations/descriptors/<automation_type>", methods=["GET"])
+def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
+    if automation_type not in {"temperature", "dosing", "led"}:
+        abort_with(
+            400, "Not a valid automation type", remediation="choose one of 'temperature', 'dosing', 'led'"
+        )
+
+    try:
+        descriptors = load_automation_descriptors(
+            Path(os.environ["DOT_PIOREACTOR"]),
+            automation_type,
+            report_error=lambda message: publish_to_error_log(message, "unit_get_automation_descriptors"),
+        )
+        return attach_cache_control(jsonify(descriptors))
+    except Exception as e:
+        publish_to_error_log(str(e), "unit_get_automation_descriptors")
+        abort_with(400, str(e))
 
 
 ### VERSIONS

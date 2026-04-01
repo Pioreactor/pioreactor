@@ -2,6 +2,7 @@
 # utils.py
 import re
 import typing as t
+from pathlib import Path
 from time import time
 from typing import NewType
 from typing import NoReturn
@@ -10,8 +11,12 @@ from flask import abort
 from flask import jsonify
 from flask import Response
 from flask.typing import ResponseReturnValue
+from msgspec import DecodeError
 from msgspec import Struct
 from msgspec import to_builtins
+from msgspec import ValidationError
+from msgspec.yaml import decode as yaml_decode
+from pioreactor import structs
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
 
@@ -155,3 +160,48 @@ def is_rate_limited(job: str, expire_time_seconds: float = 1.0) -> bool:
 
         cache.set(job, now)
         return False
+
+
+def load_background_job_descriptors(
+    dot_pioreactor_path: Path,
+    *,
+    report_error: t.Callable[[str], None] | None = None,
+) -> list[structs.BackgroundJobDescriptor]:
+    job_path_builtins = dot_pioreactor_path / "ui" / "jobs"
+    job_path_plugins = dot_pioreactor_path / "plugins" / "ui" / "jobs"
+    files = sorted(job_path_builtins.glob("*.y*ml")) + sorted(job_path_plugins.glob("*.y*ml"))
+
+    parsed_yaml: dict[str, structs.BackgroundJobDescriptor] = {}
+
+    for file in files:
+        try:
+            decoded_yaml = yaml_decode(file.read_bytes(), type=structs.BackgroundJobDescriptor)
+            parsed_yaml[decoded_yaml.job_name] = decoded_yaml
+        except (ValidationError, DecodeError) as e:
+            if report_error is not None:
+                report_error(f"Yaml error in {file.name}: {e}")
+
+    return list(parsed_yaml.values())
+
+
+def load_automation_descriptors(
+    dot_pioreactor_path: Path,
+    automation_type: str,
+    *,
+    report_error: t.Callable[[str], None] | None = None,
+) -> list[structs.AutomationDescriptor]:
+    automation_path_builtins = dot_pioreactor_path / "ui" / "automations" / automation_type
+    automation_path_plugins = dot_pioreactor_path / "plugins" / "ui" / "automations" / automation_type
+    files = sorted(automation_path_builtins.glob("*.y*ml")) + sorted(automation_path_plugins.glob("*.y*ml"))
+
+    parsed_yaml: dict[str, structs.AutomationDescriptor] = {}
+
+    for file in files:
+        try:
+            decoded_yaml = yaml_decode(file.read_bytes(), type=structs.AutomationDescriptor)
+            parsed_yaml[decoded_yaml.automation_name] = decoded_yaml
+        except (ValidationError, DecodeError) as e:
+            if report_error is not None:
+                report_error(f"Yaml error in {file.name}: {e}")
+
+    return list(parsed_yaml.values())
