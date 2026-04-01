@@ -28,7 +28,7 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     "efflux_tube_volume_ml": structs.BioreactorVariableDefinition(
         key="efflux_tube_volume_ml",
         label="Efflux tube level",
-        description="Stable volume set by the height of the waste/efflux tube.",
+        description="Liquid volume equivalent to the height of the waste/efflux tube.",
         unit="mL",
         minimum=0.0,
         maximum=None,
@@ -38,7 +38,7 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     "alt_media_fraction": structs.BioreactorVariableDefinition(
         key="alt_media_fraction",
         label="Alt media fraction",
-        description="Fraction of the vial estimated to contain alt media.",
+        description="Fraction of the current volume estimated to be alt media.",
         unit=None,
         minimum=0.0,
         maximum=1.0,
