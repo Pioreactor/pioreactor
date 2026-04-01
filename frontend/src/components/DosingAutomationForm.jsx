@@ -21,7 +21,7 @@ function DosingAutomationForm(props) {
     }
 
     if (effluxTubeVolume != null && effluxTubeVolume >= threshold) {
-      return `Efflux tube volume exceeds safe maximum of ${threshold} mL.`;
+      return `Efflux tube level exceeds safe maximum of ${threshold} mL.`;
     }
 
     if (
@@ -29,7 +29,7 @@ function DosingAutomationForm(props) {
       effluxTubeVolume >= threshold - safetyBufferMl &&
       effluxTubeVolume < threshold
     ) {
-      return `Efflux tube volume is very close to the ${threshold} mL safety ceiling.`;
+      return `Efflux tube level is very close to the ${threshold} mL safety ceiling.`;
     }
 
     return "";
@@ -157,7 +157,7 @@ function DosingAutomationForm(props) {
             size="small"
             autoComplete="off"
             id="efflux_tube_volume_ml"
-            label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Efflux tube volume</UnderlineSpan>}
+            label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Efflux tube level</UnderlineSpan>}
             InputProps={{
               endAdornment: <InputAdornment position="end">ml</InputAdornment>,
             }}

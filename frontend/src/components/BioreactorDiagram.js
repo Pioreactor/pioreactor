@@ -205,7 +205,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     const heaterRec = [{ text: 'heat', x: 100, y: shiftedBaseHigh - 10, width: 200, height: 20, radius: 3 }];
 
     const pumpsRects = [
-      { text: 'waste', x: bioreactor.x + (bioreactor.width * 3) / 4, y: bioreactor.y - 53, width: 20, height: bottomOfWasteTube, radius: 3 },
+      { text: 'efflux', x: bioreactor.x + (bioreactor.width * 3) / 4, y: bioreactor.y - 53, width: 20, height: bottomOfWasteTube, radius: 3 },
       { text: 'media', x: bioreactor.x + (bioreactor.width * 2) / 4, y: bioreactor.y - 53, width: 20, height: 100, radius: 3 },
       { text: 'alt-media', x: bioreactor.x + bioreactor.width / 4, y: bioreactor.y - 53, width: 20, height: 100, radius: 3 },
     ];

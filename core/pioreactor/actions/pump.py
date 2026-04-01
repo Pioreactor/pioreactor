@@ -498,7 +498,9 @@ def _liquid_circulation(
         ) as media_pump:
             logger.info("Running waste continuously.")
 
-            # assume they run it long enough such that the waste efflux position is reached.
+            # The shared bioreactor volume model clamps `remove_waste` at the
+            # efflux-tube level. This synthetic event is intentionally modeling
+            # "drain until the efflux height is reached", not "drain below it".
             dosing_event = structs.DosingEvent(
                 volume_change=20,
                 event="remove_waste",

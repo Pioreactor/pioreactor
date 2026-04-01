@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Breaking changes
+
+- Renamed the shared bioreactor volume setting `max_working_volume_ml` to `efflux_tube_volume_ml`, including the UI label (`Efflux tube level`), MQTT/API state, and device config/cache migration during update. Chemostat continues to treat this value as the steady-state working volume, while other automations now avoid assuming it is the universal current working volume.
+
 #### Enhancements
 
 - Added short-lived leader-side caching for several fan-out metadata APIs, reducing repeated worker fetches and improving UI load times for calibrations, active calibrations, calibration protocols, estimators, active estimators, and installed plugins.

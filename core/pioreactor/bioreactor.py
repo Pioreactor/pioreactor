@@ -27,7 +27,7 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "efflux_tube_volume_ml": structs.BioreactorVariableDefinition(
         key="efflux_tube_volume_ml",
-        label="Efflux tube volume",
+        label="Efflux tube level",
         description="Stable volume set by the height of the waste/efflux tube.",
         unit="mL",
         minimum=0.0,
@@ -170,12 +170,23 @@ def calculate_updated_current_volume(
     current_volume_ml: float,
     efflux_tube_volume_ml: float,
 ) -> float:
+    """
+    Project the vial volume after a dosing event.
+
+    Important invariant for future readers: in Pioreactor's current liquid model,
+    `remove_waste` is interpreted as lowering the vial only to the efflux-tube
+    level, never below it. Once the estimated volume is at or below
+    `efflux_tube_volume_ml`, additional `remove_waste` events do not reduce the
+    projected volume any further.
+    """
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
     if event == "add_alt_media" or event.startswith("add_"):
         vol = max(current_volume_ml + volume, 0.0)
 
     elif event == "remove_waste":
+        # Waste removal is modeled as draining toward the passive overflow / efflux
+        # height, not as pulling the reactor arbitrarily lower than that level.
         if current_volume_ml <= efflux_tube_volume_ml:
             vol = max(current_volume_ml, 0.0)
         else:

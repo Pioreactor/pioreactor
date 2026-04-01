@@ -136,6 +136,21 @@ def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_
     ) == pytest.approx(14.0)
 
 
+def test_calculate_updated_current_volume_does_not_go_below_efflux_level_on_remove_waste() -> None:
+    dosing_event = structs.DosingEvent(
+        volume_change=10.0,
+        event="remove_waste",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    assert bioreactor.calculate_updated_current_volume(
+        dosing_event,
+        current_volume_ml=3.0,
+        efflux_tube_volume_ml=3.0,
+    ) == pytest.approx(3.0)
+
+
 def test_calculate_updated_current_volume_accepts_add_media_events() -> None:
     dosing_event = structs.DosingEvent(
         volume_change=6.0,

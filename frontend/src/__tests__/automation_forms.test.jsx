@@ -229,7 +229,7 @@ describe("automation forms", () => {
     );
 
     await waitFor(() => expect(screen.getByLabelText("Current volume")).toHaveValue(14));
-    expect(screen.getByLabelText("Efflux tube volume")).toHaveValue(16);
+    expect(screen.getByLabelText("Efflux tube level")).toHaveValue(16);
 
     fireEvent.click(screen.getByText("Start"));
 
