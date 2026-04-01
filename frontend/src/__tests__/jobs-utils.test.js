@@ -112,4 +112,19 @@ describe("jobs utils", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit1/jobs/descriptors");
   });
+
+  test("getWorkerJobDescriptors surfaces API cause on failure", async () => {
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: () => Promise.resolve({
+        error: "Fetching job descriptors failed on worker02.",
+        cause: "Fetching job descriptors failed on worker02.",
+      }),
+    });
+
+    await expect(getWorkerJobDescriptors("worker02")).rejects.toThrow(
+      "Fetching job descriptors failed on worker02.",
+    );
+  });
 });

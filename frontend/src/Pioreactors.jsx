@@ -400,7 +400,7 @@ function DescriptorStatusMessage({ status, errorText = "Job controls unavailable
 
   if (status === "error") {
     return (
-      <Typography variant="body2" sx={{color: disabledColor}}>
+      <Typography variant="body2" sx={{color: disabledColor, mt: "10px"}}>
         {errorText}
       </Typography>
     );
@@ -3273,6 +3273,7 @@ function FlashLEDButton({ unit, disabled }){
 
 function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelDetails = {}}){
   const [jobDescriptorsStatus, setJobDescriptorsStatus] = useState("loading")
+  const [jobDescriptorsErrorText, setJobDescriptorsErrorText] = useState("Job controls unavailable.")
   const [label, setLabel] = useState("")
   const [bioreactorValues, setBioreactorValues] = useState({})
   const [bioreactorDescriptors, setBioreactorDescriptors] = useState([])
@@ -3316,6 +3317,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     let isCancelled = false
 
     setJobDescriptorsStatus("loading")
+    setJobDescriptorsErrorText("Job controls unavailable.")
     setJobs({ monitor: createMonitorJobState() })
 
     getWorkerJobDescriptors(unit)
@@ -3331,11 +3333,12 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         )
         setJobDescriptorsStatus("ready")
       })
-      .catch(() => {
+      .catch((error) => {
         if (isCancelled) {
           return
         }
         setJobs({ monitor: createMonitorJobState() })
+        setJobDescriptorsErrorText(error.message || "Job controls unavailable.")
         setJobDescriptorsStatus("error")
       })
 
@@ -3764,7 +3767,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         </Box>
         <RowOfUnitSettingDisplayBox>
           {jobDescriptorsStatus !== "ready" ? (
-            <DescriptorStatusMessage status={jobDescriptorsStatus} />
+            <DescriptorStatusMessage status={jobDescriptorsStatus} errorText={jobDescriptorsErrorText} />
           ) : null}
           {Object.entries(jobs)
             .filter(([, job]) => job.metadata.display)

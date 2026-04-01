@@ -82,6 +82,19 @@ export function buildJobsStateFromDescriptors(
   return jobs;
 }
 
+async function createApiErrorFromResponse(response) {
+  let errorMessage = `Error ${response.status}.`;
+
+  try {
+    const errorData = await response.json();
+    errorMessage = errorData?.cause || errorData?.error || errorMessage;
+  } catch (_error) {
+    // Ignore malformed or empty error bodies and keep the HTTP status fallback.
+  }
+
+  return new Error(errorMessage);
+}
+
 export async function getWorkerJobDescriptors(unit) {
   if (!unit) {
     return [];
@@ -93,9 +106,9 @@ export async function getWorkerJobDescriptors(unit) {
 
   if (!workerJobDescriptorsRequestCache.has(unit)) {
     const pendingRequest = fetch(`/api/workers/${unit}/jobs/descriptors`)
-      .then((response) => {
+      .then(async (response) => {
         if (!response.ok) {
-          throw new Error(`Error ${response.status}.`);
+          throw await createApiErrorFromResponse(response);
         }
         return response.json();
       })
