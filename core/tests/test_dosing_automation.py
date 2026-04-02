@@ -1187,7 +1187,7 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
 
     ca = DosingAutomationJob(unit=unit, experiment=experiment)
     ca.clean_up()
-    result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+    result = ca._execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     assert result["media_ml"] == 0.0
     assert result["alt_media_ml"] == 0.0
     assert result["waste_ml"] == 0.0
@@ -1451,6 +1451,56 @@ def test_dosing_start_and_stop_events_publish_to_mqtt(fast_dosing_timers) -> Non
     assert received_events[0]["data"]["media_ml"] == pytest.approx(0.1)
     assert received_events[1]["data"]["waste_ml"] == pytest.approx(0.2)
     assert received_events[1]["data"]["media_ml"] == pytest.approx(0.1)
+
+
+def test_subdosing_only_emits_top_level_dosing_events(fast_dosing_timers) -> None:
+    experiment = "test_subdosing_only_emits_top_level_dosing_events"
+    received_events: list[dict] = []
+
+    def on_message(message) -> None:
+        if message.payload:
+            received_events.append(decode(message.payload))
+
+    client = pubsub.subscribe_and_callback(
+        on_message,
+        f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event",
+        allow_retained=False,
+        client_id=f"{unit}_{experiment}_subdose_event_listener",
+    )
+
+    class FakeAutomation(DosingAutomationJob):
+        automation_name = "_test_fake_subdose_dosing_events"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            return ml
+
+        def execute(self):
+            return events.NoEvent()
+
+    try:
+        with FakeAutomation(
+            unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0
+        ) as automation:
+            automation.execute_io_action(waste_ml=2.0, media_ml=2.0)
+            assert wait_for(lambda: len(received_events) >= 2, timeout=2.0)
+            pause()
+    finally:
+        client.shutdown()
+
+    assert len(received_events) == 2
+    event_names = [event["event_name"] for event in received_events]
+    assert event_names == ["DosingStarted", "DosingStopped"]
+    assert received_events[0]["data"]["waste_ml"] == pytest.approx(2.0)
+    assert received_events[0]["data"]["media_ml"] == pytest.approx(2.0)
+    assert received_events[1]["data"]["waste_ml"] == pytest.approx(2.0)
+    assert received_events[1]["data"]["media_ml"] == pytest.approx(2.0)
 
 
 def test_strings_are_okay_for_chemostat(fast_dosing_timers) -> None:

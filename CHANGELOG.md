@@ -11,6 +11,7 @@
 
 #### Bug fixes
 
+- Fixed `dosing_automation` subdosing to emit only the top-level `DosingStarted` and `DosingStopped` events, avoiding duplicate nested dosing events during recursive IO actions.
 - Fixed repeated in-process actions such as dosing/pump runs to clean up MQTT listeners, signal handlers, and short-lived MQTT clients more reliably, preventing runaway socket/file-descriptor growth in long-lived jobs.
 - Fixed `fed_batch` dosing to skip additions that would push the vial past the configured hard-stop safety volume, pausing the automation instead of risking overflow.
 - Fixed non-interactive SSH and `nohup` command execution for `pio` and `pios` by installing `/usr/local/bin` wrappers that source `/etc/pioreactor.env` before execing the Pioreactor virtualenv binaries.

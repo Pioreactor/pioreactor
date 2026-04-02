@@ -19,6 +19,12 @@ from pioreactor.utils import SummableDict
 from pioreactor.whoami import get_unit_name
 
 
+class DummyMQTTMessageInfo:
+
+    def wait_for_publish(self, timeout: float | None = None):
+        return
+
+
 class DummyMQTTClient:
     def __init__(self):
         self.published: list[tuple[str, str, bool]] = []
@@ -28,6 +34,7 @@ class DummyMQTTClient:
 
     def publish(self, topic, payload, retain=True, **kwargs):
         self.published.append((topic, payload, retain))
+        return DummyMQTTMessageInfo()
 
     def message_callback_add(self, topic, callback):
         self.callbacks[topic] = callback

@@ -340,11 +340,11 @@ class DosingAutomationJob(AutomationJob):
         source_of_event = f"{self.job_name}:{self.automation_name}"
 
         if sum_of_volumes > self.MAX_SUBDOSE:
-            volumes_moved += self.execute_io_action(
+            volumes_moved += self._execute_io_action(
                 waste_ml=waste_ml / 2,
                 **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
             )
-            volumes_moved += self.execute_io_action(
+            volumes_moved += self._execute_io_action(
                 waste_ml=waste_ml / 2,
                 **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
             )
