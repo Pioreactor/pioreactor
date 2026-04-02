@@ -83,11 +83,11 @@ if [ -n "$source" ]; then
     sudo -u pioreactor "$PIP" install --force-reinstall --no-deps "$source"
 else
     if download_and_check_if_leader_only "$clean_plugin_name_with_dashes"; then
-        if [ "$am_i_leader" = true ]; then
+        if [ "$am_i_leader" = false ]; then
             echo "Not installing LEADER_ONLY plugin on worker"
             exit 0
         fi
-        echo "Installing LEADER_ONLY plugin on worker"
+        echo "Installing LEADER_ONLY plugin on leader"
     fi
     sudo -u pioreactor "$PIP" install --upgrade --force-reinstall --ignore-installed "$clean_plugin_name_with_dashes"
 fi

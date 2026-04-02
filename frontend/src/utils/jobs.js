@@ -1,6 +1,4 @@
-let workerJobDescriptorsCache = new Map();
 let workerJobDescriptorsRequestCache = new Map();
-let workerAutomationDescriptorsCache = new Map();
 let workerAutomationDescriptorsRequestCache = new Map();
 
 function getAutomationCacheKey(unit, automationType) {
@@ -8,9 +6,7 @@ function getAutomationCacheKey(unit, automationType) {
 }
 
 export function resetWorkerJobDescriptorsCache() {
-  workerJobDescriptorsCache = new Map();
   workerJobDescriptorsRequestCache = new Map();
-  workerAutomationDescriptorsCache = new Map();
   workerAutomationDescriptorsRequestCache = new Map();
 }
 
@@ -100,10 +96,6 @@ export async function getWorkerJobDescriptors(unit) {
     return [];
   }
 
-  if (workerJobDescriptorsCache.has(unit)) {
-    return workerJobDescriptorsCache.get(unit);
-  }
-
   if (!workerJobDescriptorsRequestCache.has(unit)) {
     const pendingRequest = fetch(`/api/workers/${unit}/jobs/descriptors`)
       .then(async (response) => {
@@ -113,7 +105,6 @@ export async function getWorkerJobDescriptors(unit) {
         return response.json();
       })
       .then((descriptors) => {
-        workerJobDescriptorsCache.set(unit, descriptors);
         workerJobDescriptorsRequestCache.delete(unit);
         return descriptors;
       })
@@ -136,10 +127,6 @@ export async function getAutomationDescriptors(unit, automationType) {
   const isWorkerScoped = Boolean(unit && unit !== "$broadcast");
   const cacheKey = getAutomationCacheKey(isWorkerScoped ? unit : "$leader", automationType);
 
-  if (workerAutomationDescriptorsCache.has(cacheKey)) {
-    return workerAutomationDescriptorsCache.get(cacheKey);
-  }
-
   if (!workerAutomationDescriptorsRequestCache.has(cacheKey)) {
     const endpoint = isWorkerScoped
       ? `/api/workers/${unit}/automations/descriptors/${automationType}`
@@ -153,7 +140,6 @@ export async function getAutomationDescriptors(unit, automationType) {
         return response.json();
       })
       .then((descriptors) => {
-        workerAutomationDescriptorsCache.set(cacheKey, descriptors);
         workerAutomationDescriptorsRequestCache.delete(cacheKey);
         return descriptors;
       })
