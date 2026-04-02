@@ -298,29 +298,30 @@ def stage_update_scripts_changes(version: str, dry_run: bool) -> None:
         ["git", "ls-files", upcoming.as_posix()],
         text=True,
     ).splitlines()
-    paths_to_stage: list[str] = [target.as_posix()]
-
-    if upcoming.exists():
-        paths_to_stage.append(upcoming.as_posix())
-
-    paths_to_stage.extend(tracked_upcoming_paths)
-
-    unique_paths_to_stage: list[str] = []
-    seen: set[str] = set()
-    for path in paths_to_stage:
-        if path not in seen:
-            unique_paths_to_stage.append(path)
-            seen.add(path)
-
-    if dry_run:
-        print(f"DRY-RUN: $ git add -A {' '.join(unique_paths_to_stage)}")
-        return
 
     if target.exists() and target.is_dir() and not any(target.iterdir()):
         (target / ".gitkeep").touch(exist_ok=True)
 
-    for path in unique_paths_to_stage:
-        subprocess.run(["git", "add", "-A", path], check=True)
+    paths_to_add: list[Path] = []
+    if target.exists():
+        paths_to_add.append(target)
+    if upcoming.exists():
+        paths_to_add.append(upcoming)
+
+    for path in paths_to_add:
+        if dry_run:
+            print(f"DRY-RUN: $ git add -A {path.as_posix()}")
+        else:
+            subprocess.run(["git", "add", "-A", path.as_posix()], check=True)
+
+    missing_tracked_upcoming_paths = [
+        tracked_path for tracked_path in tracked_upcoming_paths if not Path(tracked_path).exists()
+    ]
+    for path in missing_tracked_upcoming_paths:
+        if dry_run:
+            print(f"DRY-RUN: $ git rm --cached --ignore-unmatch --quiet {path}")
+        else:
+            subprocess.run(["git", "rm", "--cached", "--ignore-unmatch", "--quiet", path], check=True)
 
 
 def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
