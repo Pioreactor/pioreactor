@@ -18,6 +18,7 @@ from pioreactor.utils import pwm as pwm_module
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.pwm import SoftwarePWMOutputDevice
 from pioreactor.whoami import get_unit_name
+from tests.utils import FakeMQTTClient
 
 
 def pause(n=1) -> None:
@@ -229,11 +230,6 @@ def test_software_pwm_close_warns_and_keeps_dc_if_force_low_fails(
     )
 
 
-class DummyMQTTClient:
-    def publish(self, *args: Any, **kwargs: Any) -> None:
-        return
-
-
 def test_pwm_clean_up_unregisters_exit_protocol(monkeypatch: pytest.MonkeyPatch) -> None:
     register_call_count = 0
     unregister_call_count = 0
@@ -263,7 +259,7 @@ def test_pwm_clean_up_unregisters_exit_protocol(monkeypatch: pytest.MonkeyPatch)
     pwm_ref: weakref.ReferenceType[PWM] | None = None
 
     try:
-        pwm = PWM(12, 10, experiment="test_pwm_cleanup", unit=get_unit_name(), pub_client=DummyMQTTClient())
+        pwm = PWM(12, 10, experiment="test_pwm_cleanup", unit=get_unit_name(), pub_client=FakeMQTTClient())
         pwm_ref = weakref.ref(pwm)
         pwm.clean_up()
         del pwm

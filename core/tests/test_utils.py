@@ -17,36 +17,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import SummableDict
 from pioreactor.whoami import get_unit_name
-
-
-class DummyMQTTMessageInfo:
-
-    def wait_for_publish(self, timeout: float | None = None):
-        return
-
-
-class DummyMQTTClient:
-    def __init__(self):
-        self.published: list[tuple[str, str, bool]] = []
-        self.callbacks: dict[str, object] = {}
-        self.subscriptions: list[str] = []
-        self.unsubscribed: list[str] = []
-
-    def publish(self, topic, payload, retain=True, **kwargs):
-        self.published.append((topic, payload, retain))
-        return DummyMQTTMessageInfo()
-
-    def message_callback_add(self, topic, callback):
-        self.callbacks[topic] = callback
-
-    def message_callback_remove(self, topic):
-        self.callbacks.pop(topic, None)
-
-    def subscribe(self, topic, *args, **kwargs):
-        self.subscriptions.append(topic)
-
-    def unsubscribe(self, topic):
-        self.unsubscribed.append(topic)
+from tests.utils import FakeMQTTClient
 
 
 def test_is_pio_job_running_single() -> None:
@@ -100,7 +71,7 @@ def test_mqtt_disconnect_exit() -> None:
     experiment = "test_mqtt_disconnect_exit"
     name = "test_name"
 
-    client = DummyMQTTClient()
+    client = FakeMQTTClient()
     with managed_lifecycle(unit, experiment, name, mqtt_client=client, exit_on_mqtt_disconnect=True) as state:
         state._on_disconnect()  # Simulate broker disconnect
         state.block_until_disconnected()  # exits immediately
@@ -111,12 +82,12 @@ def test_managed_lifecycle_requires_active_unit(monkeypatch) -> None:
     monkeypatch.setattr(whoami, "is_active", lambda unit: False)
 
     with pytest.raises(NotActiveWorkerError):
-        managed_lifecycle("inactive_unit", "test_ignore_flag", "test_job", mqtt_client=DummyMQTTClient())
+        managed_lifecycle("inactive_unit", "test_ignore_flag", "test_job", mqtt_client=FakeMQTTClient())
 
 
 def test_managed_lifecycle_can_ignore_inactive_state(monkeypatch) -> None:
     monkeypatch.setattr(whoami, "is_active", lambda unit: False)
-    client = DummyMQTTClient()
+    client = FakeMQTTClient()
 
     with managed_lifecycle(
         "inactive_unit",
@@ -135,7 +106,7 @@ def test_managed_lifecycle_cleans_up_signal_handlers_and_reused_client_callbacks
     unit = "test_unit"
     experiment = "test_managed_lifecycle_cleanup"
     name = "test_job"
-    client = DummyMQTTClient()
+    client = FakeMQTTClient()
 
     initial_sigterm_handler = signal.getsignal(signal.SIGTERM)
     initial_sigint_handler = signal.getsignal(signal.SIGINT)
@@ -168,9 +139,11 @@ def test_managed_lifecycle_cleans_up_signal_handlers_and_reused_client_callbacks
 
 
 def test_managed_lifecycle_waits_for_disconnected_publish_before_shutdown() -> None:
-    client = DummyMQTTClient()
-    publish_info = MagicMock()
-    client.publish = MagicMock(return_value=publish_info)
+    client = FakeMQTTClient()
+    init_publish_info = MagicMock()
+    ready_publish_info = MagicMock()
+    disconnected_publish_info = MagicMock()
+    client.publish = MagicMock(side_effect=[init_publish_info, ready_publish_info, disconnected_publish_info])
     client.shutdown = MagicMock()
 
     with managed_lifecycle(
@@ -182,7 +155,9 @@ def test_managed_lifecycle_waits_for_disconnected_publish_before_shutdown() -> N
     ):
         pass
 
-    publish_info.wait_for_publish.assert_called_once_with(timeout=5)
+    init_publish_info.wait_for_publish.assert_called_once_with(timeout=5)
+    ready_publish_info.wait_for_publish.assert_called_once_with(timeout=5)
+    disconnected_publish_info.wait_for_publish.assert_called_once_with(timeout=5)
 
 
 def test_argextrema_with_empty_lists() -> None:

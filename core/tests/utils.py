@@ -1,12 +1,78 @@
 # -*- coding: utf-8 -*-
 import time
 from contextlib import contextmanager
+from typing import Any
 from typing import Callable
 
 from msgspec.json import decode
 from pioreactor import bioreactor
 from pioreactor import pubsub
 from pioreactor import structs
+
+
+class FakeMQTTMessageInfo:
+    def __init__(self, wait_error: Exception | None = None) -> None:
+        self.wait_error = wait_error
+        self.wait_calls: list[float | None] = []
+
+    def wait_for_publish(self, timeout: float | None = None) -> None:
+        self.wait_calls.append(timeout)
+        if self.wait_error is not None:
+            raise self.wait_error
+
+
+class FakeMQTTClient:
+    def __init__(
+        self,
+        *,
+        on_publish: Callable[..., Any] | None = None,
+        message_info_factory: Callable[[], FakeMQTTMessageInfo] | None = None,
+    ) -> None:
+        self.on_publish = on_publish
+        self.message_info_factory = message_info_factory or FakeMQTTMessageInfo
+        self.published: list[tuple[str, Any, bool]] = []
+        self.publish_calls: list[dict[str, Any]] = []
+        self.callbacks: dict[str, object] = {}
+        self.subscriptions: list[str] = []
+        self.unsubscribed: list[str] = []
+        self.shutdown_called = False
+
+    def __enter__(self) -> "FakeMQTTClient":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def publish(
+        self, topic: str, payload: Any = None, retain: bool = True, **kwargs: Any
+    ) -> FakeMQTTMessageInfo:
+        self.published.append((topic, payload, retain))
+        self.publish_calls.append(
+            {
+                "topic": topic,
+                "payload": payload,
+                "retain": retain,
+                "kwargs": kwargs,
+            }
+        )
+        if self.on_publish is not None:
+            self.on_publish(topic, payload, **kwargs)
+        return self.message_info_factory()
+
+    def message_callback_add(self, topic: str, callback: object) -> None:
+        self.callbacks[topic] = callback
+
+    def message_callback_remove(self, topic: str) -> None:
+        self.callbacks.pop(topic, None)
+
+    def subscribe(self, topic: str, *args: Any, **kwargs: Any) -> None:
+        self.subscriptions.append(topic)
+
+    def unsubscribe(self, topic: str) -> None:
+        self.unsubscribed.append(topic)
+
+    def shutdown(self) -> None:
+        self.shutdown_called = True
 
 
 def wait_for(predicate: Callable[[], bool], timeout: float = 5.0, check_interval: float = 0.05) -> bool:

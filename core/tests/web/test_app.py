@@ -6,6 +6,8 @@ import pytest
 from flask.testing import FlaskClient
 from pioreactor.web.config import huey
 from pytest import MonkeyPatch
+from tests.utils import FakeMQTTClient
+from tests.utils import FakeMQTTMessageInfo
 
 from .conftest import capture_requests
 from .test_unit_api import _build_valid_calibration_yaml
@@ -626,24 +628,16 @@ def test_run_job_response(client) -> None:
 def test_stop_specific_job_returns_task_response_when_mqtt_publish_fails(client, monkeypatch) -> None:
     import pioreactor.web.api as mod
 
-    class FailingPublish:
-        def wait_for_publish(self, timeout: float) -> None:
-            raise RuntimeError("mqtt down")
-
-    class FailingClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args) -> None:
-            return None
-
-        def publish(self, *_args, **_kwargs) -> FailingPublish:
-            return FailingPublish()
-
     class DummyTask:
         id = "fallback-task"
 
-    monkeypatch.setattr(mod, "create_client", lambda *_args, **_kwargs: FailingClient())
+    monkeypatch.setattr(
+        mod,
+        "create_client",
+        lambda *_args, **_kwargs: FakeMQTTClient(
+            message_info_factory=lambda: FakeMQTTMessageInfo(wait_error=RuntimeError("mqtt down"))
+        ),
+    )
     monkeypatch.setattr(mod.tasks, "multicast_post", lambda *_args, **_kwargs: DummyTask())
 
     response = client.post("/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1")

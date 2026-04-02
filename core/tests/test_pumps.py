@@ -29,6 +29,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
 from pioreactor.whoami import get_unit_name
+from tests.utils import FakeMQTTClient
 
 unit = get_unit_name()
 
@@ -78,16 +79,15 @@ def test_pump_io() -> None:
 def test_publish_async_uses_exactly_once_when_requested(monkeypatch) -> None:
     publish_calls: list[tuple[str, bytes, dict[str, int]]] = []
 
-    class FakeClient:
-        def publish(self, topic: str, payload: bytes, **kwargs) -> None:
-            publish_calls.append((topic, payload, kwargs))
-
     class FakeThreadPool:
         def submit(self, fn, *args, **kwargs) -> None:
             fn(*args, **kwargs)
 
     monkeypatch.setattr("pioreactor.actions.pump._thread_pool", cast(Any, FakeThreadPool()))
-    publish_async(cast(Any, FakeClient()), "pioreactor/unit/exp/dosing_events", b"{}", qos=QOS.EXACTLY_ONCE)
+    client = FakeMQTTClient(
+        on_publish=lambda topic, payload, **kwargs: publish_calls.append((topic, payload, kwargs))
+    )
+    publish_async(cast(Any, client), "pioreactor/unit/exp/dosing_events", b"{}", qos=QOS.EXACTLY_ONCE)
     assert publish_calls == [("pioreactor/unit/exp/dosing_events", b"{}", {"qos": QOS.EXACTLY_ONCE})]
 
 

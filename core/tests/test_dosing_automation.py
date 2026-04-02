@@ -33,6 +33,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_unit_name
 from tests.utils import dosing_events_to_bioreactor_projector
+from tests.utils import FakeMQTTClient
 
 
 def close(x: float, y: float) -> bool:
@@ -1027,14 +1028,9 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
     calls: list[tuple[str, float]] = []
     stop_messages: list[tuple[str, bytes, int]] = []
 
-    class FakePubClient:
-        def publish(self, topic: str, payload=None, qos: int = 0, **kwargs):
-            if topic.endswith("/$state/set"):
-                stop_messages.append((topic, payload, qos))
-            return None
-
-        def shutdown(self) -> None:
-            return None
+    def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
+        if topic.endswith("/$state/set"):
+            stop_messages.append((topic, payload, qos))
 
     class StubAutomation(DosingAutomationJob):
         automation_name = "_test_cumulative_volume_for_overflow_check"
@@ -1067,7 +1063,7 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
         duration=None,
         current_volume_ml=StubAutomation.MAX_VIAL_VOLUME_TO_STOP - 0.7,
     ) as job:
-        job.pub_client = FakePubClient()
+        job.pub_client = FakeMQTTClient(on_publish=record_stop_message)
         result = job.execute_io_action(media_ml=0.4, alt_media_ml=0.4, waste_ml=0.8)
 
         assert job.state == job.SLEEPING
@@ -1087,14 +1083,9 @@ def test_fed_batch_skips_dose_that_would_overflow() -> None:
     experiment = "test_fed_batch_skips_dose_that_would_overflow"
     stop_messages: list[tuple[str, bytes, int]] = []
 
-    class FakePubClient:
-        def publish(self, topic: str, payload=None, qos: int = 0, **kwargs):
-            if topic.endswith("/$state/set"):
-                stop_messages.append((topic, payload, qos))
-            return None
-
-        def shutdown(self) -> None:
-            return None
+    def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
+        if topic.endswith("/$state/set"):
+            stop_messages.append((topic, payload, qos))
 
     with FedBatch(
         unit=unit,
@@ -1103,7 +1094,7 @@ def test_fed_batch_skips_dose_that_would_overflow() -> None:
         dosing_volume_ml=0.2,
         current_volume_ml=FedBatch.MAX_VIAL_VOLUME_TO_STOP - 0.1,
     ) as job:
-        job.pub_client = FakePubClient()
+        job.pub_client = FakeMQTTClient(on_publish=record_stop_message)
         event = job.execute()
 
         assert isinstance(event, events.NoEvent)
