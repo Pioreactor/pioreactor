@@ -14,6 +14,14 @@ from pioreactor.config import config
 from pioreactor.mureq import Response
 
 
+def mock_release_metadata_response(tag_name: str, assets: list[dict[str, str]]) -> Response:
+    release_metadata = {
+        "tag_name": tag_name,
+        "assets": assets,
+    }
+    return Response("", 200, HTTPMessage(), dumps(release_metadata).encode())
+
+
 def test_app_commands_with_whl_source() -> None:
     source = "/some/path/pioreactor-1.2.3-py3-none-any.whl"
     cmds, version = get_update_app_commands(
@@ -145,6 +153,41 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
     assert cmds == expected
 
 
+def test_app_commands_with_release_zip_with_spaces_in_path(tmp_path) -> None:
+    version = "26.3.0"
+    source = str(tmp_path / "release bundles" / f"release_{version}.zip")
+
+    cmds, ver = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=source,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ver == version
+    assert cmds[1] == (f"unzip -o {quote(source)} -d {tempfile.gettempdir()}/release_{version}", 0)
+
+
+def test_app_commands_with_release_zip_prerelease_source() -> None:
+    version = "26.4.0rc1"
+    source = f"/tmp/release_{version}.zip"
+
+    cmds, ver = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=source,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ver == version
+    assert any(
+        command == f"unzip -o {quote(source)} -d {tempfile.gettempdir()}/release_{version}" and priority == 0
+        for command, priority in cmds
+    )
+
+
 def test_app_commands_invalid_source(capsys) -> None:
     bad_source = "/some/invalid/file.txt"
     with pytest.raises(click.Abort):
@@ -187,16 +230,15 @@ def test_app_commands_branch_with_special_chars() -> None:
 
 def test_app_commands_from_release_metadata_include_restart_by_default(monkeypatch) -> None:
     def mock_get(_url: str, **_kwargs) -> Response:
-        release_metadata = {
-            "tag_name": "26.3.0",
-            "assets": [
+        return mock_release_metadata_response(
+            "26.3.0",
+            [
                 {
-                    "name": "pioreactor-26.3.0-py3-none-any.whl",
-                    "browser_download_url": "https://example.com/pioreactor-26.3.0-py3-none-any.whl",
+                    "name": "release_26.3.0.zip",
+                    "browser_download_url": "https://example.com/release_26.3.0.zip",
                 }
             ],
-        }
-        return Response("", 200, HTTPMessage(), dumps(release_metadata).encode())
+        )
 
     monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
     monkeypatch.setattr("pioreactor.mureq.get", mock_get)
@@ -208,21 +250,24 @@ def test_app_commands_from_release_metadata_include_restart_by_default(monkeypat
         version=None,
     )
 
-    assert ("sudo systemctl restart pioreactor-web.target", 101) in cmds
+    tmp_dir = tempfile.gettempdir()
+    archive_location = f"{tmp_dir}/release_26.3.0.zip"
+
+    assert (f"wget -O {quote(archive_location)} https://example.com/release_26.3.0.zip", -100) in cmds
+    assert ("sudo systemctl restart pioreactor-web.target", 99) in cmds
 
 
 def test_app_commands_from_release_metadata_skip_restart_when_deferred(monkeypatch) -> None:
     def mock_get(_url: str, **_kwargs) -> Response:
-        release_metadata = {
-            "tag_name": "26.3.0",
-            "assets": [
+        return mock_release_metadata_response(
+            "26.3.0",
+            [
                 {
-                    "name": "pioreactor-26.3.0-py3-none-any.whl",
-                    "browser_download_url": "https://example.com/pioreactor-26.3.0-py3-none-any.whl",
+                    "name": "release_26.3.0.zip",
+                    "browser_download_url": "https://example.com/release_26.3.0.zip",
                 }
             ],
-        }
-        return Response("", 200, HTTPMessage(), dumps(release_metadata).encode())
+        )
 
     monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
     monkeypatch.setattr("pioreactor.mureq.get", mock_get)
@@ -235,4 +280,182 @@ def test_app_commands_from_release_metadata_skip_restart_when_deferred(monkeypat
         defer_web_restart=True,
     )
 
-    assert ("sudo systemctl restart pioreactor-web.target", 101) not in cmds
+    assert ("sudo systemctl restart pioreactor-web.target", 99) not in cmds
+
+
+def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatch) -> None:
+    version = "26.3.0"
+
+    def mock_get(_url: str, **_kwargs) -> Response:
+        return mock_release_metadata_response(
+            version,
+            [
+                {
+                    "name": f"release_{version}.zip",
+                    "browser_download_url": f"https://example.com/release_{version}.zip",
+                },
+                {
+                    "name": "pioreactor-26.3.0-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/pioreactor-26.3.0-py3-none-any.whl",
+                },
+            ],
+        )
+
+    monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get)
+
+    cmds, ver = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ver == version
+
+    tmp_dir = tempfile.gettempdir()
+    archive_location = f"{tmp_dir}/release_{version}.zip"
+    tmp_rls_dir = f"{tmp_dir}/release_{version}"
+    assert cmds == [
+        (f"wget -O {quote(archive_location)} https://example.com/release_{version}.zip", -100),
+        (f"sudo rm -rf {tmp_rls_dir}", -99),
+        (f"unzip -o {quote(archive_location)} -d {tmp_rls_dir}", 0),
+        (f"unzip -o {tmp_rls_dir}/wheels_{version}.zip -d {tmp_rls_dir}/wheels", 1),
+        (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
+        (f"sudo bash {tmp_rls_dir}/update.sh", 4),
+        (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
+        (f"sudo rm -rf {tmp_rls_dir}", 98),
+        (
+            f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
+            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
+            3,
+        ),
+        (f"sudo sqlite3 {config.get('storage','database')} < {tmp_rls_dir}/update.sql || :", 10),
+    ]
+
+
+def test_app_commands_from_release_metadata_requires_release_archive(monkeypatch) -> None:
+    def mock_get(_url: str, **_kwargs) -> Response:
+        return mock_release_metadata_response(
+            "26.3.0",
+            [
+                {
+                    "name": "pioreactor-26.3.0-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/pioreactor-26.3.0-py3-none-any.whl",
+                }
+            ],
+        )
+
+    monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get)
+
+    with pytest.raises(FileNotFoundError, match="Could not find release_26.3.0.zip"):
+        get_update_app_commands(
+            branch=None,
+            repo="org/repo",
+            source=None,
+            version=None,
+        )
+
+
+def test_app_commands_with_release_zip_for_worker_excludes_leader_steps(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+    version = "26.3.0"
+    source = str(tmp_path / f"release_{version}.zip")
+
+    cmds, ver = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=source,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ver == version
+    assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
+    assert not any("[leader,worker]" in command for command, _ in cmds)
+    assert not any("update.sql" in command for command, _ in cmds)
+
+
+def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monkeypatch) -> None:
+    version = "26.4.0rc1"
+
+    def mock_get(_url: str, **_kwargs) -> Response:
+        return mock_release_metadata_response(
+            version,
+            [
+                {
+                    "name": f"release_{version}.zip",
+                    "browser_download_url": f"https://example.com/release_{version}.zip",
+                }
+            ],
+        )
+
+    monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+
+    cmds, ver = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ver == version
+    assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
+    assert not any("[leader,worker]" in command for command, _ in cmds)
+    assert not any("update.sql" in command for command, _ in cmds)
+
+
+def test_app_commands_from_release_metadata_does_not_fetch_individual_assets(monkeypatch) -> None:
+    version = "26.3.0"
+
+    def mock_get(_url: str, **_kwargs) -> Response:
+        return mock_release_metadata_response(
+            version,
+            [
+                {
+                    "name": f"release_{version}.zip",
+                    "browser_download_url": f"https://example.com/release_{version}.zip",
+                },
+                {
+                    "name": "pre_update.sh",
+                    "browser_download_url": "https://example.com/pre_update.sh",
+                },
+                {
+                    "name": "update.sh",
+                    "browser_download_url": "https://example.com/update.sh",
+                },
+                {
+                    "name": "update.sql",
+                    "browser_download_url": "https://example.com/update.sql",
+                },
+                {
+                    "name": "post_update.sh",
+                    "browser_download_url": "https://example.com/post_update.sh",
+                },
+                {
+                    "name": "pioreactor-26.3.0-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/pioreactor-26.3.0-py3-none-any.whl",
+                },
+            ],
+        )
+
+    monkeypatch.setattr("pioreactor.cli.pio.get_tag_to_install", lambda _repo, _version: "latest")
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get)
+
+    cmds, _ = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    wget_commands = [command for command, _ in cmds if command.startswith("wget -O ")]
+    assert wget_commands == [
+        f"wget -O {quote(tempfile.gettempdir() + f'/release_{version}.zip')} https://example.com/release_{version}.zip"
+    ]

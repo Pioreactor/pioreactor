@@ -3,7 +3,7 @@
 #### Breaking changes
 
 - Renamed the shared bioreactor volume setting `max_working_volume_ml` to `efflux_tube_volume_ml`, including the UI label (`Efflux tube level`), MQTT/API state, and device config/cache migration during update.
-- Job and Automation controls now use worker-provided descriptors for individual Pioreactors, so worker-only plugin jobs automations appear in per-unit UI even if the leader doesn’t have that plugin installed. Bulk “Control All Pioreactors” automation flows remain leader-driven.
+- Job and Automation controls now use worker-provided descriptors for individual Pioreactors, so worker-only plugin jobs automations appear in per-unit UI even if the leader doesn’t have that plugin installed. Bulk “Control All Pioreactors” automation flows remain leader-driven. A update script will attempt to add the necessary UI files to workers.
 
 #### Enhancements
 
@@ -17,6 +17,7 @@
 - Fixed non-interactive SSH and `nohup` command execution for `pio` and `pios` by installing `/usr/local/bin` wrappers that source `/etc/pioreactor.env` before execing the Pioreactor virtualenv binaries.
 - Fixed pump calibration `dosing_events` from changing retained bioreactor state such as vial volume and alt-media fraction.
 - Fixed overview chart legends so relabelled aliases are truncated consistently and still hide/show the correct series when clicked.
+- Fixed `pio update app` default release installs to download and apply the single `release_<version>.zip` archive, reusing the same archive update path as uploaded release bundles instead of fetching individual release assets.
 
 ### 26.3.3
 

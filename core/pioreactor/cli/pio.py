@@ -66,54 +66,60 @@ def get_update_app_commands(
     from pioreactor.mureq import HTTPException
     from pioreactor.utils.networking import is_using_local_access_point
 
+    def create_commands_for_release_archive(
+        archive_location: str, release_version: str
+    ) -> list[tuple[str, float]]:
+        tmp_dir = tempfile.gettempdir()
+        tmp_rls_dir = f"{tmp_dir}/release_{release_version}"
+        archive_source = quote(archive_location)
+
+        release_commands: list[tuple[str, float]] = [
+            (f"sudo rm -rf {tmp_rls_dir}", -99),
+            (f"unzip -o {archive_source} -d {tmp_rls_dir}", 0),
+            (
+                f"unzip -o {tmp_rls_dir}/wheels_{release_version}.zip -d {tmp_rls_dir}/wheels",
+                1,
+            ),
+            (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
+            (f"sudo bash {tmp_rls_dir}/update.sh", 4),
+            (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
+            (f"sudo rm -rf {tmp_rls_dir}", 98),
+        ]
+
+        if not defer_web_restart:
+            release_commands.append(("sudo systemctl restart pioreactor-web.target", 99))
+
+        if whoami.am_I_leader():
+            release_commands.extend(
+                [
+                    (
+                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[leader,worker]",
+                        3,
+                    ),
+                    (
+                        f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
+                        10,
+                    ),
+                ]
+            )
+        else:
+            release_commands.append(
+                (
+                    f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[worker]",
+                    3,
+                )
+            )
+
+        return release_commands
+
     commands_and_priority: list[tuple[str, float]] = []
     sha = validate_git_sha(sha)
     # source overrides branch/version/sha
     if source is not None:
-        source = quote(source)
         if RELEASE_ARCHIVE_PATTERN.search(source):
             # provided a release archive
             version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
-            tmp_dir = tempfile.gettempdir()
-            tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
-            commands_and_priority.extend(
-                [
-                    (f"sudo rm -rf {tmp_rls_dir}", -99),
-                    (f"unzip -o {source} -d {tmp_rls_dir}", 0),
-                    (
-                        f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels",
-                        1,
-                    ),  # noqa: E501
-                    (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
-                    (f"sudo bash {tmp_rls_dir}/update.sh", 4),
-                    (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-                    (f"sudo rm -rf {tmp_rls_dir}", 98),
-                ]
-            )
-            if not defer_web_restart:
-                commands_and_priority.append(
-                    ("sudo systemctl restart pioreactor-web.target", 99)
-                )  # restart lighttpd (flask api) and huey.
-            if whoami.am_I_leader():
-                commands_and_priority.extend(
-                    [
-                        (
-                            f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
-                            3,
-                        ),  # noqa: E501
-                        (
-                            f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
-                            10,
-                        ),  # noqa: E501
-                    ]
-                )
-            else:
-                commands_and_priority.append(
-                    (
-                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
-                        3,
-                    )  # noqa: E501
-                )
+            commands_and_priority.extend(create_commands_for_release_archive(source, version_installed))
         elif source.endswith(".whl"):
             version_installed = source
             commands_and_priority.append(
@@ -154,64 +160,21 @@ def get_update_app_commands(
             raise HTTPException(f"Version {version} not found on GitHub")
         release_metadata = loads(response.body)
         version_installed = release_metadata["tag_name"]
-        found_whl = False
         tmp_dir = tempfile.gettempdir()
-        tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
-        commands_and_priority.append((f"mkdir {tmp_rls_dir}", -9))
-        commands_and_priority.append((f"rm -rf {tmp_rls_dir}", -10))
+        archive_name = f"release_{version_installed}.zip"
+        archive_url = None
         for asset in release_metadata["assets"]:
-            url = asset["browser_download_url"]
             name = asset["name"]
-            if name == "pre_update.sh":
-                commands_and_priority.extend(
-                    [
-                        (f"wget -O {tmp_rls_dir}/pre_update.sh {url}", 0),
-                        (f"sudo bash {tmp_rls_dir}/pre_update.sh", 1),
-                    ]
-                )
-            elif name.startswith("pioreactor") and name.endswith(".whl"):
-                found_whl = True
-                assert (
-                    version_installed in url
-                ), f"pip installing {url} but doesn't match version {version_installed}"
-                if whoami.am_I_leader():
-                    commands_and_priority.append(
-                        (f'/opt/pioreactor/venv/bin/pip install "pioreactor[worker,leader] @ {url}"', 2)
-                    )
-                else:
-                    commands_and_priority.append(
-                        (f'/opt/pioreactor/venv/bin/pip install "pioreactor[worker] @ {url}"', 2)
-                    )
-            elif name == "update.sh":
-                commands_and_priority.extend(
-                    [
-                        (f"wget -O {tmp_rls_dir}/update.sh {url}", 3),
-                        (f"sudo bash {tmp_rls_dir}/update.sh", 4),
-                    ]
-                )
-            elif name == "update.sql" and whoami.am_I_leader():
-                commands_and_priority.extend(
-                    [
-                        (f"wget -O {tmp_rls_dir}/update.sql {url}", 5),
-                        (
-                            f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
-                            6,
-                        ),
-                    ]
-                )
-            elif name == "post_update.sh":
-                commands_and_priority.extend(
-                    [
-                        (f"wget -O {tmp_rls_dir}/post_update.sh {url}", 99),
-                        (f"sudo bash {tmp_rls_dir}/post_update.sh", 100),
-                    ]
-                )
-            else:
-                commands_and_priority.append((f"wget -O {tmp_rls_dir}/{name} {url}", -1))
-        if not defer_web_restart:
-            commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 101))
-        if not found_whl:
-            raise FileNotFoundError(f"Could not find a whl in assets of {repo} release {tag}")
+            if name == archive_name:
+                archive_url = asset["browser_download_url"]
+                break
+
+        if archive_url is None:
+            raise FileNotFoundError(f"Could not find {archive_name} in assets of {repo} release {tag}")
+
+        archive_location = f"{tmp_dir}/{archive_name}"
+        commands_and_priority.append((f"wget -O {quote(archive_location)} {archive_url}", -100))
+        commands_and_priority.extend(create_commands_for_release_archive(archive_location, version_installed))
     return commands_and_priority, version_installed
 
 
