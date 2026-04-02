@@ -49,7 +49,7 @@ const ensureObject = (value) => {
 };
 
 export const ExperimentProvider = ({ children }) => {
-  const [experimentMetadata, setExperimentMetadata] = useState({});
+  const [experimentMetadata, setExperimentMetadata] = useState(() => readCachedExperimentMetadata() || {});
   const [allExperiments, setAllExperiments] = useState([]);
 
   useEffect(() => {

@@ -73,22 +73,28 @@ const ConditionalTooltip = ({condition, title, children}) => {
   );
 };
 
-
 const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}) => {
   const [selectOpen, setSelectOpen] = React.useState(false);
   const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
-  React.useEffect(() => {
-    async function getActiveExperiments() {
+  const [hasLoadedActiveExperiments, setHasLoadedActiveExperiments] = React.useState(false);
+
+  const loadActiveExperiments = React.useCallback(async () => {
+      if (hasLoadedActiveExperiments) {
+        return;
+      }
+
       try {
         const response = await fetch("/api/experiments/assignment_count");
         if (!response.ok) {
           setActiveExperiments(new Set([]));
+          setHasLoadedActiveExperiments(true);
           return;
         }
 
         const data = await response.json();
         if (!Array.isArray(data)) {
           setActiveExperiments(new Set([]));
+          setHasLoadedActiveExperiments(true);
           return;
         }
 
@@ -97,12 +103,14 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
         console.error("Failed to fetch active experiments:", error);
         setActiveExperiments(new Set([]));
       }
+      finally {
+        setHasLoadedActiveExperiments(true);
       }
-    setTimeout(getActiveExperiments, 100)
-  }, [])
+  }, [hasLoadedActiveExperiments]);
 
   const handleMenuItemClick = (e) => {
     e.stopPropagation()
+    void loadActiveExperiments();
     setSelectOpen(true);
   };
 
@@ -120,7 +128,10 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
     setSelectOpen(false)
   }
   const experimentsList = Array.isArray(availableExperiments) ? availableExperiments : [];
-  const selectValue = experimentsList.includes(experiment) ? experiment : "";
+  const normalizedExperimentsList = experiment && !experimentsList.includes(experiment)
+    ? [experiment, ...experimentsList]
+    : experimentsList;
+  const selectValue = experiment || "";
 
   return (
 
@@ -163,7 +174,7 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
           </MenuItemMUI>
           <Divider />
           <ListSubheader>Active</ListSubheader>
-          {availableExperiments
+          {normalizedExperimentsList
             .filter((e) => activeExperiments.has(e))
             .map((e) => (
               <MenuItemMUI key={e} value={e}>
@@ -172,7 +183,7 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
             ))}
           <Divider />
           <ListSubheader>Inactive</ListSubheader>
-          {availableExperiments
+          {normalizedExperimentsList
             .filter((e) => !activeExperiments.has(e))
             .map((e) => (
               <MenuItemMUI key={e} value={e}>
@@ -201,44 +212,40 @@ export default function SideNavAndHeader() {
 
 
   React.useEffect(() => {
-    async function getLAP() {
-       await fetch("/api/local_access_point")
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setLAP(Boolean(data?.active))
-      });
-    }
-
-    async function getCurrentApp() {
-         await fetch("/unit_api/versions/app")
-        .then((response) => {
-          return response.json();
+    const lapTimerId = window.setTimeout(() => {
+      fetch("/api/local_access_point")
+        .then((response) => response.json())
+        .then((data) => {
+          setLAP(Boolean(data?.active))
         })
+        .catch(() => {});
+    }, 1000);
+
+    const currentAppTimerId = window.setTimeout(() => {
+      fetch("/unit_api/versions/app")
+        .then((response) => response.json())
         .then((data) => {
           setVersion(data['version'])
+        })
+        .catch(() => {});
+    }, 1750);
+
+    const latestVersionTimerId = window.setTimeout(() => {
+      // TODO: what happens when there is not internet connection?
+      fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
+        .then((response) => response.json())
+        .then((data) => {
+          setLatestVersion(data['tag_name'])
+        }).catch((_e) => {
+          // no internet?
         });
-      }
+    }, 2500);
 
-    async function getLatestVersion() {
-       // TODO: what happens when there is not internet connection?
-       await fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setLatestVersion(data['tag_name'])
-      }).catch((_e) => {
-        // no internet?
-      });
-    }
-
-     // ping these later, it's not important on render
-    setTimeout(getLAP, 500)
-    setTimeout(getCurrentApp, 1500)
-    setTimeout(getLatestVersion, 2000)
-
+    return () => {
+      window.clearTimeout(lapTimerId);
+      window.clearTimeout(currentAppTimerId);
+      window.clearTimeout(latestVersionTimerId);
+    };
   }, [])
 
   const handleDrawerToggle = () => {
