@@ -5,6 +5,7 @@ from typing import Generator
 
 
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent.parent / "update_scripts" / "upcoming"
+REQUIRED_BASH_SCRIPT_PREFIX = "#!/bin/bash\n\nset -xeu\n\nexport LC_ALL=C\n\n"
 
 
 def find_sql_scripts(directory: str | Path) -> Generator[Path, None, None]:
@@ -94,5 +95,19 @@ def test_crudini_uses_venv_binary() -> None:
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'crudini' must be invoked via '/opt/pioreactor/venv/bin/crudini'."
                     )
+
+    assert not error_msgs, "\n".join(error_msgs)
+
+
+def test_update_bash_scripts_start_with_required_prefix() -> None:
+    scripts = find_shell_scripts(SCRIPT_DIRECTORY)
+    error_msgs = []
+
+    for script in scripts:
+        contents = script.read_text()
+        if not contents.startswith(REQUIRED_BASH_SCRIPT_PREFIX):
+            error_msgs.append(
+                f"Error in {script}: update bash scripts must start with:\n{REQUIRED_BASH_SCRIPT_PREFIX!r}"
+            )
 
     assert not error_msgs, "\n".join(error_msgs)
