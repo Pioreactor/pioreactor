@@ -126,6 +126,87 @@ jobs:
           EOF_HW
 
           mkdir -p "$DOT_PIOREACTOR/plugins"
+          mkdir -p "$DOT_PIOREACTOR/ui/jobs"
+          mkdir -p "$DOT_PIOREACTOR/ui/automations/dosing"
+          mkdir -p "$DOT_PIOREACTOR/plugins/ui/jobs"
+          mkdir -p "$DOT_PIOREACTOR/plugins/ui/automations/dosing"
+
+          cat <<'EOF_UI' > "$DOT_PIOREACTOR"/ui/jobs/00_stirring.yaml
+          ---
+          display_name: Stirring
+          job_name: stirring
+          display: true
+          source: app
+          description: Start the stirring on the Pioreactor.
+          published_settings:
+            - key: target_rpm
+              unit: RPM
+              label: Target stir RPM
+              description: Modify the target RPM of stirring.
+              type: numeric
+              display: true
+          EOF_UI
+          cat <<'EOF_UI' > "$DOT_PIOREACTOR"/ui/jobs/50_self_test.yaml
+          ---
+          display_name: Self test
+          job_name: self_test
+          display: true
+          source: app
+          description: Run the hardware and software self test suite.
+          published_settings: []
+          EOF_UI
+          cat <<'EOF_UI' > "$DOT_PIOREACTOR"/ui/automations/dosing/chemostat.yaml
+          ---
+          display_name: Chemostat
+          automation_name: chemostat
+          description: Add and remove a constant volume of media on a fixed schedule.
+          fields:
+            - key: duration
+              default: 20
+              unit: min
+              label: Time between dosing
+              type: numeric
+            - key: exchange_volume_ml
+              default: 0.5
+              unit: mL
+              label: Exchange volume
+              type: numeric
+          EOF_UI
+          cat <<'EOF_UI' > "$DOT_PIOREACTOR"/ui/automations/dosing/turbidostat.yaml
+          ---
+          display_name: Turbidostat
+          automation_name: turbidostat
+          description: Keep the culture near a target biomass by exchanging media.
+          fields:
+            - key: target_normalized_od
+              default: 1.0
+              unit: AU
+              label: Target normalized OD
+              type: numeric
+          EOF_UI
+
+          cat <<'EOF_UI' > "$DOT_PIOREACTOR"/plugins/ui/jobs/90_example_plugin.yaml
+          ---
+          display_name: Example plugin
+          job_name: example_plugin
+          display: true
+          source: my-example-plugin
+          description: Example plugin job descriptor for CI.
+          published_settings: []
+          EOF_UI
+          cat <<'EOF_UI' > "$DOT_PIOREACTOR"/plugins/ui/automations/dosing/90_example_plugin_automation.yaml
+          ---
+          display_name: Example plugin automation
+          automation_name: example_plugin_automation
+          source: my-example-plugin
+          description: Example plugin automation descriptor for CI.
+          fields:
+            - key: target
+              default: 0.5
+              unit: AU
+              label: Target
+              type: numeric
+          EOF_UI
 
           ls "$DOT_PIOREACTOR"
 

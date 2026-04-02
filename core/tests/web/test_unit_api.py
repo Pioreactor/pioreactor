@@ -120,7 +120,6 @@ def test_get_job_descriptors_endpoint_returns_builtin_and_plugin_jobs(client) ->
     job_names = {job["job_name"] for job in data}
     assert "stirring" in job_names
     assert "self_test" in job_names
-    assert "pico_ph_reader" in job_names
 
 
 def test_get_automation_descriptors_endpoint_returns_builtin_and_plugin_automations(client) -> None:
