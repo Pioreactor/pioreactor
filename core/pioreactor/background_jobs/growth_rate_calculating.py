@@ -36,24 +36,23 @@ the reference OD by supplying a value to this cache first. See example https://g
 """
 from collections import defaultdict
 from datetime import datetime
-from statistics import mean
+from itertools import chain
+from math import exp
+from math import log
+from statistics import median
 from threading import Event
 from threading import Thread
-from time import sleep
 from typing import Any
 from typing import cast
 from typing import Generator
 from typing import Iterator
 
 import click
-from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.actions.od_blank import od_statistics
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.od_reading import VALID_PD_ANGLES
 from pioreactor.config import config
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.streaming import DosingObservationSource
@@ -86,13 +85,6 @@ def _should_use_fused_od(unit: pt.Unit) -> bool:
 
 
 class GrowthRateCalculator(BackgroundJob):
-    """
-    Parameters
-    -----------
-    ignore_cache: bool
-        ignore any cached calculated statistics from this experiment. Use if running a replay.
-    """
-
     job_name = "growth_rate_calculating"
     published_settings = {
         "growth_rate": {
@@ -111,13 +103,9 @@ class GrowthRateCalculator(BackgroundJob):
         self,
         unit: pt.Unit,
         experiment: pt.Experiment,
-        ignore_cache: bool = False,
-        use_fused_od: bool = False,
     ):
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
 
-        self.ignore_cache = ignore_cache
-        self.use_fused_od = use_fused_od
         self.time_of_previous_observation: datetime | None = None
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_reading.config", "samples_per_second")
@@ -131,52 +119,20 @@ class GrowthRateCalculator(BackgroundJob):
         # runtime state initialized during processing
         self.ekf = cast(CultureGrowthEKF, None)
         self.od_normalization_factors: dict[pt.PdChannel, float] = {}
-        self.od_variances: dict[pt.PdChannel, float] = {}
-        self.od_blank: dict[pt.PdChannel, float] = {}
         self.growth_rate = cast(structs.GrowthRate, None)
         self.od_filtered = cast(structs.ODFiltered, None)
         self.kalman_filter_outputs = cast(structs.KalmanFilterOutput, None)
         self._initialization_complete = Event()
 
     def _initialize_extended_kalman_filter(
-        self, od_std: float, rate_std: float, obs_std: float, od_iter: Iterator[structs.ODReadings]
+        self, warmup_observations: list[dict[pt.PdChannel, float]]
     ) -> CultureGrowthEKF:
         import numpy as np
 
-        self.logger.debug(f"{od_std=}, {rate_std=}, {obs_std=}")
-
-        initial_nOD, initial_growth_rate = self._get_initial_values(od_iter)
-
-        initial_state = np.array([initial_nOD, initial_growth_rate])
-        self.logger.debug(f"Initial state: {repr(initial_state)}")
-
-        initial_covariance = np.array(
-            [
-                [0.04**2, 0],
-                [0, 0.01**2],
-            ]
+        observation_noise_covariance = self._create_obs_noise_covariance_from_warmup_observations(
+            warmup_observations
         )
-        self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
-        od_process_variance = (od_std * self.expected_dt) ** 2
-        rate_process_variance = (rate_std * self.expected_dt) ** 2
-        process_noise_covariance = np.zeros((2, 2))
-        process_noise_covariance[0, 0] = od_process_variance
-        process_noise_covariance[1, 1] = rate_process_variance
-        self.logger.debug(f"Process noise covariance matrix:\n{repr(process_noise_covariance)}")
-
-        observation_noise_covariance = self._create_obs_noise_covariance(obs_std)
         self.logger.debug(f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}")
-
-        if self.use_fused_od:
-            angles = ["90"]
-        else:
-            angles = [
-                angle
-                for (_, angle) in config["od_config.photodiode_channel"].items()
-                if angle in VALID_PD_ANGLES
-            ]
-
-        self.logger.debug(f"{angles=}")
         ekf_outlier_std_threshold = config.getfloat(
             "growth_rate_calculating.config",
             "ekf_outlier_std_threshold",
@@ -189,59 +145,97 @@ class GrowthRateCalculator(BackgroundJob):
 
         self.logger.debug(f"{ekf_outlier_std_threshold=}")
 
+        initial_nOD, initial_growth_rate = self._get_initial_values_from_warmup_observations(
+            warmup_observations
+        )
+        initial_state = np.array([log(max(initial_nOD, 1e-9)), initial_growth_rate, 0.0])
+        self.logger.debug(f"Initial state: {repr(initial_state)}")
+        initial_covariance = self._create_initial_covariance(
+            warmup_observations=warmup_observations,
+            observation_noise_covariance=observation_noise_covariance,
+        )
+        self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
+        process_noise_covariance = self._create_process_noise_covariance_for_hidden_state()
+        self.logger.debug(f"Process noise covariance matrix:\n{repr(process_noise_covariance)}")
         return CultureGrowthEKF(
             initial_state,
             initial_covariance,
             process_noise_covariance,
             observation_noise_covariance,
-            angles,
             ekf_outlier_std_threshold,
         )
 
-    def _create_obs_noise_covariance(self, obs_std: float) -> Any:
+    def _create_initial_covariance(
+        self,
+        warmup_observations: list[dict[pt.PdChannel, float]],
+        observation_noise_covariance: Any,
+    ) -> Any:
+        import numpy as np
+
+        fused_observations = self._fuse_warmup_observations(warmup_observations)
+        log_warmup = np.log(np.maximum(np.asarray(fused_observations, dtype=float), 1e-9))
+        sigma_log_od0 = max(
+            0.05,
+            2.0 * self._robust_std(log_warmup),
+            float(np.mean(np.diag(observation_noise_covariance))) ** 0.5,
+        )
+
+        if len(fused_observations) < 3:
+            sigma_growth_rate0 = 0.15
+        else:
+            startup_growth_samples = np.diff(log_warmup) / float(self.expected_dt)
+            sigma_growth_rate0 = max(0.15, 2.0 * self._robust_std(startup_growth_samples))
+
+        sigma_growth_rate_drift0 = max(0.01, sigma_growth_rate0)
+
+        return np.diag(
+            [
+                sigma_log_od0**2,
+                sigma_growth_rate0**2,
+                sigma_growth_rate_drift0**2,
+            ]
+        )
+
+    def _create_process_noise_covariance_for_hidden_state(self) -> Any:
+        import numpy as np
+
+        reference_dt_hours = 5.0 / 60.0 / 60.0
+        scale = max(self.expected_dt / reference_dt_hours, 0.25)
+        return np.diag([1e-8 * scale, 6e-8 * scale, 6e-6 * scale])
+
+    def _create_obs_noise_covariance_from_warmup_observations(
+        self, warmup_observations: list[dict[pt.PdChannel, float]]
+    ) -> Any:
         """
-        Our sensor measurements have initial variance V, but in our KF, we scale them their
-        initial mean, M. Hence the observed variance of the _normalized_ measurements is
-
-        var(measurement / M) = V / M^2
-
-        (there's also a blank to consider)
-
-
-        However, we offer the variable ods_std to tweak this a bit.
-
+        Estimate sensor noise from a warmup window of already-normalized observations.
         """
         import numpy as np
 
-        try:
-            scaling_obs_variances = np.array(
-                [
-                    self.od_variances[channel]
-                    / (self.od_normalization_factors[channel] - self.od_blank[channel]) ** 2
-                    for channel in self.od_normalization_factors
-                ]
-            )
-            obs_variances = obs_std**2 * np.diag(scaling_obs_variances)
-            return obs_variances
-        except ZeroDivisionError:
-            self.logger.debug("Division by zero", exc_info=True)
-            # we should clear the cache here...
+        if len(warmup_observations) < 2:
+            return np.diag([1e-3 for _ in self.od_normalization_factors])
 
-            with local_persistent_storage("od_normalization_mean") as cache:
-                del cache[self.experiment]
+        observation_matrix = np.asarray(
+            [
+                [warmup_observation[channel] for channel in self.od_normalization_factors]
+                for warmup_observation in warmup_observations
+            ],
+            dtype=float,
+        )
+        time_hours = np.arange(observation_matrix.shape[0], dtype=float) * float(self.expected_dt)
+        design = np.column_stack([np.ones(observation_matrix.shape[0], dtype=float), time_hours])
 
-            with local_persistent_storage("od_normalization_variance") as cache:
-                del cache[self.experiment]
+        log_residual_variances: list[float] = []
+        for sensor_index in range(observation_matrix.shape[1]):
+            log_warmup = np.log(np.maximum(observation_matrix[:, sensor_index], 1e-9))
+            coefficients, _, _, _ = np.linalg.lstsq(design, log_warmup, rcond=None)
+            fitted_log_signal = design @ coefficients
+            log_residuals = log_warmup - fitted_log_signal
+            log_residual_std = max(self._robust_std(log_residuals), 1e-3)
+            log_residual_variances.append(log_residual_std * log_residual_std)
 
-            raise ZeroDivisionError(
-                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
-            )
+        return np.diag(log_residual_variances)
 
-    def _compute_and_cache_od_statistics(
-        self, od_stream: ODObservationSource
-    ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
-        # why sleep? Users sometimes spam jobs, and if stirring and gr start closely there can be a race to secure HALL_SENSOR. This gives stirring priority.
-        sleep(0.5)
+    def _warn_if_warmup_may_take_too_long(self) -> None:
         if (
             config.getint("growth_rate_calculating.config", "samples_for_od_statistics", fallback=35)
             / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
@@ -249,126 +243,90 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.warning(
                 "Due to the low `samples_per_second`, and high `samples_for_od_statistics` needed to establish a baseline, initial growth rate and nOD may take over 10 minutes to show up."
             )
-        means, variances = od_statistics(
-            iter(od_stream),
-            action_name="od_normalization",
-            n_samples=config.getint(
-                "growth_rate_calculating.config", "samples_for_od_statistics", fallback=35
-            ),
-            logger=self.logger,
-            skip_stirring=od_stream.is_live,  # skip stirring if not using historical stream
-        )
+
+    def _compute_od_statistics_from_warmup_events(
+        self, warmup_events: list[structs.ODReadings]
+    ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
+        import numpy as np
+
+        observations_by_channel: dict[pt.PdChannel, list[float]] = defaultdict(list)
+        for event in warmup_events:
+            for channel, reading in event.ods.items():
+                observations_by_channel[channel].append(float(reading.od))
+
+        means = {
+            channel: float(np.median(np.asarray(observations, dtype=float)))
+            for channel, observations in observations_by_channel.items()
+        }
+        variances = {
+            channel: float(max(self._robust_std(np.asarray(observations, dtype=float)) ** 2, 1e-12))
+            for channel, observations in observations_by_channel.items()
+        }
+        self.logger.debug(f"measured mean: {means}")
+        self.logger.debug(f"measured variances: {variances}")
         self.logger.info("Completed OD normalization metrics.")
-
-        if not self.ignore_cache:
-            with local_persistent_storage("od_normalization_mean") as cache:
-                if self._is_empty_normalization_cache(cache.get(self.experiment)):
-                    cache[self.experiment] = dumps(means)
-
-            with local_persistent_storage("od_normalization_variance") as cache:
-                if self._is_empty_normalization_cache(cache.get(self.experiment)):
-                    cache[self.experiment] = dumps(variances)
-
         return means, variances
 
-    def _get_initial_values(self, od_iter: Iterator[structs.ODReadings]) -> tuple[float, float]:
-        if self.ignore_cache:
-            initial_growth_rate = 0.0
-            initial_nOD = self._get_filtered_od_from_iterator(od_iter)
-        else:
-            initial_growth_rate = self._get_growth_rate_from_cache()
-            initial_nOD = self._get_filtered_od_from_cache()
-        return (initial_nOD, initial_growth_rate)
+    def _get_initial_values_from_warmup_observations(
+        self, warmup_observations: list[dict[pt.PdChannel, float]]
+    ) -> tuple[float, float]:
+        import numpy as np
 
-    def _get_precomputed_values(
-        self, od_stream: ODObservationSource
-    ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
-        if self.ignore_cache:
-            od_normalization_factors, od_variances = self._compute_and_cache_od_statistics(od_stream)
-        else:
-            try:
-                od_normalization_factors = self._get_od_normalization_from_cache()
-                od_variances = self._get_od_variances_from_cache()
-                if (not od_normalization_factors) or (not od_variances):
-                    raise KeyError("Empty cached normalization statistics.")
-            except KeyError:
-                self.logger.debug(
-                    "OD normalization factors or variances not found in cache. Computing them now."
-                )
-                od_normalization_factors, od_variances = self._compute_and_cache_od_statistics(od_stream)
-
-        if any(v == 0.0 for v in od_variances.values()):
-            self.logger.error(
-                "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
+        fused_observations = self._fuse_warmup_observations(warmup_observations)
+        initial_nod = fused_observations[-1]
+        if len(fused_observations) >= 2:
+            log_warmup = np.log(np.maximum(np.asarray(fused_observations, dtype=float), 1e-9))
+            initial_growth_rate = float(
+                (log_warmup[-1] - log_warmup[0]) / max((len(log_warmup) - 1) * self.expected_dt, 1e-9)
             )
-
-        if not self.ignore_cache:
-            od_blank = self._get_od_blank_from_cache()
         else:
-            od_blank = defaultdict(lambda: 0.0)
+            initial_growth_rate = 0.0
 
-        for channel in od_normalization_factors.keys():
-            if od_normalization_factors[channel] * 0.90 < od_blank[channel]:
-                self.logger.info("Resetting od_blank because it is too close to current observations.")
-                od_blank[channel] = 0
+        return (initial_nod, initial_growth_rate)
 
-        return (
-            od_normalization_factors,
-            od_variances,
-            od_blank,
-        )
+    @staticmethod
+    def _robust_std(values: Any) -> float:
+        import numpy as np
 
-    def _get_od_blank_from_cache(self) -> dict[pt.PdChannel, float]:
-        with local_persistent_storage("od_blank") as cache:
-            result = cache.get(self.experiment)
+        array = np.asarray(values, dtype=float)
+        if array.size == 0:
+            return 0.0
+        median_ = float(np.median(array))
+        mad = float(np.median(np.abs(array - median_)))
+        return 1.4826 * mad
 
-        if result is not None:
-            od_blanks = cast(bytes | str, result)
-            return loads(od_blanks)
-        else:
-            return defaultdict(lambda: 0.0)
+    @staticmethod
+    def _fuse_warmup_observations(warmup_observations: list[dict[pt.PdChannel, float]]) -> list[float]:
+        return [median(warmup_observation.values()) for warmup_observation in warmup_observations]
 
-    def _get_growth_rate_from_cache(self) -> float:
-        with local_persistent_storage("growth_rate") as cache:
-            return float(cast(float | int, cache.get(self.experiment, 0.0)))
+    def _get_precomputed_normalization_factors(
+        self, warmup_events: list[structs.ODReadings]
+    ) -> dict[pt.PdChannel, float]:
+        try:
+            od_normalization_factors = self._get_od_normalization_from_cache()
+            if not od_normalization_factors:
+                raise KeyError("Empty cached normalization statistics.")
+        except KeyError:
+            self.logger.debug("OD normalization factors not found in cache. Computing them now.")
+            od_normalization_factors, od_variances = self._compute_od_statistics_from_warmup_events(
+                warmup_events
+            )
+            with local_persistent_storage("od_normalization_mean") as cache:
+                cache[self.experiment] = dumps(od_normalization_factors)
+            if any(v == 0.0 for v in od_variances.values()):
+                self.logger.error(
+                    "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
+                )
 
-    def _get_filtered_od_from_cache(self) -> float:
-        with local_persistent_storage("od_filtered") as cache:
-            return float(cast(float | int, cache.get(self.experiment, 1.0)))
-
-    def _get_filtered_od_from_iterator(self, od_iter: Iterator[structs.ODReadings]) -> float:
-        scaled_od_readings = self.scale_raw_observations(next(od_iter))
-        return mean(scaled_od_readings[channel] for channel in scaled_od_readings.keys())
+        return od_normalization_factors
 
     def _get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistent_storage("od_normalization_mean") as cache:
-            result = cast(bytes | str, cache[self.experiment])
-            return loads(result)
-
-    def _get_od_variances_from_cache(self) -> dict[pt.PdChannel, float]:
-        with local_persistent_storage("od_normalization_variance") as cache:
-            result = cast(bytes | str, cache[self.experiment])
-            return loads(result)
-
-    @staticmethod
-    def _is_empty_normalization_cache(cache_value: object) -> bool:
-        if cache_value is None:
-            return True
-
-        decoded_cache = loads(cast(bytes | str, cache_value))
-        return decoded_cache == {}
-
-    @staticmethod
-    def _scale_and_shift(obs: float, shift: float, scale: float) -> float:
-        return (obs - shift) / (scale - shift)
+            return cast(dict[pt.PdChannel, float], cache.getjson(self.experiment))
 
     def scale_raw_observations(self, od_readings: structs.ODReadings) -> dict[pt.PdChannel, float]:
         scaled_signals = {
-            channel: self._scale_and_shift(
-                od_readings.ods[channel].od,
-                self.od_blank[channel],
-                self.od_normalization_factors[channel],
-            )
+            channel: od_readings.ods[channel].od / self.od_normalization_factors[channel]
             for channel in sorted(od_readings.ods, reverse=True)
         }
 
@@ -414,7 +372,8 @@ class GrowthRateCalculator(BackgroundJob):
         )
         updated_state = cast(Any, updated_state_)
         covariance = cast(Any, covariance_)
-        latest_od_filtered, latest_growth_rate = float(updated_state[0]), float(updated_state[1])
+        latest_od_filtered = exp(float(updated_state[0]))
+        latest_growth_rate = float(updated_state[1])
 
         if self._obs_since_last_dose is not None and self._obs_required_to_reset is not None:
             self._obs_since_last_dose += 1
@@ -496,12 +455,6 @@ class GrowthRateCalculator(BackgroundJob):
                     self.logger.error(f"Error processing OD readings: {e}", exc_info=True)
                     continue
 
-                with local_persistent_storage("growth_rate") as cache:
-                    cache[self.experiment] = self.growth_rate.growth_rate
-
-                with local_persistent_storage("od_filtered") as cache:
-                    cache[self.experiment] = self.od_filtered.od_filtered
-
                 yield self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
             elif isinstance(event, structs.DosingEvent):
@@ -518,31 +471,54 @@ class GrowthRateCalculator(BackgroundJob):
             od_stream.set_stop_event(self._blocking_event)
             dosing_stream.set_stop_event(self._blocking_event)
 
-        (
-            self.od_normalization_factors,
-            self.od_variances,
-            self.od_blank,
-        ) = self._get_precomputed_values(od_stream)
+        self._warn_if_warmup_may_take_too_long()
+        od_events_iter = iter(od_stream)
+        warmup_events, od_events_iter = self.collect_warmup_events(
+            od_events_iter,
+            config.getint("growth_rate_calculating.config", "samples_for_od_statistics", fallback=35),
+        )
+        self.od_normalization_factors = self._get_precomputed_normalization_factors(warmup_events)
 
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
-        self.logger.debug(f"od_normalization_variance={self.od_variances}")
-        self.logger.debug(f"od_blank={dict(self.od_blank)}")
 
-        od_events_iter = iter(od_stream)
-        self.ekf = self._initialize_extended_kalman_filter(
-            od_std=config.getfloat("growth_rate_kalman", "od_std"),
-            rate_std=config.getfloat("growth_rate_kalman", "rate_std"),
-            obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
-            od_iter=od_events_iter,
+        warmup_observations, od_events_iter = self.scale_warmup_events(
+            warmup_events,
+            od_events_iter,
         )
+        self.ekf = self._initialize_extended_kalman_filter(warmup_observations)
         self._initialization_complete.set()
         return od_events_iter
 
+    def collect_warmup_events(
+        self,
+        od_iter: Iterator[structs.ODReadings],
+        n_warmup_observations: int,
+    ) -> tuple[list[structs.ODReadings], Iterator[structs.ODReadings]]:
+        warmup_events: list[structs.ODReadings] = []
+
+        for _ in range(max(n_warmup_observations, 1)):
+            try:
+                warmup_events.append(next(od_iter))
+            except StopIteration:
+                break
+
+        if not warmup_events:
+            raise IndexError("Expected at least one OD observation to initialize growth-rate filter.")
+
+        return warmup_events, od_iter
+
+    def scale_warmup_events(
+        self,
+        warmup_events: list[structs.ODReadings],
+        od_iter: Iterator[structs.ODReadings],
+    ) -> tuple[list[dict[pt.PdChannel, float]], Iterator[structs.ODReadings]]:
+        warmup_observations = [self.scale_raw_observations(event) for event in warmup_events]
+        return warmup_observations, chain(warmup_events, od_iter)
+
 
 @click.group(invoke_without_command=True, name="growth_rate_calculating")
-@click.option("--ignore-cache", is_flag=True, help="Ignore the cached values (rerun)")
 @click.pass_context
-def click_growth_rate_calculating(ctx: click.Context, ignore_cache: bool) -> None:
+def click_growth_rate_calculating(ctx: click.Context) -> None:
     """
     Start calculating growth rate
     """
@@ -561,8 +537,6 @@ def click_growth_rate_calculating(ctx: click.Context, ignore_cache: bool) -> Non
         with GrowthRateCalculator(
             unit=unit,
             experiment=experiment,
-            ignore_cache=ignore_cache,
-            use_fused_od=use_fused_od,
         ) as job:
             for _ in job.process_until_disconnected_or_exhausted(
                 od_stream=od_stream, dosing_stream=dosing_stream
@@ -575,11 +549,5 @@ def click_clear_cache() -> None:
     unit = whoami.get_unit_name()
     experiment = whoami.get_assigned_experiment_name(unit)
 
-    with local_persistent_storage("od_filtered") as cache:
-        cache.pop(experiment)
-    with local_persistent_storage("growth_rate") as cache:
-        cache.pop(experiment)
     with local_persistent_storage("od_normalization_mean") as cache:
-        cache.pop(experiment)
-    with local_persistent_storage("od_normalization_variance") as cache:
         cache.pop(experiment)

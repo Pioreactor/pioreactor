@@ -16,6 +16,43 @@ def _restore_tuple_keys(value: object) -> object:
     return value
 
 
+def _to_float(value: object) -> float:
+    if isinstance(value, bytes):
+        return float(value.decode())
+    if isinstance(value, (float, int, str)):
+        return float(value)
+    raise TypeError(f"Cannot interpret {value!r} as float.")
+
+
+def _to_int(value: object) -> int:
+    if isinstance(value, bytes):
+        return int(value.decode())
+    if isinstance(value, (float, int, str)):
+        return int(value)
+    raise TypeError(f"Cannot interpret {value!r} as int.")
+
+
+def _to_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, bytes):
+        value = value.decode()
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "yes", "true", "on"}:
+            return True
+        if normalized in {"0", "no", "false", "off"}:
+            return False
+        raise ValueError(f"Cannot interpret {value!r} as bool.")
+    return bool(value)
+
+
+def _decode_json(value: object) -> object:
+    if isinstance(value, (bytes, str, bytearray)):
+        return loads(value)
+    raise TypeError(f"Cannot interpret {value!r} as JSON.")
+
+
 class cache:
     @staticmethod
     def adapt_key(key: object) -> bytes:
@@ -93,6 +130,21 @@ class cache:
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
         result = self.cursor.fetchone()
         return result[0] if result else default
+
+    def getfloat(self, key: object, default: float = 0.0) -> float:
+        return _to_float(self.get(key, default))
+
+    def getint(self, key: object, default: int = 0) -> int:
+        return _to_int(self.get(key, default))
+
+    def getboolean(self, key: object, default: bool = False) -> bool:
+        return _to_bool(self.get(key, default))
+
+    def getjson(self, key: object, default: object = None) -> object:
+        value = self.get(key, default)
+        if value is default:
+            return default
+        return _decode_json(value)
 
     def iterkeys(self) -> Generator[object, None, None]:
         self.cursor.execute(f"SELECT key FROM {self.table_name}")

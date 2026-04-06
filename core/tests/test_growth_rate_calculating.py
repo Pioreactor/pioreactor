@@ -182,10 +182,6 @@ class LiveODReadingsListSource:
 class TestGrowthRateCalculating:
     @classmethod
     def setup_class(cls) -> None:
-        with local_persistent_storage("od_blank") as cache:
-            for experiment in cache.iterkeys():
-                del cache[experiment]
-
         with local_persistent_storage("od_normalization_mean") as cache:
             for experiment in cache.iterkeys():
                 del cache[experiment]
@@ -658,165 +654,6 @@ class TestGrowthRateCalculating:
 
             thread.cancel()
 
-    def test_od_blank_being_non_zero(self) -> None:
-        unit = get_unit_name()
-        experiment = "test_od_blank_being_non_zero"
-
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "90"),
-                ("od_config.photodiode_channel", "2", "135"),
-            ],
-        ):
-            with local_persistent_storage("od_blank") as cache:
-                cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
-
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
-
-            with local_persistent_storage("od_normalization_variance") as cache:
-                cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
-
-            od_stream, dosing_stream = create_od_stream_from_mqtt(
-                unit, experiment
-            ), create_dosing_stream_from_mqtt(unit, experiment)
-
-            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-
-                pause()
-                pause()
-
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
-                    ),
-                    retain=True,
-                )
-
-                pause()
-                pause()
-
-                assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
-                assert calc.od_blank == {"2": 0.4, "1": 0.25}
-                results = calc.scale_raw_observations(
-                    create_od_raw_batched(
-                        ["1", "2"], [0.6, 1.0], ["90", "90"], timestamp="2010-01-01T12:03:00.000Z"
-                    )
-                )
-                assert results is not None
-                assert abs(results["2"] - 1.5) < 0.00001
-                assert abs(results["1"] - 1.4) < 0.00001
-
-    def test_od_blank_being_higher_than_observations(self) -> None:
-        unit = get_unit_name()
-        experiment = "test_od_blank_being_higher_than_observations"
-        with local_persistent_storage("od_blank") as cache:
-            cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
-
-        with local_persistent_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
-
-        with local_persistent_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
-
-        od_stream, dosing_stream = create_od_stream_from_mqtt(
-            unit, experiment
-        ), create_dosing_stream_from_mqtt(unit, experiment)
-
-        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-            pause()
-
-            pause()
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_encoded_od_raw_batched(
-                    ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
-                ),
-                retain=True,
-            )
-            pause()
-            pause()
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_encoded_od_raw_batched(
-                    ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:05.000Z"
-                ),
-                retain=True,
-            )
-            pause()
-            pause()
-            pause()
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_encoded_od_raw_batched(
-                    ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:10.000Z"
-                ),
-                retain=True,
-            )
-            pause()
-            pause()
-
-    def test_od_blank_being_empty(self) -> None:
-        unit = get_unit_name()
-        experiment = "test_od_blank_being_empty"
-
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "90"),
-                ("od_config.photodiode_channel", "2", "135"),
-            ],
-        ):
-            with local_persistent_storage("od_blank") as cache:
-                if experiment in cache:
-                    del cache[experiment]
-
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
-
-            with local_persistent_storage("od_normalization_variance") as cache:
-                cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
-
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_encoded_od_raw_batched(
-                    ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:02:10.000Z"
-                ),
-                retain=True,
-            )
-
-            od_stream = create_od_stream_from_mqtt(unit, experiment)
-            dosing_stream = create_dosing_stream_from_mqtt(unit, experiment)
-            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-
-                pause()
-
-                pause()
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:02:15.000Z"
-                    ),
-                    retain=True,
-                )
-                pause()
-                pause()
-                assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
-                assert calc.od_blank == {"2": 0.0, "1": 0.0}
-                results = calc.scale_raw_observations(
-                    create_od_raw_batched(
-                        ["1", "2"], [0.6, 1.0], ["90", "90"], timestamp="2010-01-01T12:02:16.000Z"
-                    )
-                )
-                assert results is not None
-                assert abs(results["2"] - 1.25) < 0.00001
-                assert abs(results["1"] - 1.2) < 0.00001
-
     def test_observation_order_is_preserved_in_job(self) -> None:
         unit = get_unit_name()
         experiment = "test_observation_order_is_preserved_in_job"
@@ -853,16 +690,13 @@ class TestGrowthRateCalculating:
                 "2": 2.0,
             }
 
-    def test_zero_blank_and_zero_od_coming_in(self) -> None:
+    def test_zero_reference_and_zero_od_coming_in(self) -> None:
         unit = get_unit_name()
-        experiment = "test_zero_blank_and_zero_od_coming_in"
+        experiment = "test_zero_reference_and_zero_od_coming_in"
         with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
         with local_persistent_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"1": 0})
-
-        with local_persistent_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
         od_stream = create_od_stream_from_mqtt(unit, experiment)
@@ -1207,7 +1041,6 @@ class TestGrowthRateCalculating:
         with temporary_config_changes(
             config,
             [
-                ("growth_rate_kalman", "od_std", str(float(config["growth_rate_kalman"]["od_std"]) / 2)),
                 ("growth_rate_calculating.config", "ekf_outlier_std_threshold", "3"),
             ],
         ):
@@ -1275,20 +1108,19 @@ class TestGrowthRateCalculating:
         with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({})
 
-        od_stream = HistoricalODReadingsListSource([])
+        warmup_events: list[structs.ODReadings] = []
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
             monkeypatch.setattr(
                 calc,
-                "_compute_and_cache_od_statistics",
+                "_compute_od_statistics_from_warmup_events",
                 lambda _: (expected_means, expected_variances),
             )
 
-            means, variances, od_blank = calc._get_precomputed_values(od_stream)
+            means, variances = calc._get_precomputed_values(warmup_events)
 
         assert means == expected_means
         assert variances == expected_variances
-        assert dict(od_blank) == {"2": 0.0}
 
     def test_interrupted_live_run_persists_empty_normalization_cache(self) -> None:
         experiment = "test_interrupted_live_run_persists_empty_normalization_cache"
@@ -1371,20 +1203,10 @@ class TestGrowthRateCalculating:
                 with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                     second_run_exceptions = run_until_interrupted(calc)
 
-                assert wait_for(
-                    lambda: any(
-                        "Observation noise covariance matrix:" in log["message"] for log in second_debug_logs
-                    ),
-                    timeout=8.0,
-                )
-
                 assert any(isinstance(exc, IndexError) for exc in second_run_exceptions)
                 second_debug_messages = [log["message"] for log in second_debug_logs]
                 assert any("od_normalization_mean={}" in message for message in second_debug_messages)
                 assert any("od_normalization_variance={}" in message for message in second_debug_messages)
-                assert any(
-                    "array([], shape=(0, 0), dtype=float64)" in message for message in second_debug_messages
-                )
 
     def test_historical_processing_persists_latest_values_to_cache(self) -> None:
         experiment = "test_historical_processing_persists_latest_values_to_cache"
