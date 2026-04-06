@@ -664,9 +664,9 @@ class Monitor(LongRunningBackgroundJob):
             )
         except Exception as e:
             create_logger(
-                "bioreactor",
-                unit=self.unit,
-                experiment=whoami.get_assigned_experiment_name(self.unit),
+                f"bioreactor.{experiment}",
+                unit=unit,
+                experiment=experiment,
                 pub_client=self.pub_client,
             ).warning(str(e))
 

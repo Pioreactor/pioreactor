@@ -2,6 +2,8 @@
 # test_monitor
 import time
 from types import SimpleNamespace
+from typing import Any
+from typing import cast
 
 import pytest
 import zeroconf
@@ -12,6 +14,7 @@ from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
+from pioreactor.types import MQTTMessage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -146,7 +149,7 @@ def test_monitor_ignores_pump_calibration_dosing_events_for_bioreactor_projectio
     experiment = "test_monitor_ignores_pump_calibration_dosing_events_for_bioreactor_projection"
     monitor = object.__new__(Monitor)
     monitor.unit = unit
-    monitor.pub_client = None
+    monitor.pub_client = cast(Any, None)
     apply_calls: list[structs.DosingEvent] = []
 
     def fake_apply_dosing_event_to_bioreactor(
@@ -160,17 +163,20 @@ def test_monitor_ignores_pump_calibration_dosing_events_for_bioreactor_projectio
     monkeypatch.setattr(bioreactor, "apply_dosing_event_to_bioreactor", fake_apply_dosing_event_to_bioreactor)
 
     monitor.update_bioreactor_state_from_dosing_event(
-        SimpleNamespace(
-            topic=f"pioreactor/{unit}/{experiment}/dosing_events",
-            payload=encode(
-                structs.DosingEvent(
-                    volume_change=0.4,
-                    event="add_media",
-                    source_of_event="pump_calibration",
-                    timestamp=current_utc_datetime(),
-                )
+        cast(
+            MQTTMessage,
+            SimpleNamespace(
+                topic=f"pioreactor/{unit}/{experiment}/dosing_events",
+                payload=encode(
+                    structs.DosingEvent(
+                        volume_change=0.4,
+                        event="add_media",
+                        source_of_event="pump_calibration",
+                        timestamp=current_utc_datetime(),
+                    )
+                ),
             ),
-        )
+        ),
     )
 
     assert apply_calls == []
@@ -181,7 +187,7 @@ def test_monitor_projects_non_calibration_dosing_events_into_bioreactor(monkeypa
     experiment = "test_monitor_projects_non_calibration_dosing_events_into_bioreactor"
     monitor = object.__new__(Monitor)
     monitor.unit = unit
-    monitor.pub_client = None
+    monitor.pub_client = cast(Any, None)
     apply_calls: list[structs.DosingEvent] = []
 
     def fake_apply_dosing_event_to_bioreactor(
@@ -195,18 +201,84 @@ def test_monitor_projects_non_calibration_dosing_events_into_bioreactor(monkeypa
     monkeypatch.setattr(bioreactor, "apply_dosing_event_to_bioreactor", fake_apply_dosing_event_to_bioreactor)
 
     monitor.update_bioreactor_state_from_dosing_event(
-        SimpleNamespace(
-            topic=f"pioreactor/{unit}/{experiment}/dosing_events",
-            payload=encode(
-                structs.DosingEvent(
-                    volume_change=0.4,
-                    event="add_media",
-                    source_of_event="test",
-                    timestamp=current_utc_datetime(),
-                )
+        cast(
+            MQTTMessage,
+            SimpleNamespace(
+                topic=f"pioreactor/{unit}/{experiment}/dosing_events",
+                payload=encode(
+                    structs.DosingEvent(
+                        volume_change=0.4,
+                        event="add_media",
+                        source_of_event="test",
+                        timestamp=current_utc_datetime(),
+                    )
+                ),
             ),
-        )
+        ),
     )
 
     assert len(apply_calls) == 1
     assert apply_calls[0].source_of_event == "test"
+
+
+def test_monitor_logs_bioreactor_projection_failures_under_message_experiment(monkeypatch) -> None:
+    unit = get_unit_name()
+    experiment = "test_monitor_logs_bioreactor_projection_failures_under_message_experiment"
+    monitor = object.__new__(Monitor)
+    monitor.unit = unit
+    monitor.pub_client = cast(Any, None)
+    captured_logger_request: dict[str, str | None] = {}
+    warning_messages: list[str] = []
+
+    def fake_apply_dosing_event_to_bioreactor(
+        unit: str,
+        experiment: str,
+        dosing_event: structs.DosingEvent,
+        mqtt_client=None,
+    ) -> None:
+        raise ValueError("projection failed")
+
+    class StubLogger:
+        def warning(self, message: str) -> None:
+            warning_messages.append(message)
+
+    def fake_create_logger(
+        name: str,
+        unit: str | None = None,
+        experiment: str | None = None,
+        source: str = "app",
+        to_mqtt: bool = True,
+        pub_client=None,
+        log_file_location: str = "",
+    ) -> StubLogger:
+        captured_logger_request["name"] = name
+        captured_logger_request["unit"] = unit
+        captured_logger_request["experiment"] = experiment
+        return StubLogger()
+
+    monkeypatch.setattr(bioreactor, "apply_dosing_event_to_bioreactor", fake_apply_dosing_event_to_bioreactor)
+    monkeypatch.setattr("pioreactor.background_jobs.monitor.create_logger", fake_create_logger)
+
+    monitor.update_bioreactor_state_from_dosing_event(
+        cast(
+            MQTTMessage,
+            SimpleNamespace(
+                topic=f"pioreactor/{unit}/{experiment}/dosing_events",
+                payload=encode(
+                    structs.DosingEvent(
+                        volume_change=0.4,
+                        event="add_media",
+                        source_of_event="test",
+                        timestamp=current_utc_datetime(),
+                    )
+                ),
+            ),
+        ),
+    )
+
+    assert warning_messages == ["projection failed"]
+    assert captured_logger_request == {
+        "name": f"bioreactor.{experiment}",
+        "unit": unit,
+        "experiment": experiment,
+    }
