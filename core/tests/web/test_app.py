@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
+from datetime import datetime
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -293,6 +295,46 @@ def test_get_system_logs_filters_universal_experiment(client) -> None:
     data = response.get_json()
     assert any(row["message"] == "System event logged" for row in data)
     assert all(row["experiment"] == UNIVERSAL_EXPERIMENT for row in data)
+
+
+def test_get_recent_logs_excludes_universal_experiment(client) -> None:
+    from pioreactor.web.app import modify_app_db
+    from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+    modify_app_db(
+        "INSERT INTO logs (experiment, pioreactor_unit, timestamp, message, source, level, task) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            "exp1",
+            "unit1",
+            now,
+            "Experiment-only event",
+            "app",
+            "INFO",
+            "app",
+        ),
+    )
+    modify_app_db(
+        "INSERT INTO logs (experiment, pioreactor_unit, timestamp, message, source, level, task) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            UNIVERSAL_EXPERIMENT,
+            "unit1",
+            now,
+            "Universal event",
+            "app",
+            "INFO",
+            "app",
+        ),
+    )
+
+    response = client.get("/api/experiments/exp1/recent_logs")
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert any(row["message"] == "Experiment-only event" for row in data)
+    assert all(row["message"] != "Universal event" for row in data)
+    assert all(row["experiment"] == "exp1" for row in data)
 
 
 @pytest.mark.parametrize(

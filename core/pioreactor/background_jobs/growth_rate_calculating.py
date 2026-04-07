@@ -38,7 +38,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
-from itertools import chain
 from math import exp
 from math import log
 from statistics import mean
@@ -218,7 +217,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         observation_matrix = np.asarray(
             [
-                [warmup_observation[channel] for channel in self.od_normalization_factors]
+                [warmup_observation[channel] for channel in self._ordered_pd_channels()]
                 for warmup_observation in warmup_observations
             ],
             dtype=float,
@@ -319,10 +318,23 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistent_storage("od_normalization_mean") as cache:
             return cast(dict[pt.PdChannel, float], cache.getjson(self.experiment))
 
+    def _ordered_pd_channels(self) -> tuple[pt.PdChannel, ...]:
+        return tuple(sorted(self.od_normalization_factors, reverse=True))
+
     def scale_raw_observations(self, od_readings: structs.ODReadings) -> dict[pt.PdChannel, float]:
+        zero_reference_channels = [
+            channel
+            for channel in self._ordered_pd_channels()
+            if self.od_normalization_factors[channel] <= 0.0
+        ]
+        if zero_reference_channels:
+            raise ValueError(
+                f"Non-positive OD normalization factor(s) for channel(s) {zero_reference_channels}: {self.od_normalization_factors}"
+            )
+
         scaled_signals = {
             channel: od_readings.ods[channel].od / self.od_normalization_factors[channel]
-            for channel in sorted(od_readings.ods, reverse=True)
+            for channel in self._ordered_pd_channels()
         }
 
         if any(v <= 0.0 for v in scaled_signals.values()):
@@ -332,35 +344,49 @@ class GrowthRateCalculator(BackgroundJob):
 
         return scaled_signals
 
+    def compute_dt_hours(self, timestamp: datetime) -> float:
+        if whoami.is_testing_env():
+            # when running a mock script, we run at an accelerated rate, but want to mimic
+            # production.
+            return self.expected_dt
+
+        if self.time_of_previous_observation is None:
+            self.time_of_previous_observation = timestamp
+            return self.expected_dt
+
+        dt = (timestamp - self.time_of_previous_observation).total_seconds() / 60 / 60
+        if dt < 0:
+            self.logger.debug(f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}")
+            raise ValueError(f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}")
+
+        self.time_of_previous_observation = timestamp
+        return dt
+
+    def start_post_dose_reset_window(self, observations: int = 2) -> None:
+        self._obs_since_last_dose = 0
+        self._obs_required_to_reset = observations
+        self._recent_dilution = True
+
+    def clear_post_dose_reset_window(self) -> None:
+        self._obs_since_last_dose = None
+        self._obs_required_to_reset = None
+        self._recent_dilution = False
+
+    def advance_post_dose_reset_window(self) -> None:
+        if self._obs_since_last_dose is None or self._obs_required_to_reset is None:
+            return
+
+        self._obs_since_last_dose += 1
+        if self._obs_since_last_dose >= self._obs_required_to_reset:
+            self.clear_post_dose_reset_window()
+
     def _update_state_from_observation(
         self, od_readings: structs.ODReadings
     ) -> tuple[structs.ODReadings, tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]]:
         timestamp = od_readings.timestamp
 
         scaled_observations = self.scale_raw_observations(od_readings)
-
-        if whoami.is_testing_env():
-            # when running a mock script, we run at an accelerated rate, but want to mimic
-            # production.
-            dt = self.expected_dt
-        else:
-            if self.time_of_previous_observation is not None:
-                dt = (
-                    (timestamp - self.time_of_previous_observation).total_seconds() / 60 / 60
-                )  # delta time in hours
-
-                if dt < 0:
-                    self.logger.debug(
-                        f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
-                    )
-                    raise ValueError(
-                        f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
-                    )
-
-            else:
-                dt = self.expected_dt
-
-            self.time_of_previous_observation = timestamp
+        dt = self.compute_dt_hours(timestamp)
 
         updated_state_, covariance_ = self.ekf.update(
             list(scaled_observations.values()), dt, self._recent_dilution
@@ -370,13 +396,7 @@ class GrowthRateCalculator(BackgroundJob):
         latest_od_filtered = exp(float(updated_state[0]))
         latest_growth_rate = float(updated_state[1])
 
-        if self._obs_since_last_dose is not None and self._obs_required_to_reset is not None:
-            self._obs_since_last_dose += 1
-
-            if self._obs_since_last_dose >= self._obs_required_to_reset:
-                self._obs_since_last_dose = None
-                self._obs_required_to_reset = None
-                self._recent_dilution = False
+        self.advance_post_dose_reset_window()
 
         growth_rate = structs.GrowthRate(
             growth_rate=latest_growth_rate,
@@ -396,9 +416,7 @@ class GrowthRateCalculator(BackgroundJob):
         return od_readings, (growth_rate, od_filtered, kf_outputs)
 
     def _respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
-        self._obs_since_last_dose = 0
-        self._obs_required_to_reset = 2
-        self._recent_dilution = True
+        self.start_post_dose_reset_window()
 
     def process_until_disconnected_or_exhausted_in_background(
         self,
@@ -470,7 +488,11 @@ class GrowthRateCalculator(BackgroundJob):
 
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
 
-        warmup_observations = self.scale_warmup_events(warmup_events)
+        try:
+            warmup_observations = self.scale_warmup_events(warmup_events)
+        except ValueError as error:
+            self.logger.error(f"Error processing warmup OD readings: {error}", exc_info=True)
+            raise
         self.ekf = self._initialize_extended_kalman_filter(warmup_observations)
         self._initialization_complete.set()
         return od_events_iter
