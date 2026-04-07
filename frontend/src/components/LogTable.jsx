@@ -141,20 +141,6 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
   }, []);
 
   useEffect(() => {
-    if (!client || !Object.keys(config).length) return undefined;
-
-    const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
-    const ix = LEVELS.indexOf(levelRequested);
-    const topics = LEVELS.slice(ix).map((level) => `pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`);
-
-    subscribeToTopic(topics, onMessage, 'LogTable');
-
-    return () => {
-      topics.forEach((topic) => unsubscribeFromTopic(topic, 'LogTable'));
-    };
-  }, [client, config, onMessage, subscribeToTopic, unsubscribeFromTopic]);
-
-  useEffect(() => {
     if (!experiment || !client || !Object.keys(config).length) return undefined;
 
     const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';

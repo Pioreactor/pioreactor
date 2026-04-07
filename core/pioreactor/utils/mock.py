@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
+import math
 import random
 from typing import Any
 from typing import cast
@@ -45,19 +46,42 @@ class Mock_ADC(_I2C_ADC):
     OFFSET = 0.002
     gain = 1
 
+    RESIDUAL_RHO = 0.02
+    RESIDUAL_CV = 0.0056
+    SIGMA_FLOOR = 0.0
+    SHOCK_PROBABILITY = 0.0073
+
+    # Keep rare shocks subtle for the low-noise family.
+    SHOCK_SIGMA_MULTIPLIER_MIN = 2.0
+    SHOCK_SIGMA_MULTIPLIER_MAX = 5.0
+
     def __init__(self, adc_channel: int, i2c_addr: int, *args: Any, **kwargs: Any) -> None:
         self._counter = 0.0
         self.state = self.INIT_STATE
-        self.max_gr = 0.25 + 0.1 * random.random()
-        self.scale_factor = 0.00035 + 0.00005 * random.random()
-        self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
+
+        self.max_gr = 0  # 0.25 + 0.1 * random.random()
+        self.start_time = 10.0 * 60.0
+        self.end_time = self.start_time + 60.0 * 60.0 * 8.0
+        self.up_scale = 0.01
+        self.down_scale = 0.003
+
         self.adc_channel = adc_channel
         self.i2c_addr = i2c_addr
 
+        # Static per-reactor sensitivity offset: LogNormal(meanlog=0, sdlog=0.071)
+        self.unit_scale = random.lognormvariate(0.0, 0.071)
+
+        # AR(1) residual state in voltage space.
+        self._residual = 0.0
+
+        # Give the REF channel a stable but not perfectly identical baseline.
+        self._reference_voltage = 0.100 + random.normalvariate(0.0, 0.0003)
+
     def read_from_channel(self) -> float:
         from pioreactor.utils import local_intermittent_storage
-        import random
-        import numpy as np
+
+        samples_per_second = config.getfloat("od_reading.config", "samples_per_second")
+        oversampling_count = 40.0
 
         with local_intermittent_storage("leds") as leds:
             ir_intensity = cast(float | int | str, leds.get(config.get("leds_reverse", "IR"), 0.0))
@@ -69,35 +93,42 @@ class Mock_ADC(_I2C_ADC):
         am_i_REF = self.adc_channel == 1  # see _get_ADCS in od_reading.py
 
         if am_i_REF:
-            return self.from_voltage_to_raw(0.100 + random.normalvariate(0, sigma=0.001) / 2**10)
-        else:
-            self.gr = self.growth_rate(
-                self._counter / config.getfloat("od_reading.config", "samples_per_second"), am_i_REF
-            )
-            self.state *= np.exp(
-                self.gr
-                / 60
-                / 60
-                / config.getfloat("od_reading.config", "samples_per_second")
-                / 40  # divide by N from oversampling_count
-            )
-            self._counter += 1.0 / 40  # divide by N from oversampling_count
+            ref_voltage = self._reference_voltage + random.normalvariate(0.0, 0.00015)
+            return self.from_voltage_to_raw(ref_voltage)
 
-            return self.from_voltage_to_raw(
-                self.state + random.normalvariate(0, sigma=self.state * 0.05) + self.OFFSET
+        dt = 1.0 / samples_per_second / oversampling_count
+        elapsed_seconds = self._counter / samples_per_second
+
+        self.state *= math.exp(self.growth_rate(elapsed_seconds, am_i_REF) * dt / 60 / 60)
+        self._counter += 1.0 / oversampling_count
+
+        clean_signal = self.unit_scale * self.state
+        sigma = self._sigma(clean_signal) * math.sqrt(oversampling_count)
+
+        innovation = math.sqrt(1.0 - self.RESIDUAL_RHO**2) * sigma * random.normalvariate(0.0, 1.0)
+        self._residual = self.RESIDUAL_RHO * self._residual + innovation
+
+        shock = 0.0
+        if random.random() < self.SHOCK_PROBABILITY:
+            shock_scale = random.uniform(
+                self.SHOCK_SIGMA_MULTIPLIER_MIN,
+                self.SHOCK_SIGMA_MULTIPLIER_MAX,
             )
+            shock = shock_scale * sigma * random.normalvariate(0.0, 1.0)
+
+        observed_voltage = clean_signal + self._residual + shock + self.OFFSET
+        return self.from_voltage_to_raw(max(0.0, observed_voltage))
+
+    def _sigma(self, signal_voltage: float) -> float:
+        return math.sqrt(self.SIGMA_FLOOR**2 + (self.RESIDUAL_CV * signal_voltage) ** 2)
 
     def growth_rate(self, duration_as_seconds: float, am_i_REF: bool) -> float:
         if am_i_REF:
-            return 0
+            return 0.0
 
-        from math import exp
-
-        return (
-            self.max_gr
-            / (1 + exp(-self.scale_factor * (duration_as_seconds - self.lag)))
-            * (1 - 1 / (1 + exp(-self.scale_factor * 4 * (duration_as_seconds - 16 * self.lag))))
-        )
+        ramp_up = 1.0 / (1.0 + math.exp(-self.up_scale * (duration_as_seconds - self.start_time)))
+        ramp_down = 1.0 / (1.0 + math.exp(self.down_scale * (duration_as_seconds - self.end_time)))
+        return self.max_gr * ramp_up * ramp_down
 
     def check_on_gain(self, *args: Any, **kwargs: Any) -> None:
         pass

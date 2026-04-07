@@ -1502,7 +1502,8 @@ class ODReader(BackgroundJob):
                 self.logger.error(f"Error in estimator transformer: {e}")
                 self.od_fused = None
             else:
-                self.od_fused = fused_od
+                if fused_od is not None:
+                    self.od_fused = fused_od
 
         finally:
             for post_function in self.post_read_callbacks:

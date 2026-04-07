@@ -727,14 +727,14 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
             FROM logs AS l
-            WHERE (l.experiment=? or l.experiment=?)
+            WHERE (l.experiment=?)
                 AND {level_filter}
                 AND l.timestamp >= MAX(
                     STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'),
                     COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'))
                 )
             ORDER BY l.timestamp DESC LIMIT 50;""",
-        (UNIVERSAL_EXPERIMENT, experiment, *level_params, experiment),
+        (experiment, *level_params, experiment),
     )
 
     return jsonify(recent_logs)
