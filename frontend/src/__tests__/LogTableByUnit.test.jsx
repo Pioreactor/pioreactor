@@ -133,6 +133,19 @@ describe("LogTableByUnit", () => {
       )
     );
 
+    expect(subscribeToTopic).toHaveBeenCalledTimes(1);
+    expect(subscribeToTopic).toHaveBeenCalledWith(
+      [
+        "pioreactor/+/exp1/logs/+/info",
+        "pioreactor/+/exp1/logs/+/notice",
+        "pioreactor/+/exp1/logs/+/warning",
+        "pioreactor/+/exp1/logs/+/error",
+        "pioreactor/+/exp1/logs/+/critical",
+      ],
+      expect.any(Function),
+      "LogTable"
+    );
+
     const onMessage = subscribeToTopic.mock.calls[0][1];
 
     await act(async () => {

@@ -8,6 +8,8 @@ from click.testing import CliRunner
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
@@ -185,6 +187,27 @@ def test_rpm_isnt_updated_if_there_is_no_rpm_measurement() -> None:
 
         message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=1)
         assert message is None
+
+
+def test_publish_measured_rpm_in_measure_rpm_only_mode() -> None:
+    exp = "test_publish_measured_rpm_in_measure_rpm_only_mode"
+
+    publish(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", None, retain=True)
+    pause()
+
+    rpm_calculator = RpmCalculator()
+    rpm_calculator.setup()
+
+    with temporary_config_change(config, "stirring.config", "duration_between_updates_seconds", "1"):
+        with Stirrer(
+            target_rpm=None, unit=unit, experiment=exp, rpm_calculator=rpm_calculator, duty_cycle=100
+        ) as st:
+            st.start_stirring()
+            assert st.target_rpm is None
+
+            message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=12)
+            assert message is not None
+            assert json.loads(message.payload)["measured_rpm"] == 500
 
 
 def test_stirring_with_calibration() -> None:
@@ -390,10 +413,31 @@ def test_click_stirring_accepts_new_flags(dummy_start_stirring) -> None:
     assert dummy_start_stirring["target_rpm_outside_od_reading"] == 456.0
 
 
+def test_click_stirring_measure_rpm_only_sets_fixed_dc_mode(dummy_start_stirring) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        stirring_mod.click_stirring,
+        [
+            "--target-rpm",
+            "250",
+            "--use-rpm",
+            "false",
+            "--duty-cycle",
+            "100",
+            "--measure-rpm-only",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert dummy_start_stirring["target_rpm"] is None
+    assert dummy_start_stirring["use_rpm"] is True
+    assert dummy_start_stirring["duty_cycle"] == 100.0
+
+
 @pytest.mark.parametrize(
     "flag",
     [
         "--duty-cycle",
+        "--measure-rpm-only",
         "--target-rpm-during-od-reading",
         "--target-rpm-outside-od-reading",
     ],

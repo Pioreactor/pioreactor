@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 from contextlib import suppress
 from threading import RLock
 from time import perf_counter
@@ -353,14 +354,22 @@ class Stirrer(BackgroundJobWithDodging):
     @override
     def initialize_continuous_operation(self) -> None:
         self.logger.debug("Starting initialize_continuous_operation")
+        if self.rpm_calculator is not None and self.target_rpm is None:
+            repeated_action = self.poll
+            repeated_action_args: tuple[object, ...] = (4.0,)
+        else:
+            repeated_action = self.poll_and_update_dc
+            repeated_action_args = ()
+
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_timer = RepeatedTimer(
             config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
-            self.poll_and_update_dc,
+            repeated_action,
             job_name=self.job_name,
             run_immediately=True,
             run_after=6,
             logger=self.logger,
+            args=repeated_action_args,
         ).start()
 
         if self.duty_cycle == 0:
@@ -716,6 +725,11 @@ def start_stirring(
     default=None,
     show_default=True,
 )
+@click.option(
+    "--measure-rpm-only",
+    is_flag=True,
+    help="Measure and publish RPM without PID control. Duty cycle stays fixed.",
+)
 def click_stirring(
     target_rpm: float | None,
     use_rpm: bool | None,
@@ -723,14 +737,21 @@ def click_stirring(
     target_rpm_during_od_reading: float | None,
     target_rpm_outside_od_reading: float | None,
     enable_dodging_od: bool | None,
+    measure_rpm_only: bool,
 ) -> None:
     """
     Start the stirring of the Pioreactor.
     """
-    target_rpm = target_rpm or config.getfloat("stirring.config", "initial_target_rpm", fallback=500)
-    use_rpm = (
-        use_rpm if use_rpm is not None else config.getboolean("stirring.config", "use_rpm", fallback="true")
-    )
+    if measure_rpm_only:
+        target_rpm = None
+        use_rpm = True
+    else:
+        target_rpm = target_rpm or config.getfloat("stirring.config", "initial_target_rpm", fallback=500)
+        use_rpm = (
+            use_rpm
+            if use_rpm is not None
+            else config.getboolean("stirring.config", "use_rpm", fallback="true")
+        )
     enable_dodging_od = (
         enable_dodging_od
         if enable_dodging_od is not None
