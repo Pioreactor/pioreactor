@@ -12,6 +12,7 @@ from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import average_over_od_readings
 from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
+from pioreactor.background_jobs.od_reading import CachedBlankTransformer
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import CachedEstimatorTransformer
 from pioreactor.background_jobs.od_reading import click_od_reading
@@ -21,7 +22,6 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.od_reading import subtract_blank_from_od_readings
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
@@ -1027,7 +1027,7 @@ def test_calibration_not_requested() -> None:
         assert od.calibration_transformer(y) == y
 
 
-def test_subtract_blank_from_od_readings() -> None:
+def test_cached_blank_transformer_subtracts_blank_from_od_readings() -> None:
     timestamp = current_utc_datetime()
     od_readings = structs.ODReadings(
         timestamp=timestamp,
@@ -1049,7 +1049,9 @@ def test_subtract_blank_from_od_readings() -> None:
         },
     )
 
-    blank_corrected = subtract_blank_from_od_readings(od_readings, {"1": 0.13})
+    blank_transformer = CachedBlankTransformer()
+    blank_transformer.od_blank = {"1": 0.13}
+    blank_corrected = blank_transformer(od_readings)
 
     assert blank_corrected.ods["1"].od == pytest.approx(0.50)
     assert blank_corrected.ods["2"].od == pytest.approx(0.41)
@@ -1082,7 +1084,7 @@ def test_start_od_reading_allows_blank_without_calibration_or_estimator() -> Non
         calibration=False,
         estimator=False,
     ) as od:
-        assert od.od_blank == {"2": 0.15}
+        assert od.blank_transformer.od_blank == {"2": 0.15}
 
 
 def test_start_od_reading_rejects_blank_with_calibration() -> None:

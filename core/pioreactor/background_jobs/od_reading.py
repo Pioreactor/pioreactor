@@ -36,6 +36,13 @@ flowchart LR
             D["IR output compensation"]
         end
 
+        subgraph BLANK["BlankTransformer"]
+            direction LR
+
+            G["Subtract per-experiment
+blank values (or no-op)"]
+        end
+
         %% Calibration Transformer
         subgraph CAL["CalibrationTransformer"]
             direction LR
@@ -53,9 +60,9 @@ flowchart LR
         end
 
         %% Cross-module connections
-        C --> D
-        D --> E
-        D --> F
+        C --> D --> G
+        G --> E
+        G --> F
     end
 ```
 
@@ -155,39 +162,6 @@ def average_over_od_readings(*multiple_od_readings: structs.ODReadings) -> struc
             for pd_channel, od_value in summed_pd_channel_to_od.items()
         },
     )
-
-
-def _load_od_blank_for_experiment(
-    experiment: pt.Experiment,
-) -> dict[pt.PdChannel, float] | None:
-    with local_persistent_storage("od_blank") as cache:
-        cached_blank = cache.getjson(experiment)
-
-    if not cached_blank:
-        return None
-
-    return cast(dict[pt.PdChannel, float], cached_blank)
-
-
-def subtract_blank_from_od_readings(
-    od_readings: structs.ODReadings,
-    od_blank: Mapping[pt.PdChannel, float] | None,
-) -> structs.ODReadings:
-    if not od_blank:
-        return od_readings
-
-    blank_corrected_ods: dict[pt.PdChannel, structs.ODReading] = {}
-    for channel, od_reading in od_readings.ods.items():
-        blank_value = od_blank.get(channel, 0.0)
-        blank_corrected_ods[channel] = structs.RawODReading(
-            timestamp=od_reading.timestamp,
-            angle=od_reading.angle,
-            od=od_reading.od - blank_value,
-            channel=od_reading.channel,
-            ir_led_intensity=od_reading.ir_led_intensity,
-        )
-
-    return structs.ODReadings(timestamp=od_readings.timestamp, ods=blank_corrected_ods)
 
 
 class ADCReader(LoggerMixin):
@@ -896,6 +870,70 @@ class EstimatorTransformerProtocol(Protocol):
     def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None: ...
 
 
+class BlankTransformerProtocol(Protocol):
+    od_blank: dict[pt.PdChannel, float] | None
+
+    def hydrate(self, experiment: pt.Experiment) -> None: ...
+
+    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings: ...
+
+
+class NullBlankTransformer(LoggerMixin, BlankTransformerProtocol):
+    _logger_name = "blank_transformer"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.od_blank: dict[pt.PdChannel, float] | None = None
+
+    def hydrate(self, experiment: pt.Experiment) -> None:
+        return
+
+    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
+        return od_readings
+
+
+class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
+    _logger_name = "blank_transformer"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.od_blank: dict[pt.PdChannel, float] | None = None
+
+    @staticmethod
+    def _load_od_blank_for_experiment(
+        experiment: pt.Experiment,
+    ) -> dict[pt.PdChannel, float] | None:
+        with local_persistent_storage("od_blank") as cache:
+            cached_blank = cache.getjson(experiment)
+
+        if not cached_blank:
+            return None
+
+        return cast(dict[pt.PdChannel, float], cached_blank)
+
+    def hydrate(self, experiment: pt.Experiment) -> None:
+        self.od_blank = self._load_od_blank_for_experiment(experiment)
+        if self.od_blank is not None:
+            self.logger.debug(f"Using per-experiment OD blank correction: {self.od_blank}")
+
+    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
+        if not self.od_blank:
+            return od_readings
+
+        blank_corrected_ods: dict[pt.PdChannel, structs.ODReading] = {}
+        for channel, od_reading in od_readings.ods.items():
+            blank_value = self.od_blank.get(channel, 0.0)
+            blank_corrected_ods[channel] = structs.RawODReading(
+                timestamp=od_reading.timestamp,
+                angle=od_reading.angle,
+                od=od_reading.od - blank_value,
+                channel=od_reading.channel,
+                ir_led_intensity=od_reading.ir_led_intensity,
+            )
+
+        return structs.ODReadings(timestamp=od_readings.timestamp, ods=blank_corrected_ods)
+
+
 class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
     _logger_name = "calibration_transformer"
 
@@ -1205,6 +1243,7 @@ class ODReader(BackgroundJob):
         unit: pt.Unit,
         experiment: pt.Experiment,
         ir_led_reference_tracker: IrLedReferenceTracker | None = None,
+        blank_transformer: BlankTransformerProtocol | None = None,
         calibration_transformer: CalibrationTransformerProtocol | None = None,
         estimator_transformer: EstimatorTransformerProtocol | None = None,
         ir_led_intensity: float | None = None,
@@ -1228,6 +1267,12 @@ class ODReader(BackgroundJob):
         else:
             self.ir_led_reference_transformer = ir_led_reference_tracker  # type: ignore
 
+        if blank_transformer is None:
+            self.logger.debug("Not using any OD blank correction.")
+            self.blank_transformer = NullBlankTransformer()
+        else:
+            self.blank_transformer = blank_transformer  # type: ignore
+
         if calibration_transformer is None:
             self.logger.debug("Not using any calibration.")
             self.calibration_transformer = NullCalibrationTransformer()
@@ -1241,12 +1286,13 @@ class ODReader(BackgroundJob):
             self.estimator_transformer = estimator_transformer  # type: ignore
 
         self.adc_reader.add_external_logger(self.logger)
+        self.blank_transformer.add_external_logger(self.logger)
         self.calibration_transformer.add_external_logger(self.logger)
         self.ir_led_reference_transformer.add_external_logger(self.logger)
         self.estimator_transformer.add_external_logger(self.logger)
 
         self.channel_angle_map = channel_angle_map
-        self.od_blank = _load_od_blank_for_experiment(experiment)
+        self.blank_transformer.hydrate(experiment)
 
         calibration_status = "none"
         if isinstance(self.calibration_transformer, CachedCalibrationTransformer):
@@ -1321,9 +1367,6 @@ class ODReader(BackgroundJob):
             self.ir_led_intensity = self._determine_best_ir_led_intensity(
                 self.channel_angle_map, self.ir_led_intensity, on_reading, blank_reading
             )
-
-        if self.od_blank is not None:
-            self.logger.debug(f"Using per-experiment OD blank correction: {self.od_blank}")
 
         self.set_interval(interval)
 
@@ -1502,7 +1545,7 @@ class ODReader(BackgroundJob):
                     )
                 )
                 raw_od_readings = self._read_from_adc()
-                raw_od_readings = subtract_blank_from_od_readings(raw_od_readings, self.od_blank)
+                raw_od_readings = self.blank_transformer(raw_od_readings)
 
         try:
             od_readings = self.calibration_transformer(raw_od_readings)
@@ -1736,7 +1779,6 @@ def start_od_reading(
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
-    od_blank = _load_od_blank_for_experiment(experiment)
 
     ir_led_reference_channel = find_ir_led_reference(channels)
     channel_angle_map = create_channel_angle_map(channels)
@@ -1766,6 +1808,14 @@ def start_od_reading(
 
     else:
         ir_led_reference_tracker = NullIrLedReferenceTracker()
+
+    blank_transformer: BlankTransformerProtocol
+    cached_blank_transformer = CachedBlankTransformer()
+    cached_blank_transformer.hydrate(experiment)
+    if cached_blank_transformer.od_blank is not None:
+        blank_transformer = cached_blank_transformer
+    else:
+        blank_transformer = NullBlankTransformer()
 
     # use an OD calibration?
     calibration_transformer: CalibrationTransformerProtocol
@@ -1809,7 +1859,7 @@ def start_od_reading(
     calibration_is_active = bool(calibration_transformer.models)
     estimator_is_active = estimator_transformer.estimator is not None
 
-    if od_blank is not None and (calibration_is_active or estimator_is_active):
+    if blank_transformer.od_blank is not None and (calibration_is_active or estimator_is_active):
         raise ValueError(
             f"Per-experiment OD blank correction exists for experiment {experiment!r} and is incompatible with OD calibrations and fused estimators."
         )
@@ -1826,6 +1876,7 @@ def start_od_reading(
             channels=active_pd_channels, fake_data=fake_data, dynamic_gain=not fake_data, penalizer=penalizer
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
+        blank_transformer=blank_transformer,
         calibration_transformer=calibration_transformer,
         estimator_transformer=estimator_transformer,
         ir_led_intensity=ir_led_intensity,
