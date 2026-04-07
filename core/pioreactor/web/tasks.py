@@ -26,7 +26,6 @@ from subprocess import run
 from subprocess import TimeoutExpired
 from tempfile import mkdtemp
 from time import sleep
-from time import time
 from typing import Any
 from typing import cast
 from uuid import uuid4
@@ -54,11 +53,10 @@ from pioreactor.pubsub import post_into
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
-from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.web import cache
 from pioreactor.web.config import huey
-from pioreactor.web.utils import CachedGetEntry
 from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
 
@@ -99,7 +97,6 @@ logger.setLevel(logging.DEBUG)
 
 PIO_EXECUTABLE = os.environ["PIO_EXECUTABLE"]
 PIOS_EXECUTABLE = os.environ["PIOS_EXECUTABLE"]
-LEADER_MULTICAST_GET_CACHE = "leader_multicast_get_cache"
 
 ALLOWED_ENV = (
     "EXPERIMENT",
@@ -1096,40 +1093,8 @@ def _collect_multicast_results(
         return results
 
 
-def _multicast_get_cache_key(cache_namespace: str, endpoint: str, unit: pt.Unit) -> tuple[str, str, str, str]:
-    return ("multicast_get", cache_namespace, endpoint, unit)
-
-
-def _read_multicast_get_cache_entry(
-    cache_store: Any,
-    *,
-    cache_namespace: str,
-    endpoint: str,
-    unit: str,
-    ttl_s: float,
-) -> tuple[bool, Any]:
-    key = _multicast_get_cache_key(cache_namespace, endpoint, unit)
-    raw_entry = cache_store.get(key)
-    if raw_entry is None:
-        return False, None
-
-    try:
-        entry = json_decode(raw_entry, type=CachedGetEntry)
-    except DecodeError:
-        cache_store.pop(key, None)
-        return False, None
-
-    if (time() - entry.cached_at) > ttl_s:
-        cache_store.pop(key, None)
-        return False, None
-
-    return True, entry.value
-
-
 def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[str]) -> None:
-    with local_intermittent_storage(LEADER_MULTICAST_GET_CACHE) as cache_store:
-        for unit in units:
-            cache_store.pop(_multicast_get_cache_key(cache_namespace, endpoint, unit), None)
+    cache.clear_multicast_get_cache(cache_namespace, endpoint, units)
 
 
 def _summarize_unit_api_error(response: Response | None) -> str:
@@ -1285,42 +1250,13 @@ def multicast_get_with_leader_cache(
     timeout: float = 5.0,
     ttl_s: float = 10.0,
 ) -> dict[str, Any]:
-    assert endpoint.startswith("/unit_api")
-
-    sorted_units = sorted(units)
-    cached_results: dict[str, Any] = {}
-    cache_misses: list[str] = []
-
-    with local_intermittent_storage(LEADER_MULTICAST_GET_CACHE) as cache_store:
-        for unit in sorted_units:
-            is_hit, value = _read_multicast_get_cache_entry(
-                cache_store,
-                cache_namespace=cache_namespace,
-                endpoint=endpoint,
-                unit=unit,
-                ttl_s=ttl_s,
-            )
-            if is_hit:
-                cached_results[unit] = value
-            else:
-                cache_misses.append(unit)
-
-    if not cache_misses:
-        return cached_results
-
-    fetched_results = _multicast_get_uncached(endpoint=endpoint, units=cache_misses, timeout=timeout)
-
-    with local_intermittent_storage(LEADER_MULTICAST_GET_CACHE) as cache_store:
-        for unit, value in fetched_results.items():
-            if value is None:
-                continue
-
-            blob = json_encode(CachedGetEntry(cached_at=time(), value=value))
-            key = _multicast_get_cache_key(cache_namespace, endpoint, unit)
-            cache_store[key] = blob
-
-    cached_results.update(fetched_results)
-    return dict(sorted(cached_results.items()))
+    return cache.multicast_get_with_leader_cache(
+        cache_namespace=cache_namespace,
+        endpoint=endpoint,
+        units=units,
+        timeout=timeout,
+        ttl_s=ttl_s,
+    )
 
 
 @huey.task(priority=50)

@@ -924,7 +924,7 @@ def test_get_all_calibrations_queues_cached_multicast_get(client, monkeypatch: M
         captured["timeout"] = timeout
         return "task"
 
-    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.cache.cached_multicast_get", fake_cached_multicast_get)
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.get("/api/workers/$broadcast/calibrations")
@@ -946,7 +946,7 @@ def test_get_calibration_protocols_queues_cached_multicast_get(client, monkeypat
         captured["timeout"] = timeout
         return "task"
 
-    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.cache.cached_multicast_get", fake_cached_multicast_get)
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.get("/api/workers/$broadcast/calibration_protocols")
@@ -968,7 +968,7 @@ def test_get_all_active_calibrations_queues_cached_multicast_get(client, monkeyp
         captured["timeout"] = timeout
         return "task"
 
-    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.cache.cached_multicast_get", fake_cached_multicast_get)
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.get("/api/workers/$broadcast/active_calibrations")
@@ -987,7 +987,7 @@ def test_create_calibration_invalidates_cached_worker_payloads(client, monkeypat
         captured_calls.extend((target.namespace, target.endpoint, units) for target in targets)
 
     monkeypatch.setattr(
-        "pioreactor.web.api._invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
+        "pioreactor.web.api.cache.invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
     )
     monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", lambda *args, **kwargs: "task")
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
@@ -1014,7 +1014,7 @@ def test_get_all_estimators_queues_cached_multicast_get(client, monkeypatch: Mon
         captured["timeout"] = timeout
         return "task"
 
-    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.cache.cached_multicast_get", fake_cached_multicast_get)
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.get("/api/workers/$broadcast/estimators")
@@ -1036,7 +1036,7 @@ def test_get_all_active_estimators_queues_cached_multicast_get(client, monkeypat
         captured["timeout"] = timeout
         return "task"
 
-    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.cache.cached_multicast_get", fake_cached_multicast_get)
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.get("/api/workers/$broadcast/active_estimators")
@@ -1055,7 +1055,7 @@ def test_set_active_estimator_invalidates_estimator_cache(client, monkeypatch: M
         captured_calls.extend((target.namespace, target.endpoint, units) for target in targets)
 
     monkeypatch.setattr(
-        "pioreactor.web.api._invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
+        "pioreactor.web.api.cache.invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
     )
     monkeypatch.setattr("pioreactor.web.api.tasks.multicast_patch", lambda *args, **kwargs: "task")
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
@@ -1079,7 +1079,7 @@ def test_get_plugins_on_machine_queues_cached_multicast_get(client, monkeypatch:
         captured["timeout"] = timeout
         return "task"
 
-    monkeypatch.setattr("pioreactor.web.api._cached_multicast_get", fake_cached_multicast_get)
+    monkeypatch.setattr("pioreactor.web.api.cache.cached_multicast_get", fake_cached_multicast_get)
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
 
     response = client.get("/api/units/$broadcast/plugins/installed")
@@ -1098,7 +1098,7 @@ def test_install_plugin_invalidates_plugins_cache(client, monkeypatch: MonkeyPat
         captured_calls.extend((target.namespace, target.endpoint, units) for target in targets)
 
     monkeypatch.setattr(
-        "pioreactor.web.api._invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
+        "pioreactor.web.api.cache.invalidate_multicast_get_cache", fake_invalidate_multicast_get_cache
     )
     monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", lambda *args, **kwargs: "task")
     monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))

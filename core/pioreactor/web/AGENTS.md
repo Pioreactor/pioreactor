@@ -10,7 +10,11 @@ Key modules:
 
 *   **`unit_api.py`** – Worker‑level API with endpoints to run jobs, update or reboot a unit, handle calibrations, inspect filesystem paths, and manage running job settings.
 
-*   **`tasks.py`** – Defines Huey tasks that wrap command‑line tools (`pio`, `pios`) and also provide helper tasks for HTTP calls to workers. Tasks manage updates, clock synchronization, plugin installation, etc. Example functions include `pio_run`, `pio_update_app`, and cluster multicast helpers.
+*   **`fanout.py`** – Owns the leader-side broadcast helpers that fan out `/api` requests across cluster units or workers via the underlying Huey multicast tasks.
+
+*   **`tasks.py`** – Defines Huey tasks that wrap command‑line tools (`pio`, `pios`) and also provide helper tasks for HTTP calls to workers. Tasks manage updates, clock synchronization, plugin installation, etc. Example functions include `pio_run`, `pio_update_app`, and raw cluster multicast helpers.
+
+*   **`cache.py`** – Owns the leader-side fan-out cache for worker `/unit_api` reads, including cache target definitions, invalidation helpers, and the cached multicast read implementation.
 
 *   **`structs.py`** – Msgspec `Struct` definitions for validating request payloads, such as job options or automation descriptors.
 
@@ -29,16 +33,16 @@ Some leader `/api` endpoints fetch read-only data from many workers by calling w
 Current implementation details:
 
 *   The cache lives in `local_intermittent_storage`, not `local_persistent_storage`.
-*   The storage namespace is `leader_multicast_get_cache`, defined by `LEADER_MULTICAST_GET_CACHE` in `tasks.py`.
+*   The storage namespace is `leader_multicast_get_cache`, defined by `LEADER_MULTICAST_GET_CACHE` in `cache.py`.
 *   In the sqlite cache layer, the table name becomes `cache_leader_multicast_get_cache`.
 *   Cache entries are keyed by a tuple:
     *   `("multicast_get", cache_namespace, endpoint, unit)`
 *   Values are msgspec-json encoded objects of the form:
     *   `{"cached_at": <unix-seconds>, "value": <worker-response-payload>}`
-*   TTL is enforced on read in `_read_multicast_get_cache_entry(...)` in `tasks.py`.
-*   The low-level task helper is `multicast_get_with_leader_cache(...)` in `tasks.py`.
-*   In `api.py`, leader routes should usually go through `_cached_multicast_get(...)` instead of calling the task helper directly.
-*   The TTL value itself is set by callers of `multicast_get_with_leader_cache(...)`. The `api.py` helper currently uses the task helper's default `ttl_s=3.0`.
+*   TTL is enforced on read in `_read_multicast_get_cache_entry(...)` in `cache.py`.
+*   The low-level cache implementation lives in `cache.multicast_get_with_leader_cache(...)`, and the Huey task wrapper remains in `tasks.py`.
+*   In `api.py`, leader routes should usually go through `cache.cached_multicast_get(...)` instead of calling the task helper directly.
+*   The TTL value itself is set by callers of `multicast_get_with_leader_cache(...)`. The current helper uses the default `ttl_s=10.0`.
 
 
 **how to use it**
@@ -61,17 +65,17 @@ Do not use this pattern for:
 
 If you want to cache another fan-out object, such as estimators or plugins, follow this pattern:
 
-1. Define a `MulticastGetCacheTarget` in `api.py`.
+1. Define a `MulticastGetCacheTarget` in `cache.py`.
    *   Example: `ESTIMATORS = MulticastGetCacheTarget("estimators", "/unit_api/estimators")`
-2. Change the leader read route to use `_cached_multicast_get(...)` instead of `tasks.multicast_get(...)`.
-   *   Example: `_cached_multicast_get(ESTIMATORS, get_all_workers())`
-3. Add an invalidation helper in `api.py` for that object family.
-   *   Mirror `_invalidate_calibrations_cache(...)` or `_invalidate_estimators_cache(...)`.
+2. Change the leader read route to use `cache.cached_multicast_get(...)` instead of `tasks.multicast_get(...)`.
+   *   Example: `cache.cached_multicast_get(cache.ESTIMATORS, get_all_workers())`
+3. Add an invalidation helper in `cache.py` for that object family.
+   *   Mirror `invalidate_calibrations_cache(...)` or `invalidate_estimators_cache(...)`.
 4. Call that invalidation helper from every successful mutation route that changes the cached payload.
    *   For a single unit, invalidate only that unit.
    *   For `$broadcast`, invalidate all workers covered by the route.
-5. Inside invalidation helpers, use `_invalidate_multicast_get_cache(...)` with one or more cache targets.
-   *   Example: `_invalidate_multicast_get_cache([ESTIMATORS, ACTIVE_ESTIMATORS], units)`
+5. Inside invalidation helpers, use `invalidate_multicast_get_cache(...)` with one or more cache targets.
+   *   Example: `invalidate_multicast_get_cache([ESTIMATORS, ACTIVE_ESTIMATORS], units)`
 6. Add focused tests:
    *   cache hit avoids the uncached fetch path
    *   route uses the cached helper
@@ -82,7 +86,7 @@ If you want to cache another fan-out object, such as estimators or plugins, foll
 
 Calibrations are the first slice using this pattern:
 
-*   Cache target in `api.py`: `CALIBRATIONS = MulticastGetCacheTarget("calibrations", "/unit_api/calibrations")`
+*   Cache target in `cache.py`: `CALIBRATIONS = MulticastGetCacheTarget("calibrations", "/unit_api/calibrations")`
 *   Cached route: `/api/workers/<pioreactor_unit>/calibrations`
 *   Invalidation happens before these calibration mutations are queued:
     *   create calibration
