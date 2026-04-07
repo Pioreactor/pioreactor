@@ -330,6 +330,10 @@ const SELF_TEST_GROUPS = [
         secondaryKey: "correlations_between_pds_and_leds",
       },
       { key: "test_ambient_light_interference", label: "No ambient IR light detected" },
+      {
+        key: "test_dark_offset_correction_is_effective",
+        label: "Dark offset correction returns photodiodes to baseline",
+      },
       { key: "test_REF_is_lower_than_0_dot_256_volts", label: "Reference photodiode is correct magnitude" },
       { key: "test_REF_is_in_correct_position", label: "Reference photodiode is in correct position" },
       { key: "test_PD_is_near_0_volts_for_blank", label: "Photodiode measures near zero signal for clear water" },

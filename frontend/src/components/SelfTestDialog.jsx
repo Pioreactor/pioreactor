@@ -209,6 +209,13 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
               <ListItem sx={{pt: 0, pb: 0}}>
                 <ListItemIcon sx={{minWidth: "30px"}}>
+                  {displayIcon("test_dark_offset_correction_is_effective", selfTestState)}
+                </ListItemIcon>
+                <ListItemText primary="Dark offset correction returns photodiodes to baseline" />
+              </ListItem>
+
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_REF_is_lower_than_0_dot_256_volts", selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Reference photodiode is correct magnitude" />

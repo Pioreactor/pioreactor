@@ -60,6 +60,7 @@ ORDERED_SELF_TEST_NAMES: tuple[str, ...] = (
     "test_pioreactor_HAT_present",
     "test_all_positive_correlations_between_pds_and_leds",
     "test_ambient_light_interference",
+    "test_dark_offset_correction_is_effective",
     "test_REF_is_lower_than_0_dot_256_volts",
     "test_REF_is_in_correct_position",
     "test_PD_is_near_0_volts_for_blank",
@@ -400,6 +401,75 @@ def test_ambient_light_interference(
     assert all(
         [readings[pd_channel].reading < 0.080 for pd_channel in pd_channels_available]
     ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
+
+
+def test_dark_offset_correction_is_effective(
+    managed_state, logger: CustomLogger, unit: str, experiment: str
+) -> None:
+    assert is_HAT_present(), "HAT is not detected."
+    pd_channels_available = list(get_available_pd_channels())
+    assert pd_channels_available, "No photodiodes are configured for this Pioreactor."
+
+    adc_reader = ADCReader(
+        channels=pd_channels_available,
+        dynamic_gain=True,
+        fake_data=is_testing_env(),
+        penalizer=0.0,
+    )
+    adc_reader.add_external_logger(logger)
+
+    ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
+    corrected_dark_readings_by_channel: dict[PdChannel, list[float]] = {
+        pd_channel: [] for pd_channel in pd_channels_available
+    }
+
+    led_intensity(
+        {channel: 0 for channel in ALL_LED_CHANNELS},
+        unit=unit,
+        source_of_event="self_test",
+        experiment=experiment,
+        verbose=False,
+    )
+
+    blank_reading = average_over_raw_pd_readings(
+        adc_reader.take_reading(),
+        adc_reader.take_reading(),
+    )
+    adc_reader.set_offsets(blank_reading)
+    adc_reader.clear_batched_readings()
+
+    with change_leds_intensities_temporarily(
+        {ir_led_channel: 35.0},
+        unit=unit,
+        source_of_event="self_test",
+        experiment=experiment,
+        verbose=False,
+    ):
+        sleep(0.75)
+        adc_reader.tune_adc_with_ir_on()
+        adc_reader.take_reading()
+
+    adc_reader.clear_batched_readings()
+
+    for _ in range(4):
+        reading = adc_reader.take_reading()
+        for pd_channel in pd_channels_available:
+            corrected_dark_readings_by_channel[pd_channel].append(reading[pd_channel].reading)
+
+    logger.debug(f"{corrected_dark_readings_by_channel=}")
+
+    MAX_CORRECTED_DARK_MEAN = 0.010
+    MAX_CORRECTED_DARK_VARIANCE = 5e-5
+
+    for pd_channel, corrected_dark_readings in corrected_dark_readings_by_channel.items():
+        corrected_dark_mean = mean(corrected_dark_readings)
+        corrected_dark_variance = variance(corrected_dark_readings)
+        assert (
+            corrected_dark_mean <= MAX_CORRECTED_DARK_MEAN
+        ), f"Dark offset correction left pd{pd_channel} too far from baseline: {corrected_dark_readings}"
+        assert (
+            corrected_dark_variance <= MAX_CORRECTED_DARK_VARIANCE
+        ), f"Dark offset correction for pd{pd_channel} is too noisy: {corrected_dark_readings}"
 
 
 def test_REF_is_lower_than_0_dot_256_volts(
