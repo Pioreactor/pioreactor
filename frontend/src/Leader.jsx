@@ -9,6 +9,7 @@ import { useConfirm } from 'material-ui-confirm';
 import Button from '@mui/material/Button';
 import Backdrop from '@mui/material/Backdrop';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
@@ -18,7 +19,7 @@ import CardActions from '@mui/material/CardActions';
 import List from '@mui/material/List';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
-import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, IconButton } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, IconButton, Menu, MenuItem } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
 import { checkTaskCallback } from "./utils/tasks";
@@ -72,20 +73,37 @@ function StateTypography({ state, isDisabled=false }) {
   );
 }
 
-function RestartJobButton({ jobName, onRestart, isRestarting }) {
+function RestartJobMenu({ jobName, onRestart, isRestarting }) {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const menuOpen = Boolean(anchorEl);
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
   return (
-    <Tooltip title="Restart job" placement="top-start">
+    <React.Fragment>
       <span>
         <IconButton
           size="small"
-          aria-label="Restart job"
+          aria-label={`More actions for ${jobName}`}
           disabled={isRestarting}
-          onClick={() => onRestart(jobName)}
+          onClick={(event) => setAnchorEl(event.currentTarget)}
         >
-          <RestartAltIcon fontSize="inherit" />
+          <MoreVertIcon fontSize="small" />
         </IconButton>
       </span>
-    </Tooltip>
+      <Menu anchorEl={anchorEl} open={menuOpen} onClose={handleClose}>
+        <MenuItem
+          onClick={() => {
+            handleClose();
+            onRestart(jobName);
+          }}
+        >
+          Restart
+        </MenuItem>
+      </Menu>
+    </React.Fragment>
   );
 }
 
@@ -738,7 +756,7 @@ function LeaderJobs(){
                 <TableCell sx={{padding: "6px 0px"}}>{webServerJobName}</TableCell>
                 <TableCell align="right"><StateTypography state={webServerState}/></TableCell>
                 <TableCell align="right" sx={{padding: "6px 0px"}}>
-                  <RestartJobButton
+                  <RestartJobMenu
                     jobName={webServerJobName}
                     onRestart={restartWebServer}
                     isRestarting={restartingJob === webServerJobName}
@@ -749,7 +767,7 @@ function LeaderJobs(){
                 <TableCell sx={{padding: "6px 0px"}}>mqtt_to_db_streaming</TableCell>
                 <TableCell align="right"><StateTypography state={mqtt_to_db_streaming_state}/></TableCell>
                 <TableCell align="right" sx={{padding: "6px 0px"}}>
-                  <RestartJobButton
+                  <RestartJobMenu
                     jobName="mqtt_to_db_streaming"
                     onRestart={restartLongRunningJob}
                     isRestarting={restartingJob === "mqtt_to_db_streaming"}
@@ -760,7 +778,7 @@ function LeaderJobs(){
                 <TableCell sx={{padding: "6px 0px"}}>monitor</TableCell>
                 <TableCell align="right"><StateTypography state={monitor_state}/></TableCell>
                 <TableCell align="right" sx={{padding: "6px 0px"}}>
-                  <RestartJobButton
+                  <RestartJobMenu
                     jobName="monitor"
                     onRestart={restartLongRunningJob}
                     isRestarting={restartingJob === "monitor"}
@@ -773,7 +791,7 @@ function LeaderJobs(){
                   <TableCell sx={{padding: "6px 0px"}}>{element.job_name}</TableCell>
                   <TableCell align="right"><StateTypography state={element.state}/></TableCell>
                   <TableCell align="right" sx={{padding: "6px 0px"}}>
-                    <RestartJobButton
+                    <RestartJobMenu
                       jobName={element.job_name}
                       onRestart={restartLongRunningJob}
                       isRestarting={restartingJob === element.job_name}

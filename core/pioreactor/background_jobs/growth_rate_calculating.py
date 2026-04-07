@@ -34,11 +34,14 @@ with payload
 Incoming OD readings are normalized by the value, called the reference OD, in the cache od_normalization_mean, indexed by the experiment name. You can change
 the reference OD by supplying a value to this cache first. See example https://gist.github.com/CamDavidsonPilon/e5f2b0d03bf6eefdbf43f6653b8149ba
 """
+from __future__ import annotations
+
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain
 from math import exp
 from math import log
+from statistics import mean
 from statistics import median
 from threading import Event
 from threading import Thread
@@ -56,13 +59,16 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.streaming import DosingObservationSource
-from pioreactor.utils.streaming import merge_historical_streams
 from pioreactor.utils.streaming import merge_live_streams
 from pioreactor.utils.streaming import MqttDosingSource
 from pioreactor.utils.streaming import MqttODFusedSource
 from pioreactor.utils.streaming import MqttODSource
 from pioreactor.utils.streaming import ODObservationSource
-from pioreactor.utils.streaming_calculations import CultureGrowthEKF
+
+try:
+    from grpredict import CultureGrowthEKF as CultureGrowthEKF
+except ImportError:
+    pass
 
 
 def _should_use_fused_od(unit: pt.Unit) -> bool:
@@ -129,6 +135,7 @@ class GrowthRateCalculator(BackgroundJob):
     ) -> CultureGrowthEKF:
         import numpy as np
 
+        self.logger.info("Initializing growth-rate filter from warmup observations.")
         observation_noise_covariance = self._create_obs_noise_covariance_from_warmup_observations(
             warmup_observations
         )
@@ -180,13 +187,8 @@ class GrowthRateCalculator(BackgroundJob):
             float(np.mean(np.diag(observation_noise_covariance))) ** 0.5,
         )
 
-        if len(fused_observations) < 3:
-            sigma_growth_rate0 = 0.15
-        else:
-            startup_growth_samples = np.diff(log_warmup) / float(self.expected_dt)
-            sigma_growth_rate0 = max(0.15, 2.0 * self._robust_std(startup_growth_samples))
-
-        sigma_growth_rate_drift0 = max(0.01, sigma_growth_rate0)
+        sigma_growth_rate0 = 0.03
+        sigma_growth_rate_drift0 = 0.05
 
         return np.diag(
             [
@@ -201,7 +203,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         reference_dt_hours = 5.0 / 60.0 / 60.0
         scale = max(self.expected_dt / reference_dt_hours, 0.25)
-        return np.diag([1e-8 * scale, 6e-8 * scale, 6e-6 * scale])
+        return np.diag([1e-8 * scale, 5e-8 * scale, 5e-6 * scale])
 
     def _create_obs_noise_covariance_from_warmup_observations(
         self, warmup_observations: list[dict[pt.PdChannel, float]]
@@ -230,7 +232,7 @@ class GrowthRateCalculator(BackgroundJob):
             coefficients, _, _, _ = np.linalg.lstsq(design, log_warmup, rcond=None)
             fitted_log_signal = design @ coefficients
             log_residuals = log_warmup - fitted_log_signal
-            log_residual_std = max(self._robust_std(log_residuals), 1e-3)
+            log_residual_std = max(self._robust_std(log_residuals), 5e-3)
             log_residual_variances.append(log_residual_std * log_residual_std)
 
         return np.diag(log_residual_variances)
@@ -270,19 +272,10 @@ class GrowthRateCalculator(BackgroundJob):
     def _get_initial_values_from_warmup_observations(
         self, warmup_observations: list[dict[pt.PdChannel, float]]
     ) -> tuple[float, float]:
-        import numpy as np
-
         fused_observations = self._fuse_warmup_observations(warmup_observations)
-        initial_nod = fused_observations[-1]
-        if len(fused_observations) >= 2:
-            log_warmup = np.log(np.maximum(np.asarray(fused_observations, dtype=float), 1e-9))
-            initial_growth_rate = float(
-                (log_warmup[-1] - log_warmup[0]) / max((len(log_warmup) - 1) * self.expected_dt, 1e-9)
-            )
-        else:
-            initial_growth_rate = 0.0
-
-        return (initial_nod, initial_growth_rate)
+        initial_nod = median(fused_observations[-5:])
+        initial_growth_rate = 0.0
+        return initial_nod, initial_growth_rate
 
     @staticmethod
     def _robust_std(values: Any) -> float:
@@ -297,7 +290,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     @staticmethod
     def _fuse_warmup_observations(warmup_observations: list[dict[pt.PdChannel, float]]) -> list[float]:
-        return [median(warmup_observation.values()) for warmup_observation in warmup_observations]
+        return [mean(warmup_observation.values()) for warmup_observation in warmup_observations]
 
     def _get_precomputed_normalization_factors(
         self, warmup_events: list[structs.ODReadings]
@@ -306,13 +299,15 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization_factors = self._get_od_normalization_from_cache()
             if not od_normalization_factors:
                 raise KeyError("Empty cached normalization statistics.")
+            self.logger.debug("Loaded OD normalization factors from cache.")
         except KeyError:
-            self.logger.debug("OD normalization factors not found in cache. Computing them now.")
+            self.logger.info("OD normalization factors not found in cache. Computing them now.")
             od_normalization_factors, od_variances = self._compute_od_statistics_from_warmup_events(
                 warmup_events
             )
             with local_persistent_storage("od_normalization_mean") as cache:
                 cache[self.experiment] = dumps(od_normalization_factors)
+            self.logger.debug("Cached OD normalization factors computed from warmup observations.")
             if any(v == 0.0 for v in od_variances.values()):
                 self.logger.error(
                     "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
@@ -363,7 +358,7 @@ class GrowthRateCalculator(BackgroundJob):
                     )
 
             else:
-                dt = 0.0
+                dt = self.expected_dt
 
             self.time_of_previous_observation = timestamp
 
@@ -402,7 +397,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def _respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
         self._obs_since_last_dose = 0
-        self._obs_required_to_reset = 1
+        self._obs_required_to_reset = 2
         self._recent_dilution = True
 
     def process_until_disconnected_or_exhausted_in_background(
@@ -430,18 +425,10 @@ class GrowthRateCalculator(BackgroundJob):
     def process_until_disconnected_or_exhausted(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
     ) -> Generator[tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput], None, None]:
+        assert od_stream.is_live and dosing_stream.is_live
         od_events_iter = self._initialize_state_and_get_od_iterator(od_stream, dosing_stream)
 
-        if od_stream.is_live and dosing_stream.is_live:
-            merged_streams = merge_live_streams(
-                od_events_iter, dosing_stream, stop_event=self._blocking_event
-            )
-        elif not od_stream.is_live and not dosing_stream.is_live:
-            merged_streams = merge_historical_streams(
-                od_events_iter, dosing_stream, key=lambda t: t.timestamp
-            )
-        else:
-            raise ValueError("Both streams must be live or both must be historical.")
+        merged_streams = merge_live_streams(od_events_iter, dosing_stream, stop_event=self._blocking_event)
 
         for event in merged_streams:
             if isinstance(event, structs.ODReadings):
@@ -473,18 +460,17 @@ class GrowthRateCalculator(BackgroundJob):
 
         self._warn_if_warmup_may_take_too_long()
         od_events_iter = iter(od_stream)
+        self.logger.info("Collecting warmup OD observations for growth-rate initialization.")
         warmup_events, od_events_iter = self.collect_warmup_events(
             od_events_iter,
             config.getint("growth_rate_calculating.config", "samples_for_od_statistics", fallback=35),
         )
+        self.logger.debug(f"Collected {len(warmup_events)} warmup OD observations.")
         self.od_normalization_factors = self._get_precomputed_normalization_factors(warmup_events)
 
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
 
-        warmup_observations, od_events_iter = self.scale_warmup_events(
-            warmup_events,
-            od_events_iter,
-        )
+        warmup_observations = self.scale_warmup_events(warmup_events)
         self.ekf = self._initialize_extended_kalman_filter(warmup_observations)
         self._initialization_complete.set()
         return od_events_iter
@@ -510,10 +496,11 @@ class GrowthRateCalculator(BackgroundJob):
     def scale_warmup_events(
         self,
         warmup_events: list[structs.ODReadings],
-        od_iter: Iterator[structs.ODReadings],
-    ) -> tuple[list[dict[pt.PdChannel, float]], Iterator[structs.ODReadings]]:
+    ) -> list[dict[pt.PdChannel, float]]:
+        self.logger.debug("Replaying warmup OD observations into the live stream.")
         warmup_observations = [self.scale_raw_observations(event) for event in warmup_events]
-        return warmup_observations, chain(warmup_events, od_iter)
+        self.logger.debug(f"Warmup OD observations: {warmup_observations}")
+        return warmup_observations
 
 
 @click.group(invoke_without_command=True, name="growth_rate_calculating")

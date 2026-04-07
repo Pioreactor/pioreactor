@@ -4,10 +4,13 @@
 
 - Renamed the shared bioreactor volume setting `max_working_volume_ml` to `efflux_tube_volume_ml`, including the UI label (`Efflux tube level`), MQTT/API state, and device config/cache migration during update.
 - Job and Automation controls now use worker-provided descriptors for individual Pioreactors, so worker-only plugin jobs automations appear in per-unit UI even if the leader doesn’t have that plugin installed. Bulk “Control All Pioreactors” automation flows remain leader-driven. A update script will attempt to add the necessary UI files to workers.
+- `growth_rate_calculating` now assumes the new `grpredict` hidden-state filter and warmup-based initialization. It no longer supports `--ignore-cache`, cached growth-rate/filtered-OD startup state, or `od_blank` correction in this job. The parameters in `[growth_rate_kalman]` are no longer used.
 
 #### Enhancements
 
 - Added short-lived leader-side caching for several fan-out metadata APIs, reducing repeated worker fetches and improving UI load times for calibrations, protocols, estimators, automations, jobs, and installed plugins.
+- New growth-rate algorithm: designed the growth-rate EKF around a log-OD state model. You should see much faster convergence and better behaviour.
+
 
 #### Bug fixes
 

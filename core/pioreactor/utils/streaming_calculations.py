@@ -1,23 +1,102 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Any
+from math import sqrt
 from typing import TYPE_CHECKING
-
-
-try:
-    # previously, this was part of this library. It's moved to another library. Here for bc reasons.
-    from grpredict import CultureGrowthEKF as CultureGrowthEKF
-    from grpredict import ExponentialMovingAverage as ExponentialMovingAverage
-    from grpredict import ExponentialMovingStd as ExponentialMovingStd
-except ImportError:
-    # leader-only doesn't have this installed.
-    pass
 
 from msgspec.json import encode as dumps
 
 if TYPE_CHECKING:
     from pioreactor.pubsub import Client
+
+
+class ExponentialMovingAverage:
+    """
+    Models the following:
+
+    mean_n = (1 - alpha)·x + alpha·mean_{n-1}
+
+    Ex: if alpha = 0, use latest value only.
+    """
+
+    def __init__(self, alpha: float) -> None:
+        if alpha < 0 or alpha > 1:
+            raise ValueError
+        self.value: float | None = None
+        self.alpha = alpha
+
+    def update(self, new_value: float) -> float:
+        if self.value is None:
+            self.value = new_value
+        else:
+            self.value = (1 - self.alpha) * new_value + self.alpha * self.value
+        return self.value
+
+    def get_latest(self) -> float:
+        if self.value is None:
+            raise ValueError("No values provided yet!")
+        assert isinstance(self.value, float)
+        return self.value
+
+    def clear(self) -> None:
+        self.value = None
+
+
+class ExponentialMovingStd:
+    """
+    Models the following:
+
+    var_n = (1 - alpha)·(x - mean_n)(x - mean_{n-1}) + alpha·var_{n-1}
+    std_n = sqrt(var_n)
+
+    Ex: if alpha = 0, use latest value only.
+    """
+
+    def __init__(
+        self,
+        alpha: float,
+        ema_alpha: float | None = None,
+        initial_std_value: float | None = None,
+        initial_mean_value: float | None = None,
+    ) -> None:
+        self._var_value = initial_std_value**2 if initial_std_value is not None else None
+        self.value: float | None = initial_std_value if initial_std_value is not None else None
+        self.alpha = alpha
+        self.ema = ExponentialMovingAverage(ema_alpha or self.alpha)
+        if initial_mean_value is not None:
+            self.ema.update(initial_mean_value)
+
+    def update(self, new_value: float) -> float | None:
+        if self.ema.value is None:
+            # need at least two data points for this algo
+            self.ema.update(new_value)
+            return None  # None
+
+        mean_prev = self.ema.get_latest()
+        self.ema.update(new_value)
+        mean_curr = self.ema.get_latest()
+        assert mean_prev is not None
+        assert mean_curr is not None
+
+        if self._var_value is None:
+            self._var_value = (new_value - mean_curr) * (new_value - mean_prev)
+        else:
+            self._var_value = (1 - self.alpha) * (new_value - mean_curr) * (
+                new_value - mean_prev
+            ) + self.alpha * self._var_value
+        self.value = sqrt(self._var_value)
+        return self.value
+
+    def get_latest(self) -> float:
+        if self.value is None:
+            raise ValueError("No values provided yet!")
+        assert isinstance(self.value, float)
+        return self.value
+
+    def clear(self) -> None:
+        self.value = None
+        self._var_value = None
+        self.ema.clear()
 
 
 class PID:
