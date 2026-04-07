@@ -24,7 +24,6 @@ class Turbidostat(DosingAutomationJob):
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_biomass": {"datatype": "float", "settable": True, "unit": "OD/AU"},
         "biomass_signal": {"datatype": "string", "settable": True},
-        "resolved_biomass_signal": {"datatype": "string", "settable": False},
         "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
     target_biomass = None
@@ -153,16 +152,7 @@ class Turbidostat(DosingAutomationJob):
 
     @property
     def resolved_biomass_signal(self) -> str:
-        if self.biomass_signal != "auto":
-            return str(self.biomass_signal)
-
-        if self._has_active_od_fused_estimator():
-            return "od_fused"
-
-        if self._has_active_od_calibration_for_resolved_angle():
-            return "od"
-
-        return "normalized_od"
+        return str(self.biomass_signal)
 
     def set_biomass_signal(self, new_signal: str) -> None:
         self._set_biomass_signal(new_signal)
@@ -173,4 +163,17 @@ class Turbidostat(DosingAutomationJob):
             raise ValueError(
                 f"Unsupported biomass_signal={biomass_signal}. Use one of: {', '.join(allowed)}."
             )
-        self.biomass_signal = biomass_signal
+
+        self.biomass_signal = self._resolve_biomass_signal(biomass_signal)
+
+    def _resolve_biomass_signal(self, biomass_signal: str) -> str:
+        if biomass_signal != "auto":
+            return biomass_signal
+
+        if self._has_active_od_fused_estimator():
+            return "od_fused"
+
+        if self._has_active_od_calibration_for_resolved_angle():
+            return "od"
+
+        return "normalized_od"

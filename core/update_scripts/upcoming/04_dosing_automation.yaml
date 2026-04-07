@@ -24,7 +24,7 @@ published_settings:
     type: numeric
     display: true
     description: Change the target biomass value, in the units of the selected biomass signal.
-  - key: resolved_biomass_signal
+  - key: biomass_signal
     label: Biomass signal
     type: string
     display: true

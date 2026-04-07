@@ -471,6 +471,7 @@ def test_turbidostat_auto_prefers_active_od_fused_estimator(monkeypatch) -> None
         experiment=experiment,
         skip_first_run=True,
     ) as algo:
+        assert algo.biomass_signal == "od_fused"
         assert algo.resolved_biomass_signal == "od_fused"
 
 
@@ -494,6 +495,7 @@ def test_turbidostat_auto_uses_active_od_calibration_without_estimator(monkeypat
         experiment=experiment,
         skip_first_run=True,
     ) as algo:
+        assert algo.biomass_signal == "od"
         assert algo.resolved_biomass_signal == "od"
 
 
@@ -517,6 +519,7 @@ def test_turbidostat_auto_falls_back_to_normalized_od_without_active_models(monk
         experiment=experiment,
         skip_first_run=True,
     ) as algo:
+        assert algo.biomass_signal == "normalized_od"
         assert algo.resolved_biomass_signal == "normalized_od"
 
 

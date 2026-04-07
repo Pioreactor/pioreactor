@@ -123,6 +123,15 @@ def get_series_floor_version(version: str) -> str:
     return f"{yy}.{month}.0"
 
 
+def get_minimum_required_version_for_rc(version: str) -> str:
+    yy, month, _, suffix = parse_version(version)
+    if not suffix.startswith("rc"):
+        raise ValueError(f"Expected an RC version, got {version!r}")
+    if month == 1:
+        return f"{yy - 1}.12.0"
+    return f"{yy}.{month - 1}.0"
+
+
 def compute_series(series_override: str | None = None) -> str:
     if series_override is not None:
         if SERIES_PATTERN.match(series_override) is None:
@@ -215,7 +224,7 @@ def update_version_py_to(version: str, dry_run: bool) -> None:
 def ensure_pre_update_script(version: str, dry_run: bool) -> bool:
     upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
     pre_update_path = upcoming / "pre_update.sh"
-    min_version = get_series_floor_version(version)
+    min_version = get_minimum_required_version_for_rc(version)
     expected = PRE_UPDATE_TEMPLATE.format(min_version=min_version)
 
     if pre_update_path.exists():
