@@ -523,10 +523,10 @@ class DosingAutomationJob(AutomationJob):
         )
 
         with local_persistent_storage("alt_media_throughput") as cache:
-            self.alt_media_throughput = float(cache.get(self.experiment, 0.0))  # type: ignore[arg-type]
+            self.alt_media_throughput = cache.getfloat(self.experiment, fallback=0.0)
 
         with local_persistent_storage("media_throughput") as cache:
-            self.media_throughput = float(cache.get(self.experiment, 0.0))  # type: ignore[arg-type]
+            self.media_throughput = cache.getfloat(self.experiment, fallback=0.0)
 
         return
 

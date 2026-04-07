@@ -21,6 +21,7 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
 from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.background_jobs.od_reading import subtract_blank_from_od_readings
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
@@ -1026,6 +1027,34 @@ def test_calibration_not_requested() -> None:
         assert od.calibration_transformer(y) == y
 
 
+def test_subtract_blank_from_od_readings() -> None:
+    timestamp = current_utc_datetime()
+    od_readings = structs.ODReadings(
+        timestamp=timestamp,
+        ods={
+            "1": structs.RawODReading(
+                timestamp=timestamp,
+                angle="90",
+                od=0.63,
+                channel="1",
+                ir_led_intensity=80.0,
+            ),
+            "2": structs.RawODReading(
+                timestamp=timestamp,
+                angle="135",
+                od=0.41,
+                channel="2",
+                ir_led_intensity=80.0,
+            ),
+        },
+    )
+
+    blank_corrected = subtract_blank_from_od_readings(od_readings, {"1": 0.13})
+
+    assert blank_corrected.ods["1"].od == pytest.approx(0.50)
+    assert blank_corrected.ods["2"].od == pytest.approx(0.41)
+
+
 def test_calibration_not_present() -> None:
     with local_persistent_storage("active_calibrations") as c:
         c.pop("od90")
@@ -1036,6 +1065,72 @@ def test_calibration_not_present() -> None:
     with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=cal) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         assert len(od.calibration_transformer.models) == 0, od.calibration_transformer.models
+
+
+def test_start_od_reading_allows_blank_without_calibration_or_estimator() -> None:
+    experiment = "test_start_od_reading_allows_blank_without_calibration_or_estimator"
+
+    with local_persistent_storage("od_blank") as cache:
+        cache[experiment] = '{"2": 0.15}'
+
+    with start_od_reading(
+        make_channels("REF", "90"),
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        unit=get_unit_name(),
+        calibration=False,
+        estimator=False,
+    ) as od:
+        assert od.od_blank == {"2": 0.15}
+
+
+def test_start_od_reading_rejects_blank_with_calibration() -> None:
+    experiment = "test_start_od_reading_rejects_blank_with_calibration"
+    calibration = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_data_=_poly_curve([2.0, 0.0]),
+        calibration_name="linear",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 2], "y": [0, 4]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+
+    with local_persistent_storage("od_blank") as cache:
+        cache[experiment] = '{"2": 0.15}'
+
+    with pytest.raises(ValueError, match="incompatible with OD calibrations and fused estimators"):
+        start_od_reading(
+            make_channels("REF", "90"),
+            interval=None,
+            fake_data=True,
+            experiment=experiment,
+            unit=get_unit_name(),
+            calibration=calibration,
+            estimator=False,
+            ir_led_intensity=90.0,
+        )
+
+
+def test_start_od_reading_rejects_blank_with_estimator() -> None:
+    experiment = "test_start_od_reading_rejects_blank_with_estimator"
+
+    with local_persistent_storage("od_blank") as cache:
+        cache[experiment] = '{"1": 0.05, "2": 0.15, "3": 0.2}'
+
+    with pytest.raises(ValueError, match="incompatible with OD calibrations and fused estimators"):
+        start_od_reading(
+            {"1": "45", "2": "90", "3": "135"},
+            interval=None,
+            fake_data=True,
+            experiment=experiment,
+            unit=get_unit_name(),
+            calibration=False,
+            estimator=_build_fusion_estimator(),
+            ir_led_intensity=80.0,
+        )
 
 
 def test_calibration_duplicate_channel_raises_value_error() -> None:

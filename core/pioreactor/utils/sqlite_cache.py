@@ -9,6 +9,8 @@ from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 from pioreactor.config import config
 
+_MISSING = object()
+
 
 def _restore_tuple_keys(value: object) -> object:
     if isinstance(value, list):
@@ -131,14 +133,29 @@ class cache:
         result = self.cursor.fetchone()
         return result[0] if result else default
 
-    def getfloat(self, key: object, default: float = 0.0) -> float:
-        return _to_float(self.get(key, default))
+    def getfloat(self, key: object, *, fallback: float | object = _MISSING) -> float:
+        value = self.get(key, _MISSING)
+        if value is _MISSING:
+            if fallback is _MISSING:
+                raise KeyError(f"Key '{key}' not found in cache.")
+            return _to_float(fallback)
+        return _to_float(value)
 
-    def getint(self, key: object, default: int = 0) -> int:
-        return _to_int(self.get(key, default))
+    def getint(self, key: object, *, fallback: int | object = _MISSING) -> int:
+        value = self.get(key, _MISSING)
+        if value is _MISSING:
+            if fallback is _MISSING:
+                raise KeyError(f"Key '{key}' not found in cache.")
+            return _to_int(fallback)
+        return _to_int(value)
 
-    def getboolean(self, key: object, default: bool = False) -> bool:
-        return _to_bool(self.get(key, default))
+    def getboolean(self, key: object, *, fallback: bool | object = _MISSING) -> bool:
+        value = self.get(key, _MISSING)
+        if value is _MISSING:
+            if fallback is _MISSING:
+                raise KeyError(f"Key '{key}' not found in cache.")
+            return _to_bool(fallback)
+        return _to_bool(value)
 
     def getjson(self, key: object, default: object = None) -> object:
         value = self.get(key, default)

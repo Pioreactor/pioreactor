@@ -105,12 +105,10 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
 
 
 def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
+    default_value = get_default_bioreactor_value(variable_name)
 
     with local_persistent_storage("bioreactor") as cache:
-        stored_value = cache.get((experiment, variable_name))
-
-    if stored_value is None:
-        return get_default_bioreactor_value(variable_name)
+        stored_value = cache.getfloat((experiment, variable_name), fallback=default_value)
 
     return validate_bioreactor_value(variable_name, stored_value)
 

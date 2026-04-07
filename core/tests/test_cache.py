@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 
+import pytest
 from pioreactor.utils import cache as exported_cache
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
@@ -144,3 +145,31 @@ def test_cache_helpers_are_still_importable_from_pioreactor_utils() -> None:
     assert exported_cache is sqlite_cache
     assert local_intermittent_storage.__name__ == "local_intermittent_storage"
     assert local_persistent_storage.__name__ == "local_persistent_storage"
+
+
+def test_typed_cache_helpers_require_explicit_fallback(tmp_path: Path) -> None:
+    db_path = tmp_path / "cache.sqlite"
+
+    with sqlite_cache("example", db_path=str(db_path)) as c:
+        c["float"] = "1.5"
+        c["int"] = "2"
+        c["true"] = "true"
+        c["false"] = "false"
+
+        assert c.getfloat("float") == 1.5
+        assert c.getint("int") == 2
+        assert c.getboolean("true") is True
+        assert c.getboolean("false") is False
+
+        assert c.getfloat("missing_float", fallback=3.5) == 3.5
+        assert c.getint("missing_int", fallback=4) == 4
+        assert c.getboolean("missing_bool", fallback=False) is False
+
+        with pytest.raises(KeyError):
+            c.getfloat("missing_float")
+
+        with pytest.raises(KeyError):
+            c.getint("missing_int")
+
+        with pytest.raises(KeyError):
+            c.getboolean("missing_bool")

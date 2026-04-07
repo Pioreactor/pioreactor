@@ -157,6 +157,39 @@ def average_over_od_readings(*multiple_od_readings: structs.ODReadings) -> struc
     )
 
 
+def _load_od_blank_for_experiment(
+    experiment: pt.Experiment,
+) -> dict[pt.PdChannel, float] | None:
+    with local_persistent_storage("od_blank") as cache:
+        cached_blank = cache.getjson(experiment)
+
+    if not cached_blank:
+        return None
+
+    return cast(dict[pt.PdChannel, float], cached_blank)
+
+
+def subtract_blank_from_od_readings(
+    od_readings: structs.ODReadings,
+    od_blank: Mapping[pt.PdChannel, float] | None,
+) -> structs.ODReadings:
+    if not od_blank:
+        return od_readings
+
+    blank_corrected_ods: dict[pt.PdChannel, structs.ODReading] = {}
+    for channel, od_reading in od_readings.ods.items():
+        blank_value = od_blank.get(channel, 0.0)
+        blank_corrected_ods[channel] = structs.RawODReading(
+            timestamp=od_reading.timestamp,
+            angle=od_reading.angle,
+            od=od_reading.od - blank_value,
+            channel=od_reading.channel,
+            ir_led_intensity=od_reading.ir_led_intensity,
+        )
+
+    return structs.ODReadings(timestamp=od_readings.timestamp, ods=blank_corrected_ods)
+
+
 class ADCReader(LoggerMixin):
     """
 
@@ -779,16 +812,12 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
 
     def _get_cached_initial_ref(self) -> float | None:
         with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
-            cached = cache.get(self.experiment)
-
-        if cached is None:
-            return None
-        if isinstance(cached, bytes):
-            try:
-                cached = float(cached.decode())
-            except ValueError:
+            if self.experiment not in cache:
                 return None
-        return float(cached)  # type: ignore[arg-type]
+            try:
+                return cache.getfloat(self.experiment)
+            except (TypeError, ValueError):
+                return None
 
     def update(self, ir_output_reading: pt.Voltage) -> None:
         if self.initial_ref is None:
@@ -1217,6 +1246,7 @@ class ODReader(BackgroundJob):
         self.estimator_transformer.add_external_logger(self.logger)
 
         self.channel_angle_map = channel_angle_map
+        self.od_blank = _load_od_blank_for_experiment(experiment)
 
         calibration_status = "none"
         if isinstance(self.calibration_transformer, CachedCalibrationTransformer):
@@ -1291,6 +1321,9 @@ class ODReader(BackgroundJob):
             self.ir_led_intensity = self._determine_best_ir_led_intensity(
                 self.channel_angle_map, self.ir_led_intensity, on_reading, blank_reading
             )
+
+        if self.od_blank is not None:
+            self.logger.debug(f"Using per-experiment OD blank correction: {self.od_blank}")
 
         self.set_interval(interval)
 
@@ -1469,6 +1502,7 @@ class ODReader(BackgroundJob):
                     )
                 )
                 raw_od_readings = self._read_from_adc()
+                raw_od_readings = subtract_blank_from_od_readings(raw_od_readings, self.od_blank)
 
         try:
             od_readings = self.calibration_transformer(raw_od_readings)
@@ -1702,6 +1736,7 @@ def start_od_reading(
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
+    od_blank = _load_od_blank_for_experiment(experiment)
 
     ir_led_reference_channel = find_ir_led_reference(channels)
     channel_angle_map = create_channel_angle_map(channels)
@@ -1770,6 +1805,14 @@ def start_od_reading(
         estimator_transformer.hydrate_estimator(estimator)
     else:
         estimator_transformer = NullEstimatorTransformer()
+
+    calibration_is_active = bool(calibration_transformer.models)
+    estimator_is_active = estimator_transformer.estimator is not None
+
+    if od_blank is not None and (calibration_is_active or estimator_is_active):
+        raise ValueError(
+            f"Per-experiment OD blank correction exists for experiment {experiment!r} and is incompatible with OD calibrations and fused estimators."
+        )
 
     if interval is None:
         penalizer = 0.0
