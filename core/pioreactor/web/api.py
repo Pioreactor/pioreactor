@@ -2,7 +2,6 @@
 import configparser
 import json
 import os
-import re
 import sqlite3
 import tempfile
 import typing as t
@@ -27,6 +26,8 @@ from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.bioreactor import get_bioreactor_descriptors
+from pioreactor.config import build_config
+from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.models import get_registered_models
@@ -220,6 +221,74 @@ def _extract_unit_api_error(response: MureqResponse | None) -> str | None:
             if isinstance(value, str) and value.strip():
                 return value.strip()
     return None
+
+
+CONFIG_HISTORY_SHARED_KEY = "config.ini"
+UNIT_CONFIG_HISTORY_PREFIX = "unit_config.ini::"
+
+
+def _get_shared_config_path() -> Path:
+    return Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
+
+
+def _get_leader_unit_specific_config_path() -> Path:
+    return Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini"
+
+
+def _normalize_ini_text(code: str) -> str:
+    # https://github.com/Pioreactor/pioreactor/issues/539
+    code = code.replace(chr(8211), chr(45))
+    code = code.replace(chr(8212), chr(45))
+    return code
+
+
+def _read_text(path: Path, *, allow_missing: bool = False) -> str:
+    if not path.exists():
+        if allow_missing:
+            return ""
+        raise FileNotFoundError(f"{path.name} is missing.")
+    return path.read_text(encoding="utf-8")
+
+
+def _unit_specific_history_key(pioreactor_unit: str) -> str:
+    return f"{UNIT_CONFIG_HISTORY_PREFIX}{pioreactor_unit}"
+
+
+def _legacy_unit_specific_history_key(pioreactor_unit: str) -> str:
+    return f"config_{pioreactor_unit}.ini"
+
+
+def _insert_config_history_snapshot(filename: str, data: str) -> None:
+    modify_app_db(
+        "INSERT INTO config_files_histories(timestamp,filename,data) VALUES(?,?,?)",
+        (current_utc_timestamp(), filename, data),
+    )
+
+
+def _render_leader_merged_config() -> dict[str, dict[str, str]]:
+    config = build_config(
+        _read_text(_get_shared_config_path()),
+        _read_text(_get_leader_unit_specific_config_path(), allow_missing=True),
+    )
+    return {section: dict(config[section]) for section in config.sections()}
+
+
+def _validate_shared_config(code: str) -> str:
+    normalized = _normalize_ini_text(code)
+    config = ConfigParserMod()
+    config.read_string(normalized)
+
+    assert config["cluster.topology"]
+    assert config.get("cluster.topology", "leader_hostname")
+    assert config.get("cluster.topology", "leader_address")
+    assert config["mqtt"]
+
+    if config.get("cluster.topology", "leader_address", fallback="").startswith("http") or config.get(
+        "mqtt", "broker_address", fallback=""
+    ).startswith("http"):
+        abort_with(400, "Don't start addresses with http:// or https://")
+
+    return normalized
 
 
 def _build_single_file_multipart(
@@ -2784,6 +2853,83 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 ## CONFIG CONTROL
 
 
+@api_bp.route("/config/shared", methods=["GET"])
+def get_shared_config() -> ResponseReturnValue:
+    try:
+        return attach_cache_control(
+            Response(
+                response=_read_text(_get_shared_config_path()),
+                status=200,
+                mimetype="text/plain",
+            ),
+            max_age=10,
+        )
+    except Exception as e:
+        publish_to_error_log(str(e), "get_shared_config")
+        abort_with(400, str(e))
+
+
+@api_bp.route("/config/shared", methods=["PATCH"])
+def update_shared_config() -> ResponseReturnValue:
+    body = request.get_json()
+    code = body["code"]
+
+    try:
+        code = _validate_shared_config(code)
+    except configparser.DuplicateSectionError as e:
+        msg = f"Duplicate section [{e.section}] was found. Please fix and try again."
+        publish_to_error_log(msg, "update_shared_config")
+        abort_with(400, msg)
+    except configparser.DuplicateOptionError as e:
+        msg = f"Duplicate option, `{e.option}`, was found in section [{e.section}]. Please fix and try again."
+        publish_to_error_log(msg, "update_shared_config")
+        abort_with(400, msg)
+    except configparser.ParsingError:
+        msg = "Incorrect syntax. Please fix and try again."
+        publish_to_error_log(msg, "update_shared_config")
+        abort_with(400, msg)
+    except (AssertionError, configparser.NoSectionError, KeyError) as e:
+        msg = f"Missing required field(s): {e}"
+        publish_to_error_log(msg, "update_shared_config")
+        abort_with(400, msg)
+    except ValueError as e:
+        msg = str(e)
+        publish_to_error_log(msg, "update_shared_config")
+        abort_with(400, msg)
+    except Exception as e:
+        publish_to_error_log(str(e), "update_shared_config")
+        abort_with(500, "Hm, something went wrong, check Pioreactor logs.")
+
+    result = tasks.write_config_and_sync(
+        str(_get_shared_config_path()),
+        code,
+        UNIVERSAL_IDENTIFIER,
+        ("--shared",),
+    )
+
+    try:
+        status, msg_or_exception = result(blocking=True, timeout=75)
+    except (HueyException, TaskException):
+        status, msg_or_exception = False, "sync-configs timed out."
+
+    if not status:
+        publish_to_error_log(msg_or_exception, "update_shared_config")
+        abort_with(500, str(msg_or_exception))
+
+    cache.invalidate_merged_config_cache(UNIVERSAL_IDENTIFIER)
+    return {"status": "success"}, 200
+
+
+@api_bp.route("/config/shared/history", methods=["GET"])
+def get_shared_config_history() -> ResponseReturnValue:
+    configs_for_filename = query_app_db(
+        "SELECT filename, timestamp, data FROM config_files_histories WHERE filename=? ORDER BY timestamp DESC",
+        (CONFIG_HISTORY_SHARED_KEY,),
+    )
+
+    return attach_cache_control(jsonify(configs_for_filename), max_age=15)
+
+
 @api_bp.route("/config/units/<pioreactor_unit>", methods=["GET"])
 def get_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """get merged config for a pioreactor unit"""
@@ -2792,181 +2938,158 @@ def get_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     else:
         pioreactor_units = [pioreactor_unit]
 
-    result: dict[str, dict[str, dict[str, str]]] = {}
+    worker_units = [unit for unit in pioreactor_units if unit != HOSTNAME]
+    result: dict[str, t.Any] = {}
 
-    for unit in pioreactor_units:
+    if HOSTNAME in pioreactor_units:
         try:
-            global_config_path = Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
-
-            specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / f"config_{unit}.ini"
-
-            config_files = [global_config_path, specific_config_path]
-            config = configparser.ConfigParser(strict=False)
-            config.read(config_files)
-
-            result[unit] = {section: dict(config[section]) for section in config.sections()}
-
+            result[HOSTNAME] = _render_leader_merged_config()
         except Exception as e:
             publish_to_error_log(str(e), "get_config_for_pioreactor_unit")
             abort_with(400, str(e))
 
+    if worker_units:
+        worker_results = cache.multicast_get_with_leader_cache(
+            cache.MERGED_CONFIG.namespace,
+            cache.MERGED_CONFIG.endpoint,
+            worker_units,
+            timeout=10.0,
+        )
+        for unit in worker_units:
+            result[unit] = worker_results.get(unit)
+
+    if pioreactor_unit != UNIVERSAL_IDENTIFIER and result.get(pioreactor_unit) is None:
+        abort_with(
+            502,
+            f"Fetching merged config failed on {pioreactor_unit}.",
+            remediation="Check that the unit is online and its web server is healthy, then retry.",
+        )
+
     return result
 
 
-@api_bp.route("/config/files/<filename>", methods=["GET"])
-def get_config_file(filename: str) -> ResponseReturnValue:
-    """get a specific config.ini file in the .pioreactor folder"""
+@api_bp.route("/config/units/<pioreactor_unit>/specific", methods=["GET"])
+def get_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch unit-specific config with $broadcast; choose a specific Pioreactor.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
 
-    # security bit: strip out any paths that may be attached, ex: ../../../root/bad
-    filename = Path(filename).name
-
-    try:
-        if Path(filename).suffix != ".ini":
-            abort_with(400, "Must be a .ini file")
-
-        specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / filename
-
+    if pioreactor_unit == HOSTNAME:
         return attach_cache_control(
             Response(
-                response=specific_config_path.read_text(),
+                response=_read_text(_get_leader_unit_specific_config_path(), allow_missing=True),
                 status=200,
                 mimetype="text/plain",
             ),
-            max_age=10,
+            max_age=0,
         )
 
-    except Exception as e:
-        publish_to_error_log(str(e), "get_config_file")
-        abort_with(400, str(e))
+    response: MureqResponse | None = None
+    try:
+        response = get_from(resolve_to_address(pioreactor_unit), "/unit_api/config/specific", timeout=10)
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        detail = _extract_unit_api_error(response)
+        if detail:
+            abort_with(502, f"Fetching unit-specific config failed on {pioreactor_unit}: {detail}")
+        if response is not None:
+            abort_with(
+                502,
+                f"Fetching unit-specific config failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
+        abort_with(502, f"Fetching unit-specific config failed on {pioreactor_unit}.")
 
-
-@api_bp.route("/config/files", methods=["GET"])
-def get_config_files() -> ResponseReturnValue:
-    """get a list of all config.ini files in the .pioreactor folder, _and_ are part of the inventory _or_ are leader"""
-
-    all_workers = query_app_db("SELECT pioreactor_unit FROM workers;")
-    assert isinstance(all_workers, list)
-    workers_bucket = {worker["pioreactor_unit"] for worker in all_workers}
-    leader_bucket = {
-        get_leader_hostname()
-    }  # should be same as current HOSTNAME since this runs on the leader.
-    pioreactors_bucket = workers_bucket | leader_bucket
-
-    def strip_worker_name_from_config(file_name: str) -> str:
-        return file_name.removeprefix("config_").removesuffix(".ini")
-
-    def allow_file_through(file_name: str) -> bool:
-        if file_name == "config.ini":
-            return True
-        else:
-            # return True
-            return strip_worker_name_from_config(file_name) in pioreactors_bucket
-
-    config_path = Path(os.environ["DOT_PIOREACTOR"])
-    return jsonify(
-        [file.name for file in sorted(config_path.glob("config*.ini")) if allow_file_through(file.name)]
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "text/plain"),
     )
 
 
-@api_bp.route("/config/files/<filename>", methods=["PATCH"])
-def update_config_file(filename: str) -> ResponseReturnValue:
+@api_bp.route("/config/units/<pioreactor_unit>/specific", methods=["PATCH"])
+def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot update unit-specific config with $broadcast; choose a specific Pioreactor.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
     body = request.get_json()
-    code = body["code"]
+    code = _normalize_ini_text(body["code"])
 
-    if not filename.endswith(".ini"):
-        return abort_with(400, "Incorrect filetype. Must be .ini.")
-
-    # security bit:
-    # users could have filename look like ../../../../root/bad.txt
-    # the below code will strip any paths.
-    # General security risk here is ability to save arbitrary file to OS.
-    filename = Path(filename).name
-
-    # is the user editing a worker config or the global config?
-    regex = re.compile(r"config_?(.*)?\.ini")
-    is_unit_specific = regex.match(filename)
-    assert is_unit_specific is not None
-
-    if is_unit_specific[1] != "":
-        units = is_unit_specific[1]
-        flags = ("--specific",)
-    else:
-        units = UNIVERSAL_IDENTIFIER
-        flags = ("--shared",)
-
-    # General security risk here to save arbitrary file to OS.
-    config_path = Path(os.environ["DOT_PIOREACTOR"]) / filename
-
-    # can the config actually be read? ex. no repeating sections, typos, etc.
-    # filename is a string
-    config = configparser.ConfigParser(allow_no_value=True)
-
-    # make unicode replacements
-    # https://github.com/Pioreactor/pioreactor/issues/539
-    code = code.replace(chr(8211), chr(45))  # en-dash to dash
-    code = code.replace(chr(8212), chr(45))  # em
-
+    response: MureqResponse | None = None
     try:
-        config.read_string(code)  # test parser
-
-        # if editing config.ini (not a unit specific)
-        # test to make sure we have minimal code to run pio commands
-        if filename == "config.ini":
-            assert config["cluster.topology"]
-            assert config.get("cluster.topology", "leader_hostname")
-            assert config.get("cluster.topology", "leader_address")
-            assert config["mqtt"]
-
-        if config.get("cluster.topology", "leader_address", fallback="").startswith("http") or config.get(
-            "mqtt", "broker_address", fallback=""
-        ).startswith("http"):
-            abort_with(400, "Don't start addresses with http:// or https://")
-
+        if pioreactor_unit == HOSTNAME:
+            parser = ConfigParserMod()
+            parser.read_string(code)
+            build_config(_read_text(_get_shared_config_path()), code)
+            _get_leader_unit_specific_config_path().write_text(code, encoding="utf-8")
+        else:
+            response = post_into(
+                resolve_to_address(pioreactor_unit),
+                "/unit_api/config/specific",
+                json={"code": code},
+                timeout=30,
+            )
+            response.raise_for_status()
     except configparser.DuplicateSectionError as e:
-        msg = f"Duplicate section [{e.section}] was found. Please fix and try again."
-        publish_to_error_log(msg, "update_config_file")
-        abort_with(400, msg)
+        abort_with(400, f"Duplicate section [{e.section}] was found. Please fix and try again.")
     except configparser.DuplicateOptionError as e:
-        msg = f"Duplicate option, `{e.option}`, was found in section [{e.section}]. Please fix and try again."
-        publish_to_error_log(msg, "update_config_file")
-        abort_with(400, msg)
+        abort_with(
+            400,
+            f"Duplicate option, `{e.option}`, was found in section [{e.section}]. Please fix and try again.",
+        )
     except configparser.ParsingError:
-        msg = "Incorrect syntax. Please fix and try again."
-        publish_to_error_log(msg, "update_config_file")
-        abort_with(400, msg)
-    except (AssertionError, configparser.NoSectionError, KeyError) as e:
-        msg = f"Missing required field(s): {e}"
-        publish_to_error_log(msg, "update_config_file")
-        abort_with(400, msg)
+        abort_with(400, "Incorrect syntax. Please fix and try again.")
+    except (configparser.NoSectionError, configparser.NoOptionError, KeyError) as e:
+        abort_with(400, f"Missing required field(s): {e}")
     except ValueError as e:
-        msg = str(e)
-        publish_to_error_log(msg, "update_config_file")
-        abort_with(400, msg)
+        abort_with(400, str(e))
+    except (HTTPErrorStatus, HTTPException):
+        detail = _extract_unit_api_error(response)
+        if response is not None and response.status_code < 500 and detail:
+            abort_with(response.status_code, detail)
+        if detail:
+            abort_with(502, f"Updating unit-specific config failed on {pioreactor_unit}: {detail}")
+        if response is not None:
+            abort_with(
+                502,
+                f"Updating unit-specific config failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
+        abort_with(502, f"Updating unit-specific config failed on {pioreactor_unit}.")
     except Exception as e:
-        publish_to_error_log(str(e), "update_config_file")
-        msg = "Hm, something went wrong, check Pioreactor logs."
-        abort_with(500, msg)
+        publish_to_error_log(str(e), "update_specific_config_for_pioreactor_unit")
+        abort_with(500, str(e))
 
-    # if the config file is unit specific, we only need to run sync-config on that unit.
-    result = tasks.write_config_and_sync(str(config_path), code, units, flags)
-
-    try:
-        status, msg_or_exception = result(blocking=True, timeout=75)
-    except (HueyException, TaskException):
-        status, msg_or_exception = False, "sync-configs timed out."
-
-    if not status:
-        publish_to_error_log(msg_or_exception, "save_new_config")
-        abort_with(500, str(msg_or_exception))
-
+    _insert_config_history_snapshot(_unit_specific_history_key(pioreactor_unit), code)
+    cache.invalidate_merged_config_cache(pioreactor_unit)
     return {"status": "success"}, 200
 
 
-@api_bp.route("/config/files/<filename>/history", methods=["GET"])
-def get_config_file_history(filename: str) -> ResponseReturnValue:
+@api_bp.route("/config/units/<pioreactor_unit>/specific/history", methods=["GET"])
+def get_specific_config_history_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch unit-specific config history with $broadcast; choose a specific Pioreactor.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
     configs_for_filename = query_app_db(
-        "SELECT filename, timestamp, data FROM config_files_histories WHERE filename=? ORDER BY timestamp DESC",
-        (filename,),
+        """
+        SELECT filename, timestamp, data
+        FROM config_files_histories
+        WHERE filename IN (?, ?)
+        ORDER BY timestamp DESC
+        """,
+        (
+            _unit_specific_history_key(pioreactor_unit),
+            _legacy_unit_specific_history_key(pioreactor_unit),
+        ),
     )
 
     return attach_cache_control(jsonify(configs_for_filename), max_age=15)
@@ -3277,27 +3400,22 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
         # only delete configs if not the leader...
         if pioreactor_unit != HOSTNAME:
-            unit_config = f"config_{pioreactor_unit}.ini"
+            modify_app_db(
+                "DELETE FROM config_files_histories WHERE filename IN (?, ?);",
+                (
+                    _unit_specific_history_key(pioreactor_unit),
+                    _legacy_unit_specific_history_key(pioreactor_unit),
+                ),
+            )
 
-            # delete config on disk
-            config_path = Path(os.environ["DOT_PIOREACTOR"]) / unit_config
-            tasks.rm(str(config_path))
-
-            # delete from histories
-            modify_app_db("DELETE FROM config_files_histories WHERE filename=?;", (unit_config,))
-
-            # delete configs on worker
+            # delete shared config on worker
             tasks.multicast_post(
                 "/unit_api/system/remove_file",
                 [pioreactor_unit],
                 json={"filepath": str(Path(os.environ["DOT_PIOREACTOR"]) / "config.ini")},
             )
-            tasks.multicast_post(
-                "/unit_api/system/remove_file",
-                [pioreactor_unit],
-                json={"filepath": str(Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini")},
-            )
 
+        cache.invalidate_merged_config_cache(pioreactor_unit)
         publish_to_log(
             f"Removed {pioreactor_unit} from inventory.",
             level="INFO",

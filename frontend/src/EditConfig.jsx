@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
@@ -21,34 +21,63 @@ import dayjs from "dayjs";
 import { useParams, useNavigate } from 'react-router';
 
 
+const CURRENT_VERSION = "__current__";
+const SHARED_TARGET = "shared";
+
+
+function getTargetMetadata(target) {
+  if (target === SHARED_TARGET) {
+    return {
+      fetchUrl: "/api/config/shared",
+      saveUrl: "/api/config/shared",
+      historyUrl: "/api/config/shared/history",
+      successLabel: "shared cluster config",
+    };
+  }
+
+  return {
+    fetchUrl: `/api/config/units/${target}/specific`,
+    saveUrl: `/api/config/units/${target}/specific`,
+    historyUrl: `/api/config/units/${target}/specific/history`,
+    successLabel: `${target} unit config`,
+  };
+}
+
+
 function EditableCodeDiv() {
+  const { pioreactorUnit } = useParams();
+  const navigate = useNavigate();
+  const selectedTarget = pioreactorUnit || SHARED_TARGET;
+
   const [state, setState] = useState({
     code: null,
+    currentCode: "",
     openSnackbar: false,
-    filename: "config.ini",
     snackbarMsg: "",
     saving: false,
-    historicalConfigs: [{ filename: "config.ini", data: "", timestamp: "2000-01-01" }],
-    timestamp_ix: 0,
+    historicalConfigs: [],
+    selectedVersion: CURRENT_VERSION,
     errorMsg: "",
     isError: false,
     hasChangedSinceSave: false,
-    availableConfigs: [{ name: "shared config.ini", filename: "config.ini" }]
+    availableTargets: [{ name: "Shared cluster config", value: SHARED_TARGET }],
   });
 
   const loadRequestId = useRef(0);
-  const currentFilenameRef = useRef(state.filename);
+  const currentTargetRef = useRef(selectedTarget);
 
   useEffect(() => {
-    currentFilenameRef.current = state.filename;
-  }, [state.filename]);
+    currentTargetRef.current = selectedTarget;
+  }, [selectedTarget]);
 
-  const loadConfigAndHistory = useCallback(async (filename) => {
+  const loadConfigAndHistory = useCallback(async (target) => {
     const requestId = ++loadRequestId.current;
+    const { fetchUrl, historyUrl } = getTargetMetadata(target);
+
     try {
       const [configResponse, historyResponse] = await Promise.all([
-        fetch(`/api/config/files/${filename}`),
-        fetch(`/api/config/files/${filename}/history`)
+        fetch(fetchUrl),
+        fetch(historyUrl),
       ]);
 
       if (!configResponse.ok || !historyResponse.ok) {
@@ -57,7 +86,7 @@ function EditableCodeDiv() {
 
       const [text, listOfHistoricalConfigs] = await Promise.all([
         configResponse.text(),
-        historyResponse.json()
+        historyResponse.json(),
       ]);
 
       if (requestId !== loadRequestId.current) {
@@ -67,26 +96,40 @@ function EditableCodeDiv() {
       setState(prev => ({
         ...prev,
         code: text,
+        currentCode: text,
         historicalConfigs: listOfHistoricalConfigs,
-        timestamp_ix: 0,
-        hasChangedSinceSave: false
+        selectedVersion: CURRENT_VERSION,
+        hasChangedSinceSave: false,
+        isError: false,
+        errorMsg: "",
       }));
     } catch (err) {
       if (requestId !== loadRequestId.current) {
         return;
       }
-      setState(prev => ({ ...prev, code: "# Error loading config" }));
+      setState(prev => ({
+        ...prev,
+        code: "",
+        currentCode: "",
+        historicalConfigs: [],
+        selectedVersion: CURRENT_VERSION,
+        errorMsg: "Failed to load config. Is the unit online?",
+        isError: true,
+      }));
       console.error("Failed to fetch config/history:", err);
     }
   }, []);
 
   const saveCurrentCode = async () => {
-    const filenameAtSave = state.filename;
+    const targetAtSave = selectedTarget;
+    const { saveUrl, successLabel } = getTargetMetadata(targetAtSave);
+
     setState(prev => ({ ...prev, saving: true, isError: false }));
+
     try {
-      const res = await fetch(`/api/config/files/${filenameAtSave}`, {
+      const res = await fetch(saveUrl, {
         method: "PATCH",
-        body: JSON.stringify({ code: state.code, filename: filenameAtSave }),
+        body: JSON.stringify({ code: state.code }),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -94,12 +137,12 @@ function EditableCodeDiv() {
       });
 
       if (res.ok) {
-        if (currentFilenameRef.current === filenameAtSave) {
-          await loadConfigAndHistory(filenameAtSave);
+        if (currentTargetRef.current === targetAtSave) {
+          await loadConfigAndHistory(targetAtSave);
         }
         setState(prev => ({
           ...prev,
-          snackbarMsg: `Success: ${filenameAtSave} saved and synced.`,
+          snackbarMsg: `Success: ${successLabel} saved.`,
           openSnackbar: true,
           isError: false
         }));
@@ -107,7 +150,12 @@ function EditableCodeDiv() {
       }
 
       const parsedJson = await res.json();
-      setState(prev => ({ ...prev, errorMsg: parsedJson.error, isError: true, hasChangedSinceSave: true }));
+      setState(prev => ({
+        ...prev,
+        errorMsg: parsedJson.error || "Save failed.",
+        isError: true,
+        hasChangedSinceSave: true,
+      }));
     } catch (err) {
       setState(prev => ({ ...prev, errorMsg: "Save failed. Please retry.", isError: true }));
       console.error("Error saving config:", err);
@@ -117,84 +165,94 @@ function EditableCodeDiv() {
   };
 
   useEffect(() => {
-    loadConfigAndHistory(state.filename);
-  }, [state.filename, loadConfigAndHistory]);
+    loadConfigAndHistory(selectedTarget);
+  }, [loadConfigAndHistory, selectedTarget]);
 
   useEffect(() => {
-    // what's up with the ignore? https://react.dev/learn/synchronizing-with-effects#fetching-data
     let ignore = false;
 
-    async function getConfigs() {
+    async function getUnits() {
       try {
-        const response = await fetch("/api/config/files");
+        const response = await fetch("/api/units");
         const json = await response.json();
-        if (ignore){
-          return
-        }
-        setState(prev => {
-          const existing = new Set(prev.availableConfigs.map((config) => config.filename));
-          const newEntries = json
-            .filter((e) => e !== 'config.ini')
-            .map((e) => ({ name: e, filename: e }))
-            .filter((entry) => !existing.has(entry.filename));
 
-          if (newEntries.length === 0) {
-            return prev;
+        if (ignore) {
+          return;
+        }
+
+        const unitTargets = json
+          .map((entry) => entry.pioreactor_unit)
+          .sort()
+          .map((unit) => ({ name: `${unit} unit config`, value: unit }));
+
+        setState(prev => {
+          const targets = [{ name: "Shared cluster config", value: SHARED_TARGET }, ...unitTargets];
+          const hasSelectedTarget = targets.some((entry) => entry.value === selectedTarget);
+
+          if (!hasSelectedTarget && selectedTarget !== SHARED_TARGET) {
+            targets.push({ name: `${selectedTarget} unit config`, value: selectedTarget });
           }
 
           return {
             ...prev,
-            availableConfigs: [...prev.availableConfigs, ...newEntries]
+            availableTargets: targets,
           };
-        })
+        });
       } catch (err) {
-        console.error("Failed to fetch config list:", err);
+        console.error("Failed to fetch unit list:", err);
       }
     }
 
-    getConfigs()
+    getUnits();
 
     return () => {
       ignore = true;
     };
-  }, []);
-
-  // URL <-> selection sync
-  const { pioreactorUnit } = useParams();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const desired = pioreactorUnit ? `config_${pioreactorUnit}.ini` : "config.ini";
-    if (state.filename !== desired) {
-      setState(prev => ({ ...prev, filename: desired, code: "Loading..." }));
-    }
-    if (pioreactorUnit) {
-      const exists = state.availableConfigs.some((v) => v.filename === desired);
-      if (!exists) {
-        setState(prev => ({ ...prev, availableConfigs: [...prev.availableConfigs, {name: desired, filename: desired}] }));
-      }
-    }
-  }, [pioreactorUnit, state.availableConfigs, state.filename]);
+  }, [selectedTarget]);
 
   const onSelectionChange = (e) => {
-    const filename = e.target.value;
-    setState(prev => ({ ...prev, filename: filename, code: "Loading...", hasChangedSinceSave: false }));
-    if (filename === "config.ini") {
-      navigate(`/config`);
-    } else if (filename.startsWith("config_") && filename.endsWith(".ini")) {
-      const unit = filename.replace(/^config_/, '').replace(/\.ini$/, '');
-      navigate(`/config/${unit}`);
+    const target = e.target.value;
+    setState(prev => ({
+      ...prev,
+      code: "Loading...",
+      currentCode: "",
+      hasChangedSinceSave: false,
+      isError: false,
+      errorMsg: "",
+      selectedVersion: CURRENT_VERSION,
+    }));
+
+    if (target === SHARED_TARGET) {
+      navigate("/config");
+    } else {
+      navigate(`/config/${target}`);
     }
   };
 
   const onSelectionHistoricalChange = (e) => {
-    const timestamp = e.target.value;
-    const ix = state.historicalConfigs.findIndex((c) => c.timestamp === timestamp);
-    if (ix < 0) {
+    const version = e.target.value;
+
+    if (version === CURRENT_VERSION) {
+      setState(prev => ({
+        ...prev,
+        code: prev.currentCode,
+        selectedVersion: CURRENT_VERSION,
+        hasChangedSinceSave: false,
+      }));
       return;
     }
-    const configBlob = state.historicalConfigs[ix];
-    setState(prev => ({ ...prev, code: configBlob.data, timestamp_ix: ix, hasChangedSinceSave: ix !== 0 }));
+
+    const configBlob = state.historicalConfigs.find((config) => config.timestamp === version);
+    if (!configBlob) {
+      return;
+    }
+
+    setState(prev => ({
+      ...prev,
+      code: configBlob.data,
+      selectedVersion: version,
+      hasChangedSinceSave: true,
+    }));
   };
 
   const onTextChange = (code) => {
@@ -205,9 +263,15 @@ function EditableCodeDiv() {
     setState(prev => ({ ...prev, openSnackbar: false }));
   };
 
-  const selectedTimestamp = state.historicalConfigs[state.timestamp_ix]?.timestamp || "";
+  const versionOptions = useMemo(() => {
+    return [{ label: "Current", value: CURRENT_VERSION }, ...state.historicalConfigs.map((configBlob) => ({
+      label: dayjs(configBlob.timestamp).format("MMM DD, YYYY [at] hh:mm a"),
+      value: configBlob.timestamp,
+    }))];
+  }, [state.historicalConfigs]);
+
   const isCodeLoaded = state.code !== null && state.code !== "Loading...";
-  const isHistoricalSelection = state.timestamp_ix !== 0;
+  const isHistoricalSelection = state.selectedVersion !== CURRENT_VERSION;
   const canSaveOrRevert = isCodeLoaded && (state.hasChangedSinceSave || isHistoricalSelection) && !state.saving;
 
   return (
@@ -215,67 +279,64 @@ function EditableCodeDiv() {
       <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
         <FormControl>
           <div>
-            <FormLabel component="legend">Config file</FormLabel>
+            <FormLabel component="legend">Config target</FormLabel>
             <Select
-              labelId="configSelect"
+              labelId="configTargetSelect"
               variant="standard"
-              value={state.filename}
+              value={selectedTarget}
               onChange={onSelectionChange}
             >
-              {state.availableConfigs.map((v) => (
-                <MenuItem key={v.filename} value={v.filename}>{v.name}</MenuItem>
+              {state.availableTargets.map((target) => (
+                <MenuItem key={target.value} value={target.value}>{target.name}</MenuItem>
               ))}
             </Select>
           </div>
         </FormControl>
-        {state.historicalConfigs.length > 0 ? (
-          <FormControl style={{ marginRight: "20px" }}>
-            <div>
-              <FormLabel component="legend">Versions</FormLabel>
-              <Select
-                labelId="historicalConfigSelect"
-                variant="standard"
-                value={selectedTimestamp}
-                displayEmpty={true}
-                onChange={onSelectionHistoricalChange}
-              >
-                {state.historicalConfigs.map((v, i) => (
-                  <MenuItem key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : dayjs(v.timestamp).format("MMM DD, YYYY [at] hh:mm a")}</MenuItem>
-                ))}
-              </Select>
-            </div>
-          </FormControl>
-        ) : <div></div>}
-
+        <FormControl style={{ marginRight: "20px" }}>
+          <div>
+            <FormLabel component="legend">Versions</FormLabel>
+            <Select
+              labelId="historicalConfigSelect"
+              variant="standard"
+              value={state.selectedVersion}
+              displayEmpty={true}
+              onChange={onSelectionHistoricalChange}
+            >
+              {versionOptions.map((version) => (
+                <MenuItem key={version.value} value={version.value}>{version.label}</MenuItem>
+              ))}
+            </Select>
+          </div>
+        </FormControl>
       </div>
 
-        <div style={{
-            tabSize: "4ch",
-            border: "1px solid #ccc",
-            margin: "10px auto 10px auto",
-            position: "relative",
-            width: "98%",
-            borderRadius: "4px",
-            height: "360px",
-            maxHeight: "360px",
-            overflow: "auto",
-            flex: 1
-        }}>
-          {(state.code !== null) &&
-              <Editor
-                value={state.code}
-                onValueChange={onTextChange}
-                highlight={(code) => highlight(code, languages.ini)}
-                padding={10}
-                style={{
-                  fontSize: "14px",
-                  fontFamily: 'monospace',
-                  backgroundColor: "hsla(0, 0%, 100%, .5)",
-                  borderRadius: "3px",
-                  minHeight: "100%"
-                }}
-              />
-            }
+      <div style={{
+        tabSize: "4ch",
+        border: "1px solid #ccc",
+        margin: "10px auto 10px auto",
+        position: "relative",
+        width: "98%",
+        borderRadius: "4px",
+        height: "360px",
+        maxHeight: "360px",
+        overflow: "auto",
+        flex: 1
+      }}>
+        {(state.code !== null) &&
+          <Editor
+            value={state.code}
+            onValueChange={onTextChange}
+            highlight={(code) => highlight(code, languages.ini)}
+            padding={10}
+            style={{
+              fontSize: "14px",
+              fontFamily: 'monospace',
+              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              borderRadius: "3px",
+              minHeight: "100%"
+            }}
+          />
+        }
       </div>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
@@ -289,7 +350,7 @@ function EditableCodeDiv() {
             loadingPosition="end"
             endIcon={<SaveIcon />}
           >
-            {state.timestamp_ix === 0 ? "Save" : "Revert"}
+            {state.selectedVersion === CURRENT_VERSION ? "Save" : "Revert"}
           </Button>
           <Box sx={{ ml: 1, my: 1 }}>{state.isError ? <Alert severity="error">{state.errorMsg}</Alert> : ""}</Box>
         </div>

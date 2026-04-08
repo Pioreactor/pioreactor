@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import configparser
 import json
 import os
 import zipfile
@@ -33,6 +34,8 @@ from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
+from pioreactor.config import build_config
+from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
@@ -214,7 +217,117 @@ def _locked_task_response(lock_name: str) -> DelayedResponseReturnValue:
     return cast(DelayedResponseReturnValue, (jsonify({"status": "in_progress", "lock": lock_name}), 202))
 
 
+def _get_shared_config_path() -> Path:
+    return Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
+
+
+def _get_unit_specific_config_path() -> Path:
+    return Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini"
+
+
+def _normalize_ini_text(code: str) -> str:
+    # https://github.com/Pioreactor/pioreactor/issues/539
+    code = code.replace(chr(8211), chr(45))
+    code = code.replace(chr(8212), chr(45))
+    return code
+
+
+def _read_config_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def _validate_ini_text(code: str) -> str:
+    normalized = _normalize_ini_text(code)
+    parser = ConfigParserMod()
+    parser.read_string(normalized)
+    return normalized
+
+
+def _render_merged_config_from_disk(specific_config_text: str | None = None) -> dict[str, dict[str, str]]:
+    shared_config_text = _read_config_text(_get_shared_config_path())
+    if not shared_config_text.strip():
+        raise FileNotFoundError("config.ini is missing on this unit.")
+
+    effective_specific_text = (
+        specific_config_text
+        if specific_config_text is not None
+        else _read_config_text(_get_unit_specific_config_path())
+    )
+    merged = build_config(shared_config_text, effective_specific_text)
+    return {section: dict(merged[section]) for section in merged.sections()}
+
+
 ### SYSTEM
+
+
+@unit_api_bp.route("/config/merged", methods=["GET"])
+def get_merged_config() -> ResponseReturnValue:
+    try:
+        return jsonify(_render_merged_config_from_disk()), 200
+    except Exception as e:
+        publish_to_error_log(str(e), "get_merged_config")
+        abort_with(
+            500,
+            "Failed to read merged config",
+            cause=str(e),
+            remediation="Check config.ini and unit_config.ini on this unit, then retry.",
+        )
+
+
+@unit_api_bp.route("/config/specific", methods=["GET"])
+def get_specific_config() -> ResponseReturnValue:
+    return attach_cache_control(
+        Response(
+            response=_read_config_text(_get_unit_specific_config_path()),
+            status=200,
+            mimetype="text/plain",
+        ),
+        max_age=0,
+    )
+
+
+@unit_api_bp.route("/config/specific", methods=["POST", "PATCH"])
+def update_specific_config() -> ResponseReturnValue:
+    try:
+        body = current_app.json.loads(request.data, type=structs.CodePatch)
+        code = _validate_ini_text(body.code)
+        _render_merged_config_from_disk(specific_config_text=code)
+    except configparser.DuplicateSectionError as e:
+        abort_with(400, f"Duplicate section [{e.section}] was found. Please fix and try again.")
+    except configparser.DuplicateOptionError as e:
+        abort_with(
+            400,
+            f"Duplicate option, `{e.option}`, was found in section [{e.section}]. Please fix and try again.",
+        )
+    except configparser.ParsingError:
+        abort_with(400, "Incorrect syntax. Please fix and try again.")
+    except (configparser.NoSectionError, configparser.NoOptionError, KeyError) as e:
+        abort_with(400, f"Missing required field(s): {e}")
+    except ValueError as e:
+        abort_with(400, str(e))
+    except Exception as e:
+        publish_to_error_log(str(e), "update_specific_config")
+        abort_with(
+            500,
+            "Failed to validate merged config",
+            cause=str(e),
+            remediation="Check shared and unit-specific configuration values, then retry.",
+        )
+
+    try:
+        _get_unit_specific_config_path().write_text(code, encoding="utf-8")
+    except Exception as e:
+        publish_to_error_log(str(e), "update_specific_config")
+        abort_with(
+            500,
+            "Failed to write unit-specific config",
+            cause=str(e),
+            remediation="Check filesystem permissions and retry.",
+        )
+
+    return {"status": "success"}, 200
 
 
 @unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])

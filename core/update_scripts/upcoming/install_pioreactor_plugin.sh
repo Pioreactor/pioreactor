@@ -105,7 +105,7 @@ fi
 if [ "$am_i_leader" = true ]; then
     # merge new config.ini
     if test -f "$install_folder/additional_config.ini"; then
-        "$CRUDINI" --merge /home/pioreactor/.pioreactor/config.ini < "$install_folder/additional_config.ini"
+        "$CRUDINI" --merge /home/pioreactor/.pioreactor/unit_config.ini < "$install_folder/additional_config.ini"
     fi
 
     # add any new sql, restart mqtt_to_db job, too

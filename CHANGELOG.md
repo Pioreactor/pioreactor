@@ -2,6 +2,8 @@
 
 #### Breaking changes
 
+- Unit-specific configuration is now owned by each worker’s local `unit_config.ini`. The filename-based config editor APIs (`/api/config/files*`) have been removed; use `/api/config/shared`, `/api/config/units/<unit>/specific`, and `/api/config/units/<unit>` instead.
+- `pios sync-configs --specific` now refreshes leader-side snapshots from each worker’s `unit_config.ini` instead of pushing leader-local `config_<unit>.ini` files to workers.
 - Renamed the shared bioreactor volume setting `max_working_volume_ml` to `efflux_tube_volume_ml`, including the UI label (`Efflux tube level`), MQTT/API state, and device config/cache migration during update.
 - Job and Automation controls now use worker-provided descriptors for individual Pioreactors, so worker-only plugin jobs automations appear in per-unit UI even if the leader doesn’t have that plugin installed. Bulk “Control All Pioreactors” automation flows remain leader-driven. A update script will attempt to add the necessary UI files to workers.
 - `growth_rate_calculating` now assumes the new `grpredict` hidden-state filter and warmup-based initialization. It no longer supports `--ignore-cache`, cached growth-rate/filtered-OD startup state, or `od_blank` correction in this job. The parameters in `[growth_rate_kalman]` are no longer used.
@@ -9,6 +11,7 @@
 
 #### Enhancements
 
+- Updated the config editor and worker-add flow for worker-owned unit configuration. The UI now edits shared cluster config separately from per-unit `unit_config.ini`, and existing leaders update their add-worker helper so new workers receive shared config without overwriting their unit-specific config.
 - Added short-lived leader-side caching for several fan-out metadata APIs, reducing repeated worker fetches and improving UI load times for calibrations, protocols, estimators, automations, jobs, and installed plugins.
 - New growth-rate algorithm: designed the growth-rate EKF around a log-OD state model. You should see much faster convergence and better behaviour.
 - Added `pio run stirring --measure-rpm-only` to hold a fixed duty cycle while still measuring and publishing `measured_rpm`, making it easier to inspect fan RPM at settings like `--duty-cycle 100`.

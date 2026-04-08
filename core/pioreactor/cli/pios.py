@@ -7,6 +7,7 @@ import re
 import typing as t
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from shlex import quote
 from typing import Any
 
@@ -71,6 +72,8 @@ def pios(ctx: click.Context) -> None:
 
 
 if am_I_leader() or is_testing_env():
+
+    UNIT_CONFIG_HISTORY_PREFIX = "unit_config.ini::"
 
     def resolve_target_units(
         units_opt: tuple[str, ...] | None,
@@ -380,7 +383,10 @@ if am_I_leader() or is_testing_env():
         leader = get_leader_hostname()
         return tuple(unit for unit in units if unit != leader)
 
-    def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool) -> None:
+    def _unit_specific_history_key(unit: str) -> str:
+        return f"{UNIT_CONFIG_HISTORY_PREFIX}{unit}"
+
+    def save_config_files_to_db(shared: bool) -> None:
         import sqlite3
 
         conn = sqlite3.connect(config["storage"]["database"])
@@ -389,47 +395,56 @@ if am_I_leader() or is_testing_env():
         timestamp = current_utc_timestamp()
         sql = "INSERT INTO config_files_histories(timestamp,filename,data) VALUES(?,?,?)"
 
-        if specific:
-            for unit in units:
-                try:
-                    with open(f"{os.environ["DOT_PIOREACTOR"]}/config_{unit}.ini") as f:
-                        cur.execute(sql, (timestamp, f"config_{unit}.ini", f.read()))
-                except FileNotFoundError:
-                    pass
-
         if shared:
-            with open(f"{os.environ["DOT_PIOREACTOR"]}/config.ini") as f:
+            with (Path(os.environ["DOT_PIOREACTOR"]) / "config.ini").open(encoding="utf-8") as f:
                 cur.execute(sql, (timestamp, "config.ini", f.read()))
 
         conn.commit()
         conn.close()
 
-    def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
+    def refresh_specific_config_snapshot(unit: str, persist: bool) -> None:
+        import sqlite3
+
+        if unit == get_leader_hostname():
+            path = Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini"
+            if path.exists():
+                contents = path.read_text(encoding="utf-8")
+            else:
+                contents = ""
+        else:
+            response = get_from(resolve_to_address(unit), "/unit_api/config/specific", timeout=15)
+            response.raise_for_status()
+            contents = response.content.decode("utf-8")
+
+        if not persist:
+            return
+
+        conn = sqlite3.connect(config["storage"]["database"])
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO config_files_histories(timestamp,filename,data) VALUES(?,?,?)",
+            (current_utc_timestamp(), _unit_specific_history_key(unit), contents),
+        )
+        conn.commit()
+        conn.close()
+
+    def sync_config_files(unit: str, shared: bool, specific: bool, persist: bool) -> None:
         """
-        Moves
+        Executes the requested config sync operations for a single target unit.
 
-        1. the config.ini (if shared is True)
-        2. config_{unit}.ini to the remote Pioreactor (if specific is True)
-
-        Note: this function occurs in a thread
+        shared=True pushes the leader's config.ini onto workers.
+        specific=True refreshes the leader-side snapshot of the unit's live unit_config.ini.
         """
 
         # move the global config.ini
         # there was a bug where if the leader == unit, the config.ini would get wiped
         if shared and unit != get_leader_hostname():
-            localpath = f"{os.environ["DOT_PIOREACTOR"]}/config.ini"
-            remotepath = f"{os.environ["DOT_PIOREACTOR"]}/config.ini"
+            localpath = str(Path(os.environ["DOT_PIOREACTOR"]) / "config.ini")
+            remotepath = str(Path(os.environ["DOT_PIOREACTOR"]) / "config.ini")
             cp_file_across_cluster(unit, localpath, remotepath, timeout=15)
 
-        # move the specific unit config.ini
         if specific:
-            try:
-                localpath = f"{os.environ["DOT_PIOREACTOR"]}/config_{unit}.ini"
-                remotepath = f"{os.environ["DOT_PIOREACTOR"]}/unit_config.ini"
-                cp_file_across_cluster(unit, localpath, remotepath, timeout=15)
-
-            except Exception as e:
-                raise e
+            refresh_specific_config_snapshot(unit, persist=persist)
         return
 
     @pios.command("cp", short_help="copy a local file from leader to workers")
@@ -821,7 +836,7 @@ if am_I_leader() or is_testing_env():
     @click.option(
         "--specific",
         is_flag=True,
-        help="sync the specific config.ini(s)",
+        help="refresh leader-side snapshots of unit-specific unit_config.ini files",
     )
     @click.option(
         "--skip-save",
@@ -839,7 +854,7 @@ if am_I_leader() or is_testing_env():
         yes: bool,
     ) -> None:
         """
-        Deploys the shared config.ini and specific config.inis to the pioreactor units.
+        Pushes shared config.ini and/or refreshes unit-specific config snapshots.
 
         If neither `--shared` not `--specific` are specified, both are set to true.
 
@@ -866,10 +881,14 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> bool:
             logger.debug(f"Syncing configs on {unit}...")
             try:
-                sync_config_files(unit, shared, specific)
+                sync_config_files(unit, shared, specific, persist=not skip_save)
                 return True
             except RsyncError as e:
                 logger.warning(f"Could not transfer config to {unit}. Is it online?")
+                logger.debug(e, exc_info=True)
+                return False
+            except HTTPException as e:
+                logger.warning(f"Could not refresh unit-specific config snapshot from {unit}: {e}")
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
@@ -877,9 +896,8 @@ if am_I_leader() or is_testing_env():
                 logger.debug(e, exc_info=True)
                 return False
 
-        if not skip_save:
-            # save config.inis to database
-            save_config_files_to_db(units, shared, specific)
+        if not skip_save and shared:
+            save_config_files_to_db(shared=True)
 
         with ThreadPoolExecutor(max_workers=min(len(units), 6)) as executor:
             results = executor.map(_thread_function, units)

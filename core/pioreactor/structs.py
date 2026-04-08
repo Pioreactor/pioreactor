@@ -653,3 +653,7 @@ class ArgsOptionsEnvs(Struct):
 
 class ArgsOptionsEnvsConfigOverrides(ArgsOptionsEnvs):
     config_overrides: list[list[str]] = []
+
+
+class CodePatch(Struct):
+    code: str

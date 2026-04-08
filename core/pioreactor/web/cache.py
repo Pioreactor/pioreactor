@@ -31,6 +31,7 @@ CALIBRATION_PROTOCOLS = MulticastGetCacheTarget("calibration_protocols", "/unit_
 ACTIVE_ESTIMATORS = MulticastGetCacheTarget("active_estimators", "/unit_api/active_estimators")
 ESTIMATORS = MulticastGetCacheTarget("estimators", "/unit_api/estimators")
 PLUGINS_INSTALLED = MulticastGetCacheTarget("plugins_installed", "/unit_api/plugins/installed")
+MERGED_CONFIG = MulticastGetCacheTarget("merged_config", "/unit_api/config/merged")
 
 LEADER_MULTICAST_GET_CACHE = "leader_multicast_get_cache"
 
@@ -153,3 +154,8 @@ def invalidate_estimators_cache(pioreactor_unit: str) -> None:
 def invalidate_plugins_installed_cache(pioreactor_unit: str) -> None:
     units = get_all_units() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
     invalidate_multicast_get_cache([PLUGINS_INSTALLED], units)
+
+
+def invalidate_merged_config_cache(pioreactor_unit: str) -> None:
+    units = get_all_units() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
+    invalidate_multicast_get_cache([MERGED_CONFIG], units)

@@ -138,6 +138,51 @@ class ConfigParserMod(configparser.ConfigParser):
             raise e
 
 
+def _apply_runtime_config_sections(config: ConfigParserMod) -> ConfigParserMod:
+    if "leds" in config:
+        config["leds_reverse"] = config.invert_section("leds")
+    if "PWM" in config:
+        config["PWM_reverse"] = config.invert_section("PWM")
+
+    if "od_config.photodiode_channel" in config:
+        # remove the empty lines, see https://github.com/Pioreactor/pioreactor/issues/131
+        for channel, value in list(config["od_config.photodiode_channel"].items()):
+            if value == "":
+                config.remove_option("od_config.photodiode_channel", channel)
+
+    # add this for hostname resolution using config.ini, see pioreactor.utils.networking.resolve_to_address
+    if "cluster.addresses" not in config:
+        config.add_section("cluster.addresses")
+
+    leader_hostname = config.get("cluster.topology", "leader_hostname")
+    leader_address = config.get("cluster.topology", "leader_address")
+    config.set("cluster.addresses", leader_hostname, leader_address)
+
+    return config
+
+
+def build_config(
+    global_config_text: str,
+    local_config_text: str = "",
+) -> ConfigParserMod:
+    """
+    Build a layered Pioreactor config from raw text.
+
+    Note:
+    `get_config()` below is intentionally cached for runtime use, but some callers
+    need an uncached view built from current disk contents or from candidate
+    `unit_config.ini` text before it is written to disk. Keep the merge logic here
+    so the cached runtime path and the uncached validation/read paths don't drift.
+    """
+    config = ConfigParserMod(strict=False)
+    config.read_string(global_config_text)
+
+    if local_config_text.strip():
+        config.read_string(local_config_text)
+
+    return _apply_runtime_config_sections(config)
+
+
 @cache
 def get_config() -> ConfigParserMod:
     """
@@ -167,7 +212,6 @@ def get_config() -> ConfigParserMod:
         media=4
 
     """
-    config = ConfigParserMod(strict=False)
     from pioreactor.whoami import is_testing_env
 
     if os.environ.get("GLOBAL_CONFIG") is not None:
@@ -194,10 +238,14 @@ def get_config() -> ConfigParserMod:
         raise FileNotFoundError(
             f"Configuration file at {global_config_path} is missing. Has it completed initializing? Does it need to connect to a leader? Alternatively, use the env variable GLOBAL_CONFIG to specify its location."
         )
-    config_files = [global_config_path, local_config_path]
-
+    config = ConfigParserMod(strict=False)
     try:
-        config.read(config_files)
+        global_config_text = Path(global_config_path).read_text(encoding="utf-8")
+        local_config = Path(local_config_path)
+        local_config_text = local_config.read_text(encoding="utf-8") if local_config.exists() else ""
+        config.read_string(global_config_text)
+        if local_config_text.strip():
+            config.read_string(local_config_text)
     except configparser.MissingSectionHeaderError as e:
         # this can happen in the following situation:
         # on the leader (as worker) Rpi, the unit_config.ini is malformed. When leader_config.ini is fixed in the UI
@@ -211,25 +259,7 @@ def get_config() -> ConfigParserMod:
         print(e)
         pass
 
-    # some helpful additions - see docs above
-    if "leds" in config:
-        config["leds_reverse"] = config.invert_section("leds")
-    if "PWM" in config:
-        config["PWM_reverse"] = config.invert_section("PWM")
-
-    if "od_config.photodiode_channel" in config:
-        # remove the empty lines, see https://github.com/Pioreactor/pioreactor/issues/131
-        for channel, v in config["od_config.photodiode_channel"].items():
-            if v == "":
-                config.remove_option("od_config.photodiode_channel", channel)
-
-    # add this for hostname resolution using config.ini, see pioreactor.utils.networking.resolve_to_address
-    if "cluster.addresses" not in config:
-        config.add_section("cluster.addresses")
-
-    leader_hostname = config.get("cluster.topology", "leader_hostname")
-    leader_address = config.get("cluster.topology", "leader_address")
-    config.set("cluster.addresses", leader_hostname, leader_address)
+    config = _apply_runtime_config_sections(config)
 
     return config
 

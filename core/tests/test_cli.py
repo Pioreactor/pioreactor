@@ -671,6 +671,48 @@ def test_pios_jobs_list_partitions_output_by_unit(monkeypatch) -> None:
     assert lines.index("unit2") < lines.index(unit2_job_line)
 
 
+def test_pios_sync_configs_specific_refreshes_unit_snapshots(monkeypatch, tmp_path: Path) -> None:
+    from pioreactor.mureq import Response
+
+    db_path = tmp_path / "app.sqlite"
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "unit_config.ini").write_text("[leader]\nvalue=1\n", encoding="utf-8")
+
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE config_files_histories(timestamp TEXT, filename TEXT, data TEXT)")
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
+    get_config()["storage"]["database"] = str(db_path)
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.get_from",
+        lambda address, endpoint, **_kwargs: Response(
+            f"http://{address}:4999{endpoint}",
+            200,
+            {},
+            b"[remote]\nvalue=2\n",
+        ),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(pios, ["sync-configs", "--specific", "--units", "unit1", "-y"])
+    assert result.exit_code == 0
+
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute(
+        "SELECT filename, data FROM config_files_histories WHERE filename = ?",
+        ("unit_config.ini::unit1",),
+    ).fetchall()
+    conn.close()
+
+    assert rows == [("unit_config.ini::unit1", "[remote]\nvalue=2\n")]
+
+
 def test_pio_job_info_lists_job() -> None:
     runner = CliRunner()
     job_name = "test_job"

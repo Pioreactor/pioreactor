@@ -482,29 +482,119 @@ def test_404_for_unknown_api(client) -> None:
     assert response.status_code == 404
 
 
-def test_get_config_rejects_non_ini(client) -> None:
+def test_removed_config_files_api_returns_404(client) -> None:
     response = client.get("/api/config/files/not-a-config.txt")
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
-def test_get_config_for_broadcast_uses_each_units_specific_file(
+def test_get_config_for_broadcast_uses_worker_merged_config(
     client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
+    from pioreactor.web.app import HOSTNAME
+
     dot_pioreactor = tmp_path / ".pioreactor"
     dot_pioreactor.mkdir()
-    (dot_pioreactor / "config.ini").write_text("[shared]\nvalue=global\n")
-    (dot_pioreactor / "config_unit1.ini").write_text("[shared]\nvalue=unit1\n")
-    (dot_pioreactor / "config_unit2.ini").write_text("[shared]\nvalue=unit2\n")
+    (dot_pioreactor / "config.ini").write_text(
+        "[cluster.topology]\nleader_hostname=leader\nleader_address=leader.local\n[mqtt]\nbroker_address=leader.local\n[shared]\nvalue=global\n",
+        encoding="utf-8",
+    )
+    (dot_pioreactor / "unit_config.ini").write_text("[shared]\nvalue=leader\n", encoding="utf-8")
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    monkeypatch.setattr("pioreactor.web.api.get_all_units", lambda: ["unit1", "unit2"])
-
+    monkeypatch.setattr("pioreactor.web.api.get_all_units", lambda: [HOSTNAME, "unit1", "unit2"])
+    monkeypatch.setattr(
+        "pioreactor.web.cache.multicast_get_with_leader_cache",
+        lambda *_args, **_kwargs: {
+            "unit1": {"shared": {"value": "unit1"}},
+            "unit2": {"shared": {"value": "unit2"}},
+        },
+    )
     response = client.get("/api/config/units/$broadcast")
     assert response.status_code == 200
 
     data = response.get_json()
+    assert data[HOSTNAME]["shared"]["value"] == "leader"
     assert data["unit1"]["shared"]["value"] == "unit1"
     assert data["unit2"]["shared"]["value"] == "unit2"
+
+
+def test_unit_api_specific_config_round_trip(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text(
+        "[cluster.topology]\nleader_hostname=leader\nleader_address=leader.local\n[mqtt]\nbroker_address=leader.local\n[shared]\nvalue=global\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    response = client.get("/unit_api/config/specific")
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == ""
+
+    response = client.patch("/unit_api/config/specific", json={"code": "[shared]\nvalue=unit-local\n"})
+    assert response.status_code == 200
+
+    response = client.get("/unit_api/config/specific")
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "[shared]\nvalue=unit-local\n"
+
+    response = client.get("/unit_api/config/merged")
+    assert response.status_code == 200
+    assert response.get_json()["shared"]["value"] == "unit-local"
+
+
+def test_update_specific_config_for_worker_saves_snapshot(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(
+        mod,
+        "post_into",
+        lambda *_args, **_kwargs: MureqResponse(
+            "http://unit1.local:4999/unit_api/config/specific",
+            200,
+            {"Content-Type": "application/json"},
+            b'{"status":"success"}',
+        ),
+    )
+
+    response = client.patch("/api/config/units/unit1/specific", json={"code": "[section]\nvalue=1\n"})
+    assert response.status_code == 200
+
+    history_response = client.get("/api/config/units/unit1/specific/history")
+    assert history_response.status_code == 200
+    history = history_response.get_json()
+    assert history[0]["filename"] == "unit_config.ini::unit1"
+    assert history[0]["data"] == "[section]\nvalue=1\n"
+
+
+def test_update_specific_config_for_worker_propagates_validation_error(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(
+        mod,
+        "post_into",
+        lambda *_args, **_kwargs: MureqResponse(
+            "http://unit1.local:4999/unit_api/config/specific",
+            400,
+            {"Content-Type": "application/json"},
+            b'{"error":"Incorrect syntax. Please fix and try again."}',
+        ),
+    )
+
+    response = client.patch("/api/config/units/unit1/specific", json={"code": "[broken"})
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Incorrect syntax. Please fix and try again."
 
 
 def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
