@@ -3,6 +3,7 @@ import ast
 import os
 import re
 import subprocess
+import tempfile
 import typing as t
 from os import geteuid
 from pathlib import Path
@@ -263,10 +264,161 @@ def _format_config_key_value(option_name: str, option_value: str | None) -> str:
     return f"{option_name}={option_value}"
 
 
+def _get_effective_config_value(section_name: str, parameter_name: str) -> str:
+    from pioreactor.config import get_config
+
+    effective_config = get_config()
+
+    if not effective_config.has_section(section_name):
+        raise click.ClickException(f"Section '{section_name}' not found in effective config.")
+
+    if not effective_config.has_option(section_name, parameter_name):
+        raise click.ClickException(f"Key '{parameter_name}' not found in section '{section_name}'.")
+
+    return effective_config.get(section_name, parameter_name)
+
+
+def _get_config_value_from_file(path: str, section_name: str, parameter_name: str) -> str:
+    config = _load_config_file(path)
+
+    if not config.has_section(section_name):
+        raise click.ClickException(f"Section '{section_name}' not found in config file.")
+
+    if not config.has_option(section_name, parameter_name):
+        raise click.ClickException(f"Key '{parameter_name}' not found in section '{section_name}'.")
+
+    return config.get(section_name, parameter_name)
+
+
+def _replace_or_append_config_entry(
+    config_text: str, section_name: str, parameter_name: str, value: str
+) -> str:
+    newline = "\r\n" if "\r\n" in config_text else "\n"
+    lines = config_text.splitlines()
+    section_header = f"[{section_name}]"
+    section_start: int | None = None
+    section_end = len(lines)
+    parameter_pattern = re.compile(rf"^(\s*){re.escape(parameter_name)}(\s*[:=]).*$")
+
+    for index, line in enumerate(lines):
+        if line.strip() == section_header:
+            section_start = index
+            break
+
+    if section_start is not None:
+        for index in range(section_start + 1, len(lines)):
+            stripped_line = lines[index].strip()
+            if stripped_line.startswith("[") and stripped_line.endswith("]"):
+                section_end = index
+                break
+
+        for index in range(section_start + 1, section_end):
+            match = parameter_pattern.match(lines[index])
+            if match is not None:
+                indentation, delimiter = match.groups()
+                lines[index] = f"{indentation}{parameter_name}{delimiter}{value}"
+                return newline.join(lines) + newline
+
+        lines.insert(section_end, f"{parameter_name}={value}")
+        return newline.join(lines) + newline
+
+    new_lines = list(lines)
+    if new_lines and new_lines[-1].strip() != "":
+        new_lines.append("")
+    new_lines.append(section_header)
+    new_lines.append(f"{parameter_name}={value}")
+    return newline.join(new_lines) + newline
+
+
+def _refresh_config_caches() -> None:
+    import pioreactor.config as config_module
+    from pioreactor import whoami
+
+    config_module.get_config.cache_clear()
+    config_module.get_leader_hostname.cache_clear()
+    config_module._get_leader_address.cache_clear()
+    config_module._get_mqtt_address.cache_clear()
+    whoami.am_I_leader.cache_clear()
+    config_module.config = config_module.get_config()
+
+
+def _set_config_value_in_file(path: str, section_name: str, parameter_name: str, value: str) -> None:
+    from pioreactor.config import ConfigParserMod
+
+    config_path = Path(path)
+    current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    updated_text = _replace_or_append_config_entry(current_text, section_name, parameter_name, value)
+
+    parser = ConfigParserMod(strict=False)
+    parser.read_string(updated_text)
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=config_path.parent,
+        delete=False,
+    ) as temporary_file:
+        temporary_file.write(updated_text)
+        temporary_path = Path(temporary_file.name)
+
+    temporary_path.replace(config_path)
+    _refresh_config_caches()
+
+
 @pio.group(name="config", short_help="inspect effective configuration")
 def config_group() -> None:
     """Show effective configuration values."""
     pass
+
+
+@config_group.command(name="get", short_help="show one effective config value")
+@click.argument("section_name", type=click.STRING)
+@click.argument("parameter_name", type=click.STRING)
+@click.option("--shared", is_flag=True, help="read from the shared config.ini only")
+@click.option("--specific", is_flag=True, help="read from the unit-specific unit_config.ini only")
+def get_config_value(section_name: str, parameter_name: str, shared: bool, specific: bool) -> None:
+    if shared and specific:
+        raise click.BadParameter("Specify at most one of --shared or --specific.")
+
+    if not shared and not specific:
+        click.echo(_get_effective_config_value(section_name, parameter_name))
+        return
+
+    global_config_path, local_config_path = _resolve_config_paths_like_runtime()
+
+    if shared:
+        click.echo(_get_config_value_from_file(global_config_path, section_name, parameter_name))
+        return
+
+    click.echo(_get_config_value_from_file(local_config_path, section_name, parameter_name))
+
+
+@config_group.command(name="set", short_help="set one config value")
+@click.argument("section_name", type=click.STRING)
+@click.argument("parameter_name", type=click.STRING)
+@click.argument("value", type=click.STRING)
+@click.option("--shared", is_flag=True, help="write to the shared config.ini")
+@click.option("--specific", is_flag=True, help="write to the unit-specific unit_config.ini")
+def set_config_value(
+    section_name: str,
+    parameter_name: str,
+    value: str,
+    shared: bool,
+    specific: bool,
+) -> None:
+    if shared == specific:
+        raise click.BadParameter("Specify exactly one of --shared or --specific.")
+
+    global_config_path, local_config_path = _resolve_config_paths_like_runtime()
+
+    if shared:
+        if not whoami.am_I_leader():
+            return
+        _set_config_value_in_file(global_config_path, section_name, parameter_name, value)
+        return
+
+    _set_config_value_in_file(local_config_path, section_name, parameter_name, value)
 
 
 @config_group.command(name="show", short_help="show the effective merged config")

@@ -12,6 +12,7 @@
 #### Enhancements
 
 - Updated the config editor and worker-add flow for worker-owned unit configuration. The UI now edits shared cluster config separately from per-unit `unit_config.ini`, and existing leaders update their add-worker helper so new workers receive shared config without overwriting their unit-specific config.
+- Added `pio config get <section> <parameter>` and `pio config set <section> <parameter> <value>` for single-entry config access from the CLI. `get` defaults to the effective merged value and also supports `--shared` / `--specific` for file-specific reads. `set` uses `--shared` / `--specific` to target `config.ini` or `unit_config.ini`.
 - Added short-lived leader-side caching for several fan-out metadata APIs, reducing repeated worker fetches and improving UI load times for calibrations, protocols, estimators, automations, jobs, and installed plugins.
 - New growth-rate algorithm: designed the growth-rate EKF around a log-OD state model. You should see much faster convergence and better behaviour.
 - Added `pio run stirring --measure-rpm-only` to hold a fixed duty cycle while still measuring and publishing `measured_rpm`, making it easier to inspect fan RPM at settings like `--duty-cycle 100`.

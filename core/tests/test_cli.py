@@ -121,6 +121,265 @@ broker_address=local-broker
         get_config.cache_clear()
 
 
+def test_pio_config_get(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+
+[mqtt]
+broker_address=global-broker
+""".strip()
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip()
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "get", "mqtt", "broker_address"])
+        assert result.exit_code == 0
+        assert result.output == "local-broker\n"
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_get_shared_reads_only_shared_file(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setenv("GLOBAL_CONFIG", str(tmp_path / "config.ini"))
+    monkeypatch.setenv("LOCAL_CONFIG", str(tmp_path / "unit_config.ini"))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "get", "mqtt", "broker_address", "--shared"])
+        assert result.exit_code == 0
+        assert result.output == "global-broker\n"
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_get_specific_reads_only_specific_file(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setenv("GLOBAL_CONFIG", str(tmp_path / "config.ini"))
+    monkeypatch.setenv("LOCAL_CONFIG", str(tmp_path / "unit_config.ini"))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "get", "mqtt", "broker_address", "--specific"])
+        assert result.exit_code == 0
+        assert result.output == "local-broker\n"
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_get_missing_key(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[mqtt]
+broker_address=global-broker
+""".strip()
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "get", "mqtt", "missing"])
+        assert result.exit_code != 0
+        assert "Key 'missing' not found in section 'mqtt'." in result.output
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_get_shared_missing_derived_section_errors(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[PWM]
+0=stirring
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setenv("GLOBAL_CONFIG", str(tmp_path / "config.ini"))
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "get", "PWM_reverse", "stirring", "--shared"])
+        assert result.exit_code != 0
+        assert "Section 'PWM_reverse' not found in config file." in result.output
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_get_rejects_both_targets(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setenv("GLOBAL_CONFIG", str(tmp_path / "config.ini"))
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    runner = CliRunner()
+    result = runner.invoke(
+        pio,
+        ["config", "get", "mqtt", "broker_address", "--shared", "--specific"],
+    )
+    assert result.exit_code != 0
+    assert "Specify at most one of --shared or --specific." in result.output
+
+
+def test_pio_config_set_specific_updates_unit_config(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--specific"]
+        )
+        assert result.exit_code == 0
+        assert "broker_address=updated-broker" in (tmp_path / "unit_config.ini").read_text(encoding="utf-8")
+
+        result = runner.invoke(pio, ["config", "get", "mqtt", "broker_address"])
+        assert result.exit_code == 0
+        assert result.output == "updated-broker\n"
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_set_specific_creates_missing_section(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio,
+            ["config", "set", "new.section", "new_key", "new_value", "--specific"],
+        )
+        assert result.exit_code == 0
+        assert "[new.section]" in (tmp_path / "unit_config.ini").read_text(encoding="utf-8")
+
+        result = runner.invoke(pio, ["config", "get", "new.section", "new_key"])
+        assert result.exit_code == 0
+        assert result.output == "new_value\n"
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_set_shared_is_noop_if_not_leader(tmp_path: Path, monkeypatch) -> None:
+    original_shared_text = """
+[mqtt]
+broker_address=global-broker
+""".strip()
+    (tmp_path / "config.ini").write_text(original_shared_text, encoding="utf-8")
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--shared"])
+        assert result.exit_code == 0
+        assert (tmp_path / "config.ini").read_text(encoding="utf-8") == original_shared_text
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_set_requires_exactly_one_target(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    runner = CliRunner()
+
+    result = runner.invoke(pio, ["config", "set", "mqtt", "broker_address", "updated-broker"])
+    assert result.exit_code != 0
+    assert "Specify exactly one of --shared or --specific." in result.output
+
+    result = runner.invoke(
+        pio,
+        ["config", "set", "mqtt", "broker_address", "updated-broker", "--shared", "--specific"],
+    )
+    assert result.exit_code != 0
+    assert "Specify exactly one of --shared or --specific." in result.output
+
+
+def test_pio_config_shortcut_lookup_is_not_supported() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["config", "mqtt", "broker_address"])
+    assert result.exit_code != 0
+    assert "No such command 'mqtt'." in result.output
+
+
 def test_pio_config_show_section_and_key_filter(tmp_path: Path, monkeypatch) -> None:
     (tmp_path / "config.ini").write_text(
         """
