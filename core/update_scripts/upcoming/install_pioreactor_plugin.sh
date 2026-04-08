@@ -118,9 +118,6 @@ if [ "$am_i_leader" = true ]; then
     if [ -d "$install_folder/exportable_datasets/" ]; then
         rsync -a "$install_folder/exportable_datasets/" /home/pioreactor/.pioreactor/plugins/exportable_datasets/
     fi
-
-    # broadcast to cluster, don't crap out if we can't sync to a worker.
-    pios sync-configs --shared || :
 fi
 
 # run a post install scripts.

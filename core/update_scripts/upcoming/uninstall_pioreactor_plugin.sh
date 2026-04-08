@@ -34,10 +34,6 @@ if [ "$leader_hostname" == "$(hostname)" ]; then
     # delete yamls from datasets
     (cd "$install_folder"/exportable_datasets/ && find ./ -type f) | awk '{print "/home/pioreactor/.pioreactor/plugins/exportable_datasets/"$1}' | xargs rm
 
-    # TODO: remove sections from config.ini
-    # this is complicated because sometimes we edit sections, instead of adding full sections. Ex: we edit [PWM] in relay plugin.
-    # broadcast to cluster
-    # pios sync-configs --shared
 fi
 
 sudo -u pioreactor "$PIP" uninstall -y "$clean_plugin_name_with_dashes"
