@@ -15,6 +15,7 @@ Rules summary for capability collection:
 8. Sort the final capabilities list by (job_name, automation_name) for consistent output.
 """
 import ast
+import enum
 import importlib
 import inspect
 import json
@@ -223,6 +224,29 @@ def collect_background_jobs() -> Tuple[Dict[str, Any], ...]:
     return tuple(entries)
 
 
+def _normalize_option_default(value: Any) -> Any:
+    """
+    Convert Click's internal unset sentinel and other enum defaults into values
+    that can be serialized in the capabilities API response.
+    """
+
+    if isinstance(value, enum.Enum):
+        if (
+            type(value).__module__ == "click._utils"
+            and type(value).__qualname__ == "Sentinel"
+            and value.name == "UNSET"
+        ):
+            return None
+
+        try:
+            json.dumps(value.value)
+            return value.value
+        except TypeError:
+            return value.name
+
+    return value
+
+
 def generate_command_metadata(cmd: click.Command, name: str) -> Dict[str, Any]:
     entry: Dict[str, Any] = {
         "name": name,
@@ -250,7 +274,7 @@ def generate_command_metadata(cmd: click.Command, name: str) -> Dict[str, Any]:
                     "required": param.required,
                     "multiple": param.multiple,
                     # avoid click.get_default needing a Context (ctx=None would break)
-                    "default": param.default,
+                    "default": _normalize_option_default(param.default),
                     "type": getattr(param.type, "name", str(param.type)),
                 }
             )

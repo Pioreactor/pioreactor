@@ -2,6 +2,8 @@
 """
 Tests for capability introspection utilities.
 """
+import json
+
 import click
 from pioreactor.utils.capabilities import _all_subclasses
 from pioreactor.utils.capabilities import _extract_additional_settings
@@ -67,6 +69,23 @@ def test_generate_command_metadata() -> None:
             "required": False,
             "multiple": True,
             "default": ["foo"],
+            "type": "text",
+        }
+    ]
+
+
+def test_generate_command_metadata_normalizes_unset_default() -> None:
+    cmd = click.Command("cmd", params=[click.Option(["--opt"], help="option help", type=click.STRING)])
+    entry = generate_command_metadata(cmd, "cmd")
+
+    assert entry["options"] == [
+        {
+            "name": "opt",
+            "long_flag": "opt",
+            "help": "option help",
+            "required": False,
+            "multiple": False,
+            "default": None,
             "type": "text",
         }
     ]
@@ -161,3 +180,7 @@ def test_state_published_setting_for_all_jobs_and_not_in_cli_flags() -> None:
             assert (
                 "$state" not in option_names
             ), f"$state should not be exposed as CLI option for automation {cap['automation_name']}"
+
+
+def test_collect_capabilities_is_json_serializable() -> None:
+    json.dumps(collect_capabilities())

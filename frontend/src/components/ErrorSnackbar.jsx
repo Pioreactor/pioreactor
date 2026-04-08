@@ -8,7 +8,7 @@ import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
 
 function ErrorSnackbar() {
-  const HEAD_LINE_COUNT = 3;
+  const HEAD_LINE_COUNT = 2;
   const TAIL_LINE_COUNT = 5;
   const [open, setOpen] = React.useState(false)
   const [unit, setUnit] = React.useState("")

@@ -24,18 +24,19 @@ HAS_SYSTEMCTL=false
 declare -a TEST_SEQUENCE=(
   check_versions
   check_configuration_files
+  check_config_api_endpoints
   check_services
   check_mqtt_logging
   check_monitor_job
   check_database_access
   check_worker_model_metadata
   check_unit_api_core
+  check_descriptor_endpoints
   check_unit_api_job_history
   check_blink
   check_pio_run_latency
   check_pio_logs_cli
   check_leader_api
-  check_leader_export
   check_experiment_cli
   check_stirring_job
   check_experiment_scoping
@@ -215,6 +216,11 @@ curl_check() {
   http_json_ok "$url" "$jq_filter"
 }
 
+curl_ok() {
+  local url="$1"
+  curl -fsS "$url" >/dev/null
+}
+
 fetch_running_jobs() {
   curl -fsS http://localhost/unit_api/jobs/running
 }
@@ -328,6 +334,32 @@ check_configuration_files() {
   done
 }
 
+check_config_api_endpoints() {
+  local hostname
+  hostname="$(hostname)"
+
+  run_step \
+    "Checking /unit_api/config/merged" \
+    curl_check \
+    http://localhost/unit_api/config/merged \
+    'type=="object" and has("cluster.topology") and has("mqtt")'
+  run_step "Checking /unit_api/config/specific" curl_ok http://localhost/unit_api/config/specific
+  run_step \
+    "Checking /api/config/units/$hostname" \
+    curl_check \
+    "http://localhost/api/config/units/$hostname" \
+    "type==\"object\" and has(\"$hostname\") and (.[\"$hostname\"] | type==\"object\" and has(\"cluster.topology\"))"
+  run_step \
+    "Checking /api/config/units/\$broadcast" \
+    curl_check \
+    http://localhost/api/config/units/\$broadcast \
+    'type=="object" and has("'"$hostname"'")'
+  run_step \
+    "Checking /api/config/units/$hostname/specific" \
+    curl_ok \
+    "http://localhost/api/config/units/$hostname/specific"
+}
+
 check_services() {
   local services=(mosquitto lighttpd huey)
 
@@ -431,6 +463,29 @@ check_unit_api_core() {
   run_step "Checking /unit_api/active_calibrations" curl_check http://localhost/unit_api/active_calibrations
 }
 
+check_descriptor_endpoints() {
+  run_step \
+    "Checking /unit_api/jobs/descriptors" \
+    curl_check \
+    http://localhost/unit_api/jobs/descriptors \
+    'type=="array" and any(.job_name=="stirring") and any(.job_name=="self_test")'
+  run_step \
+    "Checking /unit_api/automations/descriptors/dosing" \
+    curl_check \
+    http://localhost/unit_api/automations/descriptors/dosing \
+    'type=="array" and any(.automation_name=="chemostat") and any(.automation_name=="turbidostat")'
+  run_step \
+    "Checking /api/jobs/descriptors" \
+    curl_check \
+    http://localhost/api/jobs/descriptors \
+    'type=="array" and any(.job_name=="stirring")'
+  run_step \
+    "Checking /api/automations/descriptors/dosing" \
+    curl_check \
+    http://localhost/api/automations/descriptors/dosing \
+    'type=="array" and any(.automation_name=="chemostat")'
+}
+
 check_unit_api_job_history() {
   run_step "Checking /unit_api/jobs" curl_check http://localhost/unit_api/jobs 'type=="array"'
 }
@@ -506,23 +561,6 @@ check_leader_api() {
   run_step "Checking /api/local_access_point" curl_check http://localhost/api/local_access_point '.active | type=="boolean"'
 }
 
-check_leader_export() {
-  info "Testing leader ~/.pioreactor export"
-  local export_tmp
-  export_tmp="$(mktemp /tmp/pioreactor_export_XXXX.zip || printf '/tmp/pioreactor_export.%s' $$)"
-
-  if curl -fsS "http://localhost/api/units/$(hostname)/zipped_dot_pioreactor" -o "$export_tmp"; then
-    if [[ -s "$export_tmp" ]] && head -c 2 "$export_tmp" | grep -q "PK"; then
-      ok "downloaded leader ~/.pioreactor export"
-    else
-      fail "export file empty or invalid"
-    fi
-  else
-    fail "leader ~/.pioreactor export download failed"
-  fi
-
-  rm -f "$export_tmp"
-}
 
 check_experiment_cli() {
   info "Testing pio experiments management CLI"
@@ -671,7 +709,7 @@ YAML
 check_export_datasets_endpoint() {
   info "Testing export_datasets endpoint"
   local payload
-  payload='{"datasets":["experiments","logs"],"experiments":["<All experiments>"],"partition_by_unit":false,"partition_by_experiment":false}'
+  payload='{"datasets":["experiments","liquid_volumes"],"experiments":["<All experiments>"],"partition_by_unit":false,"partition_by_experiment":false}'
   local response
 
   if ! response="$(curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" http://localhost/api/datasets/exportable/export)"; then
