@@ -2673,13 +2673,7 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
     fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
 
     if row_count > 0:
-        try:
-            # Reclaim the freed pages from the cascaded delete.
-            modify_app_db("VACUUM;")
-        except sqlite3.OperationalError:
-            pass
-        finally:
-            return {"status": "success"}, 200
+        return {"status": "success"}, 200
     else:
         abort_with(
             404,
