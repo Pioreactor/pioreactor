@@ -2,6 +2,7 @@
 # test_cli.py
 import json
 import re
+import stat
 import subprocess
 import time
 from pathlib import Path
@@ -298,6 +299,34 @@ broker_address=local-broker
         result = runner.invoke(pio, ["config", "get", "mqtt", "broker_address"])
         assert result.exit_code == 0
         assert result.output == "updated-broker\n"
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_set_preserves_existing_file_mode(tmp_path: Path, monkeypatch) -> None:
+    config_path = tmp_path / "config.ini"
+    config_path.write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+    config_path.chmod(0o664)
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setenv("GLOBAL_CONFIG", str(config_path))
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--shared"])
+        assert result.exit_code == 0
+        assert stat.S_IMODE(config_path.stat().st_mode) == 0o664
     finally:
         get_config.cache_clear()
 

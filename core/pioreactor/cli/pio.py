@@ -346,6 +346,7 @@ def _set_config_value_in_file(path: str, section_name: str, parameter_name: str,
     from pioreactor.config import ConfigParserMod
 
     config_path = Path(path)
+    existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
     current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
     updated_text = _replace_or_append_config_entry(current_text, section_name, parameter_name, value)
 
@@ -360,6 +361,7 @@ def _set_config_value_in_file(path: str, section_name: str, parameter_name: str,
         delete=False,
     ) as temporary_file:
         temporary_file.write(updated_text)
+        os.fchmod(temporary_file.fileno(), existing_mode)
         temporary_path = Path(temporary_file.name)
 
     temporary_path.replace(config_path)
