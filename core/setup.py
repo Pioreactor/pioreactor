@@ -9,7 +9,7 @@ CORE_REQUIREMENTS = [
     "click==8.3.1",
     "paho-mqtt==2.1.0",
     "colorlog==6.10.1",
-    "msgspec==0.19.0",
+    "msgspec==0.21.0",
     "crudini==0.9.6",
     "iniparse==0.5",
     "blinker==1.9.0",

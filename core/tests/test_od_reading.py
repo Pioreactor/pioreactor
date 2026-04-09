@@ -37,6 +37,7 @@ from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
+from .utils import FakeMQTTClient
 from .utils import wait_for
 
 
@@ -1535,6 +1536,45 @@ def test_PhotodiodeIrLedReferenceTrackerUnitInit_std_threshold_scales_with_inter
     tracker.set_interval(20.0)
     tracker.update(1.0)
     assert ema_update_spy.call_count == 1
+
+
+def test_od_reader_pauses_local_dosing_automation_when_ir_reference_is_noisy(mocker) -> None:
+    experiment = "test_od_reader_pauses_local_dosing_automation_when_ir_reference_is_noisy"
+    published_messages: list[tuple[str, object, int]] = []
+
+    def record_publish(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
+        published_messages.append((topic, payload, qos))
+
+    raw_pd_readings = {
+        "1": structs.RawPDReading(reading=1.0, channel="1"),
+        "2": structs.RawPDReading(reading=0.5, channel="2"),
+    }
+
+    od = ODReader.__new__(ODReader)
+    object.__setattr__(od, "unit", get_unit_name())
+    object.__setattr__(od, "experiment", experiment)
+    object.__setattr__(od, "pub_client", FakeMQTTClient(on_publish=record_publish))
+    object.__setattr__(od, "channel_angle_map", {"2": "90"})
+    object.__setattr__(od, "ir_led_intensity", 80.0)
+    od.adc_reader = mocker.Mock()
+    od.adc_reader.take_reading.return_value = raw_pd_readings.copy()
+    od.ir_led_reference_transformer = mocker.Mock()
+    od.ir_led_reference_transformer.pop_reference_reading.return_value = (
+        raw_pd_readings["1"].reading,
+        {"2": raw_pd_readings["2"]},
+    )
+    od.ir_led_reference_transformer.update.return_value = False
+    od.ir_led_reference_transformer.transform.side_effect = lambda reading: reading
+
+    od._read_from_adc()
+
+    assert published_messages == [
+        (
+            f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/$state/set",
+            "sleeping",
+            1,
+        )
+    ]
 
 
 def test_PhotodiodeIrLedReferenceTrackerUnitInit_uses_cached_reference() -> None:

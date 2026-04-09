@@ -1082,6 +1082,28 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
     assert result["waste_ml"] == pytest.approx(0.0)
 
 
+def test_sleeping_state_stops_active_pumps() -> None:
+    experiment = "test_sleeping_state_stops_active_pumps"
+    stop_messages: list[tuple[str, bytes, int]] = []
+
+    def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
+        if topic.endswith("/$state/set"):
+            stop_messages.append((topic, payload, qos))
+
+    job = DosingAutomationJob.__new__(DosingAutomationJob)
+    object.__setattr__(job, "unit", unit)
+    object.__setattr__(job, "experiment", experiment)
+    object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
+
+    job.on_sleeping()
+
+    assert stop_messages == [
+        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
+    ]
+
+
 def test_fed_batch_skips_dose_that_would_overflow() -> None:
     experiment = "test_fed_batch_skips_dose_that_would_overflow"
     stop_messages: list[tuple[str, bytes, int]] = []

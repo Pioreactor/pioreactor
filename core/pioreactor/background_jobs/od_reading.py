@@ -97,6 +97,7 @@ from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
+from pioreactor.pubsub import QOS
 from pioreactor.states import JobState as st
 from pioreactor.utils import adcs as madcs
 from pioreactor.utils import argextrema
@@ -678,8 +679,8 @@ class IrLedReferenceTracker(LoggerMixin):
         super().__init__()
         self.interval = interval
 
-    def update(self, ir_output_reading: pt.Voltage) -> None:
-        pass
+    def update(self, ir_output_reading: pt.Voltage) -> bool:
+        return True
 
     def set_interval(self, interval: float | None) -> None:
         self.interval = interval
@@ -736,7 +737,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8, initial_std_value=0.001)
         self.channel = channel
 
-    def update(self, ir_output_reading: pt.Voltage) -> None:
+    def update(self, ir_output_reading: pt.Voltage) -> bool:
         # check if funky things are happening by std. banding
         self.led_output_emstd.update(ir_output_reading / self.INITIAL)
 
@@ -749,11 +750,13 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         if latest_std <= self.get_std_threshold():
             # only update if the std looks "okay""
             self.led_output_ema.update(ir_output_reading / self.INITIAL)
+            return True
         else:
             self.logger.warning(
                 f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} positioned correctly? Is the IR LED behaving as expected?"
             )
             self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+            return False
 
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
         led_output = self.led_output_ema.get_latest()
@@ -793,7 +796,7 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
             except (TypeError, ValueError):
                 return None
 
-    def update(self, ir_output_reading: pt.Voltage) -> None:
+    def update(self, ir_output_reading: pt.Voltage) -> bool:
         if self.initial_ref is None:
             self.initial_ref = ir_output_reading
             with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
@@ -814,11 +817,13 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
         if latest_std <= self.get_std_threshold():
             # only update if the std looks "okay""
             self.led_output_ema.update(relative_ref)
+            return True
         else:
             self.logger.warning(
                 f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} positioned correctly? Is the IR LED behaving as expected?"
             )
             self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+            return False
 
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
         relative_ref = self.led_output_ema.get_latest()
@@ -1669,7 +1674,13 @@ class ODReader(BackgroundJob):
         ref_reading, raw_pd_readings = self.ir_led_reference_transformer.pop_reference_reading(
             raw_pd_readings
         )
-        self.ir_led_reference_transformer.update(ref_reading)
+        is_stable = self.ir_led_reference_transformer.update(ref_reading)
+        if not is_stable:
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/dosing_automation/$state/set",
+                self.SLEEPING,
+                qos=QOS.AT_LEAST_ONCE,
+            )
 
         ts = timing.current_utc_datetime()
         raw_od_readings = structs.ODReadings(

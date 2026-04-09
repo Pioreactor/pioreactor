@@ -357,7 +357,6 @@ class DosingAutomationJob(AutomationJob):
                     self.logger.error(
                         f"Pausing all pumping since {projected_volume_ml:g} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
-                    self.stop_active_pumps()
                     self.set_state(self.SLEEPING)
                     return volumes_moved
 
@@ -426,6 +425,9 @@ class DosingAutomationJob(AutomationJob):
         return volumes_moved
 
     ########## Private & internal methods
+
+    def on_sleeping(self) -> None:
+        self.stop_active_pumps()
 
     def on_disconnected(self) -> None:
         self._continue_pumping_event.set()  # set this early so the pumps exits.
