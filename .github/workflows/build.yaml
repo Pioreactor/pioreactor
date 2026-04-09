@@ -69,7 +69,7 @@ jobs:
             --platform linux_armv7l --platform linux_armv6l --platform manylinux_2_36_armv7l \
             --only-binary=:all: \
             --extra-index-url https://pypi.org/simple \
-            --python-version 311
+            --python-version 313
 
           # Add build tools so any future sdist won’t choke offline
           pip download -d wheels setuptools wheel \
