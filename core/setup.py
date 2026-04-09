@@ -18,7 +18,7 @@ CORE_REQUIREMENTS = [
     "huey==2.5.2",
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
-    "MarkupSafe==2.1.5",
+    "MarkupSafe==3.0.3",
     "python-dotenv==1.2.2",
     "Werkzeug==3.1.6",
     "packaging==26.0",
