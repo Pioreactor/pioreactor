@@ -1519,6 +1519,12 @@ class ODReader(BackgroundJob):
         else:
             return {self.ir_channel: self.ir_led_intensity}
 
+    def _clear_od_fused_if_present(self) -> None:
+        if self.od_fused is None:
+            return
+
+        self.od_fused = None
+
     def record_from_adc(self) -> structs.ODReadings | None:
         """
         Take a recording of the current OD of the culture.
@@ -1582,10 +1588,12 @@ class ODReader(BackgroundJob):
                 fused_od = self.estimator_transformer(raw_od_readings)
             except (exc.CalibrationError, exc.EstimatorError) as e:
                 self.logger.error(f"Error in estimator transformer: {e}")
-                self.od_fused = None
+                self._clear_od_fused_if_present()
             else:
                 if fused_od is not None:
                     self.od_fused = fused_od
+                else:
+                    self._clear_od_fused_if_present()
 
         finally:
             for post_function in self.post_read_callbacks:

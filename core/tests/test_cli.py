@@ -127,19 +127,24 @@ def test_pio_config_get(tmp_path: Path, monkeypatch) -> None:
         """
 [cluster.topology]
 leader_hostname=leader
+leader_address=leader.local
 
 [mqtt]
 broker_address=global-broker
-""".strip()
+""".strip(),
+        encoding="utf-8",
     )
     (tmp_path / "unit_config.ini").write_text(
         """
 [mqtt]
 broker_address=local-broker
-""".strip()
+""".strip(),
+        encoding="utf-8",
     )
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
     get_config.cache_clear()
     try:
         runner = CliRunner()
@@ -211,12 +216,19 @@ broker_address=local-broker
 def test_pio_config_get_missing_key(tmp_path: Path, monkeypatch) -> None:
     (tmp_path / "config.ini").write_text(
         """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+
 [mqtt]
 broker_address=global-broker
-""".strip()
+""".strip(),
+        encoding="utf-8",
     )
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
     get_config.cache_clear()
     try:
         runner = CliRunner()
@@ -273,6 +285,10 @@ broker_address=global-broker
 def test_pio_config_set_specific_updates_unit_config(tmp_path: Path, monkeypatch) -> None:
     (tmp_path / "config.ini").write_text(
         """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+
 [mqtt]
 broker_address=global-broker
 """.strip(),
@@ -287,6 +303,8 @@ broker_address=local-broker
     )
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
     get_config.cache_clear()
     try:
         runner = CliRunner()

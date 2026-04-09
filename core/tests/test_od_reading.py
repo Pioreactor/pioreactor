@@ -2317,12 +2317,28 @@ def test_fused_od_is_cleared_when_estimator_returns_none(monkeypatch) -> None:
     ) as od_job:
         monkeypatch.setattr(od_job, "_read_from_adc", lambda: raw_reading)
         od_job.estimator_transformer = FlakyEstimatorTransformer()
+        published_od_fused_values: list[structs.ODFused | None] = []
+        original_publish_setting = od_job._publish_setting
+
+        def capture_od_fused_publish(setting: str) -> None:
+            if setting == "od_fused":
+                published_od_fused_values.append(od_job.od_fused)
+            original_publish_setting(setting)
+
+        monkeypatch.setattr(od_job, "_publish_setting", capture_od_fused_publish)
 
         od_job.record_from_adc()
         assert od_job.od_fused is not None
 
         od_job.record_from_adc()
         assert od_job.od_fused is None
+
+        od_job.record_from_adc()
+        assert od_job.od_fused is None
+        assert published_od_fused_values == [
+            structs.ODFused(od_fused=0.5, timestamp=raw_reading.timestamp),
+            None,
+        ]
 
 
 def test_relative_intensity_topic_publishes_a_json_payload(monkeypatch) -> None:
