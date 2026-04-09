@@ -66,7 +66,20 @@ jobs:
             --find-links wheels \
             -r requirements/requirements_leader_worker.txt \
             --index-url https://piwheels.org/simple \
-            --platform linux_armv7l --platform linux_armv6l --platform manylinux_2_36_armv7l \
+            --platform linux_armv7l \
+            --platform linux_armv6l \
+            --platform manylinux_2_36_armv7l \
+            --only-binary=:all: \
+            --extra-index-url https://pypi.org/simple \
+            --python-version 313
+
+          pip download -d wheels \
+            --find-links wheels \
+            -r requirements/requirements_leader_worker.txt \
+            --index-url https://piwheels.org/simple \
+            --platform linux_aarch64 \
+            --platform manylinux_2_17_aarch64 \
+            --platform manylinux2014_aarch64 \
             --only-binary=:all: \
             --extra-index-url https://pypi.org/simple \
             --python-version 313
