@@ -4090,17 +4090,38 @@ function Pioreactors({title}) {
       };
     }
 
-    fetch("/api/config/units/$broadcast")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch unit configs: ${response.statusText}`);
+    const unitNames = workers
+      .map((worker) => worker.pioreactor_unit || worker.pioreactor_name)
+      .filter(Boolean);
+
+    Promise.allSettled(
+      unitNames.map((unitName) =>
+        fetch(`/api/config/units/${unitName}`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`Failed to fetch config for ${unitName}: ${response.statusText}`);
+            }
+            return response.json();
+          })
+      )
+    )
+      .then((results) => {
+        if (isCancelled) {
+          return;
         }
-        return response.json();
-      })
-      .then((data) => {
-        if (!isCancelled) {
-          setUnitConfigs(data || {});
+
+        const nextUnitConfigs = {};
+
+        for (const result of results) {
+          if (result.status !== "fulfilled") {
+            console.error("Fetching unit configuration failed:", result.reason);
+            continue;
+          }
+
+          Object.assign(nextUnitConfigs, result.value || {});
         }
+
+        setUnitConfigs(nextUnitConfigs);
       })
       .catch((error) => {
         if (!isCancelled) {
