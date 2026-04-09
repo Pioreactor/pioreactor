@@ -3230,7 +3230,7 @@ function SettingNumericField({ value: initialValue, units, min, max, onUpdate, s
 
 
 
-function ActiveUnits({experiment, config, units, availableModels}){
+function ActiveUnits({experiment, sharedConfig, unitConfigs, units, availableModels}){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
@@ -3243,7 +3243,8 @@ function ActiveUnits({experiment, config, units, availableModels}){
     const modelDetails = availableModels.find(
       ({model_name, model_version}) => model_name === unit.model_name && unit.model_version === model_version
     );
-    return <PioreactorCard key={unit.pioreactor_unit} isUnitActive={true} unit={unit.pioreactor_unit} modelDetails={modelDetails || {}} config={config} experiment={experiment} originalLabel={relabelMap[unit.pioreactor_unit]}/>
+    const unitName = unit.pioreactor_unit;
+    return <PioreactorCard key={unitName} isUnitActive={true} unit={unitName} modelDetails={modelDetails || {}} config={unitConfigs[unitName] || sharedConfig} experiment={experiment} originalLabel={relabelMap[unitName]}/>
   })
 
   return (
@@ -3992,7 +3993,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
 )}
 
 
-function InactiveUnits({ units, config, experiment, availableModels }){
+function InactiveUnits({ units, sharedConfig, unitConfigs, experiment, availableModels }){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
@@ -4022,7 +4023,7 @@ function InactiveUnits({ units, config, experiment, availableModels }){
           unit={unitName}
           originalLabel={relabelMap[unitName]}
           modelDetails={modelDetails || {}}
-          config={config}
+          config={unitConfigs[unitName] || sharedConfig}
           experiment={experiment}
         />
       );
@@ -4033,7 +4034,8 @@ function InactiveUnits({ units, config, experiment, availableModels }){
 function Pioreactors({title}) {
   const { experimentMetadata } = useExperiment();
   const [workers, setWorkers] = useState([]);
-  const [config, setConfig] = useState({})
+  const [sharedConfig, setSharedConfig] = useState({})
+  const [unitConfigs, setUnitConfigs] = useState({})
   const [isLoading, setIsLoading] = useState(true);
   const [availableModels, setAvailableModels] = useState([]);
   const [modelCheckKey, setModelCheckKey] = useState(0);
@@ -4044,7 +4046,7 @@ function Pioreactors({title}) {
 
   useEffect(() => {
     document.title = title;
-    getConfig(setConfig)
+    getConfig(setSharedConfig)
   }, [title]);
 
   const fetchWorkers = useCallback(async () => {
@@ -4078,6 +4080,40 @@ function Pioreactors({title}) {
       .then((data) => setAvailableModels(data.models))
   }, []);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (workers.length === 0) {
+      setUnitConfigs({});
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    fetch("/api/config/units/$broadcast")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch unit configs: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!isCancelled) {
+          setUnitConfigs(data || {});
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setUnitConfigs({});
+        }
+        console.error("Fetching unit configurations failed:", error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [workers]);
+
   const workersMissingModel = workers.some(workerMissingModelDetails);
 
   useEffect(() => {
@@ -4091,9 +4127,9 @@ function Pioreactors({title}) {
       const inactiveUnits = workers.filter(worker => worker.is_active === 0);
       return (
       <>
-      <ActiveUnits experiment={experimentMetadata.experiment} config={config} availableModels={availableModels} units={activeUnits} />
+      <ActiveUnits experiment={experimentMetadata.experiment} sharedConfig={sharedConfig} unitConfigs={unitConfigs} availableModels={availableModels} units={activeUnits} />
       { (inactiveUnits.length > 0) &&
-      <InactiveUnits experiment={experimentMetadata.experiment} config={config} availableModels={availableModels} units={inactiveUnits}/>
+      <InactiveUnits experiment={experimentMetadata.experiment} sharedConfig={sharedConfig} unitConfigs={unitConfigs} availableModels={availableModels} units={inactiveUnits}/>
       }
       </>
     )
@@ -4120,7 +4156,7 @@ function Pioreactors({title}) {
   )
 
   return (
-    <MQTTProvider name="pioreactor" config={config}>
+    <MQTTProvider name="pioreactor" config={sharedConfig}>
       {modelCheckKey > 0 && <MissingWorkerModelModal triggerCheckKey={modelCheckKey} />}
       <Grid container spacing={2} >
         <Grid
@@ -4128,7 +4164,7 @@ function Pioreactors({title}) {
             md: 12,
             xs: 12
           }}>
-          <PioreactorHeader experiment={experimentMetadata.experiment} config={config} units={workers}/>
+          <PioreactorHeader experiment={experimentMetadata.experiment} config={sharedConfig} units={workers}/>
 
           {(workers.length === 0 ? renderEmptyState() : renderCards())}
 
