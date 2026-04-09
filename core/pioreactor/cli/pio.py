@@ -73,6 +73,7 @@ def get_update_app_commands(
         tmp_dir = tempfile.gettempdir()
         tmp_rls_dir = f"{tmp_dir}/release_{release_version}"
         archive_source = quote(archive_location)
+        database_path = config.get("storage", "database", fallback="/tmp/pioreactor.sqlite")
 
         release_commands: list[tuple[str, float]] = [
             (f"sudo rm -rf {tmp_rls_dir}", -99),
@@ -98,7 +99,7 @@ def get_update_app_commands(
                         3,
                     ),
                     (
-                        f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
+                        f"sudo sqlite3 {database_path} < {tmp_rls_dir}/update.sql || :",
                         10,
                     ),
                 ]

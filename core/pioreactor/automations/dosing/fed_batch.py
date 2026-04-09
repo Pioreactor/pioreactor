@@ -36,7 +36,6 @@ class FedBatch(DosingAutomationJob):
             self.logger.error(
                 f"Skipping fed-batch dose since {self.current_volume_ml:g} + {self.dosing_volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
             )
-            self.stop_active_pumps()
             self.set_state(self.SLEEPING)
             return events.NoEvent("Skipped dosing to avoid overflow.")
 

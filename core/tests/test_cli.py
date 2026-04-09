@@ -979,6 +979,7 @@ def test_pios_jobs_list_partitions_output_by_unit(monkeypatch) -> None:
 
 def test_pios_sync_configs_specific_refreshes_unit_snapshots(monkeypatch, tmp_path: Path) -> None:
     from pioreactor.mureq import Response
+    from pioreactor.config import config
 
     db_path = tmp_path / "app.sqlite"
     dot_pioreactor = tmp_path / ".pioreactor"
@@ -994,7 +995,7 @@ def test_pios_sync_configs_specific_refreshes_unit_snapshots(monkeypatch, tmp_pa
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
-    get_config()["storage"]["database"] = str(db_path)
+    config["storage"]["database"] = str(db_path)
     monkeypatch.setattr(
         "pioreactor.cli.pios.get_from",
         lambda address, endpoint, **_kwargs: Response(
