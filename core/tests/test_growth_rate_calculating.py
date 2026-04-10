@@ -721,6 +721,7 @@ class TestGrowthRateCalculating:
                 ("od_config.photodiode_channel", "1", "REF"),
                 ("od_config.photodiode_channel", "2", "90"),
                 ("od_reading.config", "samples_per_second", "0.2"),
+                ("growth_rate_calculating.config", "samples_for_od_statistics", "1"),
             ],
         ):
             unit = get_unit_name()
@@ -739,93 +740,48 @@ class TestGrowthRateCalculating:
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                pause()
 
-                with create_client() as client:
-
-                    def publish_and_wait(topic: str, payload, retain=False) -> None:
-                        msg_info = client.publish(topic, payload, retain=retain)
-                        msg_info.wait_for_publish()
-
-                    for _ in range(30):
-                        v = 0.05 + std * np.random.randn()
-                        t = current_utc_timestamp()
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                            retain=True,
-                        )
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                            encode(
-                                structs.RawODReading(
-                                    od=v,
-                                    angle="90",
-                                    timestamp=to_datetime(t),
-                                    channel="2",
-                                    ir_led_intensity=80,
-                                )
-                            ),
-                            retain=True,
-                        )
-                        time.sleep(0.1)
-
-                    previous_nOD = calc.od_filtered
-                    previous_gr = calc.growth_rate
-
-                    # introduce large outlier
-                    v = 0.6 + std * np.random.randn()
+                def publish_observation(value: float) -> None:
                     t = current_utc_timestamp()
-                    publish_and_wait(
+                    ods = create_od_raw_batched(["2"], [value], ["90"], timestamp=t)
+                    calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
+                        encode(ods),
                         retain=True,
                     )
-                    publish_and_wait(
+                    calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(
-                            structs.RawODReading(
-                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
-                            )
-                        ),
+                        encode(ods.ods["2"]),
                         retain=True,
                     )
-                    time.sleep(0.1)
 
-                    current_nOD = calc.od_filtered
-                    current_gr = calc.growth_rate
+                for _ in range(25):
+                    publish_observation(0.05 + std * np.random.randn())
+                    pause()
 
-                    assert previous_nOD.od_filtered < current_nOD.od_filtered
-                    assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+                assert wait_for(lambda: calc.od_filtered is not None and calc.growth_rate is not None)
+                previous_nOD = calc.od_filtered
+                previous_gr = calc.growth_rate
 
-                    # resume normal values
-                    for _ in range(30):
-                        v = 0.05 + std * np.random.randn()
-                        t = current_utc_timestamp()
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                            retain=True,
-                        )
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                            encode(
-                                structs.RawODReading(
-                                    od=v,
-                                    angle="90",
-                                    timestamp=to_datetime(t),
-                                    channel="2",
-                                    ir_led_intensity=80,
-                                )
-                            ),
-                            retain=True,
-                        )
-                        time.sleep(0.1)
+                publish_observation(0.6 + std * np.random.randn())
+                pause()
 
-                    current_nOD = calc.od_filtered
-                    current_gr = calc.growth_rate
+                current_nOD = calc.od_filtered
+                current_gr = calc.growth_rate
 
-                    assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
-                    assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+                assert previous_nOD.od_filtered < current_nOD.od_filtered
+                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+
+                for _ in range(30):
+                    publish_observation(0.05 + std * np.random.randn())
+                    pause()
+
+                current_nOD = calc.od_filtered
+                current_gr = calc.growth_rate
+
+                assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
+                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
     def test_empty_cached_normalization_dicts_are_recomputed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         experiment = "test_empty_cached_normalization_dicts_are_recomputed"

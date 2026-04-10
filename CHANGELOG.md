@@ -8,6 +8,8 @@
 - Job and Automation controls now use worker-provided descriptors for individual Pioreactors, so worker-only plugin jobs automations appear in per-unit UI even if the leader doesn’t have that plugin installed. Bulk “Control All Pioreactors” automation flows remain leader-driven. A update script will attempt to add the necessary UI files to workers.
 - `growth_rate_calculating` now assumes the new `grpredict` hidden-state filter and warmup-based initialization. It no longer supports `--ignore-cache`, cached growth-rate/filtered-OD startup state, or `od_blank` correction in this job. The parameters in `[growth_rate_kalman]` are no longer used.
 - `od_blank` correction is now applied upstream in `od_reading` on a per-experiment basis before readings reach `growth_rate_calculating`. If a blank exists for the experiment, `od_reading` now refuses to start with OD calibrations or fused estimators enabled, instead raising a `ValueError`.
+- new version of `grpredict` that has significant changes to the responsiveness of the growth-rate model.
+
 
 #### Enhancements
 
