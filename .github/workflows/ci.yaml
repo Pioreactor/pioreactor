@@ -58,6 +58,7 @@ jobs:
 
       - name: Install any other required linux software
         run: |
+          sudo apt-get update
           sudo apt-get install avahi-daemon avahi-discover avahi-utils mosquitto-clients
 
       - name: Create pioreactor folders
