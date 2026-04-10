@@ -16,6 +16,7 @@ from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as job_state
 from pioreactor.structs import SimpleStirringCalibration
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.mock import MockRpmCalculator as RpmCalculator
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
@@ -104,6 +105,28 @@ def test_pause_stirring_mid_cycle() -> None:
         pause()
         assert st.state == st.READY
         assert st.duty_cycle == original_dc
+
+
+def test_mqtt_disconnect_releases_pwm_lock_and_allows_restart() -> None:
+    exp = "test_mqtt_disconnect_releases_pwm_lock_and_allows_restart"
+
+    st = start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=False)
+
+    with local_intermittent_storage("pwm_locks") as cache:
+        assert cache.get(17) is not None
+
+    publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "disconnected")
+
+    assert wait_for(lambda: st.state == job_state.DISCONNECTED, timeout=3.0)
+
+    with local_intermittent_storage("pwm_locks") as cache:
+        assert cache.get(17) is None
+
+    st.clean_up()
+
+    restarted = start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=False)
+    assert restarted.duty_cycle > 0
+    restarted.clean_up()
 
 
 def test_set_target_rpm_while_paused_does_not_restart_stirring(monkeypatch) -> None:
