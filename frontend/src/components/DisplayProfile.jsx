@@ -326,13 +326,13 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
         const optionComment = getInlineCommentForPath(comments, `${actionPath}.options.${option}`);
         if (typeof optionValue === 'object') {
           return (
-            <Typography key={`option-${idx}`} variant="body2" sx={level3}>
+            <Typography key={`option-${idx}`} variant="body2" component="div" sx={level3}>
               — {verb} {displayVariable(option)} → <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan> <InlineComment comment={optionComment} />
             </Typography>
           ); // intermediate state when typing
         }
         return (
-          <Typography key={`option-${idx}`} variant="body2" sx={level3}>
+          <Typography key={`option-${idx}`} variant="body2" component="div" sx={level3}>
             — {verb} {displayVariable(option)} → {processBracketedExpression(optionValue)} <InlineComment comment={optionComment} />
           </Typography>
         );
@@ -352,7 +352,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
           ); // intermediate state when typing
         }
         return (
-          <Typography key={`option-${idx}`} variant="body2" sx={level3}>
+          <Typography key={`option-${idx}`} variant="body2" component="div" sx={level3}>
             — set {displayVariable(`[${jobName}.config].${option}`)} → {processBracketedExpression(optionValue)} <InlineComment comment={optionComment} />
           </Typography>
         );
@@ -364,14 +364,14 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
   const renderInvalidOptionsMessage = () => {
     if (action?.type === 'update' && action.options === undefined) {
       return (
-        <Typography variant="body2" sx={level3}>
+        <Typography variant="body2" component="div" sx={level3}>
           <UnderlineSpan title="missing `options`">options??</UnderlineSpan>
         </Typography>
       );
     }
     if (Array.isArray(action.options)) {
       return (
-        <Typography variant="body2" sx={level3}>
+        <Typography variant="body2" component="div" sx={level3}>
           <UnderlineSpan title="`options` field doesn't use `-` in front. Remove it.">invalid options syntax!</UnderlineSpan>
         </Typography>
       );
@@ -384,7 +384,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
     case 'update':
       return (
         <>
-          <Typography variant="body2" sx={level2}>
+          <Typography variant="body2" component="div" sx={level2}>
             {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> <InlineComment comment={actionComment} />
           </Typography>
           {renderOptions(action?.type)}
@@ -395,11 +395,11 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
     case 'log':
       return (
         <>
-          <Typography variant="body2" sx={level2}>
+          <Typography variant="body2" component="div" sx={level2}>
             {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>log</span> the message: <InlineComment comment={actionComment} />
           </Typography>
             {action.options?.message &&
-            <Typography variant="body2" sx={level3}>
+            <Typography variant="body2" component="div" sx={level3}>
               <span style={highlightedLogMessage}>{extractAndApply(action.options.message, processBracketedExpression)}</span>
             </Typography>
             }
@@ -410,7 +410,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
     case 'resume':
       return (
         <>
-          <Typography variant="body2" sx={level2}>
+          <Typography variant="body2" component="div" sx={level2}>
             {index + 1}. {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)} <InlineComment comment={actionComment} />
           </Typography>
         </>
@@ -418,7 +418,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
     case 'when':
       return (
         <>
-          <Typography variant="body2" sx={level2}>
+          <Typography variant="body2" component="div" sx={level2}>
             {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, wait until <span style={highlightedIf}>{processOptionalBracketedExpression(action?.wait_until || action?.condition, "missing `wait_until`")}</span>, then do: <InlineComment comment={actionComment} />
           </Typography>
           <Box sx={level1}>

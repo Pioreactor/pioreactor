@@ -103,7 +103,7 @@ function DosingAutomationForm(props) {
             ? (e) => onSettingsChange(e.target.id, parseNumericInput(e))
             : (e) => onSettingsChange((e.target.id, e.target.value))
         }
-        InputProps={inputProps}
+        slotProps={{ input: inputProps }}
         {...commonProps}
       />
     );
@@ -142,10 +142,12 @@ function DosingAutomationForm(props) {
             id="current_volume_ml"
             label="Current volume"
             value={props.algoSettings.current_volume_ml ?? ""}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+            slotProps={{
+              input: {
+                endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+                inputProps: volumeInputBounds,
+              },
             }}
-            inputProps={volumeInputBounds}
             variant="outlined"
             onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}
             onKeyPress={(e) => { e.key === 'Enter' && e.preventDefault(); }}
@@ -158,10 +160,12 @@ function DosingAutomationForm(props) {
             autoComplete="off"
             id="efflux_tube_volume_ml"
             label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Efflux tube level</UnderlineSpan>}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+            slotProps={{
+              input: {
+                endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+                inputProps: volumeInputBounds,
+              },
             }}
-            inputProps={volumeInputBounds}
             variant="outlined"
             value={props.algoSettings.efflux_tube_volume_ml ?? ""}
             onChange={(e) => onSettingsChange(e.target.id, parseNumericInput(e))}

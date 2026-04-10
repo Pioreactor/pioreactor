@@ -16,7 +16,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import Snackbar from './Snackbar';
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
@@ -137,7 +137,7 @@ function ChangeDosingAutomationsDialog(props) {
 
   return (
     <React.Fragment>
-    <Dialog open={props.open} onClose={handleClose} aria-labelledby="form-dialog-title" PaperProps={{style: {height: "100%"}}}>
+    <Dialog open={props.open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{ paper: { sx: { height: "100%" } } }}>
       <DialogTitle>
         <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)"}}>
           <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/>

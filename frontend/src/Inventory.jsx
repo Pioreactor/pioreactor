@@ -21,7 +21,7 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import FlareIcon from '@mui/icons-material/Flare';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
@@ -141,7 +141,7 @@ function Header(props) {
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h1">
-          <Box fontWeight="fontWeightBold">
+          <Box sx={{ fontWeight: "fontWeightBold" }}>
             Inventory
           </Box>
         </Typography>
@@ -1216,8 +1216,10 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          'aria-labelledby': 'manage-pioreactor-button',
+        slotProps={{
+          list: {
+            'aria-labelledby': 'manage-pioreactor-button',
+          },
         }}
       >
         <MenuItem onClick={handleReboot}>

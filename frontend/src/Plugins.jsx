@@ -28,7 +28,7 @@ function PageHeader() {
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h2">
-          <Box fontWeight="fontWeightBold">
+          <Box sx={{ fontWeight: "fontWeightBold" }}>
             Plugins
           </Box>
         </Typography>
@@ -157,7 +157,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
                 </ListItemAvatar>
                 <ListItemText
                   primary={plugin.name}
-                  primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
+                  slotProps={{ primary: { style: { fontSize: '0.95rem' } } }}
                   secondary={
                    <>
                     <Typography
@@ -272,7 +272,7 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
                 </ListItemAvatar>
                 <ListItemText
                   primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
-                  primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
+                  slotProps={{ primary: { style: { fontSize: '0.95rem' } } }}
                   secondary={
                    <>
                     <Typography

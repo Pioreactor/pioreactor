@@ -30,7 +30,7 @@ import yaml from "js-yaml";
 import dayjs from 'dayjs';
 import Snackbar from './components/Snackbar';
 import TuneIcon from '@mui/icons-material/Tune';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
@@ -229,7 +229,7 @@ function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
         </DialogTitle>
         <DialogContent>
           {loading ? (
-            <Box textAlign="center" mt={2}><CircularProgress size={20} /></Box>
+            <Box sx={{ textAlign: "center", mt: 2 }}><CircularProgress size={20} /></Box>
           ) : (
             <DisplaySourceCode sourceCode={yamlText} />
           )}
@@ -369,7 +369,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
   const unitsColorMap = new ColorCycler(colors)
   if (loading) {
     return (
-      <Box textAlign="center" mt={4}>
+      <Box sx={{ textAlign: "center", mt: 4 }}>
         <CircularProgress />
       </Box>
     );

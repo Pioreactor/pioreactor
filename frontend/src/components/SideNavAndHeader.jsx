@@ -7,7 +7,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import MenuItemMUI from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import DownloadIcon from '@mui/icons-material/Download';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import UpdateIcon from '@mui/icons-material/Update';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
@@ -532,7 +532,7 @@ export default function SideNavAndHeader() {
         <DialogContent>
           <Stack spacing={2} divider={<Divider flexItem />} sx={{ pt: 1 }}>
             <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <DescriptionOutlinedIcon fontSize="small" color="action" />
                 <Typography variant="subtitle2">Documentation</Typography>
               </Stack>
@@ -545,7 +545,7 @@ export default function SideNavAndHeader() {
               </Typography>
             </Stack>
             <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <ChatOutlinedIcon fontSize="small" color="action" />
                 <Typography variant="subtitle2">Community forum</Typography>
               </Stack>
@@ -558,7 +558,7 @@ export default function SideNavAndHeader() {
               </Typography>
             </Stack>
             <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <EmailOutlinedIcon fontSize="small" color="action" />
                 <Typography variant="subtitle2">Email support</Typography>
               </Stack>

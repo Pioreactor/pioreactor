@@ -326,7 +326,7 @@ function EstimatorData() {
       </TableContainer>
 
       {!hasEstimators && (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh">
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
           <Typography variant="body2" component="p" color="textSecondary">
             {emptyStateMessage}
           </Typography>
@@ -343,7 +343,7 @@ function EstimatorsContainer() {
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">Estimators</Box>
+            <Box sx={{ fontWeight: "fontWeightBold" }}>Estimators</Box>
           </Typography>
         </Box>
         <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />

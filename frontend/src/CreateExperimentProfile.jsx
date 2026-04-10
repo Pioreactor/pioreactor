@@ -122,8 +122,10 @@ metadata:
                 required
                 value={filename}
                 style={{ width: "320px" }}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
+                slotProps={{
+                  input: {
+                    endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
+                  },
                 }}
               />
             </FormControl>
@@ -219,10 +221,10 @@ function ProfilesContainer(){
       <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about creating <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
 
       <Dialog open={openCapabilities} onClose={() => setOpenCapabilities(false)} fullWidth maxWidth="md"
-      PaperProps={{ style: {
+      slotProps={{ paper: { sx: {
         minHeight: '80%',
         maxHeight: '80%',
-      }}}>
+      }}}}>
         <DialogTitle>
           Search jobs and automations
           <IconButton

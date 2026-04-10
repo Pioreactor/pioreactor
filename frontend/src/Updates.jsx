@@ -522,7 +522,7 @@ function PageHeader() {
     <Box>
       <Box sx={{display: "flex", justifyContent: "space-between", marginBottom: "5px"}}>
         <Typography variant="h5" component="h1">
-          <Box fontWeight="fontWeightBold">
+          <Box sx={{ fontWeight: "fontWeightBold" }}>
             Updates
           </Box>
         </Typography>
@@ -540,17 +540,17 @@ function PageHeader() {
       <Divider/>
       <Typography variant="subtitle2">
 
-        <Box fontWeight="fontWeightBold" style={{margin: "10px 2px 10px 2px", display:"inline-block"}}>
+        <Box sx={{ fontWeight: "fontWeightBold", margin: "10px 2px 10px 2px", display:"inline-block" }}>
           <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Version installed on leader:
         </Box>
-        <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
+        <Box sx={{ fontWeight: "fontWeightRegular", marginRight: "20px", display:"inline-block" }}>
           {version}
         </Box>
 
-        <Box fontWeight="fontWeightBold" style={{margin: "10px 2px 10px 2px", display:"inline-block"}}>
+        <Box sx={{ fontWeight: "fontWeightBold", margin: "10px 2px 10px 2px", display:"inline-block" }}>
           <UpdateIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Latest version available:
         </Box>
-        <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
+        <Box sx={{ fontWeight: "fontWeightRegular", marginRight: "20px", display:"inline-block" }}>
           {latestVersion}
         </Box>
 

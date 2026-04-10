@@ -101,7 +101,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
       <Box>
         <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
           <Typography variant="h5" component="h1">
-            <Box fontWeight="fontWeightBold">{experiment}</Box>
+            <Box sx={{ fontWeight: "fontWeightBold" }}>{experiment}</Box>
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <ManageExperimentMenu experiment={experiment}/>
@@ -112,10 +112,10 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
         <Box sx={{m: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
-              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+              <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 <CalendarTodayIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment created at:&nbsp;
               </Box>
-              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
+              <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
                 {(startedAt !== "") &&
                 <span>{dayjs(startedAt).format("dddd, MMMM D, h:mm a")}</span>
                 }
@@ -123,10 +123,10 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
             </Box>
 
             <Box sx={{display:"inline"}}>
-              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+              <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 <TimelapseIcon sx={{ fontSize: 12, verticalAlign: "-1px"  }}/> Hours elapsed:&nbsp;
               </Box>
-              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
+              <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
                {deltaHours}h
               </Box>
             </Box>
@@ -138,7 +138,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
               {tags.length > 0 && (
                 <React.Fragment>
                   <Typography component="span" variant="subtitle2" sx={{minWidth: "fit-content"}}>
-                    <Box fontWeight="fontWeightBold">Tags:</Box>
+                    <Box sx={{ fontWeight: "fontWeightBold" }}>Tags:</Box>
                   </Typography>
                   {tags.map((tag) => <Chip key={tag} label={tag} size="small" variant="outlined" />)}
                 </React.Fragment>

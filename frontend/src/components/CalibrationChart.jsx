@@ -163,10 +163,10 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   };
 
   if (!deviceName){
-    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from a <Link to="/protocols">protocol</Link>.</Typography></Box>
+    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from a <Link to="/protocols">protocol</Link>.</Typography></Box>
   }
   else if (!calibrations || calibrations.length === 0) {
-    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography></Box>;
+    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}><Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography></Box>;
   }
 
   // Assume the x and y fields match across all calibrations for a device

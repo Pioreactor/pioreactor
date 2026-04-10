@@ -143,7 +143,7 @@ function Overview(props) {
 
   return (
     <Fragment>
-      <Grid container spacing={2} justifyContent="space-between">
+      <Grid container spacing={2} sx={{ justifyContent: "space-between" }}>
         <Grid
           size={{
             xs: 12,
@@ -156,7 +156,7 @@ function Overview(props) {
         <Grid
           container
           spacing={2}
-          justifyContent="flex-start"
+          sx={{ justifyContent: "flex-start" }}
           style={{height: "100%"}}
           size={{
             xs: 12,
@@ -168,7 +168,7 @@ function Overview(props) {
         <Grid
           container
           spacing={2}
-          justifyContent="flex-end"
+          sx={{ justifyContent: "flex-end" }}
           style={{height: "100%"}}
           size={{
             xs: 12,
@@ -180,7 +180,7 @@ function Overview(props) {
               xs: 7,
               md: 7
             }}>
-            <Stack direction="row" justifyContent="start">
+            <Stack direction="row" sx={{ justifyContent: "start" }}>
               <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
             </Stack>
           </Grid>
@@ -189,7 +189,7 @@ function Overview(props) {
               xs: 5,
               md: 5
             }}>
-            <Stack direction="row" justifyContent="end">
+            <Stack direction="row" sx={{ justifyContent: "end" }}>
               <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
             </Stack>
           </Grid>

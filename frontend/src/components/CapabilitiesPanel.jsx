@@ -163,7 +163,7 @@ function CapabilityCard({cap}) {
           {cap.help}
         </Typography>
       )}
-      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{mb: 2}}>
+      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap" }}>
         {arguments_.map((a) => (
           <Chip key={`arg-${a.name}`}  size="small" label={`arg: ${a.name.replaceAll("-", "_")}${a.required ? ' *' : ''}`} />
         ))}
@@ -180,7 +180,7 @@ function CapabilityCard({cap}) {
           multiline
           minRows={3}
           value={startSnippet}
-          InputProps={{readOnly: true}}
+          slotProps={{ input: { readOnly: true } }}
           sx={{
             '& .MuiInputBase-input': {fontFamily: 'monospace', fontSize: '0.8rem'},
           }}
@@ -194,7 +194,7 @@ function CapabilityCard({cap}) {
           multiline
           minRows={3}
           value={updateSnippet}
-          InputProps={{readOnly: true}}
+          slotProps={{ input: { readOnly: true } }}
           sx={{
             '& .MuiInputBase-input': {fontFamily: 'monospace', fontSize: '0.8rem'},
           }}

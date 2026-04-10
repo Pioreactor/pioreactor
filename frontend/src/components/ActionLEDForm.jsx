@@ -88,8 +88,10 @@ export default function ActionLEDForm(props) {
           variant="outlined"
           onChange={onChange}
           onKeyPress={onKeyPress}
-          InputProps={{
-            endAdornment: <InputAdornment position="end">%</InputAdornment>,
+          slotProps={{
+            input: {
+              endAdornment: <InputAdornment position="end">%</InputAdornment>,
+            },
           }}
           sx={actionTextField}
         />

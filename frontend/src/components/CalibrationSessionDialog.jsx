@@ -440,7 +440,7 @@ export default function CalibrationSessionDialog({
       }}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { height: 620 } }}
+      slotProps={{ paper: { sx: { height: 620 } } }}
     >
       <DialogTitle>
         {protocol?.title || "Calibration session"}

@@ -161,7 +161,7 @@ function MultipleSelectChip({availableValues, parentHandleChange, values}) {
     <div>
       <FormControl fullWidth variant="standard" component="fieldset" sx={{ maxWidth: 470 }}>
         <Typography variant="h6" gutterBottom >
-          <Box fontWeight="fontWeightRegular">Experiments</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Experiments</Box>
         </Typography>
         <Select
           labelId="expSelect"
@@ -403,7 +403,7 @@ const Datasets = ({ datasets, selectedDatasets, handleChange }) => {
     <Box sx={{ m: 1 }}>
       <FormControl component="fieldset">
         <Typography variant="h6" >
-          <Box fontWeight="fontWeightRegular">Available datasets</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Available datasets</Box>
         </Typography>
         <FormGroup>
           {datasets.map((dataset) => (
@@ -571,7 +571,7 @@ function ExportDataContainer() {
       <Box>
         <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
           <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
+            <Box sx={{ fontWeight: "fontWeightBold" }}>
               Export data
             </Box>
           </Typography>
@@ -627,7 +627,7 @@ function ExportDataContainer() {
                     expandIcon={<ArrowDropDownIcon />}
                   >
                     <Typography variant="h6">
-                      <Box fontWeight="fontWeightRegular">Export options</Box>
+                      <Box sx={{ fontWeight: "fontWeightRegular" }}>Export options</Box>
                     </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
@@ -657,7 +657,7 @@ function ExportDataContainer() {
                         label="Start time"
                         type="datetime-local"
                         size="small"
-                        InputLabelProps={{ shrink: true }}
+                        slotProps={{ inputLabel: { shrink: true } }}
                         disabled={!state.useTimeFilter}
                         value={state.startTime || ''}
                         onChange={(e) =>
@@ -668,7 +668,7 @@ function ExportDataContainer() {
                         label="End time"
                         type="datetime-local"
                         size="small"
-                        InputLabelProps={{ shrink: true }}
+                        slotProps={{ inputLabel: { shrink: true } }}
                         disabled={!state.useTimeFilter}
                         value={state.endTime || ''}
                         onChange={(e) =>

@@ -706,7 +706,7 @@ function CalibrationsContainer() {
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
+            <Box sx={{ fontWeight: "fontWeightBold" }}>
               Calibrations
             </Box>
           </Typography>

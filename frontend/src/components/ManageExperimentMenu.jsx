@@ -140,8 +140,10 @@ export default function ManageExperimentMenu({experiment}){
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          'aria-labelledby': 'basic-button',
+        slotProps={{
+          list: {
+            'aria-labelledby': 'basic-button',
+          },
         }}
       >
         <MenuItem onClick={handleOpenEditDialog}>
@@ -152,7 +154,7 @@ export default function ManageExperimentMenu({experiment}){
         </MenuItem>
         <Divider />
         <MenuItem color="secondary" disabled={allExperiments.length <= 1} onClick={handleDeleteExperiment}>
-          <ListItemText primaryTypographyProps={{color: 'secondary.main'}} >Delete experiment</ListItemText>
+          <ListItemText slotProps={{ primary: { sx: { color: 'secondary.main' } } }}>Delete experiment</ListItemText>
         </MenuItem>
       </Menu>
       <ExperimentMetadataDialog

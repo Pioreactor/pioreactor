@@ -60,7 +60,7 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title" PaperProps={{style: {height: "100%"}}} fullWidth>
+      <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{ paper: { sx: { height: "100%" } } }} fullWidth>
         <DialogTitle >
           <Typography sx={{ fontSize: 13, color: "rgba(0,0,0,0.60)" }}>
             <PioreactorIcon sx={{ fontSize: "1.2em", verticalAlign: "middle" }} /> {unit}
@@ -102,22 +102,24 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
                   variant="outlined"
                   value={value}
                   onChange={handleFieldChange(param)}
-                  InputLabelProps={{ shrink: true }}
-                  InputProps={{
-                    endAdornment: isModified && (
-                      <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          aria-label={`Reset ${param}`}
-                          onClick={handleReset(param)}
-                        >
-                          <ReplayIcon
-                            sx={{ color: (theme) => theme.palette.warning.main }}
-                            fontSize="small"
-                          />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    input: {
+                      endAdornment: isModified ? (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            aria-label={`Reset ${param}`}
+                            onClick={handleReset(param)}
+                          >
+                            <ReplayIcon
+                              sx={{ color: (theme) => theme.palette.warning.main }}
+                              fontSize="small"
+                            />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : undefined,
+                    },
                   }}
                   sx={{ mt: 2, mr: 2, mb: 0, width: "25ch" }}
                 />

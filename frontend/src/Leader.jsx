@@ -67,7 +67,7 @@ function StateTypography({ state, isDisabled=false }) {
   };
 
   return (
-    <Typography display="block" gutterBottom sx={style}>
+    <Typography gutterBottom sx={{ ...style, display: "block" }}>
       {stateDisplay[state].display}
     </Typography>
   );
@@ -328,7 +328,7 @@ function DirectoryNavigatorCard({leaderHostname}) {
     <Card sx={{minHeight: "300px"}}>
       <CardContent sx={{p:2}}>
         <Typography variant="h6" component="h2">
-          <Box fontWeight="fontWeightRegular">System file browser</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>System file browser</Box>
         </Typography>
         <Box sx={{maxHeight: "450px", overflowY: "scroll"}}>
           <PathViewer path=
@@ -740,7 +740,7 @@ function LeaderJobs(){
     <Card >
       <CardContent sx={{p: 2}}>
          <Typography variant="h6" component="h2">
-          <Box fontWeight="fontWeightRegular">Long-running jobs</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Long-running jobs</Box>
         </Typography>
 
           <Table size="small">
@@ -907,7 +907,7 @@ function ClusterClockCard({leaderHostname}){
 
       <CardContent sx={{ p: 2 }}>
         <Typography variant="h6" component="h2">
-          <Box fontWeight="fontWeightRegular">Cluster clocks</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Cluster clocks</Box>
         </Typography>
 
         {loading && (
@@ -985,7 +985,7 @@ function LeaderContainer({config}) {
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
+            <Box sx={{ fontWeight: "fontWeightBold" }}>
               Leader
             </Box>
           </Typography>
@@ -996,7 +996,7 @@ function LeaderContainer({config}) {
         <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
 
       </Box>
-      <Grid container spacing={2} justifyContent="flex-start" alignItems="flex-start">
+      <Grid container spacing={2} sx={{ justifyContent: "flex-start", alignItems: "flex-start" }}>
         <Grid
           container
           spacing={2}

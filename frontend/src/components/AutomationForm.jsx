@@ -55,7 +55,7 @@ function AutomationForm(props){
             ? (e) => onSettingsChange(e.target.id, Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)
             : (e) => onSettingsChange(e.target.id, e.target.value)
         }
-        InputProps={inputProps}
+        slotProps={{ input: inputProps }}
         {...commonProps}
       />
     );

@@ -96,7 +96,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     <Card>
       <CardContent sx={{ p: 2 }}>
         <Typography variant="h6" component="h2" gutterBottom>
-          <Box fontWeight="fontWeightRegular">Dosing</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Dosing</Box>
         </Typography>
 
         {activeUnits.length === 0 && (

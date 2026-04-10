@@ -233,10 +233,10 @@ function ProfilesContainer(){
         open={openCapabilities}
         onClose={() => setOpenCapabilities(false)}
         fullWidth maxWidth="md"
-        PaperProps={{ style: {
+        slotProps={{ paper: { sx: {
         minHeight: '80%',
         maxHeight: '80%',
-      }}}>
+      }}}}>
         <DialogTitle>
           Search jobs and automations
           <IconButton

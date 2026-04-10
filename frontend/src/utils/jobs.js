@@ -105,7 +105,8 @@ export async function getWorkerJobDescriptors(unit) {
         return response.json();
       })
       .then((descriptors) => {
-        workerJobDescriptorsRequestCache.delete(unit);
+        const resolvedDescriptors = Promise.resolve(descriptors);
+        workerJobDescriptorsRequestCache.set(unit, resolvedDescriptors);
         return descriptors;
       })
       .catch((error) => {
@@ -140,7 +141,8 @@ export async function getAutomationDescriptors(unit, automationType) {
         return response.json();
       })
       .then((descriptors) => {
-        workerAutomationDescriptorsRequestCache.delete(cacheKey);
+        const resolvedDescriptors = Promise.resolve(descriptors);
+        workerAutomationDescriptorsRequestCache.set(cacheKey, resolvedDescriptors);
         return descriptors;
       })
       .catch((error) => {

@@ -365,7 +365,7 @@ function Protocols(props) {
     <React.Fragment>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h2">
-          <Box fontWeight="fontWeightBold">Protocols</Box>
+          <Box sx={{ fontWeight: "fontWeightBold" }}>Protocols</Box>
         </Typography>
 
       </Box>
@@ -373,7 +373,7 @@ function Protocols(props) {
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
-            <Box fontWeight="fontWeightRegular">Available protocols</Box>
+            <Box sx={{ fontWeight: "fontWeightRegular" }}>Available protocols</Box>
           </Typography>
           <Typography variant="body2" sx={{ mb: 2 }} gutterBottom>
             Create calibrations by running device-specific protocols.

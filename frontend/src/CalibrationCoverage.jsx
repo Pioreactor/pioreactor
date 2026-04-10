@@ -108,7 +108,7 @@ function CalibrationCoverage(props) {
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: "center" }}>
           <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
+            <Box sx={{ fontWeight: "fontWeightBold" }}>
               Calibration status
             </Box>
           </Typography>

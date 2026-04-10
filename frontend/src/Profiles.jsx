@@ -24,7 +24,7 @@ import { RunningProfilesProvider, useRunningProfiles } from './providers/Running
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate, useParams } from 'react-router';
 import SelectButton from "./components/SelectButton";
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { useConfirm } from 'material-ui-confirm';
@@ -244,7 +244,7 @@ function RunProfilesContainer(props) {
       <Card>
         <CardContent sx={{ p: 2 }}>
           <Typography variant="h6" component="h2">
-            <Box fontWeight="fontWeightRegular">Available profiles</Box>
+            <Box sx={{ fontWeight: "fontWeightRegular" }}>Available profiles</Box>
           </Typography>
           <RunExperimentProfilesContent {...props} experiment={experiment} />
         </CardContent>
@@ -275,7 +275,7 @@ function RunningProfilesContainer() {
       <Card>
         <CardContent sx={{ p: 2 }}>
           <Typography variant="h6" component="h2" gutterBottom>
-            <Box fontWeight="fontWeightRegular">Profiles running</Box>
+            <Box sx={{ fontWeight: "fontWeightRegular" }}>Profiles running</Box>
           </Typography>
           {loading && (
             <Box sx={{ textAlign: "center", mt: 2 }}>
@@ -498,7 +498,7 @@ function Profiles(props) {
           <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
               <Typography variant="h5" component="h2">
-                <Box fontWeight="fontWeightBold">
+                <Box sx={{ fontWeight: "fontWeightBold" }}>
                   Experiment Profiles
                 </Box>
               </Typography>
@@ -554,7 +554,7 @@ function Profiles(props) {
             <Card>
               <CardContent sx={{ p: 2 }}>
                 <Typography variant="h6" component="h2" gutterBottom>
-                  <Box fontWeight="fontWeightRegular">Recent runs</Box>
+                  <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent runs</Box>
                 </Typography>
                 {recentLoading && (
                   <Box sx={{ textAlign: "center", mt: 1 }}>

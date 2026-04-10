@@ -90,8 +90,10 @@ export default function ActionCirculatingForm(props) {
             variant="outlined"
             disabled={false}
             onChange={handleDurationChange}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">s</InputAdornment>,
+            slotProps={{
+              input: {
+                endAdornment: <InputAdornment position="end">s</InputAdornment>,
+              },
             }}
           />
         </div>

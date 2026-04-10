@@ -184,7 +184,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
     <Card>
       <CardContent sx={{ '&:last-child': { pb: 0 } }}>
         <Typography variant="h6" component="h2">
-          <Box fontWeight="fontWeightRegular">Recent logs for {unit}</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent logs for {unit}</Box>
         </Typography>
         <TableContainer sx={{ height: '700px', width: '100%', overflowY: 'auto' }}>
           <Table stickyHeader size="small" aria-label="log table">

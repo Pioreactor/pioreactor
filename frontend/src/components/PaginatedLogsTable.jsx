@@ -265,7 +265,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
               </Table>
             </TableContainer>
           ) : showEmptyState ? (
-            <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" sx={{ minHeight: "350px", gap: 2, textAlign: "center" }}>
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "350px", gap: 2, textAlign: "center" }}>
               <Box component="img" src={emptyStateIllustration} alt="No logs illustration" sx={{ maxWidth: "350px", width: "100%", opacity: 0.8 }} />
               <Box sx={{ color: "#5f6a7d", fontSize: "14px" }}>
                 No logs yet. They will appear here once your Pioreactor starts reporting activity.
@@ -274,7 +274,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           ) : (
             <Box sx={{ minHeight: "350px" }} />
           )}
-          <Box display="flex" justifyContent="space-between" mt={2}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
             <Box sx={{width: 300}}/>
             <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } style={{textTransform: 'none'}}>
               {loading ? "Loading..." : "More"}

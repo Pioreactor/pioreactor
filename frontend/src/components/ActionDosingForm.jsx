@@ -122,13 +122,15 @@ export default function ActionPumpForm(props) {
               onChange={(e) => handleNumericChange(e, setML, setFormErrorML)}
               disabled={!isVolumeMode}
               sx={actionTextField}
-              inputProps={{
-                min: 0,
-                step: 1,
-                ...(hardRemainingMl != null ? { max: Math.max(hardRemainingMl, 0) } : {}),
-              }}
-              InputProps={{
-                endAdornment: <InputAdornment position="end">mL</InputAdornment>,
+              slotProps={{
+                htmlInput: {
+                  min: 0,
+                  step: 1,
+                  ...(hardRemainingMl != null ? { max: Math.max(hardRemainingMl, 0) } : {}),
+                },
+                input: {
+                  endAdornment: <InputAdornment position="end">mL</InputAdornment>,
+                },
               }}
             />
           </div>
@@ -146,10 +148,12 @@ export default function ActionPumpForm(props) {
               disabled={!isDurationMode}
               onChange={(e) => handleNumericChange(e, setDuration, setFormErrorDuration)}
               sx={actionTextField}
-              InputProps={{
-                endAdornment: <InputAdornment position="end">s</InputAdornment>,
+              slotProps={{
+                input: {
+                  endAdornment: <InputAdornment position="end">s</InputAdornment>,
+                },
               }}
-            />
+              />
           </div>
           <FormControlLabel value="continuously" control={<Radio />} label="Run continuously" />
         </RadioGroup>

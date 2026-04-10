@@ -296,7 +296,7 @@ function ExperimentsContainer(props) {
     <React.Fragment>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, gap: 2, flexWrap: "wrap" }}>
         <Typography variant="h5" component="h1">
-          <Box fontWeight="fontWeightBold">Experiments</Box>
+          <Box sx={{ fontWeight: "fontWeightBold" }}>Experiments</Box>
         </Typography>
         <Button
           variant="text"
@@ -310,7 +310,7 @@ function ExperimentsContainer(props) {
 
       <Card sx={{ mb: 2 }}>
         <Box sx={{ p: 2 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} useFlexGap flexWrap="wrap">
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} useFlexGap sx={{ flexWrap: "wrap" }}>
             <TextField
               size="small"
               label="Search experiments"
@@ -404,7 +404,7 @@ function ExperimentsContainer(props) {
                         >
                           {experiment.description || "No description"}
                         </Typography>
-                        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                        <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: "wrap" }}>
                           {visibleTags.map((tag) => (
                             <Chip key={`${experiment.experiment}-${tag}`} label={tag} size="small" variant="outlined" />
                           ))}

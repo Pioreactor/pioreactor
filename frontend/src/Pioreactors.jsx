@@ -45,7 +45,7 @@ import Button from "@mui/material/Button";
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import FlareIcon from '@mui/icons-material/Flare';
 import EstimatorIcon from "./components/EstimatorIcon"
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -202,7 +202,7 @@ function StateTypography({ state, isDisabled=false, isInteractive=false }) {
   };
 
   return (
-    <Typography display="block" gutterBottom sx={style}>
+    <Typography gutterBottom sx={{ ...style, display: "block" }}>
       {stateInfo.display}
     </Typography>
   );
@@ -897,7 +897,7 @@ function PioreactorHeader({experiment, config, units}) {
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h1">
-          <Box fontWeight="fontWeightBold">
+          <Box sx={{ fontWeight: "fontWeightBold" }}>
             Pioreactors
           </Box>
         </Typography>
@@ -1621,9 +1621,11 @@ function SettingsActionsDialog({
     <Button style={{textTransform: 'none', float: "right" }} disabled={disabled} onClick={handleClickOpen} color="primary">
       <SettingsIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
-    <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
-      sx: {
-        height: "calc(100% - 64px)"
+    <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} slotProps={{
+      paper: {
+        sx: {
+          height: "calc(100% - 64px)"
+        }
       }
     }}>
       <DialogTitle>
@@ -1668,7 +1670,7 @@ function SettingsActionsDialog({
             .map(([job_key, job]) =>
             <div key={job_key}>
               <div style={{justifyContent: "space-between", display: "flex"}}>
-                <Typography display="block">
+                <Typography sx={{ display: "block" }}>
                   {job.metadata.display_name}
                   {(job.metadata.display_name === "Optical density" && isXrModel) ? (
                     <Chip
@@ -1681,7 +1683,7 @@ function SettingsActionsDialog({
                 </Typography>
                 <StateTypography state={job.state}/>
               </div>
-              <Typography variant="caption" display="block" gutterBottom color="textSecondary">
+              <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
                 {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
               </Typography>
               <Typography variant="body2" component="div" gutterBottom>
@@ -1701,7 +1703,7 @@ function SettingsActionsDialog({
           {temperatureControlJob &&
           <React.Fragment>
             <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
+              <Typography sx={{ display: "block" }}>
                 Temperature automation
               </Typography>
               <StateTypography state={temperatureControlJob.state}/>
@@ -1770,7 +1772,7 @@ function SettingsActionsDialog({
           {dosingControlJob &&
           <React.Fragment>
             <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
+              <Typography sx={{ display: "block" }}>
                 Dosing automation
               </Typography>
               <StateTypography state={dosingControlJob.state}/>
@@ -1846,7 +1848,7 @@ function SettingsActionsDialog({
           {ledControlJob &&
           <React.Fragment>
             <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
+              <Typography sx={{ display: "block" }}>
                 LED automation
               </Typography>
               <StateTypography state={ledControlJob.state}/>
@@ -2630,9 +2632,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
       <SettingsIcon fontSize="small" sx={textIcon}/> Control all Pioreactors
     </Button>
-    <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
-      sx: {
-        height: "calc(100% - 64px)"
+    <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{
+      paper: {
+        sx: {
+          height: "calc(100% - 64px)"
+        }
       }
     }}>
       <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
@@ -2692,7 +2696,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
           {temperatureControlJob &&
           <React.Fragment>
             <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
+                <Typography sx={{ display: "block" }}>
                 Temperature automation
               </Typography>
             </div>
@@ -2722,7 +2726,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
           {dosingControlJob &&
           <React.Fragment>
             <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
+              <Typography sx={{ display: "block" }}>
                 Dosing automation
               </Typography>
             </div>
@@ -2754,7 +2758,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
           {ledControlJob &&
           <React.Fragment>
             <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
+              <Typography sx={{ display: "block" }}>
                 LED automation
               </Typography>
             </div>
@@ -3067,9 +3071,11 @@ function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, s
           autoComplete="off"
           disabled={disabled}
           value={value}
-          InputProps={{
-            endAdornment: <InputAdornment position="end">{units}</InputAdornment>,
-            autoComplete: 'new-password',
+          slotProps={{
+            input: {
+              endAdornment: <InputAdornment position="end">{units}</InputAdornment>,
+              autoComplete: 'new-password',
+            },
           }}
           variant="outlined"
           onChange={onChange}
@@ -3201,14 +3207,16 @@ function SettingNumericField({ value: initialValue, units, min, max, onUpdate, s
         disabled={disabled}
         value={value}
         error={error}
-        InputProps={{
-          endAdornment: <InputAdornment position="end">{units}</InputAdornment>,
-          autoComplete: 'new-password',
-        }}
-        inputProps={{
-          min,
-          max,
-          step: (min===0 && max===1) ? 0.01 : null
+        slotProps={{
+          input: {
+            endAdornment: <InputAdornment position="end">{units}</InputAdornment>,
+            autoComplete: 'new-password',
+          },
+          htmlInput: {
+            min,
+            max,
+            step: (min===0 && max===1) ? 0.01 : null
+          }
         }}
         variant="outlined"
         onChange={onChange}
@@ -3251,7 +3259,7 @@ function ActiveUnits({experiment, sharedConfig, unitConfigs, units, availableMod
     <React.Fragment>
       <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
         <Typography variant="h5" component="h2">
-          <Box fontWeight="fontWeightRegular">
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>
             Active Pioreactors
           </Box>
         </Typography>
@@ -3765,7 +3773,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2" component={'span'}>
-            <Box fontWeight="fontWeightBold" sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
+            <Box sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
               Activities:
             </Box>
           </Typography>
@@ -3844,7 +3852,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2" component={'span'}>
-            <Box fontWeight="fontWeightBold" sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
+            <Box sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
               Settings:
             </Box>
           </Typography>
@@ -4006,7 +4014,7 @@ function InactiveUnits({ units, sharedConfig, unitConfigs, experiment, available
   <React.Fragment>
     <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
       <Typography variant="h5" component="h2">
-        <Box fontWeight="fontWeightRegular">
+        <Box sx={{ fontWeight: "fontWeightRegular" }}>
           Inactive Pioreactors
         </Box>
       </Typography>
