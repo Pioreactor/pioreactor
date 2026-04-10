@@ -38,7 +38,7 @@ import Button from "@mui/material/Button";
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FlareIcon from '@mui/icons-material/Flare';
@@ -1246,7 +1246,7 @@ function SettingsActionsDialog(props) {
       return <CheckIcon sx={{color: readyGreen}} />;
     }
     if (settingValue === false) {
-      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+      return <ErrorOutlineOutlinedIcon sx={{color: lostRed}} />;
     }
     if (isSelfTestRunningState(selfTestResult?.state)) {
       return <CircularProgress size={18} />;
@@ -1260,7 +1260,7 @@ function SettingsActionsDialog(props) {
       return <CheckIcon sx={{color: readyGreen}} />;
     }
     if (overallStatus === false) {
-      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+      return <ErrorOutlineOutlinedIcon sx={{color: lostRed}} />;
     }
     if (isSelfTestRunningState(selfTestResult?.state)) {
       return <CircularProgress size={18} />;

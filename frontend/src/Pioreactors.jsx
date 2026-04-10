@@ -45,7 +45,7 @@ import Button from "@mui/material/Button";
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import FlareIcon from '@mui/icons-material/Flare';
 import EstimatorIcon from "./components/EstimatorIcon"
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -1557,7 +1557,7 @@ function SettingsActionsDialog({
       return <CheckIcon sx={{color: readyGreen}} />;
     }
     if (settingValue === false) {
-      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+      return <ErrorOutlineOutlinedIcon sx={{color: lostRed}} />;
     }
     if (isSelfTestRunningState(selfTestResult?.state)) {
       return <CircularProgress size={18} />;
@@ -1571,7 +1571,7 @@ function SettingsActionsDialog({
       return <CheckIcon sx={{color: readyGreen}} />;
     }
     if (overallStatus === false) {
-      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+      return <ErrorOutlineOutlinedIcon sx={{color: lostRed}} />;
     }
     if (isSelfTestRunningState(selfTestResult?.state)) {
       return <CircularProgress size={18} />;
@@ -2561,7 +2561,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
       return <CheckIcon sx={{color: readyGreen}} />;
     }
     if (settingValue === false) {
-      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+      return <ErrorOutlineOutlinedIcon sx={{color: lostRed}} />;
     }
     if (isSelfTestRunningState(unitState?.state)) {
       return <CircularProgress size={18} />;
@@ -2595,7 +2595,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
       return <CheckIcon sx={{color: readyGreen}} />;
     }
     if (overallStatus === false) {
-      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+      return <ErrorOutlineOutlinedIcon sx={{color: lostRed}} />;
     }
     if (isSelfTestRunningState(unitState?.state)) {
       return <CircularProgress size={18} />;
