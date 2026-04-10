@@ -5,6 +5,7 @@ import json
 import logging
 import signal
 import sys
+import threading
 import time
 import types
 import weakref
@@ -302,6 +303,9 @@ def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.Monke
     exp = "test_cleanup_unlocks_even_if_stop_raises_pwm_error"
     unit = get_unit_name()
 
+    with local_intermittent_storage("pwm_locks") as cache:
+        cache.pop(17, None)
+
     pwm = PWM(17, 10, experiment=exp, unit=unit)
     pwm.lock()
     pwm.start(20)
@@ -310,6 +314,42 @@ def test_cleanup_unlocks_even_if_stop_raises_pwm_error(monkeypatch: pytest.Monke
 
     with pytest.raises(PWMError, match="Failed to set software PWM"):
         pwm.clean_up()
+
+    with local_intermittent_storage("pwm_locks") as cache:
+        assert 17 not in cache
+
+
+def test_cleanup_from_non_main_thread_unlocks_pwm(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = _install_fake_lgpio(monkeypatch)
+    monkeypatch.setattr(pwm_module, "is_testing_env", lambda: False)
+    exp = "test_cleanup_from_non_main_thread_unlocks_pwm"
+    unit = get_unit_name()
+
+    with local_intermittent_storage("pwm_locks") as cache:
+        cache.pop(17, None)
+
+    pwm = PWM(17, 10, experiment=exp, unit=unit)
+    pwm.lock()
+    pwm.start(20)
+
+    cleanup_errors: list[Exception] = []
+
+    def clean_up_pwm() -> None:
+        try:
+            pwm.clean_up()
+        except Exception as error:
+            cleanup_errors.append(error)
+
+    thread = threading.Thread(target=clean_up_pwm)
+    thread.start()
+    thread.join()
+
+    assert cleanup_errors == []
+    assert pwm._is_cleaned_up is True
+
+    tx_calls = state["tx_calls"]
+    assert isinstance(tx_calls, list)
+    assert tx_calls[-1] == 0.0
 
     with local_intermittent_storage("pwm_locks") as cache:
         assert 17 not in cache
