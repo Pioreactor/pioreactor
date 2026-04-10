@@ -82,7 +82,6 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
         )
 
 
-@cache
 def is_active(unit_name: "pt.Unit") -> bool:
     return _is_active(unit_name)
 
@@ -109,12 +108,10 @@ def _is_active(unit_name: "pt.Unit") -> bool:
         raise e
 
 
-@cache
 def is_testing_env() -> bool:
     return ("pytest" in sys.modules) or (os.environ.get("TESTING", "") == "1")
 
 
-@cache
 def get_hostname() -> str:
     import socket
 
@@ -128,7 +125,6 @@ def get_hostname() -> str:
         return socket.gethostname()
 
 
-@cache
 def get_unit_name() -> "pt.Unit":
     hostname = get_hostname()
 
@@ -166,7 +162,6 @@ def am_I_a_worker() -> bool:
             raise e
 
 
-@cache
 def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
     """
     Return the Pioreactor model for a specific unit. Defaults to the local unit.
