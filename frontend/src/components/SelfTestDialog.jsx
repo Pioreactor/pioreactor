@@ -2,7 +2,7 @@ import React, {useState} from "react";
 import { styled } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
 import Box from '@mui/material/Box';
@@ -54,7 +54,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
       return <CheckIcon sx={{color: readyGreen}}/>
     }
     else if (selfTestTests.publishedSettings[key]?.value === false){
-      return <ErrorOutlineIcon sx={{color: lostRed}}/>
+      return <ErrorOutlineOutlinedIcon sx={{color: lostRed}}/>
     }
     else if (state === "ready") {
       return <CircularProgress size={20} />

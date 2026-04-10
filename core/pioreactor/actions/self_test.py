@@ -449,6 +449,7 @@ def test_dark_offset_correction_is_effective(
         adc_reader.tune_adc_with_ir_on()
         adc_reader.take_reading()
 
+    sleep(0.125)
     adc_reader.clear_batched_readings()
 
     for _ in range(8):
