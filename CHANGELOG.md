@@ -1,5 +1,9 @@
 ### 26.4.1
 
+ - hot fix release to fix PWM bug.
+
+### 26.4.0
+
 #### Breaking changes
 
 - Unit-specific configuration is now owned by each worker’s local `unit_config.ini`. The filename-based config editor APIs (`/api/config/files*`) have been removed; use `/api/config/shared`, `/api/config/units/<unit>/specific`, and `/api/config/units/<unit>` instead.
