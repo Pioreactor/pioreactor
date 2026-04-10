@@ -1469,7 +1469,7 @@ def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:
         tracker.update(v)
 
     assert abs(tracker.led_output_ema.get_latest() - 0.25) < 0.01
-    assert abs(tracker.led_output_emstd.get_latest() - 0.001) < 0.01
+    assert abs(tracker.led_output_noise_power_ema.get_latest() ** 0.5 - 0.001) < 0.01
 
     # normalize a value
     assert abs(tracker.transform(1.0) - 4.0) < 0.1
@@ -1483,7 +1483,7 @@ def test_PhotodiodeIrLedReferenceTrackerStaticInit_std_threshold_scales_with_int
     mocker,
 ) -> None:
     tracker = PhotodiodeIrLedReferenceTrackerStaticInit(channel="1", interval=1.25)
-    mocker.patch.object(tracker.led_output_emstd, "get_latest", return_value=0.015)
+    mocker.patch.object(tracker.led_output_noise_power_ema, "update", return_value=0.015**2)
     ema_update_spy = mocker.spy(tracker.led_output_ema, "update")
 
     tracker.update(1.0)
@@ -1527,7 +1527,7 @@ def test_PhotodiodeIrLedReferenceTrackerUnitInit_std_threshold_scales_with_inter
         interval=1.25,
     )
     tracker.initial_ref = 1.0
-    mocker.patch.object(tracker.led_output_emstd, "get_latest", return_value=0.015)
+    mocker.patch.object(tracker.led_output_noise_power_ema, "update", return_value=0.015**2)
     ema_update_spy = mocker.spy(tracker.led_output_ema, "update")
 
     tracker.update(1.0)

@@ -107,7 +107,6 @@ from pioreactor.utils import timing
 from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.od_fusion import compute_fused_od
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
-from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
 
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
@@ -734,28 +733,34 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         self.led_output_ema = ExponentialMovingAverage(
             config.getfloat("od_reading.config", "pd_reference_ema")
         )
-        self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8, initial_std_value=0.001)
+        self.led_output_noise_baseline_ema = ExponentialMovingAverage(alpha=0.8)
+        self.led_output_noise_power_ema = ExponentialMovingAverage(alpha=0.95)
+        self.led_output_noise_power_ema.update(0.001**2)
         self.channel = channel
 
     def update(self, ir_output_reading: pt.Voltage) -> bool:
-        # check if funky things are happening by std. banding
-        self.led_output_emstd.update(ir_output_reading / self.INITIAL)
+        relative_ir_output = ir_output_reading / self.INITIAL
 
         try:
-            latest_std = self.led_output_emstd.get_latest()
+            baseline = self.led_output_noise_baseline_ema.get_latest()
         except ValueError:
-            # can happen if there is only a single data points, and the variance can't be computed.
-            latest_std = 0.0
+            baseline = relative_ir_output
+
+        residual = relative_ir_output - baseline
+        latest_std = math.sqrt(self.led_output_noise_power_ema.update(residual**2))
+        self.led_output_noise_baseline_ema.update(relative_ir_output)
 
         if latest_std <= self.get_std_threshold():
             # only update if the std looks "okay""
-            self.led_output_ema.update(ir_output_reading / self.INITIAL)
+            self.led_output_ema.update(relative_ir_output)
             return True
         else:
             self.logger.warning(
                 f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} positioned correctly? Is the IR LED behaving as expected?"
             )
-            self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+            self.led_output_noise_baseline_ema.clear()
+            self.led_output_noise_power_ema.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+            self.led_output_noise_power_ema.update(0.001**2)
             return False
 
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
@@ -785,7 +790,9 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
         self.led_output_ema = ExponentialMovingAverage(
             config.getfloat("od_reading.config", "pd_reference_ema")
         )
-        self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8, initial_std_value=0.001)
+        self.led_output_noise_baseline_ema = ExponentialMovingAverage(alpha=0.8)
+        self.led_output_noise_power_ema = ExponentialMovingAverage(alpha=0.95)
+        self.led_output_noise_power_ema.update(0.001**2)
 
     def _get_cached_initial_ref(self) -> float | None:
         with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
@@ -805,14 +812,14 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
 
         relative_ref = ir_output_reading / self.initial_ref
 
-        # check if funky things are happening by std. banding
-        self.led_output_emstd.update(relative_ref)
-
         try:
-            latest_std = self.led_output_emstd.get_latest()
+            baseline = self.led_output_noise_baseline_ema.get_latest()
         except ValueError:
-            # can happen if there is only a single data points, and the variance can't be computed.
-            latest_std = 0.0
+            baseline = relative_ref
+
+        residual = relative_ref - baseline
+        latest_std = math.sqrt(self.led_output_noise_power_ema.update(residual**2))
+        self.led_output_noise_baseline_ema.update(relative_ref)
 
         if latest_std <= self.get_std_threshold():
             # only update if the std looks "okay""
@@ -822,7 +829,9 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
             self.logger.warning(
                 f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} positioned correctly? Is the IR LED behaving as expected?"
             )
-            self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+            self.led_output_noise_baseline_ema.clear()
+            self.led_output_noise_power_ema.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+            self.led_output_noise_power_ema.update(0.001**2)
             return False
 
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:

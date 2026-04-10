@@ -451,7 +451,7 @@ def test_dark_offset_correction_is_effective(
 
     adc_reader.clear_batched_readings()
 
-    for _ in range(4):
+    for _ in range(8):
         reading = adc_reader.take_reading()
         for pd_channel in pd_channels_available:
             corrected_dark_readings_by_channel[pd_channel].append(reading[pd_channel].reading)
