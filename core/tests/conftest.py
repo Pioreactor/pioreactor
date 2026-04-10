@@ -14,36 +14,29 @@ from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import to_datetime
 
 
-@pytest.fixture(autouse=True)
-def run_around_tests(request):
-
-    from pioreactor.utils.job_manager import JobManager
+def _clear_test_artifacts(test_name: str) -> None:
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
-
-    yield
-
-    # clean up any artifacts.
-    test_name = request.node.name
+    from pioreactor.utils.job_manager import JobManager
 
     with local_intermittent_storage("pwm_dc") as cache:
-        for key in cache.iterkeys():
+        for key in list(cache.iterkeys()):
             del cache[key]
 
     with local_intermittent_storage("led_locks") as cache:
-        for key in cache.iterkeys():
+        for key in list(cache.iterkeys()):
             del cache[key]
 
     with local_intermittent_storage("pwm_locks") as cache:
-        for key in cache.iterkeys():
+        for key in list(cache.iterkeys()):
             del cache[key]
 
     with local_intermittent_storage("leds") as cache:
-        for key in cache.iterkeys():
+        for key in list(cache.iterkeys()):
             del cache[key]
 
     with local_persistent_storage("active_calibrations") as cache:
-        for key in cache.iterkeys():
+        for key in list(cache.iterkeys()):
             del cache[key]
 
     with local_persistent_storage("media_throughput") as c:
@@ -66,6 +59,16 @@ def run_around_tests(request):
 
     with JobManager() as job_manager:
         job_manager.clear()
+
+
+@pytest.fixture(autouse=True)
+def run_around_tests(request):
+    test_name = request.node.name
+    _clear_test_artifacts(test_name)
+
+    yield
+
+    _clear_test_artifacts(test_name)
 
 
 @pytest.fixture()

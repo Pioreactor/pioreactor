@@ -162,6 +162,22 @@ def get_series_floor_version(version: str) -> str:
     return f"{yy}.{month}.0"
 
 
+def get_previous_series_floor_version(version: str) -> str:
+    yy, month, _, _ = parse_version(version)
+    if month == 1:
+        return f"{yy - 1}.12.0"
+    return f"{yy}.{month - 1}.0"
+
+
+def get_minimum_required_version_for_release(version: str) -> str:
+    _, _, release, suffix = parse_version(version)
+    if suffix:
+        raise ValueError(f"Expected a stable release version, got {version!r}")
+    if release == 0:
+        return get_previous_series_floor_version(version)
+    return get_series_floor_version(version)
+
+
 def get_existing_tag_versions() -> list[str]:
     output = subprocess.check_output(["git", "tag", "--list"], text=True)
     versions: list[str] = []
@@ -233,7 +249,7 @@ def ensure_changelog_top_matches(version: str, dry_run: bool) -> bool:
 def ensure_pre_update_script(version: str, dry_run: bool) -> bool:
     upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
     pre_update_path = upcoming / "pre_update.sh"
-    min_version = get_series_floor_version(version)
+    min_version = get_minimum_required_version_for_release(version)
     expected = PRE_UPDATE_TEMPLATE.format(min_version=min_version)
 
     if pre_update_path.exists():

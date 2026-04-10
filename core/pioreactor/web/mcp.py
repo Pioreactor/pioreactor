@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
+import os
 import sys
 from functools import wraps
+from pathlib import Path
 from time import sleep
 from typing import Any
 from typing import Callable
@@ -14,6 +17,7 @@ from flask import Blueprint
 from flask import jsonify
 from flask import request
 from flask import Response
+from flask import send_file
 from mcp_utils.core import MCPServer
 from mcp_utils.queue import SQLiteResponseQueue
 from pioreactor.config import get_leader_hostname
@@ -25,6 +29,7 @@ from pioreactor.pubsub import post_into_leader as _post_into_leader
 from pioreactor.pubsub import put_into_leader as _put_into_leader
 from pioreactor.web.app import query_app_db
 from pioreactor.web.plugin_registry import registered_mcp_tools
+from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -57,6 +62,61 @@ def wrap_result_as_dict(func: Callable[..., object]) -> Callable[..., dict[str, 
 
 
 mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=SQLiteResponseQueue(), instructions=INSTRUCTIONS)
+
+
+def _normalize_options(
+    options: dict[str, Any] | str | None, *, job_or_action: str | None = None
+) -> dict[str, Any]:
+    if options is None:
+        return {}
+
+    if isinstance(options, dict):
+        return options
+
+    if isinstance(options, str):
+        try:
+            parsed = json.loads(options)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"`options` for {job_or_action or 'this job'} must be a dict or a JSON object string. "
+                f'Example: {{"target-rpm": 500}}'
+            ) from exc
+
+        if not isinstance(parsed, dict):
+            raise ValueError(
+                f"`options` for {job_or_action or 'this job'} must decode to a JSON object. "
+                f'Example: {{"target-rpm": 500}}'
+            )
+
+        return cast(dict[str, Any], parsed)
+
+    raise ValueError(
+        f"`options` for {job_or_action or 'this job'} must be a dict or a JSON object string, "
+        f"got {type(options).__name__}."
+    )
+
+
+def _get_exports_dir() -> Path:
+    return Path(os.environ["RUN_PIOREACTOR"]) / "exports"
+
+
+def _build_export_artifact_response(filename: str) -> dict[str, Any]:
+    export_path = _get_exports_dir() / filename
+    artifact = {
+        "artifact_id": filename,
+        "filename": filename,
+        "mime_type": "application/zip",
+        "download_path": f"/mcp/artifacts/exports/{filename}",
+        "leader_local_path": export_path.as_posix(),
+    }
+    if export_path.exists():
+        artifact["size_bytes"] = export_path.stat().st_size  # type: ignore
+
+    return {
+        "result": True,
+        "artifact": artifact,
+        "msg": "Finished",
+    }
 
 
 def get_from_leader(endpoint: str) -> dict[str, Any]:
@@ -236,6 +296,72 @@ def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[di
     return condensed_caps
 
 
+def _summarize_capabilities(capabilities: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """
+    Return a slimmer, invocation-focused capability summary.
+
+    This intentionally drops verbose descriptor internals while keeping enough
+    information to understand what can be run and how.
+    """
+    summarized_caps: list[dict[str, Any]] = []
+
+    if capabilities is None:
+        return summarized_caps
+
+    for cap in capabilities:
+        entry: dict[str, Any] = {"job_name": cap["job_name"]}
+
+        if cap.get("automation_name"):
+            entry["automation_name"] = cap["automation_name"]
+
+        if cap.get("help"):
+            entry["help"] = cap["help"]
+
+        arguments = []
+        for arg in cap.get("arguments", []):
+            argument_entry = {"name": arg["name"]}
+            if arg.get("required"):
+                argument_entry["required"] = arg["required"]
+            if arg.get("type"):
+                argument_entry["type"] = arg["type"]
+            arguments.append(argument_entry)
+        if arguments:
+            entry["arguments"] = arguments
+
+        options = []
+        for opt in cap.get("options", []):
+            option_entry = {"name": opt["long_flag"]}
+            if opt.get("required"):
+                option_entry["required"] = opt["required"]
+            if opt.get("type"):
+                option_entry["type"] = opt["type"]
+            if opt.get("default") is not None:
+                option_entry["default"] = opt["default"]
+            options.append(option_entry)
+        if options:
+            entry["options"] = options
+
+        published_settings = []
+        for setting_name, setting_meta in cap.get("published_settings", {}).items():
+            setting_entry = {"name": setting_name}
+            if setting_meta.get("settable") is not None:
+                setting_entry["settable"] = setting_meta["settable"]
+            if setting_meta.get("datatype"):
+                setting_entry["datatype"] = setting_meta["datatype"]
+            if setting_meta.get("unit"):
+                setting_entry["unit"] = setting_meta["unit"]
+            published_settings.append(setting_entry)
+        if published_settings:
+            entry["published_settings"] = published_settings
+
+        if cap.get("cli_example"):
+            entry["cli_example"] = cap["cli_example"]
+
+        summarized_caps.append(entry)
+
+    return summarized_caps
+
+
 @mcp.tool()
 @wrap_result_as_dict
 def get_pioreactor_unit_capabilties(pioreactor_unit: str, condensed: bool = False) -> dict[str, Any]:
@@ -244,11 +370,14 @@ def get_pioreactor_unit_capabilties(pioreactor_unit: str, condensed: bool = Fals
 
     If condensed is True, return a summary of each capability including only
     the job name, automation name (if any), and lists of argument and option names.
+    Otherwise, return a slimmer invocation-focused summary instead of the raw verbose descriptors.
     """
     caps = cast(
         dict[str, list[dict[str, Any]]], get_from_leader(f"/api/units/{pioreactor_unit}/capabilities")
     )
-    return caps if not condensed else {unit_: _condense_capabilities(caps_) for unit_, caps_ in caps.items()}
+    if condensed:
+        return {unit_: _condense_capabilities(caps_) for unit_, caps_ in caps.items()}
+    return {unit_: _summarize_capabilities(caps_) for unit_, caps_ in caps.items()}
 
 
 @mcp.tool()
@@ -256,7 +385,7 @@ def run_job_or_action_on_pioreactor_unit(
     pioreactor_unit: str,
     job_or_action: str,
     experiment: str,
-    options: Dict[str, Any] | None = None,
+    options: Dict[str, Any] | str | None = None,
     arguments: List[str] | None = None,
 ) -> dict[str, Any]:
     """
@@ -268,11 +397,11 @@ def run_job_or_action_on_pioreactor_unit(
         pioreactor_unit: target unit name (or "$broadcast" to address all units assigned to the experiment).
         job_or_action: name of the job to run. See `get_unit_capabilties` for all jobs and moreHo .
         experiment: experiment identifier under which to launch the job.
-        options: dict of job-specific options, flags, or selectors for the job entry-point. You probably want to use this over args.
+        options: dict of job-specific options, flags, or selectors for the job entry-point. You can also provide a JSON object string.
         args: list of required positional arguments for the job entry-point.
     """
     payload = {
-        "options": options or {},
+        "options": _normalize_options(options, job_or_action=job_or_action),
         "args": arguments or [],
         "env": {"JOB_SOURCE": "mcp"},
         "config_overrides": [],
@@ -281,6 +410,40 @@ def run_job_or_action_on_pioreactor_unit(
         f"/api/workers/{pioreactor_unit}/jobs/run/job_name/{job_or_action}/experiments/{experiment}",
         json=payload,
     )
+
+
+@mcp.tool()
+def export_experiment_data(
+    experiments: list[str],
+    dataset_names: list[str],
+    partition_by_unit: bool = False,
+    partition_by_experiment: bool = True,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> dict[str, Any]:
+    """
+    Export datasets from the leader database and return a retrievable artifact handle.
+
+    The returned `download_path` can be fetched from this MCP server, and `leader_local_path`
+    points to where the file was written on the leader.
+    """
+    response = post_into_leader(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": dataset_names,
+            "experiments": experiments,
+            "partition_by_unit": partition_by_unit,
+            "partition_by_experiment": partition_by_experiment,
+            "start_time": start_time,
+            "end_time": end_time,
+        },
+    )
+
+    filename = response.get("filename")
+    if not isinstance(filename, str) or not filename:
+        raise ValueError("Export completed but the API did not return a valid filename.")
+
+    return _build_export_artifact_response(filename)
 
 
 @mcp.tool()
@@ -461,3 +624,20 @@ def handle_mcp() -> Response:
         return jsonify(msgspec.to_builtins(result))
     else:
         return Response(status=202)
+
+
+@mcp_bp.get("/artifacts/exports/<filename>")
+def get_export_artifact(filename: str) -> Response:
+    safe_filename = Path(filename).name
+    if (
+        safe_filename != filename
+        or not is_valid_unix_filename(safe_filename)
+        or not safe_filename.endswith(".zip")
+    ):
+        return Response("Invalid artifact filename.", status=400)
+
+    export_path = (_get_exports_dir() / safe_filename).resolve()
+    if not export_path.exists():
+        return Response("Artifact not found.", status=404)
+
+    return send_file(export_path, mimetype="application/zip", as_attachment=True)
