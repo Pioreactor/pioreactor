@@ -394,6 +394,9 @@ class PWM:
             atexit.unregister(self._exit)
             self._registered_atexit_handler = False
 
+        if threading.current_thread() is not threading.main_thread():
+            return
+
         if self._registered_signal_handlers:
             remove_signal_handlers(signal.SIGTERM, [self._exit])
             remove_signal_handlers(signal.SIGINT, [self._exit])
@@ -416,12 +419,12 @@ class PWM:
             try:
                 self._pwm.close()
             finally:
-                self._remove_exit_protocol()
                 self.unlock()
 
                 with local_intermittent_storage("pwm_dc") as cache:
                     cache.pop(self.pin, None)
 
+                self._remove_exit_protocol()
                 self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 
                 if not self._external_client:
