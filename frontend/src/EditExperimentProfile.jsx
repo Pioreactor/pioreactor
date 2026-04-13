@@ -25,6 +25,36 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
+const formatProfileSaveError = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return "Failed to save profile";
+  }
+
+  const messages = [];
+
+  if (typeof payload.error === "string" && payload.error.trim()) {
+    messages.push(payload.error.trim());
+  }
+
+  if (Array.isArray(payload.diagnostics) && payload.diagnostics.length > 0) {
+    const diagnostic =
+      payload.diagnostics.find((entry) => entry?.severity === "error") ?? payload.diagnostics[0];
+    if (diagnostic && typeof diagnostic.message === "string" && diagnostic.message.trim()) {
+      if (typeof diagnostic.path === "string" && diagnostic.path.trim()) {
+        messages.push(`${diagnostic.message.trim()} (${diagnostic.path.trim()})`);
+      } else {
+        messages.push(diagnostic.message.trim());
+      }
+    }
+  }
+
+  if (typeof payload.cause === "string" && payload.cause.trim() && !messages.includes(payload.cause.trim())) {
+    messages.push(payload.cause.trim());
+  }
+
+  return messages.join(" ") || "Failed to save profile";
+};
+
 export const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
   const [code, setCode] = useState(initialCode);
   const [parsedCode, setParsedCode] = useState(() => convertYamlToProfilePreview(initialCode));
@@ -62,7 +92,7 @@ export const EditExperimentProfilesContent = ({ initialCode, profileFilename }) 
       .then(res => {
         if (!res.ok) {
           return res.json().then(parsedJson => {
-            throw new Error(parsedJson.error || 'Failed to save profile');
+            throw new Error(formatProfileSaveError(parsedJson));
           });
         }
         setIsChanged(false);

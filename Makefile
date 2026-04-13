@@ -108,11 +108,17 @@ web-test: venv  ## API (Flask) tests only
 frontend-test: frontend-install  ## Frontend tests only
 	cd $(NODE_DIR) && CI=true npm test -- --watchAll=false
 
+frontend-lint: frontend-install  ## Frontend eslint
+	cd $(NODE_DIR) && npm run --silent lint
+
+frontend-lint-fix: frontend-install  ## Frontend eslint with autofix
+	cd $(NODE_DIR) && npm run --silent lint:fix
+
 # --- build --------------------------------------------------------------------
 wheel: venv  ## Build core wheel (stage 1 artifact)
 	cd $(CORE_DIR) && $(ACTIVATE) && python -m build
 
-frontend-build:
+frontend-build: frontend-lint-fix
 	cd $(NODE_DIR) && npm run --silent  build
 	git add core/pioreactor/web/static/
 

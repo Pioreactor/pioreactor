@@ -53,6 +53,26 @@ ALWAYS use the project virtualenv for any Python, mypy, or pytest commands.
 
 We use Python 3.13.
 
+## Environment model
+
+This repo's local development behavior depends heavily on environment variables. Many bugs that look like code regressions are actually the process reading from the wrong environment root or using the wrong interpreter.
+
+Common variables you should assume are meaningful:
+
+- `TESTING=1`
+- `GLOBAL_CONFIG`
+- `DOT_PIOREACTOR`
+- `RUN_PIOREACTOR`
+- `PLUGINS_DEV`
+- `PIO_EXECUTABLE`
+- `PIOS_EXECUTABLE`
+
+These are likely defined in the local `.envrc` file.
+
+Do not assume bare `python`, `pytest`, or `mypy` point at the correct interpreter. Prefer `.venv/bin/python`, `.venv/bin/pytest`, and `.venv/bin/mypy`.
+
+`DOT_PIOREACTOR` is the effective data root for much of the application. When debugging filesystem, calibration, profile, plugin, backup/restore, or config issues, confirm which `DOT_PIOREACTOR` root the process is using before changing code.
+
 **Startup order (recommended):**
 
 0. Before starting anything, run `make dev-status` to see whether the Huey consumer, Flask API (4999), or frontend dev server (3000) are already up. Only launch what's listed under "Need to start".
@@ -164,6 +184,65 @@ We run GitHub Actions for CI, located in `.github/workflows/ci.yaml`.
 - `.pioreactor/storage/` holds the main database, backups, and caches.
 - `.pioreactor/storage/calibrations/` stores calibration data.
 - `.pioreactor/storage/estimators/` stores estimator data.
+
+Many of the paths above are resolved in practice from `DOT_PIOREACTOR`, not from the git checkout layout. Expect config files, calibrations, experiment profiles, models, exportable datasets, and many plugin/UI extension paths to be rooted there.
+
+---
+
+## Web architecture: where fixes usually belong
+
+For web and cluster-control changes, decide which ownership boundary is correct before editing:
+
+- `core/pioreactor/web/api.py` owns leader-facing routes, cluster orchestration, and most frontend-facing endpoints.
+- `core/pioreactor/web/unit_api.py` owns per-unit routes and unit-local mutations, including many filesystem and calibration operations.
+- `core/pioreactor/web/tasks.py` owns Huey tasks, async execution, and wrappers around `pio` / `pios` commands.
+- `core/pioreactor/web/fanout.py` owns leader-side broadcast helpers across workers.
+- `core/pioreactor/web/cache.py` owns short-TTL leader-side caching for fan-out reads.
+
+A common mistake is patching `api.py` when the real behavior belongs in `unit_api.py` or in the Huey task layer.
+
+Some leader `/api` read endpoints fan out to worker `/unit_api` routes and may use a short-TTL leader-side cache. When adding or changing cluster-wide reads:
+
+- prefer existing cached fan-out helpers when the response can tolerate brief staleness
+- keep cached payloads close to the uncached worker payload shape
+- add explicit invalidation on successful writes
+- avoid caching highly volatile or write-heavy paths
+
+---
+
+## Calibration subsystem
+
+Calibrations are a first-class subsystem, not just YAML files on disk.
+
+Important files and areas:
+
+- `core/pioreactor/calibrations/structured_session.py`
+- `core/pioreactor/calibrations/session_flow.py`
+- `core/pioreactor/web/unit_calibration_sessions_api.py`
+- related calibration tests under `core/tests/` and `core/tests/web/`
+
+Calibration changes often span several layers at once:
+
+- storage format and YAML serialization
+- protocol registration
+- session-flow and step-transition logic
+- CLI behavior
+- unit API endpoints
+- frontend dialogs and charts
+
+When editing calibration behavior, expect to verify both backend tests and the UI/API contract.
+
+---
+
+## Plugin development
+
+In local development, plugin behavior may come from `PLUGINS_DEV` rather than only from installed plugins under `~/.pioreactor/plugins`.
+
+When working on plugins:
+
+- confirm whether the environment is running with `TESTING=1`
+- verify which plugin directory is actually being scanned
+- remember plugins may register background jobs, automations, API routes, and UI extensions
 
 ---
 

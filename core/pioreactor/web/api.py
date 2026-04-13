@@ -30,6 +30,7 @@ from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
+from pioreactor.experiment_profiles.validate import validate_profile
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
@@ -3153,11 +3154,23 @@ def create_experiment_profile() -> ResponseReturnValue:
 
     # verify content
     try:
-        yaml_decode(experiment_profile_body, type=Profile)
+        profile = yaml_decode(experiment_profile_body, type=Profile)
     except Exception as e:
         msg = f"{e}"
         # publish_to_error_log(msg, "create_experiment_profile")
         return abort_with(400, msg)
+
+    validation = validate_profile(profile)
+    if not validation.ok:
+        return (
+            jsonify(
+                {
+                    "error": "Profile validation failed.",
+                    "diagnostics": to_builtins(validation.diagnostics),
+                }
+            ),
+            400,
+        )
 
     # verify file
     try:
@@ -3197,10 +3210,22 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
 
     # verify content
     try:
-        yaml_decode(experiment_profile_body, type=Profile)
+        profile = yaml_decode(experiment_profile_body, type=Profile)
     except Exception as e:
         # publish_to_error_log(msg, "create_experiment_profile")
         abort_with(400, str(e))
+
+    validation = validate_profile(profile)
+    if not validation.ok:
+        return (
+            jsonify(
+                {
+                    "error": "Profile validation failed.",
+                    "diagnostics": to_builtins(validation.diagnostics),
+                }
+            ),
+            400,
+        )
 
     # verify file - user could have provided a different filename so we still check this.
     try:

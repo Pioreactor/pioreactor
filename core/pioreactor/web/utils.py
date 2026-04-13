@@ -17,6 +17,7 @@ from msgspec import to_builtins
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
+from pioreactor.experiment_profiles.validate import Diagnostic
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
 
@@ -26,6 +27,7 @@ class UnitApiErrorPayload(Struct, omit_defaults=True):
     status: int
     cause: str | None = None
     remediation: str | None = None
+    diagnostics: list[Diagnostic] | None = None
 
 
 def abort_with(
@@ -59,12 +61,15 @@ def ensure_error_info(payload: dict[str, t.Any], status: int) -> UnitApiErrorPay
     normalized_remediation = (
         remediation.strip() if isinstance(remediation, str) and remediation.strip() else None
     )
+    diagnostics = payload.get("diagnostics")
+    normalized_diagnostics = diagnostics if isinstance(diagnostics, list) else None
 
     normalized_payload = UnitApiErrorPayload(
         status=status,
         error=message,
         cause=normalized_cause,
         remediation=normalized_remediation,
+        diagnostics=normalized_diagnostics,
     )
 
     return normalized_payload

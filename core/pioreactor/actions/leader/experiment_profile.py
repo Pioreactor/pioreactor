@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import random
 import time
-from collections import defaultdict
 from pathlib import Path
 from sched import scheduler
 from time import perf_counter
@@ -15,6 +14,11 @@ from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.experiment_profiles.validate import (
+    check_syntax_of_bool_expression as validate_check_syntax_of_bool_expression,
+)
+from pioreactor.experiment_profiles.validate import time_to_seconds as validate_time_to_seconds
+from pioreactor.experiment_profiles.validate import validate_profile
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
@@ -22,7 +26,6 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import post_into_leader
-from pioreactor.structs import subclass_union
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import resolve_to_address
@@ -133,29 +136,7 @@ def evaluate_bool_expression(bool_expression: BoolExpression, env: Env) -> bool:
 
 
 def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | None:
-    from pioreactor.experiment_profiles.parser import check_syntax
-
-    if isinstance(bool_expression, bool):
-        return None
-
-    if is_bracketed_expression(bool_expression):
-        bool_expression = strip_expression_brackets(bool_expression)
-
-    import re
-
-    # Detect quoted strings early to provide a clearer error.
-    quoted_matches = re.findall(r'"[^"]*"|\'[^\']*\'', bool_expression)
-    if quoted_matches:
-        return (
-            "Quoted string literals are not supported in profile expressions. " f"Found {quoted_matches[0]}."
-        )
-
-    # TODO: in a common expressions, users can use ::word:work which is technically not valid syntax. For checking, we replace with garbage
-    bool_expression = bool_expression.replace("::", "dummy:", 1)
-
-    if check_syntax(bool_expression):
-        return None
-    return "Syntax error in expression."
+    return validate_check_syntax_of_bool_expression(bool_expression)
 
 
 def check_if_job_running(unit: pt.Unit, job: str) -> bool:
@@ -829,57 +810,7 @@ def update_job(
 
 
 def time_to_seconds(value: float | int | str) -> float:
-    """
-    Convert a time literal into seconds.
-
-    Supported forms:
-        - float/int: interpreted as hours
-        - "10s", "15m", "1.5h", "2d" (case-insensitive)
-
-    Returns:
-        float seconds
-
-    Raises:
-        ValueError on invalid format.
-    """
-
-    if isinstance(value, (float, int)):
-        return hours_to_seconds(value)
-
-    if not isinstance(value, str):
-        raise ValueError(f"Invalid time literal type: {type(value)}")
-
-    s = value.strip().lower()
-
-    # Avoid things like "1 h" or "1minute"
-    import re
-
-    # pattern: FLOAT + UNIT
-    m = re.fullmatch(r"([0-9]*\.?[0-9]+)([smhd])", s)
-    if not m:
-        raise ValueError(
-            f"Invalid time literal '{value}'. "
-            "Expected float hours or string like '10s', '15m', '1.5h', '2d'."
-        )
-
-    number = float(m.group(1))
-    unit = m.group(2)
-
-    if number < 0:
-        raise ValueError(f"Time value cannot be negative: {value}")
-
-    # --- 3. Unit conversion ---
-    if unit == "s":
-        return number
-    elif unit == "m":
-        return number * 60.0
-    elif unit == "h":
-        return number * 3600.0
-    elif unit == "d":
-        return number * 86400.0
-
-    # Unreachable with regex, but keep for safety
-    raise ValueError(f"Unhandled time unit '{unit}' in literal '{value}'.")
+    return validate_time_to_seconds(value)
 
 
 def hours_to_seconds(hours: float) -> float:
@@ -891,41 +822,10 @@ def seconds_to_hours(seconds: float) -> float:
 
 
 def _verify_experiment_profile(profile: struct.Profile) -> bool:
-    # things to check for:
-    # 1. check syntax of if statements
-
-    actions_per_job = defaultdict(list)
-
-    for unit in profile.pioreactors.values():
-        for job in unit.jobs.keys():
-            for action in unit.jobs[job].actions:
-                actions_per_job[job].append(action)
-                if isinstance(action, subclass_union(struct._ContainerAction)):  # repeat, when
-                    actions_per_job[f"{job}.{action}"].extend(action.actions)
-
-    for job in profile.common.jobs.keys():
-        for action in profile.common.jobs[job].actions:
-            actions_per_job[job].append(action)
-            if isinstance(action, subclass_union(struct._ContainerAction)):  # repeat, when
-                actions_per_job[f"{job}.{action}"].extend(action.actions)
-
-    for job in actions_per_job:
-        for action in actions_per_job[job]:
-            if hasattr(action, "if_") and action.if_:
-                error = check_syntax_of_bool_expression(action.if_)
-                if error:
-                    raise SyntaxError(f"{error} In {job}.{action}: `{action.if_}`")
-
-            if hasattr(action, "condition_") and action.condition_:
-                error = check_syntax_of_bool_expression(action.condition_)
-                if error:
-                    raise SyntaxError(f"{error} In {job}.{action}: `{action.condition_}`")
-
-            if hasattr(action, "while_") and action.while_:
-                error = check_syntax_of_bool_expression(action.while_)
-                if error:
-                    raise SyntaxError(f"{error} In {job}.{action}: `{action.while_}`")
-
+    validation = validate_profile(profile)
+    for diagnostic in validation.diagnostics:
+        if diagnostic.severity == "error":
+            raise SyntaxError(f"{diagnostic.message} In {diagnostic.path}")
     return True
 
 

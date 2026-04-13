@@ -613,6 +613,31 @@ def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
     assert response.status_code == 400
 
 
+def test_create_experiment_profile_returns_diagnostics_for_semantic_validation_errors(client) -> None:
+    response = client.post(
+        "/api/experiment_profiles",
+        json={
+            "body": """
+experiment_profile_name: demo
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 1.0
+          t: 1h
+""",
+            "filename": "validator_semantic_error_test.yaml",
+        },
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["error"] == "Profile validation failed."
+    assert payload["diagnostics"][0]["code"] == "action.time.conflict"
+    assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0]"
+
+
 def test_broadcasting(client) -> None:
     response = client.get("/api/workers")
     data = response.get_json()

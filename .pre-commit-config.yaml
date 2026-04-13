@@ -43,6 +43,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^core/pioreactor/
+    -   id: frontend-eslint-fix
+        name: frontend eslint fix
+        entry: make frontend-lint-fix
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(js|jsx|ts|tsx)$
 
 
 -   repo: https://github.com/asottile/reorder_python_imports
