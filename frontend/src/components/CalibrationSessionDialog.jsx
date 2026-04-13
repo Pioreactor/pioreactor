@@ -155,6 +155,11 @@ export default function CalibrationSessionDialog({
   const tableTitle = typeof tablePayload?.title === "string" ? tablePayload.title : "";
   const tableEmptyMessage =
     typeof tablePayload?.empty_message === "string" ? tablePayload.empty_message : "No entries yet.";
+  const protocolTargetDevice = protocol?.target_device;
+  const completedCalibrationDevice =
+    sessionResult?.calibration?.device || sessionResult?.device || protocolTargetDevice;
+  const completedEstimatorDevice =
+    sessionResult?.device || sessionResult?.calibration?.device || protocolTargetDevice;
 
   const resetSessionState = React.useCallback(() => {
     setSessionId(null);
@@ -690,17 +695,18 @@ export default function CalibrationSessionDialog({
           )}
           {sessionResult?.calibration?.calibration_name &&
             !sessionResult?.calibrations &&
+            completedCalibrationDevice &&
             unit && (
               <Chip
                 size="small"
                 icon={<TuneIcon />}
                 clickable
                 component={Link}
-                to={`/calibrations/${unit}/${sessionResult.calibration.device || protocol?.device}/${sessionResult.calibration.calibration_name}`}
+                to={`/calibrations/${unit}/${completedCalibrationDevice}/${sessionResult.calibration.calibration_name}`}
                 label={sessionResult.calibration.calibration_name}
               />
             )}
-          {sessionResult?.estimator_name && unit && (
+          {sessionResult?.estimator_name && completedEstimatorDevice && unit && (
             <Box sx={{ mt: 1 }}>
               View{" "}
               <Chip
@@ -709,7 +715,7 @@ export default function CalibrationSessionDialog({
                 clickable
                 component={Link}
                 sx={{ my: 1 }}
-                to={`/estimators/${unit}/${sessionResult.device || protocol?.device}/${sessionResult.estimator_name}`}
+                to={`/estimators/${unit}/${completedEstimatorDevice}/${sessionResult.estimator_name}`}
                 label={sessionResult.estimator_name}
               />
             </Box>

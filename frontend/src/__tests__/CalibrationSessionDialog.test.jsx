@@ -108,4 +108,58 @@ describe("CalibrationSessionDialog", () => {
       expect.anything(),
     );
   });
+
+  test("uses the protocol target_device when the completion result omits the calibration device", async () => {
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              session: {
+                session_id: "session-1",
+                status: "complete",
+              },
+              step: {
+                step_id: "complete",
+                step_type: "complete",
+                title: "Calibration complete",
+                body: "Saved calibration.",
+                result: {
+                  calibration: {
+                    calibration_name: "alt_media_pump-2026-04-13",
+                  },
+                },
+              },
+            }),
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <CalibrationSessionDialog
+          open
+          protocol={{
+            title: "Alt-media pump calibration",
+            protocol_name: "dummy",
+            target_device: "alt_media_pump",
+          }}
+          unit="unit-1"
+          sessionId="session-1"
+        />
+      </MemoryRouter>,
+    );
+
+    const calibrationLink = await screen.findByRole("link", {
+      name: "alt_media_pump-2026-04-13",
+    });
+
+    expect(calibrationLink).toHaveAttribute(
+      "href",
+      "/calibrations/unit-1/alt_media_pump/alt_media_pump-2026-04-13",
+    );
+  });
 });
