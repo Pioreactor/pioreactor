@@ -142,7 +142,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
             pumps_.add('alt-media');
             break;
           case 'waste':
-            pumps_.add('waste');
+            pumps_.add('efflux');
             break;
           case 'heating':
             heat_ = true;

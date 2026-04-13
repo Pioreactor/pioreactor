@@ -56,18 +56,25 @@ export const stateDisplay = {
 }
 
 
-function StateTypography({ state, isDisabled=false }) {
+export function StateTypography({ state, isDisabled=false }) {
   const style = {
     color: isDisabled ? disabledColor : stateDisplay[state].color,
-    padding: "1px 9px",
+    px: "9px",
+    py: "1px",
     borderRadius: "16px",
     backgroundColor: stateDisplay[state].backgroundColor,
-    display: "inline-block",
-    fontWeight: 500
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 1.3,
+    whiteSpace: "nowrap",
+    fontWeight: 500,
+    fontSize: "0.8125rem",
+    verticalAlign: "middle",
   };
 
   return (
-    <Typography gutterBottom sx={{ ...style, display: "block" }}>
+    <Typography component="span" sx={style}>
       {stateDisplay[state].display}
     </Typography>
   );
