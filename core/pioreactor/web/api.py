@@ -308,6 +308,28 @@ def _build_single_file_multipart(
     return boundary, b"".join(parts)
 
 
+def _single_unit(pioreactor_unit: str) -> list[str]:
+    return [pioreactor_unit]
+
+
+def _broadcast_or_multicast_get(pioreactor_unit: str, endpoint: str) -> DelayedResponseReturnValue:
+    task = (
+        fanout.broadcast_get_across_cluster(endpoint)
+        if pioreactor_unit == UNIVERSAL_IDENTIFIER
+        else tasks.multicast_get(endpoint, _single_unit(pioreactor_unit))
+    )
+    return create_task_response(task)
+
+
+def _broadcast_or_multicast_post(pioreactor_unit: str, endpoint: str) -> DelayedResponseReturnValue:
+    task = (
+        fanout.broadcast_post_across_cluster(endpoint)
+        if pioreactor_unit == UNIVERSAL_IDENTIFIER
+        else tasks.multicast_post(endpoint, _single_unit(pioreactor_unit))
+    )
+    return create_task_response(task)
+
+
 @api_bp.route("/models", methods=["GET"])
 def get_models() -> ResponseReturnValue:
     """
@@ -399,7 +421,7 @@ def run_job_on_unit_in_experiment(
 
     }
     """
-    json = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
+    request_payload = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
 
     if experiment == UNIVERSAL_EXPERIMENT:
         # universal experiment, all workers
@@ -476,10 +498,10 @@ def run_job_on_unit_in_experiment(
         [worker["pioreactor_unit"] for worker in assigned_workers],
         json=[
             {
-                "args": json.args,
-                "options": json.options,
-                "config_overrides": json.config_overrides,
-                "env": json.env
+                "args": request_payload.args,
+                "options": request_payload.options,
+                "config_overrides": request_payload.config_overrides,
+                "env": request_payload.env
                 | {
                     "EXPERIMENT": experiment,
                     "MODEL_NAME": worker["model_name"],
@@ -499,10 +521,7 @@ def run_job_on_unit_in_experiment(
 @api_bp.route("/units/<pioreactor_unit>/jobs/running", methods=["GET"])
 @api_bp.route("/workers/<pioreactor_unit>/jobs/running", methods=["GET"])
 def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(fanout.broadcast_get_across_cluster("/unit_api/jobs/running"))
-    else:
-        return create_task_response(tasks.multicast_get("/unit_api/jobs/running", [pioreactor_unit]))
+    return _broadcast_or_multicast_get(pioreactor_unit, "/unit_api/jobs/running")
 
 
 @api_bp.route("/workers/<pioreactor_unit>/blink", methods=["POST"])
@@ -604,21 +623,13 @@ def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedR
 @api_bp.route("/units/<pioreactor_unit>/system/reboot", methods=["POST"])
 def reboot_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """Reboots unit"""
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_post_across_cluster("/unit_api/system/reboot")
-    else:
-        task = tasks.multicast_post("/unit_api/system/reboot", [pioreactor_unit])
-    return create_task_response(task)
+    return _broadcast_or_multicast_post(pioreactor_unit, "/unit_api/system/reboot")
 
 
 @api_bp.route("/units/<pioreactor_unit>/system/shutdown", methods=["POST"])
 def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """Shutdown unit"""
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_post_across_cluster("/unit_api/system/shutdown")
-    else:
-        task = tasks.multicast_post("/unit_api/system/shutdown", [pioreactor_unit])
-    return create_task_response(task)
+    return _broadcast_or_multicast_post(pioreactor_unit, "/unit_api/system/shutdown")
 
 
 ## Clock
@@ -626,11 +637,7 @@ def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/units/<pioreactor_unit>/system/utc_clock", methods=["GET"])
 def get_unit_utc_clock(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_get_across_cluster("/unit_api/system/utc_clock")
-    else:
-        task = tasks.multicast_get("/unit_api/system/utc_clock", [pioreactor_unit])
-    return create_task_response(task)
+    return _broadcast_or_multicast_get(pioreactor_unit, "/unit_api/system/utc_clock")
 
 
 @api_bp.route("/system/utc_clock", methods=["POST"])
@@ -3156,16 +3163,15 @@ def create_experiment_profile() -> ResponseReturnValue:
     try:
         profile = yaml_decode(experiment_profile_body, type=Profile)
     except Exception as e:
-        msg = f"{e}"
         # publish_to_error_log(msg, "create_experiment_profile")
-        return abort_with(400, msg)
+        return abort_with(400, f"Validation error. {e}")
 
     validation = validate_profile(profile)
     if not validation.ok:
         return (
             jsonify(
                 {
-                    "error": "Profile validation failed.",
+                    "error": "Validation error.",
                     "diagnostics": to_builtins(validation.diagnostics),
                 }
             ),
@@ -3175,12 +3181,12 @@ def create_experiment_profile() -> ResponseReturnValue:
     # verify file
     try:
         if not is_valid_unix_filename(experiment_profile_filename):
-            abort_with(400, "Not valid unix name")
+            abort_with(400, "Validation error: Not valid unix name")
 
         if not (
             experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
-            abort_with(400, "must end in .yaml")
+            abort_with(400, "Validation error: must end in .yaml")
 
     except Exception:
         msg = "Invalid filename"
@@ -3213,14 +3219,14 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
         profile = yaml_decode(experiment_profile_body, type=Profile)
     except Exception as e:
         # publish_to_error_log(msg, "create_experiment_profile")
-        abort_with(400, str(e))
+        abort_with(400, f"Validation error: {e}")
 
     validation = validate_profile(profile)
     if not validation.ok:
         return (
             jsonify(
                 {
-                    "error": "Profile validation failed.",
+                    "error": "Validation error.",
                     "diagnostics": to_builtins(validation.diagnostics),
                 }
             ),
@@ -3230,12 +3236,12 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
     # verify file - user could have provided a different filename so we still check this.
     try:
         if not is_valid_unix_filename(experiment_profile_filename):
-            abort_with(400, "not valid unix filename")
+            abort_with(400, "Validation error: not valid unix filename")
 
         if not (
             experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
-            abort_with(400, "must end in .yaml")
+            abort_with(400, "Validation error: must end in .yaml")
 
     except Exception as e:
         # publish_to_error_log(msg, "create_experiment_profile")

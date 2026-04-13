@@ -229,8 +229,7 @@ def _process_delayed_json_response(
         # otherwise return the full JSON body for non-task responses.
         if "task_id" in data:
             return unit, data["result"]
-        else:
-            return unit, data
+        return unit, data
     return unit, None
 
 
@@ -340,12 +339,12 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
     # CPU heavy / IO heavy
     if units == "$broadcast":
         logger.debug("Updating app on leader")
-        update_app_on_leader = [PIO_EXECUTABLE, "update", "app", "--defer-web-restart"]
-        check_call(update_app_on_leader)
+        leader_update_command = [PIO_EXECUTABLE, "update", "app", "--defer-web-restart"]
+        check_call(leader_update_command)
 
         logger.debug("Updating app on workers")
-        update_app_across_all_workers = [PIOS_EXECUTABLE, "update", "-y"]
-        run(update_app_across_all_workers)
+        worker_update_command = [PIOS_EXECUTABLE, "update", "-y"]
+        run(worker_update_command)
 
         sleep(2)
         logger.debug("Restarting pioreactor-web.target after cluster update")
@@ -353,8 +352,8 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
         return True
 
     logger.debug(f"Updating app on unit {units}")
-    update_app_on_specific_unit = [PIOS_EXECUTABLE, "update", "-y", "--units", units]
-    run(update_app_on_specific_unit)
+    specific_unit_update_command = [PIOS_EXECUTABLE, "update", "-y", "--units", units]
+    run(specific_unit_update_command)
     return True
 
 
@@ -362,7 +361,7 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
 def update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
     if units == "$broadcast":
         logger.debug(f"Updating app on leader from {archive_location}")
-        update_app_on_leader = [
+        leader_update_command = [
             "pio",
             "update",
             "app",
@@ -370,51 +369,51 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
             archive_location,
             "--defer-web-restart",
         ]
-        check_call(update_app_on_leader)
+        check_call(leader_update_command)
 
         logger.debug(f"Updating app on workers from {archive_location}")
-        distribute_archive_to_workers = [PIOS_EXECUTABLE, "cp", archive_location, "-y"]
-        run(distribute_archive_to_workers)
+        archive_copy_command = [PIOS_EXECUTABLE, "cp", archive_location, "-y"]
+        run(archive_copy_command)
 
         # this may include leader, and leader's UI. If it's not included, we need to update the UI later.
         logger.debug(f"Updating cluster with `pios update --source {archive_location} -y`")
-        update_app_across_all_workers = [
+        worker_update_command = [
             PIOS_EXECUTABLE,
             "update",
             "--source",
             archive_location,
             "-y",
         ]
-        run(update_app_across_all_workers)
+        run(worker_update_command)
         sleep(2)
 
         logger.debug("Restarting pioreactor-web.target after cluster update")
         check_call(["sudo", "systemctl", "restart", "pioreactor-web.target"])
 
         return True
-    else:
-        logger.debug(f"Updating app on unit {units} from {archive_location}")
-        distribute_archive_to_workers = [
-            PIOS_EXECUTABLE,
-            "cp",
-            archive_location,
-            "-y",
-            "--units",
-            units,
-        ]
-        run(distribute_archive_to_workers)
 
-        update_app_across_all_workers = [
-            PIOS_EXECUTABLE,
-            "update",
-            "--source",
-            archive_location,
-            "-y",
-            "--units",
-            units,
-        ]
-        run(update_app_across_all_workers)
-        return True
+    logger.debug(f"Updating app on unit {units} from {archive_location}")
+    archive_copy_command = [
+        PIOS_EXECUTABLE,
+        "cp",
+        archive_location,
+        "-y",
+        "--units",
+        units,
+    ]
+    run(archive_copy_command)
+
+    specific_unit_update_command = [
+        PIOS_EXECUTABLE,
+        "update",
+        "--source",
+        archive_location,
+        "-y",
+        "--units",
+        units,
+    ]
+    run(specific_unit_update_command)
+    return True
 
 
 @huey.task()
@@ -424,10 +423,10 @@ def update_app_from_release_archive_on_specific_pioreactors(
     units_cli: tuple[str, ...] = sum((("--units", p) for p in pioreactors), tuple())
 
     logger.debug(f"Updating app and ui on unit {pioreactors} from {archive_location}")
-    distribute_archive_to_workers = [PIOS_EXECUTABLE, "cp", archive_location, "-y", *units_cli]
-    run(distribute_archive_to_workers)
+    archive_copy_command = [PIOS_EXECUTABLE, "cp", archive_location, "-y", *units_cli]
+    run(archive_copy_command)
 
-    update_app_across_all_workers = [
+    worker_update_command = [
         PIOS_EXECUTABLE,
         "update",
         "--source",
@@ -435,7 +434,7 @@ def update_app_from_release_archive_on_specific_pioreactors(
         "-y",
         *units_cli,
     ]
-    run(update_app_across_all_workers)
+    run(worker_update_command)
 
     return True
 
@@ -604,7 +603,7 @@ def calibration_read_voltage() -> float:
     return voltage
 
 
-def _default_normalizer(result: Any) -> dict[str, Any]:
+def _dict_or_empty_normalizer(result: Any) -> dict[str, Any]:
     if isinstance(result, dict):
         return result
     return {}
@@ -622,12 +621,6 @@ def _od_readings_normalizer(result: Any) -> dict[str, Any]:
     return {"od_readings": result}
 
 
-def _stirring_normalizer(result: Any) -> dict[str, Any]:
-    if isinstance(result, dict):
-        return result
-    return {}
-
-
 def _register_core_calibration_actions() -> None:
     register_calibration_action(
         "pump",
@@ -639,7 +632,7 @@ def _register_core_calibration_actions() -> None:
                 float(payload["dc"]),
             ),
             "Pump action",
-            _default_normalizer,
+            _dict_or_empty_normalizer,
         ),
     )
     register_calibration_action(
@@ -662,7 +655,7 @@ def _register_core_calibration_actions() -> None:
                 int(payload.get("repeats", 1)),
             ),
             "Fusion OD observation",
-            _default_normalizer,
+            _dict_or_empty_normalizer,
         ),
     )
     register_calibration_action(
@@ -673,7 +666,7 @@ def _register_core_calibration_actions() -> None:
                 float(payload["max_dc"]) if (payload.get("max_dc") is not None) else None,
             ),
             "Stirring calibration",
-            _stirring_normalizer,
+            _dict_or_empty_normalizer,
         ),
     )
     register_calibration_action(
@@ -692,7 +685,7 @@ def _register_core_calibration_actions() -> None:
                 payload["calibration"],
             ),
             "Saving calibration",
-            _default_normalizer,
+            _dict_or_empty_normalizer,
         ),
     )
     register_calibration_action(
@@ -703,7 +696,7 @@ def _register_core_calibration_actions() -> None:
                 payload["estimator"],
             ),
             "Saving estimator",
-            _default_normalizer,
+            _dict_or_empty_normalizer,
         ),
     )
 
@@ -756,7 +749,7 @@ def kill_jobs_task(
     job_id: int | None = None,
     all_jobs: bool = False,
 ) -> bool:
-    if not any([job_name, experiment, job_source, job_id, all_jobs]):
+    if not any((job_name, experiment, job_source, job_id, all_jobs)):
         logger.debug("No job filters provided for kill.")
         return False
 

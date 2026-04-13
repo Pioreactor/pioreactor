@@ -116,13 +116,13 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
 @unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
 def get_task_status(task_id: str) -> ResponseReturnValue:
-    blob = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
+    response_metadata = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
     try:
         task = huey.result(task_id)
     except TaskLockedException:
         return (
             jsonify(
-                blob
+                response_metadata
                 | {
                     "status": "in_progress",
                     "error": "task is locked and already running.",
@@ -136,7 +136,7 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
         # huey wraps the exception, so lets reraise it.
         return (
             jsonify(
-                blob
+                response_metadata
                 | {
                     "status": "failed",
                     "error": str(e),
@@ -148,11 +148,11 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
         )
 
     if task is None:
-        return jsonify(blob | {"status": "pending or not present"}), 202
-    elif isinstance(task, Exception):
+        return jsonify(response_metadata | {"status": "pending or not present"}), 202
+    if isinstance(task, Exception):
         return (
             jsonify(
-                blob
+                response_metadata
                 | {
                     "status": "failed",
                     "error": str(task),
@@ -162,8 +162,8 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
             ),
             500,
         )
-    else:
-        return jsonify(blob | {"status": "complete", "result": task}), 200
+
+    return jsonify(response_metadata | {"status": "complete", "result": task}), 200
 
 
 def _format_protocol_text(value: str, device: str) -> str:
@@ -737,13 +737,13 @@ def stop_all_jobs() -> DelayedResponseReturnValue:
 def stop_jobs() -> DelayedResponseReturnValue:
     if not request.data:
         return abort_with(400, "No job filter specified")
-    json = current_app.json.loads(request.data)
+    request_payload = current_app.json.loads(request.data)
 
-    job_name = json.get("job_name")
-    experiment = json.get("experiment")
-    job_source = json.get("job_source")
-    job_id = json.get("job_id")
-    if not any([job_name, experiment, job_source, job_id]):
+    job_name = request_payload.get("job_name")
+    experiment = request_payload.get("experiment")
+    job_source = request_payload.get("job_source")
+    job_id = request_payload.get("job_id")
+    if not any((job_name, experiment, job_source, job_id)):
         return abort_with(400, "No job filter specified")
 
     task = tasks.kill_jobs_task(
@@ -831,10 +831,10 @@ def get_job_settings(job_name: str) -> ResponseReturnValue:
         (job_name,),
     )
     assert isinstance(settings, list)
-    if settings:
-        return jsonify({"settings": {s["setting"]: s["value"] for s in settings}})
-    else:
+    if not settings:
         abort_with(404, "No settings found for job.")
+
+    return jsonify({"settings": {s["setting"]: s["value"] for s in settings}})
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
@@ -851,10 +851,10 @@ def get_job_setting(job_name: str, setting: str) -> ResponseReturnValue:
         one=True,
     )
     assert isinstance(setting_metadata, (dict, type(None)))
-    if setting_metadata:
-        return jsonify({setting_metadata["setting"]: setting_metadata["value"]})
-    else:
+    if not setting_metadata:
         abort_with(404, "Setting not found.")
+
+    return jsonify({setting_metadata["setting"]: setting_metadata["value"]})
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["PATCH"])

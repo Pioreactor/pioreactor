@@ -49,6 +49,25 @@ def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value:
     return validate_git_sha(value)
 
 
+def _runtime_config_path(
+    explicit_env_var: str,
+    dot_pioreactor_filename: str,
+    testing_default: str,
+    production_default: str,
+) -> str:
+    from pioreactor.whoami import is_testing_env
+
+    explicit_path = os.environ.get(explicit_env_var)
+    if explicit_path is not None:
+        return explicit_path
+
+    dot_pioreactor_root = os.environ.get("DOT_PIOREACTOR")
+    if dot_pioreactor_root is not None:
+        return str(Path(dot_pioreactor_root) / dot_pioreactor_filename)
+
+    return testing_default if is_testing_env() else production_default
+
+
 def get_update_app_commands(
     branch: str | None,
     repo: str,
@@ -224,29 +243,20 @@ def _resolve_config_paths_like_runtime() -> tuple[str, str]:
     """
     Resolve global and local config paths with runtime-like precedence.
     """
-    from pioreactor.whoami import is_testing_env
-
-    if os.environ.get("GLOBAL_CONFIG") is not None:
-        global_config_path = os.environ["GLOBAL_CONFIG"]
-    elif os.environ.get("DOT_PIOREACTOR") is not None:
-        global_config_path = os.environ["DOT_PIOREACTOR"] + "/config.ini"
-    else:
-        if is_testing_env():
-            global_config_path = "./.pioreactor/config.ini"
-        else:
-            global_config_path = "/home/pioreactor/.pioreactor/config.ini"
-
-    if os.environ.get("LOCAL_CONFIG") is not None:
-        local_config_path = os.environ["LOCAL_CONFIG"]
-    elif os.environ.get("DOT_PIOREACTOR") is not None:
-        local_config_path = os.environ["DOT_PIOREACTOR"] + "/unit_config.ini"
-    else:
-        if is_testing_env():
-            local_config_path = "./.pioreactor/unit_config.ini"
-        else:
-            local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
-
-    return global_config_path, local_config_path
+    return (
+        _runtime_config_path(
+            "GLOBAL_CONFIG",
+            "config.ini",
+            "./.pioreactor/config.ini",
+            "/home/pioreactor/.pioreactor/config.ini",
+        ),
+        _runtime_config_path(
+            "LOCAL_CONFIG",
+            "unit_config.ini",
+            "./.pioreactor/unit_config.ini",
+            "/home/pioreactor/.pioreactor/unit_config.ini",
+        ),
+    )
 
 
 def _load_config_file(path: str) -> t.Any:
@@ -260,9 +270,7 @@ def _load_config_file(path: str) -> t.Any:
 
 
 def _format_config_key_value(option_name: str, option_value: str | None) -> str:
-    if option_value is None:
-        return option_name
-    return f"{option_name}={option_value}"
+    return option_name if option_value is None else f"{option_name}={option_value}"
 
 
 def _get_effective_config_value(section_name: str, parameter_name: str) -> str:
@@ -389,12 +397,8 @@ def get_config_value(section_name: str, parameter_name: str, shared: bool, speci
         return
 
     global_config_path, local_config_path = _resolve_config_paths_like_runtime()
-
-    if shared:
-        click.echo(_get_config_value_from_file(global_config_path, section_name, parameter_name))
-        return
-
-    click.echo(_get_config_value_from_file(local_config_path, section_name, parameter_name))
+    selected_config_path = global_config_path if shared else local_config_path
+    click.echo(_get_config_value_from_file(selected_config_path, section_name, parameter_name))
 
 
 @config_group.command(name="set", short_help="set one config value")
@@ -418,10 +422,11 @@ def set_config_value(
     if shared:
         if not whoami.am_I_leader():
             return
-        _set_config_value_in_file(global_config_path, section_name, parameter_name, value)
-        return
+        target_config_path = global_config_path
+    else:
+        target_config_path = local_config_path
 
-    _set_config_value_in_file(local_config_path, section_name, parameter_name, value)
+    _set_config_value_in_file(target_config_path, section_name, parameter_name, value)
 
 
 @config_group.command(name="show", short_help="show the effective merged config")

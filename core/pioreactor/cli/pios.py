@@ -129,19 +129,15 @@ if am_I_leader() or is_testing_env():
 
         # 2) Resolve inventory base
         try:
-            if active_only:
-                inventory = set(get_active_workers_in_inventory())
-            else:
-                inventory = set(get_workers_in_inventory())
+            inventory = (
+                set(get_active_workers_in_inventory()) if active_only else set(get_workers_in_inventory())
+            )
         except (HTTPException, DecodeError):
             click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
             inventory = set()
 
         # 3) Expand units option
-        if not units_opt:
-            # Broadcast: start with all from inventory
-            units_set = set(inventory)
-        elif UNIVERSAL_IDENTIFIER in units_opt:
+        if not units_opt or UNIVERSAL_IDENTIFIER in units_opt:
             units_set = set(inventory)
         else:
             units_set = set(units_opt)
@@ -161,8 +157,7 @@ if am_I_leader() or is_testing_env():
             units_set.add(leader)
         elif include_leader is False:
             units_set.discard(leader)
-
-            if len(units_set) == 0:
+            if not units_set:
                 # no other workers, exit successfully.
                 return tuple()
 
@@ -350,8 +345,8 @@ if am_I_leader() or is_testing_env():
 
         if workers == (UNIVERSAL_IDENTIFIER,):
             return active_workers
-        else:
-            return tuple(u for u in set(workers) if u in active_workers)
+
+        return tuple(u for u in set(workers) if u in active_workers)
 
     def universal_identifier_to_all_workers(
         workers: tuple[str, ...], filter_out_non_workers: bool = True
@@ -363,15 +358,13 @@ if am_I_leader() or is_testing_env():
             click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
             all_workers = tuple()
 
-        if filter_out_non_workers:
-            include = lambda u: u in all_workers  # noqa: E731
-        else:
-            include = lambda u: True  # noqa: E731
-
         if workers == (UNIVERSAL_IDENTIFIER,):
             return all_workers
-        else:
-            return tuple(u for u in set(workers) if include(u))
+
+        if not filter_out_non_workers:
+            return tuple(set(workers))
+
+        return tuple(u for u in set(workers) if u in all_workers)
 
     def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
         leader = get_leader_hostname()

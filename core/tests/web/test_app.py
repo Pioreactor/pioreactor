@@ -633,7 +633,7 @@ common:
 
     assert response.status_code == 400
     payload = response.get_json()
-    assert payload["error"] == "Profile validation failed."
+    assert payload["error"] == "Validation error."
     assert payload["diagnostics"][0]["code"] == "action.time.conflict"
     assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0]"
 
