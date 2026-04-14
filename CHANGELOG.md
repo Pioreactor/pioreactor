@@ -10,6 +10,7 @@
 
 #### Bug fixes
 
+ - Fix new worker images not having the correct data in ~/.pioreactor/ui
  - Fix bioreactor diagram not responding to waste pump actions.
  - Improved experiment profile validation to catch more semantic errors before execution or save, including conflicting action time fields and invalid profile expressions.
  - Updated the Create/Edit Experiment Profile UI to show backend validation messages when a profile save fails, making profile errors easier to diagnose.

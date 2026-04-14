@@ -21,7 +21,7 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import FlareIcon from '@mui/icons-material/Flare';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
@@ -694,7 +694,7 @@ function WorkerCard({worker, config, leaderVersion}) {
     if (leaderVersion && workerVersion !== leaderVersion) {
       return (
         <UnderlineSpan title={`Not aligned with leader's version, ${leaderVersion}`}>
-          {workerVersion} <ErrorOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", marginLeft: "-5px", marginBottom: "3px", color: lostRed }} />
+          {workerVersion} <ErrorOutlineOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", marginLeft: "-5px", marginBottom: "3px", color: lostRed }} />
         </UnderlineSpan>
       );
     }
