@@ -135,8 +135,13 @@ def fast_dosing_timers(monkeypatch):
     )
 
 
+@pytest.fixture(autouse=True)
+def use_expected_alt_media_pwm_channel():
+    with temporary_config_change(config, "PWM_reverse", "alt_media", "4"):
+        yield
+
+
 def setup_function() -> None:
-    config.set("PWM_reverse", "alt_media", "4")
     cal = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
         curve_data_=structs.PolyFitCoefficients(coefficients=[1.0, 0.0]),

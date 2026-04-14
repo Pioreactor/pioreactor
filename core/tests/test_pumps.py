@@ -18,6 +18,7 @@ from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
 from pioreactor.pubsub import create_client
@@ -42,8 +43,13 @@ def pause(n=1):
     time.sleep(n)
 
 
+@pytest.fixture(autouse=True)
+def use_expected_alt_media_pwm_channel():
+    with temporary_config_change(config, "PWM_reverse", "alt_media", "4"):
+        yield
+
+
 def setup_function():
-    config.set("PWM_reverse", "alt_media", "4")
     cal = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
         curve_data_=_poly_curve([1.0, 0.0]),

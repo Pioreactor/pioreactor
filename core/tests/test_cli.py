@@ -23,6 +23,7 @@ from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
 from pioreactor.config import get_config
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import is_pio_job_running
@@ -1018,7 +1019,6 @@ def test_pios_sync_configs_specific_refreshes_unit_snapshots(monkeypatch, tmp_pa
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
-    config["storage"]["database"] = str(db_path)
     monkeypatch.setattr(
         "pioreactor.cli.pios.get_from",
         lambda address, endpoint, **_kwargs: Response(
@@ -1029,9 +1029,10 @@ def test_pios_sync_configs_specific_refreshes_unit_snapshots(monkeypatch, tmp_pa
         ),
     )
 
-    runner = CliRunner()
-    result = runner.invoke(pios, ["sync-configs", "--specific", "--units", "unit1", "-y"])
-    assert result.exit_code == 0
+    with temporary_config_change(config, "storage", "database", str(db_path)):
+        runner = CliRunner()
+        result = runner.invoke(pios, ["sync-configs", "--specific", "--units", "unit1", "-y"])
+        assert result.exit_code == 0
 
     conn = sqlite3.connect(db_path)
     rows = conn.execute(
