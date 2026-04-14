@@ -1069,6 +1069,23 @@ def cache() -> None:
     pass
 
 
+def _cache_key_candidates(key: str, as_int: bool = False) -> list[Any]:
+    if as_int:
+        return [int(key)]
+
+    candidates: list[Any] = [key]
+
+    try:
+        parsed_key = ast.literal_eval(key)
+    except (ValueError, SyntaxError):
+        parsed_key = None
+
+    if parsed_key is not None and parsed_key != key:
+        candidates.append(parsed_key)
+
+    return candidates
+
+
 @cache.command(name="view", short_help="print out the contents of a cache")
 @click.argument("cache", metavar="CACHE")
 @click.argument("key", metavar="KEY", required=False)
@@ -1084,23 +1101,13 @@ def view_cache(cache: str, key: str | None) -> None:
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
-    parsed_key = None
-    if key is not None:
-        try:
-            parsed_key = ast.literal_eval(key)
-        except (ValueError, SyntaxError):
-            parsed_key = None
-
     for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
         with cacher(cache) as c:
             if key is not None:
-                if key in c:
-                    click.echo(f"{click.style(key, bold=True)} = {c[key]}")
-                    return
-
-                if parsed_key is not None and parsed_key != key and parsed_key in c:
-                    click.echo(f"{click.style(parsed_key, bold=True)} = {c[parsed_key]}")
-                    return
+                for candidate in _cache_key_candidates(key):
+                    if candidate in c:
+                        click.echo(f"{click.style(candidate, bold=True)} = {c[candidate]}")
+                        return
 
                 continue
 
@@ -1125,26 +1132,23 @@ def purge_cache(cache: str, key: str, as_int: bool) -> None:
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
-    parsed_key = None
-    if not as_int:
-        try:
-            parsed_key = ast.literal_eval(key)
-        except (ValueError, SyntaxError):
-            parsed_key = None
-
-    key_to_evict = int(key) if as_int else parsed_key if parsed_key is not None else key
     removed = False
+    removed_key: Any | None = None
+    key_candidates = _cache_key_candidates(key, as_int=as_int)
 
     for cacher in [local_intermittent_storage, local_persistent_storage]:
         with cacher(cache) as c:
-            if key_to_evict in c:
-                del c[key_to_evict]
-                removed = True
+            for candidate in key_candidates:
+                if candidate in c:
+                    del c[candidate]
+                    removed = True
+                    removed_key = candidate
+                    break
 
     if removed:
-        click.echo(f"Removed key {key_to_evict} from cache '{cache}'.")
+        click.echo(f"Removed key {removed_key} from cache '{cache}'.")
     else:
-        click.echo(f"No entry for key {key_to_evict} found in cache '{cache}'.")
+        click.echo(f"No entry for key {key_candidates[0]} found in cache '{cache}'.")
 
 
 @pio.command(

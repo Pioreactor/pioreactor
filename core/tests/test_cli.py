@@ -642,6 +642,72 @@ def test_pio_cache_purge_with_key_removes_tuple_keys() -> None:
             c.pop(("c", "d"), None)
 
 
+def test_pio_cache_purge_prefers_raw_string_key_over_parsed_literal() -> None:
+    cache_name = "test_pio_cache_purge_prefers_raw_string_key_over_parsed_literal"
+
+    try:
+        with local_persistent_storage(cache_name) as c:
+            c["12"] = "string-twelve"
+            c[12] = "int-twelve"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "purge", cache_name, "12"])
+
+        assert result.exit_code == 0
+        assert "Removed key 12" in result.output
+
+        with local_persistent_storage(cache_name) as c:
+            assert "12" not in c
+            assert 12 in c
+    finally:
+        with local_persistent_storage(cache_name) as c:
+            c.pop("12", None)
+            c.pop(12, None)
+
+
+def test_pio_cache_purge_falls_back_to_parsed_literal_when_raw_string_missing() -> None:
+    cache_name = "test_pio_cache_purge_falls_back_to_parsed_literal_when_raw_string_missing"
+
+    try:
+        with local_persistent_storage(cache_name) as c:
+            c[12] = "int-twelve"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "purge", cache_name, "12"])
+
+        assert result.exit_code == 0
+        assert "Removed key 12" in result.output
+
+        with local_persistent_storage(cache_name) as c:
+            assert 12 not in c
+    finally:
+        with local_persistent_storage(cache_name) as c:
+            c.pop(12, None)
+
+
+def test_pio_cache_purge_prefers_raw_string_boolean_like_keys() -> None:
+    cache_name = "test_pio_cache_purge_prefers_raw_string_boolean_like_keys"
+
+    try:
+        with local_persistent_storage(cache_name) as c:
+            c["True"] = "string-true"
+            c[True] = "bool-true"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "purge", cache_name, "True"])
+
+        assert result.exit_code == 0
+        assert "Removed key True" in result.output
+
+        with local_persistent_storage(cache_name) as c:
+            assert "True" not in c
+            assert True in c
+    finally:
+        with local_persistent_storage(cache_name) as c:
+            c.pop("True", None)
+            c.pop(True, None)
+
+
 def test_led_intensity() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "led_intensity", "--A", "1"])
