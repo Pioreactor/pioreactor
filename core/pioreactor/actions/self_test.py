@@ -753,6 +753,8 @@ def click_self_test(k: str | None, retry_failed: bool) -> int:
         # and clear the mqtt cache first
         for test in tests_to_run:
             managed_state.publish_setting(test.__name__, None)
+            if test.__name__ == "test_all_positive_correlations_between_pds_and_leds":
+                managed_state.publish_setting("correlations_between_pds_and_leds", None)
 
         try:
             results = run_tests(tests_to_run, managed_state, logger, unit, testing_experiment)

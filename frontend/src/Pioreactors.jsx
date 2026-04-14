@@ -494,7 +494,7 @@ function UnitSettingDisplay(props) {
       const pwmDcs = JSON.parse(value)
       const PWM_TO_PIN = {1: "17",  2: "13", 3: "16",  4: "12"}
 
-      const PWMMap = props.config['PWM']
+      const PWMMap = props.config['PWM'] || {}
       const renamed1 = (PWMMap[1]) ? (PWMMap[1].replace("_", " ")) : null
       const renamed2 = (PWMMap[2]) ? (PWMMap[2].replace("_", " ")) : null
       const renamed3 = (PWMMap[3]) ? (PWMMap[3].replace("_", " ")) : null
@@ -1217,34 +1217,32 @@ function SettingsActionsDialog({
   const [selfTestStartPending, setSelfTestStartPending] = useState(false);
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const selfTestExperiment = "$experiment";
-  const selfTestDefinition = useMemo(() => {
-    const selfTestJob = jobs?.self_test;
-    if (!selfTestJob) {
-      return null;
-    }
-    return {
-      published_settings: Object.entries(selfTestJob.publishedSettings).map(([key, setting]) => ({
-        key,
-        type: setting.type,
-        label: setting.label,
-        default: setting.value ?? null,
-      })),
-    };
-  }, [jobs]);
+  const selfTestSettings = jobs?.self_test?.publishedSettings || null;
 
   const selfTestSettingTypes = useMemo(() => {
-    if (!selfTestDefinition) {
+    if (!selfTestSettings) {
       return {};
     }
-    return selfTestDefinition.published_settings.reduce((acc, field) => {
-      acc[field.key] = field.type;
+    return Object.entries(selfTestSettings).reduce((acc, [key, setting]) => {
+      acc[key] = setting.type;
       return acc;
     }, {});
-  }, [selfTestDefinition]);
+  }, [selfTestSettings]);
 
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroups(selfTestDefinition),
-    [selfTestDefinition]
+    () => {
+      if (!selfTestSettings) {
+        return [];
+      }
+      const availableKeys = new Set(Object.keys(selfTestSettings));
+      return SELF_TEST_GROUPS
+        .map((group) => ({
+          ...group,
+          tests: group.tests.filter((test) => availableKeys.has(test.key)),
+        }))
+        .filter((group) => group.tests.length > 0);
+    },
+    [selfTestSettings]
   );
   const editableSettingsGroups = useMemo(() => {
     const groups = Object.values(jobs).filter(job => job.metadata.display)
@@ -1256,25 +1254,25 @@ function SettingsActionsDialog({
 
   const buildSelfTestBaseline = useCallback(() => {
     const publishedSettings = {};
-    if (!selfTestDefinition) {
+    if (!selfTestSettings) {
       return { state: null, publishedSettings };
     }
-    for (const field of selfTestDefinition.published_settings) {
-      publishedSettings[field.key] = {
-        value: field.default ?? null,
-        type: field.type,
-        label: field.label,
+    for (const [key, setting] of Object.entries(selfTestSettings)) {
+      publishedSettings[key] = {
+        value: setting.value ?? null,
+        type: setting.type,
+        label: setting.label,
       };
     }
     return { state: null, publishedSettings };
-  }, [selfTestDefinition]);
+  }, [selfTestSettings]);
 
   useEffect(() => {
-    if (!selfTestDefinition) {
+    if (!selfTestSettings) {
       return;
     }
     setSelfTestResult(buildSelfTestBaseline());
-  }, [buildSelfTestBaseline, selfTestDefinition]);
+  }, [buildSelfTestBaseline, selfTestSettings]);
 
   const onSelfTestData = useCallback((topic, message) => {
     if (!topic || !message) {
@@ -1316,19 +1314,19 @@ function SettingsActionsDialog({
   }, [buildSelfTestBaseline, selfTestSettingTypes]);
 
   useEffect(() => {
-    if (!open || !client || !selfTestDefinition) {
+    if (!open || !client || !selfTestSettings) {
       return;
     }
     const baseTopic = `pioreactor/${unit}/${selfTestExperiment}/self_test`;
     const topics = [
       `${baseTopic}/$state`,
-      ...selfTestDefinition.published_settings.map((setting) => `${baseTopic}/${setting.key}`),
+      ...Object.keys(selfTestSettings).map((key) => `${baseTopic}/${key}`),
     ];
     subscribeToTopic(topics, onSelfTestData, "ControlSelfTest");
     return () => {
       unsubscribeFromTopic(topics, "ControlSelfTest");
     };
-  }, [client, onSelfTestData, open, selfTestDefinition, selfTestExperiment, subscribeToTopic, unsubscribeFromTopic, unit]);
+  }, [client, onSelfTestData, open, selfTestSettings, selfTestExperiment, subscribeToTopic, unsubscribeFromTopic, unit]);
   useEffect(() => {
     if (!open){
       return
@@ -2101,7 +2099,7 @@ function SettingsActionsDialog({
               loading={isSelfTestRunning || selfTestStartPending}
               loadingPosition="start"
               endIcon={<PlayArrowIcon />}
-              disabled={isSelfTestRunning || selfTestStartPending || !selfTestDefinition}
+              disabled={isSelfTestRunning || selfTestStartPending || !selfTestSettings}
               onClick={handleRunSelfTest}
               sx={{textTransform: "none"}}
             >
@@ -2112,13 +2110,13 @@ function SettingsActionsDialog({
 
           <ControlDivider/>
 
-          {!selfTestDefinition && (
+          {!selfTestSettings && (
             <Alert severity="warning">
               Self-test is unavailable on this Pioreactor.
             </Alert>
           )}
 
-          {selfTestDefinition && (
+          {selfTestSettings && (
             <Accordion defaultExpanded disableGutters sx={{boxShadow: "none", "&:before": {display: "none"}}}>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Box sx={{display: "flex", alignItems: "center", gap: 1}}>

@@ -618,6 +618,29 @@ def test_pio_cache_view_with_key_filters_tuple_keys() -> None:
             c.pop(("c", "d"), None)
 
 
+def test_pio_cache_purge_with_key_removes_tuple_keys() -> None:
+    cache_name = "test_pio_cache_purge_with_key_removes_tuple_keys"
+
+    try:
+        with local_persistent_storage(cache_name) as c:
+            c[("a", "b")] = "first"
+            c[("c", "d")] = "second"
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["cache", "purge", cache_name, "('a', 'b')"])
+
+        assert result.exit_code == 0
+        assert "Removed key ('a', 'b')" in result.output
+
+        with local_persistent_storage(cache_name) as c:
+            assert ("a", "b") not in c
+            assert ("c", "d") in c
+    finally:
+        with local_persistent_storage(cache_name) as c:
+            c.pop(("a", "b"), None)
+            c.pop(("c", "d"), None)
+
+
 def test_led_intensity() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "led_intensity", "--A", "1"])

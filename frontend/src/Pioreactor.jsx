@@ -496,7 +496,7 @@ function UnitSettingDisplay(props) {
       const pwmDcs = JSON.parse(value)
       const PWM_TO_PIN = {1: "17",  2: "13", 3: "16",  4: "12"}
 
-      const PWMMap = props.config['PWM']
+      const PWMMap = props.config['PWM'] || {}
       const renamed1 = (PWMMap[1]) ? (PWMMap[1].replace("_", " ")) : null
       const renamed2 = (PWMMap[2]) ? (PWMMap[2].replace("_", " ")) : null
       const renamed3 = (PWMMap[3]) ? (PWMMap[3].replace("_", " ")) : null

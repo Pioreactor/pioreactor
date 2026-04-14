@@ -1,5 +1,12 @@
 ### Upcoming
 
+#### Enhancements
+
+ - Updated `pio cache purge` to parse Python literals for cache keys, so tuple-shaped entries can be removed directly. For example:
+
+   ```bash
+   pio cache purge leader_multicast_get_cache "('multicast_get', 'calibrations', '/unit_api/calibrations', 'unit1')"
+   ```
 
 #### Bug fixes
 

@@ -1120,11 +1120,19 @@ def purge_cache(cache: str, key: str, as_int: bool) -> None:
     Examples:
       pio cache purge pwm 12
       pio cache purge gpio 18 --as-int
+      pio cache purge leader_multicast_get_cache "('multicast_get', 'calibrations', '/unit_api/calibrations', 'unit1')"
     """
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
-    key_to_evict = int(key) if as_int else key
+    parsed_key = None
+    if not as_int:
+        try:
+            parsed_key = ast.literal_eval(key)
+        except (ValueError, SyntaxError):
+            parsed_key = None
+
+    key_to_evict = int(key) if as_int else parsed_key if parsed_key is not None else key
     removed = False
 
     for cacher in [local_intermittent_storage, local_persistent_storage]:
