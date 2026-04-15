@@ -667,7 +667,7 @@ if am_I_leader() or is_testing_env():
                 r.raise_for_status()
                 return True, r.json()
             except HTTPException as e:
-                logger.error(
+                logger.warning(
                     f"Unable to update on {unit} due to server error: {e}. Attempting SSH method to execute `pio update app {args}`..."
                 )
                 try:

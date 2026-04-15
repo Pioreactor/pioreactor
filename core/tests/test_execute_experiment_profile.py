@@ -16,10 +16,12 @@ from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Job
 from pioreactor.experiment_profiles.profile_struct import Log
 from pioreactor.experiment_profiles.profile_struct import Metadata
+from pioreactor.experiment_profiles.profile_struct import Pause
 from pioreactor.experiment_profiles.profile_struct import PioreactorSpecificBlock
 from pioreactor.experiment_profiles.profile_struct import Plugin
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.profile_struct import Repeat
+from pioreactor.experiment_profiles.profile_struct import Resume
 from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
@@ -391,6 +393,70 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
     assert len(bucket) == 2
     assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/jobbing"
     assert bucket[1].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/conditional_jobbing"
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_pause_and_resume_actions(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+    pause = Pause(hours_elapsed=0)
+    resume = Resume(hours_elapsed=1 / 60 / 60)
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[pause, resume]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert len(bucket) == 2
+    assert bucket[0].path == "/api/workers/unit1/jobs/update/job_name/jobbing/experiments/_testing_experiment"
+    assert bucket[0].json == {"settings": {"$state": "sleeping"}}
+    assert bucket[1].path == "/api/workers/unit1/jobs/update/job_name/jobbing/experiments/_testing_experiment"
+    assert bucket[1].json == {"settings": {"$state": "ready"}}
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_dry_run_skips_job_mutations(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(
+                        actions=[
+                            Start(hours_elapsed=0),
+                            Update(hours_elapsed=1 / 60 / 60, options={"target_rpm": 500}),
+                            Pause(hours_elapsed=2 / 60 / 60),
+                            Resume(hours_elapsed=3 / 60 / 60),
+                            Stop(hours_elapsed=4 / 60 / 60),
+                        ]
+                    ),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment, dry_run=True)
+
+    assert bucket == []
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

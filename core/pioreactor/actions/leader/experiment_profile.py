@@ -359,6 +359,38 @@ def common_wrapped_execute_action(
     return chain_functions(*actions_to_execute)
 
 
+def _prepare_action_execution(
+    unit: pt.Unit,
+    experiment: pt.Experiment,
+    action_name: str,
+    env: Env,
+    logger: CustomLogger,
+    action_metrics: ActionMetrics,
+    parent_job: long_running_managed_lifecycle,
+) -> tuple[int, Env] | None:
+    action_count = action_metrics.increment()
+    parent_job.publish_setting("action_count", action_count)
+
+    if get_assigned_experiment_name(unit) != experiment:
+        logger.debug(
+            f"Skipping {action_name} action on {unit} due to not being assigned to experiment {experiment}."
+        )
+        return None
+
+    return action_count, env | {
+        "hours_elapsed": action_metrics.hours_elapsed(),
+        "action_count": action_metrics.count,
+    }
+
+
+def _should_execute_action(if_: BoolExpression, env: Env, logger: CustomLogger) -> bool:
+    if evaluate_bool_expression(if_, env):
+        return True
+
+    logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
+    return False
+
+
 def when(
     unit: pt.Unit,
     experiment: pt.Experiment,
@@ -536,36 +568,26 @@ def log(
     options: struct._LogOptions,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        action_count = action_metrics.increment()
-        parent_job.publish_setting("action_count", action_count)
-
-        # first check if the Pioreactor is still part of the experiment.
-
-        if get_assigned_experiment_name(unit) != experiment:
-            logger.debug(
-                f"Skipping log action on {unit} due to not being assigned to experiment {experiment}."
-            )
-
+        nonlocal env
+        prepared = _prepare_action_execution(unit, experiment, "log", env, logger, action_metrics, parent_job)
+        if prepared is None:
             return
 
-        nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        action_count, env = prepared
 
-        if evaluate_bool_expression(if_, env):
-            body = {
-                "message": evaluate_log_message(options.message, env),
-                "timestamp": current_utc_timestamp(),
-                "level": options.level.upper(),
-                "source": parent_job.job_key,
-                "task": parent_job.job_key,
-                "_souce": "app",
-            }
-            post_into_leader(
-                f"/api/workers/{unit}/experiments/{experiment}/logs", json=body
-            ).raise_for_status()
-            getattr(logger, "debug")(f"{action_count}. {evaluate_log_message(options.message, env)}")
-        else:
-            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
+        if not _should_execute_action(if_, env, logger):
+            return
+
+        body = {
+            "message": evaluate_log_message(options.message, env),
+            "timestamp": current_utc_timestamp(),
+            "level": options.level.upper(),
+            "source": parent_job.job_key,
+            "task": parent_job.job_key,
+            "_souce": "app",
+        }
+        post_into_leader(f"/api/workers/{unit}/experiments/{experiment}/logs", json=body).raise_for_status()
+        getattr(logger, "debug")(f"{action_count}. {evaluate_log_message(options.message, env)}")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -585,49 +607,44 @@ def start_job(
     config_overrides: dict[str, str],
 ) -> Callable[..., None]:
     def _callable() -> None:
-        action_count = action_metrics.increment()
-        parent_job.publish_setting("action_count", action_count)
-
-        # first check if the Pioreactor is still part of the experiment.
-        if get_assigned_experiment_name(unit) != experiment:
-            logger.debug(
-                f"Skipping start action on {unit} due to not being assigned to experiment {experiment}."
-            )
+        nonlocal env
+        prepared = _prepare_action_execution(
+            unit, experiment, "start", env, logger, action_metrics, parent_job
+        )
+        if prepared is None:
             return
 
-        nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        action_count, env = prepared
 
-        if evaluate_bool_expression(if_, env):
-            if dry_run:
-                logger.info(
-                    f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}."
-                )
-            else:
-                logger.debug(
-                    f"{action_count}. Starting {job_name} on {unit} with options {evaluate_options(options, env)}, args {args}, and overrides {config_overrides}."
-                )
-                try:
-                    patch_into(
-                        resolve_to_address(unit),
-                        f"/unit_api/jobs/run/job_name/{job_name}",
-                        json={
-                            "options": evaluate_options(options, env),
-                            "env": {
-                                "JOB_SOURCE": parent_job.job_key,
-                                "EXPERIMENT": experiment,
-                            },
-                            "args": args,
-                            "config_overrides": [
-                                [f"{job_name}.config", key, value]
-                                for (key, value) in config_overrides.items()
-                            ],
-                        },
-                    ).raise_for_status()
-                except HTTPException:
-                    raise HTTPException(f"Unable to post to {unit}. Is it online?")
+        if not _should_execute_action(if_, env, logger):
+            return
+
+        if dry_run:
+            logger.info(
+                f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}."
+            )
         else:
-            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
+            logger.debug(
+                f"{action_count}. Starting {job_name} on {unit} with options {evaluate_options(options, env)}, args {args}, and overrides {config_overrides}."
+            )
+            try:
+                patch_into(
+                    resolve_to_address(unit),
+                    f"/unit_api/jobs/run/job_name/{job_name}",
+                    json={
+                        "options": evaluate_options(options, env),
+                        "env": {
+                            "JOB_SOURCE": parent_job.job_key,
+                            "EXPERIMENT": experiment,
+                        },
+                        "args": args,
+                        "config_overrides": [
+                            [f"{job_name}.config", key, value] for (key, value) in config_overrides.items()
+                        ],
+                    },
+                ).raise_for_status()
+            except HTTPException:
+                raise HTTPException(f"Unable to post to {unit}. Is it online?")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -644,33 +661,29 @@ def pause_job(
     action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        action_count = action_metrics.increment()
-        parent_job.publish_setting("action_count", action_count)
-
-        # first check if the Pioreactor is still part of the experiment.
-        if get_assigned_experiment_name(unit) != experiment:
-            logger.debug(
-                f"Skipping pause action on {unit} due to not being assigned to experiment {experiment}."
-            )
+        nonlocal env
+        prepared = _prepare_action_execution(
+            unit, experiment, "pause", env, logger, action_metrics, parent_job
+        )
+        if prepared is None:
             return
 
-        nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        action_count, env = prepared
 
-        if evaluate_bool_expression(if_, env):
-            if dry_run:
-                logger.info(f"{action_count}. Dry-run: Pausing {job_name} on {unit}.")
-            else:
-                logger.debug(f"{action_count}. Pausing {job_name} on {unit}.")
-                if check_if_job_running(unit, job_name):
-                    patch_into_leader(
-                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                        json={"settings": {"$state": "sleeping"}},
-                    ).raise_for_status()
-                else:
-                    logger.debug(f"Job {job_name} not running on {unit}.")
+        if not _should_execute_action(if_, env, logger):
+            return
+
+        if dry_run:
+            logger.info(f"{action_count}. Dry-run: Pausing {job_name} on {unit}.")
         else:
-            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
+            logger.debug(f"{action_count}. Pausing {job_name} on {unit}.")
+            if check_if_job_running(unit, job_name):
+                patch_into_leader(
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                    json={"settings": {"$state": "sleeping"}},
+                ).raise_for_status()
+            else:
+                logger.debug(f"Job {job_name} not running on {unit}.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -687,34 +700,29 @@ def resume_job(
     action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        action_count = action_metrics.increment()
-        parent_job.publish_setting("action_count", action_count)
-
-        # first check if the Pioreactor is still part of the experiment.
-        if get_assigned_experiment_name(unit) != experiment:
-            logger.debug(
-                f"Skipping resume action on {unit} due to not being assigned to experiment {experiment}."
-            )
-
+        nonlocal env
+        prepared = _prepare_action_execution(
+            unit, experiment, "resume", env, logger, action_metrics, parent_job
+        )
+        if prepared is None:
             return
 
-        nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        action_count, env = prepared
 
-        if evaluate_bool_expression(if_, env):
-            if dry_run:
-                logger.info(f"{action_count}. Dry-run: Resuming {job_name} on {unit}.")
-            else:
-                logger.debug(f"{action_count}. Resuming {job_name} on {unit}.")
-                if check_if_job_running(unit, job_name):
-                    patch_into_leader(
-                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                        json={"settings": {"$state": "ready"}},
-                    ).raise_for_status()
-                else:
-                    logger.debug(f"Job {job_name} not running on {unit}.")
+        if not _should_execute_action(if_, env, logger):
+            return
+
+        if dry_run:
+            logger.info(f"{action_count}. Dry-run: Resuming {job_name} on {unit}.")
         else:
-            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
+            logger.debug(f"{action_count}. Resuming {job_name} on {unit}.")
+            if check_if_job_running(unit, job_name):
+                patch_into_leader(
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                    json={"settings": {"$state": "ready"}},
+                ).raise_for_status()
+            else:
+                logger.debug(f"Job {job_name} not running on {unit}.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -731,30 +739,25 @@ def stop_job(
     action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        action_count = action_metrics.increment()
-        parent_job.publish_setting("action_count", action_count)
-
-        # first check if the Pioreactor is still part of the experiment.
-        if get_assigned_experiment_name(unit) != experiment:
-            logger.debug(
-                f"Skipping stop action on {unit} due to not being assigned to experiment {experiment}."
-            )
-
+        nonlocal env
+        prepared = _prepare_action_execution(
+            unit, experiment, "stop", env, logger, action_metrics, parent_job
+        )
+        if prepared is None:
             return
 
-        nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        action_count, env = prepared
 
-        if evaluate_bool_expression(if_, env):
-            if dry_run:
-                logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
-            else:
-                logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
-                patch_into_leader(
-                    f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
-                ).raise_for_status()
+        if not _should_execute_action(if_, env, logger):
+            return
+
+        if dry_run:
+            logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
         else:
-            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
+            logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
+            patch_into_leader(
+                f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
+            ).raise_for_status()
 
     return wrap_in_try_except(_callable, logger)
 
@@ -772,39 +775,33 @@ def update_job(
     options: dict[str, Any],
 ) -> Callable[..., None]:
     def _callable() -> None:
-        action_count = action_metrics.increment()
-        parent_job.publish_setting("action_count", action_count)
-
-        # first check if the Pioreactor is still part of the experiment.
-        if get_assigned_experiment_name(unit) != experiment:
-            logger.debug(
-                f"Skipping update action on {unit} due to not being assigned to experiment {experiment}."
-            )
-
+        nonlocal env
+        prepared = _prepare_action_execution(
+            unit, experiment, "update", env, logger, action_metrics, parent_job
+        )
+        if prepared is None:
             return
 
-        nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        action_count, env = prepared
 
-        if evaluate_bool_expression(if_, env):
-            if dry_run:
-                for setting, value in options.items():
-                    logger.info(
-                        f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on {unit}."
-                    )
+        if not _should_execute_action(if_, env, logger):
+            return
 
-            else:
-                for setting, value in evaluate_options(options, env).items():
-                    logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
-                    if check_if_job_running(unit, job_name):
-                        patch_into_leader(
-                            f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                            json={"settings": {setting: value}},
-                        ).raise_for_status()
-                    else:
-                        logger.debug(f"Job {job_name} not running on {unit}.")
+        if dry_run:
+            for setting, value in options.items():
+                logger.info(
+                    f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on {unit}."
+                )
         else:
-            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
+            for setting, value in evaluate_options(options, env).items():
+                logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
+                if check_if_job_running(unit, job_name):
+                    patch_into_leader(
+                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                        json={"settings": {setting: value}},
+                    ).raise_for_status()
+                else:
+                    logger.debug(f"Job {job_name} not running on {unit}.")
 
     return wrap_in_try_except(_callable, logger)
 

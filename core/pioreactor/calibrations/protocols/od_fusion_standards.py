@@ -65,6 +65,17 @@ def _channel_angle_map_from_config() -> dict[pt.PdChannel, pt.PdAngle]:
     return channel_angle_map
 
 
+def _run_fusion_calibration_preflight(ir_led_error_message: str) -> dict[pt.PdChannel, pt.PdAngle]:
+    if config.get("od_reading.config", "ir_led_intensity") == "auto":
+        raise ValueError(ir_led_error_message)
+
+    if any(is_pio_job_running(["stirring", "od_reading"])):
+        raise ValueError("Both stirring and OD reading must be off before starting.")
+
+    _ensure_xr_model()
+    return _channel_angle_map_from_config()
+
+
 def _aggregate_angles(readings: structs.ODReadings) -> dict[pt.PdAngle, float]:
     by_angle: dict[pt.PdAngle, list[float]] = {}
     for reading in readings.ods.values():
@@ -185,17 +196,18 @@ def _build_chart_metadata(records: list[tuple[pt.PdAngle, float, float]]) -> dic
     }
 
 
+def _get_default_estimator_name(ctx: SessionContext) -> str:
+    default_name = ctx.data.get("default_name")
+    if default_name is None:
+        default_name = f"od-fused-estimator-{current_utc_datestamp()}"
+        ctx.data["default_name"] = default_name
+    return str(default_name)
+
+
 def start_fusion_session() -> CalibrationSession:
-    if config.get("od_reading.config", "ir_led_intensity") == "auto":
-        raise ValueError(
-            "ir_led_intensity cannot be auto for fusion calibration. Set a numeric value in config.ini."
-        )
-
-    if any(is_pio_job_running(["stirring", "od_reading"])):
-        raise ValueError("Both stirring and OD reading must be off before starting.")
-
-    _ensure_xr_model()
-    channel_angle_map = _channel_angle_map_from_config()
+    channel_angle_map = _run_fusion_calibration_preflight(
+        "ir_led_intensity cannot be auto for fusion calibration. Set a numeric value in config.ini."
+    )
 
     session_id = str(uuid.uuid4())
     return CalibrationSession(
@@ -236,10 +248,7 @@ class NameInput(SessionStep):
     step_id = "name"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        default_name = ctx.data.get("default_name")
-        if default_name is None:
-            default_name = f"od-fused-estimator-{current_utc_datestamp()}"
-            ctx.data["default_name"] = default_name
+        default_name = _get_default_estimator_name(ctx)
         return steps.form(
             "Name this estimator",
             "Choose a name for this fused OD estimator.",
@@ -247,10 +256,7 @@ class NameInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_name = ctx.data.get("default_name")
-        if default_name is None:
-            default_name = f"od-fused-estimator-{current_utc_datestamp()}"
-            ctx.data["default_name"] = default_name
+        default_name = _get_default_estimator_name(ctx)
         name = ctx.inputs.str("estimator_name", default=default_name)
         ctx.data["estimator_name"] = name
 

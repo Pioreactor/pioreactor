@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import pytest
+from pioreactor import structs
 from pioreactor.utils.akimas import akima_eval
 from pioreactor.utils.akimas import akima_fit
 from pioreactor.utils.akimas import akima_solve
 from scipy.interpolate import Akima1DInterpolator
+
+
+def _akima_data(knots: list[float], coefficients: list[list[float]]) -> structs.AkimaFitData:
+    return structs.AkimaFitData(knots=knots, coefficients=coefficients)
 
 
 def test_akima_matches_scipy() -> None:
@@ -46,3 +53,35 @@ def test_akima_fit_requires_matching_lengths() -> None:
 def test_akima_fit_requires_two_points() -> None:
     with pytest.raises(ValueError, match="At least two data points"):
         akima_fit([0.0], [1.0])
+
+
+def test_akima_solve_multiple_solutions() -> None:
+    akima_data = _akima_data(
+        [0.0, 1.0, 2.0],
+        [
+            [0.0, 1.0, 0.0, 0.0],
+            [1.0, -1.0, 0.0, 0.0],
+        ],
+    )
+
+    solutions = akima_solve(akima_data, 0.5)
+    assert solutions == pytest.approx([0.5, 1.5], rel=1e-6)
+
+
+def test_akima_eval_rejects_bad_data() -> None:
+    with pytest.raises(ValueError):
+        akima_eval(cast(structs.AkimaFitData, [0.0, 1.0]), 1.0)
+
+    with pytest.raises(ValueError):
+        akima_eval(_akima_data([0.0, 1.0], [[0.0, 1.0, 0.0]]), 1.0)
+
+    with pytest.raises(ValueError):
+        akima_eval(_akima_data([1.0, 0.0], [[0.0, 1.0, 0.0, 0.0]]), 1.0)
+
+
+def test_akima_solve_rejects_bad_data() -> None:
+    with pytest.raises(ValueError):
+        akima_solve(_akima_data([0.0, 1.0], [[0.0, 1.0, 0.0]]), 1.0)
+
+    with pytest.raises(ValueError):
+        akima_solve(_akima_data([0.0, 1.0, 1.0], [[0.0, 1.0, 0.0, 0.0]]), 1.0)

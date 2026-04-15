@@ -10,9 +10,9 @@ from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.calibrations.protocols.od_fusion_standards import _channel_angle_map_from_config
 from pioreactor.calibrations.protocols.od_fusion_standards import _ensure_xr_model
 from pioreactor.calibrations.protocols.od_fusion_standards import _measure_fusion_standard_for_session
+from pioreactor.calibrations.protocols.od_fusion_standards import _run_fusion_calibration_preflight
 from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import CalibrationStep
@@ -29,7 +29,6 @@ from pioreactor.estimators import list_of_estimators_by_device
 from pioreactor.estimators import load_estimator
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import get_from
-from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.od_fusion import compute_fused_od
 from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.timing import current_utc_datestamp
@@ -47,6 +46,15 @@ def _default_estimator_name(source_name: str | None) -> str:
     if source_name:
         return f"{source_name}-offset-{suffix}"
     return f"od-fused-offset-{suffix}"
+
+
+def _get_default_estimator_name(ctx: SessionContext) -> str:
+    default_name = ctx.data.get("default_name")
+    if not isinstance(default_name, str):
+        source_name = ctx.data.get("source_estimator_name")
+        default_name = _default_estimator_name(str(source_name) if source_name else None)
+        ctx.data["default_name"] = default_name
+    return default_name
 
 
 def _ordered_worker_options() -> list[str]:
@@ -174,16 +182,9 @@ def _apply_logc_affine_to_estimator(
 
 
 def start_fusion_offset_session() -> CalibrationSession:
-    if config.get("od_reading.config", "ir_led_intensity") == "auto":
-        raise ValueError(
-            "ir_led_intensity cannot be auto for fusion offset calibration. Set a numeric value in config.ini."
-        )
-
-    if any(is_pio_job_running(["stirring", "od_reading"])):
-        raise ValueError("Both stirring and OD reading must be off before starting.")
-
-    _ensure_xr_model()
-    _channel_angle_map_from_config()
+    _run_fusion_calibration_preflight(
+        "ir_led_intensity cannot be auto for fusion offset calibration. Set a numeric value in config.ini."
+    )
 
     session_id = str(uuid.uuid4())
     now = utc_iso_timestamp()
@@ -291,11 +292,7 @@ class NameInput(SessionStep):
     step_id = "name"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        source_name = ctx.data.get("source_estimator_name")
-        default_name = ctx.data.get("default_name")
-        if not isinstance(default_name, str):
-            default_name = _default_estimator_name(str(source_name) if source_name else None)
-            ctx.data["default_name"] = default_name
+        default_name = _get_default_estimator_name(ctx)
         return steps.form(
             "Name this estimator",
             "Choose a name for the offset fused OD estimator.",
@@ -303,10 +300,7 @@ class NameInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_name = ctx.data.get("default_name")
-        if not isinstance(default_name, str):
-            default_name = _default_estimator_name(ctx.data.get("source_estimator_name"))
-            ctx.data["default_name"] = default_name
+        default_name = _get_default_estimator_name(ctx)
         name = ctx.inputs.str("estimator_name", default=default_name)
         ctx.data["estimator_name"] = name
 

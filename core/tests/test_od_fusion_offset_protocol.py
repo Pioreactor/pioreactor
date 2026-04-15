@@ -8,6 +8,10 @@ from typing import Any
 import pytest
 from pioreactor import structs
 from pioreactor.calibrations.protocols import od_fusion_offset
+from pioreactor.calibrations.session_flow import SessionContext
+from pioreactor.calibrations.session_flow import SessionInputs
+from pioreactor.calibrations.structured_session import CalibrationSession
+from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 
@@ -91,3 +95,27 @@ def test_apply_logc_affine_to_estimator_applies_transform() -> None:
         assert transform["source_unit"] == "unit1"
         assert transform["source_estimator_name"] == "base-estimator"
         assert transform["source_ir_led_intensity"] == 10.0
+
+
+def test_get_default_estimator_name_uses_source_name_and_persists_on_context() -> None:
+    session = CalibrationSession(
+        session_id="session-1",
+        protocol_name="od_fusion_offset",
+        target_device="od_fused",
+        status="in_progress",
+        step_id="name",
+        data={"source_estimator_name": "base-estimator"},
+        created_at=utc_iso_timestamp(),
+        updated_at=utc_iso_timestamp(),
+    )
+    ctx = SessionContext(
+        session=session,
+        mode="cli",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+    )
+
+    default_name = od_fusion_offset._get_default_estimator_name(ctx)
+
+    assert default_name.startswith("base-estimator-offset-")
+    assert ctx.data["default_name"] == default_name

@@ -14,7 +14,8 @@
  - Fix bioreactor diagram not responding to waste pump actions.
  - Improved experiment profile validation to catch more semantic errors before execution or save, including conflicting action time fields and invalid profile expressions.
  - Updated the Create/Edit Experiment Profile UI to show backend validation messages when a profile save fails, making profile errors easier to diagnose.
-
+ - Fix for blinking self-tests on the Pioreactors page
+ - Fix for Pioreactor page crashing.
 
 ### 26.4.1
 
