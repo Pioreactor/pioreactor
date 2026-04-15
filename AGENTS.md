@@ -117,6 +117,12 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
 
 ---
 
+## Decision-making
+
+- If a non-trivial code change has 2–3 valid approaches, ask the user first before editing.
+
+---
+
 ## Testing
 
  - Use **pytest** for Python tests. All tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
@@ -125,14 +131,14 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   .venv/bin/pytest core/tests/test_cli.py
   ```
  - Don't run tests in parallel.
+ - Skipping tests is okay, but note it to the user.
+ - Disabling tests is okay, however you MUST ASK PERMISSION to **disable** a test only if any of the following:
+    - it is incredibly flakey and unreliable.
+    - relies on an unresponsive external service.
  - Deleting tets is okay, however you MUST ASK PERMISSION to **delete** a test only if:
     - its conclusion is orthogonal to the logic being written.
     - its preventing a better refactor or feature.
     - its an incredibly trivial feature that is unlikely to be used.
- - Disabling tests is okay, however you MUST ASK PERMISSION to **disable** a test only if any of the following:
-    - it is incredibly flakey and unreliable.
-    - relies on an unresponsive external service.
-
  - Keep mypy green:
 
   ```bash

@@ -5,13 +5,26 @@ Tests for the get_update_app_commands helper in pioreactor.cli.pio.
 import tempfile
 from http.client import HTTPMessage
 from json import dumps
+from pathlib import Path
 from shlex import quote
 
 import click
 import pytest
 from pioreactor.cli.pio import get_update_app_commands
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.mureq import Response
+
+
+@pytest.fixture(autouse=True)
+def ensure_storage_database_configured() -> object:
+    if config.has_option("storage", "database"):
+        yield
+        return
+
+    database_path = str(Path(".pioreactor") / "storage" / "pioreactor.sqlite")
+    with temporary_config_change(config, "storage", "database", database_path):
+        yield
 
 
 def mock_release_metadata_response(tag_name: str, assets: list[dict[str, str]]) -> Response:

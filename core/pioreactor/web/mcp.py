@@ -119,98 +119,64 @@ def _build_export_artifact_response(filename: str) -> dict[str, Any]:
     }
 
 
-def get_from_leader(endpoint: str) -> dict[str, Any]:
-    """Wrapper around `get_from_leader` to handle errors and callback checks."""
+def _request_into_leader(
+    method: str,
+    endpoint: str,
+    request_fn: Callable[..., Any],
+    *,
+    json: dict[str, Any] | None = None,
+    allow_empty_content: bool = False,
+    unwrap_task_result: bool = False,
+) -> dict[str, Any]:
     try:
-        r = _get_from_leader(endpoint)
-        r.raise_for_status()
+        response = request_fn(endpoint, json=json) if json is not None else request_fn(endpoint)
+        response.raise_for_status()
 
-        content = r.json()
-        if r.status_code == 202 and "result_url_path" in content:
-            # task not completed yet, try again recursively
+        if allow_empty_content and not response.content:
+            content: dict[str, Any] = {}
+        else:
+            content = cast(dict[str, Any], response.json())
+
+        if response.status_code == 202 and "result_url_path" in content:
             sleep(0.25)
-            # get the url
             return get_from_leader(content["result_url_path"])
 
-        elif r.status_code == 200:
-            if "task_id" in r.json():
-                # result of a delayed response - just provide the result to reduce noise.
-                return r.json()["result"]
-            else:
-                return r.json()
-        else:
-            raise HTTPException(f"Unexpected status code {r.status_code} for GET {endpoint}.")
+        if unwrap_task_result and response.status_code == 200 and "task_id" in content:
+            return cast(dict[str, Any], content["result"])
+
+        if method == "GET" and response.status_code != 200:
+            raise HTTPException(f"Unexpected status code {response.status_code} for GET {endpoint}.")
+
+        return content
+
     except HTTPException as e:
-        logger.error(f"Failed to GET from leader: {e}")
+        logger.error(f"Failed to {method} {'from' if method in {'GET', 'DELETE'} else 'into'} leader: {e}")
         raise
+
+
+def get_from_leader(endpoint: str) -> dict[str, Any]:
+    """Wrapper around `get_from_leader` to handle errors and callback checks."""
+    return _request_into_leader("GET", endpoint, _get_from_leader, unwrap_task_result=True)
 
 
 def post_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `post_into_leader` to handle errors."""
-    try:
-        r = _post_into_leader(endpoint, json=json)
-        r.raise_for_status()
-        content = r.json()
-        if r.status_code == 202 and "result_url_path" in content:
-            sleep(0.25)
-            return get_from_leader(content["result_url_path"])
-        else:
-            return content
-
-    except HTTPException as e:
-        logger.error(f"Failed to POST into leader: {e}")
-        raise
+    return _request_into_leader("POST", endpoint, _post_into_leader, json=json)
 
 
 def patch_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `patch_into_leader` to handle errors."""
-    try:
-        r = _patch_into_leader(endpoint, json=json)
-        r.raise_for_status()
-        content = r.json()
-        if r.status_code == 202 and "result_url_path" in content:
-            sleep(0.25)
-            return get_from_leader(content["result_url_path"])
-        else:
-            return content
-
-    except HTTPException as e:
-        logger.error(f"Failed to PATCH into leader: {e}")
-        raise
+    return _request_into_leader("PATCH", endpoint, _patch_into_leader, json=json)
 
 
 def put_into_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `put_into_leader` to handle errors."""
-    try:
-        r = _put_into_leader(endpoint, json=json)
-        r.raise_for_status()
-        content = r.json() if r.content else {}
-        if r.status_code == 202 and "result_url_path" in content:
-            sleep(0.25)
-            return get_from_leader(content["result_url_path"])
-        else:
-            return content
-
-    except HTTPException as e:
-        logger.error(f"Failed to PUT into leader: {e}")
-        raise
+    return _request_into_leader("PUT", endpoint, _put_into_leader, json=json, allow_empty_content=True)
 
 
 def delete_from_leader(endpoint: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
     """Wrapper around `delete_from_leader` to handle errors."""
-    try:
-        r = _delete_from_leader(endpoint, json=json)
-        r.raise_for_status()
-        content = r.json() if r.content else {}
-        if r.status_code == 202 and "result_url_path" in content:
-            sleep(0.25)
-            return get_from_leader(content["result_url_path"])
-        else:
-            return content
-
-    except HTTPException as e:
-        logger.error(f"Failed to DELETE from leader: {e}")
-        raise
+    return _request_into_leader("DELETE", endpoint, _delete_from_leader, json=json, allow_empty_content=True)
 
 
 @mcp.tool()
