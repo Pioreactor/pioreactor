@@ -95,12 +95,20 @@ DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseRetur
 
 
 def create_task_response(task: t.Any) -> DelayedResponseReturnValue:
+    task_id = getattr(task, "id", None)
+    if task_id is None:
+        callback = getattr(task, "callback", None)
+        task_id = getattr(callback, "id", None)
+
+    if task_id is None:
+        raise AttributeError("Task response object does not expose an id.")
+
     return (  # type: ignore
         jsonify(
             {
                 "unit": get_unit_name(),
-                "task_id": task.id,
-                "result_url_path": f"/unit_api/task_results/{task.id}",
+                "task_id": task_id,
+                "result_url_path": f"/unit_api/task_results/{task_id}",
             }
         ),
         202,

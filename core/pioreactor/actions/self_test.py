@@ -143,7 +143,12 @@ def test_REF_is_in_correct_position(
 
     with (
         stirring.start_stirring(
-            target_rpm=None, duty_cycle=90, unit=unit, experiment=experiment, enable_dodging_od=False
+            target_rpm=None,
+            duty_cycle=90,
+            unit=unit,
+            experiment=experiment,
+            enable_dodging_od=False,
+            calibration=False,
         ) as st,
         start_od_reading(
             channels=test_channels,

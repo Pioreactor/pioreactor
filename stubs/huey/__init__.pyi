@@ -1,9 +1,12 @@
+from .api import ChordResult as ChordResult
 from .api import Huey as Huey
 from .api import Result as Result
 from .api import ResultGroup as ResultGroup
 from .api import SqliteHuey as SqliteHuey
 from .api import TaskLock as TaskLock
 from .api import TaskWrapper as TaskWrapper
+from .api import chord as chord
+from .api import group as group
 from .exceptions import HueyException as HueyException
 from .exceptions import ResultTimeout as ResultTimeout
 from .exceptions import TaskException as TaskException

@@ -15,7 +15,7 @@ CORE_REQUIREMENTS = [
     "blinker==1.9.0",
     "Flask==3.1.3",
     "flup6==1.1.1",
-    "huey==2.5.2",
+    "huey==3.0.0",
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
     "MarkupSafe==3.0.3",

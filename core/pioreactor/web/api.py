@@ -81,6 +81,7 @@ AllCalibrations = structs.subclass_union(CalibrationBase)
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
+STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
 
 for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
@@ -2298,7 +2299,8 @@ def upload_system_file() -> ResponseReturnValue:
         )
 
     filename = secure_filename(file.filename)
-    save_path = safe_join(tempfile.gettempdir(), filename)
+    temp_basename = f"{STAGED_RELEASE_ARCHIVE_PREFIX}{uuid.uuid4().hex}_{filename}"
+    save_path = safe_join(tempfile.gettempdir(), temp_basename)
     if save_path is None:
         abort_with(
             400,

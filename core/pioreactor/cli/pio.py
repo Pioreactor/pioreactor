@@ -9,6 +9,7 @@ from os import geteuid
 from pathlib import Path
 from shlex import quote
 from typing import Any
+from uuid import uuid4
 
 import click
 from pioreactor import exc
@@ -32,6 +33,7 @@ if whoami.am_I_leader():
 
 GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{4,40}$")
 RELEASE_ARCHIVE_PATTERN = re.compile(r"release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$")
+STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
 
 
 def validate_git_sha(value: str | None) -> str | None:
@@ -66,6 +68,12 @@ def _runtime_config_path(
         return str(Path(dot_pioreactor_root) / dot_pioreactor_filename)
 
     return testing_default if is_testing_env() else production_default
+
+
+def build_staged_release_archive_location(release_filename: str) -> str:
+    return str(
+        Path(tempfile.gettempdir()) / f"{STAGED_RELEASE_ARCHIVE_PREFIX}{uuid4().hex}_{release_filename}"
+    )
 
 
 def get_update_app_commands(
@@ -104,8 +112,9 @@ def get_update_app_commands(
             (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
             (f"sudo bash {tmp_rls_dir}/update.sh", 4),
             (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-            (f"sudo rm -rf {tmp_rls_dir}", 98),
         ]
+
+        release_commands.append((f"sudo rm -rf {tmp_rls_dir}", 98))
 
         if not defer_web_restart:
             release_commands.append(("sudo systemctl restart pioreactor-web.target", 99))
@@ -137,6 +146,7 @@ def get_update_app_commands(
     sha = validate_git_sha(sha)
     # source overrides branch/version/sha
     if source is not None:
+        # download production
         if RELEASE_ARCHIVE_PATTERN.search(source):
             # provided a release archive
             version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
@@ -152,6 +162,7 @@ def get_update_app_commands(
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             raise click.Abort()
     elif branch is not None or sha is not None:
+        # download dev
         git_ref = branch if branch is not None else sha
         assert git_ref is not None
         cleaned_ref = quote(git_ref)
@@ -169,6 +180,7 @@ def get_update_app_commands(
             commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))  # noqa: E501
 
     else:
+        # source is specified, likely in /tmp
         try:
             tag = get_tag_to_install(repo, version)
         except HTTPException:
@@ -181,7 +193,6 @@ def get_update_app_commands(
             raise HTTPException(f"Version {version} not found on GitHub")
         release_metadata = loads(response.body)
         version_installed = release_metadata["tag_name"]
-        tmp_dir = tempfile.gettempdir()
         archive_name = f"release_{version_installed}.zip"
         archive_url = None
         for asset in release_metadata["assets"]:
@@ -193,9 +204,10 @@ def get_update_app_commands(
         if archive_url is None:
             raise FileNotFoundError(f"Could not find {archive_name} in assets of {repo} release {tag}")
 
-        archive_location = f"{tmp_dir}/{archive_name}"
+        archive_location = build_staged_release_archive_location(archive_name)
         commands_and_priority.append((f"wget -O {quote(archive_location)} {archive_url}", -100))
         commands_and_priority.extend(create_commands_for_release_archive(archive_location, version_installed))
+        commands_and_priority.append((f"sudo rm -f {quote(archive_location)}", 97))
     return commands_and_priority, version_installed
 
 

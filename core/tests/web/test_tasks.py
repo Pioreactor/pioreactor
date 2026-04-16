@@ -4,8 +4,6 @@ from http.client import HTTPMessage
 from typing import Any
 
 import pytest
-from huey.exceptions import ResultTimeout
-from huey.exceptions import TaskException
 from pioreactor.mureq import Response
 from pioreactor.web import tasks
 
@@ -65,34 +63,26 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
     assert responses == []
 
 
-def test_collect_multicast_results_returns_partial_on_timeout() -> None:
-    class FakeResult:
-        def __init__(self, value: Any = None, error: Exception | None = None) -> None:
-            self._value = value
-            self._error = error
-
-        def get(self, blocking: bool = False) -> Any:
-            if self._error is not None:
-                raise self._error
-            return self._value
-
-    class FakeResultGroup:
-        def __init__(self, results: list[FakeResult]) -> None:
-            self._results = results
-
-        def get(self, *args: Any, **kwargs: Any) -> Any:
-            raise ResultTimeout("timed out waiting for result")
-
-        def __iter__(self):
-            return iter(self._results)
-
-    units = ["unit1", "unit2"]
-    results = [
-        FakeResult(("unit1", {"ok": True})),
-        FakeResult(error=TaskException("boom")),
+def test_reduce_multicast_results_handles_partial_failures() -> None:
+    units = ["unit1", "unit2", "unit3"]
+    ordered_results = [
+        ("unit1", {"ok": True}),
+        RuntimeError("boom"),
+        None,
     ]
-    group = FakeResultGroup(results)
 
-    output = tasks._collect_multicast_results(units, group, timeout=0.01)
+    output = tasks.reduce_multicast_results.call_local(units, False, ordered_results)
 
-    assert output == {"unit1": {"ok": True}, "unit2": None}
+    assert output == {"unit1": {"ok": True}, "unit2": None, "unit3": None}
+
+
+def test_reduce_multicast_results_sorts_when_requested() -> None:
+    units = ["unit2", "unit1"]
+    ordered_results = [
+        ("unit2", {"value": 2}),
+        ("unit1", {"value": 1}),
+    ]
+
+    output = tasks.reduce_multicast_results.call_local(units, True, ordered_results)
+
+    assert list(output.keys()) == ["unit1", "unit2"]

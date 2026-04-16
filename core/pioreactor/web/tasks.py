@@ -30,8 +30,7 @@ from typing import Any
 from typing import cast
 from uuid import uuid4
 
-from huey.exceptions import ResultTimeout
-from huey.exceptions import TaskException
+from huey import chord as huey_chord
 from msgspec import DecodeError
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
@@ -299,9 +298,9 @@ def _get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int
 
 
 @huey.task(priority=10)
-def check_model_hardware(model_name: str, model_version: str) -> None:
+def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
     if model_version != "1.5":
-        return
+        return {"status": "skipped", "reason": "hardware check only applies to model version 1.5"}
 
     registered_models = get_registered_models()
     if (model_name, model_version) in registered_models:
@@ -315,11 +314,11 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
         logger.warning(
             f"Hardware check skipped on {get_unit_name()}: {err}",
         )
-        return
+        return {"status": "skipped", "reason": str(err)}
 
     if not addresses:
         logger.debug(f"Hardware check found no ADC addresses for {display_name} on {get_unit_name()}.")
-        return
+        return {"status": "skipped", "reason": "model has no configured ADC addresses"}
 
     missing = sorted(addr for addr in addresses if not hardware.is_i2c_device_present(addr))
     if missing:
@@ -328,10 +327,10 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
             f"Hardware check failed for {display_name} on {get_unit_name()}: "
             f"missing I2C devices at {missing_hex}."
         )
-        return
+        return {"status": "warning", "reason": f"missing I2C devices at {missing_hex}"}
 
     logger.notice(f"Correct hardware found for {display_name} on {get_unit_name()}.")
-    return
+    return {"status": "ok"}
 
 
 @huey.task()
@@ -1063,27 +1062,39 @@ def post_into_unit(
         return unit, None
 
 
-def _collect_multicast_results(
+@huey.task(priority=5)
+def reduce_multicast_results(
     units: list[str],
-    tasks: Any,
-    timeout: float,
+    sort_results: bool,
+    ordered_results: list[Any],
 ) -> dict[str, Any]:
-    try:
-        return {unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)}
-    except (ResultTimeout, TaskException):
-        results: dict[str, Any] = {}
-        for unit, result in zip(units, tasks):
-            try:
-                value = result.get(blocking=False)
-            except TaskException:
-                results[unit] = None
-                continue
-            if value is None:
-                results[unit] = None
-            else:
-                _, response = value
-                results[unit] = response
-        return results
+    results_by_unit: dict[str, Any] = {}
+
+    for unit, result in zip(units, ordered_results):
+        if isinstance(result, Exception) or result is None:
+            results_by_unit[unit] = None
+            continue
+
+        if isinstance(result, tuple) and len(result) == 2:
+            _, response = result
+            results_by_unit[unit] = response
+            continue
+
+        results_by_unit[unit] = result
+
+    if sort_results:
+        return dict(sorted(results_by_unit.items()))
+
+    return results_by_unit
+
+
+def _enqueue_multicast_chord(task_signatures: list[Any], units: list[str], sort_results: bool) -> Any:
+    return huey.enqueue(
+        huey_chord(
+            task_signatures,
+            reduce_multicast_results.s(units, sort_results),
+        )
+    )
 
 
 def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[str]) -> None:
@@ -1126,15 +1137,13 @@ def _response_body_for_logging(response: Response | None) -> str:
         return repr(response.body)
 
 
-@huey.task(priority=50)
 def multicast_post(
     endpoint: str,
     units: list[str],
     json: dict[str, Any] | list[dict[str, Any] | None] | None = None,
     params: dict[str, Any] | list[dict[str, Any] | None] | None = None,
     timeout: float = 30.0,
-) -> dict[str, Any]:
-    # this function "consumes" one huey thread waiting fyi
+) -> Any:
     assert endpoint.startswith("/unit_api")
 
     if not isinstance(json, list):
@@ -1145,11 +1154,14 @@ def multicast_post(
     if not isinstance(params, list):
         params = [params] * len(units)
 
-    tasks = post_into_unit.map(((units[i], endpoint, json[i], params[i]) for i in range(len(units))))
+    if not units:
+        return reduce_multicast_results(units, False, [])
 
-    return _collect_multicast_results(
-        units, tasks, timeout
-    )  # add a timeout so that we don't hold up a thread forever.
+    return _enqueue_multicast_chord(
+        [post_into_unit.s(units[i], endpoint, json[i], params[i]) for i in range(len(units))],
+        units,
+        False,
+    )
 
 
 @huey.task(priority=10)
@@ -1204,34 +1216,43 @@ def _multicast_get_uncached(
     timeout: float = 5.0,
     return_raw: bool = False,
 ) -> dict[str, Any]:
-    # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
 
     if not isinstance(json, list):
         json = [json] * len(units)
 
-    tasks = get_from_unit.map(((units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))))
-    unsorted_responses = _collect_multicast_results(
-        units, tasks, timeout
-    )  # add a timeout so that we don't hold up a thread forever.
+    if not units:
+        return {}
+
+    result = _enqueue_multicast_chord(
+        [get_from_unit.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
+        units,
+        True,
+    )
+    unsorted_responses = result.get(blocking=True, timeout=timeout)
 
     return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 
 
-@huey.task(priority=5)
 def multicast_get(
     endpoint: str,
     units: list[str],
     json: dict[str, Any] | list[dict[str, Any] | None] | None = None,
     timeout: float = 5.0,
     return_raw: bool = False,
-) -> dict[str, Any]:
-    return _multicast_get_uncached(
-        endpoint=endpoint,
-        units=units,
-        json=json,
-        timeout=timeout,
-        return_raw=return_raw,
+) -> Any:
+    assert endpoint.startswith("/unit_api")
+
+    if not isinstance(json, list):
+        json = [json] * len(units)
+
+    if not units:
+        return reduce_multicast_results(units, True, [])
+
+    return _enqueue_multicast_chord(
+        [get_from_unit.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
+        units,
+        True,
     )
 
 
@@ -1279,18 +1300,19 @@ def patch_into_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None
         return unit, None
 
 
-@huey.task(priority=50)
 def multicast_patch(
     endpoint: str, units: list[str], json: dict[str, Any] | None = None, timeout: float = 30.0
-) -> dict[str, Any]:
-    # this function "consumes" one huey thread waiting fyi
+) -> Any:
     assert endpoint.startswith("/unit_api")
 
-    tasks = patch_into_unit.map(((unit, endpoint, json) for unit in units))
+    if not units:
+        return reduce_multicast_results(units, False, [])
 
-    return _collect_multicast_results(
-        units, tasks, timeout
-    )  # add a timeout so that we don't hold up a thread forever.
+    return _enqueue_multicast_chord(
+        [patch_into_unit.s(unit, endpoint, json) for unit in units],
+        units,
+        False,
+    )
 
 
 @huey.task(priority=10)
@@ -1313,15 +1335,16 @@ def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = Non
         return unit, None
 
 
-@huey.task(priority=5)
 def multicast_delete(
     endpoint: str, units: list[str], json: dict[str, Any] | None = None, timeout: float = 30.0
-) -> dict[str, Any]:
-    # this function "consumes" one huey thread waiting fyi
+) -> Any:
     assert endpoint.startswith("/unit_api")
 
-    tasks = delete_from_unit.map(((unit, endpoint, json) for unit in units))
+    if not units:
+        return reduce_multicast_results(units, False, [])
 
-    return _collect_multicast_results(
-        units, tasks, timeout
-    )  # add a timeout so that we don't hold up a thread forever.
+    return _enqueue_multicast_chord(
+        [delete_from_unit.s(unit, endpoint, json) for unit in units],
+        units,
+        False,
+    )

@@ -1,3 +1,9 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Improved software update reliability by avoiding temp-file name collisions between web-uploaded release archives and `pio update app` downloads. This fixes a failure mode where updates could abort with a `Permission denied` error if an older archive was already present in `/tmp`.
+
 ### 26.4.2
 
 #### Enhancements

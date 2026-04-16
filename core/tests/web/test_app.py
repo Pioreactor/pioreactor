@@ -2,6 +2,7 @@
 import os
 from datetime import datetime
 from datetime import UTC
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -989,6 +990,27 @@ def test_update_next_version_accepts_unit_selection(client, monkeypatch: MonkeyP
     response = client.post("/api/system/update_next_version", json={"units": "unit2"})
     assert response.status_code == 202
     assert captured["units"] == "unit2"
+
+
+def test_system_upload_uses_unique_staged_temp_archive_name(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("pioreactor.web.api.tempfile.gettempdir", lambda: str(tmp_path))
+
+    response = client.post(
+        "/api/system/upload",
+        data={"file": (BytesIO(b"archive-bytes"), "release_26.4.2.zip")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    save_path = Path(payload["save_path"])
+
+    assert save_path.parent == tmp_path
+    assert save_path.name.startswith("pioreactor_update_archive_")
+    assert save_path.name.endswith("_release_26.4.2.zip")
+    assert save_path.read_bytes() == b"archive-bytes"
 
 
 def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch: MonkeyPatch) -> None:

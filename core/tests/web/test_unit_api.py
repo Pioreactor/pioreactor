@@ -43,6 +43,43 @@ def test_task_results_pending(client) -> None:
     assert data["status"] == "pending or not present"
 
 
+def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    preserve_values: list[bool] = []
+
+    def fake_result(task_id: str, preserve: bool = False) -> dict[str, bool]:
+        assert task_id == "task-1"
+        preserve_values.append(preserve)
+        return {"ok": True}
+
+    monkeypatch.setattr(mod.huey.storage, "has_data_for_key", lambda task_id: task_id == "task-1")
+    monkeypatch.setattr(mod.huey, "result", fake_result)
+
+    first = client.get("/unit_api/task_results/task-1")
+    second = client.get("/unit_api/task_results/task-1")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.get_json()["result"] == {"ok": True}
+    assert second.get_json()["result"] == {"ok": True}
+    assert preserve_values == [True, True]
+
+
+def test_task_results_complete_when_stored_result_is_none(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.huey.storage, "has_data_for_key", lambda task_id: task_id == "task-2")
+    monkeypatch.setattr(mod.huey, "result", lambda task_id, preserve=False: None)
+
+    resp = client.get("/unit_api/task_results/task-2")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["status"] == "complete"
+    assert data["result"] is None
+
+
 def test_invalid_update_target(client) -> None:
     """Invalid target for system update should return 404."""
     resp = client.post(
@@ -62,6 +99,22 @@ def test_extract_error_message_uses_error_field_only() -> None:
 
     assert _extract_error_message({"error": " Invalid target "}) == "Invalid target"
     assert _extract_error_message({"description": "Invalid target"}) == "Request failed."
+
+
+def test_create_task_response_uses_chord_callback_id(client) -> None:
+    from pioreactor.web.utils import create_task_response
+
+    class DummyCallback:
+        id = "callback-task"
+
+    class DummyChordResult:
+        callback = DummyCallback()
+
+    with client.application.app_context():
+        response, status_code = create_task_response(DummyChordResult())
+
+    assert status_code == 202
+    assert response.get_json()["task_id"] == "callback-task"
 
 
 @pytest.mark.parametrize("endpoint", ["/unit_api/system/reboot", "/unit_api/system/shutdown"])

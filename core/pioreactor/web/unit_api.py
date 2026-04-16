@@ -24,7 +24,6 @@ from flask import send_file
 from flask.typing import ResponseReturnValue
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
-from huey.exceptions import TaskLockedException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
@@ -117,22 +116,25 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
 def get_task_status(task_id: str) -> ResponseReturnValue:
     response_metadata = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
+    if not huey.storage.has_data_for_key(task_id):
+        return jsonify(response_metadata | {"status": "pending or not present"}), 202
+
     try:
-        task = huey.result(task_id)
-    except TaskLockedException:
-        return (
-            jsonify(
-                response_metadata
-                | {
-                    "status": "in_progress",
-                    "error": "task is locked and already running.",
-                    "cause": "Another task with this ID is currently running.",
-                    "remediation": "Wait for the task to finish, then retry.",
-                }
-            ),
-            202,
-        )
+        task = huey.result(task_id, preserve=True)
     except TaskException as e:
+        if "TaskLockedException" in str(e):
+            return (
+                jsonify(
+                    response_metadata
+                    | {
+                        "status": "in_progress",
+                        "error": "task is locked and already running.",
+                        "cause": "Another task with this ID is currently running.",
+                        "remediation": "Wait for the task to finish, then retry.",
+                    }
+                ),
+                202,
+            )
         # huey wraps the exception, so lets reraise it.
         return (
             jsonify(
@@ -146,9 +148,6 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
             ),
             500,
         )
-
-    if task is None:
-        return jsonify(response_metadata | {"status": "pending or not present"}), 202
     if isinstance(task, Exception):
         return (
             jsonify(
