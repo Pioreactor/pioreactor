@@ -392,6 +392,7 @@ function ExperimentsContainer(props) {
                             data-experiment-name={experiment.experiment}
                           />
                         </Box>
+                        {experiment.description &&
                         <Typography
                           variant="body2"
                           color={experiment.description ? "text.primary" : "text.secondary"}
@@ -402,8 +403,12 @@ function ExperimentsContainer(props) {
                             overflow: "hidden",
                           }}
                         >
-                          {experiment.description || "No description"}
+                          {experiment.description}
                         </Typography>
+                        }
+                        {!experiment.description &&
+                        <Typography variant="body2" component="p" color="textSecondary">No description</Typography>
+                        }
                         <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: "wrap" }}>
                           {visibleTags.map((tag) => (
                             <Chip key={`${experiment.experiment}-${tag}`} label={tag} size="small" variant="outlined" />

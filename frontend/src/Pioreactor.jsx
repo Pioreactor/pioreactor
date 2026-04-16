@@ -2787,6 +2787,25 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
 )}
 
 
+function evaluateChartLookback(timeWindow, lookbackExpression) {
+  if (timeWindow >= 0) {
+    return timeWindow;
+  }
+  if (!lookbackExpression) {
+    return 10000;
+  }
+  // Chart descriptors provide legacy JavaScript expressions for lookback values.
+  // eslint-disable-next-line no-eval
+  return eval(lookbackExpression);
+}
+
+function evaluateChartTransformation(transformation) {
+  // Chart descriptors provide legacy JavaScript functions for y-axis transformations.
+  // eslint-disable-next-line no-eval
+  return eval(transformation || "(y) => y");
+}
+
+
 
 function Charts(props) {
   const [charts, setCharts] = useState({})
@@ -2797,7 +2816,7 @@ function Charts(props) {
     fetch('/api/charts/descriptors')
       .then((response) => response.json())
       .then((data) => {
-        setCharts(data.reduce((map, obj) => ((map[obj.chart_key] = obj), map), {}));
+        setCharts(Object.fromEntries(data.map((chart) => [chart.chart_key, chart])));
       });
   }, []);
 
@@ -2826,10 +2845,10 @@ function Charts(props) {
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                  lookback={(props.timeWindow >= 0) ? props.timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
+                  lookback={evaluateChartLookback(props.timeWindow, chart.lookback)}
                   fixedDecimals={chart.fixed_decimals}
                   relabelMap={props.relabelMap}
-                  yTransformation={eval(chart.y_transformation || "(y) => y")}
+                  yTransformation={evaluateChartTransformation(chart.y_transformation)}
                   dataSourceColumn={chart.data_source_column}
                   isPartitionedBySensor={["raw_optical_density", 'optical_density'].includes(chart_key)}
                   isLiveChart={true}

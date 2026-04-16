@@ -65,9 +65,9 @@ def _channel_angle_map_from_config() -> dict[pt.PdChannel, pt.PdAngle]:
     return channel_angle_map
 
 
-def _run_fusion_calibration_preflight(ir_led_error_message: str) -> dict[pt.PdChannel, pt.PdAngle]:
+def _run_fusion_calibration_preflight() -> dict[pt.PdChannel, pt.PdAngle]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
-        raise ValueError(ir_led_error_message)
+        raise ValueError("ir_led_intensity cannot be `auto`. Set a numeric value in config.ini.")
 
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Both stirring and OD reading must be off before starting.")
@@ -205,9 +205,7 @@ def _get_default_estimator_name(ctx: SessionContext) -> str:
 
 
 def start_fusion_session() -> CalibrationSession:
-    channel_angle_map = _run_fusion_calibration_preflight(
-        "ir_led_intensity cannot be auto for fusion calibration. Set a numeric value in config.ini."
-    )
+    channel_angle_map = _run_fusion_calibration_preflight()
 
     session_id = str(uuid.uuid4())
     return CalibrationSession(

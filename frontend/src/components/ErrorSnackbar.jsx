@@ -60,7 +60,7 @@ function ErrorSnackbar() {
 
       if (!topic.toString().endsWith("/ui")){
         const payload = JSON.parse(message.toString())
-        const [_, unit, experimentFromTopic] = topic.toString().split("/")
+        const [, unit, experimentFromTopic] = topic.toString().split("/")
         setMsg(payload.message)
         setTask(payload.task)
         setLevel(payload.level === "NOTICE" ? "SUCCESS" : payload.level)

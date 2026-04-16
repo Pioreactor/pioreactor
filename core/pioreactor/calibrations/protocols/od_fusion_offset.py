@@ -182,9 +182,7 @@ def _apply_logc_affine_to_estimator(
 
 
 def start_fusion_offset_session() -> CalibrationSession:
-    _run_fusion_calibration_preflight(
-        "ir_led_intensity cannot be auto for fusion offset calibration. Set a numeric value in config.ini."
-    )
+    _run_fusion_calibration_preflight()
 
     session_id = str(uuid.uuid4())
     now = utc_iso_timestamp()

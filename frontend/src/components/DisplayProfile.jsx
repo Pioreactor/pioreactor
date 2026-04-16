@@ -110,7 +110,7 @@ function findQuotedString(expressionString){
 
 function findFirstDisallowedCharacter(expressionString){
   if (typeof expressionString !== 'string') return null;
-  const allowedPattern = /^[a-zA-Z0-9_\$\.\:\s\(\)\+\-\*\/<>=!]+$/;
+  const allowedPattern = /^[a-zA-Z0-9_$.:\s()+*/<>=!-]+$/;
   if (allowedPattern.test(expressionString)) return null;
   for (let i = 0; i < expressionString.length; i += 1) {
     if (!allowedPattern.test(expressionString[i])) {
@@ -191,7 +191,7 @@ function processBracketedExpression(value) {
     var almostPattern = /{{(.*?)}}/;
     match = almostPattern.exec(String(value));
     if (match) {
-        return <UnderlineSpan title="Missing $ infront: ${{ ... }}">??</UnderlineSpan>
+        return <UnderlineSpan title={`Missing $ infront: \${{ ... }}`}>??</UnderlineSpan>
     }
 
     almostPattern = /{+(.*?)}+/;
@@ -260,10 +260,10 @@ const humanReadableDuration = (duration, missingMsg='missing `hours_elapsed` or 
 
 const humanReadableLiteral = (tValue, durationFields = 't') => {
   if (tValue === undefined || tValue === null) {
-    return humanReadableDuration(undefined, `missing \"${durationFields}\"  field`);
+    return humanReadableDuration(undefined, `missing "${durationFields}"  field`);
   }
 
-  return humanReadableDuration(tValue, `missing \"${durationFields}\" field`);
+  return humanReadableDuration(tValue, `missing "${durationFields}" field`);
 };
 
 
@@ -327,7 +327,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
         if (typeof optionValue === 'object') {
           return (
             <Typography key={`option-${idx}`} variant="body2" component="div" sx={level3}>
-              — {verb} {displayVariable(option)} → <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan> <InlineComment comment={optionComment} />
+              — {verb} {displayVariable(option)} → <UnderlineSpan title={`Requires value or expression \${{..}}`}>??</UnderlineSpan> <InlineComment comment={optionComment} />
             </Typography>
           ); // intermediate state when typing
         }

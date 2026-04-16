@@ -4166,7 +4166,7 @@ function Pioreactors({title}) {
       {isLoading ? <CircularProgress /> : (
       <>
       <img
-        alt="filler image for no pioreactor assigned"
+        alt="filler illustration for no pioreactor assigned"
         src={emptyStateIllustration}
         style={{width: "420px", opacity: 0.8, marginBottom: "8px"}}
       />

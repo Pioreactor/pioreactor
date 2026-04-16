@@ -156,9 +156,38 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     }
   };
 
+  const toTimestampObject = (timestamp) => {
+    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+  };
+
 
 
   useEffect(() => {
+    const onMessage = (topic, message, _packet) => {
+      if (!message || !topic) return;
+
+      const unit = topic.toString().split('/')[1];
+      const payload = JSON.parse(message.toString());
+      const levelOfMessage = payload.level.toUpperCase();
+
+      if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
+        return
+      }
+
+      setListOfLogs((currentLogs) =>
+        [
+          {
+            timestamp: toTimestampObject(payload.timestamp),
+            pioreactor_unit: unit,
+            message: String(payload.message),
+            task: payload.task,
+            level: payload.level.toUpperCase(),
+            key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
+          },
+          ...currentLogs,
+        ]);
+    };
+
     if (experiment && client) {
       subscribeToTopic(
         LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
@@ -169,44 +198,15 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     return () => {
       LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
     };
-  }, [client, experiment, pioreactorUnit, logLevel]);
+  }, [client, experiment, logLevel, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSwitchChange = (event) => {
     setOnlyAssignedLogs(!event.target.checked)
   }
 
-  const onMessage = (topic, message, _packet) => {
-    if (!message || !topic) return;
-
-    const unit = topic.toString().split('/')[1];
-    const payload = JSON.parse(message.toString());
-    const levelOfMessage = payload.level.toUpperCase();
-
-    if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
-      return
-    }
-
-    setListOfLogs((currentLogs) =>
-      [
-        {
-          timestamp: toTimestampObject(payload.timestamp),
-          pioreactor_unit: unit,
-          message: String(payload.message),
-          task: payload.task,
-          level: payload.level.toUpperCase(),
-          key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
-        },
-        ...currentLogs,
-      ]);
-  };
-
   const relabelUnit = (unit) => {
     return relabelMap && relabelMap[unit] ? `${relabelMap[unit]} / ${unit}` : unit;
-  };
-
-  const toTimestampObject = (timestamp) => {
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
   };
 
   const timestampCell = (timestamp) => {
