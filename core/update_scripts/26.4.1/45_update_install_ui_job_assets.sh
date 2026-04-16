@@ -29,8 +29,8 @@ install_checked_asset() {
 
     local tmp
     tmp="$(mktemp)"
-    install -o pioreactor -g pioreactor -m 0644 "$src" "$tmp"
-    install -d -o pioreactor -g pioreactor -m 0755 "$(dirname "$dst")"
+    install -o pioreactor -g www-data -m 0644 "$src" "$tmp"
+    install -d -o pioreactor -g www-data -m 0755 "$(dirname "$dst")"
     mv "$tmp" "$dst"
 
     [ -s "$dst" ] || {
