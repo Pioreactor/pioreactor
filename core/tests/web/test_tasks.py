@@ -4,12 +4,18 @@ from http.client import HTTPMessage
 from typing import Any
 
 import pytest
+from huey.exceptions import RateLimitExceeded
 from pioreactor.mureq import Response
 from pioreactor.web import tasks
 
 
 def _response(status_code: int, payload: dict[str, Any]) -> Response:
     return Response("http://unit.local", status_code, HTTPMessage(), json.dumps(payload).encode())
+
+
+def _clear_rate_limit(name: str) -> None:
+    tasks.huey.delete(f"{tasks.huey.name}.rl.{name}.w")
+    tasks.huey.storage.delete_counter(f"{tasks.huey.name}.rl.{name}")
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -86,3 +92,47 @@ def test_reduce_multicast_results_sorts_when_requested() -> None:
     output = tasks.reduce_multicast_results.call_local(units, True, ordered_results)
 
     assert list(output.keys()) == ["unit1", "unit2"]
+
+
+def test_install_plugin_task_is_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_rate_limit("plugins")
+    monkeypatch.setattr(
+        "pioreactor.plugin_management.install_plugin.install_plugin", lambda *args, **kwargs: None
+    )
+
+    assert tasks.install_plugin_task.call_local("demo-plugin") is True
+
+    with pytest.raises(RateLimitExceeded):
+        tasks.install_plugin_task.call_local("demo-plugin")
+
+    _clear_rate_limit("plugins")
+
+
+def test_power_actions_share_rate_limit_bucket() -> None:
+    _clear_rate_limit("power-actions")
+
+    assert tasks.reboot.call_local() is True
+
+    with pytest.raises(RateLimitExceeded):
+        tasks.shutdown.call_local()
+
+    _clear_rate_limit("power-actions")
+
+
+def test_write_config_and_sync_is_rate_limited(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    _clear_rate_limit("config-sync")
+
+    class FakeCompletedProcess:
+        returncode = 0
+        stderr = ""
+
+    monkeypatch.setattr(tasks, "run", lambda *args, **kwargs: FakeCompletedProcess())
+
+    config_path = tmp_path / "config.ini"
+
+    assert tasks.write_config_and_sync.call_local(str(config_path), "[ui]\n", "unit1") == (True, "")
+
+    with pytest.raises(RateLimitExceeded):
+        tasks.write_config_and_sync.call_local(str(config_path), "[ui]\n", "unit1")
+
+    _clear_rate_limit("config-sync")
