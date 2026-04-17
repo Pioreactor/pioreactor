@@ -101,6 +101,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.states import JobState as st
 from pioreactor.utils import adcs as madcs
 from pioreactor.utils import argextrema
+from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
@@ -1807,6 +1808,10 @@ def start_od_reading(
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
+
+    maybe_job_id = get_running_pio_job_id("od_reading")
+    if maybe_job_id is not None:
+        raise exc.JobPresentError(f"od_reading is already running (job_id={maybe_job_id}). Skipping.")
 
     ir_led_reference_channel = find_ir_led_reference(channels)
     channel_angle_map = create_channel_angle_map(channels)
