@@ -97,12 +97,6 @@ logger.setLevel(logging.DEBUG)
 PIO_EXECUTABLE = os.environ["PIO_EXECUTABLE"]
 PIOS_EXECUTABLE = os.environ["PIOS_EXECUTABLE"]
 
-PLUGIN_RATE_LIMIT_WINDOW_SECONDS = 60
-UPDATE_RATE_LIMIT_WINDOW_SECONDS = 60
-POWER_RATE_LIMIT_WINDOW_SECONDS = 15
-WEB_RESTART_RATE_LIMIT_WINDOW_SECONDS = 15
-CONFIG_SYNC_RATE_LIMIT_WINDOW_SECONDS = 30
-
 ALLOWED_ENV = (
     "EXPERIMENT",
     "JOB_SOURCE",
@@ -777,7 +771,7 @@ def kill_jobs_task(
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=PLUGIN_RATE_LIMIT_WINDOW_SECONDS, retry=False)
+@huey.rate_limit("plugins", limit=1, per=60, retry=False)
 @huey.lock_task("plugins-lock")
 def install_plugin_task(name: str, source: str | None = None) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
@@ -792,7 +786,7 @@ def install_plugin_task(name: str, source: str | None = None) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=PLUGIN_RATE_LIMIT_WINDOW_SECONDS, retry=False)
+@huey.rate_limit("plugins", limit=1, per=60, retry=False)
 @huey.lock_task("plugins-lock")
 def uninstall_plugin_task(name: str) -> bool:
     from pioreactor.plugin_management.uninstall_plugin import uninstall_plugin
@@ -922,7 +916,7 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("update-app", limit=1, per=UPDATE_RATE_LIMIT_WINDOW_SECONDS, retry=False)
+@huey.rate_limit("update-app", limit=1, per=60, retry=False)
 @huey.lock_task("update-lock")
 def pio_update_app(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
@@ -956,7 +950,7 @@ def rm(path: str) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("power-actions", limit=1, per=POWER_RATE_LIMIT_WINDOW_SECONDS, retry=False)
+@huey.rate_limit("power-actions", limit=1, per=15, retry=False)
 @huey.lock_task("power-lock")
 def shutdown() -> bool:
     logger.debug("Shutting down now")
@@ -967,7 +961,7 @@ def shutdown() -> bool:
 
 
 @huey.task()
-@huey.rate_limit("power-actions", limit=1, per=POWER_RATE_LIMIT_WINDOW_SECONDS, retry=False)
+@huey.rate_limit("power-actions", limit=1, per=15, retry=False)
 @huey.lock_task("power-lock")
 def reboot(wait: int = 0) -> bool:
     sleep(wait)
@@ -979,7 +973,7 @@ def reboot(wait: int = 0) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("web-restart", limit=1, per=WEB_RESTART_RATE_LIMIT_WINDOW_SECONDS, retry=False)
+@huey.rate_limit("web-restart", limit=1, per=15, retry=False)
 @huey.lock_task("web-restart-lock")
 def restart_pioreactor_web_target() -> bool:
     logger.debug("Restarting pioreactor-web.target")
@@ -1012,7 +1006,7 @@ def save_file(path: str, content: str) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("config-sync", limit=1, per=CONFIG_SYNC_RATE_LIMIT_WINDOW_SECONDS, retry=False)
+@huey.rate_limit("config-sync", limit=1, per=30, retry=False)
 @huey.lock_task("config-sync-lock")
 def write_config_and_sync(
     config_path: str, text: str, units: str, flags: tuple[str, ...] = (), env: dict[str, str] | None = None

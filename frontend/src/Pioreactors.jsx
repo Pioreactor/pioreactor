@@ -77,7 +77,7 @@ import PioreactorsIcon from "./components/PioreactorsIcon"
 import RequirementsAlert from "./components/RequirementsAlert"
 import UnderlineSpan from "./components/UnderlineSpan";
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
-import { MQTTProvider, useMQTT } from './providers/MQTTContext';
+import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
@@ -122,6 +122,8 @@ const EMPTY_STATE_ILLUSTRATIONS = [
   "/static/svgs/bacteria-two-bacillus-touching.svg",
   "/static/svgs/bacteria-three-bacillus-touching.svg",
 ];
+
+const TOPIC_SIGNATURE_SEPARATOR = "\u0000";
 
 function createBioreactorSettingsGroup(descriptors, values, config, modelDetails, { valueMode = "confirmed" } = {}) {
   if (!Array.isArray(descriptors) || descriptors.length === 0) {
@@ -3398,17 +3400,25 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     }
   }, []);
 
+  const monitorSettingsSignature = Object.keys(jobs.monitor?.publishedSettings || {})
+    .sort()
+    .join(TOPIC_SIGNATURE_SEPARATOR);
+
   const monitorTopics = useMemo(() => {
     if (!experiment) {
       return [];
     }
 
     const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
-    for (const setting of Object.keys(jobs.monitor?.publishedSettings || {})) {
+    const monitorSettings = monitorSettingsSignature
+      ? monitorSettingsSignature.split(TOPIC_SIGNATURE_SEPARATOR)
+      : [];
+
+    for (const setting of monitorSettings) {
       topics.push(["pioreactor", unit, "$experiment", "monitor", setting].join("/"));
     }
     return topics;
-  }, [experiment, jobs.monitor, unit]);
+  }, [experiment, monitorSettingsSignature, unit]);
 
   useEffect(() => {
     if (!isUnitActive) {
@@ -3426,23 +3436,39 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
     };
   }, [client, isUnitActive, monitorTopics, onMessage, subscribeToTopic, unsubscribeFromTopic])
 
+  const dynamicTopicsSignature = Object.entries(jobs)
+    .filter(([jobName]) => jobName !== "monitor")
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([jobName, job]) => {
+      const settingKeys = Object.keys(job.publishedSettings || {}).sort();
+      return `${jobName}=${settingKeys.join(",")}`;
+    })
+    .join(TOPIC_SIGNATURE_SEPARATOR);
+
   const dynamicJobTopics = useMemo(() => {
-    if (jobDescriptorsStatus !== "ready" || !experiment) {
+    if (jobDescriptorsStatus !== "ready" || !experiment || !dynamicTopicsSignature) {
       return [];
     }
 
     const topics = [];
-    for (const [jobName, job] of Object.entries(jobs)) {
-      if (jobName === "monitor") {
+    for (const jobDescriptor of dynamicTopicsSignature.split(TOPIC_SIGNATURE_SEPARATOR)) {
+      const [jobName, settings = ""] = jobDescriptor.split("=");
+      if (!jobName) {
         continue;
       }
+
       topics.push(`pioreactor/${unit}/${experiment}/${jobName}/$state`);
-      for (const setting of Object.keys(job.publishedSettings)) {
+
+      if (!settings) {
+        continue;
+      }
+
+      for (const setting of settings.split(",")) {
         topics.push(["pioreactor", unit, experiment, jobName, setting].join("/"));
       }
     }
     return topics;
-  }, [experiment, jobDescriptorsStatus, jobs, unit]);
+  }, [dynamicTopicsSignature, experiment, jobDescriptorsStatus, unit]);
 
   useEffect(() => {
     if (!isUnitActive) {
@@ -4183,7 +4209,7 @@ function Pioreactors({title}) {
   )
 
   return (
-    <MQTTProvider name="pioreactor" config={sharedConfig}>
+    <>
       {modelCheckKey > 0 && <MissingWorkerModelModal triggerCheckKey={modelCheckKey} />}
       <Grid container spacing={2} >
         <Grid
@@ -4197,7 +4223,7 @@ function Pioreactors({title}) {
 
         </Grid>
       </Grid>
-    </MQTTProvider>
+    </>
   );
 }
 

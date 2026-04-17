@@ -4,6 +4,8 @@ const BIOREACTOR_CONFIG_KEYS = {
   alt_media_fraction: "initial_alt_media_fraction",
 };
 
+let bioreactorDescriptorsRequestCache = null;
+
 export function parseNumericValue(value) {
   const parsed = parseFloat(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -40,12 +42,26 @@ export function getBioreactorSubscriptionTopics(unit, experiment) {
   ];
 }
 
+export function resetBioreactorDescriptorsCache() {
+  bioreactorDescriptorsRequestCache = null;
+}
+
 export async function getBioreactorDescriptors() {
-  const response = await fetch("/api/bioreactor/descriptors");
-  if (!response.ok) {
-    throw new Error(`HTTP error! Status: ${response.status}`);
+  if (!bioreactorDescriptorsRequestCache) {
+    bioreactorDescriptorsRequestCache = fetch("/api/bioreactor/descriptors")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .catch((error) => {
+        bioreactorDescriptorsRequestCache = null;
+        throw error;
+      });
   }
-  return response.json();
+
+  return bioreactorDescriptorsRequestCache;
 }
 
 export async function updateBioreactorValues(unit, experiment, values) {

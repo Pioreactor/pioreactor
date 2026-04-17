@@ -19,7 +19,7 @@
     "dayjs": "^1.11.20",
     "js-yaml": "^4.1.1",
     "material-ui-confirm": "^3.0.5",
-    "mqtt": "^5.15.0",
+    "mqtt": "^5.15.1",
     "notistack": "^3.0.2",
     "prismjs": "^1.29.0",
     "react": "^18.3.1",
@@ -81,7 +81,7 @@
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "css-loader": "^5.0.1",
     "eslint-plugin-react": "^7.37.3",
-    "eslint-plugin-unused-imports": "^4.1.4",
+    "eslint-plugin-unused-imports": "^4.4.1",
     "prettier": "2.1.2",
     "style-loader": "^2.0.0"
   }
