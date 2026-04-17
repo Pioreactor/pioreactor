@@ -21,7 +21,7 @@ CORE_REQUIREMENTS = [
     "MarkupSafe==3.0.3",
     "python-dotenv==1.2.2",
     "Werkzeug==3.1.8",
-    "packaging==26.0",
+    "packaging==26.1",
     # preinstalled on base images
     # "pyyaml==6.0.2",
     # "rpi-lgpio==0.6"
