@@ -20,7 +20,7 @@ CORE_REQUIREMENTS = [
     "Jinja2==3.1.6",
     "MarkupSafe==3.0.3",
     "python-dotenv==1.2.2",
-    "Werkzeug==3.1.6",
+    "Werkzeug==3.1.8",
     "packaging==26.0",
     # preinstalled on base images
     # "pyyaml==6.0.2",
