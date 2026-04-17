@@ -3,6 +3,7 @@
 import time
 
 import numpy as np
+import pioreactor.background_jobs.od_reading as od_reading_module
 import pytest
 from msgspec.json import decode
 from pioreactor import exc
@@ -26,6 +27,7 @@ from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.config import temporary_config_changes
+from pioreactor.exc import JobPresentError
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_intermittent_storage
@@ -118,13 +120,28 @@ def test_sin_regression_exactly_60hz() -> None:
     y = [C + A * np.sin(freq * 2 * np.pi * _x + phi) + 0.1 * np.random.randn() for _x in x]
 
     adc_reader = ADCReader(channels=[])
-
     (C_, A_, phi_), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
     assert isinstance(A, float)
     assert isinstance(phi, float)
     assert C_ == pytest.approx(C, abs=0.15)
     assert A_ == pytest.approx(A, abs=0.15)
     assert phi_ == pytest.approx(phi, abs=0.15)
+
+
+def test_duplicate_start_od_reading_fails_before_adc_reader_construction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    experiment = "test_duplicate_start_od_reading_fails_before_adc_reader_construction"
+
+    with start_od_reading({"1": "90"}, interval=10.0, fake_data=True, experiment=experiment):
+
+        def fail_if_constructed(*args: object, **kwargs: object) -> object:
+            raise AssertionError("ADCReader should not be constructed on duplicate od_reading start.")
+
+        monkeypatch.setattr(od_reading_module, "ADCReader", fail_if_constructed)
+
+        with pytest.raises(JobPresentError):
+            start_od_reading({"1": "90"}, interval=10.0, fake_data=True, experiment=experiment)
 
 
 def test_sin_regression_exactly_50hz() -> None:

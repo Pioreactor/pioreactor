@@ -1800,6 +1800,10 @@ def start_od_reading(
     then the correct syntax is `start_od_reading({"1": "REF", "2": "90"})`.
 
     """
+    maybe_job_id = get_running_pio_job_id("od_reading")
+    if maybe_job_id is not None:
+        raise exc.JobPresentError(f"od_reading is already running (job_id={maybe_job_id}). Skipping.")
+
     if interval is not None and interval <= 0:
         raise ValueError("interval must be positive.")
 
@@ -1808,10 +1812,6 @@ def start_od_reading(
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
-
-    maybe_job_id = get_running_pio_job_id("od_reading")
-    if maybe_job_id is not None:
-        raise exc.JobPresentError(f"od_reading is already running (job_id={maybe_job_id}). Skipping.")
 
     ir_led_reference_channel = find_ir_led_reference(channels)
     channel_angle_map = create_channel_angle_map(channels)

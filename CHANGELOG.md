@@ -2,7 +2,10 @@
 
 #### Bug fixes
 
- - Improved software update reliability by avoiding temp-file name collisions between web-uploaded release archives and `pio update app` downloads. This fixes a failure mode where updates could abort with a `Permission denied` error if an older archive was already present in `/tmp`.
+ - Performance improvements in the UI frontend
+ - Improved software update reliability by avoiding temp-file name collisions between web-uploaded release archives and `pio update app` downloads.
+ - Fixed duplicate `pio run od_reading` starts to fail before reinitializing ADC hardware, avoiding disruptions to an already-running OD reader and spurious noisy-reference warnings.
+
 
 ### 26.4.2
 
