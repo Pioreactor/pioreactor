@@ -12,7 +12,7 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
-import { MQTTProvider, useMQTT } from './providers/MQTTContext';
+import { useMQTT } from './providers/MQTTContext';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import Box from '@mui/material/Box';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -1018,7 +1018,7 @@ function Inventory({title}) {
     }
   };
   return (
-    <MQTTProvider name="cluster" config={config}>
+    <>
       <Grid container spacing={2} >
         <Grid
           size={{
@@ -1032,7 +1032,7 @@ function Inventory({title}) {
           </Grid>
         </Grid>
       </Grid>
-    </MQTTProvider>
+    </>
   );
 }
 

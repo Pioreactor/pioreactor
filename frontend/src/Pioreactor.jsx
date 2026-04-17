@@ -70,7 +70,7 @@ import UnderlineSpan from "./components/UnderlineSpan";
 import BioreactorDiagram from "./components/BioreactorDiagram";
 import Chart from "./components/Chart";
 import LogTableByUnit from "./components/LogTableByUnit";
-import { MQTTProvider, useMQTT } from './providers/MQTTContext';
+import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
@@ -80,7 +80,7 @@ import {
   parseNumericValue,
   updateBioreactorValues,
 } from "./utils/bioreactor";
-import { getConfig, getRelabelMap } from "./utils/config";
+import { getRelabelMap } from "./utils/config";
 import {
   buildJobsStateFromDescriptors,
   createMonitorJobState,
@@ -106,6 +106,8 @@ import {
   isAutomationJob,
   shouldClearPendingStateAction,
 } from "./components/pioreactorCardQuickControls";
+
+const TOPIC_SIGNATURE_SEPARATOR = "\u0000";
 
 
 function StateTypography({ state, isDisabled=false, isInteractive=false }) {
@@ -2235,17 +2237,25 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
     }
   }, []);
 
+  const monitorSettingsSignature = Object.keys(jobs.monitor?.publishedSettings || {})
+    .sort()
+    .join(TOPIC_SIGNATURE_SEPARATOR);
+
   const monitorTopics = useMemo(() => {
     if (!experiment) {
       return [];
     }
 
     const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
-    for (const setting of Object.keys(jobs.monitor?.publishedSettings || {})) {
+    const monitorSettings = monitorSettingsSignature
+      ? monitorSettingsSignature.split(TOPIC_SIGNATURE_SEPARATOR)
+      : [];
+
+    for (const setting of monitorSettings) {
       topics.push(["pioreactor", unit, "$experiment", "monitor", setting].join("/"));
     }
     return topics;
-  }, [experiment, jobs.monitor, unit]);
+  }, [experiment, monitorSettingsSignature, unit]);
 
   useEffect(() => {
     if (!client || monitorTopics.length === 0) {
@@ -2259,23 +2269,39 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
     };
   }, [client, monitorTopics, onMessage, subscribeToTopic, unsubscribeFromTopic])
 
+  const dynamicTopicsSignature = Object.entries(jobs)
+    .filter(([jobName]) => jobName !== "monitor")
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([jobName, job]) => {
+      const settingKeys = Object.keys(job.publishedSettings || {}).sort();
+      return `${jobName}=${settingKeys.join(",")}`;
+    })
+    .join(TOPIC_SIGNATURE_SEPARATOR);
+
   const dynamicJobTopics = useMemo(() => {
-    if (jobDescriptorsStatus !== "ready" || !experiment) {
+    if (jobDescriptorsStatus !== "ready" || !experiment || !dynamicTopicsSignature) {
       return [];
     }
 
     const topics = [];
-    for (const [jobName, job] of Object.entries(jobs)) {
-      if (jobName === "monitor") {
+    for (const jobDescriptor of dynamicTopicsSignature.split(TOPIC_SIGNATURE_SEPARATOR)) {
+      const [jobName, settings = ""] = jobDescriptor.split("=");
+      if (!jobName) {
         continue;
       }
+
       topics.push(`pioreactor/${unit}/${experiment}/${jobName}/$state`);
-      for (const setting of Object.keys(job.publishedSettings)) {
+
+      if (!settings) {
+        continue;
+      }
+
+      for (const setting of settings.split(",")) {
         topics.push(["pioreactor", unit, experiment, jobName, setting].join("/"));
       }
     }
     return topics;
-  }, [experiment, jobDescriptorsStatus, jobs, unit]);
+  }, [dynamicTopicsSignature, experiment, jobDescriptorsStatus, unit]);
 
   useEffect(() => {
     if (!client || dynamicJobTopics.length === 0) {
@@ -2871,8 +2897,7 @@ function Charts(props) {
 function Pioreactor({title}) {
   const { experimentMetadata, selectExperiment } = useExperiment();
   const [unitConfig, setUnitConfig] = useState({})
-  const [config, setConfig] = useState({})
-  const initialTimeScale = localStorage.getItem('timeScale') || config['ui.overview.settings']?.['time_display_mode'] || 'hours';
+  const initialTimeScale = localStorage.getItem('timeScale') || 'hours';
   const storedTimeWindow = parseInt(localStorage.getItem('timeWindow'), 10);
   const initialTimeWindow = storedTimeWindow >= 0 ? storedTimeWindow : 1000000;
   const [timeScale, setTimeScale] = useState(initialTimeScale);
@@ -2892,8 +2917,6 @@ function Pioreactor({title}) {
 
   useEffect(() => {
     document.title = title;
-    getConfig(setConfig)
-
   }, [title]);
 
   useEffect(() => {
@@ -2973,7 +2996,7 @@ function Pioreactor({title}) {
   )}
   else {
     return (
-      <MQTTProvider name={unit} config={config}>
+      <>
         <Grid container rowSpacing={1} columnSpacing={2} sx={{ justifyContent: "space-between" }}>
           <Grid
             size={{
@@ -3063,7 +3086,7 @@ function Pioreactor({title}) {
             </Grid>
           </Grid>
         </Grid>
-      </MQTTProvider>
+      </>
     );
   }
 }
