@@ -154,7 +154,7 @@ def get_update_app_commands(
         elif source.endswith(".whl"):
             version_installed = source
             commands_and_priority.append(
-                (f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {source}", 1)
+                (f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {quote(source)}", 1)
             )
             if not defer_web_restart:
                 commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
@@ -1185,9 +1185,21 @@ def update_settings(ctx: click.Context, job: str) -> None:
     unit = whoami.get_unit_name()
     exp = whoami.get_assigned_experiment_name(unit)
 
-    extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
+    if len(ctx.args) == 0:
+        raise click.UsageError("Provide at least one setting as --key value.")
 
-    assert len(extra_args) > 0
+    if len(ctx.args) % 2 != 0:
+        raise click.UsageError("Settings must be provided as --key value pairs.")
+
+    extra_args: dict[str, str] = {}
+    for index in range(0, len(ctx.args), 2):
+        option_name = ctx.args[index]
+        option_value = ctx.args[index + 1]
+
+        if not option_name.startswith("--") or option_name == "--":
+            raise click.UsageError("Settings must be provided as --key value pairs.")
+
+        extra_args[option_name[2:]] = option_value
 
     for setting, value in extra_args.items():
         setting = setting.replace("-", "_")
@@ -1461,6 +1473,8 @@ if whoami.am_I_leader():
     @pio.command(short_help="tail MQTT")
     @click.option("--topic", "-t", default="pioreactor/#")
     def mqtt(topic: str) -> None:
+        from pioreactor.config import config
+
         with subprocess.Popen(
             [
                 "mosquitto_sub",
@@ -1472,9 +1486,9 @@ if whoami.am_I_leader():
                 "-F",
                 "%19.19I||%t||%p",
                 "-u",
-                "pioreactor",
+                config.get("mqtt", "username", fallback="pioreactor"),
                 "-P",
-                "raspberry",
+                config.get("mqtt", "password", fallback="raspberry"),
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

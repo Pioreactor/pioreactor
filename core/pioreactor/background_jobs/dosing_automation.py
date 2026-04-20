@@ -336,8 +336,17 @@ class DosingAutomationJob(AutomationJob):
                 "Not removing enough waste: waste_ml should be greater than or equal to sum of all dosed ml"
             )
 
+        pump_functions = {
+            pump: getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
+            for pump, volume_ml in all_pumps_ml.items()
+            if volume_ml > 0
+        }
+
         volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
         source_of_event = f"{self.job_name}:{self.automation_name}"
+        extra_waste_ml = waste_ml * config.getfloat(
+            "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
+        )
 
         if sum_of_volumes > self.MAX_SUBDOSE:
             volumes_moved += self._execute_io_action(
@@ -366,7 +375,7 @@ class DosingAutomationJob(AutomationJob):
                     and (self.state in (self.READY,))
                     and not self._continue_pumping_event.is_set()
                 ):
-                    pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
+                    pump_function = pump_functions[pump]
 
                     volumes_moved[pump] += pump_function(
                         unit=self.unit,
@@ -398,9 +407,6 @@ class DosingAutomationJob(AutomationJob):
 
             # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
             # check exit conditions again!
-            extra_waste_ml = waste_ml * config.getfloat(
-                "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
-            )
             if (
                 extra_waste_ml > 0
                 and self.block_until_not_sleeping()
@@ -431,6 +437,8 @@ class DosingAutomationJob(AutomationJob):
 
     def on_disconnected(self) -> None:
         self._continue_pumping_event.set()  # set this early so the pumps exits.
+        with suppress(AttributeError):
+            self.stop_active_pumps()
         with suppress(AttributeError):
             self.run_thread.join(
                 timeout=10

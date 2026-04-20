@@ -69,6 +69,25 @@ def test_app_commands_with_whl_source_includes_restart_by_default() -> None:
     assert ("sudo systemctl restart pioreactor-web.target", 30) in cmds
 
 
+def test_app_commands_with_whl_source_quotes_spaces_in_path() -> None:
+    source = "/some path/pioreactor-1.2.3-py3-none-any.whl"
+    cmds, version = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=source,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert version == source
+    assert cmds == [
+        (
+            f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {quote(source)}",
+            1,
+        )
+    ]
+
+
 def test_app_commands_with_branch() -> None:
     branch = "feature/test"
     repo = "org/repo"

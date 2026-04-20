@@ -21,6 +21,7 @@ from pioreactor.cli.pios import kill
 from pioreactor.cli.pios import pios
 from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
+from pioreactor.config import config
 from pioreactor.config import get_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.config import temporary_config_change
@@ -66,8 +67,10 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
-    runner = CliRunner()
-    result = runner.invoke(pio, ["mqtt", "-t", "pioreactor/unit/exp/dosing_events"])
+    with temporary_config_change(config, "mqtt", "username", "custom-user"):
+        with temporary_config_change(config, "mqtt", "password", "custom-password"):
+            runner = CliRunner()
+            result = runner.invoke(pio, ["mqtt", "-t", "pioreactor/unit/exp/dosing_events"])
 
     assert result.exit_code == 0
     assert captured_args == [
@@ -80,9 +83,9 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
         "-F",
         "%19.19I||%t||%p",
         "-u",
-        "pioreactor",
+        "custom-user",
         "-P",
-        "raspberry",
+        "custom-password",
     ]
 
 
@@ -742,6 +745,14 @@ def test_pio_log() -> None:
     assert len(bucket) > 0
     assert bucket[0]["message"] == "test msg"
     assert bucket[0]["task"] == "job1"
+
+
+def test_pio_update_settings_requires_key_value_pairs() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["update-settings", "stirring", "--target-rpm"])
+
+    assert result.exit_code != 0
+    assert "Settings must be provided as --key value pairs." in result.output
 
 
 def test_pios_update_settings() -> None:

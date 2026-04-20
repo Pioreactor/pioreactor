@@ -1,3 +1,9 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Fixed `dosing_automation` to stop active pumps when the automation disconnects and fail custom multi-pump dosing requests before partially dosing if a required pump handler is missing.
+
 ### 26.4.3
 
 #### Bug fixes

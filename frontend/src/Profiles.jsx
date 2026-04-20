@@ -42,13 +42,12 @@ function RunExperimentProfilesContent({
   experiment,
   experimentProfilesAvailable,
   selectedExperimentProfile,
+  selectedExperimentProfileRecord,
   confirmed,
   setConfirmed,
   viewSource,
   setViewSource,
-  source,
-  setSource,
-  previewComments,
+  selectedProfileDetail,
   dryRun,
   setDryRun
 }) {
@@ -57,9 +56,12 @@ function RunExperimentProfilesContent({
   const { startProfile } = useRunningProfiles();
 
   const onSubmit = () => {
+    if (!selectedExperimentProfileRecord) {
+      return;
+    }
     setConfirmed(true);
     // The “selectedExperimentProfile” is the file key we pass to start
-    startProfile(experimentProfilesAvailable[selectedExperimentProfile].fullpath, experiment, dryRun);
+    startProfile(selectedExperimentProfileRecord.fullpath, experiment, dryRun);
   };
 
   const onSelectExperimentProfileChange = (e) => {
@@ -89,39 +91,21 @@ function RunExperimentProfilesContent({
   };
 
   const getSourceAndView = () => {
-    // fetch the raw file content only if we are about to toggle into “view source”
-    if (!viewSource) {
-      fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
-        method: "GET",
-      }).then(res => {
-        if (res.ok) {
-          return res.text();
-        }
-      }).then(text => {
-        setSource(text)
-      })
-    }
     setViewSource(!viewSource)
   };
 
   const duplicate = () => {
-    if (!selectedExperimentProfile) {
+    if (!selectedExperimentProfile || selectedProfileDetail.loading || selectedProfileDetail.error) {
       return;
     }
-    fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, { method: 'GET' })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error('Failed to fetch profile');
-        }
-        return res.text();
-      })
-      .then(text => {
-        const baseName = selectedExperimentProfile.replace(/\.ya?ml$/i, '');
-        navigate('/experiment-profiles/new', { state: { initialCode: text, initialFilename: `${baseName}_copy` } });
-      })
-      .catch(err => {
-        console.error('Error duplicating profile:', err);
-      });
+
+    const baseName = selectedExperimentProfile.replace(/\.ya?ml$/i, '');
+    navigate('/experiment-profiles/new', {
+      state: {
+        initialCode: selectedProfileDetail.source,
+        initialFilename: `${baseName}_copy`,
+      },
+    });
   };
 
   return (
@@ -184,7 +168,7 @@ function RunExperimentProfilesContent({
             aria-label="duplicate profile"
             onClick={duplicate}
             style={{ marginRight: "5px", textTransform: "none" }}
-            disabled={selectedExperimentProfile === ''}
+            disabled={selectedExperimentProfile === '' || selectedProfileDetail.loading || !!selectedProfileDetail.error}
           >
             <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
             Duplicate
@@ -205,10 +189,16 @@ function RunExperimentProfilesContent({
       </Grid>
       <Grid size={12}>
         {selectedExperimentProfile !== "" && !viewSource &&
-          <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile].profile} comments={previewComments} />
+          <DisplayProfile data={selectedExperimentProfileRecord.profile} comments={selectedProfileDetail.previewComments} />
         }
         {selectedExperimentProfile !== "" && viewSource &&
-          <DisplaySourceCode sourceCode={source} />
+          <DisplaySourceCode
+            sourceCode={
+              selectedProfileDetail.loading
+                ? "Loading..."
+                : (selectedProfileDetail.error || selectedProfileDetail.source)
+            }
+          />
         }
       </Grid>
       <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 1 }}>
@@ -335,15 +325,36 @@ function Profiles(props) {
   const { profileFilename } = useParams();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
-  const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('');
   const [confirmed, setConfirmed] = React.useState(false);
   const [viewSource, setViewSource] = React.useState(false);
-  const [source, setSource] = React.useState("Loading...");
-  const [previewComments, setPreviewComments] = React.useState({});
+  const [selectedProfileDetail, setSelectedProfileDetail] = React.useState({
+    filename: "",
+    source: "",
+    previewComments: {},
+    loading: false,
+    error: "",
+  });
   const [dryRun, setDryRun] = React.useState(false);
   const [recentRuns, setRecentRuns] = React.useState([]);
   const [recentLoading, setRecentLoading] = React.useState(false);
   const [recentError, setRecentError] = React.useState("");
+
+  const selectedExperimentProfile = React.useMemo(() => {
+    const availableFiles = Object.keys(experimentProfilesAvailable);
+    if (availableFiles.length === 0) {
+      return "";
+    }
+
+    if (profileFilename && profileFilename in experimentProfilesAvailable) {
+      return profileFilename;
+    }
+
+    return availableFiles[0];
+  }, [experimentProfilesAvailable, profileFilename]);
+
+  const selectedExperimentProfileRecord = selectedExperimentProfile
+    ? experimentProfilesAvailable[selectedExperimentProfile]
+    : null;
 
   const getRecentRunDisplayName = React.useCallback(
     (runName) => {
@@ -422,42 +433,66 @@ function Profiles(props) {
   }, [experimentMetadata.experiment]);
 
   React.useEffect(() => {
-    fetch("/api/experiment_profiles")
+    const controller = new AbortController();
+
+    fetch("/api/experiment_profiles", { signal: controller.signal })
       .then(response => response.json())
       .then(profiles => {
         // shape: [ {file: "...", experimentProfile: {...}}, ... ]
-        const profilesByKey = profiles.reduce(
-          (acc, cur) => ({ ...acc, [cur.file]: {profile: cur.experimentProfile, fullpath: cur.fullpath, file: cur.file} }),
-          {}
-        );
+        const profilesByKey = profiles.reduce((acc, cur) => {
+          acc[cur.file] = {
+            profile: cur.experimentProfile,
+            fullpath: cur.fullpath,
+            file: cur.file,
+          };
+          return acc;
+        }, {});
         setExperimentProfilesAvailable(profilesByKey);
-
-        if (profileFilename && (profileFilename in profilesByKey)){
-          setSelectedExperimentProfile(profileFilename);
-          setConfirmed(false)
-        } else {
-          const firstKey = Object.keys(profilesByKey)[0] ?? "";
-          setSelectedExperimentProfile(firstKey);
-          setConfirmed(false)
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
         }
+        console.error("Failed to load experiment profiles:", error);
+        setExperimentProfilesAvailable({});
       });
-  }, [profileFilename]);
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   React.useEffect(() => {
     fetchRecentRuns();
   }, [fetchRecentRuns]);
 
   React.useEffect(() => {
+    setConfirmed(false);
+
     if (!selectedExperimentProfile) {
-      setSource("Loading...");
-      setPreviewComments({});
+      setSelectedProfileDetail({
+        filename: "",
+        source: "",
+        previewComments: {},
+        loading: false,
+        error: "",
+      });
       return;
     }
 
-    let isActive = true;
+    const controller = new AbortController();
+
+    setSelectedProfileDetail({
+      filename: selectedExperimentProfile,
+      source: "",
+      previewComments: {},
+      loading: true,
+      error: "",
+    });
 
     fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
       method: "GET",
+      signal: controller.signal,
     })
       .then((res) => {
         if (!res.ok) {
@@ -466,24 +501,30 @@ function Profiles(props) {
         return res.text();
       })
       .then((text) => {
-        if (!isActive) {
-          return;
-        }
-
-        setSource(text);
-        setPreviewComments(convertYamlToProfilePreview(text).comments);
+        setSelectedProfileDetail({
+          filename: selectedExperimentProfile,
+          source: text,
+          previewComments: convertYamlToProfilePreview(text).comments,
+          loading: false,
+          error: "",
+        });
       })
-      .catch(() => {
-        if (!isActive) {
+      .catch((error) => {
+        if (controller.signal.aborted) {
           return;
         }
 
-        setSource("");
-        setPreviewComments({});
+        setSelectedProfileDetail({
+          filename: selectedExperimentProfile,
+          source: "",
+          previewComments: {},
+          loading: false,
+          error: error.message || "Failed to load profile source",
+        });
       });
 
     return () => {
-      isActive = false;
+      controller.abort();
     };
   }, [selectedExperimentProfile]);
 
@@ -531,13 +572,12 @@ function Profiles(props) {
             // Pass all the “lifted” states + setters
             experimentProfilesAvailable={experimentProfilesAvailable}
             selectedExperimentProfile={selectedExperimentProfile}
+            selectedExperimentProfileRecord={selectedExperimentProfileRecord}
             confirmed={confirmed}
             setConfirmed={setConfirmed}
             viewSource={viewSource}
             setViewSource={setViewSource}
-            source={source}
-            setSource={setSource}
-            previewComments={previewComments}
+            selectedProfileDetail={selectedProfileDetail}
             dryRun={dryRun}
             setDryRun={setDryRun}
           />

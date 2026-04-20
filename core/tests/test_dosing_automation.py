@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from threading import Event
 from threading import Timer
 from typing import Any
 from typing import Callable
@@ -1087,6 +1088,35 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
     assert result["waste_ml"] == pytest.approx(0.0)
 
 
+def test_execute_io_action_validates_all_pumps_before_any_dosing(fast_dosing_timers) -> None:
+    experiment = "test_execute_io_action_validates_all_pumps_before_any_dosing"
+    calls: list[tuple[str, float]] = []
+
+    class StubAutomation(DosingAutomationJob):
+        automation_name = "_test_validate_all_pumps_before_any_dosing"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("media", ml))
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("waste", ml))
+            return ml
+
+        def execute(self):
+            return None
+
+    with StubAutomation(unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0) as job:
+        with pytest.raises(AttributeError):
+            job.execute_io_action(media_ml=0.5, salty_media_ml=0.5, waste_ml=1.0)
+
+    assert calls == []
+
+
 def test_sleeping_state_stops_active_pumps() -> None:
     experiment = "test_sleeping_state_stops_active_pumps"
     stop_messages: list[tuple[str, bytes, int]] = []
@@ -1102,6 +1132,38 @@ def test_sleeping_state_stops_active_pumps() -> None:
 
     job.on_sleeping()
 
+    assert stop_messages == [
+        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
+    ]
+
+
+def test_disconnected_state_stops_active_pumps() -> None:
+    experiment = "test_disconnected_state_stops_active_pumps"
+    stop_messages: list[tuple[str, bytes, int]] = []
+
+    def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
+        if topic.endswith("/$state/set"):
+            stop_messages.append((topic, payload, qos))
+
+    class FakeRunThread:
+        def join(self, timeout: float | None = None) -> None:
+            self.timeout = timeout
+
+        def is_alive(self) -> bool:
+            return False
+
+    job = DosingAutomationJob.__new__(DosingAutomationJob)
+    object.__setattr__(job, "unit", unit)
+    object.__setattr__(job, "experiment", experiment)
+    object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
+    object.__setattr__(job, "_continue_pumping_event", Event())
+    object.__setattr__(job, "run_thread", FakeRunThread())
+
+    job.on_disconnected()
+
+    assert job._continue_pumping_event.is_set()
     assert stop_messages == [
         (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
@@ -1522,6 +1584,37 @@ def test_subdosing_only_emits_top_level_dosing_events(fast_dosing_timers) -> Non
     assert received_events[0]["data"]["media_ml"] == pytest.approx(2.0)
     assert received_events[1]["data"]["waste_ml"] == pytest.approx(2.0)
     assert received_events[1]["data"]["media_ml"] == pytest.approx(2.0)
+
+
+def test_execute_io_action_does_not_report_extra_waste_in_result(fast_dosing_timers) -> None:
+    experiment = "test_execute_io_action_does_not_report_extra_waste_in_result"
+
+    class FakeAutomation(DosingAutomationJob):
+        automation_name = "_test_report_extra_waste_in_result"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            return ml
+
+        def execute(self):
+            return events.NoEvent()
+
+    with temporary_config_change(config, "dosing_automation.config", "waste_removal_multiplier", "2.0"):
+        with FakeAutomation(
+            unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0
+        ) as automation:
+            result = automation.execute_io_action(waste_ml=0.5, media_ml=0.5)
+
+            assert isinstance(automation.latest_event, events.DosingStopped)
+            assert automation.latest_event.data is not None
+            assert result["waste_ml"] == pytest.approx(0.5)
+            assert automation.latest_event.data["waste_ml"] == pytest.approx(0.5)
 
 
 def test_strings_are_okay_for_chemostat(fast_dosing_timers) -> None:
