@@ -877,7 +877,7 @@ if am_I_leader() or is_testing_env():
                 sync_config_files(unit, shared, specific, persist=not skip_save)
                 return True
             except RsyncError as e:
-                logger.warning(f"Could not transfer config to {unit}. Is it online?")
+                logger.warning(f"Could not transfer config to {unit}.")
                 logger.debug(e, exc_info=True)
                 return False
             except HTTPException as e:

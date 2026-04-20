@@ -3,6 +3,9 @@
 #### Bug fixes
 
  - Fixed `dosing_automation` to stop active pumps when the automation disconnects and fail custom multi-pump dosing requests before partially dosing if a required pump handler is missing.
+ - Fixed crashes in the Experiment Profile editor
+ - Fixed an error when using `add_media` or `add_alt_media` in an experiment profile
+
 
 ### 26.4.3
 

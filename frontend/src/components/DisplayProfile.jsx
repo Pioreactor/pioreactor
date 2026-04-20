@@ -148,6 +148,10 @@ function processOptionalBracketedExpression(value, missingMessage="Missing expre
 }
 
 function extractAndApply(inputString, func) {
+    if (typeof inputString !== "string") {
+        return [String(inputString ?? "")];
+    }
+
     // Regex pattern to find all occurrences of ${ {...} }
     const pattern = /(\${{.*?}})/g;
 
@@ -348,7 +352,9 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
         const optionComment = getInlineCommentForPath(comments, `${actionPath}.config_overrides.${option}`);
         if (typeof optionValue === 'object') {
           return (
-            ""
+            <Typography key={`option-${idx}`} variant="body2" component="div" sx={level3}>
+              — set {displayVariable(`[${jobName}.config].${option}`)} → <UnderlineSpan title={`Requires value or expression \${{..}}`}>??</UnderlineSpan> <InlineComment comment={optionComment} />
+            </Typography>
           ); // intermediate state when typing
         }
         return (
@@ -398,7 +404,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
           <Typography variant="body2" component="div" sx={level2}>
             {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>log</span> the message: <InlineComment comment={actionComment} />
           </Typography>
-            {action.options?.message &&
+            {action.options && Object.prototype.hasOwnProperty.call(action.options, "message") &&
             <Typography variant="body2" component="div" sx={level3}>
               <span style={highlightedLogMessage}>{extractAndApply(action.options.message, processBracketedExpression)}</span>
             </Typography>
@@ -634,16 +640,27 @@ const AuthorSection = ({ author, comment }) => (
 
 const ParametersSection = ({ parameters, comments }) => (
   <>
-    {parameters && Object.keys(parameters).length > 0 && (
+    {parameters && typeof parameters === 'object' && !Array.isArray(parameters) && Object.keys(parameters).length > 0 && (
       <>
         <Typography  variant="subtitle2">
           Inputs:
         </Typography>
-        { (typeof parameters === 'object' )  && Object.entries(parameters).map(([key, value]) => (
+        {Object.entries(parameters).map(([key, value]) => (
           <Typography key={key}  sx={level1} variant="body2" color="text.primary">
             — assign {displayVariable(value)} to parameter {displayExpression(key)} <InlineComment comment={getInlineCommentForPath(comments, `inputs.${key}`)} />
           </Typography>
         ))}
+        <br/>
+      </>
+    )}
+    {parameters && (typeof parameters !== 'object' || Array.isArray(parameters)) && (
+      <>
+        <Typography variant="subtitle2">
+          Inputs:
+        </Typography>
+        <Typography sx={level1} variant="body2">
+          <UnderlineSpan title="require object mapping input names to values"> inputs?? </UnderlineSpan>
+        </Typography>
         <br/>
       </>
     )}
@@ -667,7 +684,7 @@ export const DisplayProfile = ({ data, comments = {} }) => {
           <JobSection jobs={data?.common?.jobs} comments={comments} jobsPath="common.jobs" />
           </>
         }
-        <PioreactorSection pioreactors={data.pioreactors} comments={comments} />
+        <PioreactorSection pioreactors={data?.pioreactors} comments={comments} />
       </CardContent>
     </Card>
   );

@@ -36,6 +36,10 @@ metadata:
 `;
 
 export function formatProfileSaveError(payload) {
+  if (typeof payload === "string" && payload.trim()) {
+    return payload.trim();
+  }
+
   if (!payload || typeof payload !== "object") {
     return "Failed to save profile";
   }
@@ -65,6 +69,17 @@ export function formatProfileSaveError(payload) {
   return messages.join(" ") || "Failed to save profile";
 }
 
+async function parseErrorPayload(response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  return text.trim() || null;
+}
+
 async function saveNewExperimentProfile(code, filename) {
   const response = await fetch("/api/experiment_profiles", {
     method: "POST",
@@ -79,7 +94,7 @@ async function saveNewExperimentProfile(code, filename) {
     return;
   }
 
-  const payload = await response.json();
+  const payload = await parseErrorPayload(response);
   throw new Error(formatProfileSaveError(payload));
 }
 
@@ -97,7 +112,7 @@ async function saveExistingExperimentProfile(code, profileFilename) {
     return;
   }
 
-  const payload = await response.json();
+  const payload = await parseErrorPayload(response);
   throw new Error(formatProfileSaveError(payload));
 }
 

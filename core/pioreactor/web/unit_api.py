@@ -720,6 +720,8 @@ def is_manual_dosing_volume_unsafe(
             ].reactor_max_fill_volume_ml
         except KeyError:
             return False
+    else:
+        safety_threshold_ml = whoami.get_pioreactor_model(whoami.get_unit_name()).reactor_max_fill_volume_ml
 
     current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
 

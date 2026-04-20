@@ -146,10 +146,10 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                 )
             except RsyncError:
                 logger.debug(
-                    f"Unable to backup database to {backup_unit}. Is it online?",
+                    f"Unable to backup database to {backup_unit}.",
                     exc_info=True,
                 )
-                logger.warning(f"Unable to backup database to {backup_unit}. Is it online?")
+                logger.warning(f"Unable to backup database to {backup_unit}.")
             else:
                 logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
                 backups_complete += 1

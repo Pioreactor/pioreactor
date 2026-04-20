@@ -78,17 +78,40 @@ def active_workers_in_cluster():
 
 @pytest.fixture(autouse=True)
 def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
+    worker_details = {
+        "unit1": {
+            "pioreactor_unit": "unit1",
+            "is_active": 1,
+            "model_name": "pioreactor_20ml",
+            "model_version": "1.1",
+        },
+        "unit2": {
+            "pioreactor_unit": "unit2",
+            "is_active": 1,
+            "model_name": "pioreactor_40ml",
+            "model_version": "1.0",
+        },
+        "notactiveworker": {
+            "pioreactor_unit": "notactiveworker",
+            "is_active": 0,
+            "model_name": "pioreactor_20ml",
+            "model_version": "1.1",
+        },
+    }
+
     def mock_get_response(endpoint):
         mm = MagicMock()
         if endpoint.endswith("/api/workers"):
-            mm.json.return_value = [
-                {"pioreactor_unit": unit, "is_active": 1} for unit in active_workers_in_cluster
-            ] + [{"pioreactor_unit": "notactiveworker", "is_active": 0}]
+            mm.json.return_value = [worker_details[unit] for unit in active_workers_in_cluster] + [
+                worker_details["notactiveworker"]
+            ]
+            return mm
+        elif re.search(r"/api/workers/[^/]+$", endpoint):
+            unit = endpoint.rsplit("/", 1)[-1]
+            mm.json.return_value = worker_details[unit]
             return mm
         elif re.search("/api/experiments/.*/workers", endpoint):
-            mm.json.return_value = [
-                {"pioreactor_unit": unit, "is_active": 1} for unit in active_workers_in_cluster
-            ]
+            mm.json.return_value = [worker_details[unit] for unit in active_workers_in_cluster]
             return mm
         elif re.search("/api/workers/.*/experiment", endpoint):
             mm.json.return_value = {"experiment": "_testing_experiment"}

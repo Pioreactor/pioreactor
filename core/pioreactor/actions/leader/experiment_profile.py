@@ -9,6 +9,7 @@ from typing import Callable
 
 import click
 from msgspec.yaml import decode
+from pioreactor import cluster_management
 from pioreactor import types as pt
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
@@ -133,6 +134,37 @@ def evaluate_bool_expression(bool_expression: BoolExpression, env: Env) -> bool:
 
     # bool_expression is a str
     return parse_profile_expression_to_bool(bool_expression, env=env)
+
+
+def _get_worker_env_for_start(
+    unit: pt.Unit, experiment: pt.Experiment, parent_job_key: str
+) -> dict[str, str]:
+    job_env: dict[str, str] = {
+        "JOB_SOURCE": parent_job_key,
+        "EXPERIMENT": experiment,
+        "HOSTNAME": unit,
+        "TESTING": str(int(is_testing_env())),
+    }
+
+    try:
+        response = cluster_management.get_from_leader(f"/api/workers/{unit}")
+        response.raise_for_status()
+        worker = response.json()
+    except HTTPException:
+        return job_env
+
+    model_name = worker.get("model_name")
+    if model_name:
+        job_env["MODEL_NAME"] = model_name
+
+    model_version = worker.get("model_version")
+    if model_version:
+        job_env["MODEL_VERSION"] = model_version
+
+    if "is_active" in worker:
+        job_env["ACTIVE"] = str(int(bool(worker["is_active"])))
+
+    return job_env
 
 
 def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | None:
@@ -633,10 +665,7 @@ def start_job(
                     f"/unit_api/jobs/run/job_name/{job_name}",
                     json={
                         "options": evaluate_options(options, env),
-                        "env": {
-                            "JOB_SOURCE": parent_job.job_key,
-                            "EXPERIMENT": experiment,
-                        },
+                        "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
                         "args": args,
                         "config_overrides": [
                             [f"{job_name}.config", key, value] for (key, value) in config_overrides.items()

@@ -123,7 +123,15 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
     assert bucket[0].json == {
         "options": {"A": 50},
         "args": [],
-        "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
+        "env": {
+            "JOB_SOURCE": "experiment_profile/1",
+            "EXPERIMENT": "_testing_experiment",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
+            "ACTIVE": "1",
+        },
         "config_overrides": [],
     }
 
@@ -131,14 +139,30 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
     assert bucket[1].json == {
         "options": {"A": 40, "B": 22.5},
         "args": [],
-        "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
+        "env": {
+            "JOB_SOURCE": "experiment_profile/1",
+            "EXPERIMENT": "_testing_experiment",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
+            "ACTIVE": "1",
+        },
         "config_overrides": [],
     }
 
     assert bucket[2].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
     assert bucket[2].json == {
         "options": {"A": 0, "B": 0, "C": 0, "D": 0},
-        "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
+        "env": {
+            "JOB_SOURCE": "experiment_profile/1",
+            "EXPERIMENT": "_testing_experiment",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
+            "ACTIVE": "1",
+        },
         "args": [],
         "config_overrides": [],
     }
@@ -490,7 +514,15 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
     assert bucket[0].json == {
         "options": {"target": 11.0, "dont_eval": "1.0 + 1.0"},
-        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
+        "env": {
+            "EXPERIMENT": "_testing_experiment",
+            "JOB_SOURCE": "experiment_profile/1",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
+            "ACTIVE": "1",
+        },
         "args": [],
         "config_overrides": [],
     }
@@ -715,7 +747,21 @@ def test_execute_experiment_profile_expression_in_common(
     for item in bucket:
         assert item.json == {
             "args": [],
-            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
+            "env": {
+                "EXPERIMENT": "_testing_experiment",
+                "JOB_SOURCE": "experiment_profile/1",
+                "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
+                "TESTING": "1",
+                "ACTIVE": "1",
+                "MODEL_NAME": (
+                    "pioreactor_20ml"
+                    if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1"
+                    else "pioreactor_40ml"
+                ),
+                "MODEL_VERSION": (
+                    "1.1" if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1" else "1.0"
+                ),
+            },
             "options": {
                 "target": 11.0,
             },
@@ -756,7 +802,21 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
     for item in bucket:
         assert item.json == {
             "args": [],
-            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
+            "env": {
+                "EXPERIMENT": "_testing_experiment",
+                "JOB_SOURCE": "experiment_profile/1",
+                "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
+                "TESTING": "1",
+                "ACTIVE": "1",
+                "MODEL_NAME": (
+                    "pioreactor_20ml"
+                    if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1"
+                    else "pioreactor_40ml"
+                ),
+                "MODEL_VERSION": (
+                    "1.1" if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1" else "1.0"
+                ),
+            },
             "options": {
                 "target": 11.0,
             },
@@ -1153,7 +1213,15 @@ def test_execute_experiment_profile_with_config_overrides(mock__load_experiment_
 
     assert bucket[0].json == {
         "options": {"target": 11.0, "dont_eval": "1.0 + 1.0"},
-        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
+        "env": {
+            "EXPERIMENT": "_testing_experiment",
+            "JOB_SOURCE": "experiment_profile/1",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
+            "ACTIVE": "1",
+        },
         "args": [],
         "config_overrides": [
             ["jobbing.config", "option1", "value1"],
