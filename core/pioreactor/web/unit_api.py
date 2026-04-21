@@ -116,6 +116,19 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
 @unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
 def get_task_status(task_id: str) -> ResponseReturnValue:
+    """
+    Poll the state of an async task previously returned by `create_task_response(...)`.
+
+    Contract:
+    - `202` with `status: "pending"` while no result is available yet
+    - `202` with `status: "running"` when the task is known to still be executing
+    - `200` with `status: "succeeded"` and `result` once the task completes successfully
+    - `200` with `status: "failed"` and error details once the task reaches a terminal failure
+
+    The HTTP status describes the polling request itself. Terminal task failures are
+    reported in the JSON payload instead of using HTTP `5xx`, so callers should branch
+    on the payload `status` field after a `200` response.
+    """
     response_metadata = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
     if not huey.storage.has_data_for_key(task_id):
         return jsonify(response_metadata | {"status": "pending"}), 202

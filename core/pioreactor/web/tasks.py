@@ -250,7 +250,7 @@ def pio_run(
     *args: str,
     env: dict[str, str] | None = None,
     config_overrides: tuple[str, ...] = (),
-    grace_s: float = 0.25,  # how long to watch for "fast-fail"
+    grace_s: float = 1.00,  # how long to watch for "fast-fail"
 ) -> dict[str, Any]:
     command = (PIO_EXECUTABLE, "run") + config_overrides + args
 
