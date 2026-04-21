@@ -3,13 +3,14 @@
 #### Breaking changes
 
  - Changed async task polling responses from `/unit_api/task_results/<task_id>` and related leader callback helpers. Pending tasks now return `202` with `status: pending` or `status: running`, while terminal task results now return `200` with either `status: succeeded` plus `result`, or `status: failed` plus error details. Failed task polls no longer use HTTP `500` just because the underlying task failed.
+ - Fixed cluster-wide app updates so the leader is updated only once during broadcast updates, including both internet-based updates and release-archive updates.
+
 
 #### Bug fixes
 
  - Fixed `dosing_automation` to stop active pumps when the automation disconnects and fail custom multi-pump dosing requests before partially dosing if a required pump handler is missing.
  - Fixed crashes in the Experiment Profile editor
  - Fixed an error when using `add_media` or `add_alt_media` in an experiment profile
-
 
 ### 26.4.3
 

@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 # streaming.py
-import heapq
 from queue import Empty
 from queue import Queue
 from threading import Event
 from threading import Thread
-from typing import Any
-from typing import Callable
 from typing import Iterable
 from typing import Iterator
 from typing import Protocol
@@ -171,45 +168,3 @@ def merge_live_streams(
             continue
         else:
             yield item
-
-
-def merge_historical_streams(*iterables: Iterable[T], key: Callable[[T], Any] = lambda x: x) -> Iterator[T]:
-    """
-    Yield items from multiple pre‑sorted streams in ascending order
-    according to `key(item)`.
-
-    Parameters
-    ----------
-    *iterables : Iterable[T]
-        Any number of iterables / generators whose items are already
-        sorted by `key`.
-    key : Callable[[T], Any], optional
-        Function that returns the sort key for each item.  Defaults to
-        the identity function.
-
-    Yields
-    ------
-    T
-        The next smallest item across all input streams.
-    """
-    # Build an iterator for each stream
-    iters = [iter(s) for s in iterables]
-
-    # Prime the priority queue with the first element from each stream
-    # The queue holds tuples: (sort_key, stream_index, item)
-    pq: list[tuple[Any, int, T]] = []
-    for idx, it in enumerate(iters):
-        try:
-            first = next(it)
-            heapq.heappush(pq, (key(first), idx, first))
-        except StopIteration:
-            pass  # this stream was empty
-
-    while pq:
-        k, idx, item = heapq.heappop(pq)
-        yield item  # hand the smallest out
-        try:
-            nxt = next(iters[idx])  # fetch the next from that stream
-            heapq.heappush(pq, (key(nxt), idx, nxt))
-        except StopIteration:
-            pass  # that stream exhausted → drop it

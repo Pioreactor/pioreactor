@@ -200,3 +200,60 @@ def test_pio_run_fast_fail_raises_runtime_error(monkeypatch: pytest.MonkeyPatch)
 
     with pytest.raises(RuntimeError, match="Command exited during startup grace window. Exit code 2."):
         tasks.pio_run.call_local("circulate_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})
+
+
+def test_update_app_across_cluster_excludes_leader_from_worker_phase(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    check_calls: list[list[str]] = []
+    run_calls: list[list[str]] = []
+
+    monkeypatch.setattr(tasks, "get_workers_in_inventory", lambda: ("leader", "worker1", "worker2"))
+    monkeypatch.setattr(tasks, "get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr(tasks, "check_call", lambda cmd: check_calls.append(cmd))
+
+    class FakeCompletedProcess:
+        returncode = 0
+
+    monkeypatch.setattr(tasks, "run", lambda cmd: run_calls.append(cmd) or FakeCompletedProcess())
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    assert tasks.update_app_across_cluster.call_local() is True
+    assert check_calls == [
+        [tasks.PIO_EXECUTABLE, "update", "app", "--defer-web-restart"],
+        ["sudo", "systemctl", "restart", "pioreactor-web.target"],
+    ]
+    assert run_calls == [[tasks.PIOS_EXECUTABLE, "update", "-y", "--units", "worker1", "--units", "worker2"]]
+
+
+def test_update_app_from_release_archive_across_cluster_skips_worker_phase_without_non_leader_workers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    check_calls: list[list[str]] = []
+    run_calls: list[list[str]] = []
+
+    monkeypatch.setattr(tasks, "get_workers_in_inventory", lambda: ("leader",))
+    monkeypatch.setattr(tasks, "get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr(tasks, "check_call", lambda cmd: check_calls.append(cmd))
+
+    class FakeCompletedProcess:
+        returncode = 0
+
+    monkeypatch.setattr(tasks, "run", lambda cmd: run_calls.append(cmd) or FakeCompletedProcess())
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    assert tasks.update_app_from_release_archive_across_cluster.call_local(
+        "/tmp/release_26.4.2.zip", "$broadcast"
+    )
+    assert check_calls == [
+        [
+            "pio",
+            "update",
+            "app",
+            "--source",
+            "/tmp/release_26.4.2.zip",
+            "--defer-web-restart",
+        ],
+        ["sudo", "systemctl", "restart", "pioreactor-web.target"],
+    ]
+    assert run_calls == []

@@ -205,7 +205,7 @@ def get_update_app_commands(
             raise FileNotFoundError(f"Could not find {archive_name} in assets of {repo} release {tag}")
 
         archive_location = build_staged_release_archive_location(archive_name)
-        commands_and_priority.append((f"wget -O {quote(archive_location)} {archive_url}", -100))
+        commands_and_priority.append((f"wget -nv -O {quote(archive_location)} {archive_url}", -100))
         commands_and_priority.extend(create_commands_for_release_archive(archive_location, version_installed))
         commands_and_priority.append((f"sudo rm -f {quote(archive_location)}", 97))
     return commands_and_priority, version_installed
@@ -1377,7 +1377,7 @@ def update_app(
                 logger.debug("Update step %s stdout: %s", index, p.stdout)
             if p.stderr:
                 logger.debug("Update step %s stderr: %s", index, p.stderr)
-            logger.debug("Update failed at step %s with returncode %s.", index, p.returncode)
+            logger.error("Update failed at step %s with returncode %s. See System Logs", index, p.returncode)
             # end early
             raise click.Abort()
         elif p.stdout:
@@ -1431,7 +1431,7 @@ def update_firmware(version: str | None) -> None:
         if asset_name == "main.elf":
             commands_and_priority.extend(
                 [
-                    (f"sudo wget -O /usr/local/bin/main.elf {url}", 0),
+                    (f"sudo wget -nv -O /usr/local/bin/main.elf {url}", 0),
                     ("sudo bash /usr/local/bin/load_rp2040.sh", 1),
                 ]
             )

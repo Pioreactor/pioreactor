@@ -39,7 +39,9 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
+from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
@@ -115,6 +117,13 @@ ALLOWED_ENV = (
     "LOCAL_CONFIG",
     "HAT_PRESENT",
 )
+
+
+def _with_units(command: list[str], units: list[str]) -> list[str]:
+    command_with_units = list(command)
+    for unit in units:
+        command_with_units.extend(["--units", unit])
+    return command_with_units
 
 
 def _safe_zip_members(members: list[zipfile.ZipInfo]) -> None:
@@ -359,9 +368,13 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
         leader_update_command = [PIO_EXECUTABLE, "update", "app", "--defer-web-restart"]
         check_call(leader_update_command)
 
-        logger.debug("Updating app on workers")
-        worker_update_command = [PIOS_EXECUTABLE, "update", "-y"]
-        run(worker_update_command)
+        workers = [unit for unit in get_workers_in_inventory() if unit != get_leader_hostname()]
+        if workers:
+            logger.debug(f"Updating app on non-leader workers: {workers}")
+            worker_update_command = _with_units([PIOS_EXECUTABLE, "update", "-y"], workers)
+            run(worker_update_command)
+        else:
+            logger.debug("No non-leader workers to update")
 
         sleep(2)
         logger.debug("Restarting pioreactor-web.target after cluster update")
@@ -388,20 +401,26 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
         ]
         check_call(leader_update_command)
 
-        logger.debug(f"Updating app on workers from {archive_location}")
-        archive_copy_command = [PIOS_EXECUTABLE, "cp", archive_location, "-y"]
-        run(archive_copy_command)
+        workers = [unit for unit in get_workers_in_inventory() if unit != get_leader_hostname()]
+        if workers:
+            logger.debug(f"Copying release archive to non-leader workers {workers} from {archive_location}")
+            archive_copy_command = _with_units([PIOS_EXECUTABLE, "cp", archive_location, "-y"], workers)
+            run(archive_copy_command)
 
-        # this may include leader, and leader's UI. If it's not included, we need to update the UI later.
-        logger.debug(f"Updating cluster with `pios update --source {archive_location} -y`")
-        worker_update_command = [
-            PIOS_EXECUTABLE,
-            "update",
-            "--source",
-            archive_location,
-            "-y",
-        ]
-        run(worker_update_command)
+            logger.debug(f"Updating non-leader workers {workers} from release archive {archive_location}")
+            worker_update_command = _with_units(
+                [
+                    PIOS_EXECUTABLE,
+                    "update",
+                    "--source",
+                    archive_location,
+                    "-y",
+                ],
+                workers,
+            )
+            run(worker_update_command)
+        else:
+            logger.debug("No non-leader workers to update from release archive")
         sleep(2)
 
         logger.debug("Restarting pioreactor-web.target after cluster update")
