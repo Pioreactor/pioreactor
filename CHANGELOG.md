@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Changed async task polling responses from `/unit_api/task_results/<task_id>` and related leader callback helpers. Pending tasks now return `202` with `status: pending` or `status: running`, while terminal task results now return `200` with either `status: succeeded` plus `result`, or `status: failed` plus error details. Failed task polls no longer use HTTP `500` just because the underlying task failed.
+
 #### Bug fixes
 
  - Fixed `dosing_automation` to stop active pumps when the automation disconnects and fail custom multi-pump dosing requests before partially dosing if a required pump handler is missing.

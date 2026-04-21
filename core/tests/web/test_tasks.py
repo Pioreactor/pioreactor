@@ -24,7 +24,7 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
     responses = [
         _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
         _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-        _response(200, {"task_id": "abc", "result": {"ok": True}}),
+        _response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}}),
     ]
 
     # Each request pops the next response in sequence.
@@ -68,6 +68,40 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
     assert unit == "unit1"
     assert result is None
     assert responses == []
+
+
+def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    responses = [
+        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
+        _response(
+            200,
+            {
+                "task_id": "abc",
+                "status": "failed",
+                "error": "No such command.",
+                "cause": "Huey task failed with an exception.",
+            },
+        ),
+    ]
+
+    def fake_get_from(
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+    ) -> Response:
+        return responses.pop(0)
+
+    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+
+    assert unit == "unit1"
+    assert result == {
+        "task_id": "abc",
+        "status": "failed",
+        "error": "No such command.",
+        "cause": "Huey task failed with an exception.",
+    }
 
 
 def test_reduce_multicast_results_handles_partial_failures() -> None:
@@ -155,7 +189,7 @@ def test_pio_run_returns_structured_success_when_process_stays_running(
     assert result == {"ok": True}
 
 
-def test_pio_run_returns_structured_fast_fail_details(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pio_run_fast_fail_raises_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeProc:
         returncode = 2
 
@@ -164,9 +198,5 @@ def test_pio_run_returns_structured_fast_fail_details(monkeypatch: pytest.Monkey
 
     monkeypatch.setattr(tasks, "Popen", lambda *args, **kwargs: FakeProc())
 
-    result = tasks.pio_run.call_local("circulate_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})
-
-    assert result["ok"] is False
-    assert result["exit_code"] == 2
-    assert result["argv"][-3:] == ["circulate_alt_media", "--duration", "bad"]
-    assert "grace window" in result["error"]
+    with pytest.raises(RuntimeError, match="Command exited during startup grace window. Exit code 2."):
+        tasks.pio_run.call_local("circulate_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})

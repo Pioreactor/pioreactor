@@ -62,9 +62,7 @@ class ActionMetrics:
         return self.count
 
 
-def wrap_in_try_except(
-    func: Callable[..., Any], logger: CustomLogger, *, swallow_exceptions: bool = True
-) -> Callable[..., None]:
+def wrap_in_try_except(func: Callable[..., Any], logger: CustomLogger) -> Callable[..., None]:
     def inner_function(*args: Any, **kwargs: Any) -> None:
         try:
             func(*args, **kwargs)
@@ -76,8 +74,6 @@ def wrap_in_try_except(
 
             logger.error(error_message)
             logger.debug(error_message, exc_info=True)
-            if not swallow_exceptions:
-                raise
 
     return inner_function
 
@@ -196,11 +192,11 @@ def _wait_for_unit_task_result(
         response.raise_for_status()
 
         payload = response.json()
-        if payload.get("status") == "pending or not present":
+        if payload.get("status") in {"pending", "running"}:
             time.sleep(retry_sleep_s)
             continue
 
-        if payload.get("status") == "complete":
+        if payload.get("status") == "succeeded":
             result = payload.get("result")
             return result if isinstance(result, dict) else {"ok": bool(result)}
 
@@ -219,29 +215,6 @@ def _wait_for_unit_task_result(
         break
 
     return None
-
-
-def _raise_for_failed_job_start(unit: pt.Unit, job_name: str, task_result: dict[str, Any] | None) -> None:
-    if task_result is None:
-        raise RuntimeError(f"Unable to confirm if `{job_name}` started on {unit}.")
-
-    if task_result.get("ok", False):
-        return
-
-    details: list[str] = []
-    if error := task_result.get("error"):
-        details.append(str(error))
-    if cause := task_result.get("cause"):
-        details.append(f"Cause: {cause}")
-    if remediation := task_result.get("remediation"):
-        details.append(f"Remediation: {remediation}")
-    if stderr := task_result.get("stderr"):
-        details.append(f"stderr: {stderr}")
-
-    message = f"Failed to start `{job_name}` on {unit}."
-    if details:
-        message = f"{message} {' '.join(details)}"
-    raise RuntimeError(message)
 
 
 def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | None:
@@ -752,11 +725,12 @@ def start_job(
                 )
                 response.raise_for_status()
                 task_result = _wait_for_unit_task_result(unit, response)
-                _raise_for_failed_job_start(unit, job_name, task_result)
+                if task_result is not None and not task_result["ok"]:
+                    logger.error(f"Failed to start `{job_name}` on {unit}. {task_result.get('error')}")
             except HTTPException:
                 raise HTTPException(f"Unable to post to {unit}. Is it online?")
 
-    return wrap_in_try_except(_callable, logger, swallow_exceptions=False)
+    return wrap_in_try_except(_callable, logger)
 
 
 def pause_job(

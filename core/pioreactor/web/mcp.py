@@ -142,7 +142,11 @@ def _request_into_leader(
             return get_from_leader(content["result_url_path"])
 
         if unwrap_task_result and response.status_code == 200 and "task_id" in content:
-            return cast(dict[str, Any], content["result"])
+            if content.get("status") == "succeeded":
+                return cast(dict[str, Any], content["result"])
+            if content.get("status") == "failed":
+                raise HTTPException(content.get("error") or f"Task at {endpoint} failed.")
+            raise HTTPException(f"Unexpected task status {content.get('status')} for {endpoint}.")
 
         if method == "GET" and response.status_code != 200:
             raise HTTPException(f"Unexpected status code {response.status_code} for GET {endpoint}.")

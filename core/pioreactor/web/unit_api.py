@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import ast
 import configparser
 import json
 import os
@@ -117,7 +118,7 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 def get_task_status(task_id: str) -> ResponseReturnValue:
     response_metadata = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
     if not huey.storage.has_data_for_key(task_id):
-        return jsonify(response_metadata | {"status": "pending or not present"}), 202
+        return jsonify(response_metadata | {"status": "pending"}), 202
 
     try:
         task = huey.result(task_id, preserve=True)
@@ -127,7 +128,7 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
                 jsonify(
                     response_metadata
                     | {
-                        "status": "in_progress",
+                        "status": "running",
                         "error": "task is locked and already running.",
                         "cause": "Another task with this ID is currently running.",
                         "remediation": "Wait for the task to finish, then retry.",
@@ -135,18 +136,18 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
                 ),
                 202,
             )
-        # huey wraps the exception, so lets reraise it.
+
         return (
             jsonify(
                 response_metadata
                 | {
                     "status": "failed",
-                    "error": str(e),
+                    "error": _normalize_task_error_message(str(e)),
                     "cause": "Huey task failed with an exception.",
                     "remediation": "Check logs and retry.",
                 }
             ),
-            500,
+            200,
         )
     if isinstance(task, Exception):
         return (
@@ -154,15 +155,34 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
                 response_metadata
                 | {
                     "status": "failed",
-                    "error": str(task),
+                    "error": _normalize_task_error_message(str(task)),
                     "cause": "Huey task failed with an exception.",
                     "remediation": "Check logs and retry.",
                 }
             ),
-            500,
+            200,
         )
 
-    return jsonify(response_metadata | {"status": "complete", "result": task}), 200
+    return jsonify(response_metadata | {"status": "succeeded", "result": task}), 200
+
+
+def _normalize_task_error_message(message: str) -> str:
+    if not message:
+        return message
+
+    exception_name, open_paren, remainder = message.partition("(")
+    if not open_paren or not remainder.endswith(")"):
+        return message
+
+    if not exception_name.endswith("Error") and not exception_name.endswith("Exception"):
+        return message
+
+    try:
+        inner_message = ast.literal_eval(remainder[:-1])
+    except (SyntaxError, ValueError):
+        return message
+
+    return inner_message if isinstance(inner_message, str) else message
 
 
 def _format_protocol_text(value: str, device: str) -> str:

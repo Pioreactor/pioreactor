@@ -2,6 +2,8 @@
 """
 Tests for the MCP (Model-Context-Protocol) blueprint and helper functions.
 """
+import pytest
+from pioreactor.mureq import HTTPException
 from pioreactor.web.mcp import assign_workers_to_experiment
 from pioreactor.web.mcp import create_experiment
 from pioreactor.web.mcp import export_experiment_data
@@ -93,6 +95,23 @@ def test_unassign_worker_from_experiment_deletes_assignment() -> None:
     assert req.path == "/api/experiments/exp1/workers/worker1"
     assert req.json is None
     assert result == {"mocked": "response"}
+
+
+def test_get_from_leader_raises_on_failed_task_payload(monkeypatch) -> None:
+    class DummyResponse:
+        status_code = 200
+        content = b'{"task_id":"task-1","status":"failed","error":"No such command."}'
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"task_id": "task-1", "status": "failed", "error": "No such command."}
+
+    monkeypatch.setattr("pioreactor.web.mcp._get_from_leader", lambda endpoint: DummyResponse())
+
+    with pytest.raises(HTTPException, match="No such command."):
+        get_experiments(False)
 
 
 def test_run_job_accepts_json_string_options() -> None:

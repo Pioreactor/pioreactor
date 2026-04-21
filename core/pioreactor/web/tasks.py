@@ -225,10 +225,12 @@ def _process_delayed_json_response(
         sleep(retry_sleep_s)
         return _get_from_unit(unit, data["result_url_path"], max_attempts=max_attempts - 1)
     if 200 <= response.status_code < 300:
-        # Normalize immediate responses: unwrap Huey-style payloads to just the result,
-        # otherwise return the full JSON body for non-task responses.
         if "task_id" in data:
-            return unit, data["result"]
+            if data.get("status") == "succeeded":
+                return unit, data.get("result")
+            if data.get("status") == "failed":
+                return unit, data
+            return unit, None
         return unit, data
     return unit, None
 
@@ -289,11 +291,10 @@ def pio_run(
         stdio.seek(0)
         stderr_output = stdio.read().decode("utf-8", errors="replace").strip()
         stdio.close()
-        result["exit_code"] = proc.returncode
-        result["error"] = "Command exited during startup grace window."
+        result["error"] = f"Command exited during startup grace window. Exit code {proc.returncode}."
         if stderr_output:
-            result["stderr"] = stderr_output
-        return result
+            result["error"] += f" {stderr_output}"
+        raise RuntimeError(result["error"])
 
 
 @huey.task()

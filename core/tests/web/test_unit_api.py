@@ -40,7 +40,7 @@ def test_task_results_pending(client) -> None:
     resp = client.get("/unit_api/task_results/does_not_exist")
     assert resp.status_code == 202
     data = resp.get_json()
-    assert data["status"] == "pending or not present"
+    assert data["status"] == "pending"
 
 
 def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:
@@ -61,6 +61,8 @@ def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) ->
 
     assert first.status_code == 200
     assert second.status_code == 200
+    assert first.get_json()["status"] == "succeeded"
+    assert second.get_json()["status"] == "succeeded"
     assert first.get_json()["result"] == {"ok": True}
     assert second.get_json()["result"] == {"ok": True}
     assert preserve_values == [True, True]
@@ -76,8 +78,32 @@ def test_task_results_complete_when_stored_result_is_none(client, monkeypatch) -
 
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["status"] == "complete"
+    assert data["status"] == "succeeded"
     assert data["result"] is None
+
+
+def test_task_results_failed_when_taskexception_contains_plain_error(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+    from huey.exceptions import TaskException
+
+    task_id = "task-3"
+    error_message = (
+        'RuntimeError("Command exited during startup grace window. Exit code 2. No such command.")'
+    )
+
+    monkeypatch.setattr(mod.huey.storage, "has_data_for_key", lambda candidate: candidate == task_id)
+    monkeypatch.setattr(
+        mod.huey,
+        "result",
+        lambda candidate, preserve=False: (_ for _ in ()).throw(TaskException({"error": error_message})),
+    )
+
+    resp = client.get(f"/unit_api/task_results/{task_id}")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["status"] == "failed"
+    assert data["error"] == "Command exited during startup grace window. Exit code 2. No such command."
 
 
 def test_invalid_update_target(client) -> None:

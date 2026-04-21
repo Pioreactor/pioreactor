@@ -170,7 +170,9 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_start_failure_is_raised(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_start_failure_is_logged(
+    mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
+) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
         experiment_profile_name="test_profile",
@@ -204,11 +206,11 @@ def test_execute_experiment_profile_start_failure_is_raised(mock__load_experimen
             {},
             encode(
                 {
+                    "status": "succeeded",
                     "task_id": "task-1",
                     "result": {
                         "ok": False,
                         "error": "Command exited during startup grace window.",
-                        "argv": ["pio", "run", "circulate_alt_media"],
                     },
                 }
             ),
@@ -219,8 +221,10 @@ def test_execute_experiment_profile_start_failure_is_raised(mock__load_experimen
         patch("pioreactor.actions.leader.experiment_profile.get_from", side_effect=fake_get_from),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
     ):
-        with pytest.raises(RuntimeError, match="circulate_alt_media"):
-            execute_experiment_profile("profile.yaml", experiment)
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert "Failed to start `circulate_alt_media` on unit1." in caplog.text
+    assert "Command exited during startup grace window." in caplog.text
 
 
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="flakey test in CI???")

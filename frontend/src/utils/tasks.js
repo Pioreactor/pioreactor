@@ -3,19 +3,39 @@ export async function checkTaskCallback(callbackURL, { maxRetries = 150, delayMs
     throw new Error("Max retries reached. Stopping.");
   }
 
+  let response;
   try {
-    const response = await fetch(callbackURL);
-    if (response.status === 200) {
-      return await response.json();
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return checkTaskCallback(callbackURL, { maxRetries: maxRetries - 1, delayMs });
+    response = await fetch(callbackURL);
   } catch (err) {
     console.error("Error fetching callback:", err);
     await new Promise((resolve) => setTimeout(resolve, delayMs));
     return checkTaskCallback(callbackURL, { maxRetries: maxRetries - 1, delayMs });
   }
+
+  if (response.status === 202) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return checkTaskCallback(callbackURL, { maxRetries: maxRetries - 1, delayMs });
+  }
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  if (payload?.status === "succeeded") {
+    return payload;
+  }
+
+  if (payload?.status === "failed") {
+    throw new Error(payload.error || "Task failed.");
+  }
+
+  if (payload?.status === "pending" || payload?.status === "running") {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return checkTaskCallback(callbackURL, { maxRetries: maxRetries - 1, delayMs });
+  }
+
+  throw new Error(`Unexpected task status: ${payload?.status ?? "unknown"}`);
 }
 
 export async function fetchTaskResult(

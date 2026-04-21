@@ -775,7 +775,7 @@ def test_run_job_response(client) -> None:
     multicast_task_query_response = client.get(task_data["result_url_path"])
     assert multicast_task_query_response.status_code == 200
     multicast_task_data = multicast_task_query_response.get_json()
-    assert multicast_task_data["status"] == "complete"
+    assert multicast_task_data["status"] == "succeeded"
 
     # stop job now
     client.post(
