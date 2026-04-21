@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from http.client import HTTPMessage
+from subprocess import TimeoutExpired
 from typing import Any
 
 import pytest
@@ -136,3 +137,36 @@ def test_write_config_and_sync_is_rate_limited(monkeypatch: pytest.MonkeyPatch, 
         tasks.write_config_and_sync.call_local(str(config_path), "[ui]\n", "unit1")
 
     _clear_rate_limit("config-sync")
+
+
+def test_pio_run_returns_structured_success_when_process_stays_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeProc:
+        returncode: int | None = None
+
+        def wait(self, timeout: float) -> None:
+            raise TimeoutExpired(cmd="pio run stirring", timeout=timeout)
+
+    monkeypatch.setattr(tasks, "Popen", lambda *args, **kwargs: FakeProc())
+
+    result = tasks.pio_run.call_local("stirring", env={"EXPERIMENT": "exp1"})
+
+    assert result == {"ok": True}
+
+
+def test_pio_run_returns_structured_fast_fail_details(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeProc:
+        returncode = 2
+
+        def wait(self, timeout: float) -> None:
+            return None
+
+    monkeypatch.setattr(tasks, "Popen", lambda *args, **kwargs: FakeProc())
+
+    result = tasks.pio_run.call_local("circulate_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})
+
+    assert result["ok"] is False
+    assert result["exit_code"] == 2
+    assert result["argv"][-3:] == ["circulate_alt_media", "--duration", "bad"]
+    assert "grace window" in result["error"]

@@ -25,6 +25,7 @@ from subprocess import Popen
 from subprocess import run
 from subprocess import TimeoutExpired
 from tempfile import mkdtemp
+from tempfile import TemporaryFile
 from time import sleep
 from typing import Any
 from typing import cast
@@ -248,35 +249,51 @@ def pio_run(
     env: dict[str, str] | None = None,
     config_overrides: tuple[str, ...] = (),
     grace_s: float = 0.25,  # how long to watch for "fast-fail"
-) -> bool:
+) -> dict[str, Any]:
     command = (PIO_EXECUTABLE, "run") + config_overrides + args
 
     env = filter_to_allowed_env(env or {})
 
     logger.debug(f"Executing `{join(command)}`, {env=}")
 
+    result: dict[str, Any] = {
+        "ok": False,
+        "argv": list(command),
+    }
+
+    stdio = TemporaryFile(mode="w+b")
     try:
         proc = Popen(
             command,
             start_new_session=True,  # detach from our session
             env=env,
             stdin=DEVNULL,
-            stdout=DEVNULL,
-            stderr=DEVNULL,
+            stdout=stdio,
+            stderr=stdio,
             close_fds=True,
         )
-    except Exception:
+    except Exception as exc:
+        stdio.close()
         logger.error("Failed to spawn %r", command)
-        return False
+        result["error"] = str(exc) or "Failed to spawn process."
+        return result
 
     # If it exits during the grace window, it probably failed fast (e.g., bad args).
     try:
         proc.wait(timeout=grace_s)
     except TimeoutExpired:
         # Still running after the grace window: treat as "started successfully".
-        return True
+        stdio.close()
+        return {"ok": True}
     else:
-        return False
+        stdio.seek(0)
+        stderr_output = stdio.read().decode("utf-8", errors="replace").strip()
+        stdio.close()
+        result["exit_code"] = proc.returncode
+        result["error"] = "Command exited during startup grace window."
+        if stderr_output:
+            result["stderr"] = stderr_output
+        return result
 
 
 @huey.task()

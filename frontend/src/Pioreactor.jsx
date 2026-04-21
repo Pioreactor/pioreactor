@@ -2104,12 +2104,20 @@ function FlashLEDButton(props){
   const [flashing, setFlashing] = useState(false)
 
   const onClick = () => {
-    setFlashing(true)
+    setFlashing(false)
+    requestAnimationFrame(() => setFlashing(true))
     fetch(`/api/workers/${props.unit}/blink`, {method: "POST"})
   }
 
   return (
-    <Button style={{textTransform: 'none', float: "right"}} className={flashing ? 'blinkled' : ''}  disabled={props.disabled} onClick={onClick} color="primary">
+    <Button
+      style={{textTransform: 'none', float: "right"}}
+      className={flashing ? 'blinkled' : ''}
+      disabled={props.disabled}
+      onClick={onClick}
+      onAnimationEnd={() => setFlashing(false)}
+      color="primary"
+    >
       <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> <span > Identify </span>
     </Button>
 )}

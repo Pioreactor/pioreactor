@@ -3274,11 +3274,19 @@ function FlashLEDButton({ unit, disabled }){
   const [flashing, setFlashing] = useState(false)
 
   const onClick = () => {
-    setFlashing(true)
+    setFlashing(false)
+    requestAnimationFrame(() => setFlashing(true))
     fetch(`/api/workers/${unit}/blink`, {method: "POST"})
   }
   return (
-    <Button style={{textTransform: 'none', float: "right"}} className={flashing ? 'blinkled' : ''} disabled={disabled} onClick={onClick} color="primary">
+    <Button
+      style={{textTransform: 'none', float: "right"}}
+      className={flashing ? 'blinkled' : ''}
+      disabled={disabled}
+      onClick={onClick}
+      onAnimationEnd={() => setFlashing(false)}
+      color="primary"
+    >
       <FlareIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> <span> Identify </span>
     </Button>
 )}

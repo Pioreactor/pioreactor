@@ -27,6 +27,7 @@ from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
 from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.mureq import HTTPErrorStatus
+from pioreactor.mureq import Response
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
@@ -166,6 +167,60 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
         "args": [],
         "config_overrides": [],
     }
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_failure_is_raised(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    def fake_patch_into(address: str, endpoint: str, json: dict[str, object]) -> Response:
+        assert address == "unit1.local"
+        assert endpoint == "/unit_api/jobs/run/job_name/circulate_alt_media"
+        return Response(
+            address + endpoint,
+            202,
+            {},
+            encode({"result_url_path": "/unit_api/task_results/task-1"}),
+        )
+
+    def fake_get_from(
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+    ) -> Response:
+        assert address == "unit1.local"
+        assert endpoint == "/unit_api/task_results/task-1"
+        return Response(
+            address + endpoint,
+            200,
+            {},
+            encode(
+                {
+                    "task_id": "task-1",
+                    "result": {
+                        "ok": False,
+                        "error": "Command exited during startup grace window.",
+                        "argv": ["pio", "run", "circulate_alt_media"],
+                    },
+                }
+            ),
+        )
+
+    with (
+        patch("pioreactor.actions.leader.experiment_profile.patch_into", side_effect=fake_patch_into),
+        patch("pioreactor.actions.leader.experiment_profile.get_from", side_effect=fake_get_from),
+        patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
+    ):
+        with pytest.raises(RuntimeError, match="circulate_alt_media"):
+            execute_experiment_profile("profile.yaml", experiment)
 
 
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="flakey test in CI???")

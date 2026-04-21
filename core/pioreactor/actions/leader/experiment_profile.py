@@ -62,7 +62,9 @@ class ActionMetrics:
         return self.count
 
 
-def wrap_in_try_except(func: Callable[..., Any], logger: CustomLogger) -> Callable[..., None]:
+def wrap_in_try_except(
+    func: Callable[..., Any], logger: CustomLogger, *, swallow_exceptions: bool = True
+) -> Callable[..., None]:
     def inner_function(*args: Any, **kwargs: Any) -> None:
         try:
             func(*args, **kwargs)
@@ -74,6 +76,8 @@ def wrap_in_try_except(func: Callable[..., Any], logger: CustomLogger) -> Callab
 
             logger.error(error_message)
             logger.debug(error_message, exc_info=True)
+            if not swallow_exceptions:
+                raise
 
     return inner_function
 
@@ -165,6 +169,79 @@ def _get_worker_env_for_start(
         job_env["ACTIVE"] = str(int(bool(worker["is_active"])))
 
     return job_env
+
+
+def _wait_for_unit_task_result(
+    unit: pt.Unit,
+    response: Any,
+    *,
+    timeout: float = 5.0,
+    max_attempts: int = 60,
+    retry_sleep_s: float = 0.1,
+) -> dict[str, Any] | None:
+    payload = response.json()
+    result_url_path = payload.get("result_url_path")
+    if not result_url_path:
+        result = payload.get("result")
+        if isinstance(result, dict):
+            return result
+        if payload:
+            return {"ok": True}
+        return None
+
+    address = resolve_to_address(unit)
+
+    for _ in range(max_attempts):
+        response = get_from(address, result_url_path, timeout=timeout)
+        response.raise_for_status()
+
+        payload = response.json()
+        if payload.get("status") == "pending or not present":
+            time.sleep(retry_sleep_s)
+            continue
+
+        if payload.get("status") == "complete":
+            result = payload.get("result")
+            return result if isinstance(result, dict) else {"ok": bool(result)}
+
+        if payload.get("status") == "failed":
+            return {
+                "ok": False,
+                "error": payload.get("error") or "Task failed.",
+                "cause": payload.get("cause"),
+                "remediation": payload.get("remediation"),
+            }
+
+        if response.status_code == 202:
+            time.sleep(retry_sleep_s)
+            continue
+
+        break
+
+    return None
+
+
+def _raise_for_failed_job_start(unit: pt.Unit, job_name: str, task_result: dict[str, Any] | None) -> None:
+    if task_result is None:
+        raise RuntimeError(f"Unable to confirm if `{job_name}` started on {unit}.")
+
+    if task_result.get("ok", False):
+        return
+
+    details: list[str] = []
+    if error := task_result.get("error"):
+        details.append(str(error))
+    if cause := task_result.get("cause"):
+        details.append(f"Cause: {cause}")
+    if remediation := task_result.get("remediation"):
+        details.append(f"Remediation: {remediation}")
+    if stderr := task_result.get("stderr"):
+        details.append(f"stderr: {stderr}")
+
+    message = f"Failed to start `{job_name}` on {unit}."
+    if details:
+        message = f"{message} {' '.join(details)}"
+    raise RuntimeError(message)
 
 
 def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | None:
@@ -656,26 +733,30 @@ def start_job(
                 f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}."
             )
         else:
+            evaluated_options = evaluate_options(options, env)
             logger.debug(
-                f"{action_count}. Starting {job_name} on {unit} with options {evaluate_options(options, env)}, args {args}, and overrides {config_overrides}."
+                f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {config_overrides}."
             )
             try:
-                patch_into(
+                response = patch_into(
                     resolve_to_address(unit),
                     f"/unit_api/jobs/run/job_name/{job_name}",
                     json={
-                        "options": evaluate_options(options, env),
+                        "options": evaluated_options,
                         "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
                         "args": args,
                         "config_overrides": [
                             [f"{job_name}.config", key, value] for (key, value) in config_overrides.items()
                         ],
                     },
-                ).raise_for_status()
+                )
+                response.raise_for_status()
+                task_result = _wait_for_unit_task_result(unit, response)
+                _raise_for_failed_job_start(unit, job_name, task_result)
             except HTTPException:
                 raise HTTPException(f"Unable to post to {unit}. Is it online?")
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, swallow_exceptions=False)
 
 
 def pause_job(
