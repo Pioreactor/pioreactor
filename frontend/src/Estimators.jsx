@@ -81,7 +81,7 @@ function EstimatorData() {
   }, []);
 
   useEffect(() => {
-    if (!rawData || rawData.status !== 'complete') {
+    if (!rawData || rawData.status !== 'succeeded') {
       return;
     }
 
@@ -131,7 +131,7 @@ function EstimatorData() {
     setOnlyActive(event.target.checked);
   };
 
-  const isDataComplete = rawData && rawData.status === 'complete';
+  const isDataComplete = rawData && rawData.status === 'succeeded';
 
   const filteredEstimators = React.useMemo(() => {
     if (!isDataComplete) {

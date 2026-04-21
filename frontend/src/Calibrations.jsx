@@ -368,7 +368,7 @@ function CalibrationData() {
   }, []);
 
   useEffect(() => {
-    if (!rawData || rawData.status !== 'complete') {
+    if (!rawData || rawData.status !== 'succeeded') {
       return;
     }
 
@@ -434,7 +434,7 @@ function CalibrationData() {
   }, [getCalibrationKey]);
 
 
-  const isDataComplete = rawData && rawData.status === 'complete';
+  const isDataComplete = rawData && rawData.status === 'succeeded';
 
   const filteredCalibrations = React.useMemo(() => {
     if (!isDataComplete) {
