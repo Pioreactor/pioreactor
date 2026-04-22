@@ -7,6 +7,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import FormControl from "@mui/material/FormControl";
+import FormGroup from "@mui/material/FormGroup";
+import FormLabel from "@mui/material/FormLabel";
 import LinearProgress from "@mui/material/LinearProgress";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -161,7 +164,7 @@ export default function StirringCalibrationBatchDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{protocol?.title || "Stirring calibration batch"}</DialogTitle>
+      <DialogTitle>{protocol?.title}</DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
         {batchError && <Alert severity="error">{batchError}</Alert>}
 
@@ -186,14 +189,30 @@ export default function StirringCalibrationBatchDialog({
               Each Pioreactor should have a vial with a stir bar and the liquid volume you plan to use.
               Stirring must be off before starting.
             </Typography>
-            <Typography variant="subtitle2">Units</Typography>
-            <Box component="ul" sx={{ mt: 0, mb: 0, pl: 3 }}>
-              {units.map((unit) => (
-                <li key={unit}>
-                  <Typography variant="body2">{unit}</Typography>
-                </li>
-              ))}
-            </Box>
+            <FormControl component="fieldset" variant="standard">
+              <FormLabel component="legend">Pioreactors</FormLabel>
+              <FormGroup
+                sx={
+                  units.length > 8
+                    ? {
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        columnGap: "30px",
+                      }
+                    : {}
+                }
+              >
+                {units.map((unit) => (
+                  <Typography
+                    key={unit}
+                    variant="body1"
+                    sx={{ mt: 0.5 }}
+                  >
+                    {unit}
+                  </Typography>
+                ))}
+              </FormGroup>
+            </FormControl>
           </React.Fragment>
         )}
 
@@ -211,7 +230,7 @@ export default function StirringCalibrationBatchDialog({
             )}
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {units.length} units selected
+                {units.length} Pioreactors selected
               </Typography>
               <LinearProgress variant="determinate" value={progress} />
             </Box>
@@ -220,7 +239,7 @@ export default function StirringCalibrationBatchDialog({
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Pioreactor</TableCell>
+                    <TableCell>Pioreactors</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Calibration</TableCell>
                     <TableCell>Error</TableCell>
