@@ -15,27 +15,33 @@ describe("StirringCalibrationBatchDialog", () => {
 
   test("starts a stirring batch and shows unit results", async () => {
     global.fetch = jest.fn((url, options) => {
-      if (url === "/api/calibration_batches/stirring") {
+      if (url === "/api/workers/unit-1/calibrations/sessions") {
         expect(options.method).toBe("POST");
         return Promise.resolve({
           ok: true,
           json: () =>
             Promise.resolve({
-              batch: {
-                batch_id: "batch-1",
-                status: "complete",
-                units: {
-                  "unit-1": {
-                    status: "completed",
-                    result: {
-                      calibrations: [
-                        {
-                          device: "stirring",
-                          calibration_name: "stirring-calibration-unit-1",
-                        },
-                      ],
+              session: {
+                session_id: "session-1",
+              },
+            }),
+        });
+      }
+
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1/inputs") {
+        expect(options.method).toBe("POST");
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              step: {
+                result: {
+                  calibrations: [
+                    {
+                      device: "stirring",
+                      calibration_name: "stirring-calibration-unit-1",
                     },
-                  },
+                  ],
                 },
               },
             }),
@@ -49,7 +55,11 @@ describe("StirringCalibrationBatchDialog", () => {
       <MemoryRouter>
         <StirringCalibrationBatchDialog
           open
-          protocol={{ title: "DC-based stirring calibration" }}
+          protocol={{
+            title: "DC-based stirring calibration",
+            protocol_name: "dc_based",
+            target_device: "stirring",
+          }}
           units={["unit-1"]}
           onClose={() => {}}
         />

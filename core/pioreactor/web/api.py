@@ -82,9 +82,6 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
-STIRRING_BATCH_PROTOCOL_NAME = "dc_based"
-STIRRING_BATCH_TARGET_DEVICE = "stirring"
-
 for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
 
@@ -141,20 +138,6 @@ def _normalize_experiment_tags(raw_tags: object) -> list[str]:
         seen_tags.add(casefolded_tag)
 
     return normalized_tags
-
-
-def _build_stirring_calibration_batch(units: list[str]) -> dict[str, t.Any]:
-    now = current_utc_timestamp()
-    batch_id = str(uuid.uuid4())
-    return {
-        "batch_id": batch_id,
-        "status": "pending",
-        "protocol_name": STIRRING_BATCH_PROTOCOL_NAME,
-        "target_device": STIRRING_BATCH_TARGET_DEVICE,
-        "created_at": now,
-        "updated_at": now,
-        "units": {unit: {"status": "pending"} for unit in units},
-    }
 
 
 def _serialize_experiment_row(row: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -1608,66 +1591,6 @@ def get_calibration_protocols(pioreactor_unit: str) -> DelayedResponseReturnValu
     else:
         task = cache.cached_multicast_get(cache.CALIBRATION_PROTOCOLS, [pioreactor_unit])
     return create_task_response(task)
-
-
-@api_bp.route("/calibration_batches/stirring", methods=["POST"])
-def start_stirring_calibration_batch() -> DelayedResponseReturnValue:
-    body = request.get_json()
-    if body is None:
-        abort_with(400, description="Missing JSON payload.")
-
-    raw_units = body.get("units")
-    if not isinstance(raw_units, list) or len(raw_units) == 0:
-        abort_with(400, description="Expected a non-empty 'units' list.")
-
-    units = [unit for unit in raw_units if isinstance(unit, str)]
-    if len(units) != len(raw_units):
-        abort_with(400, description="All units must be strings.")
-
-    batch = _build_stirring_calibration_batch(units)
-    tasks.save_calibration_batch(batch)
-    task = tasks.run_stirring_calibration_batch(batch["batch_id"], units)
-    response = jsonify({"batch": batch, "task_id": task.id})
-    response.status_code = 202
-    return response
-
-
-@api_bp.route("/calibration_batches/stirring/<batch_id>", methods=["GET"])
-def get_stirring_calibration_batch(batch_id: str) -> ResponseReturnValue:
-    batch = tasks.load_calibration_batch(batch_id)
-    if batch is None:
-        abort_with(404, description="Calibration batch not found.")
-    return jsonify({"batch": batch})
-
-
-@api_bp.route("/calibration_batches/stirring/<batch_id>/abort", methods=["POST"])
-def abort_stirring_calibration_batch(batch_id: str) -> ResponseReturnValue:
-    batch = tasks.load_calibration_batch(batch_id)
-    if batch is None:
-        abort_with(404, description="Calibration batch not found.")
-
-    batch["status"] = "aborted"
-    batch["updated_at"] = current_utc_timestamp()
-    tasks.save_calibration_batch(batch)
-
-    for unit, details in batch["units"].items():
-        if details.get("status") not in ("completed", "failed"):
-            details["status"] = "aborted"
-        session_id = details.get("session_id")
-        if not session_id:
-            continue
-        try:
-            post_into(
-                resolve_to_address(unit),
-                f"/unit_api/calibrations/sessions/{session_id}/abort",
-                timeout=30,
-            )
-        except (HTTPErrorStatus, HTTPException):
-            continue
-
-    batch["updated_at"] = current_utc_timestamp()
-    tasks.save_calibration_batch(batch)
-    return jsonify({"batch": batch})
 
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations", methods=["GET"])
