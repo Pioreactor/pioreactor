@@ -45,6 +45,22 @@ const VisuallyHiddenInput = styled('input')({
   width: 1,
 });
 
+const RELEASE_ARCHIVE_FILENAME_REGEX = /^release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$/;
+
+function validateReleaseArchive(file) {
+  if (!file) {
+    return { file: null, error: null };
+  }
+
+  if (RELEASE_ARCHIVE_FILENAME_REGEX.test(file.name)) {
+    return { file, error: null };
+  }
+
+  return {
+    file: null,
+    error: "Not a valid release archive file. It should be a zip file, starting with `release_` and ending in `<version>.zip`. ",
+  };
+}
 
 function UploadArchiveAndConfirm(props) {
   const [selectedFile, setSelectedFile] = React.useState(null);
@@ -52,6 +68,7 @@ function UploadArchiveAndConfirm(props) {
   const [units, setUnits] = React.useState([]);
   const [selectedUnits, setSelectedUnits] = React.useState("$broadcast");
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isDragActive, setIsDragActive] = React.useState(false);
   const handleClose = props.onClose
 
 
@@ -75,15 +92,35 @@ function UploadArchiveAndConfirm(props) {
 
 
   const handleFileChange = (event) => {
-    const file = event.target.files[0]
+    const nextFile = event.target.files?.[0] ?? null;
+    const { file, error } = validateReleaseArchive(nextFile);
+    setSelectedFile(file);
+    setErrorMsg(error);
+  };
 
-    if (/^release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$/.test(file.name)) {
-      setSelectedFile(event.target.files[0]);
-      setErrorMsg(null)
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isDragActive) {
+      setIsDragActive(true);
     }
-    else {
-      setErrorMsg("Not a valid release archive file. It should be a zip file, starting with `release_` and ending in `<version>.zip`. ")
-    }
+  };
+
+  const handleDragLeave = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragActive(false);
+
+    const nextFile = event.dataTransfer.files?.[0] ?? null;
+    const { file, error } = validateReleaseArchive(nextFile);
+    setSelectedFile(file);
+    setErrorMsg(error);
   };
 
   const handleFileUpload = async () => {
@@ -187,7 +224,7 @@ function UploadArchiveAndConfirm(props) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
+          <DialogContentText id="alert-dialog-description" component="div">
             {props.description}
             <p>You can update the Pioreactor software from our pre-built zip files. First download the <code>release_*.zip</code> file from our <a href="https://github.com/Pioreactor/pioreactor/releases?q=prerelease%3Afalse&expanded=true" target="_blank" rel="noopener noreferrer" >Releases page</a>, and then upload the file.</p>
             <p>To avoid possible data interruptions, we suggest updating between running experiments.
@@ -211,18 +248,40 @@ function UploadArchiveAndConfirm(props) {
               </FormControl>
             </Box>
           }
-
-
-            <Box sx={{display: "flex", justifyContent: "start", mt: 3}}>
-              <Button variant="text" component="label" sx={{textTransform: 'none'}}>Upload zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
-              <Box sx={{m: 1, ml: 2, display: "flex", alignItems: "center", gap: 0.5}}>
-                {selectedFile == null ? "" : (
-                  <React.Fragment>
-                    <span>{selectedFile.name}</span>
-                    <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />
-                  </React.Fragment>
-                )}
-              </Box>
+            <Box
+              component="label"
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              sx={(theme) => ({
+                mt: 3,
+                px: 2,
+                py: 2.5,
+                borderRadius: 1,
+                border: "1px dashed",
+                borderColor: isDragActive ? "primary.main" : "divider",
+                backgroundColor: isDragActive ? "action.hover" : "background.default",
+                color: "text.secondary",
+                textAlign: "center",
+                display: "block",
+                cursor: "pointer",
+                transition: theme.transitions.create(["border-color", "background-color"]),
+              })}
+            >
+              <Typography variant="body2">
+                Drop a <code>release_*.zip</code> archive here, or{" "}
+                <Box component="span" sx={{ color: "primary.main" }}>
+                  click to choose one
+                </Box>
+              </Typography>
+              {selectedFile != null &&
+                <Box sx={{mt: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 0.5}}>
+                  <span>{selectedFile.name}</span>
+                  <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />
+                </Box>
+              }
+              <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" />
             </Box>
             <Box sx={{minHeight: "30px", alignItems: "center", display: "flex"}}>
               {errorMsg   ? <Alert severity="error">{errorMsg}</Alert>           : <React.Fragment/>}
@@ -320,7 +379,7 @@ function UpdateFromInternetAndConfirm(props) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
+          <DialogContentText id="alert-dialog-description" component="div">
             {props.description}
             {units.length > 1 &&
             <Box sx={{my: 2}}>
