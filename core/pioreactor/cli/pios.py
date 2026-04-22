@@ -14,6 +14,7 @@ from typing import Any
 import click
 from msgspec import DecodeError
 from msgspec.json import encode as dumps
+from pioreactor import types as pt
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.cluster_management import get_workers_in_inventory
@@ -75,110 +76,123 @@ if am_I_leader() or is_testing_env():
 
     UNIT_CONFIG_HISTORY_PREFIX = "unit_config.ini::"
 
-    def resolve_target_units(
-        units_opt: tuple[str, ...] | None,
-        experiments_opt: tuple[str, ...] | None,
-        *,
-        active_only: bool = True,
-        include_leader: bool | None = False,
-        precedence: str = "intersection",  # "intersection" | "experiments" | "units"
-    ) -> tuple[str, ...]:
-        """Resolve the final list of target units for a `pios` command.
+    def _get_inventory_units(*, active_only: bool) -> set[pt.Unit]:
+        try:
+            return set(get_active_workers_in_inventory()) if active_only else set(get_workers_in_inventory())
+        except (HTTPException, DecodeError):
+            click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
+            return set()
 
-        Parameters
-        - units_opt: The value from `--units` (may be empty). When empty/None, it implies
-          a broadcast to all workers (active or all, see `active_only`).
-        - experiments_opt: The value from `--experiments` (may be empty). When present,
-          the set of target units is combined according to `precedence`.
-        - active_only: If True, only consider active workers from inventory; if False,
-          consider all workers in inventory.
-        - include_leader:
-          - True: always include the leader in the targets (even if not a worker).
-          - False: always exclude the leader from the targets.
-          - None: follow inventory (include the leader only if it is a worker).
+    def _get_experiment_units(experiments_opt: tuple[str, ...] | None) -> set[pt.Unit]:
+        if not experiments_opt:
+            return set()
 
-        - precedence: How to combine `--units` and `--experiments` when both are
-          provided. Options:
-          - "intersection": final = units ∩ experiment_units (default, safest)
-          - "experiments": final = experiment_units (units ignored)
-          - "units": final = units (experiments ignored)
-
-        Returns
-        - A sorted tuple of unit names selected by the above logic.
-
-        Notes
-        - This function encapsulates all targeting rules to avoid Click callback
-          ordering pitfalls. Command functions should pass raw options and rely on this
-          resolver for consistent behavior.
-        """
-
-        experiments_opt = experiments_opt or tuple()
-
-        # 1) Expand experiments to active workers
-        exp_units: set[str] = set()
+        exp_units: set[pt.Unit] = set()
         for exp in experiments_opt:
             try:
                 exp_units.update(get_active_workers_in_experiment(exp))
             except Exception:
                 click.echo(f"Unable to get workers for experiment '{exp}'.", err=True)
-        if experiments_opt and not exp_units:
-            # Mirror previous UX when experiments yield no workers
+
+        if not exp_units:
             raise click.BadParameter(
                 f"No active workers found for experiment(s): {', '.join(experiments_opt)}"
             )
 
-        # 2) Resolve inventory base
-        try:
-            inventory = (
-                set(get_active_workers_in_inventory()) if active_only else set(get_workers_in_inventory())
+        return exp_units
+
+    def _get_explicit_units(units_opt: tuple[str, ...] | None) -> set[pt.Unit]:
+        if not units_opt:
+            return set()
+
+        return {unit for unit in units_opt if unit != UNIVERSAL_IDENTIFIER}
+
+    def _resolve_selector_units(
+        units_opt: tuple[str, ...] | None,
+        experiments_opt: tuple[str, ...] | None,
+        *,
+        active_only: bool = True,
+    ) -> set[pt.Unit]:
+        """Resolve units from the user's selector only.
+
+        This step decides only between explicit units, experiment-derived units,
+        and broadcast inventory. It does not apply leader policy or command-specific
+        empty-target handling.
+        """
+        experiments_opt = experiments_opt or tuple()
+        if units_opt and experiments_opt:
+            raise click.BadParameter(
+                "Use either --units or --experiments, not both. The combined selector is ambiguous."
             )
-        except (HTTPException, DecodeError):
-            click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
-            inventory = set()
 
-        # 3) Expand units option
-        if not units_opt or UNIVERSAL_IDENTIFIER in units_opt:
-            units_set = set(inventory)
+        explicit_units = _get_explicit_units(units_opt)
+
+        inventory = _get_inventory_units(active_only=active_only)
+        exp_units = _get_experiment_units(experiments_opt)
+
+        unknown_units = explicit_units - inventory
+        if unknown_units:
+            raise click.BadParameter(
+                f"Unknown unit(s): {', '.join(sorted(unknown_units))}. Check the inventory and retry."
+            )
+
+        if exp_units:
+            return exp_units
+        elif explicit_units:
+            return explicit_units
         else:
-            units_set = set(units_opt)
+            return set(inventory)
 
-        # 4) Combine with experiments based on precedence
-        if experiments_opt:
-            if precedence == "intersection":
-                units_set &= exp_units
-            elif precedence == "experiments":
-                units_set = set(exp_units)
-            elif precedence == "units":
-                pass
-
-        # 5) Include/exclude leader
+    def _apply_leader_policy(units: set[pt.Unit], include_leader: bool | None) -> set[pt.Unit]:
         leader = get_leader_hostname()
         if include_leader is True:
-            units_set.add(leader)
+            return units | {leader}
         elif include_leader is False:
-            units_set.discard(leader)
-            if not units_set:
-                # no other workers, exit successfully.
-                return tuple()
+            return units - {leader}
 
-        if not units_set:
+        return units
+
+    def resolve_active_job_units(
+        units_opt: tuple[str, ...] | None,
+        experiments_opt: tuple[str, ...] | None,
+    ) -> tuple[str, ...]:
+        selected_units = _resolve_selector_units(units_opt, experiments_opt, active_only=True)
+        selected_units = _apply_leader_policy(selected_units, include_leader=None)
+        if not selected_units:
             raise click.BadParameter("No target workers matched the selection. Check --units/--experiments.")
-        return tuple(sorted(units_set))
+        return tuple(sorted(selected_units))
+
+    def resolve_all_worker_units(
+        units_opt: tuple[str, ...] | None,
+        experiments_opt: tuple[str, ...] | None,
+    ) -> tuple[str, ...]:
+        selected_units = _resolve_selector_units(units_opt, experiments_opt, active_only=False)
+        selected_units = _apply_leader_policy(selected_units, include_leader=False)
+        return tuple(sorted(selected_units))
+
+    def resolve_cluster_units_including_leader(
+        units_opt: tuple[str, ...] | None,
+        experiments_opt: tuple[str, ...] | None,
+    ) -> tuple[str, ...]:
+        selected_units = _resolve_selector_units(units_opt, experiments_opt, active_only=False)
+        selected_units = _apply_leader_policy(selected_units, include_leader=True)
+        if not selected_units:
+            raise click.BadParameter("No target workers matched the selection. Check --units/--experiments.")
+        return tuple(sorted(selected_units))
 
     def which_units(f: t.Callable[..., t.Any]) -> t.Callable[..., t.Any]:
         """Add common targeting options to a `pios` command.
 
         This only defines the options; it does not resolve them. Command handlers must
-        call `resolve_target_units(...)` with appropriate arguments to compute the final
-        targets. This avoids subtle interactions between Click callbacks and defaults.
+        call a resolver wrapper with appropriate command-specific policy.
 
         Semantics
         - If `--units` is omitted, behavior is equivalent to broadcasting to all workers
           (active-only by default in most commands).
-        - If `--experiments` is provided, it restricts the target set according to the
-          precedence chosen in `resolve_target_units` (defaults to intersection).
-        - Leader inclusion is decided per-command via the `include_leader` argument to
-          `resolve_target_units`.
+        - If `--experiments` is provided, it targets active workers assigned to the
+          selected experiment(s).
+        - `--units` and `--experiments` cannot be combined.
+        - Leader inclusion is decided per-command in the wrapper that consumes these options.
         """
         f = click.option(
             "--experiments",
@@ -268,7 +282,7 @@ if am_I_leader() or is_testing_env():
         *,
         running_only: bool = False,
     ) -> None:
-        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
+        units = resolve_active_job_units(units, experiments)
         if len(units) == 0:
             click.echo("No jobs recorded.")
             return
@@ -334,47 +348,6 @@ if am_I_leader() or is_testing_env():
             unit_rows = sorted(rows_by_unit[unit], key=lambda row: row[5], reverse=True)
             for job_row in unit_rows:
                 click.echo(f"  {_format_job_history_line(*job_row)}")
-
-    def universal_identifier_to_all_active_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
-        try:
-            active_workers = get_active_workers_in_inventory()
-            # sometimes the webserver is down, and we don't want to crash due to that.
-        except (HTTPException, DecodeError):
-            click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
-            active_workers = tuple()
-
-        if workers == (UNIVERSAL_IDENTIFIER,):
-            return active_workers
-
-        return tuple(u for u in set(workers) if u in active_workers)
-
-    def universal_identifier_to_all_workers(
-        workers: tuple[str, ...], filter_out_non_workers: bool = True
-    ) -> tuple[str, ...]:
-        try:
-            all_workers = get_workers_in_inventory()
-            # sometimes the webserver is down, and we don't want to crash due to that.
-        except (HTTPException, DecodeError):
-            click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
-            all_workers = tuple()
-
-        if workers == (UNIVERSAL_IDENTIFIER,):
-            return all_workers
-
-        if not filter_out_non_workers:
-            return tuple(set(workers))
-
-        return tuple(u for u in set(workers) if u in all_workers)
-
-    def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
-        leader = get_leader_hostname()
-        if leader not in units:
-            units = units + (leader,)
-        return units
-
-    def remove_leader(units: tuple[str, ...]) -> tuple[str, ...]:
-        leader = get_leader_hostname()
-        return tuple(unit for unit in units if unit != leader)
 
     def _unit_specific_history_key(unit: str) -> str:
         return f"{UNIT_CONFIG_HISTORY_PREFIX}{unit}"
@@ -458,7 +431,7 @@ if am_I_leader() or is_testing_env():
           pios cp /home/pioreactor/.pioreactor/config.ini --units worker1
           pios cp /home/pioreactor/.pioreactor/plugins/my_plugin.py
         """
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
+        units = resolve_all_worker_units(units, experiments)
 
         if len(units) == 0:
             return
@@ -504,7 +477,7 @@ if am_I_leader() or is_testing_env():
           pios rm /home/pioreactor/.pioreactor/plugins/my_plugin.py --units worker1
           pios rm /home/pioreactor/.pioreactor/unit_config.ini --experiments testing
         """
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
+        units = resolve_all_worker_units(units, experiments)
 
         if len(units) == 0:
             return
@@ -623,7 +596,7 @@ if am_I_leader() or is_testing_env():
         Pulls and installs a Pioreactor software version across the cluster
         """
 
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=None)
+        units = resolve_cluster_units_including_leader(units, experiments)
 
         if len(units) == 0:
             return
@@ -729,7 +702,7 @@ if am_I_leader() or is_testing_env():
           pios plugins install pioreactor-foo --source https://example.com/release.zip
         """
 
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
+        units = resolve_cluster_units_including_leader(units, experiments)
 
         if len(units) == 0:
             return
@@ -784,7 +757,7 @@ if am_I_leader() or is_testing_env():
           pios plugins uninstall pioreactor-foo --units worker1
         """
 
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
+        units = resolve_cluster_units_including_leader(units, experiments)
 
         if len(units) == 0:
             return
@@ -856,12 +829,7 @@ if am_I_leader() or is_testing_env():
           pios sync-configs --shared
           pios sync-configs --specific --units worker1
         """
-        units = resolve_target_units(
-            units,
-            experiments,
-            active_only=False,
-            include_leader=True,  # maintain previous behaviour of always including leader
-        )
+        units = resolve_cluster_units_including_leader(units, experiments)
 
         if len(units) == 0:
             return
@@ -942,7 +910,7 @@ if am_I_leader() or is_testing_env():
           pios kill --experiment testing2
           pios kill --all-jobs -y
         """
-        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
+        units = resolve_active_job_units(units, experiments)
 
         if len(units) == 0:
             return
@@ -1011,7 +979,7 @@ if am_I_leader() or is_testing_env():
             click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
             raise click.Abort()
 
-        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
+        units = resolve_active_job_units(units, experiments)
 
         if len(units) == 0:
             return
@@ -1058,7 +1026,7 @@ if am_I_leader() or is_testing_env():
         targets with `include_leader=False` to avoid implicit leader inclusion.
         """
         also_shutdown_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
+        units = resolve_all_worker_units(units, experiments)
         units_san_leader = units
 
         if not yes:
@@ -1093,7 +1061,7 @@ if am_I_leader() or is_testing_env():
         requested via `--units`.
         """
         also_reboot_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
+        units = resolve_all_worker_units(units, experiments)
         units_san_leader = units
 
         if not yes:
@@ -1150,7 +1118,7 @@ if am_I_leader() or is_testing_env():
             if confirm != "Y":
                 raise click.Abort()
 
-        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
+        units = resolve_active_job_units(units, experiments)
 
         with create_client() as client:
             for unit in units:

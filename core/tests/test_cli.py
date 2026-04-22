@@ -31,6 +31,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
+from pioreactor.utils.networking import resolve_to_address
 from tests.conftest import capture_requests
 
 
@@ -864,8 +865,11 @@ def test_pios_update_requests_with_sha() -> None:
 
     assert result.exit_code == 0
     update_requests = [req for req in bucket if req.path == "/unit_api/system/update/app"]
-    assert len(update_requests) >= 2
+    assert len(update_requests) >= 3
     update_urls = {req.url for req in update_requests}
+    assert (
+        f"http://{resolve_to_address(get_leader_hostname())}:4999/unit_api/system/update/app" in update_urls
+    )
     assert "http://unit1.local:4999/unit_api/system/update/app" in update_urls
     assert "http://unit2.local:4999/unit_api/system/update/app" in update_urls
     assert all(req.json == {"options": {"sha": git_sha}} for req in update_requests)
@@ -879,11 +883,38 @@ def test_pios_update_app_requests_with_sha() -> None:
 
     assert result.exit_code == 0
     update_requests = [req for req in bucket if req.path == "/unit_api/system/update/app"]
-    assert len(update_requests) >= 2
+    assert len(update_requests) >= 3
     update_urls = {req.url for req in update_requests}
+    assert (
+        f"http://{resolve_to_address(get_leader_hostname())}:4999/unit_api/system/update/app" in update_urls
+    )
     assert "http://unit1.local:4999/unit_api/system/update/app" in update_urls
     assert "http://unit2.local:4999/unit_api/system/update/app" in update_urls
     assert all(req.json == {"options": {"sha": git_sha}} for req in update_requests)
+
+
+def test_pios_rejects_combining_units_and_experiments() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        pios,
+        ["run", "--units", "unit1", "--experiments", "exp1", "stirring", "-y"],
+    )
+
+    assert result.exit_code != 0
+    assert "Use either --units or --experiments, not both" in result.output
+
+
+def test_pios_rejects_unknown_explicit_units() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        pios,
+        ["run", "--units", "unknown-unit", "stirring", "-y"],
+    )
+
+    assert result.exit_code != 0
+    assert "Unknown unit(s): unknown-unit" in result.output
 
 
 def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
