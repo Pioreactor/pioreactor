@@ -17,6 +17,8 @@ import stat
 import zipfile
 from collections.abc import Callable
 from collections.abc import Mapping
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from shlex import join
 from subprocess import check_call
@@ -55,6 +57,7 @@ from pioreactor.pubsub import post_into
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.web import cache
@@ -118,12 +121,95 @@ ALLOWED_ENV = (
     "HAT_PRESENT",
 )
 
+CALIBRATION_BATCH_STORAGE = "calibration_batches"
+
 
 def _with_units(command: list[str], units: list[str]) -> list[str]:
     command_with_units = list(command)
     for unit in units:
         command_with_units.extend(["--units", unit])
     return command_with_units
+
+
+def save_calibration_batch(batch: dict[str, Any]) -> None:
+    with local_persistent_storage(CALIBRATION_BATCH_STORAGE) as store:
+        store[batch["batch_id"]] = json.dumps(batch)
+
+
+def load_calibration_batch(batch_id: str) -> dict[str, Any] | None:
+    with local_persistent_storage(CALIBRATION_BATCH_STORAGE) as store:
+        payload = cast(str | bytes | None, store.get(batch_id))
+    if payload is None:
+        return None
+    if isinstance(payload, bytes):
+        payload = payload.decode()
+    return cast(dict[str, Any], json.loads(payload))
+
+
+def _update_calibration_batch(batch_id: str, callback: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+    batch = load_calibration_batch(batch_id)
+    if batch is None:
+        raise KeyError(f"Unknown calibration batch: {batch_id}")
+    callback(batch)
+    batch["updated_at"] = current_utc_timestamp()
+    save_calibration_batch(batch)
+    return batch
+
+
+def _get_calibration_batch_result(step_payload: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(step_payload, dict):
+        return None
+    result = step_payload.get("result")
+    if isinstance(result, dict):
+        return result
+    metadata = step_payload.get("metadata")
+    if isinstance(metadata, dict):
+        metadata_result = metadata.get("result")
+        if isinstance(metadata_result, dict):
+            return metadata_result
+    return None
+
+
+def _post_json_to_unit(unit: str, endpoint: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
+    response = post_into(
+        resolve_to_address(unit),
+        endpoint,
+        json=payload,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    return cast(dict[str, Any], response.json())
+
+
+def _start_stirring_calibration_session(unit: str) -> str:
+    start_payload = _post_json_to_unit(
+        unit,
+        "/unit_api/calibrations/sessions",
+        {"protocol_name": "dc_based", "target_device": "stirring"},
+        timeout=30,
+    )
+    session_payload = cast(dict[str, Any], start_payload.get("session", {}))
+    session_id = cast(str | None, session_payload.get("session_id"))
+    if session_id is None:
+        raise ValueError(f"Unit {unit} did not return a session id.")
+    return session_id
+
+
+def _run_stirring_calibration_session(unit: str, session_id: str) -> dict[str, Any]:
+    _post_json_to_unit(
+        unit,
+        f"/unit_api/calibrations/sessions/{session_id}/inputs",
+        {"inputs": {}},
+        timeout=30,
+    )
+    final_payload = _post_json_to_unit(
+        unit,
+        f"/unit_api/calibrations/sessions/{session_id}/inputs",
+        {"inputs": {}},
+        timeout=300,
+    )
+    result = _get_calibration_batch_result(cast(dict[str, Any] | None, final_payload.get("step")))
+    return {"result": result}
 
 
 def _safe_zip_members(members: list[zipfile.ZipInfo]) -> None:
@@ -637,6 +723,73 @@ def calibration_read_voltage() -> float:
     voltage = float(voltage_in_aux())
     logger.debug("Finished aux voltage read: voltage=%s", voltage)
     return voltage
+
+
+@huey.task()
+def run_stirring_calibration_batch(batch_id: str, units: list[str]) -> bool:
+    _update_calibration_batch(batch_id, lambda batch: batch.update({"status": "running"}))
+
+    started_units: list[tuple[str, str]] = []
+    for unit in units:
+        try:
+            session_id = _start_stirring_calibration_session(unit)
+
+            def mark_running(batch: dict[str, Any], unit: str = unit, session_id: str = session_id) -> None:
+                if batch["status"] == "aborted":
+                    return
+                batch["units"][unit]["status"] = "running"
+                batch["units"][unit]["session_id"] = session_id
+
+            _update_calibration_batch(batch_id, mark_running)
+            started_units.append((unit, session_id))
+        except Exception as exc:
+
+            def mark_failed(batch: dict[str, Any], unit: str = unit, error: str = str(exc)) -> None:
+                if batch["status"] == "aborted":
+                    return
+                batch["units"][unit]["status"] = "failed"
+                batch["units"][unit]["error"] = error
+
+            _update_calibration_batch(batch_id, mark_failed)
+
+    with ThreadPoolExecutor(max_workers=max(len(started_units), 1)) as executor:
+        futures = {
+            executor.submit(_run_stirring_calibration_session, unit, session_id): (unit, session_id)
+            for unit, session_id in started_units
+        }
+        for future in as_completed(futures):
+            unit, session_id = futures[future]
+            try:
+                payload = future.result()
+                result = payload["result"]
+
+                def mark_completed(
+                    batch: dict[str, Any], unit: str = unit, session_id: str = session_id
+                ) -> None:
+                    if batch["status"] == "aborted":
+                        return
+                    batch["units"][unit]["status"] = "completed"
+                    batch["units"][unit]["session_id"] = session_id
+                    batch["units"][unit]["result"] = result
+
+                _update_calibration_batch(batch_id, mark_completed)
+            except Exception as exc:
+
+                def mark_failed(batch: dict[str, Any], unit: str = unit, error: str = str(exc)) -> None:
+                    if batch["status"] == "aborted":
+                        return
+                    batch["units"][unit]["status"] = "failed"
+                    batch["units"][unit]["error"] = error
+
+                _update_calibration_batch(batch_id, mark_failed)
+
+    def finalize(batch: dict[str, Any]) -> None:
+        if batch["status"] == "aborted":
+            return
+        batch["status"] = "complete"
+
+    _update_calibration_batch(batch_id, finalize)
+    return True
 
 
 def _dict_or_empty_normalizer(result: Any) -> dict[str, Any]:

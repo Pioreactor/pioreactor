@@ -111,4 +111,47 @@ describe("Protocols", () => {
     expect(await screen.findByText("OD standards calibration")).toBeInTheDocument();
     expect(screen.queryByText("DC-based stirring calibration")).toBeNull();
   });
+
+  test("shows the stirring batch action for all pioreactors", async () => {
+    fetchTaskResult.mockResolvedValue({
+      result: {
+        "unit-1": [
+          {
+            id: "stirring_dc_based",
+            target_device: "stirring",
+            protocol_name: "dc_based",
+            title: "DC-based stirring calibration",
+            description: "Maps duty cycle to RPM.",
+            requirements: ["Vial"],
+          },
+        ],
+        "unit-2": [
+          {
+            id: "stirring_dc_based",
+            target_device: "stirring",
+            protocol_name: "dc_based",
+            title: "DC-based stirring calibration",
+            description: "Maps duty cycle to RPM.",
+            requirements: ["Vial"],
+          },
+        ],
+      },
+    });
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/workers") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ pioreactor_unit: "unit-1" }, { pioreactor_unit: "unit-2" }]),
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    renderProtocols("/protocols/$broadcast/stirring");
+
+    expect(await screen.findByText("Run on all Pioreactors")).toBeInTheDocument();
+    expect(fetchTaskResult).toHaveBeenCalledWith("/api/workers/$broadcast/calibration_protocols");
+  });
 });

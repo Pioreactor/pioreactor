@@ -16,11 +16,46 @@ import Snackbar from './components/Snackbar';
 import Typography from "@mui/material/Typography";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CalibrationSessionDialog from "./components/CalibrationSessionDialog";
+import StirringCalibrationBatchDialog from "./components/StirringCalibrationBatchDialog";
+import PioreactorsIcon from "./components/PioreactorsIcon";
 import { fetchTaskResult } from "./utils/tasks";
 import CircularProgress from "@mui/material/CircularProgress";
 import RequirementsAlert from "./components/RequirementsAlert";
 
 const CALIBRATION_SESSION_STORAGE_KEY = "activeCalibrationSession";
+const ALL_PIOREACTORS = "$broadcast";
+
+function getSharedProtocolsById(protocolsByUnit) {
+  const units = Object.keys(protocolsByUnit || {});
+  if (units.length === 0) {
+    return [];
+  }
+
+  const protocolCounts = new Map();
+  const protocolDetails = new Map();
+
+  units.forEach((unit) => {
+    const protocols = Array.isArray(protocolsByUnit[unit]) ? protocolsByUnit[unit] : [];
+    protocols.forEach((protocol) => {
+      const key = protocol.id;
+      protocolCounts.set(key, (protocolCounts.get(key) || 0) + 1);
+      if (!protocolDetails.has(key)) {
+        protocolDetails.set(key, protocol);
+      }
+    });
+  });
+
+  return Array.from(protocolCounts.entries())
+    .filter(([, count]) => count === units.length)
+    .map(([key]) => protocolDetails.get(key));
+}
+
+function isAllPioreactorsStirringProtocol(protocol) {
+  return (
+    protocol?.target_device === "stirring" &&
+    protocol?.protocol_name === "dc_based"
+  );
+}
 
 function loadStoredCalibrationSession() {
   try {
@@ -67,6 +102,7 @@ function ProtocolCard({
   showResume,
   onAbort,
   isAborting,
+  runLabel,
 }) {
   const requirements = Array.isArray(protocol.requirements) ? protocol.requirements : [];
   return (
@@ -117,7 +153,7 @@ function ProtocolCard({
               disabled={!selectedUnit}
               sx={{ textTransform: "none" }}
             >
-              {showResume ? "Resume protocol" : "Run protocol"}
+              {showResume ? "Resume protocol" : runLabel || "Run protocol"}
             </Button>
             {showResume && (
               <Button
@@ -151,15 +187,18 @@ function Protocols(props) {
   const [activeSessionProtocolId, setActiveSessionProtocolId] = React.useState(null);
   const [activeSessionUnit, setActiveSessionUnit] = React.useState(null);
   const [isAbortingProtocol, setIsAbortingProtocol] = React.useState(false);
+  const [activeBatchProtocol, setActiveBatchProtocol] = React.useState(null);
   const restoreAttemptedRef = React.useRef(false);
   const navigate = useNavigate();
 
   const isSessionDialogOpen = Boolean(activeSessionProtocol);
+  const isBatchDialogOpen = Boolean(activeBatchProtocol);
   const selectedUnit =
-    pioreactorUnit && pioreactorUnit !== "$broadcast"
-      ? pioreactorUnit
-      : workers[0] || "";
-  const displayedSelectedUnit = workers.includes(selectedUnit) ? selectedUnit : "";
+    pioreactorUnit || workers[0] || "";
+  const displayedSelectedUnit =
+    (selectedUnit === ALL_PIOREACTORS && workers.length > 0) || workers.includes(selectedUnit)
+      ? selectedUnit
+      : "";
   const deviceOptions = React.useMemo(
     () => Array.from(new Set(protocols.map((protocol) => protocol.target_device))),
     [protocols],
@@ -204,7 +243,7 @@ function Protocols(props) {
 
   React.useEffect(() => {
     const fetchProtocols = async () => {
-      if (!selectedUnit || selectedUnit === "$broadcast") {
+      if (!selectedUnit) {
         setProtocols([]);
         setProtocolsError("");
         setIsLoadingProtocols(false);
@@ -216,6 +255,13 @@ function Protocols(props) {
         const finalPayload = await fetchTaskResult(
           `/api/workers/${selectedUnit}/calibration_protocols`
         );
+        if (selectedUnit === ALL_PIOREACTORS) {
+          const sharedProtocols = getSharedProtocolsById(finalPayload?.result || {}).filter(
+            isAllPioreactorsStirringProtocol,
+          );
+          setProtocols(sharedProtocols);
+          return;
+        }
         const result = finalPayload?.result?.[selectedUnit];
         if (!Array.isArray(result)) {
           throw new Error("Protocol payload is not a list.");
@@ -247,6 +293,7 @@ function Protocols(props) {
 
   const handleSelectUnitChange = (event) => {
     setActiveSessionProtocol(null);
+    setActiveBatchProtocol(null);
     if (selectedDevice) {
       navigate(`/protocols/${event.target.value}/${selectedDevice}`);
     } else {
@@ -258,8 +305,16 @@ function Protocols(props) {
     setActiveSessionProtocol(null);
   };
 
+  const closeBatchDialog = () => {
+    setActiveBatchProtocol(null);
+  };
+
   const handleRunProtocol = async (protocol) => {
     if (!selectedUnit) {
+      return;
+    }
+    if (selectedUnit === ALL_PIOREACTORS && isAllPioreactorsStirringProtocol(protocol)) {
+      setActiveBatchProtocol(protocol);
       return;
     }
     if (
@@ -394,6 +449,12 @@ function Protocols(props) {
                   onChange={handleSelectUnitChange}
                   disabled={isLoadingWorkers || workers.length === 0}
                 >
+                  {workers.length > 0 && (
+                    <MenuItem value={ALL_PIOREACTORS}>
+                      <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 4px" }} />
+                      All Pioreactors
+                    </MenuItem>
+                  )}
                   {workers.map((worker) => (
                     <MenuItem key={worker} value={worker}>
                       {worker}
@@ -463,6 +524,11 @@ function Protocols(props) {
               onRun={handleRunProtocol}
               onAbort={handleAbortProtocol}
               isAborting={isAbortingProtocol}
+              runLabel={
+                selectedUnit === ALL_PIOREACTORS && isAllPioreactorsStirringProtocol(protocol)
+                  ? "Run on all Pioreactors"
+                  : "Run protocol"
+              }
               showResume={
                 Boolean(activeSessionId) &&
                 activeSessionProtocolId === protocol.id &&
@@ -536,6 +602,12 @@ function Protocols(props) {
           setSnackbarMessage(message || "Failed to abort calibration session.");
           setSnackbarOpen(true);
         }}
+      />
+      <StirringCalibrationBatchDialog
+        open={isBatchDialogOpen}
+        protocol={activeBatchProtocol}
+        units={workers}
+        onClose={closeBatchDialog}
       />
     </React.Fragment>
   );

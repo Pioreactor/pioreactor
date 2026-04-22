@@ -257,3 +257,43 @@ def test_update_app_from_release_archive_across_cluster_skips_worker_phase_witho
         ["sudo", "systemctl", "restart", "pioreactor-web.target"],
     ]
     assert run_calls == []
+
+
+def test_run_stirring_calibration_batch_keeps_aborted_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = {
+        "batch-1": {
+            "batch_id": "batch-1",
+            "status": "pending",
+            "units": {
+                "unit1": {"status": "pending"},
+                "unit2": {"status": "pending"},
+            },
+        }
+    }
+
+    monkeypatch.setattr(
+        tasks, "load_calibration_batch", lambda batch_id: json.loads(json.dumps(store[batch_id]))
+    )
+    monkeypatch.setattr(
+        tasks, "save_calibration_batch", lambda batch: store.__setitem__(batch["batch_id"], batch)
+    )
+    monkeypatch.setattr(tasks, "_start_stirring_calibration_session", lambda unit: f"session-{unit}")
+
+    def fake_run_stirring_calibration_session(unit: str, session_id: str) -> dict[str, Any]:
+        if unit == "unit1":
+            aborted_batch = json.loads(json.dumps(store["batch-1"]))
+            aborted_batch["status"] = "aborted"
+            for details in aborted_batch["units"].values():
+                if details["status"] not in ("completed", "failed"):
+                    details["status"] = "aborted"
+            store["batch-1"] = aborted_batch
+        return {"result": {"calibrations": [{"device": "stirring", "calibration_name": f"cal-{unit}"}]}}
+
+    monkeypatch.setattr(tasks, "_run_stirring_calibration_session", fake_run_stirring_calibration_session)
+
+    assert tasks.run_stirring_calibration_batch.call_local("batch-1", ["unit1", "unit2"]) is True
+    assert store["batch-1"]["status"] == "aborted"
+    assert store["batch-1"]["units"]["unit1"]["status"] == "aborted"
+    assert store["batch-1"]["units"]["unit2"]["status"] == "aborted"
+    assert store["batch-1"]["units"]["unit1"]["session_id"] == "session-unit1"
+    assert store["batch-1"]["units"]["unit2"]["session_id"] == "session-unit2"
