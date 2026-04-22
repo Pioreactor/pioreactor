@@ -193,10 +193,13 @@ function Protocols(props) {
 
   const isSessionDialogOpen = Boolean(activeSessionProtocol);
   const isBatchDialogOpen = Boolean(activeBatchProtocol);
+  const hasMultipleWorkers = workers.length > 1;
   const selectedUnit =
-    pioreactorUnit || workers[0] || "";
+    pioreactorUnit === ALL_PIOREACTORS && !hasMultipleWorkers
+      ? workers[0] || ""
+      : pioreactorUnit || workers[0] || "";
   const displayedSelectedUnit =
-    (selectedUnit === ALL_PIOREACTORS && workers.length > 0) || workers.includes(selectedUnit)
+    (selectedUnit === ALL_PIOREACTORS && hasMultipleWorkers) || workers.includes(selectedUnit)
       ? selectedUnit
       : "";
   const deviceOptions = React.useMemo(
@@ -449,7 +452,7 @@ function Protocols(props) {
                   onChange={handleSelectUnitChange}
                   disabled={isLoadingWorkers || workers.length === 0}
                 >
-                  {workers.length > 0 && (
+                  {hasMultipleWorkers && (
                     <MenuItem value={ALL_PIOREACTORS}>
                       <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 4px" }} />
                       All Pioreactors

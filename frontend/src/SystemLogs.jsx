@@ -19,6 +19,10 @@ function SystemLogs(props) {
     return localStorage.getItem("systemLogLevel") || "DEBUG";
   });
   const [units, setUnits] = useState([])
+  const hasMultipleUnits = units.length > 1;
+  const selectedUnitValue = hasMultipleUnits
+    ? (pioreactorUnit ? pioreactorUnit : "$broadcast")
+    : (units[0] || "");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -98,7 +102,7 @@ function SystemLogs(props) {
                 <Select
                   labelId="configSelect"
                   variant="standard"
-                  value={pioreactorUnit ? pioreactorUnit : "$broadcast"}
+                  value={selectedUnitValue}
                   onChange={onSelectionChange}
 
                   sx={{
@@ -113,7 +117,9 @@ function SystemLogs(props) {
                   {units.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                  {hasMultipleUnits && (
+                    <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                  )}
                 </Select>
               </Typography>
             </Box>

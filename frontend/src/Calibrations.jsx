@@ -348,6 +348,7 @@ function CalibrationData() {
     () => new ColorCycler(colors),
     []
   );
+  const hasMultipleWorkers = workers.length > 1;
   const getCalibrationKey = React.useCallback((unit, calibrationName) => `${unit}::${calibrationName}`, []);
   const navigate = useNavigate()
 
@@ -405,6 +406,12 @@ function CalibrationData() {
 
     setSelectedDevice((currentSelectedDevice) => currentSelectedDevice || deviceArray[0] || '');
   }, [rawData]);
+
+  useEffect(() => {
+    if (!hasMultipleWorkers && selectedUnit === '$broadcast' && workers.length === 1) {
+      setSelectedUnit(workers[0]);
+    }
+  }, [hasMultipleWorkers, selectedUnit, workers]);
 
   const handleSelectDeviceChange = (event) => {
     setSelectedDevice(event.target.value);
@@ -522,9 +529,11 @@ function CalibrationData() {
                     {worker}
                   </MenuItem>
                 ))}
+                {hasMultipleWorkers && (
                   <MenuItem  value={"$broadcast"}>
                     <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
                   </MenuItem>
+                )}
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>

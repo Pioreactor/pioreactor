@@ -63,6 +63,7 @@ function EstimatorData() {
   const [selectedDevice, setSelectedDevice] = useState(device || '');
   const [selectedUnit, setSelectedUnit] = useState(pioreactorUnit || '$broadcast');
   const [onlyActive, setOnlyActive] = useState(false);
+  const hasMultipleWorkers = workers.length > 1;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -116,6 +117,12 @@ function EstimatorData() {
 
     setSelectedDevice((currentSelectedDevice) => currentSelectedDevice || deviceArray[0] || '');
   }, [rawData]);
+
+  useEffect(() => {
+    if (!hasMultipleWorkers && selectedUnit === '$broadcast' && workers.length === 1) {
+      setSelectedUnit(workers[0]);
+    }
+  }, [hasMultipleWorkers, selectedUnit, workers]);
 
   const handleSelectDeviceChange = (event) => {
     setSelectedDevice(event.target.value);
@@ -226,9 +233,11 @@ function EstimatorData() {
                     {worker}
                   </MenuItem>
                 ))}
-                <MenuItem value={"$broadcast"}>
-                  <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 4px" }} /> All Pioreactors
-                </MenuItem>
+                {hasMultipleWorkers && (
+                  <MenuItem value={"$broadcast"}>
+                    <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 4px" }} /> All Pioreactors
+                  </MenuItem>
+                )}
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4 }}>
