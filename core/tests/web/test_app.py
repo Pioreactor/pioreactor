@@ -888,8 +888,10 @@ def test_get_job_descriptors_for_worker_rejects_broadcast(client) -> None:
     response = client.get("/api/workers/$broadcast/jobs/descriptors")
 
     assert response.status_code == 400
+    assert response.mimetype == "application/json"
     data = response.get_json()
     assert data["error"] == "Cannot fetch job descriptors with $broadcast; choose a specific Pioreactor."
+    assert data["status"] == 400
 
 
 def test_get_automation_descriptors_for_worker_proxies_unit_api(client, monkeypatch: MonkeyPatch) -> None:

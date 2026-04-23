@@ -10,6 +10,7 @@ import configparser
 import grp
 import json
 import logging
+import math
 import os
 import pwd
 import shutil
@@ -219,7 +220,7 @@ def _process_delayed_json_response(
     unit: str,
     response: Response,
     *,
-    max_attempts: int = 60,
+    max_attempts: int = 300,
     retry_sleep_s: float = 0.1,
 ) -> tuple[str, Any]:
     """
@@ -242,6 +243,10 @@ def _process_delayed_json_response(
             return unit, None
         return unit, data
     return unit, None
+
+
+def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.1) -> int:
+    return max(1, math.ceil(timeout / retry_sleep_s))
 
 
 @huey.on_startup()
@@ -1083,6 +1088,7 @@ def post_into_unit(
     endpoint: str,
     json: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
+    timeout: float = 30.0,
 ) -> tuple[str, Any]:
     r: Response | None = None
     try:
@@ -1094,7 +1100,7 @@ def post_into_unit(
             return unit, None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r)
+        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1205,7 +1211,7 @@ def multicast_post(
         return reduce_multicast_results(units, False, [])
 
     return _enqueue_multicast_chord(
-        [post_into_unit.s(units[i], endpoint, json[i], params[i]) for i in range(len(units))],
+        [post_into_unit.s(units[i], endpoint, json[i], params[i], timeout) for i in range(len(units))],
         units,
         False,
     )
@@ -1228,7 +1234,7 @@ def _get_from_unit(
     json: dict[str, Any] | None = None,
     timeout: float = 5.0,
     return_raw: bool = False,
-    max_attempts: int = 60,
+    max_attempts: int | None = None,
 ) -> tuple[str, Any]:
     r: Response | None = None
     try:
@@ -1241,7 +1247,11 @@ def _get_from_unit(
             return unit, r.content or None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r, max_attempts=max_attempts)
+        return _process_delayed_json_response(
+            unit,
+            r,
+            max_attempts=max_attempts if max_attempts is not None else _delayed_result_max_attempts(timeout),
+        )
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1321,7 +1331,9 @@ def multicast_get_with_leader_cache(
 
 
 @huey.task(priority=50)
-def patch_into_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
+def patch_into_unit(
+    unit: str, endpoint: str, json: dict[str, Any] | None = None, timeout: float = 30.0
+) -> tuple[str, Any]:
     r: Response | None = None
     try:
         address = resolve_to_address(unit)
@@ -1332,7 +1344,7 @@ def patch_into_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None
             return unit, None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r)
+        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1356,7 +1368,7 @@ def multicast_patch(
         return reduce_multicast_results(units, False, [])
 
     return _enqueue_multicast_chord(
-        [patch_into_unit.s(unit, endpoint, json) for unit in units],
+        [patch_into_unit.s(unit, endpoint, json, timeout) for unit in units],
         units,
         False,
     )

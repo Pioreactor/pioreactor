@@ -113,6 +113,7 @@ def test_invalid_update_target(client) -> None:
         json={"args": [], "options": {}, "env": {}},
     )
     assert resp.status_code == 404
+    assert resp.mimetype == "application/json"
     data = resp.get_json()
     assert data.get("error") == "Invalid target"
     assert data.get("status") == 404

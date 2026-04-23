@@ -37,10 +37,6 @@ def abort_with(
     remediation: str | None = None,
     cause: str | None = None,
 ) -> NoReturn:
-    if remediation is None and cause is None:
-        abort(status, description=description)
-        raise AssertionError("abort should not return")
-
     payload = UnitApiErrorPayload(
         error=description,
         status=status,
