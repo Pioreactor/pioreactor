@@ -543,8 +543,6 @@ if am_I_leader() or is_testing_env():
     ) -> None:
         """
         Update Pioreactor software across workers.
-
-        If no subcommand is provided, this behaves like `pios update app`.
         """
         if ctx.invoked_subcommand is None:
             ctx.invoke(
@@ -593,10 +591,16 @@ if am_I_leader() or is_testing_env():
         json: bool,
     ) -> None:
         """
-        Pulls and installs a Pioreactor software version across the cluster
+        Pulls and installs a Pioreactor software version.
+
+        With no selector, this targets the leader and all workers. If `--units`
+        or `--experiments` is provided, only the selected workers are updated.
         """
 
-        units = resolve_cluster_units_including_leader(units, experiments)
+        if units or experiments:
+            units = resolve_all_worker_units(units, experiments)
+        else:
+            units = resolve_cluster_units_including_leader(units, experiments)
 
         if len(units) == 0:
             return

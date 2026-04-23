@@ -968,6 +968,35 @@ def test_pios_update_alias_ssh_fallback_includes_repo(monkeypatch) -> None:
     assert all("--repo org/repo" in command for command in commands)
 
 
+def test_pios_update_app_explicit_units_exclude_leader(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    requests: list[str] = []
+
+    class DummyResponse:
+        def raise_for_status(self) -> None:
+            return
+
+        def json(self) -> dict[str, str]:
+            return {"unit": "worker1"}
+
+    def fake_post_into(address: str, endpoint: str, **_kwargs):
+        requests.append(f"{address}{endpoint}")
+        return DummyResponse()
+
+    monkeypatch.setattr("pioreactor.cli.pios.get_workers_in_inventory", lambda: ("leader", "worker1"))
+    monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"http://{unit}.local")
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+
+    result = runner.invoke(
+        pios,
+        ["update", "app", "--units", "worker1", "-y"],
+    )
+
+    assert result.exit_code == 0
+    assert requests == ["http://worker1.local/unit_api/system/update/app"]
+
+
 def test_pios_kill_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(kill, allow_extra_args=True)

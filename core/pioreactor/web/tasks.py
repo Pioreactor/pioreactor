@@ -371,7 +371,7 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
         workers = [unit for unit in get_workers_in_inventory() if unit != get_leader_hostname()]
         if workers:
             logger.debug(f"Updating app on non-leader workers: {workers}")
-            worker_update_command = _with_units([PIOS_EXECUTABLE, "update", "-y"], workers)
+            worker_update_command = _with_units([PIOS_EXECUTABLE, "update", "app", "-y"], workers)
             run(worker_update_command)
         else:
             logger.debug("No non-leader workers to update")
@@ -382,7 +382,7 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
         return True
 
     logger.debug(f"Updating app on unit {units}")
-    specific_unit_update_command = [PIOS_EXECUTABLE, "update", "-y", "--units", units]
+    specific_unit_update_command = [PIOS_EXECUTABLE, "update", "app", "-y", "--units", units]
     run(specific_unit_update_command)
     return True
 
@@ -392,7 +392,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
     if units == "$broadcast":
         logger.debug(f"Updating app on leader from {archive_location}")
         leader_update_command = [
-            "pio",
+            PIO_EXECUTABLE,
             "update",
             "app",
             "--source",
@@ -412,6 +412,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
                 [
                     PIOS_EXECUTABLE,
                     "update",
+                    "app",
                     "--source",
                     archive_location,
                     "-y",
@@ -442,6 +443,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
     specific_unit_update_command = [
         PIOS_EXECUTABLE,
         "update",
+        "app",
         "--source",
         archive_location,
         "-y",
@@ -465,6 +467,7 @@ def update_app_from_release_archive_on_specific_pioreactors(
     worker_update_command = [
         PIOS_EXECUTABLE,
         "update",
+        "app",
         "--source",
         archive_location,
         "-y",

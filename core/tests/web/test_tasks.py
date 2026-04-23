@@ -223,7 +223,9 @@ def test_update_app_across_cluster_excludes_leader_from_worker_phase(
         [tasks.PIO_EXECUTABLE, "update", "app", "--defer-web-restart"],
         ["sudo", "systemctl", "restart", "pioreactor-web.target"],
     ]
-    assert run_calls == [[tasks.PIOS_EXECUTABLE, "update", "-y", "--units", "worker1", "--units", "worker2"]]
+    assert run_calls == [
+        [tasks.PIOS_EXECUTABLE, "update", "app", "-y", "--units", "worker1", "--units", "worker2"]
+    ]
 
 
 def test_update_app_from_release_archive_across_cluster_skips_worker_phase_without_non_leader_workers(
@@ -247,7 +249,7 @@ def test_update_app_from_release_archive_across_cluster_skips_worker_phase_witho
     )
     assert check_calls == [
         [
-            "pio",
+            tasks.PIO_EXECUTABLE,
             "update",
             "app",
             "--source",
@@ -257,3 +259,59 @@ def test_update_app_from_release_archive_across_cluster_skips_worker_phase_witho
         ["sudo", "systemctl", "restart", "pioreactor-web.target"],
     ]
     assert run_calls == []
+
+
+def test_update_app_from_release_archive_across_cluster_updates_only_non_leader_workers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    check_calls: list[list[str]] = []
+    run_calls: list[list[str]] = []
+
+    monkeypatch.setattr(tasks, "get_workers_in_inventory", lambda: ("leader", "worker1", "worker2"))
+    monkeypatch.setattr(tasks, "get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr(tasks, "check_call", lambda cmd: check_calls.append(cmd))
+
+    class FakeCompletedProcess:
+        returncode = 0
+
+    monkeypatch.setattr(tasks, "run", lambda cmd: run_calls.append(cmd) or FakeCompletedProcess())
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    assert tasks.update_app_from_release_archive_across_cluster.call_local(
+        "/tmp/release_26.4.2.zip", "$broadcast"
+    )
+    assert check_calls == [
+        [
+            tasks.PIO_EXECUTABLE,
+            "update",
+            "app",
+            "--source",
+            "/tmp/release_26.4.2.zip",
+            "--defer-web-restart",
+        ],
+        ["sudo", "systemctl", "restart", "pioreactor-web.target"],
+    ]
+    assert run_calls == [
+        [
+            tasks.PIOS_EXECUTABLE,
+            "cp",
+            "/tmp/release_26.4.2.zip",
+            "-y",
+            "--units",
+            "worker1",
+            "--units",
+            "worker2",
+        ],
+        [
+            tasks.PIOS_EXECUTABLE,
+            "update",
+            "app",
+            "--source",
+            "/tmp/release_26.4.2.zip",
+            "-y",
+            "--units",
+            "worker1",
+            "--units",
+            "worker2",
+        ],
+    ]
