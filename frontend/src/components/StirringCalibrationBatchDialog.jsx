@@ -2,12 +2,14 @@ import React from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import FormLabel from "@mui/material/FormLabel";
 import LinearProgress from "@mui/material/LinearProgress";
@@ -117,8 +119,19 @@ export default function StirringCalibrationBatchDialog({
   const [batchError, setBatchError] = React.useState("");
   const [isStarting, setIsStarting] = React.useState(false);
   const [isAborting, setIsAborting] = React.useState(false);
+  const [selectedUnits, setSelectedUnits] = React.useState(units);
   const abortRequestedRef = React.useRef(false);
   const runIdRef = React.useRef(0);
+
+  const selectAll = React.useMemo(() => {
+    if (selectedUnits.length === 0) {
+      return false;
+    }
+    if (selectedUnits.length === units.length) {
+      return true;
+    }
+    return null;
+  }, [selectedUnits, units.length]);
 
   const updateBatchUnit = React.useCallback((unit, updater) => {
     setBatch((previousBatch) => {
@@ -163,6 +176,13 @@ export default function StirringCalibrationBatchDialog({
       setIsAborting(false);
     }
   }, [open]);
+
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setSelectedUnits(units);
+  }, [open, units]);
 
   const runCalibrationForUnit = React.useCallback(async (unit, runId) => {
     const startPayload = await fetch(START_SESSION_ENDPOINT(unit), {
@@ -226,19 +246,23 @@ export default function StirringCalibrationBatchDialog({
   }, [protocol, updateBatchUnit]);
 
   const handleStart = async () => {
+    if (selectedUnits.length === 0) {
+      return;
+    }
+
     const runId = runIdRef.current + 1;
     runIdRef.current = runId;
     abortRequestedRef.current = false;
     setIsStarting(true);
     setBatchError("");
     setBatch({
-      ...createPendingBatch(units),
+      ...createPendingBatch(selectedUnits),
       status: "running",
     });
 
     try {
       await Promise.all(
-        units.map(async (unit) => {
+        selectedUnits.map(async (unit) => {
           try {
             await runCalibrationForUnit(unit, runId);
           } catch (error) {
@@ -262,6 +286,19 @@ export default function StirringCalibrationBatchDialog({
         setIsStarting(false);
       }
     }
+  };
+
+  const handleUnitToggle = (event) => {
+    const { name, checked } = event.target;
+    setSelectedUnits((previousUnits) =>
+      checked
+        ? [...previousUnits, name]
+        : previousUnits.filter((unit) => unit !== name),
+    );
+  };
+
+  const handleSelectAllChange = (event) => {
+    setSelectedUnits(event.target.checked ? units : []);
   };
 
   const handleAbort = async () => {
@@ -342,6 +379,19 @@ export default function StirringCalibrationBatchDialog({
             </Typography>
             <FormControl component="fieldset" variant="standard">
               <FormLabel component="legend">Pioreactors</FormLabel>
+              {units.length > 1 && (
+                <FormControlLabel
+                  control={(
+                    <Checkbox
+                      checked={selectAll || false}
+                      indeterminate={selectAll === null}
+                      onChange={handleSelectAllChange}
+                    />
+                  )}
+                  label={<span><i>Select all</i></span>}
+                  sx={{ mb: 1 }}
+                />
+              )}
               <FormGroup
                 sx={
                   units.length > 8
@@ -354,13 +404,17 @@ export default function StirringCalibrationBatchDialog({
                 }
               >
                 {units.map((unit) => (
-                  <Typography
+                  <FormControlLabel
                     key={unit}
-                    variant="body1"
-                    sx={{ mt: 0.5 }}
-                  >
-                    {unit}
-                  </Typography>
+                    control={(
+                      <Checkbox
+                        checked={selectedUnits.includes(unit)}
+                        onChange={handleUnitToggle}
+                        name={unit}
+                      />
+                    )}
+                    label={unit}
+                  />
                 ))}
               </FormGroup>
             </FormControl>
@@ -381,7 +435,7 @@ export default function StirringCalibrationBatchDialog({
             )}
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {units.length} Pioreactors selected
+                {Object.keys(batch.units).length} Pioreactors selected
               </Typography>
               <LinearProgress variant="determinate" value={progress} />
             </Box>
@@ -418,7 +472,12 @@ export default function StirringCalibrationBatchDialog({
           </Button>
         )}
         {!batch && (
-          <Button onClick={handleStart} variant="contained" disabled={isStarting} sx={{ textTransform: "none" }}>
+          <Button
+            onClick={handleStart}
+            variant="contained"
+            disabled={isStarting || selectedUnits.length === 0}
+            sx={{ textTransform: "none" }}
+          >
             Continue
           </Button>
         )}

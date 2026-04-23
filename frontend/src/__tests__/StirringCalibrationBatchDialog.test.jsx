@@ -74,4 +74,68 @@ describe("StirringCalibrationBatchDialog", () => {
       "/calibrations/unit-1/stirring/stirring-calibration-unit-1",
     );
   });
+
+  test("allows deselecting Pioreactors before starting the batch", async () => {
+    global.fetch = jest.fn((url, options) => {
+      if (url === "/api/workers/unit-1/calibrations/sessions") {
+        expect(options.method).toBe("POST");
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              session: {
+                session_id: "session-1",
+              },
+            }),
+        });
+      }
+
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1/inputs") {
+        expect(options.method).toBe("POST");
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              step: {
+                result: {
+                  calibrations: [
+                    {
+                      device: "stirring",
+                      calibration_name: "stirring-calibration-unit-1",
+                    },
+                  ],
+                },
+              },
+            }),
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <StirringCalibrationBatchDialog
+          open
+          protocol={{
+            title: "DC-based stirring calibration",
+            protocol_name: "dc_based",
+            target_device: "stirring",
+          }}
+          units={["unit-1", "unit-2"]}
+          onClose={() => {}}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByLabelText("unit-2"));
+    fireEvent.click(screen.getByText("Continue"));
+
+    expect(await screen.findByText("1 Pioreactors selected")).toBeInTheDocument();
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      "/api/workers/unit-2/calibrations/sessions",
+      expect.anything(),
+    );
+    expect(await screen.findByText("completed")).toBeInTheDocument();
+  });
 });
