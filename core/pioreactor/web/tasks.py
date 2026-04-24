@@ -58,6 +58,7 @@ from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.version import hardware_version_info
 from pioreactor.web import cache
 from pioreactor.web.config import huey
 from pioreactor.web.utils import UnitApiErrorPayload
@@ -329,10 +330,14 @@ def _get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int
     return addresses
 
 
+def _is_hat_v1_x() -> bool:
+    return hardware_version_info is not None and hardware_version_info[0] == 1
+
+
 @huey.task(priority=10)
 def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
-    if model_version != "1.5":
-        return {"status": "skipped", "reason": "hardware check only applies to model version 1.5"}
+    if not _is_hat_v1_x():
+        return {"status": "skipped", "reason": "hardware check only applies to HAT v1.x"}
 
     registered_models = get_registered_models()
     if (model_name, model_version) in registered_models:
