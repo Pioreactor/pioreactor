@@ -2,6 +2,7 @@
 import ast
 import os
 import re
+import stat
 import subprocess
 import tempfile
 import typing as t
@@ -74,6 +75,21 @@ def build_staged_release_archive_location(release_filename: str) -> str:
     return str(
         Path(tempfile.gettempdir()) / f"{STAGED_RELEASE_ARCHIVE_PREFIX}{uuid4().hex}_{release_filename}"
     )
+
+
+def get_dot_pioreactor_root() -> Path:
+    return Path(os.environ.get("DOT_PIOREACTOR", "/home/pioreactor/.pioreactor"))
+
+
+def get_expected_dot_pioreactor_uid_gid() -> tuple[int | None, int | None, str]:
+    import grp
+    import pwd
+
+    expected_owner = "pioreactor:www-data"
+    try:
+        return pwd.getpwnam("pioreactor").pw_uid, grp.getgrnam("www-data").gr_gid, expected_owner
+    except KeyError:
+        return None, None, f"{expected_owner} (missing on this system)"
 
 
 def get_update_app_commands(
@@ -872,6 +888,156 @@ def status() -> None:
     def add_check(name: str, status: str, details: str) -> None:
         checks.append((name, status, details))
 
+    def worst_status(current_status: str, next_status: str) -> str:
+        order = {"OK": 0, "WARN": 1, "FAIL": 2}
+        return next_status if order[next_status] > order[current_status] else current_status
+
+    def format_file_size(path: Path) -> str:
+        try:
+            size = path.stat().st_size
+        except OSError as error:
+            return f"unreadable({error})"
+
+        if size < 1024:
+            return f"{size}B"
+        if size < 1024**2:
+            return f"{size / 1024:.1f}KiB"
+        if size < 1024**3:
+            return f"{size / (1024**2):.1f}MiB"
+        return f"{size / (1024**3):.1f}GiB"
+
+    def add_sqlite_storage_check(
+        check_name: str,
+        config_key: str,
+        expected_uid: int | None,
+        expected_gid: int | None,
+        expected_owner: str,
+        check_openability: bool,
+    ) -> Path | None:
+        try:
+            sqlite_path = Path(config.get("storage", config_key))
+        except Exception as error:
+            add_check(check_name, "WARN", f"storage.{config_key} missing ({error})")
+            return None
+
+        status = "OK"
+        details = [str(sqlite_path)]
+        storage_dir = sqlite_path.parent
+
+        if storage_dir.exists():
+            details.append(f"dir_writable={os.access(storage_dir, os.W_OK)}")
+            if not os.access(storage_dir, os.W_OK):
+                status = worst_status(status, "WARN")
+
+            if expected_uid is not None and expected_gid is not None:
+                try:
+                    storage_dir_stat = storage_dir.stat()
+                except OSError as error:
+                    status = worst_status(status, "WARN")
+                    details.append(f"dir_stat_failed={error}")
+                else:
+                    if storage_dir_stat.st_uid != expected_uid or storage_dir_stat.st_gid != expected_gid:
+                        status = worst_status(status, "WARN")
+                        details.append(f"dir_owner!= {expected_owner}")
+        else:
+            status = worst_status(status, "WARN")
+            details.append("dir=missing")
+
+        sqlite_file_paths = {
+            "db": sqlite_path,
+            "wal": Path(f"{sqlite_path}-wal"),
+            "shm": Path(f"{sqlite_path}-shm"),
+        }
+
+        for label, path in sqlite_file_paths.items():
+            if not path.exists():
+                details.append(f"{label}=missing")
+                if label == "db":
+                    status = worst_status(status, "WARN")
+                continue
+
+            details.append(f"{label}_size={format_file_size(path)}")
+            if expected_uid is not None and expected_gid is not None:
+                try:
+                    stat_result = path.stat()
+                except OSError as error:
+                    status = worst_status(status, "WARN")
+                    details.append(f"{label}_stat_failed={error}")
+                else:
+                    if stat_result.st_uid != expected_uid or stat_result.st_gid != expected_gid:
+                        status = worst_status(status, "WARN")
+                        details.append(f"{label}_owner!= {expected_owner}")
+
+        if check_openability and sqlite_path.exists():
+            try:
+                conn = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
+                conn.execute("select 1;")
+                conn.close()
+            except Exception as error:
+                status = worst_status(status, "FAIL")
+                details.append(f"open_failed={error}")
+        elif check_openability:
+            status = worst_status(status, "FAIL")
+            details.append("open_failed=missing")
+
+        add_check(check_name, status, " ".join(details))
+        return sqlite_path
+
+    def add_dot_pioreactor_tree_check(
+        expected_uid: int | None,
+        expected_gid: int | None,
+        expected_owner: str,
+    ) -> None:
+        dot_pioreactor_root = get_dot_pioreactor_root()
+        if not dot_pioreactor_root.exists():
+            add_check("storage:dot_pioreactor", "WARN", f"missing: {dot_pioreactor_root}")
+            return
+
+        status = "OK"
+        wrong_owner_count = 0
+        missing_group_write_count = 0
+        missing_setgid_dir_count = 0
+        checked_count = 0
+
+        paths_to_check = [dot_pioreactor_root]
+        for root, dirs, files in os.walk(dot_pioreactor_root):
+            root_path = Path(root)
+            paths_to_check.extend(root_path / name for name in dirs)
+            paths_to_check.extend(root_path / name for name in files)
+
+        for path in paths_to_check:
+            checked_count += 1
+            try:
+                stat_result = path.lstat()
+            except OSError:
+                status = worst_status(status, "WARN")
+                continue
+
+            if expected_uid is not None and expected_gid is not None:
+                if stat_result.st_uid != expected_uid or stat_result.st_gid != expected_gid:
+                    wrong_owner_count += 1
+
+            if (
+                path == dot_pioreactor_root
+                or stat.S_ISDIR(stat_result.st_mode)
+                or stat.S_ISREG(stat_result.st_mode)
+            ):
+                if not stat_result.st_mode & stat.S_IWGRP:
+                    missing_group_write_count += 1
+
+            if stat.S_ISDIR(stat_result.st_mode) and not stat_result.st_mode & stat.S_ISGID:
+                missing_setgid_dir_count += 1
+
+        if wrong_owner_count or missing_group_write_count or missing_setgid_dir_count:
+            status = worst_status(status, "WARN")
+
+        details = (
+            f"path={dot_pioreactor_root} checked={checked_count} "
+            f"wrong_owner={wrong_owner_count} expected_owner={expected_owner} "
+            f"missing_group_write={missing_group_write_count} missing_setgid_dirs={missing_setgid_dir_count}"
+        )
+        add_check("storage:dot_pioreactor", status, details)
+
     unit = "<unknown>"
     role = "<unknown>"
     experiment = "<unknown>"
@@ -997,56 +1163,41 @@ def status() -> None:
     log_details = str(log_file) if log_file.exists() else f"missing: {log_file}"
     add_check("storage:logs", log_status, log_details)
 
-    db_path: Path | None
-    try:
-        db_path = Path(config.get("storage", "database"))
-    except Exception as error:
-        db_path = None
-        add_check("storage:db", "WARN", f"storage.database missing ({error})")
+    expected_uid, expected_gid, expected_owner = get_expected_dot_pioreactor_uid_gid()
 
-    if db_path is not None and role == "leader":
-        db_status = "OK"
-        db_details = [str(db_path)]
+    db_path: Path | None = None
+    if role == "leader":
+        db_path = add_sqlite_storage_check(
+            "storage:db",
+            "database",
+            expected_uid,
+            expected_gid,
+            expected_owner,
+            check_openability=True,
+        )
+    else:
         try:
-            conn = sqlite3.connect(str(db_path))
-            conn.execute("select 1;")
-            conn.close()
-        except Exception as error:
-            add_check("storage:db", "FAIL", f"{db_path} ({error})")
-        else:
-            shm_path = Path(f"{db_path}-shm")
-            wal_path = Path(f"{db_path}-wal")
-            file_checks = {
-                "db": db_path,
-                "shm": shm_path,
-                "wal": wal_path,
-            }
+            db_path = Path(config.get("storage", "database"))
+        except Exception:
+            db_path = None
 
-            try:
-                import grp
-                import pwd
-
-                expected_uid = pwd.getpwnam("pioreactor").pw_uid
-                expected_gid = grp.getgrnam("www-data").gr_gid
-                expected_owner = "pioreactor:www-data"
-            except KeyError:
-                expected_uid = None
-                expected_gid = None
-                expected_owner = "pioreactor:www-data (missing on this system)"
-
-            for label, path in file_checks.items():
-                if not path.exists():
-                    db_status = "WARN"
-                    db_details.append(f"{label}=missing")
-                    continue
-
-                if expected_uid is not None and expected_gid is not None:
-                    stat_result = path.stat()
-                    if stat_result.st_uid != expected_uid or stat_result.st_gid != expected_gid:
-                        db_status = "WARN"
-                        db_details.append(f"{label}=owner!= {expected_owner}")
-
-            add_check("storage:db", db_status, " ".join(db_details))
+    add_sqlite_storage_check(
+        "storage:temporary_cache",
+        "temporary_cache",
+        expected_uid,
+        expected_gid,
+        expected_owner,
+        check_openability=False,
+    )
+    add_sqlite_storage_check(
+        "storage:persistent_cache",
+        "persistent_cache",
+        expected_uid,
+        expected_gid,
+        expected_owner,
+        check_openability=False,
+    )
+    add_dot_pioreactor_tree_check(expected_uid, expected_gid, expected_owner)
 
     if db_path is not None:
         disk_root = db_path.parent
@@ -1059,7 +1210,7 @@ def status() -> None:
             except Exception as error:
                 add_check("storage:disk", "WARN", f"path={disk_root} ({error})")
 
-    name_width = 22
+    name_width = max(22, *(len(name) for name, _, _ in checks))
     status_width = 7
     click.echo(f"{'Check':{name_width}s} {'Status':{status_width}s} Details")
     for name, status, details in checks:
@@ -1073,6 +1224,90 @@ def status() -> None:
         else:
             status_display = padded_status
         click.echo(f"{name:{name_width}s} {status_display} {details}")
+
+
+@pio.command(name="repair-permissions", short_help="repair .pioreactor ownership and group permissions")
+def repair_permissions() -> None:
+    """
+    Repair ownership and group permissions for the local .pioreactor tree.
+    """
+    import shutil
+
+    dot_pioreactor_root = get_dot_pioreactor_root()
+    if not dot_pioreactor_root.exists():
+        raise click.ClickException(f"{dot_pioreactor_root} does not exist.")
+
+    sudo_path = shutil.which("sudo")
+    find_path = shutil.which("find")
+    chown_path = shutil.which("chown")
+    chmod_path = shutil.which("chmod")
+    if sudo_path is None or find_path is None or chown_path is None or chmod_path is None:
+        raise click.ClickException("sudo, find, chown, and chmod are required.")
+
+    commands = [
+        [
+            sudo_path,
+            find_path,
+            str(dot_pioreactor_root),
+            "-mindepth",
+            "0",
+            "(",
+            "!",
+            "-user",
+            "pioreactor",
+            "-o",
+            "!",
+            "-group",
+            "www-data",
+            ")",
+            "-exec",
+            chown_path,
+            "-h",
+            "pioreactor:www-data",
+            "{}",
+            "+",
+        ],
+        [sudo_path, chmod_path, "g+w", str(dot_pioreactor_root)],
+        [
+            sudo_path,
+            find_path,
+            str(dot_pioreactor_root),
+            "-mindepth",
+            "1",
+            "(",
+            "-type",
+            "d",
+            "-o",
+            "-type",
+            "f",
+            ")",
+            "-exec",
+            chmod_path,
+            "g+w",
+            "{}",
+            "+",
+        ],
+        [
+            sudo_path,
+            find_path,
+            str(dot_pioreactor_root),
+            "-type",
+            "d",
+            "!",
+            "-perm",
+            "-2000",
+            "-exec",
+            chmod_path,
+            "g+s",
+            "{}",
+            "+",
+        ],
+    ]
+
+    for command in commands:
+        subprocess.run(command, check=True)
+
+    click.echo(f"Repaired permissions for {dot_pioreactor_root}.")
 
 
 @pio.group(short_help="manage the local caches")

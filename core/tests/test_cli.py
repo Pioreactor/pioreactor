@@ -537,6 +537,104 @@ def test_pio_status_handles_i2c_scan_errors_without_aborting(monkeypatch) -> Non
     assert "scan failed (i2c unavailable)" in i2c_line
 
 
+def test_pio_status_reports_all_sqlite_storage_files(monkeypatch, tmp_path: Path) -> None:
+    import sqlite3
+    import pioreactor.config as config_module
+
+    dot_pioreactor = tmp_path / ".pioreactor"
+    storage_dir = dot_pioreactor / "storage"
+    storage_dir.mkdir(parents=True)
+
+    database_path = storage_dir / "pioreactor.sqlite"
+    temporary_cache_path = storage_dir / "local_intermittent_pioreactor_metadata.sqlite"
+    persistent_cache_path = storage_dir / "local_persistent_pioreactor_metadata.sqlite"
+
+    conn = sqlite3.connect(database_path)
+    conn.execute("create table test(value integer)")
+    conn.commit()
+    conn.close()
+
+    Path(f"{database_path}-wal").write_bytes(b"wal")
+    Path(f"{database_path}-shm").write_bytes(b"shm")
+    temporary_cache_path.write_bytes(b"temporary")
+    persistent_cache_path.write_bytes(b"persistent")
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    with temporary_config_change(config_module.config, "storage", "database", str(database_path)):
+        with temporary_config_change(
+            config_module.config, "storage", "temporary_cache", str(temporary_cache_path)
+        ):
+            with temporary_config_change(
+                config_module.config, "storage", "persistent_cache", str(persistent_cache_path)
+            ):
+                runner = CliRunner()
+                result = runner.invoke(pio, ["status"])
+
+    assert result.exit_code == 0
+    assert "storage:db" in result.output
+    assert "storage:temporary_cache" in result.output
+    assert "storage:persistent_cache" in result.output
+    assert "storage:dot_pioreactor" in result.output
+    assert "db_size=" in result.output
+    assert "wal_size=3B" in result.output
+    assert "shm_size=3B" in result.output
+    assert "dir_writable=" in result.output
+    lines = result.output.splitlines()
+    status_column = lines[0].index("Status")
+    for check_name in ("storage:temporary_cache", "storage:persistent_cache"):
+        line = next(line for line in lines if line.startswith(check_name))
+        assert line.index("OK") == status_column
+
+
+def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    commands: list[list[str]] = []
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+
+    def record_command(command: list[str], check: bool) -> None:
+        commands.append(command)
+        assert check is True
+
+    monkeypatch.setattr("subprocess.run", record_command)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["repair-permissions"])
+
+    assert result.exit_code == 0
+    assert len(commands) == 4
+    assert commands[0] == [
+        "/usr/bin/sudo",
+        "/usr/bin/find",
+        str(dot_pioreactor),
+        "-mindepth",
+        "0",
+        "(",
+        "!",
+        "-user",
+        "pioreactor",
+        "-o",
+        "!",
+        "-group",
+        "www-data",
+        ")",
+        "-exec",
+        "/usr/bin/chown",
+        "-h",
+        "pioreactor:www-data",
+        "{}",
+        "+",
+    ]
+    assert commands[1] == ["/usr/bin/sudo", "/usr/bin/chmod", "g+w", str(dot_pioreactor)]
+    assert commands[2][-4:] == ["/usr/bin/chmod", "g+w", "{}", "+"]
+    assert commands[3][-7:] == ["-perm", "-2000", "-exec", "/usr/bin/chmod", "g+s", "{}", "+"]
+    assert f"Repaired permissions for {dot_pioreactor}." in result.output
+
+
 def test_pio_cache_view_without_key_shows_all_keys() -> None:
     cache_name = "test_pio_cache_view_without_key_shows_all_keys"
 
