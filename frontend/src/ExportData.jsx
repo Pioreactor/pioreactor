@@ -17,12 +17,11 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useTheme } from '@mui/material/styles';
-import Chip from '@mui/material/Chip';
 import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { useLocation } from "react-router";
 import { fetchTaskResult } from "./utils/tasks";
+import Snackbar from './components/Snackbar';
 
 
 const datasetDescription = {
@@ -32,7 +31,6 @@ const datasetDescription = {
 }
 
 const SYSTEM_EXPERIMENT_LABEL = "<System>";
-const ALL_EXPERIMENTS_LABEL = "<All experiments>";
 
 const DEFAULT_EXPORT_STATE = {
   experimentSelection: [],
@@ -91,9 +89,7 @@ function parseExportStateFromSearch(search) {
   const experimentsFromQuery = getQueryList(searchParams, ["experiments", "experiment"]).map(
     (experiment) => (experiment === "$experiment" ? SYSTEM_EXPERIMENT_LABEL : experiment),
   );
-  const experimentSelection = experimentsFromQuery.includes(ALL_EXPERIMENTS_LABEL)
-    ? [ALL_EXPERIMENTS_LABEL]
-    : experimentsFromQuery;
+  const experimentSelection = experimentsFromQuery.slice(0, 1);
 
   const selectedDatasets = getQueryList(searchParams, ["datasets", "dataset"]);
 
@@ -135,48 +131,33 @@ function arrayShallowEqual(left, right) {
 }
 
 
-function getStyles(value, values, theme) {
+function getStyles(value, selectedValue, theme) {
   return {
-    fontWeight: values.includes(value)
+    fontWeight: selectedValue === value
       ? theme.typography.fontWeightMedium
       : theme.typography.fontWeightRegular,
   };
 }
 
-function MultipleSelectChip({availableValues, parentHandleChange, values}) {
+function SingleExperimentSelect({availableValues, parentHandleChange, values}) {
   const theme = useTheme();
+  const selectedValue = values[0] || "";
 
   const handleChange = (event) => {
-    const {
-      target: { value },
-    } = event;
-    if (value.includes(ALL_EXPERIMENTS_LABEL)){
-      parentHandleChange([ALL_EXPERIMENTS_LABEL])
-    }
-    else {
-      parentHandleChange(value)
-    }
+    parentHandleChange(event.target.value ? [event.target.value] : []);
   };
 
   return (
     <div>
       <FormControl fullWidth variant="standard" component="fieldset" sx={{ maxWidth: 470 }}>
         <Typography variant="h6" gutterBottom >
-          <Box sx={{ fontWeight: "fontWeightRegular" }}>Experiments</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Experiment</Box>
         </Typography>
         <Select
           labelId="expSelect"
           variant="standard"
-          multiple
-          value={values}
+          value={selectedValue}
           onChange={handleChange}
-          renderValue={(selected) => (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {selected.map((value) => (
-                <Chip icon=<PlayCircleOutlinedIcon/> key={value} label={value} />
-              ))}
-            </Box>
-          )}
           MenuProps={{ PaperProps: {
           style: {
               maxHeight: 250,
@@ -187,9 +168,9 @@ function MultipleSelectChip({availableValues, parentHandleChange, values}) {
             <MenuItem
               key={value}
               value={value}
-              style={getStyles(value, values, theme)}
+              style={getStyles(value, selectedValue, theme)}
             >
-              <Checkbox checked={values.includes(value)} /> {value}
+              {value}
             </MenuItem>
           ))}
 
@@ -214,8 +195,8 @@ function ExperimentSelection(props) {
           .map((e) => e.experiment)
           .filter((name) => name !== "$experiment");
 
-        // Ensure "<System>" and "<All experiments>" are always available and at the bottom.
-        const allExperiments = [...experimentNames, SYSTEM_EXPERIMENT_LABEL, ALL_EXPERIMENTS_LABEL];
+        // Ensure "<System>" is always available and at the bottom.
+        const allExperiments = [...experimentNames, SYSTEM_EXPERIMENT_LABEL];
         setExperiments(allExperiments);
         onExperimentsLoaded(allExperiments);
       } catch (error) {
@@ -229,7 +210,7 @@ function ExperimentSelection(props) {
 
   return (
     <Box sx={{ m: 1}}>
-      <MultipleSelectChip
+      <SingleExperimentSelect
         availableValues={experiments}
         parentHandleChange={handleChange}
         values={experimentSelection}
@@ -426,6 +407,7 @@ function ExportDataContainer() {
   const location = useLocation();
   const [isRunning, setIsRunning] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [datasets, setDatasets] = React.useState([])
 
   const [state, setState] = React.useState(() => parseExportStateFromSearch(location.search));
@@ -482,10 +464,11 @@ function ExportDataContainer() {
     );
 
     setIsRunning(true);
+    setSnackbarOpen(true);
     setErrorMsg("");
     try {
       const finalPayload = await fetchTaskResult('/api/datasets/exportable/export', {
-        maxRetries: 300,
+        maxRetries: 500,
         delayMs: 1000,
         fetchOptions: {
           method: "POST",
@@ -505,7 +488,7 @@ function ExportDataContainer() {
       });
       const filename = finalPayload?.result?.filename;
       if (!filename) {
-        throw new Error("Export finished without a download filename.");
+        throw new Error("Export failed, check logs.");
       }
 
       var link = document.createElement("a");
@@ -520,6 +503,7 @@ function ExportDataContainer() {
       console.log(e)
     } finally {
       setIsRunning(false);
+      setSnackbarOpen(false);
     }
   }
 
@@ -544,9 +528,9 @@ function ExportDataContainer() {
   function handleExperimentsLoaded(availableExperiments) {
     const availableExperimentSet = new Set(availableExperiments);
     setState((prevState) => {
-      const filteredSelectedExperiments = prevState.experimentSelection.filter((experiment) =>
-        availableExperimentSet.has(experiment),
-      );
+      const filteredSelectedExperiments = prevState.experimentSelection
+        .filter((experiment) => availableExperimentSet.has(experiment))
+        .slice(0, 1);
       if (arrayShallowEqual(filteredSelectedExperiments, prevState.experimentSelection)) {
         return prevState;
       }
@@ -571,6 +555,10 @@ function ExportDataContainer() {
       [stateKey]: event.target.checked
     }));
   };
+
+  function handleSnackbarClose() {
+    setSnackbarOpen(false);
+  }
 
   const errorFeedbackOrDefault = errorMsg ? <Alert severity="error">{errorMsg}</Alert>: ""
   const selectedDatasetsCount = state.selectedDatasets.length;
@@ -708,6 +696,13 @@ function ExportDataContainer() {
       <Grid size={12}>
         <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</p>
       </Grid>
+      <Snackbar
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        message="Export started. Keep this page open; your download will begin automatically when it's ready."
+        key="export-data-running-snackbar"
+      />
     </React.Fragment>
   );
 }

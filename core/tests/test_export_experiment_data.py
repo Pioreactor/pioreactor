@@ -3,11 +3,15 @@
 import re
 import sqlite3
 import zipfile
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pioreactor.actions.leader import export_experiment_data as export_experiment_data_module
+from pioreactor.actions.leader.export_experiment_data import _check_export_resources
 from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
 from pioreactor.actions.leader.export_experiment_data import export_experiment_data
+from pioreactor.actions.leader.export_experiment_data import ExportResourceLimitError
 from pioreactor.actions.leader.export_experiment_data import source_exists
 from pioreactor.structs import Dataset
 
@@ -171,6 +175,70 @@ def test_export_experiment_data_removes_partial_artifacts_on_failure(
     assert not temp_zipfile.check()
     assert not temp_zipfile.dirpath().join(".test.zip.tmp").check()
     assert not temp_zipfile.dirpath().listdir("*.csv")
+
+
+def test_export_experiment_data_removes_partial_artifacts_on_resource_limit(
+    temp_zipfile, mock_load_exportable_datasets
+) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES (1, 'John', '2025-04-16T04:51:12.858Z', 0.1)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect, patch(
+        "pioreactor.actions.leader.export_experiment_data._check_export_resources",
+        side_effect=[None, ExportResourceLimitError("low memory")],
+    ):
+        mock_connect.return_value = conn
+        with pytest.raises(ExportResourceLimitError, match="low memory"):
+            export_experiment_data(
+                experiments=[],
+                output=temp_zipfile.strpath,
+                partition_by_unit=False,
+                dataset_names=["test_table"],
+            )
+
+    assert not temp_zipfile.check()
+    assert not temp_zipfile.dirpath().join(".test.zip.tmp").check()
+    assert not temp_zipfile.dirpath().listdir("*.csv")
+
+
+def test_check_export_resources_rejects_low_memory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(export_experiment_data_module, "_read_mem_available_bytes", lambda: 1)
+
+    with pytest.raises(ExportResourceLimitError, match="available memory is low"):
+        _check_export_resources(tmp_path / "export.zip", tmp_path / "pioreactor.sqlite")
+
+
+def test_check_export_resources_rejects_low_export_space(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class Usage:
+        free = 1
+
+    monkeypatch.setattr(export_experiment_data_module, "_read_mem_available_bytes", lambda: None)
+    monkeypatch.setattr(export_experiment_data_module.shutil, "disk_usage", lambda _path: Usage())
+
+    with pytest.raises(ExportResourceLimitError, match="low on free space"):
+        _check_export_resources(tmp_path / "export.zip", tmp_path / "pioreactor.sqlite")
+
+
+def test_check_export_resources_rejects_large_wal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    class Usage:
+        free = export_experiment_data_module.MINIMUM_EXPORT_FREE_BYTES
+
+    database_path = tmp_path / "pioreactor.sqlite"
+    wal_path = tmp_path / "pioreactor.sqlite-wal"
+    wal_path.write_bytes(b"0")
+
+    monkeypatch.setattr(export_experiment_data_module, "_read_mem_available_bytes", lambda: None)
+    monkeypatch.setattr(export_experiment_data_module.shutil, "disk_usage", lambda _path: Usage())
+    monkeypatch.setattr(export_experiment_data_module, "MAX_EXPORT_WAL_BYTES", 0)
+
+    with pytest.raises(ExportResourceLimitError, match="SQLite WAL grew too large"):
+        _check_export_resources(tmp_path / "export.zip", database_path)
 
 
 def test_cleanup_stale_export_artifacts_removes_partial_files(tmp_path) -> None:

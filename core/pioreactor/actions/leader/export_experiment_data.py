@@ -3,13 +3,16 @@
 # See create_tables.sql for all tables
 import csv
 import io
+import shutil
 import sqlite3
 import sys
+import tempfile
 import zipfile
 from base64 import b64decode
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
+from time import monotonic
 from typing import Any
 from typing import Sequence
 
@@ -21,6 +24,17 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Dataset
 from pioreactor.whoami import is_testing_env
+
+
+MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
+MINIMUM_EXPORT_AVAILABLE_MEMORY_BYTES = 120 * 1024 * 1024
+MAX_EXPORT_WAL_BYTES = 512 * 1024 * 1024
+EXPORT_RESOURCE_CHECK_INTERVAL_ROWS = 5_000
+EXPORT_RESOURCE_CHECK_INTERVAL_SECONDS = 2.0
+
+
+class ExportResourceLimitError(RuntimeError):
+    pass
 
 
 def rounded_row_factory(cursor: sqlite3.Cursor, row: tuple[Any, ...]) -> tuple[Any, ...]:
@@ -128,6 +142,69 @@ def cleanup_stale_export_artifacts(exports_dir: Path, logger: Any | None = None)
             except OSError as exc:
                 if logger is not None:
                     logger.debug(f"Unable to remove stale export artifact {artifact}: {exc}")
+
+
+def _read_mem_available_bytes(meminfo_path: Path = Path("/proc/meminfo")) -> int | None:
+    if not meminfo_path.exists():
+        return None
+
+    for line in meminfo_path.read_text(encoding="utf-8").splitlines():
+        key, _, value = line.partition(":")
+        if key != "MemAvailable":
+            continue
+        amount, unit, *_ = value.strip().split()
+        if unit != "kB":
+            return None
+        return int(amount) * 1024
+
+    return None
+
+
+def _deduplicate_existing_paths(paths: Sequence[Path]) -> list[Path]:
+    deduplicated_paths: list[Path] = []
+    seen: set[Path] = set()
+
+    for path in paths:
+        if path.exists():
+            resolved_path = path.resolve()
+        else:
+            resolved_path = path.absolute()
+
+        if resolved_path in seen:
+            continue
+        seen.add(resolved_path)
+        deduplicated_paths.append(path)
+
+    return deduplicated_paths
+
+
+def _check_export_resources(output_path: Path, database_path: Path) -> None:
+    mem_available_bytes = _read_mem_available_bytes()
+    if mem_available_bytes is not None and mem_available_bytes < MINIMUM_EXPORT_AVAILABLE_MEMORY_BYTES:
+        available_mb = mem_available_bytes // (1024 * 1024)
+        required_mb = MINIMUM_EXPORT_AVAILABLE_MEMORY_BYTES // (1024 * 1024)
+        raise ExportResourceLimitError(
+            f"Export stopped because available memory is low. {required_mb} MB required, {available_mb} MB available."
+        )
+
+    for path in _deduplicate_existing_paths([output_path.parent, Path(tempfile.gettempdir())]):
+        free_bytes = shutil.disk_usage(path).free
+        if free_bytes < MINIMUM_EXPORT_FREE_BYTES:
+            free_mb = free_bytes // (1024 * 1024)
+            required_mb = MINIMUM_EXPORT_FREE_BYTES // (1024 * 1024)
+            raise ExportResourceLimitError(
+                f"Export stopped because {path} is low on free space. {required_mb} MB required, {free_mb} MB available."
+            )
+
+    wal_path = Path(f"{database_path}-wal")
+    if wal_path.exists():
+        wal_size_bytes = wal_path.stat().st_size
+        if wal_size_bytes > MAX_EXPORT_WAL_BYTES:
+            wal_size_mb = wal_size_bytes // (1024 * 1024)
+            max_wal_mb = MAX_EXPORT_WAL_BYTES // (1024 * 1024)
+            raise ExportResourceLimitError(
+                f"Export stopped because SQLite WAL grew too large. {max_wal_mb} MB limit, {wal_size_mb} MB current."
+            )
 
 
 def validate_dataset_information(dataset: Dataset, cursor: sqlite3.Cursor) -> None:
@@ -238,10 +315,31 @@ def export_experiment_data(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_output_path = output_path.with_name(f".{output_path.name}.tmp")
     tmp_output_path.unlink(missing_ok=True)
+    database_path = Path(config.get("storage", "database"))
+    _check_export_resources(tmp_output_path, database_path)
+    resource_limit_error: ExportResourceLimitError | None = None
+    last_sqlite_progress_resource_check = 0.0
+
+    def check_resources_from_sqlite_progress() -> int:
+        nonlocal last_sqlite_progress_resource_check
+        nonlocal resource_limit_error
+
+        now = monotonic()
+        if now - last_sqlite_progress_resource_check < EXPORT_RESOURCE_CHECK_INTERVAL_SECONDS:
+            return 0
+
+        try:
+            _check_export_resources(tmp_output_path, database_path)
+        except ExportResourceLimitError as exc:
+            resource_limit_error = exc
+            return 1
+
+        last_sqlite_progress_resource_check = now
+        return 0
 
     try:
         with zipfile.ZipFile(tmp_output_path, mode="w", compression=zipfile.ZIP_DEFLATED) as zf, closing(
-            sqlite3.connect(f"file:{config.get('storage', 'database')}?mode=ro", uri=True)
+            sqlite3.connect(f"file:{database_path}?mode=ro", uri=True)
         ) as con:
             con.create_function(
                 "BASE64", 1, decode_base64
@@ -260,8 +358,11 @@ def export_experiment_data(
             """
             )
             con.set_trace_callback(logger.debug)
+            con.set_progress_handler(check_resources_from_sqlite_progress, 50_000)
 
             for dataset_name in dataset_names:
+                _check_export_resources(tmp_output_path, database_path)
+
                 try:
                     dataset = available_datasets[dataset_name]
                 except KeyError:
@@ -350,6 +451,7 @@ def export_experiment_data(
                 current_partition: tuple[Any, Any] | None = None
                 current_csv_file: Any | None = None
                 current_csv_writer: Any | None = None
+                last_resource_check = monotonic()
 
                 add_directory_to_zip_with_current_timestamp(zf, dataset_name)
 
@@ -386,6 +488,12 @@ def export_experiment_data(
 
                         if count % 10_000 == 0:
                             logger.debug(f"Exported {count} rows...")
+
+                        if count % EXPORT_RESOURCE_CHECK_INTERVAL_ROWS == 0:
+                            now = monotonic()
+                            if now - last_resource_check >= EXPORT_RESOURCE_CHECK_INTERVAL_SECONDS:
+                                _check_export_resources(tmp_output_path, database_path)
+                                last_resource_check = now
                 finally:
                     if current_csv_file is not None:
                         current_csv_file.close()
@@ -396,8 +504,10 @@ def export_experiment_data(
 
         tmp_output_path.replace(output_path)
         logger.info(f"Finished export to {output}.")
-    except Exception:
+    except Exception as exc:
         tmp_output_path.unlink(missing_ok=True)
+        if resource_limit_error is not None:
+            raise resource_limit_error from exc
         raise
 
     return
