@@ -913,6 +913,7 @@ def status() -> None:
         expected_gid: int | None,
         expected_owner: str,
         check_openability: bool,
+        include_sidecars: bool,
     ) -> Path | None:
         try:
             sqlite_path = Path(config.get("storage", config_key))
@@ -943,11 +944,10 @@ def status() -> None:
             status = worst_status(status, "WARN")
             details.append("dir=missing")
 
-        sqlite_file_paths = {
-            "db": sqlite_path,
-            "wal": Path(f"{sqlite_path}-wal"),
-            "shm": Path(f"{sqlite_path}-shm"),
-        }
+        sqlite_file_paths = {"db": sqlite_path}
+        if include_sidecars:
+            sqlite_file_paths["wal"] = Path(f"{sqlite_path}-wal")
+            sqlite_file_paths["shm"] = Path(f"{sqlite_path}-shm")
 
         for label, path in sqlite_file_paths.items():
             if not path.exists():
@@ -1174,6 +1174,7 @@ def status() -> None:
             expected_gid,
             expected_owner,
             check_openability=True,
+            include_sidecars=True,
         )
     else:
         try:
@@ -1188,6 +1189,7 @@ def status() -> None:
         expected_gid,
         expected_owner,
         check_openability=False,
+        include_sidecars=False,
     )
     add_sqlite_storage_check(
         "storage:persistent_cache",
@@ -1196,6 +1198,7 @@ def status() -> None:
         expected_gid,
         expected_owner,
         check_openability=False,
+        include_sidecars=False,
     )
     add_dot_pioreactor_tree_check(expected_uid, expected_gid, expected_owner)
 

@@ -584,6 +584,8 @@ def test_pio_status_reports_all_sqlite_storage_files(monkeypatch, tmp_path: Path
     for check_name in ("storage:temporary_cache", "storage:persistent_cache"):
         line = next(line for line in lines if line.startswith(check_name))
         assert line.index("OK") == status_column
+        assert "wal" not in line
+        assert "shm" not in line
 
 
 def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(
