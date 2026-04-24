@@ -2532,37 +2532,16 @@ def export_exportable_datasets() -> ResponseReturnValue:
     filename = f"export_{timestamp}.zip"
 
     filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
-    result = (
-        tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
-            experiments if experiments[0] != "<All experiments>" else [],
-            dataset_names,
-            filename_with_path.as_posix(),
-            start_time=body.get("start_time"),
-            end_time=body.get("end_time"),
-            partition_by_unit=partition_by_unit,
-            partition_by_experiment=partition_by_experiment,
-        )
+    task = tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
+        experiments if not experiments or experiments[0] != "<All experiments>" else [],
+        dataset_names,
+        filename_with_path.as_posix(),
+        start_time=body.get("start_time"),
+        end_time=body.get("end_time"),
+        partition_by_unit=partition_by_unit,
+        partition_by_experiment=partition_by_experiment,
     )
-    try:
-        status, msg = result(blocking=True, timeout=5 * 60)
-    except (HueyException, TaskException):
-        abort_with(
-            500,
-            "Export task failed or timed out",
-            cause="Task error or timeout while exporting datasets.",
-            remediation="Retry the export and check server logs if it persists.",
-        )
-
-    if not status:
-        publish_to_error_log(msg, "export_datasets")
-        abort_with(
-            500,
-            "Export task failed",
-            cause=msg,
-            remediation="Check server logs for details and retry the export.",
-        )
-
-    return {"result": status, "filename": filename, "msg": "Finished"}, 200
+    return create_task_response(task)
 
 
 @api_bp.route("/experiments", methods=["GET"])

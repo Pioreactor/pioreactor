@@ -806,6 +806,65 @@ def test_stop_specific_job_returns_task_response_when_mqtt_publish_fails(client,
     assert data["result_url_path"] == "/unit_api/task_results/fallback-task"
 
 
+def test_export_datasets_returns_async_task_response(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+
+    class DummyTask:
+        id = "export-task"
+
+    def fake_export_experiment_data_task(
+        experiments: list[str],
+        dataset_names: list[str],
+        output: str,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        partition_by_unit: bool = False,
+        partition_by_experiment: bool = True,
+    ) -> DummyTask:
+        captured["experiments"] = experiments
+        captured["dataset_names"] = dataset_names
+        captured["output"] = output
+        captured["start_time"] = start_time
+        captured["end_time"] = end_time
+        captured["partition_by_unit"] = partition_by_unit
+        captured["partition_by_experiment"] = partition_by_experiment
+        return DummyTask()
+
+    monkeypatch.setenv("RUN_PIOREACTOR", tmp_path.as_posix())
+    monkeypatch.setattr(
+        "pioreactor.web.api.tasks.export_experiment_data_task", fake_export_experiment_data_task
+    )
+
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiments": ["<All experiments>"],
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+            "start_time": "2026-01-01T00:00",
+            "end_time": None,
+        },
+    )
+
+    assert response.status_code == 202
+    data = response.get_json()
+    assert data["task_id"] == "export-task"
+    assert data["result_url_path"] == "/unit_api/task_results/export-task"
+    assert captured["experiments"] == []
+    assert captured["dataset_names"] == ["od_readings"]
+    output_path = Path(str(captured["output"]))
+    assert output_path.parent == tmp_path / "exports"
+    assert output_path.name.startswith("export_")
+    assert output_path.name.endswith(".zip")
+    assert captured["start_time"] == "2026-01-01T00:00"
+    assert captured["end_time"] is None
+    assert captured["partition_by_unit"] is True
+    assert captured["partition_by_experiment"] is False
+
+
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
 def test_get_settings_unit_api(client) -> None:
     from pioreactor.background_jobs.stirring import start_stirring

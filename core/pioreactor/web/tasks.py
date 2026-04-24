@@ -72,6 +72,7 @@ CalibrationActionHandler = tuple[
 
 # Registry of calibration action -> handler that returns a Huey task, label, and normalizer.
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
+MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
 
 
 def register_calibration_action(
@@ -753,6 +754,18 @@ def _register_core_calibration_actions() -> None:
 _register_core_calibration_actions()
 
 
+def _require_export_disk_space(output_dir: Path) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    free_bytes = shutil.disk_usage(output_dir).free
+
+    if free_bytes < MINIMUM_EXPORT_FREE_BYTES:
+        free_mb = free_bytes // (1024 * 1024)
+        required_mb = MINIMUM_EXPORT_FREE_BYTES // (1024 * 1024)
+        raise OSError(
+            f"Not enough free space to export datasets. {required_mb} MB required, {free_mb} MB available."
+        )
+
+
 @huey.task()
 @huey.lock_task("export-data-lock")
 def export_experiment_data_task(
@@ -763,31 +776,31 @@ def export_experiment_data_task(
     end_time: str | None = None,
     partition_by_unit: bool = False,
     partition_by_experiment: bool = True,
-) -> tuple[bool, str]:
+) -> dict[str, bool | str]:
+    from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 
     logger.debug("Exporting experiment data.")
     if not output:
-        return False, "Missing output"
+        raise ValueError("Missing output")
     if not output.endswith(".zip"):
-        return False, "output should end with .zip"
+        raise ValueError("output should end with .zip")
     if not dataset_names:
-        return False, "At least one dataset name must be provided."
+        raise ValueError("At least one dataset name must be provided.")
 
-    try:
-        export_experiment_data(
-            experiments,
-            dataset_names,
-            output,
-            start_time=start_time,
-            end_time=end_time,
-            partition_by_unit=partition_by_unit,
-            partition_by_experiment=partition_by_experiment,
-        )
-        return True, "Finished"
-    except Exception as exc:
-        logger.debug(str(exc))
-        return False, str(exc)
+    output_path = Path(output)
+    cleanup_stale_export_artifacts(output_path.parent, logger)
+    _require_export_disk_space(output_path.parent)
+    export_experiment_data(
+        experiments,
+        dataset_names,
+        output,
+        start_time=start_time,
+        end_time=end_time,
+        partition_by_unit=partition_by_unit,
+        partition_by_experiment=partition_by_experiment,
+    )
+    return {"result": True, "filename": output_path.name, "msg": "Finished"}
 
 
 @huey.task(priority=100)

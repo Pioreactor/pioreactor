@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from http.client import HTTPMessage
+from pathlib import Path
 from subprocess import TimeoutExpired
 from typing import Any
 
@@ -191,6 +192,66 @@ def test_install_plugin_task_is_rate_limited(monkeypatch: pytest.MonkeyPatch) ->
         tasks.install_plugin_task.call_local("demo-plugin")
 
     _clear_rate_limit("plugins")
+
+
+def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filename(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "export.zip"
+    stale_csv = tmp_path / "old.csv"
+    stale_tmp = tmp_path / ".old.zip.tmp"
+    stale_csv.write_text("old", encoding="utf-8")
+    stale_tmp.write_text("old", encoding="utf-8")
+
+    def fake_export_experiment_data(
+        experiments: list[str],
+        dataset_names: list[str],
+        output: str,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        partition_by_unit: bool = False,
+        partition_by_experiment: bool = True,
+    ) -> None:
+        output_path.write_text("zip", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "pioreactor.actions.leader.export_experiment_data.export_experiment_data",
+        fake_export_experiment_data,
+    )
+
+    result = tasks.export_experiment_data_task.call_local(
+        ["exp1"],
+        ["od_readings"],
+        output_path.as_posix(),
+    )
+
+    assert result == {"result": True, "filename": "export.zip", "msg": "Finished"}
+    assert not stale_csv.exists()
+    assert not stale_tmp.exists()
+    assert output_path.exists()
+
+
+def test_export_disk_space_preflight_rejects_low_space(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class Usage:
+        free = 1
+
+    monkeypatch.setattr(tasks.shutil, "disk_usage", lambda _path: Usage())
+
+    with pytest.raises(OSError, match="Not enough free space to export datasets"):
+        tasks._require_export_disk_space(tmp_path)
+
+
+def test_export_disk_space_preflight_allows_minimum_working_space(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class Usage:
+        free = tasks.MINIMUM_EXPORT_FREE_BYTES
+
+    monkeypatch.setattr(tasks.shutil, "disk_usage", lambda _path: Usage())
+
+    tasks._require_export_disk_space(tmp_path)
 
 
 def test_power_actions_share_rate_limit_bucket() -> None:

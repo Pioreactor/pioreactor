@@ -22,6 +22,7 @@ import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableC
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { useLocation } from "react-router";
+import { fetchTaskResult } from "./utils/tasks";
 
 
 const datasetDescription = {
@@ -483,7 +484,10 @@ function ExportDataContainer() {
     setIsRunning(true);
     setErrorMsg("");
     try {
-      const res = await fetch('/api/datasets/exportable/export',{
+      const finalPayload = await fetchTaskResult('/api/datasets/exportable/export', {
+        maxRetries: 300,
+        delayMs: 1000,
+        fetchOptions: {
           method: "POST",
           body: JSON.stringify({
             experiments: experimentsForExport,
@@ -497,17 +501,22 @@ function ExportDataContainer() {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           },
+        },
       });
-      const resJson = await res.json();
+      const filename = finalPayload?.result?.filename;
+      if (!filename) {
+        throw new Error("Export finished without a download filename.");
+      }
+
       var link = document.createElement("a");
-      const filename = resJson['filename'].replace(/%/g, "%25")
-      link.setAttribute('export', filename);
-      link.href = "/exports/" + filename;
+      const encodedFilename = filename.replace(/%/g, "%25")
+      link.setAttribute('export', encodedFilename);
+      link.href = "/exports/" + encodedFilename;
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch(e) {
-      setErrorMsg("Server error occurred. Check logs.")
+      setErrorMsg(e.message || "Server error occurred. Check logs.")
       console.log(e)
     } finally {
       setIsRunning(false);

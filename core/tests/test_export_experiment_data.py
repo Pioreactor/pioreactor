@@ -6,6 +6,7 @@ import zipfile
 from unittest.mock import patch
 
 import pytest
+from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
 from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 from pioreactor.actions.leader.export_experiment_data import source_exists
 from pioreactor.structs import Dataset
@@ -119,6 +120,70 @@ def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> 
                 values[4][:4] == "2025"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
             assert "12.858" in values[4]
+
+
+def test_export_experiment_data_writes_tmp_zip_then_renames(
+    temp_zipfile, mock_load_exportable_datasets
+) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES (1, 'John', '2025-04-16T04:51:12.858Z', 0.1)"
+    )
+    conn.commit()
+
+    tmp_zip_path = temp_zipfile.dirpath().join(".test.zip.tmp")
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+        )
+
+    assert temp_zipfile.check(file=1)
+    assert not tmp_zip_path.check()
+    assert not temp_zipfile.dirpath().listdir("*.csv")
+
+
+def test_export_experiment_data_removes_partial_artifacts_on_failure(
+    temp_zipfile, mock_load_exportable_datasets
+) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES (1, 'John', '2025-04-16T04:51:12.858Z', 0.1)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect, patch("zipfile.ZipFile.open", side_effect=OSError("full")):
+        mock_connect.return_value = conn
+        with pytest.raises(OSError, match="full"):
+            export_experiment_data(
+                experiments=[],
+                output=temp_zipfile.strpath,
+                partition_by_unit=False,
+                dataset_names=["test_table"],
+            )
+
+    assert not temp_zipfile.check()
+    assert not temp_zipfile.dirpath().join(".test.zip.tmp").check()
+    assert not temp_zipfile.dirpath().listdir("*.csv")
+
+
+def test_cleanup_stale_export_artifacts_removes_partial_files(tmp_path) -> None:
+    (tmp_path / "partial.csv").write_text("partial", encoding="utf-8")
+    (tmp_path / ".export.zip.tmp").write_text("partial", encoding="utf-8")
+    completed_zip = tmp_path / "export.zip"
+    completed_zip.write_text("done", encoding="utf-8")
+
+    cleanup_stale_export_artifacts(tmp_path)
+
+    assert not (tmp_path / "partial.csv").exists()
+    assert not (tmp_path / ".export.zip.tmp").exists()
+    assert completed_zip.exists()
 
 
 def test_zip_directory_timestamp_not_1980(temp_zipfile, mock_load_exportable_datasets) -> None:
