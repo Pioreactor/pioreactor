@@ -254,7 +254,7 @@ def export_experiment_data(
                 """
                 PRAGMA busy_timeout = 15000;
                 PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
-                PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
+                PRAGMA temp_store = 1;  -- large export sorts should spill to disk, not RAM
                 PRAGMA foreign_keys = ON;
                 PRAGMA cache_size = -4000;
             """
