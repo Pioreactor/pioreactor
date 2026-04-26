@@ -44,20 +44,6 @@ const getOrCreateTopicNode = (root, topic) => {
   return node;
 };
 
-const getTopicNode = (root, topic) => {
-  let node = root;
-  const levels = topic.split('/');
-
-  for (const level of levels) {
-    if (!node.children[level]) {
-      return null;
-    }
-    node = node.children[level];
-  }
-
-  return node;
-};
-
 const addHandlerToTrie = (root, topic, handler, key) => {
   const node = getOrCreateTopicNode(root, topic);
   const hadHandler = hasOwn.call(node.handlers, key);
@@ -66,12 +52,33 @@ const addHandlerToTrie = (root, topic, handler, key) => {
 };
 
 const removeHandlersFromTrie = (root, topic, key) => {
-  const node = getTopicNode(root, topic);
+  const levels = topic.split('/');
+  const path = [];
+  let node = root;
+
+  for (const level of levels) {
+    const nextNode = node.children[level];
+    if (!nextNode) {
+      return false;
+    }
+    path.push([node, level, nextNode]);
+    node = nextNode;
+  }
+
   if (!node || !hasOwn.call(node.handlers, key)) {
     return false;
   }
 
   delete node.handlers[key];
+
+  for (let i = path.length - 1; i >= 0; i -= 1) {
+    const [parent, level, child] = path[i];
+    if (Object.keys(child.handlers).length || Object.keys(child.children).length) {
+      break;
+    }
+    delete parent.children[level];
+  }
+
   return true;
 };
 

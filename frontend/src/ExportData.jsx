@@ -35,7 +35,6 @@ const SYSTEM_EXPERIMENT_LABEL = "<System>";
 const DEFAULT_EXPORT_STATE = {
   experimentSelection: [],
   partitionByUnitSelection: false,
-  partitionByExperimentSelection: true,
   selectedDatasets: [],
   // ISO-8601 strings in UTC
   startTime: null,
@@ -44,90 +43,39 @@ const DEFAULT_EXPORT_STATE = {
   useTimeFilter: false,
 };
 
-const TRUE_QUERY_VALUES = new Set(["1", "true", "yes", "on"]);
-const FALSE_QUERY_VALUES = new Set(["0", "false", "no", "off"]);
-
-function parseQueryBoolean(value) {
-  if (value === null) {
-    return null;
-  }
-
-  const normalizedValue = value.toLowerCase();
-  if (TRUE_QUERY_VALUES.has(normalizedValue)) {
-    return true;
-  }
-  if (FALSE_QUERY_VALUES.has(normalizedValue)) {
-    return false;
-  }
-  return null;
-}
-
-function getFirstQueryParam(searchParams, keys) {
-  for (const key of keys) {
-    const value = searchParams.get(key);
-    if (value !== null) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-function getQueryList(searchParams, keys) {
-  const values = keys
-    .flatMap((key) => searchParams.getAll(key))
+function getQueryList(searchParams, key) {
+  return searchParams
+    .getAll(key)
     .flatMap((value) => value.split(","))
     .map((value) => value.trim())
     .filter(Boolean);
-
-  return [...new Set(values)];
 }
 
 function parseExportStateFromSearch(search) {
   const searchParams = new URLSearchParams(search);
 
-  const experimentsFromQuery = getQueryList(searchParams, ["experiments", "experiment"]).map(
+  const experimentsFromQuery = getQueryList(searchParams, "experiments").map(
     (experiment) => (experiment === "$experiment" ? SYSTEM_EXPERIMENT_LABEL : experiment),
   );
   const experimentSelection = experimentsFromQuery.slice(0, 1);
 
-  const selectedDatasets = getQueryList(searchParams, ["datasets", "dataset"]);
+  const selectedDatasets = getQueryList(searchParams, "datasets");
 
-  const partitionByUnitSelection =
-    parseQueryBoolean(
-      getFirstQueryParam(searchParams, ["partition_by_unit", "partitionByUnit"]),
-    ) ?? DEFAULT_EXPORT_STATE.partitionByUnitSelection;
-  const partitionByExperimentSelection =
-    parseQueryBoolean(
-      getFirstQueryParam(searchParams, ["partition_by_experiment", "partitionByExperiment"]),
-    ) ?? DEFAULT_EXPORT_STATE.partitionByExperimentSelection;
-
-  const startTime = getFirstQueryParam(searchParams, ["start_time", "startTime"]);
-  const endTime = getFirstQueryParam(searchParams, ["end_time", "endTime"]);
-  const useTimeFilterFromQuery = parseQueryBoolean(
-    getFirstQueryParam(searchParams, ["use_time_filter", "useTimeFilter"]),
-  );
-  const useTimeFilter =
-    useTimeFilterFromQuery ?? Boolean(startTime || endTime || DEFAULT_EXPORT_STATE.useTimeFilter);
+  const startTime = searchParams.get("start_time");
+  const endTime = searchParams.get("end_time");
+  const useTimeFilter = searchParams.has("use_time_filter")
+    ? searchParams.get("use_time_filter") === "true"
+    : Boolean(startTime || endTime);
 
   return {
     ...DEFAULT_EXPORT_STATE,
     experimentSelection,
-    partitionByUnitSelection,
-    partitionByExperimentSelection,
+    partitionByUnitSelection: searchParams.get("partition_by_unit") === "true",
     selectedDatasets,
     startTime,
     endTime,
     useTimeFilter,
   };
-}
-
-function arrayShallowEqual(left, right) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((value, index) => value === right[index]);
 }
 
 
@@ -182,7 +130,7 @@ function SingleExperimentSelect({availableValues, parentHandleChange, values}) {
 
 
 function ExperimentSelection(props) {
-  const { experimentSelection, handleChange, onExperimentsLoaded } = props;
+  const { experimentSelection, handleChange } = props;
 
   const [experiments, setExperiments] = React.useState([])
 
@@ -196,16 +144,14 @@ function ExperimentSelection(props) {
           .filter((name) => name !== "$experiment");
 
         // Ensure "<System>" is always available and at the bottom.
-        const allExperiments = [...experimentNames, SYSTEM_EXPERIMENT_LABEL];
-        setExperiments(allExperiments);
-        onExperimentsLoaded(allExperiments);
+        setExperiments([...experimentNames, SYSTEM_EXPERIMENT_LABEL]);
       } catch (error) {
         console.error("Failed to fetch experiments:", error);
       }
     }
 
     getData();
-  }, [onExperimentsLoaded]);
+  }, []);
 
 
   return (
@@ -224,10 +170,6 @@ const PartitionBySelection = (props) => {
     <Box sx={{mt: 1}}>
       <FormControl component="fieldset" >
         <Box>
-          <FormControlLabel
-            control={<Checkbox checked={props.partitionByExperimentSelection} onChange={props.handleChange} name="partition_by_experiment" />}
-            label="Partition output CSVs by Experiment"
-          /><br/>
           <FormControlLabel
             control={<Checkbox checked={props.partitionByUnitSelection} onChange={props.handleChange} name="partition_by_unit" />}
             label="Partition output CSVs by Pioreactor"
@@ -431,26 +373,6 @@ function ExportDataContainer() {
     getDatasets()
   }, [])
 
-  React.useEffect(() => {
-    if (datasets.length === 0) {
-      return;
-    }
-
-    const datasetNames = new Set(datasets.map((dataset) => dataset.dataset_name));
-    setState((prevState) => {
-      const filteredSelectedDatasets = prevState.selectedDatasets.filter((name) => datasetNames.has(name));
-      if (arrayShallowEqual(filteredSelectedDatasets, prevState.selectedDatasets)) {
-        return prevState;
-      }
-
-      return {
-        ...prevState,
-        selectedDatasets: filteredSelectedDatasets,
-      };
-    });
-  }, [datasets]);
-
-
   const onSubmit =  async (event) => {
     event.preventDefault();
 
@@ -475,7 +397,7 @@ function ExportDataContainer() {
           body: JSON.stringify({
             experiments: experimentsForExport,
             partition_by_unit: state.partitionByUnitSelection,
-            partition_by_experiment: state.partitionByExperimentSelection,
+            partition_by_experiment: true,
             datasets: state.selectedDatasets,
             start_time: state.useTimeFilter ? state.startTime : null,
             end_time: state.useTimeFilter ? state.endTime : null,
@@ -525,34 +447,10 @@ function ExportDataContainer() {
     }));
   };
 
-  function handleExperimentsLoaded(availableExperiments) {
-    const availableExperimentSet = new Set(availableExperiments);
-    setState((prevState) => {
-      const filteredSelectedExperiments = prevState.experimentSelection
-        .filter((experiment) => availableExperimentSet.has(experiment))
-        .slice(0, 1);
-      if (arrayShallowEqual(filteredSelectedExperiments, prevState.experimentSelection)) {
-        return prevState;
-      }
-
-      return {
-        ...prevState,
-        experimentSelection: filteredSelectedExperiments,
-      };
-    });
-  }
-
   function handlePartitionByChange(event) {
-    const stateKey = {
-      partition_by_unit: "partitionByUnitSelection",
-      partition_by_experiment: "partitionByExperimentSelection",
-    }[event.target.name];
-
-    if (!stateKey) return;
-
     setState(prevState => ({
       ...prevState,
-      [stateKey]: event.target.checked
+      partitionByUnitSelection: event.target.checked
     }));
   };
 
@@ -604,7 +502,6 @@ function ExportDataContainer() {
                 <ExperimentSelection
                   experimentSelection={state.experimentSelection}
                   handleChange={handleExperimentSelectionChange}
-                  onExperimentsLoaded={handleExperimentsLoaded}
                 />
               </Grid>
               <Grid  size={{
@@ -630,7 +527,6 @@ function ExportDataContainer() {
                   <AccordionDetails>
                     <PartitionBySelection
                       partitionByUnitSelection={state.partitionByUnitSelection}
-                      partitionByExperimentSelection={state.partitionByExperimentSelection}
                       handleChange={handlePartitionByChange}
                     />
                     {/* Time range selectors */}
