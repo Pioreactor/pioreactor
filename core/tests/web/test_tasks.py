@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
+import os
+import subprocess
+import sys
 from http.client import HTTPMessage
 from pathlib import Path
 from subprocess import TimeoutExpired
@@ -18,6 +21,22 @@ def _response(status_code: int, payload: dict[str, Any]) -> Response:
 def _clear_rate_limit(name: str) -> None:
     tasks.huey.delete(f"{tasks.huey.name}.rl.{name}.w")
     tasks.huey.storage.delete_counter(f"{tasks.huey.name}.rl.{name}")
+
+
+def test_importing_tasks_does_not_import_web_app() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; import pioreactor.web.tasks; print('pioreactor.web.app' in sys.modules)",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**dict(os.environ), "SKIP_PLUGINS": "1"},
+    )
+
+    assert result.stdout.strip() == "False"
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:

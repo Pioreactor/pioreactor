@@ -59,7 +59,6 @@ from pioreactor.structs import subclass_union
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.version import hardware_version_info
-from pioreactor.web import cache
 from pioreactor.web.config import huey
 from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
@@ -1170,6 +1169,9 @@ def _enqueue_multicast_chord(task_signatures: list[Any], units: list[str], sort_
 
 
 def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[str]) -> None:
+    # Keep this import lazy so plugins can import the calibration action registry without importing web.app.
+    from pioreactor.web import cache
+
     cache.clear_multicast_get_cache(cache_namespace, endpoint, units)
 
 
@@ -1340,6 +1342,9 @@ def multicast_get_with_leader_cache(
     timeout: float = 5.0,
     ttl_s: float = 10.0,
 ) -> dict[str, Any]:
+    # Keep this import lazy so plugins can import the calibration action registry without importing web.app.
+    from pioreactor.web import cache
+
     return cache.multicast_get_with_leader_cache(
         cache_namespace=cache_namespace,
         endpoint=endpoint,
