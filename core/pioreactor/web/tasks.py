@@ -48,7 +48,7 @@ from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
-from pioreactor.plugin_management import load_plugins
+from pioreactor.plugin_management import get_plugins
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
@@ -254,11 +254,12 @@ def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.1) -> 
 @huey.on_startup()
 def initialized() -> None:
     logger.debug("Starting Huey consumer...")
-    logger.debug("Loading plugins...")
     try:
-        load_plugins()
+        plugins = get_plugins()
+        for plugin in plugins:
+            logger.debug(f"Loading plugin {plugin}")
     except Exception:
-        pass
+        raise
 
 
 @huey.task(priority=50)

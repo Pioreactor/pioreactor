@@ -8,12 +8,18 @@ import Alert from "@mui/material/Alert";
 import UnderlineSpan from "./UnderlineSpan";
 import MenuItem from "@mui/material/MenuItem";
 import VialVolumePreview from "./VialVolumePreview";
+import { getAutomationFieldError } from "./AutomationForm";
 
 function DosingAutomationForm(props) {
+  const [touchedFields, setTouchedFields] = React.useState({});
   const threshold = props.threshold;
   const safetyBufferMl = 1;
   const capacity = Number.isFinite(props.capacity) ? props.capacity : null;
   const volumeInputBounds = capacity !== null ? { min: 0, max: capacity } : { min: 0 };
+
+  React.useEffect(() => {
+    setTouchedFields({});
+  }, [props.name]);
 
   const computeWarning = (currentVolume, effluxTubeVolume) => {
     if (currentVolume != null && currentVolume >= threshold) {
@@ -40,7 +46,12 @@ function DosingAutomationForm(props) {
   );
 
   const onSettingsChange = (id, value) => {
+    setTouchedFields((previous) => ({ ...previous, [id]: true }));
     props.updateParent({ [id]: value });
+  };
+
+  const markFieldTouched = (id) => {
+    setTouchedFields((previous) => ({ ...previous, [id]: true }));
   };
 
   const warning = computeWarning(
@@ -61,15 +72,20 @@ function DosingAutomationForm(props) {
   const listOfDisplayFields = props.fields.map(field => {
     const hasExplicitValue = Object.prototype.hasOwnProperty.call(props.algoSettings, field.key);
     const value = hasExplicitValue ? (props.algoSettings[field.key] ?? "") : (field.default ?? "");
+    const error = touchedFields[field.key] ? getAutomationFieldError(field, props.algoSettings) : "";
     const commonProps = {
       size: "small",
       autoComplete: "off",
       id: field.key,
       label: field.label,
       value,
+      required: field.required,
+      error: Boolean(error),
+      helperText: error,
       disabled: field.disabled,
       variant: "outlined",
       onKeyPress: (e) => { e.key === 'Enter' && e.preventDefault(); },
+      onBlur: (e) => markFieldTouched(e.target.id),
       sx: { mt: 3, mr: 2, mb: 0, width: "18ch" },
     };
 

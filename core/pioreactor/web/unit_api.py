@@ -670,6 +670,8 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
 def run_job(job_name: str) -> DelayedResponseReturnValue:
     """
     Body should look like (all optional)
+
+    ```
     {
       "options": {
         "option1": "value1",
@@ -688,6 +690,7 @@ def run_job(job_name: str) -> DelayedResponseReturnValue:
       "options": {},
       "args": []
     }'
+    ```
     """
     if is_rate_limited(job_name):
         abort_with(429, "Too many requests, please try again later.")
@@ -846,14 +849,7 @@ def get_all_long_running_jobs() -> ResponseReturnValue:
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["GET"])
 def get_job_settings(job_name: str) -> ResponseReturnValue:
-    """
-    {
-      "settings": {
-        <setting1>: <value1>,
-        <setting2>: <value2>
-      }
-    }
-    """
+    """Return published settings for a running job."""
     settings = query_temp_local_metadata_db(
         """
     SELECT s.setting, s.value FROM

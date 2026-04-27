@@ -20,7 +20,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
-import AutomationForm from "./AutomationForm"
+import AutomationForm, { hasAutomationFormErrors } from "./AutomationForm"
 
 
 const defaultAutomations = {
@@ -54,6 +54,7 @@ function ChangeAutomationsDialog(props) {
   const [isLoading, setIsLoading] = useState(true)
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const selectedAutomation = automations[automationName]
+  const hasValidationErrors = hasAutomationFormErrors(selectedAutomation?.fields, algoSettings)
 
   useEffect(() => {
     setIsLoading(true)
@@ -110,6 +111,10 @@ function ChangeAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
+    if (hasValidationErrors) {
+      return
+    }
+
     runPioreactorJob(
       props.unit,
       props.experiment,
@@ -213,7 +218,7 @@ function ChangeAutomationsDialog(props) {
           variant="contained"
           color="primary"
           onClick={startJob}
-          disabled={isLoading}
+          disabled={isLoading || hasValidationErrors}
         >
           Start
         </Button>

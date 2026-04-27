@@ -600,6 +600,7 @@ class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):
     default: str | float | int | None
     label: str
     disabled: bool = False
+    required: bool = True
     unit: str | None = None
     type: t.Literal["numeric", "string", "select"] = "numeric"  # TODO we will include boolean
     options: list[str] | None = None

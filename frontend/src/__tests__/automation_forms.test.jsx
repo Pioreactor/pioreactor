@@ -56,6 +56,16 @@ const mockGetAutomationDescriptors = (unit, automationType) => {
           { key: "exchange_volume_ml", label: "Exchange volume", type: "numeric", default: 1.5, unit: "ml" },
         ],
       },
+      {
+        automation_name: "turbidostat",
+        display_name: "Turbidostat",
+        description: "Maintain a target biomass.",
+        fields: [
+          { key: "target_biomass", label: "Target", type: "numeric", default: null, unit: "OD/AU", required: true },
+          { key: "biomass_signal", label: "Biomass signal", type: "select", default: "auto", options: ["auto", "od"] },
+          { key: "exchange_volume_ml", label: "Exchange volume", type: "numeric", default: null, unit: "ml", required: true },
+        ],
+      },
     ]);
   }
 
@@ -124,6 +134,31 @@ describe("automation forms", () => {
     });
 
     expect(input).toHaveDisplayValue("");
+  });
+
+  test("AutomationForm shows required errors after empty required fields are touched", () => {
+    render(
+      <AutomationForm
+        fields={[
+          { key: "target_temperature", label: "Target temperature", type: "numeric", default: null, unit: "C", required: true },
+        ]}
+        description="Keep temperature steady."
+        updateParent={jest.fn()}
+        name="thermostat"
+        settings={{ target_temperature: null }}
+      />,
+    );
+
+    const input = screen.getByRole("spinbutton", { name: /Target temperature/ });
+    expect(input).toHaveAttribute("aria-invalid", "false");
+    expect(screen.queryByText("Required")).not.toBeInTheDocument();
+
+    fireEvent.blur(input, {
+      target: { id: "target_temperature" },
+    });
+
+    expect(input).toBeInvalid();
+    expect(screen.getByText("Required")).toBeInTheDocument();
   });
 
   test("DosingAutomationForm renders derived warnings from props and only reports user-driven changes", () => {
@@ -261,6 +296,57 @@ describe("automation forms", () => {
       [],
     );
     expect(getAutomationDescriptors).toHaveBeenCalledWith("unit-1", "dosing");
+  });
+
+  test("ChangeDosingAutomationsDialog disables start until required dosing automation fields are filled", async () => {
+    renderWithSnackbar(
+      <ChangeDosingAutomationsDialog
+        open
+        onFinished={jest.fn()}
+        unit="unit-1"
+        experiment="exp-1"
+        maxVolume={16}
+        liquidVolume={14}
+        capacity={20}
+        threshold={18}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText("Current volume")).toHaveValue(14));
+
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "Turbidostat" }));
+
+    const startButton = screen.getByRole("button", { name: "Start" });
+    expect(startButton).toBeDisabled();
+    expect(screen.queryByText("Required")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: /Target/ }), {
+      target: { id: "target_biomass", value: "3", valueAsNumber: 3 },
+    });
+    fireEvent.change(screen.getByRole("spinbutton", { name: /Exchange volume/ }), {
+      target: { id: "exchange_volume_ml", value: "1", valueAsNumber: 1 },
+    });
+
+    expect(startButton).toBeEnabled();
+    fireEvent.click(startButton);
+
+    expect(mockRunPioreactorJob).toHaveBeenCalledWith(
+      "unit-1",
+      "exp-1",
+      "dosing_automation",
+      [],
+      {
+        automation_name: "turbidostat",
+        skip_first_run: 0,
+        target_biomass: 3,
+        biomass_signal: "auto",
+        exchange_volume_ml: 1,
+        current_volume_ml: 14,
+        efflux_tube_volume_ml: 16,
+      },
+      [],
+    );
   });
 
   test("ChangeAutomationsDialog keeps broadcast automation descriptors leader-driven", async () => {

@@ -21,6 +21,7 @@ import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
 import DosingAutomationForm from "./DosingAutomationForm"
+import { hasAutomationFormErrors } from "./AutomationForm"
 
 const getDefaultDosingSettings = (fields) => (
   Object.fromEntries(
@@ -52,6 +53,7 @@ function ChangeDosingAutomationsDialog(props) {
   const [isLoading, setIsLoading] = useState(true)
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const selectedAutomation = automations[automationName]
+  const hasValidationErrors = hasAutomationFormErrors(selectedAutomation?.fields, algoSettings)
 
   useEffect(() => {
     setIsLoading(true)
@@ -119,6 +121,10 @@ function ChangeDosingAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
+    if (hasValidationErrors) {
+      return
+    }
+
     runPioreactorJob(
       props.unit,
       props.experiment,
@@ -233,7 +239,7 @@ function ChangeDosingAutomationsDialog(props) {
           variant="contained"
           color="primary"
           onClick={startJob}
-          disabled={isLoading}
+          disabled={isLoading || hasValidationErrors}
         >
           Start
         </Button>

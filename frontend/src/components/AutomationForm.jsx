@@ -4,24 +4,59 @@ import InputAdornment from "@mui/material/InputAdornment";
 import Typography from "@mui/material/Typography";
 import MenuItem from "@mui/material/MenuItem";
 
+export function getAutomationFieldError(field, settings) {
+  if (field.disabled || !field.required) {
+    return "";
+  }
+
+  const hasExplicitValue = Object.prototype.hasOwnProperty.call(settings, field.key);
+  const value = hasExplicitValue ? settings[field.key] : field.default;
+
+  if (value == null || value === "" || Number.isNaN(value)) {
+    return "Required";
+  }
+
+  return "";
+}
+
+export function hasAutomationFormErrors(fields, settings) {
+  return (fields || []).some((field) => getAutomationFieldError(field, settings));
+}
+
 
 function AutomationForm(props){
+  const [touchedFields, setTouchedFields] = React.useState({});
+
+  React.useEffect(() => {
+    setTouchedFields({});
+  }, [props.name]);
+
   const onSettingsChange = (id, value) => {
+    setTouchedFields((previous) => ({ ...previous, [id]: true }));
     props.updateParent({ [id]: value });
+  };
+
+  const markFieldTouched = (id) => {
+    setTouchedFields((previous) => ({ ...previous, [id]: true }));
   };
 
   const listOfDisplayFields = props.fields.map(field => {
     const hasExplicitValue = Object.prototype.hasOwnProperty.call(props.settings, field.key);
     const value = hasExplicitValue ? (props.settings[field.key] ?? "") : (field.default ?? "");
+    const error = touchedFields[field.key] ? getAutomationFieldError(field, props.settings) : "";
     const commonProps = {
       size: "small",
       autoComplete: "off",
       id: field.key,
       label: field.label,
       value,
+      required: field.required,
+      error: Boolean(error),
+      helperText: error,
       disabled: field.disabled,
       variant: "outlined",
       onKeyPress: (e) => { e.key === 'Enter' && e.preventDefault(); },
+      onBlur: (e) => markFieldTouched(e.target.id),
       sx: { mt: 3, mr: 2, mb: 0, width: "18ch" },
     };
 
