@@ -33,6 +33,7 @@ from typing import cast
 from uuid import uuid4
 
 from huey import chord as huey_chord
+from huey.exceptions import ResultTimeout
 from msgspec import DecodeError
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
@@ -1133,8 +1134,7 @@ def post_into_unit(
         return unit, None
 
 
-@huey.task(priority=5)
-def reduce_multicast_results(
+def _reduce_multicast_results(
     units: list[str],
     sort_results: bool,
     ordered_results: list[Any],
@@ -1157,6 +1157,15 @@ def reduce_multicast_results(
         return dict(sorted(results_by_unit.items()))
 
     return results_by_unit
+
+
+@huey.task(priority=5)
+def reduce_multicast_results(
+    units: list[str],
+    sort_results: bool,
+    ordered_results: list[Any],
+) -> dict[str, Any]:
+    return _reduce_multicast_results(units, sort_results, ordered_results)
 
 
 def _enqueue_multicast_chord(task_signatures: list[Any], units: list[str], sort_results: bool) -> Any:
@@ -1307,7 +1316,20 @@ def _multicast_get_uncached(
         units,
         True,
     )
-    unsorted_responses = result.get(blocking=True, timeout=timeout)
+    try:
+        # Give the aggregate Huey result a small amount of headroom beyond the per-unit
+        # request timeout so offline workers can resolve to `None` instead of turning
+        # the whole fanout into a ResultTimeout.
+        unsorted_responses = result.get(blocking=True, timeout=timeout + 1.0)
+    except ResultTimeout:
+        ordered_results: list[Any] = []
+        for child_result in result.results:
+            try:
+                ordered_results.append(child_result.get(blocking=False, preserve=True))
+            except Exception as exc:
+                ordered_results.append(exc)
+
+        return _reduce_multicast_results(units, True, ordered_results)
 
     return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 

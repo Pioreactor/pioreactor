@@ -183,8 +183,10 @@ def test_reduce_multicast_results_handles_partial_failures() -> None:
     ]
 
     output = tasks.reduce_multicast_results.call_local(units, False, ordered_results)
+    helper_output = tasks._reduce_multicast_results(units, False, ordered_results)
 
     assert output == {"unit1": {"ok": True}, "unit2": None, "unit3": None}
+    assert helper_output == output
 
 
 def test_reduce_multicast_results_sorts_when_requested() -> None:
@@ -197,6 +199,56 @@ def test_reduce_multicast_results_sorts_when_requested() -> None:
     output = tasks.reduce_multicast_results.call_local(units, True, ordered_results)
 
     assert list(output.keys()) == ["unit1", "unit2"]
+
+
+def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class DummyResult:
+        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+            captured["blocking"] = blocking
+            captured["timeout"] = timeout
+            return {"unit1": None}
+
+    monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
+
+    output = tasks._multicast_get_uncached("/unit_api/calibration_protocols", ["unit1"], timeout=5.0)
+
+    assert output == {"unit1": None}
+    assert captured == {"blocking": True, "timeout": 6.0}
+
+
+def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ReadyChildResult:
+        def __init__(self, value: Any) -> None:
+            self.value = value
+
+        def get(self, blocking: bool = False, preserve: bool = False) -> Any:
+            return self.value
+
+    class PendingChildResult:
+        def get(self, blocking: bool = False, preserve: bool = False) -> Any:
+            return None
+
+    class DummyResult:
+        def __init__(self) -> None:
+            self.results = [
+                ReadyChildResult(("unit1", {"ok": True})),
+                PendingChildResult(),
+            ]
+
+        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+            raise tasks.ResultTimeout("timed out waiting for result")
+
+    monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
+
+    output = tasks._multicast_get_uncached("/unit_api/calibration_protocols", ["unit1", "unit2"])
+
+    assert output == {"unit1": {"ok": True}, "unit2": None}
 
 
 def test_install_plugin_task_is_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:

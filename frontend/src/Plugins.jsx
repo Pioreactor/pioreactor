@@ -357,6 +357,7 @@ function PluginContainer(){
   const [unitsFetchError, setUnitsFetchError] = React.useState("")
   const [pluginsRefreshCounter, setPluginsRefreshCounter] = React.useState(0)
   const latestPluginsRequestId = React.useRef(0)
+  const displayedSelectedUnit = units.includes(selectedUnit) ? selectedUnit : ""
 
   React.useEffect(() => {
     if (!selectedUnit) {
@@ -376,17 +377,21 @@ function PluginContainer(){
       try {
         // Fetch installed plugins
         const result = await fetchTaskResult(`/api/units/${selectedUnit}/plugins/installed`);
+        const unitPlugins = result?.result?.[selectedUnit]
 
         if (!isActive || requestId !== latestPluginsRequestId.current) {
           return
         }
 
-        // Once 200 is received and JSON is parsed, update state
-        if (result['result'][selectedUnit]){
-          setInstalledPlugins(result['result'][selectedUnit])
-        } else {
-          setInstalledPlugins([])
+        if (unitPlugins == null) {
+          throw new Error("Could not reach this Pioreactor.")
         }
+
+        if (!Array.isArray(unitPlugins)) {
+          throw new Error("Installed plugins payload is not a list.")
+        }
+
+        setInstalledPlugins(unitPlugins)
       } catch (err) {
         if (!isActive || requestId !== latestPluginsRequestId.current) {
           return
@@ -492,7 +497,7 @@ function PluginContainer(){
           <Select
             labelId="configSelect"
             variant="standard"
-            value={selectedUnit}
+            value={displayedSelectedUnit}
             onChange={onSelectionChange}
             disabled={units.length === 0}
             sx={{

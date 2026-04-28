@@ -566,6 +566,7 @@ export default function SideNavAndHeader() {
                 <MuiLink href="mailto:support@pioreactor.com">
                   support@pioreactor.com
                 </MuiLink>
+                It's especially helpful if you can provide your software version, hardware version, and any screenshots in the email, too.
                 .
               </Typography>
             </Stack>

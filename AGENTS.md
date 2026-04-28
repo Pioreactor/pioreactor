@@ -135,7 +135,7 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
  - Disabling tests is okay, however you MUST ASK PERMISSION to **disable** a test only if any of the following:
     - it is incredibly flakey and unreliable.
     - relies on an unresponsive external service.
- - Deleting tets is okay, however you MUST ASK PERMISSION to **delete** a test only if:
+ - Deleting tests is okay, however you MUST ASK PERMISSION to **delete** a test only if:
     - its conclusion is orthogonal to the logic being written.
     - its preventing a better refactor or feature.
     - its an incredibly trivial feature that is unlikely to be used.

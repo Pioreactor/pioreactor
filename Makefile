@@ -1,8 +1,7 @@
 # ──────────────────────────────────────────────────────────
 # Pioreactor mono-repo – development helpers (stage 1)
 #  * Python 3.13   (core + Flask API)
-#  * Node 20       (React frontend)
-#  * Docker        (optional dev stack: mosquitto, sqlite viewer, etc.)
+#  * Node 25       (React frontend)
 #
 # USAGE:  make <target>
 # List targets:  make help
@@ -123,7 +122,7 @@ frontend-build: frontend-lint-fix
 	git add core/pioreactor/web/static/
 
 # --- live dev servers ---------------------------------------------------------
-web-dev: venv  ## Run Flask API on 127.0.0.1:5000
+web-dev: venv  ## Run Flask API on 127.0.0.1:4999
 	@FLASK_ENV=development $(ACTIVATE) && cd $(API_DIR) && python3 -m flask --app app run -p 4999 --debug
 
 frontend-dev:  ## Run React dev server on :3000
