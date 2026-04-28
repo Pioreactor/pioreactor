@@ -14,7 +14,6 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.automations.base import AutomationJob
-from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
@@ -283,6 +282,7 @@ class TemperatureAutomationJob(AutomationJob):
         return temp
 
     def on_disconnected(self) -> None:
+        super().on_disconnected()
         self._exit_event.set()
 
         with suppress(AttributeError):
@@ -294,10 +294,12 @@ class TemperatureAutomationJob(AutomationJob):
             self.turn_off_heater()
 
     def on_sleeping(self) -> None:
+        super().on_sleeping()
         self.publish_temperature_timer.pause()
         self._update_heater(0)
 
     def on_sleeping_to_ready(self) -> None:
+        super().on_sleeping_to_ready()
         self.publish_temperature_timer.unpause()
 
     def setup_pwm(self) -> PWM:
@@ -574,7 +576,10 @@ class TemperatureAutomationJob(AutomationJob):
         self.latest_temperature_at = temperature.timestamp
 
         if self.state == self.READY or self.state == self.INIT:
-            self.latest_event = self.execute()
+            self.run_once(
+                wait_for_ready=False,
+                allowed_states=(self.READY, self.INIT),
+            )
 
         return
 
@@ -599,9 +604,6 @@ def start_temperature_automation(
         raise KeyError(
             f"Unable to find {automation_name}. Available automations are {list(available_temperature_automations.keys())}"
         )
-
-    if "skip_first_run" in kwargs:
-        del kwargs["skip_first_run"]
 
     try:
         return klass(

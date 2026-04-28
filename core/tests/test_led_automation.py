@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
+from datetime import timedelta
+from typing import Callable
 
 import pytest
 from msgspec.json import encode
@@ -19,6 +21,15 @@ unit = get_unit_name()
 def pause(n=1) -> None:
     # to avoid race conditions when updating state
     time.sleep(n * 0.5)
+
+
+def wait_for(predicate: Callable[[], bool], timeout: float = 5.0, check_interval: float = 0.01) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if predicate():
+            return True
+        time.sleep(check_interval)
+    return False
 
 
 def test_silent() -> None:
@@ -67,39 +78,30 @@ def test_light_dark_cycle_starts_on() -> None:
     experiment = "test_light_dark_cycle_starts_on"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=1,
         light_intensity=50,
         light_duration_minutes=60 * 16,
         dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
-        pause(12)
-
-        assert lc.light_active  # is this failing future Dev? od config samples_per_second==0.2
+        assert wait_for(lambda: lc.light_active)
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 50
             assert c["C"] == 50
 
 
-@pytest.mark.flakey
 def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
     experiment = "test_light_dark_cycle_turns_off_after_N_cycles"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
         dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.minutes_online < 0:
-            pass
-
-        pause()
-        lc.minutes_online = 16 * 60 + 58
-        pause()
+        assert wait_for(lambda: lc.light_active)
+        lc.trigger_leds(16 * 60)
 
         assert not lc.light_active
         with local_intermittent_storage("leds") as c:
@@ -107,29 +109,21 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
             assert c["C"] == 0.0
 
 
-@pytest.mark.flakey
 def test_dark_duration_hour_to_zero() -> None:
     experiment = "test_dark_duration_hour_to_zero"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 16,
         dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.minutes_online < 0:
-            pass
-
-        pause()
-        lc.minutes_online = 15 * 60 + 58
-        pause()
+        assert wait_for(lambda: lc.light_active)
+        lc.trigger_leds(16 * 60)
 
         assert not lc.light_active
-        pause()
         lc.set_dark_duration_minutes(0 * 60)
-        pause()
         assert lc.light_active
 
         with local_intermittent_storage("leds") as c:
@@ -137,47 +131,38 @@ def test_dark_duration_hour_to_zero() -> None:
             assert c["C"] == 50.0
 
 
-@pytest.mark.flakey
 def test_light_duration_hour_to_zero() -> None:
     experiment = "test_light_duration_hour_to_zero"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
         dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
-        pause(22)
-        assert lc.light_active
+        assert wait_for(lambda: lc.light_active)
 
         lc.set_light_duration_minutes(60 * 0)
 
         assert not lc.light_active
 
 
-@pytest.mark.flakey
 def test_add_dark_duration_minutes() -> None:
     experiment = "test_add_dark_duration_minutes * 60"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
         dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.minutes_online < 0:
-            pass
-
-        pause()
-        lc.minutes_online = 15 * 60 + 59
-        pause()
-
+        assert wait_for(lambda: lc.light_active)
+        lc.trigger_leds(16 * 60)
         assert not lc.light_active
 
+        lc._cycle_started_at = current_utc_datetime() - timedelta(minutes=16 * 60)
         lc.set_dark_duration_minutes(10 * 60)
 
         assert not lc.light_active
@@ -187,31 +172,22 @@ def test_add_dark_duration_minutes() -> None:
             assert c["C"] == 0.0
 
 
-@pytest.mark.flakey
 def test_remove_dark_duration_minutes() -> None:
     experiment = "test_remove_dark_duration_minutes * 60"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 16,
         dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.minutes_online < 0:
-            pass
-
-        pause()
-        lc.minutes_online = 15 * 60 + 58
-        pause()
-
-        pause()
-        lc.minutes_online = 20 * 60 + 58
-        pause()
+        assert wait_for(lambda: lc.light_active)
+        lc.trigger_leds(20 * 60)
 
         assert not lc.light_active
 
+        lc._cycle_started_at = current_utc_datetime() - timedelta(minutes=20 * 60)
         lc.set_dark_duration_minutes(3 * 60)
 
         assert lc.light_active
@@ -221,39 +197,43 @@ def test_remove_dark_duration_minutes() -> None:
             assert c["C"] == 50.0
 
 
-@pytest.mark.flakey
 def test_fractional_hours() -> None:
     experiment = "test_fractional_hours"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 0.9,  # type: ignore
         dark_duration_minutes=0.1 * 60,  # type: ignore
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.minutes_online < 0:
-            pass
-
-        while lc.minutes_online < 10:
-            pass
+        lc.trigger_leds(10)
         assert lc.light_active
 
-        while lc.minutes_online < 55:
-            pass
+        lc.trigger_leds(55)
         assert not lc.light_active
 
-        while lc.minutes_online < 62:
-            pass
+        lc.trigger_leds(62)
         assert lc.light_active
+
+
+def test_light_dark_cycle_supports_sub_minute_phase_schedule() -> None:
+    experiment = "test_light_dark_cycle_supports_sub_minute_phase_schedule"
+    with LightDarkCycle(
+        light_intensity=50,
+        light_duration_minutes=0.01,
+        dark_duration_minutes=0.01,
+        unit=get_unit_name(),
+        experiment=experiment,
+    ) as lc:
+        assert wait_for(lambda: lc.light_active)
+        assert wait_for(lambda: not lc.light_active, timeout=2.0)
 
 
 @pytest.fixture
 def light_dark_cycle():
     # Use context manager so each test tears down the automation cleanly.
     with LightDarkCycle(
-        duration=1,
         unit=get_unit_name(),
         experiment="test_light_dark_cycle",
         light_intensity=100,
@@ -264,11 +244,10 @@ def light_dark_cycle():
 
 
 def test_light_turns_on_in_light_period(light_dark_cycle) -> None:
-    # Setting the minutes to 30 (inside the light period of 1 hour)
-    light_dark_cycle.minutes_online = 30
+    light_dark_cycle.light_active = False
 
     # In this case, light should be turned on
-    event = light_dark_cycle.trigger_leds(light_dark_cycle.minutes_online)
+    event = light_dark_cycle.trigger_leds(30)
 
     # Check that the LEDs were turned on
     assert isinstance(event, events.ChangedLedIntensity)
@@ -278,12 +257,10 @@ def test_light_turns_on_in_light_period(light_dark_cycle) -> None:
 
 
 def test_light_stays_on_in_light_period(light_dark_cycle) -> None:
-    # Setting the minutes to 30 (inside the light period of 1 hour) and light_active to True
-    light_dark_cycle.minutes_online = 30
     light_dark_cycle.light_active = True
 
     # In this case, light should stay on
-    event = light_dark_cycle.trigger_leds(light_dark_cycle.minutes_online)
+    event = light_dark_cycle.trigger_leds(30)
 
     # Check that no change in LED status occurred
     assert event is None
@@ -292,10 +269,9 @@ def test_light_stays_on_in_light_period(light_dark_cycle) -> None:
 def test_light_turns_off_in_dark_period(light_dark_cycle) -> None:
     # Setting the minutes to 60 (inside the dark period of 1 hour, after the light period of 1 hour)
     light_dark_cycle.light_active = True
-    light_dark_cycle.minutes_online = 60
 
     # In this case, light should be turned off
-    event = light_dark_cycle.trigger_leds(light_dark_cycle.minutes_online)
+    event = light_dark_cycle.trigger_leds(60)
 
     # Check that the LEDs were turned off
     assert isinstance(event, events.ChangedLedIntensity)
@@ -305,12 +281,10 @@ def test_light_turns_off_in_dark_period(light_dark_cycle) -> None:
 
 
 def test_light_stays_off_in_dark_period(light_dark_cycle) -> None:
-    # Setting the minutes to 90 (inside the dark period of 1 hour) and light_active to False
-    light_dark_cycle.minutes_online = 90
     light_dark_cycle.light_active = False
 
     # In this case, light should stay off
-    event = light_dark_cycle.trigger_leds(light_dark_cycle.minutes_online)
+    event = light_dark_cycle.trigger_leds(90)
 
     # Check that no change in LED status occurred
     assert event is None

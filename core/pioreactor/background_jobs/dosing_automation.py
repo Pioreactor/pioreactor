@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import time
-from contextlib import suppress
-from datetime import datetime
 from functools import partial
 from threading import Event
 from typing import Any
@@ -25,8 +23,6 @@ from pioreactor.states import JobState
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
-from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.utils.timing import RepeatedTimer
 
 
 class classproperty(property):
@@ -80,9 +76,9 @@ class ThroughputCalculator:
 
 class DosingAutomationJob(AutomationJob):
     """
-    This is the super class that automations inherit from. The `run` function will
-    execute every `duration` minutes (selected at the start of the program). If `duration` is left
-    as None, manually call `run`. This calls the `execute` function, which is what subclasses will define.
+    This is the super class that dosing automations inherit from. Subclasses choose
+    how `execute` is scheduled, usually by calling `run_every` for timer-based automations
+    or `trigger_run_once_from_event` from a passive listener for event-based automations.
 
     To change setting over MQTT:
 
@@ -95,10 +91,7 @@ class DosingAutomationJob(AutomationJob):
     published_settings: dict[str, pt.PublishableSetting] = {}
 
     latest_event: structs.AutomationEvent | None = None
-    _latest_run_at: datetime | None = None
     _last_vial_volume_warning_at: float | None = None
-    run_thread: RepeatedTimer
-    duration: float | None
 
     # overwrite to use your own dosing programs.
     # interface must look like types.DosingProgram
@@ -138,27 +131,12 @@ class DosingAutomationJob(AutomationJob):
         self,
         unit: pt.Unit,
         experiment: pt.Experiment,
-        duration: float | None = None,
-        skip_first_run: bool = False,
         alt_media_fraction: float | None = None,
         current_volume_ml: float | None = None,
         efflux_tube_volume_ml: float | None = None,
         **kwargs: Any,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
-
-        if "duration" not in self.published_settings:
-
-            self.add_to_published_settings(
-                "duration",
-                {
-                    "datatype": "float",
-                    "settable": True,
-                    "unit": "min",
-                },
-            )
-
-        self.skip_first_run = skip_first_run
 
         self._init_alt_media_fraction(alt_media_fraction)
         self._init_volume_throughput()
@@ -169,7 +147,6 @@ class DosingAutomationJob(AutomationJob):
             f"efflux_tube_volume_ml={self.efflux_tube_volume_ml:.2f} mL."
         )
 
-        self.set_duration(duration)
         self._continue_pumping_event = Event()
 
         if not is_pio_job_running("stirring"):
@@ -187,79 +164,8 @@ class DosingAutomationJob(AutomationJob):
         partial(add_alt_media, duration=None, calibration=None, continuously=False)
     )
 
-    def set_duration(self, duration: float | None) -> None:
-        if duration:
-            self.duration = float(duration)
-
-            with suppress(AttributeError):
-                self.run_thread.cancel()
-
-            if self._latest_run_at is not None:
-                # what's the correct logic when changing from duration N and duration M?
-                # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.
-                # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
-                run_after = max(
-                    0,
-                    (self.duration * 60) - (current_utc_datetime() - self._latest_run_at).seconds,
-                )
-            else:
-                # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
-                # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
-                run_after = 2.0
-
-            self.run_thread = RepeatedTimer(
-                self.duration * 60,
-                self.run,
-                job_name=self.job_name,
-                run_immediately=(not self.skip_first_run) or (self._latest_run_at is not None),
-                run_after=run_after,
-                logger=self.logger,
-            ).start()
-
     def run(self, timeout: float = 60.0) -> structs.AutomationEvent | None:
-        """
-        Parameters
-        -----------
-        timeout: float
-            if the job is not in a READY state after timeout seconds, skip calling `execute` this period.
-            Default 60s.
-
-        """
-        event: structs.AutomationEvent | None
-
-        self._latest_run_at = current_utc_datetime()
-
-        if self.state == self.DISCONNECTED:
-            # NOOP
-            # we ended early.
-            return None
-
-        elif self.state != self.READY:
-            sleep_for = brief_pause()
-            # wait a 60s, and if not unpaused, just move on.
-            if (timeout - sleep_for) <= 0:
-                self.logger.debug("Timed out waiting for READY.")
-                return None
-            else:
-                return self.run(timeout=timeout - sleep_for)
-        else:
-            # we are in READY
-            try:
-                event = self.execute()
-                if event:
-                    self.logger.info(event.display())
-
-            except exc.JobRequiredError as e:
-                self.logger.debug(e, exc_info=True)
-                self.logger.warning(e)
-                event = events.ErrorOccurred(str(e))
-            except Exception as e:
-                self.logger.debug(e, exc_info=True)
-                self.logger.error(e)
-                event = events.ErrorOccurred(str(e))
-
-        self.latest_event = event
-        return event
+        return self.run_once(timeout=timeout)
 
     def block_until_not_sleeping(self) -> bool:
         while self.state == self.SLEEPING:
@@ -433,18 +339,13 @@ class DosingAutomationJob(AutomationJob):
     ########## Private & internal methods
 
     def on_sleeping(self) -> None:
+        super().on_sleeping()
         self.stop_active_pumps()
 
     def on_disconnected(self) -> None:
         self._continue_pumping_event.set()  # set this early so the pumps exits.
-        with suppress(AttributeError):
-            self.stop_active_pumps()
-        with suppress(AttributeError):
-            self.run_thread.join(
-                timeout=10
-            )  # thread has N seconds to end. If not, something is wrong, like a while loop in execute that isn't stopping.
-            if self.run_thread.is_alive():
-                self.logger.debug("run_thread still alive!")
+        self.stop_active_pumps()
+        super().on_disconnected()
 
     def _update_throughput_from_dosing_event(self, message: pt.MQTTMessage) -> None:
         dosing_event = decode(message.payload, type=structs.DosingEvent)
@@ -602,7 +503,6 @@ class DosingAutomationJobContrib(DosingAutomationJob):
 
 def start_dosing_automation(
     automation_name: str,
-    skip_first_run: bool = False,
     unit: str | None = None,
     experiment: str | None = None,
     **kwargs: Any,
@@ -623,7 +523,6 @@ def start_dosing_automation(
             unit=unit,
             experiment=experiment,
             automation_name=automation_name,
-            skip_first_run=skip_first_run,
             **kwargs,
         )
 
@@ -649,24 +548,14 @@ available_dosing_automations: dict[str, type[DosingAutomationJob]] = {}
     show_default=True,
     required=True,
 )
-@click.option("--duration", default=60.0, help="Time, in minutes, between every execution of the algorithm.")
-@click.option(
-    "--skip-first-run",
-    type=click.IntRange(min=0, max=1),
-    help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
-)
 @click.pass_context
-def click_dosing_automation(
-    ctx: click.Context, automation_name: str, duration: float, skip_first_run: int
-) -> None:
+def click_dosing_automation(ctx: click.Context, automation_name: str) -> None:
     """
     Start a dosing automation
     """
 
     with start_dosing_automation(
         automation_name=automation_name,
-        duration=float(duration),
-        skip_first_run=bool(skip_first_run),
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     ) as da:
         da.block_until_disconnected()

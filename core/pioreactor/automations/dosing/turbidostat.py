@@ -16,7 +16,7 @@ from pioreactor.utils import local_persistent_storage
 class Turbidostat(DosingAutomationJob):
     """
     Turbidostat mode - try to keep cell density constant by dosing whenever the target is surpassed.
-    Note: this has a small "duration" param to run the algorithm-check constantly.
+    This reacts to new biomass measurements instead of polling on a timer.
     """
 
     automation_name = "turbidostat"
@@ -24,7 +24,6 @@ class Turbidostat(DosingAutomationJob):
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_biomass": {"datatype": "float", "settable": True, "unit": "OD/AU"},
         "biomass_signal": {"datatype": "string", "settable": True},
-        "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
     target_biomass = None
     biomass_signal = None
@@ -36,6 +35,7 @@ class Turbidostat(DosingAutomationJob):
         biomass_signal: str | None = None,
         **kwargs: Any,
     ) -> None:
+        self._event_trigger_ready = False
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:
@@ -58,10 +58,7 @@ class Turbidostat(DosingAutomationJob):
         self.target_biomass = float(target_biomass)
 
         self.exchange_volume_ml = float(exchange_volume_ml)
-
-    def set_duration(self, value: float | None) -> None:
-        # force duration to always be 0.25 - we want to check often.
-        super().set_duration(0.25)
+        self._event_trigger_ready = True
 
     @property
     def _od_channel(self) -> pt.PdChannel:
@@ -177,3 +174,24 @@ class Turbidostat(DosingAutomationJob):
             return "od"
 
         return "normalized_od"
+
+    def _set_ods(self, message: pt.MQTTMessage) -> None:
+        super()._set_ods(message)
+        self._trigger_after_biomass_signal_update("od", message)
+
+    def _set_normalized_od(self, message: pt.MQTTMessage) -> None:
+        super()._set_normalized_od(message)
+        self._trigger_after_biomass_signal_update("normalized_od", message)
+
+    def _set_od_fused(self, message: pt.MQTTMessage) -> None:
+        super()._set_od_fused(message)
+        self._trigger_after_biomass_signal_update("od_fused", message)
+
+    def _trigger_after_biomass_signal_update(self, biomass_signal: str, message: pt.MQTTMessage) -> None:
+        if not message.payload or not self._event_trigger_ready or message.retain:
+            return
+
+        if self.resolved_biomass_signal != biomass_signal:
+            return
+
+        self.trigger_run_once_from_event()

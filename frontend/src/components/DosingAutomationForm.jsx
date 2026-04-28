@@ -7,6 +7,8 @@ import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
 import UnderlineSpan from "./UnderlineSpan";
 import MenuItem from "@mui/material/MenuItem";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import VialVolumePreview from "./VialVolumePreview";
 import { getAutomationFieldError } from "./AutomationForm";
 
@@ -106,6 +108,26 @@ function DosingAutomationForm(props) {
       );
     }
 
+    if (field.type === "boolean") {
+      return (
+        <FormControlLabel
+          key={field.key + props.name}
+          control={
+            <Checkbox
+              id={field.key}
+              checked={Boolean(value)}
+              disabled={field.disabled}
+              onChange={(e) => onSettingsChange(e.target.id, e.target.checked)}
+              onBlur={(e) => markFieldTouched(e.target.id)}
+              size="small"
+            />
+          }
+          label={field.label}
+          sx={{ mt: 3, mr: 8.5, ml: 0, mb: 0 }}
+        />
+      );
+    }
+
     const inputProps = field.unit ? {
       endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
     } : undefined;
@@ -117,7 +139,7 @@ function DosingAutomationForm(props) {
         onChange={
           field.type === "numeric"
             ? (e) => onSettingsChange(e.target.id, parseNumericInput(e))
-            : (e) => onSettingsChange((e.target.id, e.target.value))
+            : (e) => onSettingsChange(e.target.id, e.target.value)
         }
         slotProps={{ input: inputProps }}
         {...commonProps}

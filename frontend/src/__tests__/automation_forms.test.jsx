@@ -53,6 +53,7 @@ const mockGetAutomationDescriptors = (unit, automationType) => {
         description: "Maintain a fixed dilution rate.",
         fields: [
           { key: "duration", label: "Duration", type: "numeric", default: 30, unit: "min" },
+          { key: "skip_first_run", label: "Skip first run", type: "boolean", default: false },
           { key: "exchange_volume_ml", label: "Exchange volume", type: "numeric", default: 1.5, unit: "ml" },
         ],
       },
@@ -252,7 +253,6 @@ describe("automation forms", () => {
       [],
       {
         automation_name: "thermostat",
-        skip_first_run: 0,
         target_temperature: 37,
         mode: "normal",
       },
@@ -287,8 +287,8 @@ describe("automation forms", () => {
       [],
       {
         automation_name: "chemostat",
-        skip_first_run: 0,
         duration: 30,
+        skip_first_run: false,
         exchange_volume_ml: 1.5,
         current_volume_ml: 14,
         efflux_tube_volume_ml: 16,
@@ -338,7 +338,6 @@ describe("automation forms", () => {
       [],
       {
         automation_name: "turbidostat",
-        skip_first_run: 0,
         target_biomass: 3,
         biomass_signal: "auto",
         exchange_volume_ml: 1,

@@ -18,13 +18,19 @@ class PIDMorbidostat(DosingAutomationJob):
 
     automation_name = "pid_morbidostat"
     published_settings = {
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
     }
 
     def __init__(
-        self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs: Any
+        self,
+        target_growth_rate: float | str,
+        target_normalized_od: float | str,
+        duration: float | str = 60,
+        skip_first_run: bool | str | int = False,
+        **kwargs: Any,
     ) -> None:
         super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_normalized_od is not None, "`target_normalized_od` must be set"
@@ -59,10 +65,11 @@ class PIDMorbidostat(DosingAutomationJob):
             pub_client=self.pub_client,
         )
 
-        assert isinstance(self.duration, float)
+        self.duration = float(duration)
         self.exchange_volume_ml = round(
             self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4
         )
+        self.run_every(self.duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
 
     def execute(self) -> structs.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:
