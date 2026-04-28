@@ -17,15 +17,15 @@ class LightDarkCycle(LEDAutomationJob):
     automation_name: str = "light_dark_cycle"
     published_settings = {
         "light_intensity": {"datatype": "float", "settable": True, "unit": "%"},
-        "light_duration_minutes": {"datatype": "integer", "settable": True, "unit": "min"},
-        "dark_duration_minutes": {"datatype": "integer", "settable": True, "unit": "min"},
+        "light_duration_minutes": {"datatype": "float", "settable": True, "unit": "min"},
+        "dark_duration_minutes": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
     def __init__(
         self,
         light_intensity: float | str,
-        light_duration_minutes: int | str,
-        dark_duration_minutes: int | str,
+        light_duration_minutes: float | str,
+        dark_duration_minutes: float | str,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -62,11 +62,11 @@ class LightDarkCycle(LEDAutomationJob):
         action = "on" if light_should_be_on else "off"
         return events.ChangedLedIntensity(f"{elapsed_minutes:.1f}min: turned {action} LEDs.")
 
-    def set_dark_duration_minutes(self, minutes: int) -> None:
+    def set_dark_duration_minutes(self, minutes: float) -> None:
         self.dark_duration_minutes = float(minutes)
         self._run_and_schedule_next_phase()
 
-    def set_light_duration_minutes(self, minutes: int) -> None:
+    def set_light_duration_minutes(self, minutes: float) -> None:
         self.light_duration_minutes = float(minutes)
         self._run_and_schedule_next_phase()
 

@@ -230,6 +230,32 @@ def test_light_dark_cycle_supports_sub_minute_phase_schedule() -> None:
         assert wait_for(lambda: not lc.light_active, timeout=2.0)
 
 
+def test_light_dark_cycle_alternates_every_six_seconds_for_tenth_minute_phases() -> None:
+    experiment = "test_light_dark_cycle_alternates_every_six_seconds_for_tenth_minute_phases"
+    with LightDarkCycle(
+        light_intensity=50,
+        light_duration_minutes=0.1,
+        dark_duration_minutes=0.1,
+        unit=get_unit_name(),
+        experiment=experiment,
+    ) as lc:
+        transitions: list[tuple[bool, float]] = []
+
+        assert wait_for(lambda: lc.light_active)
+        transitions.append((lc.light_active, time.monotonic()))
+
+        for expected_light_active in [False, True, False, True, False]:
+            assert wait_for(lambda: lc.light_active is expected_light_active, timeout=8.0)
+            transitions.append((lc.light_active, time.monotonic()))
+
+    assert [state for state, _ in transitions] == [True, False, True, False, True, False]
+    phase_durations = [
+        current_timestamp - previous_timestamp
+        for (_, previous_timestamp), (_, current_timestamp) in zip(transitions, transitions[1:])
+    ]
+    assert phase_durations == pytest.approx([6.0] * 5, abs=1.0)
+
+
 @pytest.fixture
 def light_dark_cycle():
     # Use context manager so each test tears down the automation cleanly.
