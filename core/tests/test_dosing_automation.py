@@ -231,9 +231,11 @@ def test_silent_automation() -> None:
 
 
 @pytest.mark.slow
-def test_turbidostat_automation() -> None:
+def test_turbidostat_automation(monkeypatch) -> None:
     experiment = "test_turbidostat_automation"
     target_biomass = 1.0
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
+
     with Turbidostat(
         target_biomass=target_biomass,
         biomass_signal="normalized_od",
@@ -383,6 +385,7 @@ def test_turbidostat_triggers_at_threshold_boundary_for_biomass_signal(
     target_biomass = at_threshold
 
     monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
 
     with Turbidostat(
         target_biomass=target_biomass,
@@ -467,6 +470,54 @@ def test_turbidostat_runs_when_selected_biomass_signal_updates(monkeypatch) -> N
         )
 
         assert wait_for(lambda: isinstance(algo.latest_event, events.DilutionEvent), timeout=5.0)
+
+
+def test_turbidostat_waits_for_settling_time_before_retriggering(monkeypatch) -> None:
+    experiment = "test_turbidostat_waits_for_settling_time_before_retriggering"
+    doses: list[dict[str, float]] = []
+
+    monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 5.0)
+
+    with Turbidostat(
+        target_biomass=1.0,
+        biomass_signal="normalized_od",
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+    ) as algo:
+        monkeypatch.setattr(
+            algo,
+            "execute_io_action",
+            lambda **kwargs: doses.append(kwargs)
+            or {"media_ml": kwargs["media_ml"], "waste_ml": kwargs["waste_ml"]},
+        )
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=0.2,
+            normalized_od=1.1,
+            od_fused=0.2,
+        )
+        assert wait_for(lambda: len(doses) == 1, timeout=5.0)
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=0.21,
+            normalized_od=1.2,
+            od_fused=0.21,
+        )
+        pause()
+        assert len(doses) == 1
+
+        algo._settling_until = current_utc_datetime() - timedelta(seconds=1)
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=0.22,
+            normalized_od=1.3,
+            od_fused=0.22,
+        )
+        assert wait_for(lambda: len(doses) == 2, timeout=5.0)
 
 
 def test_turbidostat_ignores_retained_biomass_signal(monkeypatch) -> None:
@@ -616,8 +667,9 @@ def test_cant_change_target_in_turbidostat() -> None:
 
 
 @pytest.mark.slow
-def test_turbidostat_targeting_od() -> None:
+def test_turbidostat_targeting_od(monkeypatch) -> None:
     experiment = "test_turbidostat_targeting_od"
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
 
     target_biomass = 0.2
     with Turbidostat(

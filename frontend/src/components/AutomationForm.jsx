@@ -67,7 +67,7 @@ function AutomationForm(props){
         <TextField
           key={field.key + props.name}
           select
-          onChange={(e) => onSettingsChange(e.target.id, e.target.value)}
+          onChange={(e) => onSettingsChange(field.key, e.target.value)}
           {...commonProps}
         >
           {(field.options || []).map((option) => (

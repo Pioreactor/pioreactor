@@ -348,6 +348,54 @@ describe("automation forms", () => {
     );
   });
 
+  test("ChangeDosingAutomationsDialog updates turbidostat biomass signal selection", async () => {
+    renderWithSnackbar(
+      <ChangeDosingAutomationsDialog
+        open
+        onFinished={jest.fn()}
+        unit="unit-1"
+        experiment="exp-1"
+        maxVolume={16}
+        liquidVolume={14}
+        capacity={20}
+        threshold={18}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText("Current volume")).toHaveValue(14));
+
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "Turbidostat" }));
+
+    fireEvent.mouseDown(screen.getByLabelText("Biomass signal"));
+    fireEvent.click(await screen.findByRole("option", { name: "od" }));
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: /Target/ }), {
+      target: { id: "target_biomass", value: "3", valueAsNumber: 3 },
+    });
+    fireEvent.change(screen.getByRole("spinbutton", { name: /Exchange volume/ }), {
+      target: { id: "exchange_volume_ml", value: "1", valueAsNumber: 1 },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(mockRunPioreactorJob).toHaveBeenCalledWith(
+      "unit-1",
+      "exp-1",
+      "dosing_automation",
+      [],
+      {
+        automation_name: "turbidostat",
+        target_biomass: 3,
+        biomass_signal: "od",
+        exchange_volume_ml: 1,
+        current_volume_ml: 14,
+        efflux_tube_volume_ml: 16,
+      },
+      [],
+    );
+  });
+
   test("ChangeAutomationsDialog keeps broadcast automation descriptors leader-driven", async () => {
     renderWithSnackbar(
       <ChangeAutomationsDialog

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 from typing import cast
 
@@ -11,6 +13,9 @@ from pioreactor.config import config
 from pioreactor.estimators import load_active_estimator
 from pioreactor.exc import CalibrationError
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import current_utc_datetime
+
+SETTLING_TIME_SECONDS = 5.0
 
 
 class Turbidostat(DosingAutomationJob):
@@ -36,6 +41,7 @@ class Turbidostat(DosingAutomationJob):
         **kwargs: Any,
     ) -> None:
         self._event_trigger_ready = False
+        self._settling_until: datetime | None = None
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:
@@ -117,6 +123,9 @@ class Turbidostat(DosingAutomationJob):
             return False
 
     def execute(self) -> events.DilutionEvent | None:
+        if self._is_settling():
+            return None
+
         assert self.target_biomass is not None
         resolved_biomass_signal = self.resolved_biomass_signal
         latest_biomass = self.latest_biomass_value(resolved_biomass_signal, od_channel=self._od_channel)
@@ -128,6 +137,7 @@ class Turbidostat(DosingAutomationJob):
             results = self.execute_io_action(
                 media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
             )
+            self._settling_until = current_utc_datetime() + timedelta(seconds=SETTLING_TIME_SECONDS)
 
             data = {
                 "latest_biomass": latest_biomass_before_dosing,
@@ -153,6 +163,9 @@ class Turbidostat(DosingAutomationJob):
 
     def set_biomass_signal(self, new_signal: str) -> None:
         self._set_biomass_signal(new_signal)
+
+    def _is_settling(self) -> bool:
+        return self._settling_until is not None and current_utc_datetime() < self._settling_until
 
     def _set_biomass_signal(self, biomass_signal: str) -> None:
         allowed = ("auto", "normalized_od", "od_fused", "od")
@@ -188,7 +201,7 @@ class Turbidostat(DosingAutomationJob):
         self._trigger_after_biomass_signal_update("od_fused", message)
 
     def _trigger_after_biomass_signal_update(self, biomass_signal: str, message: pt.MQTTMessage) -> None:
-        if not message.payload or not self._event_trigger_ready or message.retain:
+        if not message.payload or not self._event_trigger_ready or message.retain or self._is_settling():
             return
 
         if self.resolved_biomass_signal != biomass_signal:
