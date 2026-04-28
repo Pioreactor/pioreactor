@@ -563,26 +563,29 @@ function UnitSettingDisplay(props) {
 
 
 
-function ButtonStopProcess({experiment}) {
+function ButtonStopProcess({experiment, unit = "$broadcast", disabled = false}) {
   const confirm = useConfirm();
+  const description = unit === "$broadcast"
+    ? "This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment. Do you wish to continue?"
+    : `This will immediately stop all running activities on ${unit}, and any experiment profiles running for this experiment on this Pioreactor. Do you wish to continue?`;
 
   const handleClick = () => {
     confirm({
-      description: 'This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment. Do you wish to continue?',
+      description,
       title: "Stop all activities?",
       confirmationText: "Confirm",
       confirmationButtonProps: {autoFocus: true, variant:"contained", color: "primary", sx: {textTransform: 'none'}},
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>
-        fetch(`/api/workers/$broadcast/jobs/stop/experiments/${experiment}`, {method: "POST"})
+        fetch(`/api/workers/${unit}/jobs/stop/experiments/${experiment}`, {method: "POST"})
     ).catch(() => {});
 
   };
 
   return (
-    <Button sx={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
-      <CancelIcon fontSize="small" sx={textIcon}/> Stop all activity
+    <Button sx={{textTransform: 'none', float: "right" }} color="secondary" disabled={disabled} onClick={handleClick}>
+      <CancelIcon fontSize="small" sx={textIcon}/> Stop all
     </Button>
   );
 }
@@ -3765,6 +3768,13 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
               flexWrap: "wrap",
               }}
             >
+              <div>
+                <ButtonStopProcess
+                  experiment={experiment}
+                  unit={unit}
+                  disabled={!isUnitActive}
+                />
+              </div>
               <div>
                 <FlashLEDButton disabled={!isUnitActive} unit={unit}/>
               </div>

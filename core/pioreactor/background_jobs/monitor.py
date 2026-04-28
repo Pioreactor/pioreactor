@@ -642,9 +642,12 @@ class Monitor(LongRunningBackgroundJob):
     def announce_new_workers(self) -> None:
         sleep(10)  # wait for the web server to be available
         for worker in discover_workers_on_network():
+            hostname = worker.hostname
             # not in current cluster, and not leader
-            if (worker not in get_workers_in_inventory()) and (worker != leader_hostname):
-                self.logger.notice(f"Pioreactor worker, {worker}, is available to be added to your cluster.")
+            if (hostname not in get_workers_in_inventory()) and (hostname != leader_hostname):
+                self.logger.notice(
+                    f"Pioreactor worker, {hostname}, is available to be added to your cluster."
+                )
 
     def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
         try:

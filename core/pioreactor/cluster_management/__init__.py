@@ -276,8 +276,8 @@ def update_model(worker: pt.Unit, model_name: str, model_version: str) -> None:
 def discover_workers(terminate: bool) -> None:
     from pioreactor.utils.networking import discover_workers_on_network
 
-    for hostname in discover_workers_on_network(terminate):
-        click.echo(hostname)
+    for worker in discover_workers_on_network(terminate):
+        click.echo(f"{worker.hostname}\t{worker.ipv4_address}")
 
 
 @click.command(name="status", short_help="report information on the cluster")

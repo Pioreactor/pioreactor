@@ -565,7 +565,7 @@ function UnitSettingDisplay(props) {
 
 
 
-function ButtonStopProcess({experiment, unit}) {
+function ButtonStopProcess({experiment, unit, disabled = false}) {
   const confirm = useConfirm();
 
   const handleClick = () => {
@@ -583,8 +583,8 @@ function ButtonStopProcess({experiment, unit}) {
   };
 
   return (
-    <Button style={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
-      <CancelIcon fontSize="small" sx={textIcon}/> Stop all activity
+    <Button style={{textTransform: 'none', float: "right" }} color="secondary" disabled={disabled} onClick={handleClick}>
+      <CancelIcon fontSize="small" sx={textIcon}/> Stop all
     </Button>
   );
 }
@@ -606,7 +606,7 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
           </Box>
         </Typography>
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <ButtonStopProcess experiment={assignedExperiment} unit={unit}/>
+          {/* <ButtonStopProcess experiment={assignedExperiment} unit={unit}/> */}
           {/* <Divider orientation="vertical" flexItem variant="middle"/> */}
           {/* <ControlPioreactorMenu experiment={experiment} unit={unit}/> */}
         </Box>
@@ -2553,6 +2553,14 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
               flexWrap: "wrap",
             }}
             >
+              <div>
+                <ButtonStopProcess
+                  experiment={experiment}
+                  unit={unit}
+                  buttonText="Stop all"
+                  disabled={!isUnitActive}
+                />
+              </div>
               <div>
                 <FlashLEDButton disabled={!isUnitActive} unit={unit}/>
               </div>

@@ -3337,7 +3337,7 @@ def discover_available_workers() -> ResponseReturnValue:
     """
     from pioreactor.utils.networking import discover_workers_on_network
 
-    discovered_hosts = list(discover_workers_on_network(terminate=True))
+    discovered_hosts = [worker.hostname for worker in discover_workers_on_network(terminate=True)]
     existing = get_all_workers()
     available = [h for h in discovered_hosts if h not in existing]
     return jsonify([{"pioreactor_unit": h} for h in available])

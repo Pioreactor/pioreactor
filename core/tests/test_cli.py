@@ -31,6 +31,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
+from pioreactor.utils.networking import DiscoveredWorker
 from pioreactor.utils.networking import resolve_to_address
 from tests.conftest import capture_requests
 
@@ -44,6 +45,24 @@ def test_run_exits_if_command_not_found() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "no_command"])
     assert result.exit_code == 2
+
+
+def test_workers_discover_prints_hostname_and_ipv4(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.utils.networking.discover_workers_on_network",
+        lambda terminate: iter(
+            [
+                DiscoveredWorker(hostname="unit1", ipv4_address="192.168.1.10"),
+                DiscoveredWorker(hostname="unit2", ipv4_address="192.168.1.11"),
+            ]
+        ),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["workers", "discover", "--terminate"])
+
+    assert result.exit_code == 0
+    assert result.output == "unit1\t192.168.1.10\nunit2\t192.168.1.11\n"
 
 
 def test_run() -> None:

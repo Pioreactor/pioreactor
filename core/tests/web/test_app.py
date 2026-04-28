@@ -70,10 +70,17 @@ def test_get_workers(client) -> None:
 
 
 def test_discover_workers_endpoint(client, monkeypatch) -> None:
+    from pioreactor.utils.networking import DiscoveredWorker
+
     # Mock network discovery to yield an existing and a new worker
     monkeypatch.setattr(
         "pioreactor.utils.networking.discover_workers_on_network",
-        lambda terminate: iter(["unit1", "new_unit"]),
+        lambda terminate: iter(
+            [
+                DiscoveredWorker(hostname="unit1", ipv4_address="192.168.1.10"),
+                DiscoveredWorker(hostname="new_unit", ipv4_address="192.168.1.11"),
+            ]
+        ),
     )
     response = client.get("/api/workers/discover")
     assert response.status_code == 200
