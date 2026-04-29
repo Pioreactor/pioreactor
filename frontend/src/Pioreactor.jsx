@@ -1440,7 +1440,6 @@ function SettingsActionsDialog(props) {
                   experiment={props.experiment}
                   label={props.label}
                   configSections={props.config || {}}
-                  no_skip_first_run={true}
                 />
 
                </React.Fragment>
@@ -1454,7 +1453,6 @@ function SettingsActionsDialog(props) {
               label={props.label}
               experiment={props.experiment}
               automationType="temperature"
-              no_skip_first_run={true}
             />
           </React.Fragment>
           }
@@ -1525,7 +1523,6 @@ function SettingsActionsDialog(props) {
               unit={props.unit}
               label={props.label}
               experiment={props.experiment}
-              no_skip_first_run={false}
               maxVolume={dosingMaxVolume}
               liquidVolume={dosingLiquidVolume}
               capacity={props.modelDetails.reactor_capacity_ml}
@@ -1585,7 +1582,6 @@ function SettingsActionsDialog(props) {
                   experiment={props.experiment}
                   label={props.label}
                   configSections={props.config || {}}
-                  no_skip_first_run={false}
                 />
                </React.Fragment>
               }
@@ -1598,7 +1594,6 @@ function SettingsActionsDialog(props) {
               unit={props.unit}
               label={props.label}
               experiment={props.experiment}
-              no_skip_first_run={false}
             />
           </React.Fragment>
           }
@@ -2764,7 +2759,6 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         label={label}
         experiment={experiment}
         automationType="temperature"
-        no_skip_first_run={true}
       />
 
       <ChangeDosingAutomationsDialog
@@ -2774,7 +2768,6 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         unit={unit}
         label={label}
         experiment={experiment}
-        no_skip_first_run={false}
         maxVolume={dosingMaxVolume}
         liquidVolume={dosingLiquidVolume}
         capacity={modelDetails.reactor_capacity_ml}
@@ -2788,7 +2781,6 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         unit={unit}
         label={label}
         experiment={experiment}
-        no_skip_first_run={false}
       />
 
       <Popover

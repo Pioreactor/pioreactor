@@ -231,9 +231,11 @@ def test_silent_automation() -> None:
 
 
 @pytest.mark.slow
-def test_turbidostat_automation() -> None:
+def test_turbidostat_automation(monkeypatch) -> None:
     experiment = "test_turbidostat_automation"
     target_biomass = 1.0
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
+
     with Turbidostat(
         target_biomass=target_biomass,
         biomass_signal="normalized_od",
@@ -295,8 +297,12 @@ def test_turbidostat_automation() -> None:
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
             encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
         )
-        pause()
-        assert isinstance(algo.run(), events.DilutionEvent)
+        previous_event = algo.latest_event
+        assert wait_for(
+            lambda: isinstance(algo.latest_event, events.DilutionEvent)
+            and algo.latest_event is not previous_event,
+            timeout=5.0,
+        )
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -323,8 +329,12 @@ def test_turbidostat_automation() -> None:
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
             encode(structs.ODFiltered(od_filtered=1.01, timestamp=current_utc_datetime())),
         )
-        pause()
-        assert isinstance(algo.run(), events.DilutionEvent)
+        previous_event = algo.latest_event
+        assert wait_for(
+            lambda: isinstance(algo.latest_event, events.DilutionEvent)
+            and algo.latest_event is not previous_event,
+            timeout=5.0,
+        )
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -351,8 +361,9 @@ def test_turbidostat_automation() -> None:
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
             encode(structs.ODFiltered(od_filtered=0.99, timestamp=current_utc_datetime())),
         )
+        previous_event = algo.latest_event
         pause()
-        assert algo.run() is None
+        assert algo.latest_event is None
 
 
 @pytest.mark.parametrize(
@@ -374,6 +385,7 @@ def test_turbidostat_triggers_at_threshold_boundary_for_biomass_signal(
     target_biomass = at_threshold
 
     monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
 
     with Turbidostat(
         target_biomass=target_biomass,
@@ -397,7 +409,7 @@ def test_turbidostat_triggers_at_threshold_boundary_for_biomass_signal(
             od_fused=below_threshold,
         )
         pause()
-        assert algo.run() is None
+        assert not isinstance(algo.latest_event, events.DilutionEvent)
 
         publish_turbidostat_observations(
             experiment=experiment,
@@ -405,8 +417,8 @@ def test_turbidostat_triggers_at_threshold_boundary_for_biomass_signal(
             normalized_od=at_threshold,
             od_fused=at_threshold,
         )
-        pause()
-        at_threshold_event = algo.run()
+        assert wait_for(lambda: isinstance(algo.latest_event, events.DilutionEvent), timeout=5.0)
+        at_threshold_event = algo.latest_event
         assert isinstance(at_threshold_event, events.DilutionEvent)
         assert at_threshold_event.data is not None
         assert at_threshold_event.data["latest_biomass"] == at_threshold
@@ -414,17 +426,124 @@ def test_turbidostat_triggers_at_threshold_boundary_for_biomass_signal(
         assert at_threshold_event.data["resolved_biomass_signal"] == biomass_signal
         assert at_threshold_event.data["exchange_volume_ml"] == 0.25
 
+        previous_event = algo.latest_event
         publish_turbidostat_observations(
             experiment=experiment,
             raw_od=above_threshold,
             normalized_od=above_threshold,
             od_fused=above_threshold,
         )
-        pause()
-        above_threshold_event = algo.run()
+        assert wait_for(
+            lambda: isinstance(algo.latest_event, events.DilutionEvent)
+            and algo.latest_event is not previous_event,
+            timeout=5.0,
+        )
+        above_threshold_event = algo.latest_event
         assert isinstance(above_threshold_event, events.DilutionEvent)
         assert above_threshold_event.data is not None
         assert above_threshold_event.data["latest_biomass"] == above_threshold
+
+
+def test_turbidostat_runs_when_selected_biomass_signal_updates(monkeypatch) -> None:
+    experiment = "test_turbidostat_runs_when_selected_biomass_signal_updates"
+
+    monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+
+    with Turbidostat(
+        target_biomass=1.0,
+        biomass_signal="normalized_od",
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+    ) as algo:
+        monkeypatch.setattr(
+            algo,
+            "execute_io_action",
+            lambda **kwargs: {"media_ml": kwargs["media_ml"], "waste_ml": kwargs["waste_ml"]},
+        )
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=0.2,
+            normalized_od=1.1,
+            od_fused=0.2,
+        )
+
+        assert wait_for(lambda: isinstance(algo.latest_event, events.DilutionEvent), timeout=5.0)
+
+
+def test_turbidostat_waits_for_settling_time_before_retriggering(monkeypatch) -> None:
+    experiment = "test_turbidostat_waits_for_settling_time_before_retriggering"
+    doses: list[dict[str, float]] = []
+
+    monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 5.0)
+
+    with Turbidostat(
+        target_biomass=1.0,
+        biomass_signal="normalized_od",
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+    ) as algo:
+        monkeypatch.setattr(
+            algo,
+            "execute_io_action",
+            lambda **kwargs: doses.append(kwargs)
+            or {"media_ml": kwargs["media_ml"], "waste_ml": kwargs["waste_ml"]},
+        )
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=0.2,
+            normalized_od=1.1,
+            od_fused=0.2,
+        )
+        assert wait_for(lambda: len(doses) == 1, timeout=5.0)
+
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=0.21,
+            normalized_od=1.2,
+            od_fused=0.21,
+        )
+        pause()
+        assert len(doses) == 1
+
+        algo._settling_until = current_utc_datetime() - timedelta(seconds=1)
+        publish_turbidostat_observations(
+            experiment=experiment,
+            raw_od=0.22,
+            normalized_od=1.3,
+            od_fused=0.22,
+        )
+        assert wait_for(lambda: len(doses) == 2, timeout=5.0)
+
+
+def test_turbidostat_ignores_retained_biomass_signal(monkeypatch) -> None:
+    experiment = "test_turbidostat_ignores_retained_biomass_signal"
+
+    monkeypatch.setattr("pioreactor.background_jobs.base.get_running_pio_job_id", lambda _: None)
+
+    topic = f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered"
+    pubsub.publish(topic, None, retain=True)
+    pubsub.publish(
+        topic,
+        encode(structs.ODFiltered(od_filtered=1.1, timestamp=current_utc_datetime())),
+        retain=True,
+    )
+
+    with Turbidostat(
+        target_biomass=1.0,
+        biomass_signal="normalized_od",
+        exchange_volume_ml=0.25,
+        unit=unit,
+        experiment=experiment,
+    ) as algo:
+        pause()
+        assert algo.latest_event is None
+
+    pubsub.publish(topic, None, retain=True)
 
 
 def test_rejects_invalid_biomass_signal_in_turbidostat() -> None:
@@ -548,8 +667,9 @@ def test_cant_change_target_in_turbidostat() -> None:
 
 
 @pytest.mark.slow
-def test_turbidostat_targeting_od() -> None:
+def test_turbidostat_targeting_od(monkeypatch) -> None:
     experiment = "test_turbidostat_targeting_od"
+    monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
 
     target_biomass = 0.2
     with Turbidostat(
@@ -598,8 +718,12 @@ def test_turbidostat_targeting_od() -> None:
                 )
             ),
         )
-        pause()
-        assert isinstance(algo.run(), events.DilutionEvent)
+        previous_event = algo.latest_event
+        assert wait_for(
+            lambda: isinstance(algo.latest_event, events.DilutionEvent)
+            and algo.latest_event is not previous_event,
+            timeout=5.0,
+        )
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -618,8 +742,12 @@ def test_turbidostat_targeting_od() -> None:
                 )
             ),
         )
-        pause()
-        assert isinstance(algo.run(), events.DilutionEvent)
+        previous_event = algo.latest_event
+        assert wait_for(
+            lambda: isinstance(algo.latest_event, events.DilutionEvent)
+            and algo.latest_event is not previous_event,
+            timeout=5.0,
+        )
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -638,8 +766,9 @@ def test_turbidostat_targeting_od() -> None:
                 )
             ),
         )
+        previous_event = algo.latest_event
         pause()
-        assert algo.run() is None
+        assert algo.latest_event is None
 
         assert algo.media_throughput == 0.50
 
@@ -1078,7 +1207,7 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
         assert job.state == job.SLEEPING
 
     assert calls == [("media", 0.4)]
-    assert stop_messages == [
+    assert stop_messages[:3] == [
         (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
@@ -1129,10 +1258,11 @@ def test_sleeping_state_stops_active_pumps() -> None:
     object.__setattr__(job, "unit", unit)
     object.__setattr__(job, "experiment", experiment)
     object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
+    object.__setattr__(job, "_automation_timers", [])
 
     job.on_sleeping()
 
-    assert stop_messages == [
+    assert stop_messages[:3] == [
         (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
@@ -1142,10 +1272,19 @@ def test_sleeping_state_stops_active_pumps() -> None:
 def test_disconnected_state_stops_active_pumps() -> None:
     experiment = "test_disconnected_state_stops_active_pumps"
     stop_messages: list[tuple[str, bytes, int]] = []
+    disconnect_order: list[str] = []
 
     def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
         if topic.endswith("/$state/set"):
             stop_messages.append((topic, payload, qos))
+            disconnect_order.append("stop_pumps")
+
+    class FakeAutomationTimer:
+        def cancel(self, timeout: float | None = None) -> None:
+            disconnect_order.append("cancel_timer")
+
+        def is_alive(self) -> bool:
+            return False
 
     class FakeRunThread:
         def join(self, timeout: float | None = None) -> None:
@@ -1160,11 +1299,13 @@ def test_disconnected_state_stops_active_pumps() -> None:
     object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
     object.__setattr__(job, "_continue_pumping_event", Event())
     object.__setattr__(job, "run_thread", FakeRunThread())
+    object.__setattr__(job, "_automation_timers", [FakeAutomationTimer()])
 
     job.on_disconnected()
 
     assert job._continue_pumping_event.is_set()
-    assert stop_messages == [
+    assert disconnect_order[:4] == ["stop_pumps", "stop_pumps", "stop_pumps", "cancel_timer"]
+    assert stop_messages[:3] == [
         (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
@@ -1193,7 +1334,7 @@ def test_fed_batch_skips_dose_that_would_overflow() -> None:
         assert job.state == job.SLEEPING
         assert job.current_volume_ml == pytest.approx(FedBatch.MAX_VIAL_VOLUME_TO_STOP - 0.1)
 
-    assert stop_messages == [
+    assert stop_messages[:3] == [
         (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
@@ -1623,9 +1764,8 @@ def test_strings_are_okay_for_chemostat(fast_dosing_timers) -> None:
 
     with start_dosing_automation(
         "chemostat",
-        False,
-        unit,
-        experiment,
+        unit=unit,
+        experiment=experiment,
         duration="0.1",
         exchange_volume_ml="0.7",
     ) as chemostat_job:
@@ -1669,9 +1809,8 @@ def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
     with dosing_events_to_bioreactor_projector(unit, experiment):
         with start_dosing_automation(
             "chemostat",
-            False,
-            unit,
-            experiment,
+            unit=unit,
+            experiment=experiment,
             exchange_volume_ml=0.25,
             alt_media_fraction=0.5,
             duration=None,
@@ -1689,9 +1828,8 @@ def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
         # test that the latest alt_media_fraction is saved and reused if dosing automation is recreated in the same experiment.
         with start_dosing_automation(
             "chemostat",
-            False,
-            unit,
-            experiment,
+            unit=unit,
+            experiment=experiment,
             exchange_volume_ml=0.35,
             duration=None,
         ) as chemostat_job:
@@ -1709,9 +1847,8 @@ def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
     with dosing_events_to_bioreactor_projector(unit, experiment):
         with start_dosing_automation(
             "chemostat",
-            False,
-            unit,
-            experiment,
+            unit=unit,
+            experiment=experiment,
             exchange_volume_ml=0.5,
             current_volume_ml=0,
             duration=None,
@@ -1740,10 +1877,12 @@ def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
         }
 
         def __init__(self, exchange_volume_ml: float, fraction_alt_media: float, **kwargs):
+            duration = kwargs.pop("duration")
             super(ChemostatAltMedia, self).__init__(**kwargs)
 
             self.exchange_volume_ml = float(exchange_volume_ml)
             self.fraction_alt_media = float(fraction_alt_media)
+            self.run_every(duration, run_after_seconds=0.0)
 
         def execute(self) -> events.DilutionEvent:
             alt_media_ml = self.fraction_alt_media * self.exchange_volume_ml
@@ -1757,9 +1896,8 @@ def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
     with dosing_events_to_bioreactor_projector(unit, experiment):
         with start_dosing_automation(
             "_test_chemostat_alt_media",
-            False,
-            unit,
-            experiment,
+            unit=unit,
+            experiment=experiment,
             exchange_volume_ml=2.0,
             alt_media_fraction=0.5,
             fraction_alt_media=0.5,
@@ -1772,9 +1910,8 @@ def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
         # change fraction_alt_media to increase alt_media being added
         with start_dosing_automation(
             "_test_chemostat_alt_media",
-            False,
-            unit,
-            experiment,
+            unit=unit,
+            experiment=experiment,
             exchange_volume_ml=2.0,
             fraction_alt_media=1.0,
             duration=0.1,
@@ -1834,6 +1971,11 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
     class ExternalAutomation(DosingAutomationJob):
         automation_name = "_test_external_automation"
 
+        def __init__(self, **kwargs) -> None:
+            duration = kwargs.pop("duration")
+            super().__init__(**kwargs)
+            self.run_every(duration, run_after_seconds=0.0)
+
         def add_salty_media_to_bioreactor(
             self, unit, experiment, ml, source_of_event, mqtt_client, logger
         ) -> float:
@@ -1857,9 +1999,8 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
 
     with start_dosing_automation(
         "_test_external_automation",
-        False,
-        unit,
-        experiment,
+        unit=unit,
+        experiment=experiment,
         duration=5,
     ):
         pause(40)
@@ -1937,6 +2078,11 @@ def test_warning_is_logged_if_under_remove_waste(fast_dosing_timers) -> None:
     class BadWasteRemoval(DosingAutomationJob):
         automation_name = "_test_bad_waste_removal"
 
+        def __init__(self, **kwargs) -> None:
+            duration = kwargs.pop("duration")
+            super().__init__(**kwargs)
+            self.run_every(duration, run_after_seconds=0.0)
+
         def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client, logger):
             return ml / 2
 
@@ -1969,7 +2115,7 @@ def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
 
     with pytest.raises(exc.CalibrationError):
         with start_dosing_automation(
-            "_test_failure", False, get_unit_name(), experiment, exchange_volume_ml=10, duration=60
+            "_test_failure", unit=get_unit_name(), experiment=experiment, exchange_volume_ml=10, duration=60
         ):
             pass
 
@@ -2003,7 +2149,7 @@ def test_custom_class_without_duration() -> None:
         duration=10,
     ):
         msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/duration", timeout=1)
-        assert msg is not None
+        assert msg is None
 
 
 def test_dosing_automation_initial_values_for_volumes() -> None:

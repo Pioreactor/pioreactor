@@ -199,7 +199,7 @@ def test_get_pioreactor_unit_capabilities_returns_slim_summary(monkeypatch) -> N
                     ],
                     "published_settings": {
                         "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
-                        "$state": {"datatype": "text", "settable": True},
+                        "$state": {"datatype": "string", "settable": True},
                     },
                     "cli_example": "pio run stirring [OPTIONS]",
                 }

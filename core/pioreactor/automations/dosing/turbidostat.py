@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 from typing import cast
 
@@ -11,12 +13,15 @@ from pioreactor.config import config
 from pioreactor.estimators import load_active_estimator
 from pioreactor.exc import CalibrationError
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import current_utc_datetime
+
+SETTLING_TIME_SECONDS = 5.0
 
 
 class Turbidostat(DosingAutomationJob):
     """
     Turbidostat mode - try to keep cell density constant by dosing whenever the target is surpassed.
-    Note: this has a small "duration" param to run the algorithm-check constantly.
+    This reacts to new biomass measurements instead of polling on a timer.
     """
 
     automation_name = "turbidostat"
@@ -24,7 +29,6 @@ class Turbidostat(DosingAutomationJob):
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_biomass": {"datatype": "float", "settable": True, "unit": "OD/AU"},
         "biomass_signal": {"datatype": "string", "settable": True},
-        "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
     target_biomass = None
     biomass_signal = None
@@ -36,6 +40,8 @@ class Turbidostat(DosingAutomationJob):
         biomass_signal: str | None = None,
         **kwargs: Any,
     ) -> None:
+        self._event_trigger_ready = False
+        self._settling_until: datetime | None = None
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:
@@ -58,10 +64,7 @@ class Turbidostat(DosingAutomationJob):
         self.target_biomass = float(target_biomass)
 
         self.exchange_volume_ml = float(exchange_volume_ml)
-
-    def set_duration(self, value: float | None) -> None:
-        # force duration to always be 0.25 - we want to check often.
-        super().set_duration(0.25)
+        self._event_trigger_ready = True
 
     @property
     def _od_channel(self) -> pt.PdChannel:
@@ -120,6 +123,9 @@ class Turbidostat(DosingAutomationJob):
             return False
 
     def execute(self) -> events.DilutionEvent | None:
+        if self._is_settling():
+            return None
+
         assert self.target_biomass is not None
         resolved_biomass_signal = self.resolved_biomass_signal
         latest_biomass = self.latest_biomass_value(resolved_biomass_signal, od_channel=self._od_channel)
@@ -131,6 +137,7 @@ class Turbidostat(DosingAutomationJob):
             results = self.execute_io_action(
                 media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
             )
+            self._settling_until = current_utc_datetime() + timedelta(seconds=SETTLING_TIME_SECONDS)
 
             data = {
                 "latest_biomass": latest_biomass_before_dosing,
@@ -157,6 +164,9 @@ class Turbidostat(DosingAutomationJob):
     def set_biomass_signal(self, new_signal: str) -> None:
         self._set_biomass_signal(new_signal)
 
+    def _is_settling(self) -> bool:
+        return self._settling_until is not None and current_utc_datetime() < self._settling_until
+
     def _set_biomass_signal(self, biomass_signal: str) -> None:
         allowed = ("auto", "normalized_od", "od_fused", "od")
         if biomass_signal not in allowed:
@@ -177,3 +187,24 @@ class Turbidostat(DosingAutomationJob):
             return "od"
 
         return "normalized_od"
+
+    def _set_ods(self, message: pt.MQTTMessage) -> None:
+        super()._set_ods(message)
+        self._trigger_after_biomass_signal_update("od", message)
+
+    def _set_normalized_od(self, message: pt.MQTTMessage) -> None:
+        super()._set_normalized_od(message)
+        self._trigger_after_biomass_signal_update("normalized_od", message)
+
+    def _set_od_fused(self, message: pt.MQTTMessage) -> None:
+        super()._set_od_fused(message)
+        self._trigger_after_biomass_signal_update("od_fused", message)
+
+    def _trigger_after_biomass_signal_update(self, biomass_signal: str, message: pt.MQTTMessage) -> None:
+        if not message.payload or not self._event_trigger_ready or message.retain or self._is_settling():
+            return
+
+        if self.resolved_biomass_signal != biomass_signal:
+            return
+
+        self.trigger_run_once_from_event()

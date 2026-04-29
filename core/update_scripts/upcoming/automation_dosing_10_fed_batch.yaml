@@ -1,0 +1,19 @@
+---
+display_name: Fed Batch
+automation_name: fed_batch
+description: Dose a constant volume of media on a fixed scheduale.
+fields:
+  - key: duration
+    default: 720
+    unit: min
+    label: Duration between additions
+    type: numeric
+  - key: skip_first_run
+    default: false
+    label: Skip first run
+    type: boolean
+  - key: dosing_volume_ml
+    default: 1.0
+    unit: mL
+    label: Volume per dose
+    type: numeric

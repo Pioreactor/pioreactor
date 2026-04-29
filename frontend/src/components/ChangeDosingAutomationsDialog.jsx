@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from "react";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Dialog from '@mui/material/Dialog';
-import Box from '@mui/material/Box';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -14,9 +13,6 @@ import Select from '@mui/material/Select';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import Snackbar from './Snackbar';
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
@@ -45,7 +41,6 @@ function ChangeDosingAutomationsDialog(props) {
   const initializationCompletedForOpenRef = useRef(false);
   const [automationName, setAutomationName] = useState("chemostat")
   const [algoSettings, setAlgoSettings] = useState({
-    skip_first_run: 0,
     efflux_tube_volume_ml: props.maxVolume,
     current_volume_ml: props.liquidVolume,
   })
@@ -80,13 +75,12 @@ function ChangeDosingAutomationsDialog(props) {
     const nextAutomationName = getPreferredDosingAutomationName(automations);
     setAutomationName(nextAutomationName);
     setAlgoSettings({
-      ...( !props.no_skip_first_run && { skip_first_run: 0 }),
       ...getDefaultDosingSettings(automations[nextAutomationName]?.fields),
       efflux_tube_volume_ml: props.maxVolume,
       current_volume_ml: props.liquidVolume,
     });
     initializationCompletedForOpenRef.current = true;
-  }, [props.liquidVolume, props.maxVolume, props.no_skip_first_run, props.open, automations]);
+  }, [props.liquidVolume, props.maxVolume, props.open, automations]);
 
 
   const removeEmpty = (obj) => {
@@ -98,17 +92,11 @@ function ChangeDosingAutomationsDialog(props) {
     props.onFinished();
   };
 
-  const handleSkipFirstRunChange = (e) => {
-    setAlgoSettings((prevSettings) => ({...prevSettings, skip_first_run: e.target.checked ? 1 : 0}))
-  }
-
   const handleAlgoSelectionChange = (e) => {
     const newAlgoName = e.target.value;
-    const skipFirstRun = algoSettings.skip_first_run ?? 0;
     setAutomationName(newAlgoName);
 
     setAlgoSettings({
-      ...( !props.no_skip_first_run && { skip_first_run: skipFirstRun }),
       ...getDefaultDosingSettings(automations[newAlgoName]?.fields),
       efflux_tube_volume_ml: algoSettings.efflux_tube_volume_ml ?? props.maxVolume,
       current_volume_ml: algoSettings.current_volume_ml ?? props.liquidVolume,
@@ -202,26 +190,6 @@ function ChangeDosingAutomationsDialog(props) {
               />
 
             }
-
-            <Box sx={{mt: 1}}>
-              <FormControlLabel
-                control={<Checkbox checked={Boolean(algoSettings.skip_first_run)}
-                                    color="primary"
-                                    onChange={handleSkipFirstRunChange}
-                                    size="small"/>
-                        }
-                label="Skip first run"
-                sx={{mr: 0, mt: 0}}
-              />
-                <IconButton
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Learn more about skip first run"
-                  href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run"
-                >
-                <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }}/>
-              </IconButton>
-            </Box>
 
           </FormControl>
         </form>}

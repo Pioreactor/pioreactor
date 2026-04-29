@@ -3,6 +3,8 @@ import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Typography from "@mui/material/Typography";
 import MenuItem from "@mui/material/MenuItem";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 
 export function getAutomationFieldError(field, settings) {
   if (field.disabled || !field.required) {
@@ -65,7 +67,7 @@ function AutomationForm(props){
         <TextField
           key={field.key + props.name}
           select
-          onChange={(e) => onSettingsChange(e.target.id, e.target.value)}
+          onChange={(e) => onSettingsChange(field.key, e.target.value)}
           {...commonProps}
         >
           {(field.options || []).map((option) => (
@@ -74,6 +76,26 @@ function AutomationForm(props){
             </MenuItem>
           ))}
         </TextField>
+      );
+    }
+
+    if (field.type === "boolean") {
+      return (
+        <FormControlLabel
+          key={field.key + props.name}
+          control={
+            <Checkbox
+              id={field.key}
+              checked={Boolean(value)}
+              disabled={field.disabled}
+              onChange={(e) => onSettingsChange(e.target.id, e.target.checked)}
+              onBlur={(e) => markFieldTouched(e.target.id)}
+              size="small"
+            />
+          }
+          label={field.label}
+          sx={{ mt: 3, mr: 2, mb: 0 }}
+        />
       );
     }
 

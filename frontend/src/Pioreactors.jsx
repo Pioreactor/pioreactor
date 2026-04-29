@@ -1751,7 +1751,6 @@ function SettingsActionsDialog({
                   experiment={experiment}
                   label={label}
                   configSections={config || {}}
-                  no_skip_first_run={true}
                 />
 
                </React.Fragment>
@@ -1765,7 +1764,6 @@ function SettingsActionsDialog({
               label={label}
               experiment={experiment}
               automationType="temperature"
-              no_skip_first_run={true}
             />
           </React.Fragment>
           }
@@ -1836,7 +1834,6 @@ function SettingsActionsDialog({
               unit={unit}
               label={label}
               experiment={experiment}
-              no_skip_first_run={false}
               maxVolume={dosingMaxVolume}
               liquidVolume={dosingLiquidVolume}
               capacity={modelDetails.reactor_capacity_ml}
@@ -1896,7 +1893,6 @@ function SettingsActionsDialog({
                   experiment={experiment}
                   label={label}
                   configSections={config || {}}
-                  no_skip_first_run={false}
                 />
                </React.Fragment>
               }
@@ -1909,7 +1905,6 @@ function SettingsActionsDialog({
               unit={unit}
               label={label}
               experiment={experiment}
-              no_skip_first_run={false}
             />
           </React.Fragment>
           }
@@ -2717,7 +2712,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
               unit={broadcastUnit}
               experiment={experiment}
               automationType="temperature"
-              no_skip_first_run={true}
             />
           </React.Fragment>
           }
@@ -2747,7 +2741,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
               onFinished={() => setOpenChangeDosingDialog(false)}
               unit={broadcastUnit}
               experiment={experiment}
-              no_skip_first_run={false}
               maxVolume={config?.bioreactor?.efflux_tube_volume_ml || 19}
               liquidVolume={config?.bioreactor?.initial_volume_ml || 10}
               threshold={39}
@@ -2779,7 +2772,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
               onFinished={() => setOpenChangeLEDDialog(false)}
               unit={broadcastUnit}
               experiment={experiment}
-              no_skip_first_run={false}
             />
           </React.Fragment>
           }
@@ -3978,7 +3970,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         label={label}
         experiment={experiment}
         automationType="temperature"
-        no_skip_first_run={true}
       />
 
       <ChangeDosingAutomationsDialog
@@ -3988,7 +3979,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         unit={unit}
         label={label}
         experiment={experiment}
-        no_skip_first_run={false}
         maxVolume={dosingMaxVolume}
         liquidVolume={dosingLiquidVolume}
         capacity={modelDetails.reactor_capacity_ml}
@@ -4002,7 +3992,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
         unit={unit}
         label={label}
         experiment={experiment}
-        no_skip_first_run={false}
       />
 
       <Popover

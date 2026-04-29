@@ -35,7 +35,6 @@ export default function AutomationAdvancedConfigButton({
   liquidVolume,
   capacity,
   threshold,
-  no_skip_first_run = false,
 }) {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState({});
@@ -198,7 +197,6 @@ export default function AutomationAdvancedConfigButton({
           unit={unit}
           label={label}
           experiment={experiment}
-          no_skip_first_run={false}
           maxVolume={maxVolume}
           liquidVolume={liquidVolume}
           capacity={capacity}
@@ -213,7 +211,6 @@ export default function AutomationAdvancedConfigButton({
           unit={unit}
           label={label}
           experiment={experiment}
-          no_skip_first_run={no_skip_first_run}
           configOverrides={configOverrides}
         />
       )}

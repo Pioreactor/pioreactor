@@ -14,10 +14,17 @@ class Chemostat(DosingAutomationJob):
 
     automation_name = "chemostat"
     published_settings = {
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
     }
 
-    def __init__(self, exchange_volume_ml: float | str, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        exchange_volume_ml: float | str,
+        duration: float | str | None = 20,
+        skip_first_run: bool | str | int = False,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:
@@ -27,6 +34,8 @@ class Chemostat(DosingAutomationJob):
                 raise CalibrationError("Media and waste calibrations must be active first.")
 
         self.exchange_volume_ml = float(exchange_volume_ml)
+        if duration is not None:
+            self.run_every(duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
 
     def execute(self) -> events.DilutionEvent:
         """

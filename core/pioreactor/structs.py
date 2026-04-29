@@ -597,12 +597,12 @@ class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):
 
 class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):
     key: str
-    default: str | float | int | None
+    default: str | float | int | bool | None
     label: str
     disabled: bool = False
     required: bool = True
     unit: str | None = None
-    type: t.Literal["numeric", "string", "select"] = "numeric"  # TODO we will include boolean
+    type: t.Literal["numeric", "string", "select", "boolean"] = "numeric"
     options: list[str] | None = None
 
 
