@@ -2,8 +2,9 @@
 
  - Updated the Export Data page to select a single experiment at a time. This reduces the load on the backend which was causing the system to crash for large exports.
  - Also improved the performance of exports to export larger datasets. We also added safety checks during the export process to monitor the system and abort if it gets too close to some memory and size thresholds.
- - Some more validation of automations in the UI.
- -
+ - Improved automation start forms so each automation can define its own fields, including boolean options like `skip_first_run`, and required fields now block `Start` until valid.
+ - Reworked automation scheduling so each automation chooses whether it runs on a timer, a biomass measurement update, a phase timer, or manually, instead of relying on a single shared automation interval.
+ - Improved the Light/Dark Cycle LED automation to schedule actual light/dark phase boundaries and support fractional-minute phase durations.
 
 ### 26.4.4
 
