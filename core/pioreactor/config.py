@@ -301,9 +301,14 @@ def temporary_config_changes(config: ConfigParserMod, changes: list[tuple[str, s
     # Dictionary to store the original values for restoration.
     originals = {}
     to_delete = []
+    sections_to_delete = []
 
     try:
         for section, parameter, new_value in changes:
+            if not config.has_section(section):
+                config.add_section(section)
+                sections_to_delete.append(section)
+
             if config.has_section(section) and config.has_option(section, parameter):
                 # Save the original value
                 originals[(section, parameter)] = config.get(section, parameter)
@@ -320,3 +325,6 @@ def temporary_config_changes(config: ConfigParserMod, changes: list[tuple[str, s
             config.set(section, parameter, original_value)
         for section, parameter in to_delete:
             config.remove_option(section, parameter)
+        for section in sections_to_delete:
+            if config.has_section(section) and not config.options(section):
+                config.remove_section(section)

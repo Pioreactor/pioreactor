@@ -1258,7 +1258,7 @@ def test_sleeping_state_stops_active_pumps() -> None:
     object.__setattr__(job, "unit", unit)
     object.__setattr__(job, "experiment", experiment)
     object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
-    object.__setattr__(job, "_automation_timers", [])
+    object.__setattr__(job, "_automation_timer", None)
 
     job.on_sleeping()
 
@@ -1299,7 +1299,7 @@ def test_disconnected_state_stops_active_pumps() -> None:
     object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
     object.__setattr__(job, "_continue_pumping_event", Event())
     object.__setattr__(job, "run_thread", FakeRunThread())
-    object.__setattr__(job, "_automation_timers", [FakeAutomationTimer()])
+    object.__setattr__(job, "_automation_timer", FakeAutomationTimer())
 
     job.on_disconnected()
 

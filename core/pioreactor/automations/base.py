@@ -71,7 +71,7 @@ class AutomationJob(BackgroundJob):
         self._automation_execution_lock = Lock()
         self._automation_trigger_pending = False
         self._automation_strategy_start_callback: Callable[[], None] | None = None
-        self._automation_timers: list[RepeatedTimer] = []
+        self._automation_timer: RepeatedTimer | None = None
 
         self.start_passive_listeners()
 
@@ -174,22 +174,24 @@ class AutomationJob(BackgroundJob):
         Thread(target=runner, daemon=True).start()
 
     def on_disconnected(self) -> None:
-        self.cancel_automation_timers()
+        self.cancel_automation_timer()
 
     def on_sleeping(self) -> None:
-        for timer in self._automation_timers:
-            timer.pause()
+        if self._automation_timer is not None:
+            self._automation_timer.pause()
 
     def on_sleeping_to_ready(self) -> None:
-        for timer in self._automation_timers:
-            timer.unpause()
+        if self._automation_timer is not None:
+            self._automation_timer.unpause()
 
-    def cancel_automation_timers(self) -> None:
-        for timer in self._automation_timers:
-            timer.cancel(timeout=10)
-            if timer.is_alive():
-                self.logger.debug("automation timer still alive!")
-        self._automation_timers = []
+    def cancel_automation_timer(self) -> None:
+        if self._automation_timer is None:
+            return
+
+        self._automation_timer.cancel(timeout=10)
+        if self._automation_timer.is_alive():
+            self.logger.debug("automation timer still alive!")
+        self._automation_timer = None
 
     @staticmethod
     def _coerce_bool(value: bool | str | int) -> bool:
@@ -204,7 +206,7 @@ class AutomationJob(BackgroundJob):
         skip_first_run: bool,
         run_after_seconds: float | None,
     ) -> None:
-        self.cancel_automation_timers()
+        self.cancel_automation_timer()
         timer = RepeatedTimer(
             duration_minutes * 60,
             self.run_once,
@@ -213,7 +215,7 @@ class AutomationJob(BackgroundJob):
             run_after=run_after_seconds,
             logger=self.logger,
         ).start()
-        self._automation_timers.append(timer)
+        self._automation_timer = timer
         self.run_thread = timer
 
     def _seconds_until_next_periodic_run(self, duration_minutes: float) -> float:

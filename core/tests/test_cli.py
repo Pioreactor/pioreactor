@@ -21,7 +21,6 @@ from pioreactor.cli.pios import kill
 from pioreactor.cli.pios import pios
 from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
-from pioreactor.config import config
 from pioreactor.config import get_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.config import temporary_config_change
@@ -72,6 +71,8 @@ def test_run() -> None:
 
 
 def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
+    import pioreactor.config as config_module
+
     captured_args: list[str] = []
 
     class FakePopen:
@@ -87,8 +88,8 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
-    with temporary_config_change(config, "mqtt", "username", "custom-user"):
-        with temporary_config_change(config, "mqtt", "password", "custom-password"):
+    with temporary_config_change(config_module.config, "mqtt", "username", "custom-user"):
+        with temporary_config_change(config_module.config, "mqtt", "password", "custom-password"):
             runner = CliRunner()
             result = runner.invoke(pio, ["mqtt", "-t", "pioreactor/unit/exp/dosing_events"])
 

@@ -283,14 +283,14 @@ def test_app_commands_from_release_metadata_include_restart_by_default(monkeypat
         version=None,
     )
 
-    wget_command = next(command for command, _ in cmds if command.startswith("wget -O "))
-    archive_location = wget_command.removeprefix("wget -O ").removesuffix(
+    wget_command = next(command for command, _ in cmds if command.startswith("wget -nv -O "))
+    archive_location = wget_command.removeprefix("wget -nv -O ").removesuffix(
         " https://example.com/release_26.3.0.zip"
     )
 
     assert archive_location.startswith(quote(f"{tempfile.gettempdir()}/pioreactor_update_archive_"))
     assert archive_location.endswith("release_26.3.0.zip")
-    assert (f"wget -O {archive_location} https://example.com/release_26.3.0.zip", -100) in cmds
+    assert (f"wget -nv -O {archive_location} https://example.com/release_26.3.0.zip", -100) in cmds
     assert ("sudo systemctl restart pioreactor-web.target", 99) in cmds
 
 
@@ -351,15 +351,15 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
 
     assert ver == version
 
-    wget_command = next(command for command, _ in cmds if command.startswith("wget -O "))
-    archive_location = wget_command.removeprefix("wget -O ").removesuffix(
+    wget_command = next(command for command, _ in cmds if command.startswith("wget -nv -O "))
+    archive_location = wget_command.removeprefix("wget -nv -O ").removesuffix(
         f" https://example.com/release_{version}.zip"
     )
     tmp_rls_dir = f"{tempfile.gettempdir()}/release_{version}"
     assert archive_location.startswith(quote(f"{tempfile.gettempdir()}/pioreactor_update_archive_"))
     assert archive_location.endswith(f"release_{version}.zip")
     assert cmds == [
-        (f"wget -O {archive_location} https://example.com/release_{version}.zip", -100),
+        (f"wget -nv -O {archive_location} https://example.com/release_{version}.zip", -100),
         (f"sudo rm -rf {tmp_rls_dir}", -99),
         (f"unzip -o {archive_location} -d {tmp_rls_dir}", 0),
         (f"unzip -o {tmp_rls_dir}/wheels_{version}.zip -d {tmp_rls_dir}/wheels", 1),
@@ -497,9 +497,9 @@ def test_app_commands_from_release_metadata_does_not_fetch_individual_assets(mon
         defer_web_restart=True,
     )
 
-    wget_commands = [command for command, _ in cmds if command.startswith("wget -O ")]
+    wget_commands = [command for command, _ in cmds if command.startswith("wget -nv -O ")]
     assert len(wget_commands) == 1
     assert re.fullmatch(
-        rf"wget -O {re.escape(tempfile.gettempdir())}/pioreactor_update_archive_[0-9a-f]+_release_{re.escape(version)}\.zip https://example\.com/release_{re.escape(version)}\.zip",
+        rf"wget -nv -O {re.escape(tempfile.gettempdir())}/pioreactor_update_archive_[0-9a-f]+_release_{re.escape(version)}\.zip https://example\.com/release_{re.escape(version)}\.zip",
         wget_commands[0],
     )
