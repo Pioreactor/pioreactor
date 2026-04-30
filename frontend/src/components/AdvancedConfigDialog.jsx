@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import {
   Dialog,
@@ -25,18 +25,46 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
   const [values, setValues] = useState({});              // local, editable copy
   const [original, setOriginal] = useState({});          // immutable reference
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const userEditedRef = useRef(false);
 
-  // Reset dialog state every time it is opened or config changes
+  // Reset dialog state every time it is opened. The parent (Pioreactor.jsx)
+  // fetches `/api/config/units/${unit}` once on mount and never refreshes,
+  // so the `config` prop may be stale relative to disk — for example after a
+  // job's own persistence step writes back its current settings on Stop.
+  //
+  // Strategy: seed from the prop synchronously so the dialog renders populated
+  // immediately, then re-fetch in the background and overwrite if the API
+  // returns fresher data. On fetch error the optimistic seed already supplied
+  // a usable form.
   useEffect(() => {
-    if (open) {
-      setValues(config);
-      setOriginal(config);
-    }
-  }, [open, config]);
+    if (!open) return;
+
+    userEditedRef.current = false;
+    setValues(config);
+    setOriginal(config);
+
+    let cancelled = false;
+    fetch(`/api/config/units/${unit}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const fresh = data?.[unit]?.[`${jobName}.config`];
+        if (fresh !== undefined) {
+          setOriginal(fresh);
+          if (!userEditedRef.current) {
+            setValues(fresh);
+          }
+        }
+      })
+      .catch(() => { /* optimistic seed already populated the form */ });
+
+    return () => { cancelled = true; };
+  }, [open, unit, jobName, config]);
 
   const handleClose = () => onFinished();
 
   const handleFieldChange = (param) => (e) => {
+    userEditedRef.current = true;
     setValues((prev) => ({ ...prev, [param]: e.target.value }));
   };
 
