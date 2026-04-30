@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import {
   Dialog,
@@ -21,6 +21,23 @@ import PioreactorIcon from "./PioreactorIcon";
 import ChangeAutomationsDialog from "./ChangeAutomationsDialog";
 import ChangeDosingAutomationsDialog from "./ChangeDosingAutomationsDialog";
 
+function getAutomationConfigValues(configSections, jobName) {
+  const baseSection = `${jobName}.config`;
+  const sectionNames = [
+    baseSection,
+    ...Object.keys(configSections || {})
+      .filter((section) => section.startsWith(`${jobName}.`) && section !== baseSection)
+      .sort(),
+  ].filter((section) => Object.keys(configSections?.[section] || {}).length > 0);
+
+  return {
+    sectionNames,
+    values: Object.fromEntries(
+      sectionNames.map((section) => [section, { ...(configSections?.[section] || {}) }])
+    ),
+  };
+}
+
 export default function AutomationAdvancedConfigButton({
   jobName,              // ex: "temperature_automation"
   displayName,          // ex: "Temperature automation"
@@ -40,33 +57,46 @@ export default function AutomationAdvancedConfigButton({
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState({});
   const [original, setOriginal] = useState({});
+  const [sectionNames, setSectionNames] = useState([]);
   const [openChangeDialog, setOpenChangeDialog] = useState(false);
   const [configOverrides, setConfigOverrides] = useState([]);
-  const baseSection = `${jobName}.config`;
-
-  const sectionNames = useMemo(() => {
-    const discoveredSections = Object.keys(configSections || {})
-      .filter((section) => section.startsWith(`${jobName}.`) && section !== baseSection)
-      .sort();
-    return [baseSection, ...discoveredSections].filter(
-      (section) => Object.keys(configSections?.[section] || {}).length > 0
-    );
-  }, [configSections, jobName, baseSection]);
+  const userEditedRef = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      const sectionValues = Object.fromEntries(
-        sectionNames.map((section) => [section, { ...(configSections?.[section] || {}) }])
-      );
-      setValues(sectionValues);
-      setOriginal(sectionValues);
-    }
-  }, [open, configSections, sectionNames]);
+    if (!open) return;
+
+    userEditedRef.current = false;
+
+    const seeded = getAutomationConfigValues(configSections, jobName);
+    setSectionNames(seeded.sectionNames);
+    setValues(seeded.values);
+    setOriginal(seeded.values);
+
+    let cancelled = false;
+    fetch(`/api/config/units/${unit}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const freshConfigSections = data?.[unit];
+        if (freshConfigSections !== undefined) {
+          const fresh = getAutomationConfigValues(freshConfigSections, jobName);
+          setOriginal(fresh.values);
+          if (!userEditedRef.current) {
+            setSectionNames(fresh.sectionNames);
+            setValues(fresh.values);
+          }
+        }
+      })
+      .catch(() => { /* optimistic seed already populated the form */ });
+
+    return () => { cancelled = true; };
+  }, [open, unit, jobName, configSections]);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
   const handleFieldChange = (section, param) => (e) => {
+    userEditedRef.current = true;
     setValues((prev) => ({
       ...prev,
       [section]: {

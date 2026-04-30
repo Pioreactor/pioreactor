@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import {
   Dialog,
@@ -25,6 +25,7 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
   const [values, setValues] = useState({});              // local, editable copy
   const [original, setOriginal] = useState({});          // immutable reference
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const userEditedRef = useRef(false);
 
   // Reset dialog state every time it is opened. The parent (Pioreactor.jsx)
   // fetches `/api/config/units/${unit}` once on mount and never refreshes,
@@ -38,6 +39,7 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
   useEffect(() => {
     if (!open) return;
 
+    userEditedRef.current = false;
     setValues(config);
     setOriginal(config);
 
@@ -48,8 +50,10 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
         if (cancelled) return;
         const fresh = data?.[unit]?.[`${jobName}.config`];
         if (fresh !== undefined) {
-          setValues(fresh);
           setOriginal(fresh);
+          if (!userEditedRef.current) {
+            setValues(fresh);
+          }
         }
       })
       .catch(() => { /* optimistic seed already populated the form */ });
@@ -60,6 +64,7 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
   const handleClose = () => onFinished();
 
   const handleFieldChange = (param) => (e) => {
+    userEditedRef.current = true;
     setValues((prev) => ({ ...prev, [param]: e.target.value }));
   };
 
