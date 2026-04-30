@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import sqlite3
+from pathlib import Path
 from time import sleep
 
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
-from pioreactor import mureq
 from pioreactor import structs
 from pioreactor.automations import temperature  # noqa: F401
 from pioreactor.background_jobs.base import BackgroundJob
@@ -13,6 +13,9 @@ from pioreactor.pubsub import publish
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SHARED_SQL_DIR = REPO_ROOT / "packaging" / "shared-assets" / "sql"
 
 
 def test_testing_data_is_filtered() -> None:
@@ -59,11 +62,7 @@ def test_updated_heater_dc() -> None:
     cursor = connection.cursor()
 
     cursor.executescript("DROP TABLE IF EXISTS temperature_automation_events;")
-    cursor.executescript(
-        mureq.get(
-            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
-        ).content.decode("utf-8")
-    )
+    cursor.executescript((SHARED_SQL_DIR / "create_tables.sql").read_text())
 
     connection.commit()
 
@@ -98,16 +97,8 @@ def test_dosing_events_land_in_db() -> None:
 
     cursor.executescript("DROP TABLE IF EXISTS dosing_events;")
     cursor.executescript("DROP TRIGGER IF EXISTS update_pioreactor_unit_activity_data_from_dosing_events;")
-    cursor.executescript(
-        mureq.get(
-            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
-        ).content.decode("utf-8")
-    )
-    cursor.executescript(
-        mureq.get(
-            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_triggers.sql"
-        ).content.decode("utf-8")
-    )
+    cursor.executescript((SHARED_SQL_DIR / "create_tables.sql").read_text())
+    cursor.executescript((SHARED_SQL_DIR / "create_triggers.sql").read_text())
 
     connection.commit()
 
@@ -151,11 +142,7 @@ def test_bioreactor_topics_land_in_db() -> None:
 
     cursor.executescript("DROP TABLE IF EXISTS liquid_volumes;")
     cursor.executescript("DROP TABLE IF EXISTS alt_media_fractions;")
-    cursor.executescript(
-        mureq.get(
-            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
-        ).content.decode("utf-8")
-    )
+    cursor.executescript((SHARED_SQL_DIR / "create_tables.sql").read_text())
 
     connection.commit()
 
