@@ -1229,6 +1229,17 @@ def test_pios_sync_configs_specific_refreshes_unit_snapshots(monkeypatch, tmp_pa
     db_path = tmp_path / "app.sqlite"
     dot_pioreactor = tmp_path / ".pioreactor"
     dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text(
+        f"""
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader
+
+[storage]
+database={db_path}
+""".strip(),
+        encoding="utf-8",
+    )
     (dot_pioreactor / "unit_config.ini").write_text("[leader]\nvalue=1\n", encoding="utf-8")
 
     import sqlite3
