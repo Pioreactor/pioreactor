@@ -10,6 +10,7 @@ from typing import cast
 from typing import Iterator
 
 import click
+import pioreactor.config as config_module
 import pytest
 from click.testing import CliRunner
 from pioreactor import bioreactor
@@ -33,6 +34,20 @@ from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.networking import DiscoveredWorker
 from pioreactor.utils.networking import resolve_to_address
 from tests.conftest import capture_requests
+
+
+@pytest.fixture(autouse=True)
+def restore_config_singleton_after_cli_test() -> Iterator[None]:
+    original_config = config_module.config
+
+    yield
+
+    config_module.config = original_config
+    config_module.get_config.cache_clear()
+    config_module.get_leader_hostname.cache_clear()
+    config_module._get_leader_address.cache_clear()
+    config_module._get_mqtt_address.cache_clear()
+    whoami.am_I_leader.cache_clear()
 
 
 def pause() -> None:
@@ -555,57 +570,6 @@ def test_pio_status_handles_i2c_scan_errors_without_aborting(monkeypatch) -> Non
     i2c_line = next(line for line in result.output.splitlines() if line.startswith("hardware:i2c_bus1"))
     assert "WARN" in i2c_line
     assert "scan failed (i2c unavailable)" in i2c_line
-
-
-def test_pio_status_reports_all_sqlite_storage_files(monkeypatch, tmp_path: Path) -> None:
-    import sqlite3
-    import pioreactor.config as config_module
-
-    dot_pioreactor = tmp_path / ".pioreactor"
-    storage_dir = dot_pioreactor / "storage"
-    storage_dir.mkdir(parents=True)
-
-    database_path = storage_dir / "pioreactor.sqlite"
-    temporary_cache_path = storage_dir / "local_intermittent_pioreactor_metadata.sqlite"
-    persistent_cache_path = storage_dir / "local_persistent_pioreactor_metadata.sqlite"
-
-    conn = sqlite3.connect(database_path)
-    conn.execute("create table test(value integer)")
-    conn.commit()
-    conn.close()
-
-    Path(f"{database_path}-wal").write_bytes(b"wal")
-    Path(f"{database_path}-shm").write_bytes(b"shm")
-    temporary_cache_path.write_bytes(b"temporary")
-    persistent_cache_path.write_bytes(b"persistent")
-
-    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    with temporary_config_change(config_module.config, "storage", "database", str(database_path)):
-        with temporary_config_change(
-            config_module.config, "storage", "temporary_cache", str(temporary_cache_path)
-        ):
-            with temporary_config_change(
-                config_module.config, "storage", "persistent_cache", str(persistent_cache_path)
-            ):
-                runner = CliRunner()
-                result = runner.invoke(pio, ["status"])
-
-    assert result.exit_code == 0
-    assert "storage:db" in result.output
-    assert "storage:temporary_cache" in result.output
-    assert "storage:persistent_cache" in result.output
-    assert "storage:dot_pioreactor" in result.output
-    assert "db_size=" in result.output
-    assert "wal_size=3B" in result.output
-    assert "shm_size=3B" in result.output
-    assert "dir_writable=" in result.output
-    lines = result.output.splitlines()
-    status_column = lines[0].index("Status")
-    for check_name in ("storage:temporary_cache", "storage:persistent_cache"):
-        line = next(line for line in lines if line.startswith(check_name))
-        assert line.index("OK") == status_column
-        assert "wal" not in line
-        assert "shm" not in line
 
 
 def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(

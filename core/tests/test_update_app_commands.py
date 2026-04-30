@@ -10,21 +10,21 @@ from pathlib import Path
 from shlex import quote
 
 import click
+import pioreactor.config as config_module
 import pytest
 from pioreactor.cli.pio import get_update_app_commands
-from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.mureq import Response
 
 
 @pytest.fixture(autouse=True)
 def ensure_storage_database_configured() -> object:
-    if config.has_option("storage", "database"):
+    if config_module.config.has_option("storage", "database"):
         yield
         return
 
     database_path = str(Path(".pioreactor") / "storage" / "pioreactor.sqlite")
-    with temporary_config_change(config, "storage", "database", database_path):
+    with temporary_config_change(config_module.config, "storage", "database", database_path):
         yield
 
 
@@ -181,7 +181,10 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
             f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
             3,
         ),
-        (f"sudo sqlite3 {config.get('storage','database')} < {tmp_rls_dir}/update.sql || :", 10),
+        (
+            f"sudo sqlite3 {config_module.config.get('storage','database')} < {tmp_rls_dir}/update.sql || :",
+            10,
+        ),
     ]
     assert cmds == expected
 
@@ -372,7 +375,10 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
             f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
             3,
         ),
-        (f"sudo sqlite3 {config.get('storage','database')} < {tmp_rls_dir}/update.sql || :", 10),
+        (
+            f"sudo sqlite3 {config_module.config.get('storage','database')} < {tmp_rls_dir}/update.sql || :",
+            10,
+        ),
         (f"sudo rm -f {archive_location}", 97),
     ]
 
