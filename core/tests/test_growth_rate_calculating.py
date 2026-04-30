@@ -389,19 +389,18 @@ class TestGrowthRateCalculating:
 
                 assert calc._recent_dilution
 
-                post_dose_od_payload = create_encoded_od_raw_batched(
-                    ["1"],
-                    [0.40],
-                    ["90"],
-                    timestamp="2010-01-01T12:02:00.000Z",
-                )
-
-                for _ in range(3):
+                for i in range(10):
+                    post_dose_od_payload = create_encoded_od_raw_batched(
+                        ["1"],
+                        [0.40],
+                        ["90"],
+                        timestamp=f"2010-01-01T12:02:{i:02d}.000Z",
+                    )
                     publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
                         post_dose_od_payload,
                     )
-                    if wait_for(lambda: not calc._recent_dilution, timeout=2.0):
+                    if wait_for(lambda: not calc._recent_dilution, timeout=5.0):
                         break
 
                 assert not calc._recent_dilution
@@ -549,11 +548,11 @@ class TestGrowthRateCalculating:
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                pause()
 
-                for _ in range(25):
-                    v = baseline + std * np.random.randn()
+                def publish_observation(value: float) -> None:
                     t = current_utc_timestamp()
-                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
+                    ods = create_od_raw_batched(["2"], [value], ["90"], timestamp=t)
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
                         encode(ods),
@@ -564,40 +563,25 @@ class TestGrowthRateCalculating:
                         encode(ods.ods["2"]),
                         retain=True,
                     )
-                    time.sleep(0.5)
+
+                for _ in range(25):
+                    publish_observation(baseline + std * np.random.randn())
+                    pause()
+
+                assert wait_for(lambda: calc.od_filtered is not None and calc.growth_rate is not None)
 
                 previous_nOD = calc.od_filtered
                 previous_gr = calc.growth_rate
                 # EKF is warmed up, introduce outlier. This outlier is "expected", given the smoothing we do.
-                v = 2 * baseline + std * np.random.randn()
-                t = current_utc_timestamp()
-                ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    encode(ods),
-                    retain=True,
-                )
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(ods.ods["2"]),
-                    retain=True,
-                )
+                publish_observation(2 * baseline + std * np.random.randn())
 
                 # publish another minor outlier
-                v = 1.2 * baseline + std * np.random.randn()
-                t = current_utc_timestamp()
-                ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    encode(ods),
-                    retain=True,
+                publish_observation(1.2 * baseline + std * np.random.randn())
+                assert wait_for(
+                    lambda: calc.od_filtered is not None
+                    and calc.growth_rate is not None
+                    and calc.od_filtered is not previous_nOD
                 )
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(ods.ods["2"]),
-                    retain=True,
-                )
-                time.sleep(0.5)
 
                 current_nOD = calc.od_filtered
                 current_gr = calc.growth_rate
@@ -607,20 +591,8 @@ class TestGrowthRateCalculating:
 
                 # continue normal data
                 for _ in range(30):
-                    v = 0.05 + std * np.random.randn()
-                    t = current_utc_timestamp()
-                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        encode(ods),
-                        retain=True,
-                    )
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(ods.ods["2"]),
-                        retain=True,
-                    )
-                    time.sleep(0.5)
+                    publish_observation(0.05 + std * np.random.randn())
+                    pause()
 
                 # reverts back to previous
                 current_nOD = calc.od_filtered

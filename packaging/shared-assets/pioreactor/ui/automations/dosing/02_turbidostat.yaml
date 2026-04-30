@@ -15,3 +15,7 @@ fields:
     unit: mL
     label: Exchange volume
     type: numeric
+  - key: biomass_signal
+    default: auto
+    label: Biomass signal
+    type: string

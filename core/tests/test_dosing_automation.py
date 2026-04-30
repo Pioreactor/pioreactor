@@ -1886,7 +1886,7 @@ def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
 
             self.exchange_volume_ml = float(exchange_volume_ml)
             self.fraction_alt_media = float(fraction_alt_media)
-            self.run_every(duration, run_after_seconds=0.0)
+            self.run_every(duration, skip_first_run=True)
 
         def execute(self) -> events.DilutionEvent:
             alt_media_ml = self.fraction_alt_media * self.exchange_volume_ml
@@ -1908,6 +1908,7 @@ def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
             duration=0.1,
         ) as automation_job:
             assert automation_job.alt_media_fraction == 0.5
+            automation_job.run()
             assert wait_for(lambda: automation_job.media_throughput > 0, timeout=5.0)
             assert wait_for(lambda: close(automation_job.alt_media_fraction, 0.5), timeout=5.0)
 
@@ -1921,6 +1922,7 @@ def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
             duration=0.1,
         ) as automation_job:
             assert close(automation_job.alt_media_fraction, 0.5)
+            automation_job.run()
             assert wait_for(lambda: automation_job.alt_media_fraction > 0.5, timeout=5.0)
 
 
