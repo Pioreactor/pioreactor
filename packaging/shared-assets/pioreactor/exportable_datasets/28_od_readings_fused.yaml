@@ -1,0 +1,10 @@
+dataset_name: od_readings_fused
+default_order_by: timestamp
+description: This dataset includes a time series of fused optical density readings.
+display_name: Fused optical density
+has_experiment: true
+has_unit: true
+source: app
+table: od_readings_fused
+timestamp_columns:
+- timestamp

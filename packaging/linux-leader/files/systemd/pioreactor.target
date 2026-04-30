@@ -1,0 +1,7 @@
+[Unit]
+Description=Pioreactor Common Services
+After=network-online.target
+Wants=pioreactor-web.target
+
+[Install]
+WantedBy=multi-user.target

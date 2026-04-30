@@ -1,0 +1,12 @@
+dataset_name: pioreactor_unit_activity_data
+default_order_by: timestamp
+description: This dataset includes most of your experiment data, including the time
+  series of OD metrics, temperature, stirring rates, LED updates, and dosings. See also "Pioreactor unit activity data roll-up" for a rolled-up version of this dataset.
+display_name: Pioreactor unit activity data (recommended)
+has_experiment: true
+has_unit: true
+source: app
+table: pioreactor_unit_activity_data
+timestamp_columns:
+- timestamp
+always_partition_by_unit: true

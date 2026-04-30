@@ -1,0 +1,11 @@
+dataset_name: pioreactor_unit_activity_data_rollup
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: pioreactor_unit_activity_data_rollup
+timestamp_columns:
+- timestamp
+description: This dataset is a rolled-up version of Pioreactor unit activity data (above) aggregated to the minute level. This is useful for reducing the size of the exported dataset.
+display_name: Pioreactor unit activity data roll-up
+always_partition_by_unit: true

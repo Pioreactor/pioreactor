@@ -1,0 +1,8 @@
+/var/log/pioreactor.log {
+    weekly
+    missingok
+    rotate 10
+    compress
+    notifempty
+    create 0666 pioreactor pioreactor
+}

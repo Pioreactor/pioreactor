@@ -1,0 +1,11 @@
+dataset_name: logs
+default_order_by: timestamp
+description: This dataset includes the append-only collection of logs from all Pioreactors.
+  A subset of these logs are displayed in the Log Table in the Experiment Overview.
+display_name: Pioreactor logs
+has_experiment: true
+has_unit: true
+source: app
+table: logs
+timestamp_columns:
+- timestamp

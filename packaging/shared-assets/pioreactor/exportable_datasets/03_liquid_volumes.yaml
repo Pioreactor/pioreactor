@@ -1,0 +1,10 @@
+dataset_name: liquid_volumes
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: liquid_volumes
+timestamp_columns:
+- timestamp
+description: This dataset contains time series for the amount of volume calculated to be in the Pioreactors during experiments.
+display_name: Liquid volumes

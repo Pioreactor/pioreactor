@@ -1,0 +1,6 @@
+[Unit]
+Description=Pioreactor Web (lighttpd + huey)
+Wants=lighttpd.service huey.service
+
+[Install]
+WantedBy=multi-user.target

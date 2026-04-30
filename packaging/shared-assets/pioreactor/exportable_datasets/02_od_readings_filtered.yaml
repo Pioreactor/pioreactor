@@ -1,0 +1,10 @@
+dataset_name: od_readings_filtered
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: od_readings_filtered
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of normalized optical densities. This data matches what's presented in the "Normalized optical density" chart in the Experiment Overview.
+display_name: Normalized optical density

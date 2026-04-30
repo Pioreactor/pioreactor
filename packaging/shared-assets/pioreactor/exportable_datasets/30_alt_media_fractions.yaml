@@ -1,0 +1,10 @@
+dataset_name: alt_media_fractions
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: alt_media_fractions
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of how much alternative media is in each Pioreactor. This data matches what's presented in the "Fraction of volume that is alternative media" chart in the Experiment Overview.
+display_name: Alt. media fraction

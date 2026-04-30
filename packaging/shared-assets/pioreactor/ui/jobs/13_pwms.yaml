@@ -1,0 +1,10 @@
+---
+display_name: PWMs
+job_name: pwms
+display: false
+source: app
+published_settings:
+  - key: dc
+    label: PWM intensity
+    type: string
+    display: true

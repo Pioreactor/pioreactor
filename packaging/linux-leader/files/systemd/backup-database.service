@@ -1,0 +1,12 @@
+[Unit]
+Description=Backup Pioreactor database
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=pioreactor
+EnvironmentFile=/etc/pioreactor.env
+ExecStart=/opt/pioreactor/venv/bin/pio run backup_database
+
+[Install]
+WantedBy=multi-user.target

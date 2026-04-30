@@ -1,0 +1,23 @@
+[Unit]
+Description=Huey service for Pioreactor web tasks
+After=network.target firstboot.service everyboot.service
+Before=lighttpd.service
+PartOf=pioreactor-web.target
+
+
+[Service]
+# Web environment via /etc/pioreactor.env provides DOT_PIOREACTOR
+EnvironmentFile=/etc/pioreactor.env
+WorkingDirectory=/run/pioreactor
+User=pioreactor
+# Ensure files remain readable by lighttpd after pip reinstalls; keep group write
+UMask=0002
+# Use module path in merged web package
+ExecStart=/opt/pioreactor/venv/bin/huey_consumer pioreactor.web.tasks.huey -n -b 1.0 -w 10 -f -C -d 0.01
+ExecStartPost=/opt/pioreactor/venv/bin/pio  log -m "%n successful" -n systemd --local-only
+StandardOutput=null
+StandardError=null
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

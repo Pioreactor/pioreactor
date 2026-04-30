@@ -1,0 +1,12 @@
+dataset_name: growth_rates
+default_order_by: timestamp
+description: This dataset includes a time series of the calculated (implied) growth
+  rate. This data matches what's presented in the 'Implied growth rate' chart in the
+  Experiment Overview.
+display_name: Implied growth rate
+has_experiment: true
+has_unit: true
+source: app
+table: growth_rates
+timestamp_columns:
+- timestamp

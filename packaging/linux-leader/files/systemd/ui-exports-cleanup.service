@@ -1,0 +1,12 @@
+[Unit]
+Description=Cleanup web exports directory (leaders)
+
+[Service]
+Type=oneshot
+User=pioreactor
+# Ephemeral exports live in /run; DOT_PIOREACTOR is not used here
+EnvironmentFile=/etc/pioreactor.env
+ExecStart=/bin/bash -lc '/opt/pioreactor/venv/bin/pio log -m "Cleaning web exports dir" -l debug -n ui-exports-cleanup && rm -f /run/pioreactor/exports/*.zip /run/pioreactor/exports/*.csv'
+
+[Install]
+WantedBy=multi-user.target

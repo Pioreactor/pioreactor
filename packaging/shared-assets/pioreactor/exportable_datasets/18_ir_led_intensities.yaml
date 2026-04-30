@@ -1,0 +1,10 @@
+dataset_name: ir_led_intensities
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: ir_led_intensities
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of the relative IR intensities used to normalize OD readings. Useful for debugging OD readings.
+display_name: IR LED intensities

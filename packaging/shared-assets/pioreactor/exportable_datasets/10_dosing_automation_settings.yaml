@@ -1,0 +1,11 @@
+dataset_name: dosing_automation_settings
+default_order_by: started_at
+has_experiment: true
+has_unit: true
+source: app
+query: SELECT *, BASE64(settings) as json_settings FROM dosing_automation_settings
+timestamp_columns:
+- started_at
+- ended_at
+description: This dataset includes a history of the settings from dosing automations.
+display_name: Dosing automation settings

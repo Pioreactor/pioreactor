@@ -1,0 +1,10 @@
+---
+display_name: Silent
+automation_name: silent
+description: Do nothing.
+fields:
+  - key: duration
+    default: 30
+    unit: min
+    label: Duration between events
+    type: numeric

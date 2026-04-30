@@ -1,0 +1,10 @@
+dataset_name: pwm_dcs
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: pwm_dcs
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of the PWMs duty cycle percentages. Useful for debugging PWM use.
+display_name: PWM duty cycles

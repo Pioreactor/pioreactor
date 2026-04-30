@@ -1,0 +1,13 @@
+---
+chart_key: fused_optical_density
+data_source: od_readings_fused # SQL table
+title: Fused optical density
+mqtt_topic: [od_reading/od_fused]
+source: app
+payload_key: od_fused
+y_axis_label: Reading
+interpolation: stepAfter
+lookback: parseFloat(config['ui.overview.settings']['raw_od_lookback_hours'])
+fixed_decimals: 3
+y_axis_domain: [0.001, 0.05]
+down_sample: true

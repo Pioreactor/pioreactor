@@ -1,0 +1,10 @@
+dataset_name: pioreactor_unit_labels
+default_order_by: created_at
+has_experiment: true
+has_unit: true
+source: app
+table: pioreactor_unit_labels
+timestamp_columns:
+- created_at
+display_name: Pioreactor unit labels
+description: In this dataset, you'll find the labels assigned to a Pioreactor during an experiment.
