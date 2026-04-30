@@ -678,7 +678,6 @@ def test_broadcast_in_manage_all(client) -> None:
             "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 
@@ -711,7 +710,6 @@ def test_run_job(client) -> None:
             "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 
@@ -759,7 +757,6 @@ def test_run_job_with_job_source(client) -> None:
             "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 

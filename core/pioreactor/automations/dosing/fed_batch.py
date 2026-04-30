@@ -22,7 +22,7 @@ class FedBatch(DosingAutomationJob):
     def __init__(
         self,
         dosing_volume_ml: float | str,
-        duration: float | str | None = 720,
+        duration: float | str = 720,
         skip_first_run: bool | str | int = False,
         **kwargs: Any,
     ) -> None:
@@ -36,8 +36,7 @@ class FedBatch(DosingAutomationJob):
             "When using the fed-batch automation, no liquid is removed. Carefully monitor the level of liquid to avoid overflow!"
         )
         self.dosing_volume_ml = float(dosing_volume_ml)
-        if duration is not None:
-            self.run_every(duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
+        self.run_every(duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
 
     def execute(self) -> events.AddMediaEvent | events.NoEvent:
         projected_volume_ml = self.current_volume_ml + self.dosing_volume_ml

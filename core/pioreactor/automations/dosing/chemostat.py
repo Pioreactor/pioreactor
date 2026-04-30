@@ -21,7 +21,7 @@ class Chemostat(DosingAutomationJob):
     def __init__(
         self,
         exchange_volume_ml: float | str,
-        duration: float | str | None = 20,
+        duration: float | str = 20,
         skip_first_run: bool | str | int = False,
         **kwargs: Any,
     ) -> None:
@@ -34,8 +34,7 @@ class Chemostat(DosingAutomationJob):
                 raise CalibrationError("Media and waste calibrations must be active first.")
 
         self.exchange_volume_ml = float(exchange_volume_ml)
-        if duration is not None:
-            self.run_every(duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
+        self.run_every(duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
 
     def execute(self) -> events.DilutionEvent:
         """

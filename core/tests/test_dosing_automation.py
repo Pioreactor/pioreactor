@@ -1323,10 +1323,11 @@ def test_fed_batch_skips_dose_that_would_overflow() -> None:
     with FedBatch(
         unit=unit,
         experiment=experiment,
-        duration=None,
+        duration=60,
         dosing_volume_ml=0.2,
         current_volume_ml=FedBatch.MAX_VIAL_VOLUME_TO_STOP - 0.1,
     ) as job:
+        cancel_run_thread(job)
         job.pub_client = FakeMQTTClient(on_publish=record_stop_message)
         event = job.execute()
 
@@ -1813,9 +1814,10 @@ def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
             experiment=experiment,
             exchange_volume_ml=0.25,
             alt_media_fraction=0.5,
-            duration=None,
+            duration=60,
         ) as chemostat_job:
             chemostat = cast(Chemostat, chemostat_job)
+            cancel_run_thread(chemostat)
             assert chemostat.alt_media_fraction == 0.5
             chemostat.run()
             assert wait_for(lambda: close(chemostat.media_throughput, 0.25), timeout=5.0)
@@ -1831,9 +1833,10 @@ def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
             unit=unit,
             experiment=experiment,
             exchange_volume_ml=0.35,
-            duration=None,
+            duration=60,
         ) as chemostat_job:
             chemostat = cast(Chemostat, chemostat_job)
+            cancel_run_thread(chemostat)
             assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
             chemostat.run()
             target = alt_media_fraction_post_dosing / (1 + 0.35 / 14)
@@ -1851,9 +1854,10 @@ def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
             experiment=experiment,
             exchange_volume_ml=0.5,
             current_volume_ml=0,
-            duration=None,
+            duration=60,
         ) as chemostat_job:
             chemostat = cast(Chemostat, chemostat_job)
+            cancel_run_thread(chemostat)
             chemostat.run()
             assert wait_for(lambda: close(chemostat.media_throughput, 0.5), timeout=5.0)
             assert wait_for(lambda: close(chemostat.current_volume_ml, 0.5), timeout=5.0)

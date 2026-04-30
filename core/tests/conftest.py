@@ -63,19 +63,11 @@ def _clear_test_artifacts(test_name: str) -> None:
 
 @pytest.fixture(autouse=True)
 def run_around_tests(request):
-    import pioreactor.config as config_module
-
     test_name = request.node.name
-    original_config = config_module.config
     _clear_test_artifacts(test_name)
 
     yield
 
-    config_module.config = original_config
-    config_module.get_config.cache_clear()
-    config_module.get_leader_hostname.cache_clear()
-    config_module._get_leader_address.cache_clear()
-    config_module._get_mqtt_address.cache_clear()
     _clear_test_artifacts(test_name)
 
 
