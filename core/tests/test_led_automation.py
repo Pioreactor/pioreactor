@@ -230,6 +230,7 @@ def test_light_dark_cycle_supports_sub_minute_phase_schedule() -> None:
         assert wait_for(lambda: not lc.light_active, timeout=2.0)
 
 
+@pytest.mark.slow
 def test_light_dark_cycle_alternates_every_six_seconds_for_tenth_minute_phases() -> None:
     experiment = "test_light_dark_cycle_alternates_every_six_seconds_for_tenth_minute_phases"
     with LightDarkCycle(

@@ -109,6 +109,30 @@ def test_app_commands_with_branch() -> None:
     assert cmds == [expected]
 
 
+def test_app_commands_with_branch_for_leader_only(monkeypatch) -> None:
+    branch = "feature/test"
+    repo = "org/repo"
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: False)
+
+    cmds, version = get_update_app_commands(
+        branch=branch,
+        repo=repo,
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert version == branch
+    assert cmds == [
+        (
+            "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
+            "--extra-index-url https://pypi.org/simple "
+            f'"pioreactor[leader] @ git+https://github.com/{repo}.git@{branch}#subdirectory=core"',
+            1,
+        )
+    ]
+
+
 def test_app_commands_with_sha() -> None:
     sha = "a0b1c2d3e4f56789a0b1c2d3e4f56789a0b1c2d3"
     repo = "org/repo"
@@ -178,7 +202,7 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
         (f"sudo rm -rf {tmp_rls_dir}", 98),
         (
             f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
+            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
             3,
         ),
         (
@@ -372,7 +396,7 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
         (f"sudo rm -rf {tmp_rls_dir}", 98),
         (
             f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
+            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
             3,
         ),
         (
@@ -422,8 +446,27 @@ def test_app_commands_with_release_zip_for_worker_excludes_leader_steps(monkeypa
 
     assert ver == version
     assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
-    assert not any("[leader,worker]" in command for command, _ in cmds)
+    assert not any("[leader_worker]" in command for command, _ in cmds)
     assert not any("update.sql" in command for command, _ in cmds)
+
+
+def test_app_commands_with_release_zip_for_leader_only_uses_leader_extra(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: False)
+    version = "26.3.0"
+    source = str(tmp_path / f"release_{version}.zip")
+
+    cmds, ver = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=source,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ver == version
+    assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[leader]") for command, _ in cmds)
+    assert not any("[leader_worker]" in command for command, _ in cmds)
+    assert any("update.sql" in command for command, _ in cmds)
 
 
 def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monkeypatch) -> None:
@@ -454,7 +497,7 @@ def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monk
 
     assert ver == version
     assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
-    assert not any("[leader,worker]" in command for command, _ in cmds)
+    assert not any("[leader_worker]" in command for command, _ in cmds)
     assert not any("update.sql" in command for command, _ in cmds)
 
 

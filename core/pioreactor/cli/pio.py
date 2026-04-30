@@ -110,6 +110,11 @@ def get_update_app_commands(
     from pioreactor.mureq import HTTPException
     from pioreactor.utils.networking import is_using_local_access_point
 
+    def get_install_extra_for_this_unit() -> str:
+        if whoami.am_I_leader():
+            return "leader_worker" if whoami.am_I_a_worker() else "leader"
+        return "worker"
+
     def create_commands_for_release_archive(
         archive_location: str, release_version: str
     ) -> list[tuple[str, float]]:
@@ -135,11 +140,13 @@ def get_update_app_commands(
         if not defer_web_restart:
             release_commands.append(("sudo systemctl restart pioreactor-web.target", 99))
 
+        install_extra = get_install_extra_for_this_unit()
+
         if whoami.am_I_leader():
             release_commands.extend(
                 [
                     (
-                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[leader,worker]",
+                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
                         3,
                     ),
                     (
@@ -151,7 +158,7 @@ def get_update_app_commands(
         else:
             release_commands.append(
                 (
-                    f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[worker]",
+                    f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
                     3,
                 )
             )
@@ -185,10 +192,11 @@ def get_update_app_commands(
         cleaned_repo = quote(repo)
         version_installed = cleaned_ref
         no_deps_flag = "--no-deps " if no_deps else ""
+        install_extra = get_install_extra_for_this_unit()
         commands_and_priority.append(
             (
                 f"/opt/pioreactor/venv/bin/pip install --force-reinstall {no_deps_flag}--index-url https://piwheels.org/simple --extra-index-url https://pypi.org/simple "
-                f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_ref}#subdirectory=core"',
+                f'"pioreactor[{install_extra}] @ git+https://github.com/{cleaned_repo}.git@{cleaned_ref}#subdirectory=core"',
                 1,
             )  # noqa: E501
         )

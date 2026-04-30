@@ -714,6 +714,7 @@ class TestGrowthRateCalculating:
 
                 assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
+    @pytest.mark.slow
     def test_massive_outlier_spike_gets_absorbed(self) -> None:
         with temporary_config_changes(
             config,
