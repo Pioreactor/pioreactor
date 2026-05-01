@@ -390,7 +390,7 @@ def main(argv: list[str]) -> int:
             print(f" - (No update scripts found for {version})")
 
         print("\nSuggested command to test update once published:")
-        print(f"   pio update -v {version}")
+        print(f"   pio update app -v {version}")
 
         return 0
     except Exception as exc:

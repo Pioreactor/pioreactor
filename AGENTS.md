@@ -1,14 +1,15 @@
 # Agent Guidelines for the Pioreactor Mono-Repo
 
-This repository contains the **executable code for the Pioreactor project**. It has three primary sub-projects:
+This repository contains the **executable code for the Pioreactor project**. It has primary sub-directories:
 
-1. `core/` — backend / worker code that runs jobs. Important files:
+1. `core/pioreactor` — backend / worker code that runs jobs. Important files:
    - `core/pioreactor/background_jobs/base.py` is the super class for background jobs (like stirring, od_reading, automations, etc)
 2. `core/pioreactor/web/` — Flask-based web API. Important files:
    - `core/pioreactor/web/api.py` handles the leader-only (and frontend) API. This is the main entry point most often. It sends requests to `unit_api.py` too.
    - `core/pioreactor/web/unit_api.py` is the pioreactor-specific API for controlling individual actions on a Pioreactor.
    - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web APIs.
-3. `frontend/` — React-based web UI
+3. `frontend/src` — React-based web UI
+4. `packaging/` - contains files used to build or install Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR.
 
 ---
 
@@ -286,4 +287,4 @@ The Pioreactor software enables users to control and monitor small-scale bioreac
 
 ## Tickets
 
-Tickets looks like `pio-xxxx`. Not sure what to do? Try looks through open tickets.
+Tickets from `tk` look like `pio-xxxx`. Use tickets (`tk`) to write notes to your future self.

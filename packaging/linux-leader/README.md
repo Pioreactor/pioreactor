@@ -1,13 +1,6 @@
 # Pioreactor Linux Leader Installer
 
-This directory contains the first scaffold for installing Pioreactor leader-only software on a generic Linux workstation.
-
-Supported first target:
-
-- Debian 13 / Trixie
-- systemd
-- Python 3.13 from the OS package set
-- `amd64` and `arm64`
+This directory contains the scaffolding for installing Pioreactor software on a generic Linux workstation.
 
 The installer creates the same core runtime shape as the image path:
 
@@ -19,14 +12,11 @@ The installer creates the same core runtime shape as the image path:
 - `pioreactor-leader.target`
 - `pioreactor-web.target`
 
-Unlike a Raspberry Pi image, this is leader-only by default. It does not register the workstation as a worker and does not install Raspberry Pi hardware services.
 
 The installer expects to be run from the repository checkout or release archive so it can read:
 
 - `packaging/shared-assets/` for one-time provisioning seed data.
 - `packaging/linux-leader/files/` for Linux leader service templates.
-
-These files are intentionally not included in the Python wheel.
 
 ## Usage
 

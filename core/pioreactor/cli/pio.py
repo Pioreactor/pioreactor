@@ -1453,23 +1453,11 @@ def update_settings(ctx: click.Context, job: str) -> None:
         publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=QOS.AT_LEAST_ONCE)
 
 
-@pio.group(invoke_without_command=True)
-@click.option("-s", "--source", help="use a URL, whl file, or release-***.zip file")
-@click.option("-b", "--branch", help="specify a branch")
-@click.option("--sha", callback=validate_git_sha_option, help="specify a commit SHA")
-@click.pass_context
-def update(ctx: click.Context, source: str | None, branch: str | None, sha: str | None) -> None:
+@pio.group()
+def update() -> None:
     """
-    update software for the app (it's an alias for pio update app)
+    Update Pioreactor software.
     """
-    if ctx.invoked_subcommand is None:
-        # run update app
-        if source is not None:
-            ctx.invoke(update_app, source=source)
-        elif branch is not None:
-            ctx.invoke(update_app, branch=branch)
-        else:
-            ctx.invoke(update_app, sha=sha)
 
 
 def get_non_prerelease_tags_of_pioreactor(repo: str) -> list[str]:

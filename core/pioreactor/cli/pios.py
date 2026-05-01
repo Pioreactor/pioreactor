@@ -508,56 +508,11 @@ if am_I_leader() or is_testing_env():
         if not all(results):
             raise click.Abort()
 
-    @pios.group(invoke_without_command=True)
-    @click.option("-s", "--source", help="use a release-***.zip already on the workers")
-    @click.option("-b", "--branch", help="specify a branch in repos")
-    @click.option("--sha", callback=validate_git_sha_option, help="specify a commit SHA in repos")
-    @click.option(
-        "-r",
-        "--repo",
-        help="install from a repo on github. Format: username/project",
-    )
-    @click.option("-v", "--version", help="install a specific version, default is latest")
-    @click.option(
-        "--no-deps",
-        is_flag=True,
-        default=False,
-        help="skip dependency resolution for branch/SHA updates",
-    )
-    @which_units
-    @confirmation
-    @json_output
-    @click.pass_context
-    def update(
-        ctx: click.Context,
-        source: str | None,
-        branch: str | None,
-        sha: str | None,
-        repo: str | None,
-        version: str | None,
-        no_deps: bool,
-        units: tuple[str, ...],
-        experiments: tuple[str, ...],
-        yes: bool,
-        json: bool,
-    ) -> None:
+    @pios.group()
+    def update() -> None:
         """
         Update Pioreactor software across workers.
         """
-        if ctx.invoked_subcommand is None:
-            ctx.invoke(
-                update_app,
-                branch=branch,
-                sha=sha,
-                no_deps=no_deps,
-                repo=repo,
-                version=version,
-                source=source,
-                units=units,
-                experiments=experiments,
-                yes=yes,
-                json=json,
-            )
 
     @update.command(name="app", short_help="update Pioreactor app on workers")
     @click.option("-b", "--branch", help="update to the github branch")

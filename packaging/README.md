@@ -1,8 +1,6 @@
 # Packaging
 
-This directory contains files used to build or install Pioreactor outside the normal Python package runtime.
-
-These files are intentionally kept out of the `pioreactor` wheel unless a file is explicitly part of the running Python/web application. Most files here are provisioning inputs: they seed databases, config directories, system services, or image-builder workspaces.
+This directory contains files used to build or install Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, or image-builder workspaces.
 
 ## Directories
 
