@@ -81,6 +81,7 @@ AllCalibrations = structs.subclass_union(CalibrationBase)
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
+DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
 for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
@@ -100,6 +101,50 @@ def _parse_experiment_tags(raw_tags: str | None) -> list[str]:
         return []
 
     return [tag for tag in raw_tags.split(EXPERIMENT_TAG_SEPARATOR) if tag]
+
+
+def _validate_experiment_name(raw_experiment_name: object) -> str:
+    if not isinstance(raw_experiment_name, str) or not raw_experiment_name:
+        abort_with(
+            400,
+            "Experiment name is required",
+            cause="Request JSON missing 'experiment'.",
+            remediation="Provide an experiment name in the 'experiment' field.",
+        )
+
+    if len(raw_experiment_name) >= 200:  # just too big
+        abort_with(
+            400,
+            "Experiment name is too long",
+            cause="Experiment name exceeds 199 characters.",
+            remediation="Shorten the experiment name to under 200 characters.",
+        )
+
+    if raw_experiment_name.lower() == "current":  # too much API rework
+        abort_with(
+            400,
+            "Experiment name cannot be 'current'",
+            cause="'current' is a reserved experiment identifier.",
+            remediation="Choose a different experiment name.",
+        )
+
+    if raw_experiment_name.startswith("_testing"):  # jobs won't run as expected
+        abort_with(
+            400,
+            "Experiment name cannot start with '_testing'",
+            cause="Experiment names starting with '_testing' are reserved.",
+            remediation="Choose a name that does not start with '_testing'.",
+        )
+
+    if any(character in raw_experiment_name for character in DISALLOWED_EXPERIMENT_NAME_CHARACTERS):
+        abort_with(
+            400,
+            "Experiment name cannot contain special characters (#, $, %, +, /, \\)",
+            cause="Experiment name contains disallowed characters.",
+            remediation="Use letters, digits, spaces, dots, dashes, or underscores.",
+        )
+
+    return raw_experiment_name
 
 
 def _normalize_experiment_tags(raw_tags: object) -> list[str]:
@@ -2571,51 +2616,8 @@ def get_experiments() -> ResponseReturnValue:
 @api_bp.route("/experiments", methods=["POST"])
 def create_experiment() -> ResponseReturnValue:
     body = request.get_json()
-    proposed_experiment_name = body.get("experiment")
+    proposed_experiment_name = _validate_experiment_name(body.get("experiment"))
     tags = _normalize_experiment_tags(body.get("tags")) if "tags" in body else []
-
-    if not proposed_experiment_name:
-        abort_with(
-            400,
-            "Experiment name is required",
-            cause="Request JSON missing 'experiment'.",
-            remediation="Provide an experiment name in the 'experiment' field.",
-        )
-    elif len(proposed_experiment_name) >= 200:  # just too big
-        abort_with(
-            400,
-            "Experiment name is too long",
-            cause="Experiment name exceeds 199 characters.",
-            remediation="Shorten the experiment name to under 200 characters.",
-        )
-    elif proposed_experiment_name.lower() == "current":  # too much API rework
-        abort_with(
-            400,
-            "Experiment name cannot be 'current'",
-            cause="'current' is a reserved experiment identifier.",
-            remediation="Choose a different experiment name.",
-        )
-    elif proposed_experiment_name.startswith("_testing"):  # jobs won't run as expected
-        abort_with(
-            400,
-            "Experiment name cannot start with '_testing'",
-            cause="Experiment names starting with '_testing' are reserved.",
-            remediation="Choose a name that does not start with '_testing'.",
-        )
-    elif (
-        ("#" in proposed_experiment_name)
-        or ("+" in proposed_experiment_name)
-        or ("$" in proposed_experiment_name)
-        or ("/" in proposed_experiment_name)
-        or ("%" in proposed_experiment_name)
-        or ("\\" in proposed_experiment_name)
-    ):
-        abort_with(
-            400,
-            "Experiment name cannot contain special characters (#, $, %, +, /, \\)",
-            cause="Experiment name contains disallowed characters.",
-            remediation="Use letters, digits, spaces, dots, dashes, or underscores.",
-        )
 
     try:
         row_count = modify_app_db(

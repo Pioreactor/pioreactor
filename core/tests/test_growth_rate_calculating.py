@@ -232,16 +232,21 @@ class TestGrowthRateCalculating:
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
 
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1"],
-                        [0.51],
-                        ["90"],
-                        timestamp="2010-01-01T12:00:40.000Z",
-                    ),
+                first_od_payload = create_encoded_od_raw_batched(
+                    ["1"],
+                    [0.51],
+                    ["90"],
+                    timestamp="2010-01-01T12:00:40.000Z",
                 )
-                pause()
+
+                for _ in range(10):
+                    publish(
+                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                        first_od_payload,
+                    )
+                    if wait_for(lambda: calc.ekf is not None, timeout=1.0):
+                        break
+
                 assert wait_for(lambda: calc.ekf is not None, timeout=5.0)
 
                 publish(

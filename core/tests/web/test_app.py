@@ -479,6 +479,24 @@ def test_create_experiment_missing_fields(client) -> None:
     assert response.status_code == 400  # Bad Request
 
 
+@pytest.mark.parametrize(
+    ("experiment_name", "expected_error"),
+    [
+        ("current", "Experiment name cannot be 'current'"),
+        ("_testing_exp", "Experiment name cannot start with '_testing'"),
+        ("bad/name", "Experiment name cannot contain special characters (#, $, %, +, /, \\)"),
+        (["exp4"], "Experiment name is required"),
+    ],
+)
+def test_create_experiment_rejects_invalid_names(
+    client: FlaskClient, experiment_name: object, expected_error: str
+) -> None:
+    response = client.post("/api/experiments", json={"experiment": experiment_name})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected_error
+
+
 def test_404_for_unknown_api(client) -> None:
     response = client.get("/api/this-doesnt-exist")
     assert response.status_code == 404
