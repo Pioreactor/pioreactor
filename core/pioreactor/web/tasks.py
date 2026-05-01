@@ -1048,6 +1048,36 @@ def restart_pioreactor_web_target() -> bool:
 
 
 @huey.task()
+@huey.rate_limit("repair-system", limit=1, per=30, retry=False)
+@huey.lock_task("repair-system-lock")
+def repair_system() -> dict[str, Any]:
+    logger.debug("Repairing system permissions and checking status")
+    repair_result = run(
+        [PIO_EXECUTABLE, "repair"],
+        capture_output=True,
+        text=True,
+    )
+    status_result = run(
+        [PIO_EXECUTABLE, "status"],
+        capture_output=True,
+        text=True,
+    )
+    return {
+        "success": repair_result.returncode == 0,
+        "repair": {
+            "returncode": repair_result.returncode,
+            "stdout": repair_result.stdout,
+            "stderr": repair_result.stderr,
+        },
+        "status": {
+            "returncode": status_result.returncode,
+            "stdout": status_result.stdout,
+            "stderr": status_result.stderr,
+        },
+    }
+
+
+@huey.task()
 def pios(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pios",) + args + ("-y",))}`, {env=}')

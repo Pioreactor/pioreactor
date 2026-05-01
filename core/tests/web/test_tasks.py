@@ -164,6 +164,32 @@ def test_check_model_hardware_skips_non_v1_hat(monkeypatch: pytest.MonkeyPatch) 
     }
 
 
+def test_repair_system_repairs_permissions_then_checks_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_rate_limit("repair-system")
+    calls: list[list[str]] = []
+
+    class DummyResult:
+        returncode = 0
+        stdout = "ok"
+        stderr = ""
+
+    def fake_run(command: list[str], **_kwargs: object) -> DummyResult:
+        calls.append(command)
+        return DummyResult()
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    result = tasks.repair_system.call_local()
+
+    assert calls == [
+        [tasks.PIO_EXECUTABLE, "repair"],
+        [tasks.PIO_EXECUTABLE, "status"],
+    ]
+    assert result["success"] is True
+    assert result["repair"]["stdout"] == "ok"
+    assert result["status"]["stdout"] == "ok"
+
+
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -631,6 +631,12 @@ def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     return _broadcast_or_multicast_post(pioreactor_unit, "/unit_api/system/shutdown")
 
 
+@api_bp.route("/units/<pioreactor_unit>/system/repair", methods=["POST"])
+def repair_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    """Repair file permissions and return local system status."""
+    return _broadcast_or_multicast_post(pioreactor_unit, "/unit_api/system/repair")
+
+
 ## Clock
 
 

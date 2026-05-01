@@ -144,9 +144,12 @@ def test_create_task_response_uses_chord_callback_id(client) -> None:
     assert response.get_json()["task_id"] == "callback-task"
 
 
-@pytest.mark.parametrize("endpoint", ["/unit_api/system/reboot", "/unit_api/system/shutdown"])
-def test_reboot_and_shutdown_schedule_task(client, endpoint) -> None:
-    """Reboot and shutdown endpoints should schedule background tasks."""
+@pytest.mark.parametrize(
+    "endpoint",
+    ["/unit_api/system/reboot", "/unit_api/system/shutdown", "/unit_api/system/repair"],
+)
+def test_system_action_endpoints_schedule_task(client, endpoint) -> None:
+    """System action endpoints should schedule background tasks."""
     resp = client.post(endpoint)
     assert resp.status_code == 202
     data = resp.get_json()

@@ -1237,10 +1237,11 @@ def status() -> None:
         click.echo(f"{name:{name_width}s} {status_display} {details}")
 
 
-@pio.command(name="repair-permissions", short_help="repair .pioreactor ownership and group permissions")
-def repair_permissions() -> None:
+@pio.command(name="repair", short_help="repair Pioreactor ownership and group permissions")
+def repair() -> None:
     """
-    Repair ownership and group permissions for the local .pioreactor tree.
+    Repair ownership and group permissions for the local .pioreactor tree and /run/pioreactor runtime tree.
+    TODO: add more
     """
     import shutil
 

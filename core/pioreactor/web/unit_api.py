@@ -483,6 +483,16 @@ def restart_web_server() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
+@unit_api_bp.route("/system/repair", methods=["POST", "PATCH"])
+@require_leader
+def repair_system() -> DelayedResponseReturnValue:
+    if _task_is_locked("repair-system-lock"):
+        return _locked_task_response("repair-system-lock")
+
+    task = tasks.repair_system()
+    return create_task_response(task)
+
+
 @unit_api_bp.route("/system/remove_file", methods=["POST", "PATCH"])
 def remove_file() -> DelayedResponseReturnValue:
     task_name = "remove_file"
