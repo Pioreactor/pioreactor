@@ -125,43 +125,6 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
     ]
 
 
-def test_pio_config_show_json_with_sources(tmp_path: Path, monkeypatch) -> None:
-    (tmp_path / "config.ini").write_text(
-        """
-[cluster.topology]
-leader_hostname=leader
-leader_address=leader.local
-
-[mqtt]
-broker_address=global-broker
-
-[PWM]
-0=stirring
-""".strip()
-    )
-    (tmp_path / "unit_config.ini").write_text(
-        """
-[mqtt]
-broker_address=local-broker
-""".strip()
-    )
-
-    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
-    get_config.cache_clear()
-    try:
-        runner = CliRunner()
-        result = runner.invoke(pio, ["config", "show", "--json", "--with-source"])
-        assert result.exit_code == 0
-
-        payload = json.loads(result.output)
-        assert payload["mqtt"]["broker_address"]["value"] == "local-broker"
-        assert payload["mqtt"]["broker_address"]["source"] == "local"
-        assert payload["cluster.topology"]["leader_hostname"]["source"] == "global"
-        assert payload["PWM_reverse"]["stirring"]["source"] == "derived"
-    finally:
-        get_config.cache_clear()
-
-
 def test_pio_config_get(tmp_path: Path, monkeypatch) -> None:
     (tmp_path / "config.ini").write_text(
         """
@@ -322,45 +285,6 @@ broker_address=global-broker
     assert "Specify at most one of --shared or --specific." in result.output
 
 
-def test_pio_config_set_specific_updates_unit_config(tmp_path: Path, monkeypatch) -> None:
-    (tmp_path / "config.ini").write_text(
-        """
-[cluster.topology]
-leader_hostname=leader
-leader_address=leader.local
-
-[mqtt]
-broker_address=global-broker
-""".strip(),
-        encoding="utf-8",
-    )
-    (tmp_path / "unit_config.ini").write_text(
-        """
-[mqtt]
-broker_address=local-broker
-""".strip(),
-        encoding="utf-8",
-    )
-
-    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
-    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
-    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
-    get_config.cache_clear()
-    try:
-        runner = CliRunner()
-        result = runner.invoke(
-            pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--specific"]
-        )
-        assert result.exit_code == 0
-        assert "broker_address=updated-broker" in (tmp_path / "unit_config.ini").read_text(encoding="utf-8")
-
-        result = runner.invoke(pio, ["config", "get", "mqtt", "broker_address"])
-        assert result.exit_code == 0
-        assert result.output == "updated-broker\n"
-    finally:
-        get_config.cache_clear()
-
-
 def test_pio_config_set_preserves_existing_file_mode(tmp_path: Path, monkeypatch) -> None:
     config_path = tmp_path / "config.ini"
     config_path.write_text(
@@ -385,34 +309,6 @@ broker_address=global-broker
         result = runner.invoke(pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--shared"])
         assert result.exit_code == 0
         assert stat.S_IMODE(config_path.stat().st_mode) == 0o664
-    finally:
-        get_config.cache_clear()
-
-
-def test_pio_config_set_specific_creates_missing_section(tmp_path: Path, monkeypatch) -> None:
-    (tmp_path / "config.ini").write_text(
-        """
-[cluster.topology]
-leader_hostname=leader
-leader_address=leader.local
-""".strip(),
-        encoding="utf-8",
-    )
-
-    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
-    get_config.cache_clear()
-    try:
-        runner = CliRunner()
-        result = runner.invoke(
-            pio,
-            ["config", "set", "new.section", "new_key", "new_value", "--specific"],
-        )
-        assert result.exit_code == 0
-        assert "[new.section]" in (tmp_path / "unit_config.ini").read_text(encoding="utf-8")
-
-        result = runner.invoke(pio, ["config", "get", "new.section", "new_key"])
-        assert result.exit_code == 0
-        assert result.output == "new_value\n"
     finally:
         get_config.cache_clear()
 

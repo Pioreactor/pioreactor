@@ -53,25 +53,6 @@ def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value:
     return validate_git_sha(value)
 
 
-def _runtime_config_path(
-    explicit_env_var: str,
-    dot_pioreactor_filename: str,
-    testing_default: str,
-    production_default: str,
-) -> str:
-    from pioreactor.whoami import is_testing_env
-
-    explicit_path = os.environ.get(explicit_env_var)
-    if explicit_path is not None:
-        return explicit_path
-
-    dot_pioreactor_root = os.environ.get("DOT_PIOREACTOR")
-    if dot_pioreactor_root is not None:
-        return str(Path(dot_pioreactor_root) / dot_pioreactor_filename)
-
-    return testing_default if is_testing_env() else production_default
-
-
 def build_staged_release_archive_location(release_filename: str) -> str:
     return str(
         Path(tempfile.gettempdir()) / f"{STAGED_RELEASE_ARCHIVE_PREFIX}{uuid4().hex}_{release_filename}"
@@ -79,7 +60,8 @@ def build_staged_release_archive_location(release_filename: str) -> str:
 
 
 def get_dot_pioreactor_root() -> Path:
-    return Path(os.environ.get("DOT_PIOREACTOR", "/home/pioreactor/.pioreactor"))
+    configured_root = os.environ.get("DOT_PIOREACTOR", "/home/pioreactor/.pioreactor")
+    return Path(configured_root)
 
 
 def get_expected_dot_pioreactor_uid_gid() -> tuple[int | None, int | None, str]:
@@ -431,31 +413,23 @@ def pio(ctx: click.Context, show_version: bool) -> None:
         click.echo(ctx.get_help())
 
 
-def _resolve_config_paths_like_runtime() -> tuple[str, str]:
-    """
-    Resolve global and local config paths with runtime-like precedence.
-    """
+def _runtime_config_file_path(explicit_env_var: str, filename: str) -> Path:
+    explicit_path = os.environ.get(explicit_env_var, "/home/pioreactor/.pioreactor")
+    return Path(explicit_path)
+
+
+def _resolve_config_paths_like_runtime() -> tuple[Path, Path]:
+    """Resolve global and local config paths with runtime-like precedence."""
     return (
-        _runtime_config_path(
-            "GLOBAL_CONFIG",
-            "config.ini",
-            "./.pioreactor/config.ini",
-            "/home/pioreactor/.pioreactor/config.ini",
-        ),
-        _runtime_config_path(
-            "LOCAL_CONFIG",
-            "unit_config.ini",
-            "./.pioreactor/unit_config.ini",
-            "/home/pioreactor/.pioreactor/unit_config.ini",
-        ),
+        _runtime_config_file_path("GLOBAL_CONFIG", "config.ini"),
+        _runtime_config_file_path("LOCAL_CONFIG", "unit_config.ini"),
     )
 
 
-def _load_config_file(path: str) -> t.Any:
+def _load_config_file(config_path: Path) -> t.Any:
     from pioreactor.config import ConfigParserMod
 
     parser = ConfigParserMod(strict=False)
-    config_path = Path(path)
     if config_path.is_file():
         parser.read([str(config_path)])
     return parser
@@ -479,8 +453,8 @@ def _get_effective_config_value(section_name: str, parameter_name: str) -> str:
     return effective_config.get(section_name, parameter_name)
 
 
-def _get_config_value_from_file(path: str, section_name: str, parameter_name: str) -> str:
-    config = _load_config_file(path)
+def _get_config_value_from_file(config_path: Path, section_name: str, parameter_name: str) -> str:
+    config = _load_config_file(config_path)
 
     if not config.has_section(section_name):
         raise click.ClickException(f"Section '{section_name}' not found in config file.")
@@ -543,10 +517,9 @@ def _refresh_config_caches() -> None:
     config_module.config = config_module.get_config()
 
 
-def _set_config_value_in_file(path: str, section_name: str, parameter_name: str, value: str) -> None:
+def _set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
     from pioreactor.config import ConfigParserMod
 
-    config_path = Path(path)
     existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
     current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
     updated_text = _replace_or_append_config_entry(current_text, section_name, parameter_name, value)
