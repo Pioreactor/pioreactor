@@ -34,6 +34,7 @@ import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlin
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import DisplaySourceCode from "./components/DisplaySourceCode";
 import CloseIcon from '@mui/icons-material/Close';
+import DownloadIcon from '@mui/icons-material/Download';
 
 
 function formatSplineType(curveData) {
@@ -86,6 +87,18 @@ function formatEstimatorCurve(estimator) {
 }
 
 
+function estimatorToYaml(estimator) {
+  const yamlObj = {
+    ...estimator,
+  };
+  delete yamlObj["is_active"];
+  delete yamlObj["pioreactor_unit"];
+  delete yamlObj["device"];
+
+  return yaml.dump(yamlObj, { schema: yaml.JSON_SCHEMA });
+}
+
+
 function Delete({ pioreactorUnit, device, estimatorName }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -120,34 +133,17 @@ function Delete({ pioreactorUnit, device, estimatorName }) {
 }
 
 
-function ViewYamlSource({ pioreactorUnit, device, estimatorName }) {
+function ViewYamlSource({ estimatorName, estimator, disabled }) {
   const [open, setOpen] = useState(false);
   const [yamlText, setYamlText] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const openAndLoad = async () => {
+  const openAndLoad = () => {
     setOpen(true);
-    setLoading(true);
-    setYamlText("");
     try {
-      const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`;
-      const data = await fetchTaskResult(apiUrl);
-      const estimator = data.result[pioreactorUnit];
-
-      const yamlObj = {
-        ...estimator,
-      };
-      delete yamlObj["is_active"];
-      delete yamlObj["pioreactor_unit"];
-      delete yamlObj["device"];
-
-      const text = yaml.dump(yamlObj, { schema: yaml.JSON_SCHEMA });
-      setYamlText(text);
+      setYamlText(estimatorToYaml(estimator));
     } catch (err) {
       console.error('Failed to load YAML', err);
       setYamlText('# Error loading YAML');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -156,11 +152,12 @@ function ViewYamlSource({ pioreactorUnit, device, estimatorName }) {
   return (
     <>
       <Button
-        style={{ textTransform: 'none', marginRight: '12px', float: 'right' }}
+        style={{ textTransform: 'none', float: 'right' }}
+        disabled={disabled}
         onClick={openAndLoad}
       >
         <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }} />
-        View YAML
+        View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>
@@ -179,17 +176,45 @@ function ViewYamlSource({ pioreactorUnit, device, estimatorName }) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {loading ? (
-            <Box sx={{ textAlign: "center", mt: 2 }}><CircularProgress size={20} /></Box>
-          ) : (
-            <DisplaySourceCode sourceCode={yamlText} />
-          )}
+          <DisplaySourceCode sourceCode={yamlText} />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} sx={{ textTransform: 'none' }} autoFocus>Close</Button>
         </DialogActions>
       </Dialog>
     </>
+  );
+}
+
+
+function DownloadEstimatorYaml({ estimatorName, estimator, disabled, onError }) {
+  const downloadEstimator = () => {
+    try {
+      const yamlText = estimatorToYaml(estimator);
+      const blob = new Blob([yamlText], { type: "application/x-yaml" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${estimatorName}.yaml`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed:", error);
+      onError?.("Unable to download estimator YAML.");
+    }
+  };
+
+  return (
+    <Button
+      style={{ textTransform: "none", marginRight: "12px", float: "right" }}
+      disabled={disabled}
+      onClick={downloadEstimator}
+    >
+      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }} />
+      Download estimator
+    </Button>
   );
 }
 
@@ -282,7 +307,17 @@ function SingleEstimatorPage(props) {
           </Typography>
 
           <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap", alignItems: "center" }}>
-            <ViewYamlSource pioreactorUnit={pioreactorUnit} device={device} estimatorName={estimatorName} />
+            <ViewYamlSource
+              estimatorName={estimatorName}
+              estimator={estimator}
+              disabled={loading || !estimator}
+            />
+            <DownloadEstimatorYaml
+              estimatorName={estimatorName}
+              estimator={estimator}
+              disabled={loading || !estimator}
+              onError={showSnackbar}
+            />
             <Delete pioreactorUnit={pioreactorUnit} device={device} estimatorName={estimatorName} />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Button
