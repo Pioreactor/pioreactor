@@ -2,8 +2,7 @@
 
 # Pioreactor Production Smoke Test
 #
-# Purpose: Run the quick, non-destructive checks from AGENT_TESTING.md
-#          on a Raspberry Pi Pioreactor. Continues on failure, reports errors in red.
+# Purpose: Run the quick, non-destructive checks on a Raspberry Pi Pioreactor. Continues on failure, reports errors in red.
 #
 # Usage (on the Pi):
 #   chmod +x ./pioreactor_agent_smoke_test.sh
@@ -11,14 +10,13 @@
 #
 # Notes:
 # - Run as the `pioreactor` user (not root).
-# - Assumes official image with `pio` CLI installed.
-# - Requires `curl`. `jq` is optional for prettier JSON checks.
+# - Assumes official leader-worker image with `pio` CLI installed.
+# - Requires `curl` and `jq`.
 
 set -uo pipefail
 
 FAILURE_COUNT=0
 VERIFIED_IDLE_BEFORE=false
-HAS_JQ=false
 HAS_SYSTEMCTL=false
 
 declare -a TEST_SEQUENCE=(
@@ -33,10 +31,14 @@ declare -a TEST_SEQUENCE=(
   check_unit_api_core
   check_descriptor_endpoints
   check_unit_api_job_history
+  check_installed_shared_assets
   check_blink
   check_pio_run_latency
   check_pio_logs_cli
+  check_update_cli_contract
+  check_repair_permissions_cli
   check_leader_api
+  check_online_workers
   check_experiment_cli
   check_stirring_job
   check_experiment_scoping
@@ -159,12 +161,6 @@ enter_pioreactor_home() {
 }
 
 detect_optional_tools() {
-  if command -v jq >/dev/null 2>&1; then
-    HAS_JQ=true
-  else
-    warn "jq not found; JSON validation will be basic"
-  fi
-
   if command -v systemctl >/dev/null 2>&1; then
     HAS_SYSTEMCTL=true
   fi
@@ -180,17 +176,10 @@ http_json_ok() {
     return 1
   fi
 
-  if [[ "$HAS_JQ" == true ]]; then
-    if [[ -n "$jq_filter" ]]; then
-      echo "$response" | jq -e "$jq_filter" >/dev/null
-    else
-      echo "$response" | jq . >/dev/null
-    fi
+  if [[ -n "$jq_filter" ]]; then
+    echo "$response" | jq -e "$jq_filter" >/dev/null
   else
-    if [[ -n "$jq_filter" ]]; then
-      warn "Skipping JSON filter '$jq_filter' for $url (jq not installed)"
-    fi
-    [[ -n "$response" ]]
+    echo "$response" | jq . >/dev/null
   fi
 }
 
@@ -221,6 +210,59 @@ curl_ok() {
   curl -fsS "$url" >/dev/null
 }
 
+curl_post_ok() {
+  local url="$1"
+  curl -fsS -X POST -d '' "$url" >/dev/null
+}
+
+poll_task_result_response() {
+  # Usage: poll_task_result_response result_url_path [max_attempts]
+  local result_url_path="$1"
+  local max_attempts="${2:-120}"
+  local response status
+
+  for _ in $(seq 1 "$max_attempts"); do
+    if ! response="$(curl -fsS "http://localhost${result_url_path}")"; then
+      return 1
+    fi
+
+    status="$(echo "$response" | jq -r '.status // empty')"
+    case "$status" in
+      succeeded)
+        printf '%s\n' "$response"
+        return
+        ;;
+      failed)
+        echo "$response" | jq -r '.error // .cause // "task failed"' >&2
+        return 1
+        ;;
+      pending|running)
+        sleep 1
+        ;;
+      *)
+        echo "$response" | jq . >&2
+        return 1
+        ;;
+    esac
+  done
+
+  return 1
+}
+
+poll_task_result() {
+  # Usage: poll_task_result result_url_path jq_filter [max_attempts]
+  local result_url_path="$1"
+  local jq_filter="$2"
+  local max_attempts="${3:-120}"
+  local response
+
+  if ! response="$(poll_task_result_response "$result_url_path" "$max_attempts")"; then
+    return 1
+  fi
+
+  echo "$response" | jq -e "$jq_filter" >/dev/null
+}
+
 fetch_running_jobs() {
   curl -fsS http://localhost/unit_api/jobs/running
 }
@@ -229,12 +271,7 @@ jobs_contain() {
   local jobs_json="$1"
   local jq_query="$2"
 
-  if [[ "$HAS_JQ" == true ]]; then
-    echo "$jobs_json" | jq -e "$jq_query" >/dev/null
-  else
-    warn "Cannot evaluate jq expression '$jq_query' (jq not installed)"
-    return 1
-  fi
+  echo "$jobs_json" | jq -e "$jq_query" >/dev/null
 }
 
 read_pwm_duty_cycle() {
@@ -243,7 +280,7 @@ read_pwm_duty_cycle() {
     return 1
   fi
 
-  if [[ "$HAS_JQ" == true && ( "$raw" == \{* || "$raw" == \[* ) ]]; then
+  if [[ "$raw" == \{* || "$raw" == \[* ]]; then
     local value
     value="$(jq -r '."1" // ."17" // (.. | numbers)' <<<"$raw" | head -n 1)"
     if [[ -n "$value" && "$value" != "null" ]]; then
@@ -484,10 +521,45 @@ check_descriptor_endpoints() {
     curl_check \
     http://localhost/api/automations/descriptors/dosing \
     'type=="array" and any(.automation_name=="chemostat")'
+  run_step \
+    "Checking /unit_api/automations/descriptors/led" \
+    curl_check \
+    http://localhost/unit_api/automations/descriptors/led \
+    'type=="array" and any(.automation_name=="light_dark_cycle") and any(.automation_name=="silent")'
+  run_step \
+    "Checking /api/automations/descriptors/led" \
+    curl_check \
+    http://localhost/api/automations/descriptors/led \
+    'type=="array" and any(.automation_name=="light_dark_cycle")'
 }
 
 check_unit_api_job_history() {
   run_step "Checking /unit_api/jobs" curl_check http://localhost/unit_api/jobs 'type=="array"'
+}
+
+check_installed_shared_assets() {
+  info "Checking installed shared Pioreactor assets"
+
+  local expected_files=(
+    "$HOME/.pioreactor/exportable_datasets/30_alt_media_fractions.yaml"
+    "$HOME/.pioreactor/exportable_datasets/26_pwm_dcs.yaml"
+    "$HOME/.pioreactor/exportable_datasets/27_raw_od_readings.yaml"
+    "$HOME/.pioreactor/ui/jobs/50_self_test.yaml"
+  )
+
+  for file in "${expected_files[@]}"; do
+    if [[ -f "$file" ]]; then
+      ok "installed asset present: $file"
+    else
+      fail "missing installed asset: $file"
+    fi
+  done
+
+  run_step \
+    "Checking bundled exportable datasets are listed" \
+    curl_check \
+    http://localhost/api/datasets/exportable \
+    'any(.dataset_name=="alt_media_fractions") and any(.dataset_name=="pwm_dcs") and any(.dataset_name=="raw_od_readings")'
 }
 
 check_blink() {
@@ -549,6 +621,109 @@ check_pio_logs_cli() {
   fi
 }
 
+check_update_cli_contract() {
+  info "Checking update CLI command shape"
+
+  if pio update --help | grep -q "app"; then
+    ok "pio update exposes app subcommand"
+  else
+    fail "pio update app subcommand missing"
+  fi
+
+  if pio update app --help >/dev/null; then
+    ok "pio update app help"
+  else
+    fail "pio update app help failed"
+  fi
+
+  if pios update --help | grep -q "app"; then
+    ok "pios update exposes app subcommand"
+  else
+    fail "pios update app subcommand missing"
+  fi
+
+  if pios update app --help >/dev/null; then
+    ok "pios update app help"
+  else
+    fail "pios update app help failed"
+  fi
+}
+
+check_repair_permissions_cli() {
+  info "Checking repair-permissions CLI"
+
+  if pio repair-permissions --help | grep -q ".pioreactor"; then
+    ok "pio repair-permissions help"
+  else
+    fail "pio repair-permissions help failed"
+    return
+  fi
+
+  local dot_pioreactor_root test_dir test_file status_before status_after
+  dot_pioreactor_root="${DOT_PIOREACTOR:-$HOME/.pioreactor}"
+  test_dir="$dot_pioreactor_root/agent_smoke_permissions_test"
+  test_file="$test_dir/test.txt"
+
+  mkdir -p "$test_dir"
+  printf 'agent smoke permissions test\n' > "$test_file"
+
+  chmod 0755 "$test_dir"
+  chmod g-s "$test_dir"
+  chmod 0644 "$test_file"
+
+  if [[ -g "$test_dir" ]]; then
+    fail "Unable to remove setgid bit from smoke test directory"
+    rm -rf -- "$test_dir"
+    return
+  fi
+
+  if status_before="$(pio status 2>/dev/null | grep 'storage:dot_pioreactor')"; then
+    if echo "$status_before" | grep -Eq 'missing_group_write=[1-9][0-9]*' && \
+       echo "$status_before" | grep -Eq 'missing_setgid_dirs=[1-9][0-9]*'; then
+      ok "pio status detects intentionally broken .pioreactor permissions"
+    else
+      fail "pio status did not report intentionally broken .pioreactor permissions: $status_before"
+    fi
+  else
+    fail "pio status did not report storage:dot_pioreactor"
+  fi
+
+  if sudo -n true >/dev/null 2>&1; then
+    if pio repair-permissions >/dev/null; then
+      ok "pio repair-permissions completed"
+    else
+      fail "pio repair-permissions failed"
+      rm -rf -- "$test_dir"
+      return
+    fi
+  else
+    fail "passwordless sudo is required for pio repair-permissions"
+    rm -rf -- "$test_dir"
+    return
+  fi
+
+  if [[ -g "$test_dir" ]] && \
+     find "$test_dir" -maxdepth 0 -perm -020 -print -quit | grep -q . && \
+     find "$test_file" -maxdepth 0 -perm -020 -print -quit | grep -q .; then
+    ok "pio repair-permissions restored group-write and setgid bits"
+  else
+    fail "pio repair-permissions did not restore expected permissions on smoke test files"
+  fi
+
+  if status_after="$(pio status 2>/dev/null | grep 'storage:dot_pioreactor')"; then
+    if echo "$status_after" | grep -q 'missing_group_write=0' && \
+       echo "$status_after" | grep -q 'missing_setgid_dirs=0'; then
+      ok "pio status reports repaired .pioreactor permissions"
+    else
+      fail "pio status still reports .pioreactor permission drift after repair: $status_after"
+    fi
+  else
+    fail "pio status did not report storage:dot_pioreactor after repair"
+  fi
+
+  rm -rf -- "$test_dir"
+}
+
 check_leader_api() {
   local hostname
   hostname="$(hostname)"
@@ -559,6 +734,98 @@ check_leader_api() {
   run_step "Checking /api/units/$hostname/system/utc_clock" curl_check "http://localhost/api/units/$hostname/system/utc_clock"
   run_step "Checking /api/logs" curl_check http://localhost/api/logs
   run_step "Checking /api/local_access_point" curl_check http://localhost/api/local_access_point '.active | type=="boolean"'
+}
+
+fetch_worker_task_result() {
+  # Usage: fetch_worker_task_result worker url [max_attempts]
+  local worker="$1"
+  local url="$2"
+  local max_attempts="${3:-60}"
+  local response result_url_path result_response
+
+  if ! response="$(curl -fsS "$url")"; then
+    return 1
+  fi
+
+  result_url_path="$(echo "$response" | jq -r '.result_url_path // empty')"
+  if [[ -z "$result_url_path" ]]; then
+    return 1
+  fi
+
+  if ! result_response="$(poll_task_result_response "$result_url_path" "$max_attempts")"; then
+    return 1
+  fi
+
+  if ! echo "$result_response" | jq -e --arg worker "$worker" '.result | type=="object" and has($worker) and .[$worker] != null' >/dev/null; then
+    return 1
+  fi
+
+  printf '%s\n' "$result_response"
+}
+
+check_worker_task_result() {
+  # Usage: check_worker_task_result worker description url jq_filter [max_attempts]
+  local worker="$1"
+  local description="$2"
+  local url="$3"
+  local jq_filter="$4"
+  local max_attempts="${5:-60}"
+  local result_response
+
+  info "$description"
+  if result_response="$(fetch_worker_task_result "$worker" "$url" "$max_attempts")" && \
+     echo "$result_response" | jq -e --arg worker "$worker" "$jq_filter" >/dev/null; then
+    ok "$description"
+  else
+    fail "$description"
+  fi
+}
+
+check_online_workers() {
+  info "Checking online workers in the cluster"
+
+  local hostname workers_json online_workers=() worker result_response
+  hostname="$(hostname)"
+
+  if ! workers_json="$(curl -fsS http://localhost/api/workers)"; then
+    fail "Unable to fetch workers from leader API"
+    return
+  fi
+
+  while IFS= read -r worker; do
+    if [[ -z "$worker" || "$worker" == "$hostname" ]]; then
+      continue
+    fi
+
+    if result_response="$(fetch_worker_task_result "$worker" "http://localhost/api/units/$worker/system/utc_clock" 30)" && \
+       echo "$result_response" | jq -e --arg worker "$worker" '.result[$worker].clock_time | type=="string"' >/dev/null; then
+      online_workers+=("$worker")
+      ok "worker $worker is online"
+    else
+      warn "worker $worker is active in inventory but did not respond to utc_clock"
+    fi
+  done < <(echo "$workers_json" | jq -r '.[] | select(.is_active == 1 or .is_active == true) | .pioreactor_unit')
+
+  if ((${#online_workers[@]} == 0)); then
+    warn "No online non-leader workers found; skipping worker-specific checks"
+    return
+  fi
+
+  for worker in "${online_workers[@]}"; do
+    check_worker_task_result \
+      "$worker" \
+      "Checking worker $worker app version" \
+      "http://localhost/api/units/$worker/versions/app" \
+      '.result[$worker].version | type=="string" and length > 0'
+
+    check_worker_task_result \
+      "$worker" \
+      "Checking worker $worker running jobs" \
+      "http://localhost/api/units/$worker/jobs/running" \
+      '.result[$worker] | type=="array"'
+
+    run_step "Blinking worker $worker" curl_post_ok "http://localhost/api/workers/$worker/blink"
+  done
 }
 
 
@@ -717,23 +984,37 @@ check_export_datasets_endpoint() {
     return
   fi
 
-  if [[ "$HAS_JQ" == true ]]; then
-    if echo "$response" | jq -e '.result == true' >/dev/null; then
-      local filename
-      filename="$(echo "$response" | jq -r '.filename // empty')"
-      ok "export_datasets succeeded${filename:+ (file: $filename)}"
-      if [[ -n "$filename" && -f "/var/www/pioreactorui/static/exports/$filename" ]]; then
+  if echo "$response" | jq -e '.task_id and .result_url_path' >/dev/null; then
+    local result_url_path filename
+    result_url_path="$(echo "$response" | jq -r '.result_url_path')"
+
+    if poll_task_result "$result_url_path" '.result.result == true and (.result.filename | endswith(".zip"))'; then
+      filename="$(curl -fsS "http://localhost${result_url_path}" | jq -r '.result.filename // empty')"
+      ok "export_datasets async task succeeded${filename:+ (file: $filename)}"
+
+      if [[ -n "$filename" && -f "/run/pioreactor/exports/$filename" ]]; then
+        ok "export file present: /run/pioreactor/exports/$filename"
+      elif [[ -n "$filename" && -f "/var/www/pioreactorui/static/exports/$filename" ]]; then
         ok "export file present: /var/www/pioreactorui/static/exports/$filename"
       else
         warn "export file not found locally (may be transient or permissions)"
       fi
     else
-      local msg
-      msg="$(echo "$response" | jq -r '.msg // "unknown error"')"
-      fail "export_datasets failed: $msg"
+      fail "export_datasets async task failed or timed out"
+    fi
+  elif echo "$response" | jq -e '.result == true' >/dev/null; then
+    local filename
+    filename="$(echo "$response" | jq -r '.filename // empty')"
+    ok "export_datasets succeeded${filename:+ (file: $filename)}"
+    if [[ -n "$filename" && -f "/var/www/pioreactorui/static/exports/$filename" ]]; then
+      ok "export file present: /var/www/pioreactorui/static/exports/$filename"
+    else
+      warn "export file not found locally (may be transient or permissions)"
     fi
   else
-    ok "export_datasets responded"
+    local msg
+    msg="$(echo "$response" | jq -r '.msg // "unknown error"')"
+    fail "export_datasets failed: $msg"
   fi
 }
 
@@ -799,14 +1080,10 @@ check_broadcast_endpoints() {
 
   local jobs_map
   if jobs_map="$(curl -fsS "http://localhost/api/workers/\$broadcast/jobs/running")"; then
-    if [[ "$HAS_JQ" == true ]]; then
-      if echo "$jobs_map" | jq -e 'type=="object"' >/dev/null; then
-        ok "/api/workers/${broadcast_literal}/jobs/running returns mapping"
-      else
-        fail "/api/workers/${broadcast_literal}/jobs/running did not return a mapping"
-      fi
+    if echo "$jobs_map" | jq -e 'type=="object"' >/dev/null; then
+      ok "/api/workers/${broadcast_literal}/jobs/running returns mapping"
     else
-      ok "Received broadcast jobs data"
+      fail "/api/workers/${broadcast_literal}/jobs/running did not return a mapping"
     fi
   else
     fail "/api/workers/${broadcast_literal}/jobs/running failed"
@@ -930,7 +1207,7 @@ main() {
   ensure_not_root
   enter_pioreactor_home
   detect_optional_tools
-  require_cmd pio curl pios crudini
+  require_cmd pio curl jq pios crudini sudo find
 
   info "Host: $(hostname)  IP: $(hostname -I || true)"
 

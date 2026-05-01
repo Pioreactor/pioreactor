@@ -1237,10 +1237,10 @@ def status() -> None:
         click.echo(f"{name:{name_width}s} {status_display} {details}")
 
 
-@pio.command(name="repair-permissions", short_help="repair .pioreactor ownership and group permissions")
+@pio.command(name="repair-permissions", short_help="repair Pioreactor ownership and group permissions")
 def repair_permissions() -> None:
     """
-    Repair ownership and group permissions for the local .pioreactor tree.
+    Repair ownership and group permissions for the local .pioreactor tree and /run/pioreactor runtime tree.
     """
     import shutil
 
@@ -1252,8 +1252,24 @@ def repair_permissions() -> None:
     find_path = shutil.which("find")
     chown_path = shutil.which("chown")
     chmod_path = shutil.which("chmod")
-    if sudo_path is None or find_path is None or chown_path is None or chmod_path is None:
-        raise click.ClickException("sudo, find, chown, and chmod are required.")
+    install_path = shutil.which("install")
+    touch_path = shutil.which("touch")
+    if (
+        sudo_path is None
+        or find_path is None
+        or chown_path is None
+        or chmod_path is None
+        or install_path is None
+        or touch_path is None
+    ):
+        raise click.ClickException("sudo, find, chown, chmod, install, and touch are required.")
+
+    run_pioreactor_root = Path("/run/pioreactor")
+    run_pioreactor_cache = run_pioreactor_root / "cache"
+    runtime_cache_databases = [
+        run_pioreactor_cache / "local_intermittent_pioreactor_metadata.sqlite",
+        run_pioreactor_cache / "huey.db",
+    ]
 
     commands = [
         [
@@ -1310,6 +1326,82 @@ def repair_permissions() -> None:
             "-exec",
             chmod_path,
             "g+s",
+            "{}",
+            "+",
+        ],
+        [
+            sudo_path,
+            install_path,
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2775",
+            str(run_pioreactor_root),
+        ],
+        [
+            sudo_path,
+            install_path,
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2770",
+            str(run_pioreactor_cache),
+        ],
+        [sudo_path, touch_path, *(str(path) for path in runtime_cache_databases)],
+        [
+            sudo_path,
+            chown_path,
+            "-h",
+            "pioreactor:www-data",
+            *(str(path) for path in runtime_cache_databases),
+        ],
+        [sudo_path, chmod_path, "0660", *(str(path) for path in runtime_cache_databases)],
+        [
+            sudo_path,
+            find_path,
+            str(run_pioreactor_cache),
+            "-maxdepth",
+            "1",
+            "-type",
+            "f",
+            "(",
+            "-name",
+            "*-wal",
+            "-o",
+            "-name",
+            "*-shm",
+            ")",
+            "-exec",
+            chown_path,
+            "-h",
+            "pioreactor:www-data",
+            "{}",
+            "+",
+        ],
+        [
+            sudo_path,
+            find_path,
+            str(run_pioreactor_cache),
+            "-maxdepth",
+            "1",
+            "-type",
+            "f",
+            "(",
+            "-name",
+            "*-wal",
+            "-o",
+            "-name",
+            "*-shm",
+            ")",
+            "-exec",
+            chmod_path,
+            "0660",
             "{}",
             "+",
         ],

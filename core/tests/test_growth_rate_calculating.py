@@ -231,6 +231,7 @@ class TestGrowthRateCalculating:
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                pause()
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",

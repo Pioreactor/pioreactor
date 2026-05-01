@@ -4,6 +4,7 @@ import json
 import re
 import stat
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import cast
@@ -83,6 +84,31 @@ def test_run() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run"])
     assert result.exit_code == 0
+
+
+def test_plugin_management_import_stays_lightweight() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys\n"
+                "import pioreactor.plugin_management\n"
+                "heavy_modules = [\n"
+                "    'pioreactor.pubsub',\n"
+                "    'pioreactor.plugin_management.install_plugin',\n"
+                "    'pioreactor.plugin_management.list_plugins',\n"
+                "    'pioreactor.plugin_management.uninstall_plugin',\n"
+                "]\n"
+                "print('\\n'.join(name for name in heavy_modules if name in sys.modules))\n"
+            ),
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+
+    assert result.stdout == "\n"
 
 
 def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
@@ -592,7 +618,7 @@ def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(
     result = runner.invoke(pio, ["repair-permissions"])
 
     assert result.exit_code == 0
-    assert len(commands) == 4
+    assert len(commands) == 11
     assert commands[0] == [
         "/usr/bin/sudo",
         "/usr/bin/find",
@@ -618,6 +644,94 @@ def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(
     assert commands[1] == ["/usr/bin/sudo", "/usr/bin/chmod", "g+w", str(dot_pioreactor)]
     assert commands[2][-4:] == ["/usr/bin/chmod", "g+w", "{}", "+"]
     assert commands[3][-7:] == ["-perm", "-2000", "-exec", "/usr/bin/chmod", "g+s", "{}", "+"]
+    assert commands[4] == [
+        "/usr/bin/sudo",
+        "/usr/bin/install",
+        "-d",
+        "-o",
+        "pioreactor",
+        "-g",
+        "www-data",
+        "-m",
+        "2775",
+        "/run/pioreactor",
+    ]
+    assert commands[5] == [
+        "/usr/bin/sudo",
+        "/usr/bin/install",
+        "-d",
+        "-o",
+        "pioreactor",
+        "-g",
+        "www-data",
+        "-m",
+        "2770",
+        "/run/pioreactor/cache",
+    ]
+    assert commands[6] == [
+        "/usr/bin/sudo",
+        "/usr/bin/touch",
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[7] == [
+        "/usr/bin/sudo",
+        "/usr/bin/chown",
+        "-h",
+        "pioreactor:www-data",
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[8] == [
+        "/usr/bin/sudo",
+        "/usr/bin/chmod",
+        "0660",
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[9] == [
+        "/usr/bin/sudo",
+        "/usr/bin/find",
+        "/run/pioreactor/cache",
+        "-maxdepth",
+        "1",
+        "-type",
+        "f",
+        "(",
+        "-name",
+        "*-wal",
+        "-o",
+        "-name",
+        "*-shm",
+        ")",
+        "-exec",
+        "/usr/bin/chown",
+        "-h",
+        "pioreactor:www-data",
+        "{}",
+        "+",
+    ]
+    assert commands[10] == [
+        "/usr/bin/sudo",
+        "/usr/bin/find",
+        "/run/pioreactor/cache",
+        "-maxdepth",
+        "1",
+        "-type",
+        "f",
+        "(",
+        "-name",
+        "*-wal",
+        "-o",
+        "-name",
+        "*-shm",
+        ")",
+        "-exec",
+        "/usr/bin/chmod",
+        "0660",
+        "{}",
+        "+",
+    ]
     assert f"Repaired permissions for {dot_pioreactor}." in result.output
 
 
@@ -809,6 +923,66 @@ def test_plugin_is_available_to_run() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "example_plugin"])
     assert result.exit_code == 0
+
+
+def test_noop_plugin_is_available_to_run() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["run", "noop"])
+    assert result.exit_code == 0
+
+
+def test_pio_run_loads_plugin_automations_before_starting_temperature_automation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plugin_dir = tmp_path / "plugins"
+    plugin_dir.mkdir()
+    automation_name = "_test_plugin_temperature_automation"
+    (plugin_dir / "plugin_temperature_automation.py").write_text(
+        f"""
+from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJobContrib
+
+
+class PluginTemperatureAutomation(TemperatureAutomationJobContrib):
+    automation_name = "{automation_name}"
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __post__init__(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return None
+
+    def block_until_disconnected(self):
+        print("plugin temperature automation ran")
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("PLUGINS_DEV", str(plugin_dir))
+    monkeypatch.delenv("SKIP_PLUGINS", raising=False)
+
+    import pioreactor.plugin_management as plugin_management
+    from pioreactor.background_jobs.temperature_automation import available_temperature_automations
+    from pioreactor.cli.run import run as run_command
+
+    monkeypatch.setattr(plugin_management, "discover_plugins_in_entry_points", lambda: [])
+    run_command._plugins_loaded = False
+    run_command.commands.pop("temperature_automation", None)
+    available_temperature_automations.pop(automation_name, None)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        pio,
+        ["run", "temperature_automation", "--automation-name", automation_name],
+    )
+
+    assert result.exit_code == 0
+    assert "plugin temperature automation ran" in result.output
 
 
 def test_list_plugins() -> None:

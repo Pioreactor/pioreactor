@@ -1,21 +1,12 @@
 # -*- coding: utf-8 -*-
-import glob
 import importlib
-import importlib.metadata as entry_point
 import os
-from functools import cache
 from typing import Any
 
 import click
 from msgspec import Struct
-from pioreactor import pubsub
-from pioreactor.plugin_management.install_plugin import click_install_plugin
-from pioreactor.plugin_management.list_plugins import click_list_plugins
-from pioreactor.plugin_management.uninstall_plugin import click_uninstall_plugin
 from pioreactor.plugin_management.utils import discover_plugins_in_entry_points
 from pioreactor.plugin_management.utils import discover_plugins_in_local_folder
-from pioreactor.utils import networking
-from pioreactor.whoami import get_unit_name
 
 """
 How do plugins work? There are a few patterns we use to "register" plugins with the core app.
@@ -64,13 +55,65 @@ __all__ = [
     "click_uninstall_plugin",
     "get_plugin_api_url",
     "get_plugins",
+    "load_plugin_modules",
     "load_plugins",
 ]
 
 
+def __getattr__(name: str) -> Any:
+    if name == "click_install_plugin":
+        from pioreactor.plugin_management.install_plugin import click_install_plugin
+
+        return click_install_plugin
+    elif name == "click_list_plugins":
+        from pioreactor.plugin_management.list_plugins import click_list_plugins
+
+        return click_list_plugins
+    elif name == "click_uninstall_plugin":
+        from pioreactor.plugin_management.uninstall_plugin import click_uninstall_plugin
+
+        return click_uninstall_plugin
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 def get_plugin_api_url(py_file: str) -> str:
+    from pioreactor import pubsub
+    from pioreactor.utils import networking
+    from pioreactor.whoami import get_unit_name
+
     endpoint = f"/unit_api/plugins/installed/{py_file}"
     return pubsub.create_webserver_path(networking.resolve_to_address(get_unit_name()), endpoint)
+
+
+def _get_entry_point_metadata(plugin: Any) -> Any:
+    if plugin.dist is not None:
+        return plugin.dist.metadata
+
+    import importlib.metadata as entry_point
+
+    return entry_point.metadata(plugin.name)
+
+
+def load_plugin_modules() -> list[Any]:
+    modules: list[Any] = []
+
+    if os.environ.get("SKIP_PLUGINS"):
+        return modules
+
+    for plugin in discover_plugins_in_entry_points():
+        try:
+            modules.append(plugin.load())  # plugin loading and execution here.
+        except Exception as e:
+            click.secho(f"{plugin.name} plugin load error: {type(e).__name__}: {e}", fg="red")
+
+    for py_file in discover_plugins_in_local_folder():
+        try:
+            modules.append(importlib.import_module(py_file.stem))
+        except Exception as e:
+            click.secho(f"{py_file} plugin load error: {type(e).__name__}: {e}", fg="red")
+
+    return modules
 
 
 def get_plugins() -> dict[str, Plugin]:
@@ -92,7 +135,7 @@ def get_plugins() -> dict[str, Plugin]:
 
     for plugin in discover_plugins_in_entry_points():
         try:
-            md = entry_point.metadata(plugin.name)
+            md = _get_entry_point_metadata(plugin)
             plugins[md["Name"]] = Plugin(
                 plugin.load(),  # plugin loading and execution here.
                 md["Summary"] or BLANK,
@@ -120,11 +163,15 @@ def get_plugins() -> dict[str, Plugin]:
         try:
             module = importlib.import_module(module_name)
             plugin_name = getattr(module, "__plugin_name__", module_name)
+            homepage = getattr(module, "__plugin_homepage__", None)
+            if homepage is None:
+                homepage = get_plugin_api_url(py_file.name)
+
             plugins[plugin_name] = Plugin(
                 module,
                 getattr(module, "__plugin_summary__", BLANK),
                 getattr(module, "__plugin_version__", BLANK),
-                getattr(module, "__plugin_homepage__", get_plugin_api_url(py_file.name)),
+                homepage,
                 getattr(module, "__plugin_author__", BLANK),
                 f"plugins/{py_file.name}",
             )

@@ -1,14 +1,19 @@
 # -*- coding: utf-8 -*-
-import importlib.metadata as entry_point
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from pioreactor.whoami import is_testing_env
+if TYPE_CHECKING:
+    import importlib.metadata as entry_point
+
+
+def _is_testing_env() -> bool:
+    return ("pytest" in sys.modules) or (os.environ.get("TESTING", "") == "1")
 
 
 def discover_plugins_in_local_folder() -> list[Path]:
-    if is_testing_env():
+    if _is_testing_env():
         if "PLUGINS_DEV" not in os.environ:
             return []
 
@@ -21,7 +26,9 @@ def discover_plugins_in_local_folder() -> list[Path]:
     # later elements are where stdlib are found, third party libs are found, etc.
     # we inject our plugins in between local and stdlib. This solves issue #447.
     # however, users can break things if the name the file something stupid like os.py
-    sys.path.insert(1, str(MODULE_DIR))
+    module_dir = str(MODULE_DIR)
+    if module_dir not in sys.path:
+        sys.path.insert(1, module_dir)
 
     # Get the stem names (file name, without directory and '.py') of any
     # python files in your directory, load each module by name and run
@@ -30,6 +37,8 @@ def discover_plugins_in_local_folder() -> list[Path]:
     return sorted(MODULE_DIR.glob("*.py"))
 
 
-def discover_plugins_in_entry_points() -> list[entry_point.EntryPoint]:
+def discover_plugins_in_entry_points() -> list["entry_point.EntryPoint"]:
+    import importlib.metadata as entry_point
+
     eps = entry_point.entry_points()
     return list(eps.select(group="pioreactor.plugins"))

@@ -585,7 +585,7 @@ function ButtonStopProcess({experiment, unit = "$broadcast", disabled = false}) 
 
   return (
     <Button sx={{textTransform: 'none', float: "right" }} color="secondary" disabled={disabled} onClick={handleClick}>
-      <CancelIcon fontSize="small" sx={textIcon}/> Stop all
+      <CancelIcon fontSize="small" sx={textIcon}/> Stop all Pioreactors
     </Button>
   );
 }

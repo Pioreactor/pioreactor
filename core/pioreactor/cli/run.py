@@ -45,10 +45,10 @@ class RunLazyGroup(LazyGroup):
     def _load_plugins(self) -> None:
         if self._plugins_loaded:
             return
-        for plugin in plugin_management.get_plugins().values():
-            for possible_entry_point in dir(plugin.module):
+        for module in plugin_management.load_plugin_modules():
+            for possible_entry_point in dir(module):
                 if possible_entry_point.startswith("click_"):
-                    self.add_command(getattr(plugin.module, possible_entry_point))
+                    self.add_command(getattr(module, possible_entry_point))
         self._plugins_loaded = True
 
     def list_commands(self, ctx: click.Context) -> list[str]:
