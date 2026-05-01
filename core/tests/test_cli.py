@@ -572,7 +572,7 @@ def test_pio_status_handles_i2c_scan_errors_without_aborting(monkeypatch) -> Non
     assert "scan failed (i2c unavailable)" in i2c_line
 
 
-def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(
+def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
@@ -589,10 +589,10 @@ def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(
     monkeypatch.setattr("subprocess.run", record_command)
 
     runner = CliRunner()
-    result = runner.invoke(pio, ["repair-permissions"])
+    result = runner.invoke(pio, ["repair"])
 
     assert result.exit_code == 0
-    assert len(commands) == 4
+    assert len(commands) == 11
     assert commands[0] == [
         "/usr/bin/sudo",
         "/usr/bin/find",
@@ -618,6 +618,43 @@ def test_pio_repair_permissions_runs_dot_pioreactor_permission_commands(
     assert commands[1] == ["/usr/bin/sudo", "/usr/bin/chmod", "g+w", str(dot_pioreactor)]
     assert commands[2][-4:] == ["/usr/bin/chmod", "g+w", "{}", "+"]
     assert commands[3][-7:] == ["-perm", "-2000", "-exec", "/usr/bin/chmod", "g+s", "{}", "+"]
+    assert commands[4] == [
+        "/usr/bin/sudo",
+        "/usr/bin/install",
+        "-d",
+        "-o",
+        "pioreactor",
+        "-g",
+        "www-data",
+        "-m",
+        "2775",
+        "/run/pioreactor",
+    ]
+    assert commands[5][-2:] == ["2770", "/run/pioreactor/cache"]
+    assert commands[6] == [
+        "/usr/bin/sudo",
+        "/usr/bin/touch",
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[7][-2:] == [
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[8][-3:] == [
+        "0660",
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[9][-6:] == [
+        "-exec",
+        "/usr/bin/chown",
+        "-h",
+        "pioreactor:www-data",
+        "{}",
+        "+",
+    ]
+    assert commands[10][-5:] == ["-exec", "/usr/bin/chmod", "0660", "{}", "+"]
     assert f"Repaired permissions for {dot_pioreactor}." in result.output
 
 

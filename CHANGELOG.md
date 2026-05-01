@@ -1,5 +1,6 @@
 ### Upcoming
 
+ - adding a `pio repair` command to fix common issues with permissions (for now)
  - Updated the Export Data page to select a single experiment at a time. This reduces the load on the backend which was causing the system to crash for large exports.
  - Also improved the performance of exports to export larger datasets. We also added safety checks during the export process to monitor the system and abort if it gets too close to some memory and size thresholds.
  - Improved automation start forms so each automation can define its own fields, including boolean options like `skip_first_run`, and required fields now block `Start` until valid.

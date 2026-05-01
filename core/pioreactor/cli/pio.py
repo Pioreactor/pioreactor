@@ -2,6 +2,7 @@
 import ast
 import os
 import re
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -90,6 +91,161 @@ def get_expected_dot_pioreactor_uid_gid() -> tuple[int | None, int | None, str]:
         return pwd.getpwnam("pioreactor").pw_uid, grp.getgrnam("www-data").gr_gid, expected_owner
     except KeyError:
         return None, None, f"{expected_owner} (missing on this system)"
+
+
+def require_repair_command_paths(*command_names: str) -> dict[str, str]:
+    paths = {name: shutil.which(name) for name in command_names}
+    missing_commands = [name for name, path in paths.items() if path is None]
+
+    if missing_commands:
+        available_commands = ", ".join(command_names[:-1]) + f", and {command_names[-1]}"
+        raise click.ClickException(f"{available_commands} are required.")
+
+    return {name: t.cast(str, path) for name, path in paths.items()}
+
+
+def build_dot_pioreactor_repair_commands(dot_pioreactor_root: Path, tools: dict[str, str]) -> list[list[str]]:
+    return [
+        [
+            tools["sudo"],
+            tools["find"],
+            str(dot_pioreactor_root),
+            "-mindepth",
+            "0",
+            "(",
+            "!",
+            "-user",
+            "pioreactor",
+            "-o",
+            "!",
+            "-group",
+            "www-data",
+            ")",
+            "-exec",
+            tools["chown"],
+            "-h",
+            "pioreactor:www-data",
+            "{}",
+            "+",
+        ],
+        [tools["sudo"], tools["chmod"], "g+w", str(dot_pioreactor_root)],
+        [
+            tools["sudo"],
+            tools["find"],
+            str(dot_pioreactor_root),
+            "-mindepth",
+            "1",
+            "(",
+            "-type",
+            "d",
+            "-o",
+            "-type",
+            "f",
+            ")",
+            "-exec",
+            tools["chmod"],
+            "g+w",
+            "{}",
+            "+",
+        ],
+        [
+            tools["sudo"],
+            tools["find"],
+            str(dot_pioreactor_root),
+            "-type",
+            "d",
+            "!",
+            "-perm",
+            "-2000",
+            "-exec",
+            tools["chmod"],
+            "g+s",
+            "{}",
+            "+",
+        ],
+    ]
+
+
+def get_runtime_cache_database_paths(run_pioreactor_cache: Path) -> list[Path]:
+    return [
+        run_pioreactor_cache / "local_intermittent_pioreactor_metadata.sqlite",
+        run_pioreactor_cache / "huey.db",
+    ]
+
+
+def build_runtime_repair_commands(tools: dict[str, str]) -> list[list[str]]:
+    run_pioreactor_root = Path("/run/pioreactor")
+    run_pioreactor_cache = run_pioreactor_root / "cache"
+    runtime_cache_databases = [str(path) for path in get_runtime_cache_database_paths(run_pioreactor_cache)]
+
+    cache_sidecar_selector = [
+        tools["sudo"],
+        tools["find"],
+        str(run_pioreactor_cache),
+        "-maxdepth",
+        "1",
+        "-type",
+        "f",
+        "(",
+        "-name",
+        "*-wal",
+        "-o",
+        "-name",
+        "*-shm",
+        ")",
+        "-exec",
+    ]
+
+    return [
+        [
+            tools["sudo"],
+            tools["install"],
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2775",
+            str(run_pioreactor_root),
+        ],
+        [
+            tools["sudo"],
+            tools["install"],
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2770",
+            str(run_pioreactor_cache),
+        ],
+        [tools["sudo"], tools["touch"], *runtime_cache_databases],
+        [
+            tools["sudo"],
+            tools["chown"],
+            "-h",
+            "pioreactor:www-data",
+            *runtime_cache_databases,
+        ],
+        [tools["sudo"], tools["chmod"], "0660", *runtime_cache_databases],
+        [
+            *cache_sidecar_selector,
+            tools["chown"],
+            "-h",
+            "pioreactor:www-data",
+            "{}",
+            "+",
+        ],
+        [
+            *cache_sidecar_selector,
+            tools["chmod"],
+            "0660",
+            "{}",
+            "+",
+        ],
+    ]
 
 
 def get_update_app_commands(
@@ -877,11 +1033,8 @@ def status() -> None:
     """
     Show a quick, local-only status report for this unit.
     """
-    import shutil
     import socket
     import sqlite3
-    import subprocess
-    from pathlib import Path
 
     from pioreactor import mureq
     from pioreactor.config import config
@@ -1241,79 +1394,16 @@ def status() -> None:
 def repair() -> None:
     """
     Repair ownership and group permissions for the local .pioreactor tree and /run/pioreactor runtime tree.
-    TODO: add more
+    TODO: add more repair things
     """
-    import shutil
-
     dot_pioreactor_root = get_dot_pioreactor_root()
     if not dot_pioreactor_root.exists():
         raise click.ClickException(f"{dot_pioreactor_root} does not exist.")
 
-    sudo_path = shutil.which("sudo")
-    find_path = shutil.which("find")
-    chown_path = shutil.which("chown")
-    chmod_path = shutil.which("chmod")
-    if sudo_path is None or find_path is None or chown_path is None or chmod_path is None:
-        raise click.ClickException("sudo, find, chown, and chmod are required.")
-
+    tools = require_repair_command_paths("sudo", "find", "chown", "chmod", "install", "touch")
     commands = [
-        [
-            sudo_path,
-            find_path,
-            str(dot_pioreactor_root),
-            "-mindepth",
-            "0",
-            "(",
-            "!",
-            "-user",
-            "pioreactor",
-            "-o",
-            "!",
-            "-group",
-            "www-data",
-            ")",
-            "-exec",
-            chown_path,
-            "-h",
-            "pioreactor:www-data",
-            "{}",
-            "+",
-        ],
-        [sudo_path, chmod_path, "g+w", str(dot_pioreactor_root)],
-        [
-            sudo_path,
-            find_path,
-            str(dot_pioreactor_root),
-            "-mindepth",
-            "1",
-            "(",
-            "-type",
-            "d",
-            "-o",
-            "-type",
-            "f",
-            ")",
-            "-exec",
-            chmod_path,
-            "g+w",
-            "{}",
-            "+",
-        ],
-        [
-            sudo_path,
-            find_path,
-            str(dot_pioreactor_root),
-            "-type",
-            "d",
-            "!",
-            "-perm",
-            "-2000",
-            "-exec",
-            chmod_path,
-            "g+s",
-            "{}",
-            "+",
-        ],
+        *build_dot_pioreactor_repair_commands(dot_pioreactor_root, tools),
+        *build_runtime_repair_commands(tools),
     ]
 
     for command in commands:
