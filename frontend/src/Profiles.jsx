@@ -54,17 +54,25 @@ function RunExperimentProfilesContent({
   const confirm = useConfirm();
   const navigate = useNavigate();
   const { startProfile } = useRunningProfiles();
+  const [startProfileError, setStartProfileError] = React.useState("");
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     if (!selectedExperimentProfileRecord) {
       return;
     }
     setConfirmed(true);
+    setStartProfileError("");
     // The “selectedExperimentProfile” is the file key we pass to start
-    startProfile(selectedExperimentProfileRecord.fullpath, experiment, dryRun);
+    try {
+      await startProfile(selectedExperimentProfileRecord.fullpath, experiment, dryRun);
+    } catch (error) {
+      setConfirmed(false);
+      setStartProfileError(error?.message || "Unable to start experiment profile.");
+    }
   };
 
   const onSelectExperimentProfileChange = (e) => {
+    setStartProfileError("");
 
     navigate(`/experiment-profiles/${e.target.value}`)
 
@@ -201,6 +209,11 @@ function RunExperimentProfilesContent({
           />
         }
       </Grid>
+      {startProfileError && (
+        <Grid size={12}>
+          <Alert severity="error">{startProfileError}</Alert>
+        </Grid>
+      )}
       <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 1 }}>
         <SelectButton
           variant="contained"

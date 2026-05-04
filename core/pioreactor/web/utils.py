@@ -11,6 +11,8 @@ from flask import abort
 from flask import jsonify
 from flask import Response
 from flask.typing import ResponseReturnValue
+from huey.exceptions import HueyException
+from huey.exceptions import TaskException
 from msgspec import DecodeError
 from msgspec import Struct
 from msgspec import to_builtins
@@ -85,6 +87,15 @@ def attach_cache_control(response: Response, max_age: int = 5) -> Response:
     """
     response.headers["Cache-Control"] = f"public, max-age={max_age}"
     return response
+
+
+def wait_for_bool_task_result(task: t.Any, *, timeout_s: float = 10.0) -> bool:
+    try:
+        if hasattr(task, "get"):
+            return bool(task.get(blocking=True, timeout=timeout_s))
+        return bool(task)
+    except (HueyException, TaskException):
+        return False
 
 
 DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseReturnValue)  # type: ignore

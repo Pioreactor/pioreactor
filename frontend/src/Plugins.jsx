@@ -40,7 +40,7 @@ function PageHeader() {
 
 
 
-function ListSuggestedPlugins({selectedUnit, installedPlugins}){
+function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}){
   const [availablePlugins, setSuggestedPlugins] = React.useState([])
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
@@ -189,7 +189,9 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
                     disabled={installedPlugins.includes(plugin.name)}
                   >
                     <MenuItem value={selectedUnit}>{installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
-                    <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
+                    {hasMultipleUnits && (
+                      <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
+                    )}
                   </SelectButton>
 
                   <Button
@@ -551,7 +553,7 @@ function PluginContainer(){
           Suggested plugins from the community
         </Typography>
 
-        <ListSuggestedPlugins selectedUnit={selectedUnit} installedPlugins={installedPlugins.map(p => p.name)}/>
+        <ListSuggestedPlugins selectedUnit={selectedUnit} installedPlugins={installedPlugins.map(p => p.name)} hasMultipleUnits={units.length > 1}/>
 
         </CardContent>
       </Card>

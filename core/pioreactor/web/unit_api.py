@@ -62,6 +62,7 @@ from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
+from pioreactor.web.utils import wait_for_bool_task_result
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import safe_join
 
@@ -1200,9 +1201,8 @@ def create_calibration(device: str) -> ResponseReturnValue:
 
         path = calibration_data.path_on_disk_for_device(device)
         save_result = tasks.save_file(str(path), raw_yaml)
-        save_succeeded = bool(save_result.get(blocking=True, timeout=10))
 
-        if not save_succeeded:
+        if not wait_for_bool_task_result(save_result):
             abort_with(
                 500,
                 description="Failed to create calibration.",

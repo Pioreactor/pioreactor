@@ -14,6 +14,7 @@ from tests.utils import FakeMQTTMessageInfo
 
 from .conftest import capture_requests
 from .test_unit_api import _build_valid_calibration_yaml
+from .test_unit_api import FakeTaskResult
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
@@ -221,9 +222,13 @@ def test_change_worker_model_triggers_hardware_check_for_v1_5(client, monkeypatc
     assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.5"}
 
 
-def test_change_worker_model_does_not_trigger_hardware_check_for_non_v1_5(client, monkeypatch) -> None:
-    def fake_post_into_unit(*_args, **_kwargs) -> None:
-        raise AssertionError("hardware check should not be triggered")
+def test_change_worker_model_triggers_hardware_check_for_non_v1_5(client, monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_post_into_unit(unit: str, endpoint: str, json: dict | None = None) -> None:
+        captured["unit"] = unit
+        captured["endpoint"] = endpoint
+        captured["json"] = json
 
     monkeypatch.setattr("pioreactor.web.api.tasks.post_into_unit", fake_post_into_unit)
 
@@ -232,6 +237,9 @@ def test_change_worker_model_does_not_trigger_hardware_check_for_non_v1_5(client
         json={"model_name": "pioreactor_20ml", "model_version": "1.1"},
     )
     assert response.status_code == 200
+    assert captured["unit"] == "unit1"
+    assert captured["endpoint"] == "/unit_api/hardware/check"
+    assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.1"}
 
 
 def test_get_unit_labels(client) -> None:
@@ -664,6 +672,47 @@ common:
     assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0]"
 
 
+def test_create_experiment_profile_reports_save_failure(client, monkeypatch) -> None:
+    monkeypatch.setattr("pioreactor.web.api.tasks.save_file", lambda *_args, **_kwargs: FakeTaskResult(False))
+
+    response = client.post(
+        "/api/experiment_profiles",
+        json={"body": "experiment_profile_name: save_failure_demo", "filename": "save_failure_demo.yaml"},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == "Failed to save experiment profile."
+
+
+def test_update_experiment_profile_reports_save_failure(client, monkeypatch) -> None:
+    monkeypatch.setattr("pioreactor.web.api.tasks.save_file", lambda *_args, **_kwargs: FakeTaskResult(False))
+
+    response = client.patch(
+        "/api/experiment_profiles/save_failure_demo.yaml",
+        json={"body": "experiment_profile_name: save_failure_demo"},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == "Failed to save experiment profile."
+
+
+def test_delete_experiment_profile_reports_delete_failure(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    profiles_dir = tmp_path / "experiment_profiles"
+    profiles_dir.mkdir()
+    (profiles_dir / "delete_failure_demo.yaml").write_text(
+        "experiment_profile_name: delete_failure_demo", encoding="utf-8"
+    )
+    monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
+    monkeypatch.setattr("pioreactor.web.api.tasks.rm", lambda *_args, **_kwargs: FakeTaskResult(False))
+
+    response = client.delete("/api/experiment_profiles/delete_failure_demo.yaml")
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == "Failed to delete experiment profile."
+
+
 def test_broadcasting(client) -> None:
     response = client.get("/api/workers")
     data = response.get_json()
@@ -885,6 +934,37 @@ def test_export_datasets_returns_async_task_response(
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
     assert captured["partition_by_experiment"] is False
+
+
+def test_update_app_from_release_archive_requires_json_object(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/system/update_from_archive",
+        data='["not", "an", "object"]',
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body"
+
+
+def test_update_app_from_release_archive_requires_zip(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/system/update_from_archive",
+        json={"release_archive_location": "/tmp/release.tar.gz", "units": "$broadcast"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "release_archive_location must point to a .zip file"
+
+
+def test_update_app_from_release_archive_requires_units(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/system/update_from_archive",
+        json={"release_archive_location": "/tmp/release.zip"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Missing units"
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")

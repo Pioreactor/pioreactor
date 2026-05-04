@@ -69,9 +69,11 @@ from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import scrub_to_valid
+from pioreactor.web.utils import wait_for_bool_task_result
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
+from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.security import safe_join
 from werkzeug.utils import secure_filename
 
@@ -2516,10 +2518,41 @@ def update_app() -> DelayedResponseReturnValue:
 
 @api_bp.route("/system/update_from_archive", methods=["POST"])
 def update_app_from_release_archive() -> DelayedResponseReturnValue:
-    body = request.get_json()
-    release_archive_location = body["release_archive_location"]
-    assert release_archive_location.endswith(".zip")
-    task = tasks.update_app_from_release_archive_across_cluster(release_archive_location, units=body["units"])
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        abort_with(
+            400,
+            "Invalid request body",
+            cause="Request body must be a JSON object.",
+            remediation="Send JSON with release_archive_location and units fields.",
+        )
+
+    release_archive_location = body.get("release_archive_location")
+    if not isinstance(release_archive_location, str) or not release_archive_location:
+        abort_with(
+            400,
+            "Missing release_archive_location",
+            cause="Request JSON missing release_archive_location.",
+            remediation="Provide the staged release archive path.",
+        )
+    if not release_archive_location.endswith(".zip"):
+        abort_with(
+            400,
+            "release_archive_location must point to a .zip file",
+            cause="Release archive path does not end in .zip.",
+            remediation="Upload or choose a .zip release archive.",
+        )
+
+    units = body.get("units")
+    if not isinstance(units, str) or not units:
+        abort_with(
+            400,
+            "Missing units",
+            cause="Request JSON missing units.",
+            remediation="Provide a concrete unit name or $broadcast.",
+        )
+
+    task = tasks.update_app_from_release_archive_across_cluster(release_archive_location, units=units)
     return create_task_response(task)
 
 
@@ -3187,10 +3220,12 @@ def create_experiment_profile() -> ResponseReturnValue:
         abort_with(400, "A profile already exists with that filename. Choose another.")
 
     # save file to disk
-    tasks.save_file(
+    save_task = tasks.save_file(
         str(filepath),
         experiment_profile_body,
     )
+    if not wait_for_bool_task_result(save_task):
+        abort_with(500, "Failed to save experiment profile.")
 
     return {"status": "success"}, 200
 
@@ -3237,10 +3272,12 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
     filepath = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
 
     # save file to disk
-    tasks.save_file(
+    save_task = tasks.save_file(
         str(filepath),
         experiment_profile_body,
     )
+    if not wait_for_bool_task_result(save_task):
+        abort_with(500, "Failed to save experiment profile.")
 
     return {"status": "success"}, 200
 
@@ -3308,12 +3345,19 @@ def delete_experiment_profile(filename: str) -> ResponseReturnValue:
             raise IOError("must provide a YAML file")
 
         specific_profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / file
-        tasks.rm(str(specific_profile_path))
+        if not specific_profile_path.exists():
+            raise IOError(f"{file} does not exist.")
+
+        delete_task = tasks.rm(str(specific_profile_path))
+        if not wait_for_bool_task_result(delete_task):
+            abort_with(500, "Failed to delete experiment profile.")
         publish_to_log(f"Deleted profile {filename}.", "delete_experiment_profile")
         return {"status": "success"}, 200
     except IOError as e:
         publish_to_error_log(str(e), "delete_experiment_profile")
         abort_with(404, str(e))
+    except WerkzeugHTTPException:
+        raise
     except Exception as e:
         publish_to_error_log(str(e), "delete_experiment_profile")
         abort_with(500, str(e))
@@ -3516,14 +3560,11 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
             task="worker_model",
             level="INFO",
         )
-        # When new model versions are added, consider extending hardware checks here
-        # (see /unit_api/hardware/check and tasks.check_model_hardware).
-        if model_version == "1.5":
-            tasks.post_into_unit(
-                pioreactor_unit,
-                "/unit_api/hardware/check",
-                json={"model_name": model_name, "model_version": model_version},
-            )
+        tasks.post_into_unit(
+            pioreactor_unit,
+            "/unit_api/hardware/check",
+            json={"model_name": model_name, "model_version": model_version},
+        )
         return {"status": "success"}, 200
     else:
         abort_with(

@@ -165,4 +165,19 @@ describe("Profiles", () => {
     expect(countFetches("/api/experiment_profiles")).toBe(1);
     expect(countFetches("/api/experiment_profiles/profile-a.yaml")).toBe(1);
   });
+
+  test("re-enables the run button when profile start fails", async () => {
+    mockStartProfile.mockRejectedValueOnce(new Error("Unable to queue profile"));
+    renderProfiles();
+
+    await screen.findByText("Preview: Profile A");
+
+    const runButton = screen.getByRole("button", { name: /run profile/i });
+    fireEvent.click(runButton);
+
+    expect(runButton).toBeDisabled();
+
+    await screen.findByText("Unable to queue profile");
+    await waitFor(() => expect(runButton).not.toBeDisabled());
+  });
 });
