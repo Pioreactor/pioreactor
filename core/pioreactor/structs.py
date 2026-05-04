@@ -200,6 +200,7 @@ class BioreactorVariableDefinition(Struct, frozen=True):
     maximum: float | None
     default_config_key: str
     default_value: float
+    cap_at_model_capacity: bool = True
 
 
 class BioreactorDescriptor(Struct, frozen=True):

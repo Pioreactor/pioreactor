@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import ast
+import json
 import os
 import re
 import shutil
@@ -157,6 +158,7 @@ def get_runtime_cache_database_paths(run_pioreactor_cache: Path) -> list[Path]:
 
 def build_runtime_repair_commands(tools: dict[str, str]) -> list[list[str]]:
     run_pioreactor_root = Path("/run/pioreactor")
+    run_pioreactor_exports = run_pioreactor_root / "exports"
     run_pioreactor_cache = run_pioreactor_root / "cache"
     runtime_cache_databases = [str(path) for path in get_runtime_cache_database_paths(run_pioreactor_cache)]
 
@@ -190,6 +192,46 @@ def build_runtime_repair_commands(tools: dict[str, str]) -> list[list[str]]:
             "-m",
             "2775",
             str(run_pioreactor_root),
+        ],
+        [
+            tools["sudo"],
+            tools["install"],
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2775",
+            str(run_pioreactor_exports),
+        ],
+        [
+            tools["sudo"],
+            tools["find"],
+            str(run_pioreactor_exports),
+            "-maxdepth",
+            "1",
+            "-type",
+            "f",
+            "(",
+            "(",
+            "-name",
+            "*.tmp",
+            "-o",
+            "-name",
+            "*.csv",
+            ")",
+            "-mmin",
+            "+30",
+            "-o",
+            "(",
+            "-name",
+            "export_*.zip",
+            "-mmin",
+            "+360",
+            ")",
+            ")",
+            "-delete",
         ],
         [
             tools["sudo"],
@@ -1002,7 +1044,8 @@ def version(verbose: bool) -> None:
 
 
 @pio.command(name="status", short_help="show local system status")
-def status() -> None:
+@click.option("--json", "json_output", is_flag=True, help="output as json")
+def status(json_output: bool) -> None:
     """
     Show a quick, local-only status report for this unit.
     """
@@ -1347,6 +1390,24 @@ def status() -> None:
             except Exception as error:
                 add_check("storage:disk", "WARN", f"path={disk_root} ({error})")
 
+    overall_status = "OK"
+    for _, check_status, _ in checks:
+        overall_status = worst_status(overall_status, check_status)
+
+    if json_output:
+        click.echo(
+            json.dumps(
+                {
+                    "status": overall_status,
+                    "checks": [
+                        {"name": name, "status": check_status, "details": details}
+                        for name, check_status, details in checks
+                    ],
+                }
+            )
+        )
+        return
+
     name_width = max(22, *(len(name) for name, _, _ in checks))
     status_width = 7
     click.echo(f"{'Check':{name_width}s} {'Status':{status_width}s} Details")
@@ -1367,6 +1428,7 @@ def status() -> None:
 def repair() -> None:
     """
     Repair ownership and group permissions for the local .pioreactor tree and /run/pioreactor runtime tree.
+    Clear stale Pioreactor runtime export artifacts.
     TODO: add more repair things
     """
     dot_pioreactor_root = get_dot_pioreactor_root()

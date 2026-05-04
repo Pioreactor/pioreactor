@@ -1,5 +1,7 @@
 ### Upcoming
 
+ - Removed the old `dosing_automation/media_throughput` and `dosing_automation/alt_media_throughput` MQTT variables. Use the bioreactor cumulative dosing variables instead.
+ - Added retained bioreactor variables for cumulative dosing totals: `cumulative_media_added_ml`, `cumulative_alt_media_added_ml`, and `cumulative_waste_removed_ml`. These can be used in experiment profile expressions for media and waste alerts.
  - adding a `pio repair` command to fix common issues with permissions (for now)
  - Updated the Export Data page to select a single experiment at a time. This reduces the load on the backend which was causing the system to crash for large exports.
  - Also improved the performance of exports to export larger datasets. We also added safety checks during the export process to monitor the system and abort if it gets too close to some memory and size thresholds.

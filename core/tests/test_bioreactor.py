@@ -3,6 +3,7 @@ import pytest
 from pioreactor import bioreactor
 from pioreactor import structs
 from pioreactor.utils.timing import default_datetime_for_pioreactor
+from tests.utils import FakeMQTTClient
 
 
 def test_get_bioreactor_value_uses_defaults() -> None:
@@ -11,6 +12,9 @@ def test_get_bioreactor_value_uses_defaults() -> None:
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(14.0)
     assert bioreactor.get_bioreactor_value(experiment, "efflux_tube_volume_ml") == pytest.approx(14.0)
     assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(0.0)
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_media_added_ml") == pytest.approx(0.0)
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_alt_media_added_ml") == pytest.approx(0.0)
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_waste_removed_ml") == pytest.approx(0.0)
 
 
 def test_set_bioreactor_value_persists() -> None:
@@ -30,6 +34,9 @@ def test_get_bioreactor_descriptors_returns_structs() -> None:
         "current_volume_ml",
         "efflux_tube_volume_ml",
         "alt_media_fraction",
+        "cumulative_media_added_ml",
+        "cumulative_alt_media_added_ml",
+        "cumulative_waste_removed_ml",
     ]
 
 
@@ -119,6 +126,30 @@ def test_validate_bioreactor_value_rejects_max_working_volume_above_model_capaci
 
     with pytest.raises(ValueError):
         bioreactor.validate_bioreactor_value("efflux_tube_volume_ml", 20.1)
+
+
+def test_validate_bioreactor_value_allows_cumulative_volume_above_model_capacity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        bioreactor,
+        "get_pioreactor_model",
+        lambda: structs.Model(
+            model_name="test_model",
+            model_version="1.0",
+            display_name="Test model",
+            reactor_capacity_ml=20.0,
+            reactor_max_fill_volume_ml=18.0,
+            reactor_diameter_mm=27.0,
+            max_temp_to_reduce_heating=63.0,
+            max_temp_to_disable_heating=65.0,
+            max_temp_to_shutdown=66.0,
+            is_legacy=False,
+            is_contrib=False,
+        ),
+    )
+
+    assert bioreactor.validate_bioreactor_value("cumulative_media_added_ml", 80.0) == pytest.approx(80.0)
 
 
 def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_waste() -> None:
@@ -247,6 +278,86 @@ def test_calculate_updated_current_volume_with_negative_add_media_values() -> No
             efflux_tube_volume_ml=max_volume,
         )
         assert current_volume == pytest.approx(target)
+
+
+def test_calculate_updated_cumulative_volume_tracks_matching_events() -> None:
+    event = structs.DosingEvent(
+        volume_change=1.25,
+        event="add_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    assert bioreactor.calculate_updated_cumulative_volume(
+        "cumulative_media_added_ml",
+        event,
+        current_cumulative_volume_ml=2.0,
+    ) == pytest.approx(3.25)
+    assert bioreactor.calculate_updated_cumulative_volume(
+        "cumulative_alt_media_added_ml",
+        event,
+        current_cumulative_volume_ml=2.0,
+    ) == pytest.approx(2.0)
+
+
+def test_calculate_updated_cumulative_volume_does_not_go_negative() -> None:
+    event = structs.DosingEvent(
+        volume_change=-2.0,
+        event="remove_waste",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    assert bioreactor.calculate_updated_cumulative_volume(
+        "cumulative_waste_removed_ml",
+        event,
+        current_cumulative_volume_ml=1.0,
+    ) == pytest.approx(0.0)
+
+
+def test_apply_dosing_event_to_bioreactor_persists_cumulative_volumes() -> None:
+    experiment = "test_apply_dosing_event_to_bioreactor_persists_cumulative_volumes"
+    mqtt_client = FakeMQTTClient()
+
+    add_media_event = structs.DosingEvent(
+        volume_change=1.25,
+        event="add_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+    add_alt_media_event = structs.DosingEvent(
+        volume_change=0.5,
+        event="add_alt_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+    remove_waste_event = structs.DosingEvent(
+        volume_change=0.75,
+        event="remove_waste",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+
+    bioreactor.apply_dosing_event_to_bioreactor("unit", experiment, add_media_event, mqtt_client)
+    bioreactor.apply_dosing_event_to_bioreactor("unit", experiment, add_alt_media_event, mqtt_client)
+    updated = bioreactor.apply_dosing_event_to_bioreactor(
+        "unit",
+        experiment,
+        remove_waste_event,
+        mqtt_client,
+    )
+
+    assert updated["cumulative_media_added_ml"] == pytest.approx(1.25)
+    assert updated["cumulative_alt_media_added_ml"] == pytest.approx(0.5)
+    assert updated["cumulative_waste_removed_ml"] == pytest.approx(0.75)
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_media_added_ml") == pytest.approx(1.25)
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_alt_media_added_ml") == pytest.approx(0.5)
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_waste_removed_ml") == pytest.approx(0.75)
+    assert (
+        bioreactor.get_bioreactor_topic("unit", experiment, "cumulative_waste_removed_ml"),
+        0.75,
+        True,
+    ) in mqtt_client.published
 
 
 def test_calculate_updated_alt_media_fraction_sequence() -> None:

@@ -5,7 +5,6 @@ from threading import Event
 from typing import Any
 
 import click
-from msgspec.json import decode
 from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import structs
@@ -21,7 +20,6 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import QOS
 from pioreactor.states import JobState
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
 
 
@@ -49,31 +47,6 @@ def pause_between_subdoses() -> float:
     return d
 
 
-class ThroughputCalculator:
-    """
-    Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
-    has been spent, so that triggers can be set up to replace media stock.
-    """
-
-    @staticmethod
-    def update(
-        dosing_event: structs.DosingEvent,
-        current_media_throughput: float,
-        current_alt_media_throughput: float,
-    ) -> tuple[float, float]:
-        volume, event = float(dosing_event.volume_change), dosing_event.event
-        if event == "add_media":
-            current_media_throughput += volume
-        elif event == "add_alt_media":
-            current_alt_media_throughput += volume
-        elif event == "remove_waste":
-            pass
-        else:
-            raise ValueError("Unknown event type")
-
-        return (current_media_throughput, current_alt_media_throughput)
-
-
 class DosingAutomationJob(AutomationJob):
     """
     This is the super class that dosing automations inherit from. Subclasses choose
@@ -96,13 +69,10 @@ class DosingAutomationJob(AutomationJob):
     # overwrite to use your own dosing programs.
     # interface must look like types.DosingProgram
 
-    # Runtime dosing state used by the control loop. Throughput is published by this job.
-    # Liquid metadata is different: these attributes are only an in-memory mirror of the
-    # retained bioreactor state so the automation can react immediately after dosing events.
-    # Persistence and retained publishing for liquid metadata are owned by bioreactor.py.
+    # Runtime dosing state used by the control loop. These attributes are only an in-memory
+    # mirror of the retained bioreactor state so the automation can react immediately after
+    # dosing events. Persistence and retained publishing are owned by bioreactor.py.
     alt_media_fraction: float  # fraction of the vial that is alt-media (vs regular media).
-    media_throughput: float  # amount of media that has been expelled
-    alt_media_throughput: float  # amount of alt-media that has been expelled
     current_volume_ml: float  # amount in the vial
     efflux_tube_volume_ml: float  # steady-state volume set by the waste/efflux tube height
 
@@ -139,7 +109,6 @@ class DosingAutomationJob(AutomationJob):
         super(DosingAutomationJob, self).__init__(unit, experiment)
 
         self._init_alt_media_fraction(alt_media_fraction)
-        self._init_volume_throughput()
         self._init_liquid_volume(current_volume_ml, efflux_tube_volume_ml)
         self._last_vial_volume_warning_at: float | None = None
         self.logger.debug(
@@ -347,29 +316,12 @@ class DosingAutomationJob(AutomationJob):
         self.stop_active_pumps()
         super().on_disconnected()
 
-    def _update_throughput_from_dosing_event(self, message: pt.MQTTMessage) -> None:
-        dosing_event = decode(message.payload, type=structs.DosingEvent)
-        self._update_throughput(dosing_event)
-
     def _should_warn_about_high_vial_volume(self) -> bool:
         now = time.time()
         if self._last_vial_volume_warning_at is None or (now - self._last_vial_volume_warning_at) >= 10:
             self._last_vial_volume_warning_at = now
             return True
         return False
-
-    def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:
-        (
-            self.media_throughput,
-            self.alt_media_throughput,
-        ) = ThroughputCalculator.update(dosing_event, self.media_throughput, self.alt_media_throughput)
-
-        # add to cache
-        with local_persistent_storage("alt_media_throughput") as cache:
-            cache[self.experiment] = self.alt_media_throughput
-
-        with local_persistent_storage("media_throughput") as cache:
-            cache[self.experiment] = self.media_throughput
 
     def _init_alt_media_fraction(self, alt_media_fraction: float | None) -> None:
         if alt_media_fraction is None:
@@ -423,29 +375,7 @@ class DosingAutomationJob(AutomationJob):
             resolved_current_volume_ml,
         )
 
-    def _init_volume_throughput(self) -> None:
-        self.add_to_published_settings(
-            "alt_media_throughput",
-            {"datatype": "float", "settable": False, "unit": "mL", "persist": True},
-        )
-        self.add_to_published_settings(
-            "media_throughput",
-            {"datatype": "float", "settable": False, "unit": "mL", "persist": True},
-        )
-
-        with local_persistent_storage("alt_media_throughput") as cache:
-            self.alt_media_throughput = cache.getfloat(self.experiment, fallback=0.0)
-
-        with local_persistent_storage("media_throughput") as cache:
-            self.media_throughput = cache.getfloat(self.experiment, fallback=0.0)
-
-        return
-
     def start_passive_listeners(self) -> None:
-        self.subscribe_and_callback(
-            self._update_throughput_from_dosing_event,
-            f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
-        )
         # The shared retained bioreactor topics are the source of truth for liquid metadata.
         # This keeps the automation synchronized with monitor-projected dosing events, manual
         # UI/API edits, retained-state replay on startup/reconnect, and other external updates.

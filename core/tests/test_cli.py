@@ -419,6 +419,23 @@ def test_pio_status_handles_unassigned_experiment(monkeypatch) -> None:
     assert "worker is not assigned to an experiment" not in result.output
 
 
+def test_pio_status_json_outputs_machine_readable_checks() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] in {"OK", "WARN", "FAIL"}
+    assert "Check" not in result.output
+
+    checks = payload["checks"]
+    assert isinstance(checks, list)
+    identity_check = next(check for check in checks if check["name"] == "identity")
+    assert set(identity_check) == {"name", "status", "details"}
+    assert identity_check["status"] in {"OK", "WARN", "FAIL"}
+    assert "unit=" in identity_check["details"]
+
+
 def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> None:
     def raise_unit_name() -> str:
         raise RuntimeError("unit lookup failed")
@@ -488,7 +505,7 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
     result = runner.invoke(pio, ["repair"])
 
     assert result.exit_code == 0
-    assert len(commands) == 11
+    assert len(commands) == 13
     assert commands[0] == [
         "/usr/bin/sudo",
         "/usr/bin/find",
@@ -526,23 +543,63 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
         "2775",
         "/run/pioreactor",
     ]
-    assert commands[5][-2:] == ["2770", "/run/pioreactor/cache"]
+    assert commands[5] == [
+        "/usr/bin/sudo",
+        "/usr/bin/install",
+        "-d",
+        "-o",
+        "pioreactor",
+        "-g",
+        "www-data",
+        "-m",
+        "2775",
+        "/run/pioreactor/exports",
+    ]
     assert commands[6] == [
+        "/usr/bin/sudo",
+        "/usr/bin/find",
+        "/run/pioreactor/exports",
+        "-maxdepth",
+        "1",
+        "-type",
+        "f",
+        "(",
+        "(",
+        "-name",
+        "*.tmp",
+        "-o",
+        "-name",
+        "*.csv",
+        ")",
+        "-mmin",
+        "+30",
+        "-o",
+        "(",
+        "-name",
+        "export_*.zip",
+        "-mmin",
+        "+360",
+        ")",
+        ")",
+        "-delete",
+    ]
+    assert commands[7][-2:] == ["2770", "/run/pioreactor/cache"]
+    assert commands[8] == [
         "/usr/bin/sudo",
         "/usr/bin/touch",
         "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
         "/run/pioreactor/cache/huey.db",
     ]
-    assert commands[7][-2:] == [
+    assert commands[9][-2:] == [
         "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
         "/run/pioreactor/cache/huey.db",
     ]
-    assert commands[8][-3:] == [
+    assert commands[10][-3:] == [
         "0660",
         "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
         "/run/pioreactor/cache/huey.db",
     ]
-    assert commands[9][-6:] == [
+    assert commands[11][-6:] == [
         "-exec",
         "/usr/bin/chown",
         "-h",
@@ -550,7 +607,7 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
         "{}",
         "+",
     ]
-    assert commands[10][-5:] == ["-exec", "/usr/bin/chmod", "0660", "{}", "+"]
+    assert commands[12][-5:] == ["-exec", "/usr/bin/chmod", "0660", "{}", "+"]
     assert f"Repaired permissions for {dot_pioreactor}." in result.output
 
 

@@ -169,13 +169,16 @@ def test_repair_system_repairs_permissions_then_checks_status(monkeypatch: pytes
     calls: list[list[str]] = []
 
     class DummyResult:
-        returncode = 0
-        stdout = "ok"
-        stderr = ""
+        def __init__(self, stdout: str) -> None:
+            self.returncode = 0
+            self.stdout = stdout
+            self.stderr = ""
 
     def fake_run(command: list[str], **_kwargs: object) -> DummyResult:
         calls.append(command)
-        return DummyResult()
+        if command == [tasks.PIO_EXECUTABLE, "status", "--json"]:
+            return DummyResult('{"status":"WARN","checks":[]}')
+        return DummyResult("ok")
 
     monkeypatch.setattr(tasks, "run", fake_run)
 
@@ -183,11 +186,12 @@ def test_repair_system_repairs_permissions_then_checks_status(monkeypatch: pytes
 
     assert calls == [
         [tasks.PIO_EXECUTABLE, "repair"],
-        [tasks.PIO_EXECUTABLE, "status"],
+        [tasks.PIO_EXECUTABLE, "status", "--json"],
     ]
     assert result["success"] is True
     assert result["repair"]["stdout"] == "ok"
-    assert result["status"]["stdout"] == "ok"
+    assert result["status"]["stdout"] == '{"status":"WARN","checks":[]}'
+    assert result["status"]["payload"] == {"status": "WARN", "checks": []}
 
 
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(

@@ -1058,12 +1058,13 @@ def repair_system() -> dict[str, Any]:
         text=True,
     )
     status_result = run(
-        [PIO_EXECUTABLE, "status"],
+        [PIO_EXECUTABLE, "status", "--json"],
         capture_output=True,
         text=True,
     )
+
     return {
-        "success": repair_result.returncode == 0,
+        "success": repair_result.returncode == 0 and status_result.returncode == 0,
         "repair": {
             "returncode": repair_result.returncode,
             "stdout": repair_result.stdout,
@@ -1073,6 +1074,7 @@ def repair_system() -> dict[str, Any]:
             "returncode": status_result.returncode,
             "stdout": status_result.stdout,
             "stderr": status_result.stderr,
+            "payload": json.loads(status_result.stdout),
         },
     }
 

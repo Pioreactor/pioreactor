@@ -1059,6 +1059,9 @@ def test_get_bioreactor_descriptors(client) -> None:
         "current_volume_ml",
         "efflux_tube_volume_ml",
         "alt_media_fraction",
+        "cumulative_media_added_ml",
+        "cumulative_alt_media_added_ml",
+        "cumulative_waste_removed_ml",
     ]
 
 
