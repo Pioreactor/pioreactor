@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sqlite3
 from datetime import datetime
 from datetime import UTC
 from io import BytesIO
@@ -351,6 +352,50 @@ def test_get_recent_logs_excludes_universal_experiment(client) -> None:
     assert any(row["message"] == "Experiment-only event" for row in data)
     assert all(row["message"] != "Universal event" for row in data)
     assert all(row["experiment"] == "exp1" for row in data)
+
+
+def test_get_experiment_logs_filters_by_min_level_and_orders_by_timestamp(client) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    logs = [
+        ("2023-10-04T12:00:00Z", "Info event", "INFO"),
+        ("2023-10-04T12:01:00Z", "Notice event", "NOTICE"),
+        ("2023-10-04T12:02:00Z", "Warning event", "WARNING"),
+        ("2023-10-04T12:03:00Z", "Error event", "ERROR"),
+    ]
+    for timestamp, message, level in logs:
+        modify_app_db(
+            "INSERT INTO logs (experiment, pioreactor_unit, timestamp, message, source, level, task) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("exp1", "unit1", timestamp, message, "app", level, "app"),
+        )
+
+    response = client.get("/api/experiments/exp1/logs?min_level=NOTICE")
+
+    assert response.status_code == 200
+    messages = [row["message"] for row in response.get_json()]
+    assert messages[:3] == ["Error event", "Warning event", "Notice event"]
+    assert "Info event" not in messages
+
+
+def test_experiment_logs_query_uses_experiment_level_timestamp_index() -> None:
+    from pioreactor.web.api import build_experiment_logs_query
+    from pioreactor.web.api import get_levels_for_min_level
+
+    levels = get_levels_for_min_level("NOTICE")
+    query_args = tuple(arg for level in levels for arg in ("exp1", level)) + (0,)
+    db = sqlite3.connect(":memory:")
+    db.executescript(
+        (Path(__file__).resolve().parents[3] / "packaging/shared-assets/sql/create_tables.sql").read_text()
+    )
+
+    plan = db.execute(
+        "EXPLAIN QUERY PLAN " + build_experiment_logs_query(levels),
+        query_args,
+    ).fetchall()
+
+    details = "\n".join(row[3] for row in plan)
+    assert "logs_exp_level_timestamp_ix" in details
+    assert "logs_exp_timestamp_ix" not in details
 
 
 @pytest.mark.parametrize(

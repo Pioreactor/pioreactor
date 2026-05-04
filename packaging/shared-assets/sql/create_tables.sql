@@ -169,6 +169,9 @@ CREATE TABLE IF NOT EXISTS logs (
 CREATE INDEX IF NOT EXISTS logs_exp_timestamp_ix
     ON logs (experiment, timestamp DESC);
 
+CREATE INDEX IF NOT EXISTS logs_exp_level_timestamp_ix
+    ON logs (experiment, level, timestamp DESC);
+
 CREATE INDEX IF NOT EXISTS logs_unit_timestamp_ix
    ON logs (pioreactor_unit, timestamp DESC);
 

@@ -121,7 +121,7 @@ function Logs(props) {
                   <MenuItem value="INFO" >= Standard </MenuItem>
                   <MenuItem value="DEBUG">≡ Detailed </MenuItem>
                 </Select>
-                <span style={{marginRight: "8px"}}> event logs for</span>
+                <span style={{marginRight: "4px"}}> event logs for</span>
                 <Select
                   labelId="configSelect"
                   variant="standard"

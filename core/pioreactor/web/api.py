@@ -706,17 +706,49 @@ def set_system_utc_clock() -> DelayedResponseReturnValue:
 
 
 # util
+LOG_LEVELS_BY_THRESHOLD: dict[str, tuple[str, ...]] = {
+    "DEBUG": ("ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"),
+    "INFO": ("ERROR", "WARNING", "NOTICE", "INFO"),
+    "NOTICE": ("ERROR", "WARNING", "NOTICE"),
+    "WARNING": ("ERROR", "WARNING"),
+    "ERROR": ("ERROR",),
+}
+
+
+def get_levels_for_min_level(min_level: str) -> tuple[str, ...]:
+    return LOG_LEVELS_BY_THRESHOLD.get(min_level.upper(), LOG_LEVELS_BY_THRESHOLD["INFO"])
+
+
 def get_level_filter(min_level: str) -> tuple[str, tuple[str, ...]]:
-    levels_by_threshold: dict[str, tuple[str, ...]] = {
-        "DEBUG": ("ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"),
-        "INFO": ("ERROR", "WARNING", "NOTICE", "INFO"),
-        "NOTICE": ("ERROR", "WARNING", "NOTICE"),
-        "WARNING": ("ERROR", "WARNING"),
-        "ERROR": ("ERROR",),
-    }
-    selected_levels = levels_by_threshold.get(min_level.upper(), levels_by_threshold["INFO"])
+    selected_levels = get_levels_for_min_level(min_level)
     placeholders = ", ".join("?" for _ in selected_levels)
     return f"level IN ({placeholders})", selected_levels
+
+
+def build_experiment_logs_query(levels: tuple[str, ...]) -> str:
+    log_columns = "l.timestamp, l.level, l.pioreactor_unit, l.message, l.task, l.experiment"
+
+    if len(levels) == 1:
+        return f"""
+            SELECT {log_columns}
+            FROM logs AS l
+            WHERE l.experiment=?
+                AND l.level=?
+            ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;"""
+
+    level_queries = "\nUNION ALL\n".join(
+        f"""SELECT {log_columns}
+            FROM logs AS l
+            WHERE l.experiment=?
+                AND l.level=?"""
+        for _ in levels
+    )
+    return f"""
+        SELECT timestamp, level, pioreactor_unit, message, task, experiment
+        FROM (
+            {level_queries}
+        )
+        ORDER BY timestamp DESC LIMIT 100 OFFSET ?;"""
 
 
 @api_bp.route("/experiments/<experiment>/recent_logs", methods=["GET"])
@@ -767,15 +799,12 @@ def get_exp_logs(experiment: str) -> ResponseReturnValue:
 
     skip = int(request.args.get("skip", 0))
     min_level = request.args.get("min_level", "INFO")
-    level_filter, level_params = get_level_filter(min_level)
+    levels = get_levels_for_min_level(min_level)
+    query_args = tuple(arg for level in levels for arg in (experiment, level)) + (skip,)
 
     recent_logs = query_app_db(
-        f"""SELECT l.timestamp, l.level, l.pioreactor_unit, l.message, l.task, l.experiment
-            FROM logs AS l
-            WHERE (l.experiment=?)
-            AND {level_filter}
-            ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;""",
-        (experiment, *level_params, skip),
+        build_experiment_logs_query(levels),
+        query_args,
     )
 
     return jsonify(recent_logs)
