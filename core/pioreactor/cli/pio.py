@@ -1436,15 +1436,21 @@ def repair() -> None:
         raise click.ClickException(f"{dot_pioreactor_root} does not exist.")
 
     tools = require_repair_command_paths("sudo", "find", "chown", "chmod", "install", "touch")
-    commands = [
-        *build_dot_pioreactor_repair_commands(dot_pioreactor_root, tools),
-        *build_runtime_repair_commands(tools),
+    dot_pioreactor_commands = build_dot_pioreactor_repair_commands(dot_pioreactor_root, tools)
+    runtime_commands = build_runtime_repair_commands(tools)
+    command_groups = [
+        (dot_pioreactor_commands, f"Repaired ownership and group permissions for {dot_pioreactor_root}."),
+        (runtime_commands[:2], "Repaired runtime directories under /run/pioreactor."),
+        (runtime_commands[2:3], "Cleared stale runtime export artifacts from /run/pioreactor/exports."),
+        (runtime_commands[3:], "Repaired runtime cache files under /run/pioreactor/cache."),
     ]
 
-    for command in commands:
-        subprocess.run(command, check=True)
+    for commands, message in command_groups:
+        for command in commands:
+            subprocess.run(command, check=True)
+        click.echo(message)
 
-    click.echo(f"Repaired permissions for {dot_pioreactor_root}.")
+    click.echo("Repair complete.")
 
 
 @pio.group(short_help="manage the local caches")

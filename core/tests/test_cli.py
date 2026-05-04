@@ -608,7 +608,11 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
         "+",
     ]
     assert commands[12][-5:] == ["-exec", "/usr/bin/chmod", "0660", "{}", "+"]
-    assert f"Repaired permissions for {dot_pioreactor}." in result.output
+    assert f"Repaired ownership and group permissions for {dot_pioreactor}." in result.output
+    assert "Repaired runtime directories under /run/pioreactor." in result.output
+    assert "Cleared stale runtime export artifacts from /run/pioreactor/exports." in result.output
+    assert "Repaired runtime cache files under /run/pioreactor/cache." in result.output
+    assert "Repair complete." in result.output
 
 
 def test_pio_cache_view_without_key_shows_all_keys() -> None:
