@@ -310,7 +310,7 @@ def pio_run(
         stdio.close()
         result["error"] = f"Command exited during startup grace window. Exit code {proc.returncode}."
         if stderr_output:
-            result["error"] += f" {stderr_output}"
+            result["error"] += f" {stderr_output.splitlines()[-1]}"
         raise RuntimeError(result["error"])
 
 
@@ -755,7 +755,7 @@ def _register_core_calibration_actions() -> None:
 _register_core_calibration_actions()
 
 
-def _require_export_disk_space(output_dir: Path) -> None:
+def require_export_disk_space(output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     free_bytes = shutil.disk_usage(output_dir).free
 
@@ -791,7 +791,7 @@ def export_experiment_data_task(
 
     output_path = Path(output)
     cleanup_stale_export_artifacts(output_path.parent, logger)
-    _require_export_disk_space(output_path.parent)
+    require_export_disk_space(output_path.parent)
     export_experiment_data(
         experiments,
         dataset_names,

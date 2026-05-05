@@ -485,7 +485,6 @@ def restart_web_server() -> DelayedResponseReturnValue:
 
 
 @unit_api_bp.route("/system/repair", methods=["POST", "PATCH"])
-@require_leader
 def repair_system() -> DelayedResponseReturnValue:
     if _task_is_locked("repair-system-lock"):
         return _locked_task_response("repair-system-lock")

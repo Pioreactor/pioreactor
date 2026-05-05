@@ -37,7 +37,7 @@
 
 #### Enhancements
 
- - Added retained bioreactor variables for cumulative dosing totals: `cumulative_media_added_ml`, `cumulative_alt_media_added_ml`, and `cumulative_waste_removed_ml`. These are updated from dosing events and can be used for media-use, alt-media-use, and waste-removal alerts.
+ - Added retained `bioreactor` variables for cumulative dosing totals: `cumulative_media_added_ml`, `cumulative_alt_media_added_ml`, and `cumulative_waste_removed_ml`. These are updated from dosing events and can be used for media-use, alt-media-use, and waste-removal alerts.
  - Improved automation start forms so each automation can define its own fields, including boolean options like `skip_first_run`, and required fields now block `Start` until valid.
  - Improved the Light/Dark Cycle LED automation to support fractional-minute light and dark phases and reschedule immediately when phase durations change.
  - Added per-Pioreactor **Stop all** actions on Pioreactor cards, so a single unit can be stopped without broadcasting to every assigned unit.

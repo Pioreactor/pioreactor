@@ -272,6 +272,24 @@ def build_runtime_repair_commands(tools: dict[str, str]) -> list[list[str]]:
     ]
 
 
+def get_inactive_pioreactor_web_services(systemctl_path: str) -> list[str]:
+    inactive_services: list[str] = []
+    for service in ("lighttpd.service", "huey.service"):
+        result = subprocess.run([systemctl_path, "is-active", "--quiet", service], check=False)
+        if result.returncode != 0:
+            inactive_services.append(service)
+
+    return inactive_services
+
+
+def restart_inactive_pioreactor_web_services(tools: dict[str, str]) -> list[str]:
+    inactive_services = get_inactive_pioreactor_web_services(tools["systemctl"])
+    for service in inactive_services:
+        subprocess.run([tools["sudo"], tools["systemctl"], "restart", service], check=True)
+
+    return inactive_services
+
+
 def get_update_app_commands(
     branch: str | None,
     repo: str,
@@ -1435,7 +1453,7 @@ def repair() -> None:
     if not dot_pioreactor_root.exists():
         raise click.ClickException(f"{dot_pioreactor_root} does not exist.")
 
-    tools = require_repair_command_paths("sudo", "find", "chown", "chmod", "install", "touch")
+    tools = require_repair_command_paths("sudo", "find", "chown", "chmod", "install", "touch", "systemctl")
     dot_pioreactor_commands = build_dot_pioreactor_repair_commands(dot_pioreactor_root, tools)
     runtime_commands = build_runtime_repair_commands(tools)
     command_groups = [
@@ -1449,6 +1467,12 @@ def repair() -> None:
         for command in commands:
             subprocess.run(command, check=True)
         click.echo(message)
+
+    restarted_services = restart_inactive_pioreactor_web_services(tools)
+    if restarted_services:
+        click.echo(f"Restarted inactive pioreactor-web.target services: {', '.join(restarted_services)}.")
+    else:
+        click.echo("pioreactor-web.target services are active.")
 
     click.echo("Repair complete.")
 

@@ -495,17 +495,33 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
 
-    def record_command(command: list[str], check: bool) -> None:
+    class DummyResult:
+        def __init__(self, returncode: int = 0) -> None:
+            self.returncode = returncode
+
+    def record_command(command: list[str], check: bool) -> DummyResult:
         commands.append(command)
         assert check is True
+        return DummyResult()
 
-    monkeypatch.setattr("subprocess.run", record_command)
+    def record_run(command: list[str], check: bool) -> DummyResult:
+        if command == ["/usr/bin/systemctl", "is-active", "--quiet", "lighttpd.service"]:
+            commands.append(command)
+            assert check is False
+            return DummyResult()
+        if command == ["/usr/bin/systemctl", "is-active", "--quiet", "huey.service"]:
+            commands.append(command)
+            assert check is False
+            return DummyResult(returncode=3)
+        return record_command(command, check)
+
+    monkeypatch.setattr("subprocess.run", record_run)
 
     runner = CliRunner()
     result = runner.invoke(pio, ["repair"])
 
     assert result.exit_code == 0
-    assert len(commands) == 13
+    assert len(commands) == 16
     assert commands[0] == [
         "/usr/bin/sudo",
         "/usr/bin/find",
@@ -608,10 +624,14 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
         "+",
     ]
     assert commands[12][-5:] == ["-exec", "/usr/bin/chmod", "0660", "{}", "+"]
+    assert commands[13] == ["/usr/bin/systemctl", "is-active", "--quiet", "lighttpd.service"]
+    assert commands[14] == ["/usr/bin/systemctl", "is-active", "--quiet", "huey.service"]
+    assert commands[15] == ["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "huey.service"]
     assert f"Repaired ownership and group permissions for {dot_pioreactor}." in result.output
     assert "Repaired runtime directories under /run/pioreactor." in result.output
     assert "Cleared stale runtime export artifacts from /run/pioreactor/exports." in result.output
     assert "Repaired runtime cache files under /run/pioreactor/cache." in result.output
+    assert "Restarted inactive pioreactor-web.target services: huey.service." in result.output
     assert "Repair complete." in result.output
 
 
