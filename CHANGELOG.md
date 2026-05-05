@@ -4,7 +4,7 @@
 
  - **More reliable data exports.** The Export Data page now exports one experiment at a time and starts exports as async tasks, so the UI can wait for large exports instead of tying up a web request. Exports now write directly into the zip file, clean up stale partial artifacts, and stop early if disk space, memory, or SQLite WAL growth gets too close to unsafe limits.
  - **Automation schedules now live with the automation.** Automations can choose the right trigger for their behavior: fixed timers, biomass updates, phase boundaries, or manual execution. For example, `turbidostat` now reacts to fresh biomass readings instead of polling every few seconds, while `light_dark_cycle` schedules exact light/dark phase boundaries.
- - **New repair workflow.** Added `pio repair`, richer `pio status --json` checks, and a UI **Repair system** action for fixing common local ownership, permission, and runtime-storage issues without rebooting or stopping running jobs.
+ - **New repair workflow.** Added `pio repair`, richer `pio status --json` checks, and a UI **Repair system** action under Inventory for fixing common local ownership, permission, and runtime-storage issues without rebooting or stopping running jobs.
 
    ```bash
    pio status --json
