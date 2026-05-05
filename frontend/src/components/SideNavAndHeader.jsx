@@ -565,8 +565,9 @@ export default function SideNavAndHeader() {
                 If you have a question about your Pioreactor, run into an issue, or want direct help from our team, email us at{" "}
                 <MuiLink href="mailto:support@pioreactor.com">
                   support@pioreactor.com
-                </MuiLink>
-                It's especially helpful if you can provide your software version, hardware version, and any screenshots in the email, too.
+                </MuiLink>.
+                <br/>
+                It's especially helpful if you can provide your software version (found on the Inventory page, model version, and any screenshots in the email, too.
                 .
               </Typography>
             </Stack>

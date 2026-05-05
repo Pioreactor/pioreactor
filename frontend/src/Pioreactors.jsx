@@ -572,7 +572,7 @@ function ButtonStopProcess({experiment, unit = "$broadcast", disabled = false}) 
   const handleClick = () => {
     confirm({
       description,
-      title: "Stop all activities?",
+      title: "Stop all activities in all assigned Pioreactors?",
       confirmationText: "Confirm",
       confirmationButtonProps: {autoFocus: true, variant:"contained", color: "primary", sx: {textTransform: 'none'}},
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
@@ -585,7 +585,7 @@ function ButtonStopProcess({experiment, unit = "$broadcast", disabled = false}) 
 
   return (
     <Button sx={{textTransform: 'none', float: "right" }} color="secondary" disabled={disabled} onClick={handleClick}>
-      <CancelIcon fontSize="small" sx={textIcon}/> Stop all
+      <CancelIcon fontSize="small" sx={textIcon}/> Stop all Pioreactors
     </Button>
   );
 }

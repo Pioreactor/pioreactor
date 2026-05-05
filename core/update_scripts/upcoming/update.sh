@@ -27,8 +27,8 @@ install_checked_asset() {
 
     local tmp
     tmp="$(mktemp)"
-    install -o pioreactor -g www-data -m 0644 "$src" "$tmp"
-    install -d -o pioreactor -g www-data -m 0755 "$(dirname "$dst")"
+    install -o pioreactor -g www-data -m 0664 "$src" "$tmp"
+    install -d -o pioreactor -g www-data -m 2775 "$(dirname "$dst")"
     mv "$tmp" "$dst"
 
     [ -s "$dst" ] || {
@@ -37,7 +37,19 @@ install_checked_asset() {
     }
 }
 
-# TODO: the problem with this is that the numbering scheme, xx_<name>.yaml was added later, so not all machines look like this
+remove_legacy_builtin_descriptors() {
+    rm -f \
+        "$DOT_PIOREACTOR/ui/automations/dosing/chemostat.yaml" \
+        "$DOT_PIOREACTOR/ui/automations/dosing/turbidostat.yaml" \
+        "$DOT_PIOREACTOR/ui/automations/dosing/fed_batch.yaml" \
+        "$DOT_PIOREACTOR/ui/automations/dosing/pid_morbidostat.yaml" \
+        "$DOT_PIOREACTOR/ui/automations/dosing/silent.yaml" \
+        "$DOT_PIOREACTOR/ui/automations/led/light_dark_cycle.yaml" \
+        "$DOT_PIOREACTOR/ui/automations/led/silent.yaml"
+}
+
+remove_legacy_builtin_descriptors
+
 install_checked_asset \
     "$SCRIPT_DIR/automation_dosing_01_chemostat.yaml" \
     "$DOT_PIOREACTOR/ui/automations/dosing/01_chemostat.yaml"
