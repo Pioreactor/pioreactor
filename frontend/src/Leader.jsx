@@ -232,10 +232,11 @@ function RepairSystem({unit}) {
         <BuildOutlinedIcon fontSize="small" sx={textIcon} />Repair system
       </Button>
       <Snackbar
+        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}
-        autoHideDuration={4000}
+        autoHideDuration={2500}
         key={`snackbar-repair-system-${unit}`}
       />
     </React.Fragment>
