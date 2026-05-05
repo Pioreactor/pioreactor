@@ -7,12 +7,13 @@ from typing import cast
 from pioreactor import types as pt
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
+from pioreactor.background_jobs.dosing_automation import (
+    check_pump_calibrations_and_pwm_channels_are_configured,
+)
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.estimators import load_active_estimator
-from pioreactor.exc import CalibrationError
-from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 
 SETTLING_TIME_SECONDS = 5.0
@@ -42,13 +43,8 @@ class Turbidostat(DosingAutomationJob):
     ) -> None:
         self._event_trigger_ready = False
         self._settling_until: datetime | None = None
+        check_pump_calibrations_and_pwm_channels_are_configured(("media_pump", "waste_pump"))
         super().__init__(**kwargs)
-
-        with local_persistent_storage("active_calibrations") as cache:
-            if "media_pump" not in cache:
-                raise CalibrationError("Media pump calibration must be performed first.")
-            elif "waste_pump" not in cache:
-                raise CalibrationError("Waste pump calibration must be performed first.")
 
         if target_biomass is None:
             raise ValueError("Provide a target biomass.")

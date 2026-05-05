@@ -4,8 +4,9 @@ from typing import Any
 
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
-from pioreactor.exc import CalibrationError
-from pioreactor.utils import local_persistent_storage
+from pioreactor.background_jobs.dosing_automation import (
+    check_pump_calibrations_and_pwm_channels_are_configured,
+)
 
 
 class FedBatch(DosingAutomationJob):
@@ -26,11 +27,8 @@ class FedBatch(DosingAutomationJob):
         skip_first_run: bool | str | int = False,
         **kwargs: Any,
     ) -> None:
+        check_pump_calibrations_and_pwm_channels_are_configured(("media_pump",))
         super().__init__(**kwargs)
-
-        with local_persistent_storage("active_calibrations") as cache:
-            if "media_pump" not in cache:
-                raise CalibrationError("Media pump calibration must be performed first.")
 
         self.logger.warning(
             "When using the fed-batch automation, no liquid is removed. Carefully monitor the level of liquid to avoid overflow!"

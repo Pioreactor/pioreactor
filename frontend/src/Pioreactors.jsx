@@ -2271,9 +2271,14 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     ),
     [settingsDescriptors],
   );
-  const settingsCollections = bioreactorSettingsGroup
-    ? { ...jobs, ...passiveSettingsCollections, bioreactor: bioreactorSettingsGroup }
-    : { ...jobs, ...passiveSettingsCollections };
+  const settingsCollections = useMemo(
+    () => (
+      bioreactorSettingsGroup
+        ? { ...jobs, ...passiveSettingsCollections, bioreactor: bioreactorSettingsGroup }
+        : { ...jobs, ...passiveSettingsCollections }
+    ),
+    [bioreactorSettingsGroup, jobs, passiveSettingsCollections],
+  );
   const editableSettingsGroups = useMemo(() => {
     return Object.values(settingsCollections).filter(job => job.metadata.display)
   }, [settingsCollections]);

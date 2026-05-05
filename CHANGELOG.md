@@ -56,6 +56,7 @@
  - Fixed cluster fan-out reads so offline or slow workers resolve to per-unit failures instead of turning the whole request into a `ResultTimeout`.
  - Fixed plugin pages for worker-specific views so offline workers show a clear `Could not reach this Pioreactor.` error, and **Install across cluster** is shown only when there is more than one unit.
  - Fixed model-hardware checks to apply to HAT v1.x hardware generally, not just model version `1.5`.
+ - Fixed dosing automations to check required pump calibrations and PWM assignments before starting, so missing media or waste pump setup is reported immediately.
 
 ### 26.4.4
 

@@ -158,6 +158,40 @@ def setup_function() -> None:
     cal.set_as_active_calibration_for_device("waste_pump")
 
 
+def test_waste_exchanging_automations_require_waste_pwm_channel() -> None:
+    original_waste_pwm_channel = config.get("PWM_reverse", "waste")
+    config.remove_option("PWM_reverse", "waste")
+
+    try:
+        with pytest.raises(exc.CalibrationError, match="`waste` must be assigned"):
+            Chemostat(
+                exchange_volume_ml=0.25,
+                duration=60,
+                unit=unit,
+                experiment="test_chemostat_requires_waste_pwm_channel",
+            )
+
+        with pytest.raises(exc.CalibrationError, match="`waste` must be assigned"):
+            Turbidostat(
+                exchange_volume_ml=0.25,
+                target_biomass=1.0,
+                biomass_signal="normalized_od",
+                unit=unit,
+                experiment="test_turbidostat_requires_waste_pwm_channel",
+            )
+
+        with pytest.raises(exc.CalibrationError, match="`waste` must be assigned"):
+            PIDMorbidostat(
+                target_normalized_od=1.0,
+                target_growth_rate=0.09,
+                duration=60,
+                unit=unit,
+                experiment="test_pid_morbidostat_requires_waste_pwm_channel",
+            )
+    finally:
+        config.set("PWM_reverse", "waste", original_waste_pwm_channel)
+
+
 def test_silent_automation() -> None:
     experiment = "test_silent_automation"
     with Silent(exchange_volume_ml=None, duration=60, unit=unit, experiment=experiment) as algo:

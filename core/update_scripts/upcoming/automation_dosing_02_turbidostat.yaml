@@ -2,7 +2,7 @@
 display_name: Turbidostat
 automation_name: turbidostat
 description: >
-  When the selected biomass signal updates above the target value, exchange volume amount.
+  When the selected biomass signal reaches or exceeds the target value, exchange the configured volume.
 
 fields:
   - key: target_biomass

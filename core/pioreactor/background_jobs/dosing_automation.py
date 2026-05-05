@@ -20,7 +20,29 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import QOS
 from pioreactor.states import JobState
 from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
+
+
+def check_pump_calibrations_and_pwm_channels_are_configured(
+    pump_devices: tuple[pt.PumpCalibrationDevices, ...],
+) -> None:
+    with local_persistent_storage("active_calibrations") as cache:
+        for pump_device in pump_devices:
+            if pump_device not in cache:
+                raise exc.CalibrationError(
+                    f"{pump_device.removesuffix('_pump').replace('_', '-').title()} pump calibration must be performed first."
+                )
+
+    for pump_device in pump_devices:
+        pump_name = pump_device.removesuffix("_pump")
+        if (
+            not config.has_option("PWM_reverse", pump_name)
+            or not config.get("PWM_reverse", pump_name).strip()
+        ):
+            raise exc.CalibrationError(
+                f"`{pump_name}` must be assigned to a PWM channel in the [PWM] config section first."
+            )
 
 
 class classproperty(property):

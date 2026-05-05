@@ -596,7 +596,7 @@ function ButtonStopProcess({experiment, unit, disabled = false}) {
 }
 
 
-function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
+function PioreactorHeader({assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
   }

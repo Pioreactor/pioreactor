@@ -1,7 +1,7 @@
 ---
 display_name: Light/Dark Cycle
 automation_name: light_dark_cycle
-description: Use LED channels C & D as light sources that turn off periodically, simulating an alternating light / dark environment.
+description: Use LED channels C & D as light sources that turn on and off periodically, simulating an alternating light / dark environment.
 fields:
   - key: duration
     default: 1

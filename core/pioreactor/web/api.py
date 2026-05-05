@@ -52,6 +52,7 @@ from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
 from pioreactor.web.app import get_all_workers_in_experiment
 from pioreactor.web.app import HOSTNAME
+from pioreactor.web.app import logger
 from pioreactor.web.app import modify_app_db
 from pioreactor.web.app import msg_to_JSON
 from pioreactor.web.app import publish_to_error_log
@@ -2001,6 +2002,13 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
             cause="Request body is empty or not JSON.",
             remediation="Send a JSON payload describing the calibration session.",
         )
+
+    logger.debug(
+        "Starting browser protocol session on %s: target_device=%s, protocol_name=%s",
+        pioreactor_unit,
+        body.get("target_device"),
+        body.get("protocol_name"),
+    )
 
     response: MureqResponse | None = None
     try:

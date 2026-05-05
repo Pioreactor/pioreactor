@@ -29,6 +29,8 @@ from pioreactor.web.tasks import get_calibration_action
 from pioreactor.web.utils import abort_with
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
+logger = create_logger("unit_calibration_sessions_api", experiment=UNIVERSAL_EXPERIMENT)
+
 
 def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     handler = get_calibration_action(action)
@@ -79,6 +81,12 @@ def start_calibration_session() -> ResponseReturnValue:
         abort_with(400, description=str(exc))
 
     save_calibration_session(session)
+    logger.debug(
+        "Started browser protocol session: session_id=%s, target_device=%s, protocol_name=%s",
+        session.session_id,
+        session.target_device,
+        session.protocol_name,
+    )
     step = _get_calibration_step(session)
     step_payload = to_builtins(step) if step is not None else None
     response = jsonify({"session": to_builtins(session), "step": step_payload})
@@ -108,7 +116,6 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
         protocol = get_protocol_for_session(session)
         protocol.on_session_abort(session, executor=_execute_calibration_action)
     except Exception as exc:
-        logger = create_logger("unit_calibration_sessions_api", experiment=UNIVERSAL_EXPERIMENT)
         logger.exception("Calibration abort cleanup failed for session %s", session_id)
         session.error = f"Calibration aborted by user. Cleanup failed: {exc}"
     session.updated_at = utc_iso_timestamp()
