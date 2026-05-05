@@ -2646,7 +2646,7 @@ def export_exportable_datasets() -> ResponseReturnValue:
 
     filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
     task = tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
-        experiments if not experiments or experiments[0] != "<All experiments>" else [],
+        experiments,
         dataset_names,
         filename_with_path.as_posix(),
         start_time=body.get("start_time"),

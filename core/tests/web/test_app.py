@@ -957,7 +957,7 @@ def test_export_datasets_returns_async_task_response(
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiments": ["<All experiments>"],
+            "experiments": [],
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2026-01-01T00:00",

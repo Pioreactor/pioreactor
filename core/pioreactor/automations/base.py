@@ -104,7 +104,7 @@ class AutomationJob(BackgroundJob):
 
         try:
             if wait_for_ready:
-                if not self._block_until_ready(timeout=timeout):
+                if not self.block_until_ready(timeout=timeout):
                     return None
             elif self.state not in (allowed_states or (self.READY,)):
                 return None
@@ -226,21 +226,6 @@ class AutomationJob(BackgroundJob):
             0.0,
             (duration_minutes * 60) - (current_utc_datetime() - self._latest_run_at).total_seconds(),
         )
-
-    def _block_until_ready(self, timeout: float) -> bool:
-        if self.state == self.DISCONNECTED:
-            return False
-
-        deadline = current_utc_datetime().timestamp() + timeout
-        while self.state != self.READY:
-            if self.state == self.DISCONNECTED:
-                return False
-            if current_utc_datetime().timestamp() >= deadline:
-                self.logger.debug("Timed out waiting for READY.")
-                return False
-            sleep(0.5)
-
-        return True
 
     def _start_general_passive_listeners(self) -> None:
         super()._start_general_passive_listeners()

@@ -341,7 +341,7 @@ def test_export_disk_space_preflight_rejects_low_space(
     monkeypatch.setattr(tasks.shutil, "disk_usage", lambda _path: Usage())
 
     with pytest.raises(OSError, match="Not enough free space to export datasets"):
-        tasks._require_export_disk_space(tmp_path)
+        tasks.require_export_disk_space(tmp_path)
 
 
 def test_export_disk_space_preflight_allows_minimum_working_space(
@@ -352,7 +352,7 @@ def test_export_disk_space_preflight_allows_minimum_working_space(
 
     monkeypatch.setattr(tasks.shutil, "disk_usage", lambda _path: Usage())
 
-    tasks._require_export_disk_space(tmp_path)
+    tasks.require_export_disk_space(tmp_path)
 
 
 def test_power_actions_share_rate_limit_bucket() -> None:
