@@ -17,9 +17,6 @@ from pioreactor.whoami import get_pioreactor_model
 _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     "current_volume_ml": structs.BioreactorVariableDefinition(
         key="current_volume_ml",
-        label="Current volume",
-        description="Current estimated liquid volume in the vial.",
-        unit="mL",
         minimum=0.0,
         maximum=None,
         default_config_key="initial_volume_ml",
@@ -27,9 +24,6 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "efflux_tube_volume_ml": structs.BioreactorVariableDefinition(
         key="efflux_tube_volume_ml",
-        label="Efflux tube level",
-        description="Liquid volume equivalent to the height of the waste/efflux tube.",
-        unit="mL",
         minimum=0.0,
         maximum=None,
         default_config_key="efflux_tube_volume_ml",
@@ -37,9 +31,6 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "alt_media_fraction": structs.BioreactorVariableDefinition(
         key="alt_media_fraction",
-        label="Alt media fraction",
-        description="Fraction of the current volume estimated to be alt media.",
-        unit=None,
         minimum=0.0,
         maximum=1.0,
         default_config_key="initial_alt_media_fraction",
@@ -47,9 +38,6 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "cumulative_media_added_ml": structs.BioreactorVariableDefinition(
         key="cumulative_media_added_ml",
-        label="Cumulative media added",
-        description="Total regular media added during this experiment.",
-        unit="mL",
         minimum=0.0,
         maximum=None,
         default_config_key="initial_cumulative_media_added_ml",
@@ -58,9 +46,6 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "cumulative_alt_media_added_ml": structs.BioreactorVariableDefinition(
         key="cumulative_alt_media_added_ml",
-        label="Cumulative alt media added",
-        description="Total alternative media added during this experiment.",
-        unit="mL",
         minimum=0.0,
         maximum=None,
         default_config_key="initial_cumulative_alt_media_added_ml",
@@ -69,9 +54,6 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "cumulative_waste_removed_ml": structs.BioreactorVariableDefinition(
         key="cumulative_waste_removed_ml",
-        label="Cumulative waste removed",
-        description="Total waste removed during this experiment.",
-        unit="mL",
         minimum=0.0,
         maximum=None,
         default_config_key="initial_cumulative_waste_removed_ml",
@@ -85,6 +67,10 @@ def _get_bioreactor_variable_definition(variable_name: str) -> structs.Bioreacto
     return _BIOREACTOR_VARIABLES[variable_name]
 
 
+def get_bioreactor_variable_definitions() -> dict[str, structs.BioreactorVariableDefinition]:
+    return _BIOREACTOR_VARIABLES.copy()
+
+
 def get_default_bioreactor_value(variable_name: str) -> float:
     metadata = _get_bioreactor_variable_definition(variable_name)
     resolved_default = config.getfloat(
@@ -93,25 +79,6 @@ def get_default_bioreactor_value(variable_name: str) -> float:
         fallback=metadata.default_value,
     )
     return validate_bioreactor_value(variable_name, resolved_default)
-
-
-def get_bioreactor_descriptors() -> list[structs.BioreactorDescriptor]:
-    descriptors: list[structs.BioreactorDescriptor] = []
-
-    for metadata in _BIOREACTOR_VARIABLES.values():
-        descriptors.append(
-            structs.BioreactorDescriptor(
-                key=metadata.key,
-                label=metadata.label,
-                description=metadata.description,
-                type="numeric",
-                unit=metadata.unit,
-                min=metadata.minimum,
-                max=metadata.maximum,
-            )
-        )
-
-    return descriptors
 
 
 def validate_bioreactor_value(variable_name: str, value: object) -> float:

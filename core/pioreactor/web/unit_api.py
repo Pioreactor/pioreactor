@@ -62,6 +62,7 @@ from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
+from pioreactor.web.utils import load_settings_collection_descriptors
 from pioreactor.web.utils import wait_for_bool_task_result
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import safe_join
@@ -960,6 +961,15 @@ def get_job_descriptors() -> ResponseReturnValue:
     except Exception as e:
         publish_to_error_log(str(e), "unit_api.get_job_descriptors")
         abort_with(400, str(e))
+
+
+@unit_api_bp.route("/settings/descriptors", methods=["GET"])
+def get_settings_descriptors() -> ResponseReturnValue:
+    descriptors = load_settings_collection_descriptors(
+        Path(os.environ["DOT_PIOREACTOR"]),
+        report_error=lambda message: publish_to_error_log(message, "unit_api.get_settings_descriptors"),
+    )
+    return attach_cache_control(jsonify(to_builtins(descriptors)))
 
 
 ### PLUGINS

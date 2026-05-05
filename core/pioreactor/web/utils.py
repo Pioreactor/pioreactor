@@ -19,6 +19,8 @@ from msgspec import to_builtins
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
+from pioreactor.bioreactor import get_bioreactor_variable_definitions
+from pioreactor.bioreactor import get_default_bioreactor_value
 from pioreactor.experiment_profiles.validate import Diagnostic
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
@@ -193,6 +195,50 @@ def load_background_job_descriptors(
         except (ValidationError, DecodeError) as e:
             if report_error is not None:
                 report_error(f"Yaml error in {file.name}: {e}")
+
+    return list(parsed_yaml.values())
+
+
+def load_settings_collection_descriptors(
+    dot_pioreactor_path: Path,
+    *,
+    report_error: t.Callable[[str], None] | None = None,
+) -> list[structs.SettingsCollectionDescriptor]:
+    settings_path_builtins = dot_pioreactor_path / "ui" / "settings"
+    settings_path_plugins = dot_pioreactor_path / "plugins" / "ui" / "settings"
+    files = sorted(settings_path_builtins.glob("*.y*ml")) + sorted(settings_path_plugins.glob("*.y*ml"))
+
+    parsed_yaml: dict[str, structs.SettingsCollectionDescriptor] = {}
+    bioreactor_variables = get_bioreactor_variable_definitions()
+
+    for file in files:
+        try:
+            descriptor = yaml_decode(file.read_bytes(), type=structs.SettingsCollectionDescriptor)
+        except (ValidationError, DecodeError) as e:
+            if report_error is not None:
+                report_error(f"Yaml error in {file.name}: {e}")
+            continue
+
+        if descriptor.key == "bioreactor":
+            # bioreactor.yaml presents canonical bioreactor variables; it does not define new ones.
+            descriptor.published_settings = [
+                structs.PublishedSettingsDescriptor(
+                    key=field.key,
+                    type=field.type,
+                    display=field.display,
+                    description=field.description,
+                    default=get_default_bioreactor_value(field.key),
+                    unit=field.unit,
+                    label=field.label,
+                    editable=field.editable,
+                    min=metadata.minimum,
+                    max=metadata.maximum,
+                )
+                for field in descriptor.published_settings
+                if (metadata := bioreactor_variables.get(field.key)) is not None
+            ]
+
+        parsed_yaml[descriptor.key] = descriptor
 
     return list(parsed_yaml.values())
 

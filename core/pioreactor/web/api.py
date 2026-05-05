@@ -25,7 +25,6 @@ from msgspec import to_builtins
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
-from pioreactor.bioreactor import get_bioreactor_descriptors
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
@@ -68,6 +67,7 @@ from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
+from pioreactor.web.utils import load_settings_collection_descriptors
 from pioreactor.web.utils import scrub_to_valid
 from pioreactor.web.utils import wait_for_bool_task_result
 from pioreactor.whoami import is_testing_env
@@ -2509,9 +2509,49 @@ def get_job_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
     )
 
 
-@api_bp.route("/bioreactor/descriptors", methods=["GET"])
-def get_bioreactor_variable_descriptors() -> ResponseReturnValue:
-    return attach_cache_control(jsonify(to_builtins(get_bioreactor_descriptors())), max_age=100_000)
+@api_bp.route("/settings/descriptors", methods=["GET"])
+def get_settings_descriptors() -> ResponseReturnValue:
+    descriptors = load_settings_collection_descriptors(
+        Path(os.environ["DOT_PIOREACTOR"]),
+        report_error=lambda message: publish_to_error_log(message, "get_settings_descriptors"),
+    )
+    return attach_cache_control(jsonify(to_builtins(descriptors)))
+
+
+@api_bp.route("/workers/<pioreactor_unit>/settings/descriptors", methods=["GET"])
+def get_settings_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch settings descriptors with $broadcast; choose a specific Pioreactor.",
+            cause="Worker settings descriptors require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_to_address(pioreactor_unit),
+            "/unit_api/settings/descriptors",
+            timeout=10,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        detail = _extract_unit_api_error(response)
+        if detail:
+            abort_with(502, f"Fetching settings descriptors failed on {pioreactor_unit}: {detail}")
+        if response is not None:
+            abort_with(
+                502,
+                f"Fetching settings descriptors failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
+        abort_with(502, f"Fetching settings descriptors failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
 
 
 @api_bp.route("/charts/descriptors", methods=["GET"])

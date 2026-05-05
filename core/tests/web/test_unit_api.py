@@ -4,6 +4,7 @@ Additional unit tests for unit_api endpoints.
 """
 from datetime import datetime
 from datetime import timezone
+from pathlib import Path
 
 import pytest
 from msgspec.yaml import encode as yaml_encode
@@ -203,6 +204,52 @@ def test_get_job_descriptors_endpoint_returns_builtin_and_plugin_jobs(client) ->
     job_names = {job["job_name"] for job in data}
     assert "stirring" in job_names
     assert "self_test" in job_names
+
+
+def test_get_settings_descriptors_endpoint_returns_settings_collections(
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    ui_settings_dir = tmp_path / "ui" / "settings"
+    ui_settings_dir.mkdir(parents=True)
+    (ui_settings_dir / "00_bioreactor.yaml").write_text(
+        """\
+key: bioreactor
+display_name: Bioreactor
+display: false
+published_settings:
+  - key: current_volume_ml
+    label: Current volume
+    type: numeric
+    display: true
+""",
+        encoding="utf-8",
+    )
+    (ui_settings_dir / "05_leds.yaml").write_text(
+        """\
+key: leds
+display_name: LED settings
+display: false
+published_settings:
+  - key: intensity
+    label: LED intensity
+    type: string
+    display: true
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+
+    response = client.get("/unit_api/settings/descriptors")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)
+
+    setting_keys = {descriptor["key"] for descriptor in data}
+    assert "bioreactor" in setting_keys
+    assert "leds" in setting_keys
 
 
 def test_get_automation_descriptors_endpoint_returns_builtin_and_plugin_automations(client) -> None:

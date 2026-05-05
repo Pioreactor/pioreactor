@@ -1,4 +1,6 @@
 let workerJobDescriptorsRequestCache = new Map();
+let settingsDescriptorsRequestCache = null;
+let workerSettingsDescriptorsRequestCache = new Map();
 let workerAutomationDescriptorsRequestCache = new Map();
 
 function getAutomationCacheKey(unit, automationType) {
@@ -7,6 +9,8 @@ function getAutomationCacheKey(unit, automationType) {
 
 export function resetWorkerJobDescriptorsCache() {
   workerJobDescriptorsRequestCache = new Map();
+  settingsDescriptorsRequestCache = null;
+  workerSettingsDescriptorsRequestCache = new Map();
   workerAutomationDescriptorsRequestCache = new Map();
 }
 
@@ -78,6 +82,114 @@ export function buildJobsStateFromDescriptors(
   return jobs;
 }
 
+export function buildSettingsCollectionsFromDescriptors(
+  descriptors,
+  { existingCollections = null } = {},
+) {
+  const collections = { ...(existingCollections || {}) };
+
+  for (const collection of descriptors || []) {
+    const existingCollection = collections[collection.key];
+    const metadata = {
+      state: existingCollection?.state ?? null,
+      publishedSettings: {},
+      metadata: {
+        display_name: collection.display_name,
+        subtext: collection.subtext,
+        display: collection.display,
+        description: collection.description,
+        key: collection.key,
+        source: collection.source,
+      },
+    };
+
+    for (const field of collection.published_settings) {
+      const existingSetting = existingCollection?.publishedSettings?.[field.key];
+      metadata.publishedSettings[field.key] = {
+        value: existingSetting?.value ?? field.default ?? null,
+        label: field.label,
+        type: field.type,
+        unit: field.unit || null,
+        display: field.display,
+        description: field.description,
+        editable: field.editable ?? true,
+        min: field.min ?? null,
+        max: field.max ?? null,
+      };
+    }
+
+    collections[collection.key] = metadata;
+  }
+
+  return collections;
+}
+
+export function updatePublishedSettingValue(collections, collectionKey, settingKey, value) {
+  const collection = collections[collectionKey];
+  const existingSetting = collection?.publishedSettings?.[settingKey];
+  if (!existingSetting) {
+    return collections;
+  }
+
+  return {
+    ...collections,
+    [collectionKey]: {
+      ...collection,
+      publishedSettings: {
+        ...collection.publishedSettings,
+        [settingKey]: { ...existingSetting, value },
+      },
+    },
+  };
+}
+
+export function getPublishedSettingsSignature(
+  collections,
+  { excludeKeys = [], separator = "\u0000" } = {},
+) {
+  const excludedKeys = new Set(excludeKeys);
+
+  return Object.entries(collections)
+    .filter(([key]) => !excludedKeys.has(key))
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, collection]) => {
+      const settingKeys = Object.keys(collection.publishedSettings || {}).sort();
+      return `${key}=${settingKeys.join(",")}`;
+    })
+    .join(separator);
+}
+
+export function getPublishedSettingsTopicsFromSignature(
+  signature,
+  { unit, experiment, includeState = false, separator = "\u0000" },
+) {
+  if (!experiment || !signature) {
+    return [];
+  }
+
+  const topics = [];
+  for (const collectionDescriptor of signature.split(separator)) {
+    const [collectionName, settings = ""] = collectionDescriptor.split("=");
+    if (!collectionName) {
+      continue;
+    }
+
+    if (includeState) {
+      topics.push(["pioreactor", unit, experiment, collectionName, "$state"].join("/"));
+    }
+
+    if (!settings) {
+      continue;
+    }
+
+    for (const setting of settings.split(",")) {
+      topics.push(["pioreactor", unit, experiment, collectionName, setting].join("/"));
+    }
+  }
+
+  return topics;
+}
+
 async function createApiErrorFromResponse(response) {
   let errorMessage = `Error ${response.status}.`;
 
@@ -118,6 +230,53 @@ export async function getWorkerJobDescriptors(unit) {
   }
 
   return workerJobDescriptorsRequestCache.get(unit);
+}
+
+export async function getWorkerSettingsDescriptors(unit) {
+  if (!unit) {
+    return [];
+  }
+
+  if (!workerSettingsDescriptorsRequestCache.has(unit)) {
+    const pendingRequest = fetch(`/api/workers/${unit}/settings/descriptors`)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw await createApiErrorFromResponse(response);
+        }
+        return response.json();
+      })
+      .then((descriptors) => {
+        const resolvedDescriptors = Promise.resolve(descriptors);
+        workerSettingsDescriptorsRequestCache.set(unit, resolvedDescriptors);
+        return descriptors;
+      })
+      .catch((error) => {
+        workerSettingsDescriptorsRequestCache.delete(unit);
+        throw error;
+      });
+
+    workerSettingsDescriptorsRequestCache.set(unit, pendingRequest);
+  }
+
+  return workerSettingsDescriptorsRequestCache.get(unit);
+}
+
+export async function getSettingsDescriptors() {
+  if (!settingsDescriptorsRequestCache) {
+    settingsDescriptorsRequestCache = fetch("/api/settings/descriptors")
+      .then(async (response) => {
+        if (!response.ok) {
+          throw await createApiErrorFromResponse(response);
+        }
+        return response.json();
+      })
+      .catch((error) => {
+        settingsDescriptorsRequestCache = null;
+        throw error;
+      });
+  }
+
+  return settingsDescriptorsRequestCache;
 }
 
 export async function getAutomationDescriptors(unit, automationType) {

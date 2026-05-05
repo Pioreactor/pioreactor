@@ -1050,19 +1050,11 @@ def test_get_settings_api(client) -> None:
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
 
 
-def test_get_bioreactor_descriptors(client) -> None:
-    response = client.get("/api/bioreactor/descriptors")
+def test_get_settings_descriptors(client) -> None:
+    response = client.get("/api/settings/descriptors")
 
     assert response.status_code == 200
-    data = response.get_json()
-    assert [descriptor["key"] for descriptor in data] == [
-        "current_volume_ml",
-        "efflux_tube_volume_ml",
-        "alt_media_fraction",
-        "cumulative_media_added_ml",
-        "cumulative_alt_media_added_ml",
-        "cumulative_waste_removed_ml",
-    ]
+    assert isinstance(response.get_json(), list)
 
 
 def test_get_job_descriptors_for_worker_proxies_unit_api(client, monkeypatch: MonkeyPatch) -> None:
@@ -1093,6 +1085,34 @@ def test_get_job_descriptors_for_worker_proxies_unit_api(client, monkeypatch: Mo
     ]
 
 
+def test_get_settings_descriptors_for_worker_proxies_unit_api(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    def fake_get_from(*_args, **_kwargs) -> MureqResponse:
+        return MureqResponse(
+            "http://unit1.local:4999/unit_api/settings/descriptors",
+            200,
+            {"Content-Type": "application/json"},
+            b'[{"key":"worker_settings","display_name":"Worker settings","display":true,"published_settings":[]}]',
+        )
+
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    response = client.get("/api/workers/unit1/settings/descriptors")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {
+            "key": "worker_settings",
+            "display_name": "Worker settings",
+            "display": True,
+            "published_settings": [],
+        }
+    ]
+
+
 def test_get_job_descriptors_for_worker_rejects_broadcast(client) -> None:
     response = client.get("/api/workers/$broadcast/jobs/descriptors")
 
@@ -1100,6 +1120,16 @@ def test_get_job_descriptors_for_worker_rejects_broadcast(client) -> None:
     assert response.mimetype == "application/json"
     data = response.get_json()
     assert data["error"] == "Cannot fetch job descriptors with $broadcast; choose a specific Pioreactor."
+    assert data["status"] == 400
+
+
+def test_get_settings_descriptors_for_worker_rejects_broadcast(client) -> None:
+    response = client.get("/api/workers/$broadcast/settings/descriptors")
+
+    assert response.status_code == 400
+    assert response.mimetype == "application/json"
+    data = response.get_json()
+    assert data["error"] == "Cannot fetch settings descriptors with $broadcast; choose a specific Pioreactor."
     assert data["status"] == 400
 
 

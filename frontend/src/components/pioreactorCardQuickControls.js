@@ -5,7 +5,11 @@ const AUTOMATION_JOB_KEYS = new Set([
 ]);
 
 const QUICK_EDITABLE_TYPES = new Set(["boolean", "numeric", "string"]);
-const QUICK_EDIT_DISABLED_LABELS = new Set(["LED intensity", "PWM intensity"]);
+
+const SPECIAL_CARD_SETTING_DISPLAY_KINDS = {
+  "leds.intensity": "led_intensity",
+  "pwms.dc": "pwm_dc",
+};
 
 export function isAutomationJob(jobKey) {
   return AUTOMATION_JOB_KEYS.has(jobKey);
@@ -53,6 +57,9 @@ export function canQuickEditCardSetting(setting, isUnitActive) {
   const value = setting?.value;
   const hasValue = ![null, "", "—", "-"].includes(value);
   const supportsQuickEdit = QUICK_EDITABLE_TYPES.has(setting?.type);
-  const isExcludedLabel = QUICK_EDIT_DISABLED_LABELS.has(setting?.label);
-  return isUnitActive && Boolean(setting?.editable) && supportsQuickEdit && hasValue && !isExcludedLabel;
+  return isUnitActive && Boolean(setting?.editable) && supportsQuickEdit && hasValue;
+}
+
+export function getCardSettingDisplayKind(jobKey, settingKey) {
+  return SPECIAL_CARD_SETTING_DISPLAY_KINDS[`${jobKey}.${settingKey}`] || "default";
 }

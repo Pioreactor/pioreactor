@@ -1,49 +1,90 @@
 import {
-  getBioreactorDescriptors,
-  resetBioreactorDescriptorsCache,
+  getBioreactorConfirmedValue,
+  getBioreactorFallbackValue,
+  getBioreactorSubscriptionTopics,
+  parseNumericValue,
 } from "../utils/bioreactor";
 
 describe("bioreactor utils", () => {
-  beforeEach(() => {
-    resetBioreactorDescriptorsCache();
-    global.fetch = jest.fn();
+  test("parseNumericValue returns null for non-numeric values", () => {
+    expect(parseNumericValue("12.5")).toBe(12.5);
+    expect(parseNumericValue("")).toBeNull();
+    expect(parseNumericValue("abc")).toBeNull();
   });
 
-  afterEach(() => {
-    jest.resetAllMocks();
+  test("getBioreactorFallbackValue reads mapped config values", () => {
+    const config = {
+      bioreactor: {
+        initial_volume_ml: "11.5",
+        efflux_tube_volume_ml: "18",
+        initial_alt_media_fraction: "0.25",
+        initial_cumulative_media_added_ml: "3",
+      },
+    };
+
+    expect(getBioreactorFallbackValue(config, "current_volume_ml")).toBe(11.5);
+    expect(getBioreactorFallbackValue(config, "efflux_tube_volume_ml")).toBe(18);
+    expect(getBioreactorFallbackValue(config, "alt_media_fraction")).toBe(0.25);
+    expect(getBioreactorFallbackValue(config, "cumulative_media_added_ml")).toBe(3);
   });
 
-  test("getBioreactorDescriptors caches the shared descriptors request", async () => {
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([{ key: "current_volume_ml" }]),
-    });
+  test("getBioreactorFallbackValue prefers descriptor defaults", () => {
+    const config = {
+      bioreactor: {
+        initial_cumulative_media_added_ml: "3",
+      },
+    };
 
-    const first = await getBioreactorDescriptors();
-    const second = await getBioreactorDescriptors();
-
-    expect(first).toEqual([{ key: "current_volume_ml" }]);
-    expect(second).toEqual(first);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(global.fetch).toHaveBeenCalledWith("/api/bioreactor/descriptors");
+    expect(
+      getBioreactorFallbackValue(config, "cumulative_media_added_ml", {
+        key: "cumulative_media_added_ml",
+        default: 7,
+      }),
+    ).toBe(7);
   });
 
-  test("getBioreactorDescriptors resets the cache after a failure", async () => {
-    global.fetch
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve([{ key: "efflux_tube_volume_ml" }]),
-      });
+  test("getBioreactorConfirmedValue prefers confirmed values over config defaults", () => {
+    const config = { bioreactor: { initial_volume_ml: "11.5" } };
 
-    await expect(getBioreactorDescriptors()).rejects.toThrow("HTTP error! Status: 500");
+    expect(getBioreactorConfirmedValue({ current_volume_ml: "13" }, config, "current_volume_ml")).toBe(13);
+    expect(getBioreactorConfirmedValue({}, config, "current_volume_ml")).toBe(11.5);
+    expect(
+      getBioreactorConfirmedValue({}, config, {
+        key: "cumulative_waste_removed_ml",
+        default: 0,
+      }),
+    ).toBe(0);
+  });
 
-    const descriptors = await getBioreactorDescriptors();
+  test("getBioreactorSubscriptionTopics includes canonical testing experiment topics by default", () => {
+    expect(getBioreactorSubscriptionTopics("unit1", "exp1")).toEqual([
+      "pioreactor/unit1/exp1/bioreactor/current_volume_ml",
+      "pioreactor/unit1/exp1/bioreactor/efflux_tube_volume_ml",
+      "pioreactor/unit1/exp1/bioreactor/alt_media_fraction",
+      "pioreactor/unit1/exp1/bioreactor/cumulative_media_added_ml",
+      "pioreactor/unit1/exp1/bioreactor/cumulative_alt_media_added_ml",
+      "pioreactor/unit1/exp1/bioreactor/cumulative_waste_removed_ml",
+      "pioreactor/unit1/_testing_exp1/bioreactor/current_volume_ml",
+      "pioreactor/unit1/_testing_exp1/bioreactor/efflux_tube_volume_ml",
+      "pioreactor/unit1/_testing_exp1/bioreactor/alt_media_fraction",
+      "pioreactor/unit1/_testing_exp1/bioreactor/cumulative_media_added_ml",
+      "pioreactor/unit1/_testing_exp1/bioreactor/cumulative_alt_media_added_ml",
+      "pioreactor/unit1/_testing_exp1/bioreactor/cumulative_waste_removed_ml",
+    ]);
+  });
 
-    expect(descriptors).toEqual([{ key: "efflux_tube_volume_ml" }]);
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+  test("getBioreactorSubscriptionTopics can subscribe from descriptor keys", () => {
+    expect(
+      getBioreactorSubscriptionTopics("unit1", "exp1", [
+        "cumulative_media_added_ml",
+        "current_volume_ml",
+        "cumulative_media_added_ml",
+      ]),
+    ).toEqual([
+      "pioreactor/unit1/exp1/bioreactor/cumulative_media_added_ml",
+      "pioreactor/unit1/exp1/bioreactor/current_volume_ml",
+      "pioreactor/unit1/_testing_exp1/bioreactor/cumulative_media_added_ml",
+      "pioreactor/unit1/_testing_exp1/bioreactor/current_volume_ml",
+    ]);
   });
 });

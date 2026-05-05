@@ -35,9 +35,12 @@
    pios update app --version <version>
    ```
 
+ - Moved passive Pioreactor card setting descriptors out of `ui/jobs/` and into the new `ui/settings/` descriptor directory. Plugin and custom UI descriptors for fields such as LED intensity, PWM intensity, and bioreactor state should now live under `~/.pioreactor/plugins/ui/settings/`. The old `/api/bioreactor/descriptors` endpoint has been replaced by `/api/settings/descriptors` and `/api/workers/<unit>/settings/descriptors`.
+
 #### Enhancements
 
  - Added retained `bioreactor` variables for cumulative dosing totals: `cumulative_media_added_ml`, `cumulative_alt_media_added_ml`, and `cumulative_waste_removed_ml`. These are updated from dosing events and can be used for media-use, alt-media-use, and waste-removal alerts.
+ - Added YAML-backed UI settings descriptors, allowing built-in, plugin, and custom fields to control whether passive Pioreactor card fields are shown and how they appear in **Manage / Settings**.
  - Improved automation start forms so each automation can define its own fields, including boolean options like `skip_first_run`, and required fields now block `Start` until valid.
  - Improved the Light/Dark Cycle LED automation to support fractional-minute light and dark phases and reschedule immediately when phase durations change.
  - Added per-Pioreactor **Stop all** actions on Pioreactor cards, so a single unit can be stopped without broadcasting to every assigned unit.
