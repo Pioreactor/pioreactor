@@ -4,5 +4,5 @@
     rotate 10
     compress
     notifempty
-    create 0666 pioreactor pioreactor
+    create 0664 pioreactor www-data
 }

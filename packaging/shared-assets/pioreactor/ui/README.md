@@ -5,6 +5,7 @@ Built-in UI metadata copied to `~/.pioreactor/ui`.
 Subdirectories:
 
 - `jobs/`: built-in job/action descriptors shown in the UI.
+- `settings/`: built-in passive setting collections shown in the UI.
 - `automations/`: built-in automation descriptors grouped by automation family.
 - `charts/`: built-in chart descriptors for overview pages.
 

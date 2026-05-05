@@ -245,4 +245,4 @@ def get_image_git_hash() -> str:
 def check_firstboot_successful() -> bool:
     if is_testing_env():
         return True
-    return os.path.isfile("/usr/local/bin/firstboot.sh.done")
+    return not os.path.isfile("/usr/local/bin/firstboot.sh")

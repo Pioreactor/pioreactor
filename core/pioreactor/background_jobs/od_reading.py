@@ -72,6 +72,8 @@ make decisions. For example, if a bubbler/visible light LED is active, it should
 s.t. it is _not_ running when an turbidity measurement is about to occur. See BackgroundJobWithDodging class.
 
 """
+from __future__ import annotations
+
 import math
 import os
 import random
@@ -83,6 +85,7 @@ from time import time
 from typing import Callable
 from typing import cast
 from typing import Protocol
+from typing import TYPE_CHECKING
 
 import click
 import pioreactor.actions.led_intensity as led_utils
@@ -99,7 +102,6 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.states import JobState as st
-from pioreactor.utils import adcs as madcs
 from pioreactor.utils import argextrema
 from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import local_intermittent_storage
@@ -109,6 +111,10 @@ from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.od_fusion import compute_fused_od
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.timing import catchtime
+
+if TYPE_CHECKING:
+    from pioreactor.utils import adcs as madcs
+
 
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
 PdChannelToVoltage = dict[pt.PdChannel, pt.Voltage]
@@ -495,6 +501,8 @@ class ADCReader(LoggerMixin):
         return (float(C), float(A), float(phi)), AIC
 
     def _is_ads1114_channel(self, channel: pt.PdChannel) -> bool:
+        from pioreactor.utils import adcs as madcs
+
         return isinstance(self.adcs[channel], madcs.ADS1114_ADC)
 
     @staticmethod

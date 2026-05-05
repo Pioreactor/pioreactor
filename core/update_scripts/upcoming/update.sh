@@ -45,7 +45,10 @@ remove_legacy_builtin_descriptors() {
         "$DOT_PIOREACTOR/ui/automations/dosing/pid_morbidostat.yaml" \
         "$DOT_PIOREACTOR/ui/automations/dosing/silent.yaml" \
         "$DOT_PIOREACTOR/ui/automations/led/light_dark_cycle.yaml" \
-        "$DOT_PIOREACTOR/ui/automations/led/silent.yaml"
+        "$DOT_PIOREACTOR/ui/automations/led/silent.yaml" \
+        "$DOT_PIOREACTOR/ui/bioreactor.yaml" \
+        "$DOT_PIOREACTOR/ui/jobs/05_leds.yaml" \
+        "$DOT_PIOREACTOR/ui/jobs/13_pwms.yaml"
 }
 
 remove_legacy_builtin_descriptors
@@ -71,3 +74,12 @@ install_checked_asset \
 install_checked_asset \
     "$SCRIPT_DIR/automation_led_99_silent.yaml" \
     "$DOT_PIOREACTOR/ui/automations/led/99_silent.yaml"
+install_checked_asset \
+    "$SCRIPT_DIR/ui_settings_00_bioreactor.yaml" \
+    "$DOT_PIOREACTOR/ui/settings/00_bioreactor.yaml"
+install_checked_asset \
+    "$SCRIPT_DIR/ui_settings_05_leds.yaml" \
+    "$DOT_PIOREACTOR/ui/settings/05_leds.yaml"
+install_checked_asset \
+    "$SCRIPT_DIR/ui_settings_13_pwms.yaml" \
+    "$DOT_PIOREACTOR/ui/settings/13_pwms.yaml"

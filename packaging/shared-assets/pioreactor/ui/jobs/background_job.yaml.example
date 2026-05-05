@@ -11,6 +11,7 @@ published_settings:
     description: This description is displayed with an editable field in Manage / Settings.
     type: numeric  # one of numeric, boolean, text
     display: true # true to display on the /Pioreactors card
+    editable: true # false to prevent quick editing from the /Pioreactors card
   - key: something_else
     unit: lb
     label: Something else

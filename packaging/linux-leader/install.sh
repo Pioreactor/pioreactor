@@ -13,6 +13,7 @@ UI_PORT=80
 LEADER_HOSTNAME=$(hostname -s)
 LEADER_ADDRESS=""
 PACKAGE_SPEC=""
+WHEEL_PATH=""
 MQTT_PASSWORD=${MQTT_PASSWORD:-raspberry}
 
 usage() {
@@ -48,6 +49,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --wheel)
       [ "$#" -ge 2 ] || die "--wheel requires a path"
+      WHEEL_PATH=$2
       PACKAGE_SPEC=$(quote_for_pip_extra "$2")
       shift 2
       ;;
@@ -92,6 +94,11 @@ case "$UI_PORT" in
   ''|*[!0-9]*) die "--ui-port must be an integer" ;;
 esac
 
+if [ -n "$WHEEL_PATH" ]; then
+  WHEEL_PATH=$(realpath -- "$WHEEL_PATH") || die "Wheel path does not exist: $WHEEL_PATH"
+  [ -f "$WHEEL_PATH" ] || die "Wheel path is not a file: $WHEEL_PATH"
+fi
+
 if [ -z "$LEADER_ADDRESS" ]; then
   LEADER_ADDRESS="$LEADER_HOSTNAME.local"
 fi
@@ -116,6 +123,7 @@ install_apt_dependencies() {
     logrotate \
     mosquitto \
     mosquitto-clients \
+    openssh-client \
     python3 \
     python3-dev \
     python3-pip \
@@ -140,14 +148,56 @@ ensure_pioreactor_user() {
   chmod 755 "$PIO_HOME"
 }
 
+ensure_leader_ssh_keys() {
+  local ssh_dir="$PIO_HOME/.ssh"
+  local public_key
+
+  install -d -o "$PIO_USER" -g "$PIO_USER" -m 0700 "$ssh_dir"
+  touch "$ssh_dir/authorized_keys" "$ssh_dir/known_hosts"
+  chown "$PIO_USER:$PIO_USER" "$ssh_dir/authorized_keys" "$ssh_dir/known_hosts"
+  chmod 0600 "$ssh_dir/authorized_keys" "$ssh_dir/known_hosts"
+
+  if [ ! -f "$ssh_dir/id_rsa" ]; then
+    runuser -u "$PIO_USER" -- ssh-keygen -q -t rsa -N '' -f "$ssh_dir/id_rsa"
+  fi
+  if [ ! -f "$ssh_dir/id_rsa.pub" ]; then
+    runuser -u "$PIO_USER" -- ssh-keygen -y -f "$ssh_dir/id_rsa" >"$ssh_dir/id_rsa.pub"
+  fi
+
+  public_key=$(cat "$ssh_dir/id_rsa.pub")
+  if ! grep -qxF "$public_key" "$ssh_dir/authorized_keys"; then
+    printf '%s\n' "$public_key" >>"$ssh_dir/authorized_keys"
+  fi
+
+  ssh-keyscan "$LEADER_HOSTNAME.local" "$LEADER_HOSTNAME" >>"$ssh_dir/known_hosts" 2>/dev/null || true
+  chown -R "$PIO_USER:$PIO_USER" "$ssh_dir"
+  chmod 0700 "$ssh_dir"
+  chmod 0600 "$ssh_dir/authorized_keys" "$ssh_dir/known_hosts" "$ssh_dir/id_rsa"
+  chmod 0644 "$ssh_dir/id_rsa.pub"
+}
+
+install_log_file() {
+  install -d -o root -g root -m 0755 /var/log
+  touch /var/log/pioreactor.log
+  chown "$PIO_USER":www-data /var/log/pioreactor.log
+  chmod 0664 /var/log/pioreactor.log
+}
+
 install_python_package() {
   install -d -o "$PIO_USER" -g "$PIO_USER" /opt/pioreactor
+  if [ -n "$WHEEL_PATH" ]; then
+    local cached_wheel_path
+    cached_wheel_path="/opt/pioreactor/$(basename -- "$WHEEL_PATH")"
+    install -o "$PIO_USER" -g "$PIO_USER" -m 0644 "$WHEEL_PATH" "$cached_wheel_path"
+    PACKAGE_SPEC=$(quote_for_pip_extra "$cached_wheel_path")
+  fi
+
   if [ ! -x "$PIO_VENV/bin/python" ]; then
     runuser -u "$PIO_USER" -- python3 -m venv "$PIO_VENV"
   fi
   runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install --upgrade pip
   runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install crudini
-  runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install \
+  runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install --force-reinstall\
     --index-url https://pypi.org/simple \
     --extra-index-url https://www.piwheels.org/simple \
     "$PACKAGE_SPEC"
@@ -229,6 +279,7 @@ create_dot_pioreactor_tree() {
   install -d -o "$PIO_USER" -g www-data -m 2775 "$DOT_PIOREACTOR/plugins/ui/automations/led"
   install -d -o "$PIO_USER" -g www-data -m 2775 "$DOT_PIOREACTOR/plugins/ui/automations/temperature"
   install -d -o "$PIO_USER" -g www-data -m 2775 "$DOT_PIOREACTOR/plugins/ui/charts"
+  install -d -o "$PIO_USER" -g www-data -m 2775 "$DOT_PIOREACTOR/plugins/ui/settings"
   install -d -o "$PIO_USER" -g www-data -m 2775 "$DOT_PIOREACTOR/plugins/exportable_datasets"
   install -d -o "$PIO_USER" -g www-data -m 2775 "$DOT_PIOREACTOR/experiment_profiles"
   install -d -o "$PIO_USER" -g www-data -m 2775 "$DOT_PIOREACTOR/exportable_datasets"
@@ -283,6 +334,8 @@ main() {
   require_debian_13
   install_apt_dependencies
   ensure_pioreactor_user
+  ensure_leader_ssh_keys
+  install_log_file
   install_python_package
   install_environment_and_wrappers
   install_static_asset_link

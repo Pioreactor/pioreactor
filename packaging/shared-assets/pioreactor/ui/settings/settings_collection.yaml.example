@@ -1,0 +1,14 @@
+---
+display_name: Name
+key: stable_settings_collection_key
+display: true  # true to display in Manage / Settings
+source: your_plugin_name
+description: This description is displayed with the collection in Manage / Settings.
+published_settings:
+  - key: setting_key
+    unit: mL
+    label: Setting label
+    description: This description is displayed with an editable field in Manage / Settings.
+    type: numeric  # one of numeric, boolean, string, json
+    display: true # true to display on the Pioreactor card
+    editable: true # false to prevent quick editing from the Pioreactor card

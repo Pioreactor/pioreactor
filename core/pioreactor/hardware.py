@@ -1,4 +1,25 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
+import sys
+import warnings
+from functools import cache
+from os import environ
+from pathlib import Path
+from typing import Any
+from typing import Callable
+from typing import cast
+from typing import TYPE_CHECKING
+
+from msgspec.yaml import decode as yaml_decode
+from pioreactor import exc
+from pioreactor import types as pt
+from pioreactor.version import hardware_version_info
+from pioreactor.version import rpi_version_info
+from pioreactor.version import tuple_to_text
+from pioreactor.whoami import get_pioreactor_model
+from pioreactor.whoami import is_testing_env
+
 """
 Hardware configuration loader and compatibility layer.
 
@@ -41,24 +62,9 @@ YAML schemas
   - scl_pin: int (default 3)
 
 """
-import sys
-import warnings
-from functools import cache
-from os import environ
-from pathlib import Path
-from typing import Any
-from typing import Callable
-from typing import cast
 
-from msgspec.yaml import decode as yaml_decode
-from pioreactor import exc
-from pioreactor import types as pt
-from pioreactor.utils import adcs
-from pioreactor.version import hardware_version_info
-from pioreactor.version import rpi_version_info
-from pioreactor.version import tuple_to_text
-from pioreactor.whoami import get_pioreactor_model
-from pioreactor.whoami import is_testing_env
+if TYPE_CHECKING:
+    from pioreactor.utils import adcs
 
 
 def _load_yaml_if_exists(path: Path) -> dict[str, Any]:
@@ -231,17 +237,21 @@ class ADCCurrier:
         return f"ADCCurrier(adc_driver={self.adc_driver.__name__}, i2c_address={hex(self.i2c_address)}, adc_channel={self.adc_channel})"
 
 
-_ADC_DRIVERS: dict[str, type[adcs._I2C_ADC]] = {
-    "ads1115": adcs.ADS1115_ADC,
-    "ads1114": adcs.ADS1114_ADC,
-    "pico": adcs.Pico_ADC,
-}
+def _get_adc_drivers() -> dict[str, type[adcs._I2C_ADC]]:
+    # ADC drivers import busio/Adafruit libraries, so keep this lazy for leader-only installs.
+    from pioreactor.utils import adcs
+
+    return {
+        "ads1115": adcs.ADS1115_ADC,
+        "ads1114": adcs.ADS1114_ADC,
+        "pico": adcs.Pico_ADC,
+    }
 
 
 def _build_adc_currier_from_cfg(adc_name: str, adc_data: dict[str, Any]) -> ADCCurrier:
     try:
         driver_key = str(adc_data["driver"]).lower()
-        driver = _ADC_DRIVERS[driver_key]
+        driver = _get_adc_drivers()[driver_key]
         addr = int(adc_data["address"])
         channel = int(adc_data["channel"])  # ex: 0..3
     except KeyError as e:
