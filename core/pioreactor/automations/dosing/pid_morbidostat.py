@@ -20,7 +20,6 @@ class PIDMorbidostat(DosingAutomationJob):
     automation_name = "pid_morbidostat"
     published_settings = {
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
-        "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
     }
@@ -63,10 +62,11 @@ class PIDMorbidostat(DosingAutomationJob):
         )
 
         self.duration = float(duration)
-        self.exchange_volume_ml = round(
-            self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4
-        )
         self.run_every(self.duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
+
+    @property
+    def exchange_volume_ml(self):
+        return self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4
 
     def execute(self) -> structs.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:
