@@ -1251,6 +1251,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
         if not self.enable_dodging_od:
             return
 
+        if state_msg.payload == b"":
+            return
+
         new_state = JobState(state_msg.payload.decode())
         desired = self._desired_dodging_mode(self.enable_dodging_od, new_state)
         self.set_currently_dodging_od(desired)
@@ -1283,6 +1286,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if self.state != self.READY or not self.currently_dodging_od:
                 return
 
+            if not is_pio_job_running("od_reading"):
+                return
+
             with catchtime() as timer:
                 self._action_to_do_after_od_reading()
 
@@ -1306,9 +1312,15 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if self.state != self.READY or not self.currently_dodging_od:
                 return
 
+            if not is_pio_job_running("od_reading"):
+                return
+
             self._event_is_dodging_od.wait(timing["wait_window"])  # allow quick stopping of timer.
 
             if self.state != self.READY or not self.currently_dodging_od:
+                return
+
+            if not is_pio_job_running("od_reading"):
                 return
 
             self._action_to_do_before_od_reading()
