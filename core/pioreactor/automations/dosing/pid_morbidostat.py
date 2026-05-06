@@ -65,8 +65,8 @@ class PIDMorbidostat(DosingAutomationJob):
         self.run_every(self.duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
 
     @property
-    def exchange_volume_ml(self):
-        return self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4
+    def exchange_volume_ml(self) -> float:
+        return round(self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4)
 
     def execute(self) -> structs.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:

@@ -1,7 +1,7 @@
 [Unit]
 Description=Pioreactor Common Services
 After=network-online.target
-Wants=pioreactor-web.target
+Wants=pioreactor-web.target pioreactor_startup_run@monitor.service
 
 [Install]
 WantedBy=multi-user.target
