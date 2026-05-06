@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Pioreactor Jobs"
+  short_description: "Build Pioreactor plugin background jobs"
+  default_prompt: "Use $build-pioreactor-jobs to create a Pioreactor plugin background job with a CLI entry point and UI descriptor."

@@ -197,6 +197,7 @@ install_python_package() {
   fi
   runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install --upgrade pip
   runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install crudini
+  runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install pyyaml==6.0.2
   runuser -u "$PIO_USER" -- "$PIO_VENV/bin/pip" install --force-reinstall\
     --index-url https://pypi.org/simple \
     --extra-index-url https://www.piwheels.org/simple \

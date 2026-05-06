@@ -53,7 +53,7 @@ def get_rpi_machine() -> str:
         with open("/proc/device-tree/model") as f:
             return f.read().strip().rstrip("\x00")
     except FileNotFoundError:
-        return "Raspberry Pi 3"
+        return ""
 
 
 def get_firmware_version() -> tuple[int, int] | None:
