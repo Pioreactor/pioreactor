@@ -1,7 +1,7 @@
 ---
 display_name: Bioreactor
 key: bioreactor
-display: false
+display: true
 source: app
 description: Per-unit bioreactor settings.
 published_settings:

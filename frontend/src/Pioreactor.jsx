@@ -74,8 +74,10 @@ import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {
+  buildBioreactorSettingsCollection,
   getBioreactorConfirmedValue,
   getBioreactorSubscriptionTopics,
+  mergeSettingsCollections,
   parseNumericValue,
   updateBioreactorValues,
 } from "./utils/bioreactor";
@@ -153,48 +155,6 @@ const getFauxChipHoverSx = (isInteractive) => ({
 });
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
-
-function createBioreactorSettingsGroup(descriptors, values, config, modelDetails) {
-  if (!Array.isArray(descriptors) || descriptors.length === 0) {
-    return null;
-  }
-
-  const effluxTubeVolumeMax = Number.isFinite(modelDetails?.reactor_max_fill_volume_ml)
-    ? modelDetails.reactor_max_fill_volume_ml
-    : null;
-
-  const publishedSettings = descriptors.reduce((acc, descriptor) => {
-    const max = (descriptor.key === "current_volume_ml" || descriptor.key === "efflux_tube_volume_ml")
-        ? effluxTubeVolumeMax ?? descriptor.max
-        : descriptor.max;
-
-    acc[descriptor.key] = {
-      value: getBioreactorConfirmedValue(values, config, descriptor),
-      label: descriptor.label,
-      type: descriptor.type,
-      unit: descriptor.unit || null,
-      min: descriptor.min,
-      max,
-      display: descriptor.display ?? true,
-      description: descriptor.description,
-      editable: descriptor.editable ?? true,
-    };
-    return acc;
-  }, {});
-
-  return {
-    state: "ready",
-    metadata: {
-      display: false,
-      display_name: "Bioreactor",
-      subtext: null,
-      description: "Per-unit bioreactor settings.",
-      key: "bioreactor",
-      source: "app",
-    },
-    publishedSettings,
-  };
-}
 
 function updateBioreactorSettingAndMirrorState(unit, experiment, setting, value, setBioreactorValues) {
   return updateBioreactorValues(unit, experiment, {[setting]: value}).then(() => {
@@ -2145,12 +2105,13 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
   }, [initialLabel])
 
   const bioreactorSettingsGroup = useMemo(
-    () => createBioreactorSettingsGroup(bioreactorDescriptors, bioreactorValues, config, modelDetails),
+    () => buildBioreactorSettingsCollection(bioreactorDescriptors, bioreactorValues, config, modelDetails),
     [bioreactorDescriptors, bioreactorValues, config, modelDetails]
   )
-  const settingsCollections = bioreactorSettingsGroup
-    ? { ...jobs, ...passiveSettingsCollections, bioreactor: bioreactorSettingsGroup }
-    : { ...jobs, ...passiveSettingsCollections }
+  const settingsCollections = useMemo(
+    () => mergeSettingsCollections(jobs, passiveSettingsCollections, bioreactorSettingsGroup),
+    [bioreactorSettingsGroup, jobs, passiveSettingsCollections],
+  )
 
 
   useEffect(() => {

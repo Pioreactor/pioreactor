@@ -1,7 +1,9 @@
 import {
+  buildBioreactorSettingsCollection,
   getBioreactorConfirmedValue,
   getBioreactorFallbackValue,
   getBioreactorSubscriptionTopics,
+  mergeSettingsCollections,
   parseNumericValue,
 } from "../utils/bioreactor";
 
@@ -54,6 +56,47 @@ describe("bioreactor utils", () => {
         default: 0,
       }),
     ).toBe(0);
+  });
+
+  test("buildBioreactorSettingsCollection builds a displayable settings collection", () => {
+    const collection = buildBioreactorSettingsCollection(
+      [
+        {
+          key: "current_volume_ml",
+          label: "Current volume",
+          type: "numeric",
+          unit: "mL",
+          min: 0,
+          max: null,
+          display: true,
+          editable: true,
+          default: 10,
+        },
+      ],
+      {},
+      {},
+      { reactor_max_fill_volume_ml: 40 },
+    );
+
+    expect(collection.metadata.display).toBe(true);
+    expect(collection.publishedSettings.current_volume_ml.value).toBe(10);
+    expect(collection.publishedSettings.current_volume_ml.max).toBe(40);
+  });
+
+  test("mergeSettingsCollections adds bioreactor only when present", () => {
+    const jobs = { stirring: { publishedSettings: {} } };
+    const passiveSettingsCollections = { leds: { publishedSettings: {} } };
+    const bioreactorSettingsCollection = { publishedSettings: {} };
+
+    expect(mergeSettingsCollections(jobs, passiveSettingsCollections, null)).toEqual({
+      stirring: jobs.stirring,
+      leds: passiveSettingsCollections.leds,
+    });
+    expect(mergeSettingsCollections(jobs, passiveSettingsCollections, bioreactorSettingsCollection)).toEqual({
+      stirring: jobs.stirring,
+      leds: passiveSettingsCollections.leds,
+      bioreactor: bioreactorSettingsCollection,
+    });
   });
 
   test("getBioreactorSubscriptionTopics includes canonical testing experiment topics by default", () => {

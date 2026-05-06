@@ -44,6 +44,66 @@ export function getBioreactorConfirmedValue(values, config, descriptorOrKey) {
   return parseNumericValue(values?.[key]) ?? getBioreactorFallbackValue(config, key, descriptor);
 }
 
+export function buildBioreactorSettingsCollection(
+  descriptors,
+  values,
+  config,
+  modelDetails,
+  { valueMode = "confirmed" } = {},
+) {
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    return null;
+  }
+
+  const effluxTubeVolumeMax = Number.isFinite(modelDetails?.reactor_max_fill_volume_ml)
+    ? modelDetails.reactor_max_fill_volume_ml
+    : null;
+
+  const publishedSettings = descriptors.reduce((acc, descriptor) => {
+    const settingValue =
+      valueMode === "blank"
+        ? ""
+        : getBioreactorConfirmedValue(values, config, descriptor);
+    const max = (descriptor.key === "current_volume_ml" || descriptor.key === "efflux_tube_volume_ml")
+      ? effluxTubeVolumeMax ?? descriptor.max
+      : descriptor.max;
+
+    acc[descriptor.key] = {
+      value: settingValue,
+      label: descriptor.label,
+      type: descriptor.type,
+      unit: descriptor.unit || null,
+      min: descriptor.min,
+      max,
+      display: descriptor.display ?? true,
+      description: descriptor.description,
+      editable: descriptor.editable ?? true,
+    };
+    return acc;
+  }, {});
+
+  return {
+    state: "ready",
+    metadata: {
+      display: true,
+      display_name: "Bioreactor",
+      subtext: null,
+      description: "Per-unit bioreactor settings.",
+      key: "bioreactor",
+      source: "app",
+    },
+    publishedSettings,
+  };
+}
+
+export function mergeSettingsCollections(jobs, passiveSettingsCollections, bioreactorSettingsCollection) {
+  return {
+    ...jobs,
+    ...passiveSettingsCollections,
+    ...(bioreactorSettingsCollection ? { bioreactor: bioreactorSettingsCollection } : {}),
+  };
+}
+
 export function getBioreactorSubscriptionTopics(unit, experiment, keys = DEFAULT_BIOREACTOR_SUBSCRIPTION_KEYS) {
   const uniqueKeys = Array.from(new Set(keys || [])).filter(Boolean);
   const baseTopics = uniqueKeys.map((key) => `pioreactor/${unit}/${experiment}/bioreactor/${key}`);
