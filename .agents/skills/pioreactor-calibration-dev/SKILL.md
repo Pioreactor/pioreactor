@@ -1,12 +1,13 @@
 ---
 name: pioreactor-calibration-dev
-description: Create or update Pioreactor calibration routines and session flows in core/pioreactor/calibrations, including CLI + UI behavior, step registries, and protocol registration.
+description: Create, update, debug, or review Pioreactor calibration routines and session flows in core/pioreactor/calibrations, including calibration data types, CLI and UI behavior, step registries, protocol registration, persistence paths, charts, tables, and Huey-backed hardware actions.
 ---
 
 # Pioreactor Calibration Dev
 
-## When to use
-Use this skill when adding or modifying calibration protocols, session steps, or calibration CLI/UI flows.
+## Goal
+
+Help Codex change Pioreactor calibration protocols and session flows without breaking the storage, CLI, UI, or web-task contracts.
 
 ## High-level terminology
 

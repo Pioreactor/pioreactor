@@ -1,9 +1,15 @@
 ---
-name: write-experiment-profile
-description: Write, edit, or update pioreactor experiment profile yaml code.
+name: pioreactor-experiment-profiles
+description: Write, edit, review, or debug Pioreactor experiment profile YAML, including profile structure, inputs, common jobs, per-Pioreactor jobs, action timing, expressions, MQTT lookups, and repeat or wait-until blocks.
 ---
 
-### Experiment Profile Spec
+# Pioreactor Experiment Profiles
+
+## Goal
+
+Help Codex produce valid Pioreactor experiment profile YAML that matches the runtime schema and uses the supported action and expression syntax.
+
+## Experiment Profile Spec
 
 ```
 # Main structure of the experiment profile

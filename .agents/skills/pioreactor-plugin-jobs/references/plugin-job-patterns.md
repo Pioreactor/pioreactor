@@ -16,7 +16,7 @@ Use this reference when writing or reviewing Pioreactor plugin background job Py
 - Use `LongRunningBackgroundJobContrib` when the job should survive across experiment boundaries, such as external log forwarding or monitoring jobs.
 - Use `BackgroundJobWithDodgingContrib` when the job must pause or change behavior before and after OD readings.
 - Do not use the core `BackgroundJob` class for plugin jobs.
-- For dosing, LED, or temperature automations, use `$writing-automations` instead of this skill.
+- For dosing, LED, or temperature automations, use `$pioreactor-automations` instead of this skill.
 
 ## Minimal shape
 

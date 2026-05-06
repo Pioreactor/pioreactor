@@ -1,9 +1,9 @@
 ---
-name: build-pioreactor-jobs
-description: Build Pioreactor plugin background jobs, including file-based plugin modules, BackgroundJobContrib or LongRunningBackgroundJobContrib classes, pio run command registration, published settings, MQTT listeners, cleanup hooks, OD-dodging jobs, local discovery through PLUGINS_DEV, and UI job descriptors under plugins/ui/jobs. Use when Codex is asked to create, update, debug, or review a Pioreactor plugin job or make a custom job appear in the Pioreactor UI. For dosing, LED, or temperature automations, hand off to the writing-automations skill instead.
+name: pioreactor-plugin-jobs
+description: Create, update, debug, or review Pioreactor plugin background jobs, including file-based plugin modules, BackgroundJobContrib or LongRunningBackgroundJobContrib classes, pio run command registration, published settings, MQTT listeners, cleanup hooks, OD-dodging jobs, local discovery through PLUGINS_DEV, and UI job descriptors under plugins/ui/jobs. Use for custom jobs that should run from pio or appear in the Pioreactor UI. For dosing, LED, or temperature automations, use the pioreactor-automations skill instead.
 ---
 
-# Build Pioreactor Jobs
+# Pioreactor Plugin Jobs
 
 ## Overview
 
@@ -11,7 +11,7 @@ Build custom Pioreactor background jobs as plugin modules that can be discovered
 
 ## Workflow
 
-1. First decide whether the request is a background job or an automation. If it is a dosing, LED, or temperature automation, use `$writing-automations`.
+1. First decide whether the request is a background job or an automation. If it is a dosing, LED, or temperature automation, use `$pioreactor-automations`.
 2. Inspect the current repo before editing: `core/pioreactor/background_jobs/base.py`, `core/pioreactor/cli/run.py`, the target plugin file if one exists, and similar examples in `plugins_dev/`.
 3. Identify the development environment before choosing tests: repo-local development has pytest and no real hardware; on-device development has hardware and usually no repo test harness.
 4. Confirm the environment root when it matters: local dev uses `TESTING=1` plus `PLUGINS_DEV`; devices use `/home/pioreactor/.pioreactor/plugins`; UI descriptors are rooted under `DOT_PIOREACTOR`.

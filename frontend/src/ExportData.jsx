@@ -78,6 +78,14 @@ function parseExportStateFromSearch(search) {
   };
 }
 
+function getErrorMessageFromPayload(payload, fallback) {
+  if (payload && typeof payload.error === "string" && payload.error.trim()) {
+    return payload.error;
+  }
+
+  return fallback;
+}
+
 
 function getStyles(value, selectedValue, theme) {
   return {
@@ -365,9 +373,22 @@ function ExportDataContainer() {
       try {
         const response = await fetch("/api/datasets/exportable");
         const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            getErrorMessageFromPayload(data, "Failed to fetch exportable datasets."),
+          );
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error("Exportable datasets response was not a list.");
+        }
+
         setDatasets(data);
       } catch (error) {
         console.error("Failed to fetch datasets:", error);
+        setDatasets([]);
+        setErrorMsg(error.message || "Failed to fetch exportable datasets.");
       }
     }
     getDatasets()
