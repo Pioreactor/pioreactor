@@ -93,6 +93,15 @@ def health_check() -> ResponseReturnValue:
 
 @unit_api_bp.route("/hardware/check", methods=["POST", "PATCH"])
 def check_hardware_for_model() -> DelayedResponseReturnValue:
+    """
+    Check whether this unit's hardware supports a model.
+
+    JSON body:
+    {
+      "model_name": "pioreactor_40ml",
+      "model_version": "1.0"
+    }
+    """
     data = request.get_json(silent=True) or {}
     model_name = data.get("model_name")
     model_version = data.get("model_version")
@@ -324,6 +333,14 @@ def get_specific_config() -> ResponseReturnValue:
 
 @unit_api_bp.route("/config/specific", methods=["POST", "PATCH"])
 def update_specific_config() -> ResponseReturnValue:
+    """
+    Replace this unit's unit-specific config text.
+
+    JSON body:
+    {
+      "code": "[section]\\nkey = value\\n"
+    }
+    """
     try:
         body = current_app.json.loads(request.data, type=structs.CodePatch)
         code = _validate_ini_text(body.code)
@@ -366,6 +383,16 @@ def update_specific_config() -> ResponseReturnValue:
 
 @unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])
 def update_software_target(target: str) -> DelayedResponseReturnValue:
+    """
+    Update one software target on this unit.
+
+    JSON body:
+    {
+      "options": {"branch": "main"},
+      "args": [],
+      "env": {}
+    }
+    """
     if _task_is_locked("update-lock"):
         return _locked_task_response("update-lock")
 
@@ -391,6 +418,16 @@ def update_software_target(target: str) -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/update", methods=["POST", "PATCH"])
 def update_software() -> DelayedResponseReturnValue:
+    """
+    Update the Pioreactor app on this unit.
+
+    JSON body:
+    {
+      "options": {"branch": "main"},
+      "args": [],
+      "env": {}
+    }
+    """
     if _task_is_locked("update-lock"):
         return _locked_task_response("update-lock")
 
@@ -409,7 +446,11 @@ def update_software() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/reboot", methods=["POST", "PATCH"])
 def reboot_system() -> DelayedResponseReturnValue:
-    """Reboots unit"""
+    """
+    Reboot this unit.
+
+    No request body is required.
+    """
     # TODO: only let requests from the leader do this. Use lighttpd conf for this.
     if _task_is_locked("power-lock"):
         return _locked_task_response("power-lock")
@@ -423,7 +464,11 @@ def reboot_system() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/shutdown", methods=["POST", "PATCH"])
 def shutdown_system() -> DelayedResponseReturnValue:
-    """Shutdown unit"""
+    """
+    Shut down this unit.
+
+    No request body is required.
+    """
     if _task_is_locked("power-lock"):
         return _locked_task_response("power-lock")
 
@@ -478,6 +523,11 @@ def get_web_server_status() -> ResponseReturnValue:
 @unit_api_bp.route("/system/web_server/restart", methods=["POST", "PATCH"])
 @require_leader
 def restart_web_server() -> DelayedResponseReturnValue:
+    """
+    Restart the Pioreactor web server target on the leader.
+
+    No request body is required.
+    """
     if _task_is_locked("web-restart-lock"):
         return _locked_task_response("web-restart-lock")
 
@@ -487,6 +537,11 @@ def restart_web_server() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/repair", methods=["POST", "PATCH"])
 def repair_system() -> DelayedResponseReturnValue:
+    """
+    Repair this unit's Pioreactor filesystem permissions.
+
+    No request body is required.
+    """
     if _task_is_locked("repair-system-lock"):
         return _locked_task_response("repair-system-lock")
 
@@ -496,6 +551,14 @@ def repair_system() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/remove_file", methods=["POST", "PATCH"])
 def remove_file() -> DelayedResponseReturnValue:
+    """
+    Remove a file under this unit's `DOT_PIOREACTOR` tree.
+
+    JSON body:
+    {
+      "filepath": "plugins/example.py"
+    }
+    """
     task_name = "remove_file"
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if os.path.isfile(disallow_file):
@@ -557,6 +620,16 @@ def get_clock_time() -> ResponseReturnValue:
 # PATCH / POST to set clock time
 @unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time() -> DelayedResponseReturnValue:
+    """
+    Set or sync this unit's UTC clock.
+
+    On the leader, send JSON body:
+    {
+      "utc_clock_time": "2025-01-31T12:34:56Z"
+    }
+
+    On workers, no request body is required; the unit syncs from chrony.
+    """
     if _task_is_locked("clock-lock"):
         return _locked_task_response("clock-lock")
 
@@ -680,9 +753,9 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
 @unit_api_bp.route("/jobs/run/job_name/<job_name>", methods=["PATCH", "POST"])
 def run_job(job_name: str) -> DelayedResponseReturnValue:
     """
-    Body should look like (all optional)
+    Run a job on this unit.
 
-    ```
+    JSON body, with all fields optional:
     {
       "options": {
         "option1": "value1",
@@ -690,18 +763,11 @@ def run_job(job_name: str) -> DelayedResponseReturnValue:
       },
       "env": {
         "EXPERIMENT": "test",
-        "JOB_SOURCE": "user",
-      }
+        "JOB_SOURCE": "user"
+      },
       "args": ["arg1", "arg2"],
-      "config_overrides": [ ["stirring.config" ,"pwm_hz", "100"], ]
+      "config_overrides": [["stirring.config", "pwm_hz", "100"]]
     }
-    Ex:
-
-    curl -X POST http://worker.local/unit_api/jobs/run/job_name/stirring -H "Content-Type: application/json" -d '{
-      "options": {},
-      "args": []
-    }'
-    ```
     """
     if is_rate_limited(job_name):
         abort_with(429, "Too many requests, please try again later.")
@@ -777,12 +843,28 @@ def is_manual_dosing_volume_unsafe(
 
 @unit_api_bp.route("/jobs/stop/all", methods=["PATCH", "POST"])
 def stop_all_jobs() -> DelayedResponseReturnValue:
+    """
+    Stop all jobs running on this unit.
+
+    No request body is required.
+    """
     task = tasks.kill_jobs_task(all_jobs=True)
     return create_task_response(task)
 
 
 @unit_api_bp.route("/jobs/stop", methods=["PATCH", "POST"])
 def stop_jobs() -> DelayedResponseReturnValue:
+    """
+    Stop jobs matching at least one filter.
+
+    JSON body:
+    {
+      "job_name": "stirring",
+      "experiment": "experiment-name",
+      "job_source": "user",
+      "job_id": "stirring-abc123"
+    }
+    """
     if not request.data:
         return abort_with(400, "No job filter specified")
     request_payload = current_app.json.loads(request.data)
@@ -952,6 +1034,12 @@ def get_capabilities() -> ResponseReturnValue:
 
 @unit_api_bp.route("/jobs/descriptors", methods=["GET"])
 def get_job_descriptors() -> ResponseReturnValue:
+    """
+    Return this unit's background-job UI descriptors.
+
+    Descriptor YAML is read from `DOT_PIOREACTOR/ui/jobs/` for built-ins and
+    `DOT_PIOREACTOR/plugins/ui/jobs/` for plugin-provided jobs.
+    """
     try:
         descriptors = load_background_job_descriptors(
             Path(os.environ["DOT_PIOREACTOR"]),
@@ -965,6 +1053,12 @@ def get_job_descriptors() -> ResponseReturnValue:
 
 @unit_api_bp.route("/settings/descriptors", methods=["GET"])
 def get_settings_descriptors() -> ResponseReturnValue:
+    """
+    Return this unit's settings UI descriptors.
+
+    Descriptor YAML is read from `DOT_PIOREACTOR/ui/settings/` for built-ins and
+    `DOT_PIOREACTOR/plugins/ui/settings/` for plugin-provided settings collections.
+    """
     descriptors = load_settings_collection_descriptors(
         Path(os.environ["DOT_PIOREACTOR"]),
         report_error=lambda message: publish_to_error_log(message, "unit_api.get_settings_descriptors"),
@@ -1043,24 +1137,13 @@ def get_installed_plugin(filename: str) -> ResponseReturnValue:
 @unit_api_bp.route("/plugins/install", methods=["POST", "PATCH"])
 def install_plugin() -> DelayedResponseReturnValue:
     """
-    runs `pio plugin install ....`
-    Body should look like:
-    {
-      "options": {
-        "option1": "value1",
-        "option2": "value2"
-      },
-      "args": ["arg1", "arg2"]
-    }
+    Install one plugin by running `pio plugin install`.
 
-    Ex:
+    JSON body:
     {
-      "options": {
-        "source": "pathtofile",
-      },
+      "options": {"source": "path-to-file-or-url"},
       "args": ["my_plugin_name"]
     }
-
     """
 
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
@@ -1111,13 +1194,12 @@ def install_plugin() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin() -> DelayedResponseReturnValue:
     """
-    Body should look like:
+    Uninstall one plugin by running `pio plugin uninstall`.
+
+    JSON body:
     {
-      "options": {
-        "option1": "value1",
-        "option2": "value2"
-      },
-      "args": ["arg1", "arg2"]
+      "options": {},
+      "args": ["my_plugin_name"]
     }
     """
     body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
@@ -1136,6 +1218,13 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/automations/descriptors/<automation_type>", methods=["GET"])
 def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
+    """
+    Return this unit's automation UI descriptors for one automation family.
+
+    Descriptor YAML is read from `DOT_PIOREACTOR/ui/automations/<automation_type>/`
+    for built-ins and `DOT_PIOREACTOR/plugins/ui/automations/<automation_type>/`
+    for plugin-provided automations.
+    """
     if automation_type not in {"temperature", "dosing", "led"}:
         abort_with(
             400, "Not a valid automation type", remediation="choose one of 'temperature', 'dosing', 'led'"
@@ -1173,6 +1262,12 @@ def get_calibration_protocols() -> ResponseReturnValue:
 def create_calibration(device: str) -> ResponseReturnValue:
     """
     Create a new calibration for the specified device.
+
+    JSON body:
+    {
+      "calibration_data": "<calibration YAML>",
+      "set_as_active": true
+    }
     """
     # calibration_dir = CALIBRATION_PATH / device
     # if folder does not exist, users should make it with mkdir -p ... && chown -R pioreactor:www-data ...
@@ -1504,6 +1599,12 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
 
 @unit_api_bp.route("/import_zipped_dot_pioreactor", methods=["POST"])
 def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
+    """
+    Import a zipped `DOT_PIOREACTOR` archive into this unit.
+
+    Multipart form-data body:
+    - `archive`: zip file created by the zipped DOT_PIOREACTOR export endpoint.
+    """
     task_name = "import_zipped_dot_pioreactor"
     publish_to_log("Starting import of zipped DOT_PIOREACTOR archive", task_name, "INFO")
 

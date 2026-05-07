@@ -58,6 +58,15 @@ def _get_calibration_step(session: Any) -> Any:
 
 
 def start_calibration_session() -> ResponseReturnValue:
+    """
+    Start a browser-driven calibration session on this unit.
+
+    JSON body:
+    {
+      "target_device": "stirring",
+      "protocol_name": "dc_based"
+    }
+    """
     body = request.get_json()
     if body is None:
         abort_with(400, description="Missing JSON payload.")
@@ -106,6 +115,11 @@ def get_calibration_session(session_id: str) -> ResponseReturnValue:
 
 
 def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
+    """
+    Abort a calibration session on this unit.
+
+    No request body is required.
+    """
     session = load_calibration_session(session_id)
     if session is None:
         abort_with(404, "Calibration session not found.")
@@ -128,6 +142,16 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
 
 
 def advance_calibration_session(session_id: str) -> ResponseReturnValue:
+    """
+    Submit inputs for the current step of a calibration session on this unit.
+
+    JSON body:
+    {
+      "inputs": {
+        "field_name": "field value"
+      }
+    }
+    """
     session = load_calibration_session(session_id)
     if session is None:
         abort_with(404, "Calibration session not found.")

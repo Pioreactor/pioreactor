@@ -395,7 +395,11 @@ def get_models() -> ResponseReturnValue:
     methods=["POST", "PATCH"],
 )
 def stop_all_jobs_on_unit_for_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    """Kills all jobs for worker or unit assigned to experiment"""
+    """
+    Stop all jobs for one unit, or `$broadcast`, in one experiment.
+
+    No request body is required.
+    """
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
     else:
@@ -417,7 +421,11 @@ def stop_specific_job_on_unit(
     job_name: str,
     experiment: str,
 ) -> ResponseReturnValue:
-    """Kills specified job on unit"""
+    """
+    Stop one job on one unit in one experiment.
+
+    No request body is required.
+    """
 
     try:
         with create_client() as client:
@@ -458,15 +466,15 @@ def run_job_on_unit_in_experiment(
 
     The body is passed to the CLI, and should look like:
 
+    JSON body:
     {
       "options": {
         "option1": "value1",
         "option2": "value2"
       },
       "env": {},
-      "args": ["arg1", "arg2"]
+      "args": ["arg1", "arg2"],
       "config_overrides": []
-
     }
     """
     request_payload = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
@@ -573,6 +581,11 @@ def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/workers/<pioreactor_unit>/blink", methods=["POST"])
 def blink_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    """
+    Ask one worker's monitor job to blink its response LED.
+
+    No request body is required.
+    """
     with create_client() as client:
         # Blink requests are transient commands; use QoS 1 so the monitor side is not capped at QoS 0.
         msg = client.publish(
@@ -669,19 +682,31 @@ def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedR
 
 @api_bp.route("/units/<pioreactor_unit>/system/reboot", methods=["POST"])
 def reboot_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    """Reboots unit"""
+    """
+    Reboot one unit, or `$broadcast`.
+
+    No request body is required.
+    """
     return _broadcast_or_multicast_post(pioreactor_unit, "/unit_api/system/reboot")
 
 
 @api_bp.route("/units/<pioreactor_unit>/system/shutdown", methods=["POST"])
 def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    """Shutdown unit"""
+    """
+    Shut down one unit, or `$broadcast`.
+
+    No request body is required.
+    """
     return _broadcast_or_multicast_post(pioreactor_unit, "/unit_api/system/shutdown")
 
 
 @api_bp.route("/units/<pioreactor_unit>/system/repair", methods=["POST"])
 def repair_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    """Repair file permissions and return local system status."""
+    """
+    Repair filesystem permissions on one unit, or `$broadcast`.
+
+    No request body is required.
+    """
     return _broadcast_or_multicast_post(pioreactor_unit, "/unit_api/system/repair")
 
 
@@ -695,6 +720,14 @@ def get_unit_utc_clock(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/system/utc_clock", methods=["POST"])
 def set_system_utc_clock() -> DelayedResponseReturnValue:
+    """
+    Set the leader UTC clock, then sync workers from the leader.
+
+    JSON body:
+    {
+      "utc_clock_time": "2025-01-31T12:34:56Z"
+    }
+    """
     # first update the leader:
     task1 = tasks.multicast_post(
         "/unit_api/system/utc_clock", [get_leader_hostname()], json=request.get_json()
@@ -912,6 +945,19 @@ def get_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
 @api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/logs", methods=["POST"])
 @api_bp.route("/units/<pioreactor_unit>/experiments/<experiment>/logs", methods=["POST"])
 def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
+    """
+    Publish a log message into an experiment log stream.
+
+    JSON body:
+    {
+      "message": "Something happened.",
+      "source": "ui",
+      "source_": "ui",
+      "level": "INFO",
+      "timestamp": "2025-01-31T12:34:56Z",
+      "task": "manual-action"
+    }
+    """
     body = request.get_json()
     source_ = body.get("source_", "ui")
 
@@ -1830,6 +1876,12 @@ def get_zipped_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
 
 @api_bp.route("/units/<pioreactor_unit>/import_zipped_dot_pioreactor", methods=["POST"])
 def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
+    """
+    Import a zipped `DOT_PIOREACTOR` archive into one unit.
+
+    Multipart form-data body:
+    - `archive`: zip file created by the zipped DOT_PIOREACTOR export endpoint.
+    """
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -1942,6 +1994,15 @@ def get_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> Del
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["POST"])
 def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
+    """
+    Create a calibration on one worker, or `$broadcast`.
+
+    JSON body:
+    {
+      "calibration_data": "<calibration YAML>",
+      "set_as_active": true
+    }
+    """
     payload = request.get_json() or {}
     yaml_data = payload.get("calibration_data")
     set_as_active = payload.get("set_as_active", False)
@@ -1986,6 +2047,15 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions", methods=["POST"])
 def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
+    """
+    Start a browser-driven calibration session on one worker.
+
+    JSON body:
+    {
+      "target_device": "stirring",
+      "protocol_name": "dc_based"
+    }
+    """
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -2075,6 +2145,16 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/inputs", methods=["POST"])
 def advance_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
+    """
+    Submit inputs for the current step of a calibration session.
+
+    JSON body:
+    {
+      "inputs": {
+        "field_name": "field value"
+      }
+    }
+    """
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -2121,6 +2201,11 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/abort", methods=["POST"])
 def abort_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
+    """
+    Abort a calibration session on one worker.
+
+    No request body is required.
+    """
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -2252,6 +2337,15 @@ def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/units/<pioreactor_unit>/plugins/install", methods=["POST", "PATCH"])
 def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    """
+    Install one plugin on one unit, or `$broadcast`.
+
+    JSON body:
+    {
+      "options": {"source": "path-to-file-or-url"},
+      "args": ["my_plugin_name"]
+    }
+    """
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "Not UI installed allowed.")
@@ -2271,6 +2365,15 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 
 @api_bp.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    """
+    Uninstall one plugin from one unit, or `$broadcast`.
+
+    JSON body:
+    {
+      "options": {},
+      "args": ["my_plugin_name"]
+    }
+    """
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "No UI uninstall allowed")
 
@@ -2356,6 +2459,12 @@ def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/system/upload", methods=["POST"])
 def upload_system_file() -> ResponseReturnValue:
+    """
+    Stage a release archive or other system file on the leader.
+
+    Multipart form-data body:
+    - `file`: file to upload. The upload must be smaller than 30 MB.
+    """
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS").is_file():
         abort_with(403, "No UI uploads allowed")
 
@@ -2404,6 +2513,14 @@ def upload_system_file() -> ResponseReturnValue:
 
 @api_bp.route("/automations/descriptors/<automation_type>", methods=["GET"])
 def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
+    """
+    Return the leader's automation UI descriptors for one automation family.
+
+    Descriptor YAML is read from `DOT_PIOREACTOR/ui/automations/<automation_type>/`
+    for built-ins and `DOT_PIOREACTOR/plugins/ui/automations/<automation_type>/`
+    for plugin-provided automations. Use the worker-scoped route when the UI needs
+    descriptors from a specific worker's own `DOT_PIOREACTOR`.
+    """
     # security to prevent possibly reading arbitrary file
     if automation_type not in {"temperature", "dosing", "led"}:
         abort_with(
@@ -2425,6 +2542,13 @@ def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
 
 @api_bp.route("/workers/<pioreactor_unit>/automations/descriptors/<automation_type>", methods=["GET"])
 def get_automation_descriptors_for_worker(pioreactor_unit: str, automation_type: str) -> ResponseReturnValue:
+    """
+    Proxy a request for automation UI descriptors to one worker.
+
+    The worker's `/unit_api` reads from that worker's own `DOT_PIOREACTOR`, namely
+    `ui/automations/<automation_type>/` and `plugins/ui/automations/<automation_type>/`
+    under that root.
+    """
     if automation_type not in {"temperature", "dosing", "led"}:
         abort_with(
             400, "Not a valid automation type", remediation="choose one of 'temperature', 'dosing', 'led'"
@@ -2469,6 +2593,14 @@ def get_automation_descriptors_for_worker(pioreactor_unit: str, automation_type:
 
 @api_bp.route("/jobs/descriptors", methods=["GET"])
 def get_job_descriptors() -> ResponseReturnValue:
+    """
+    Return the leader's background-job UI descriptors.
+
+    Descriptor YAML is read from `DOT_PIOREACTOR/ui/jobs/` for built-ins and
+    `DOT_PIOREACTOR/plugins/ui/jobs/` for plugin-provided jobs. Use the
+    worker-scoped route when the UI needs descriptors from a specific worker's
+    own `DOT_PIOREACTOR`.
+    """
     try:
         descriptors = load_background_job_descriptors(
             Path(os.environ["DOT_PIOREACTOR"]),
@@ -2483,6 +2615,12 @@ def get_job_descriptors() -> ResponseReturnValue:
 
 @api_bp.route("/workers/<pioreactor_unit>/jobs/descriptors", methods=["GET"])
 def get_job_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    """
+    Proxy a request for background-job UI descriptors to one worker.
+
+    The worker's `/unit_api` reads from that worker's own `DOT_PIOREACTOR`,
+    namely `ui/jobs/` and `plugins/ui/jobs/` under that root.
+    """
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -2519,6 +2657,14 @@ def get_job_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
 @api_bp.route("/settings/descriptors", methods=["GET"])
 def get_settings_descriptors() -> ResponseReturnValue:
+    """
+    Return the leader's settings UI descriptors.
+
+    Descriptor YAML is read from `DOT_PIOREACTOR/ui/settings/` for built-ins and
+    `DOT_PIOREACTOR/plugins/ui/settings/` for plugin-provided settings collections.
+    Use the worker-scoped route when the UI needs descriptors from a specific
+    worker's own `DOT_PIOREACTOR`.
+    """
     descriptors = load_settings_collection_descriptors(
         Path(os.environ["DOT_PIOREACTOR"]),
         report_error=lambda message: publish_to_error_log(message, "get_settings_descriptors"),
@@ -2528,6 +2674,12 @@ def get_settings_descriptors() -> ResponseReturnValue:
 
 @api_bp.route("/workers/<pioreactor_unit>/settings/descriptors", methods=["GET"])
 def get_settings_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    """
+    Proxy a request for settings UI descriptors to one worker.
+
+    The worker's `/unit_api` reads from that worker's own `DOT_PIOREACTOR`,
+    namely `ui/settings/` and `plugins/ui/settings/` under that root.
+    """
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -2564,6 +2716,12 @@ def get_settings_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnV
 
 @api_bp.route("/charts/descriptors", methods=["GET"])
 def get_chart_descriptors() -> ResponseReturnValue:
+    """
+    Return the leader's chart UI descriptors.
+
+    Descriptor YAML is read from `DOT_PIOREACTOR/ui/charts/` for built-ins and
+    `DOT_PIOREACTOR/plugins/ui/charts/` for plugin-provided charts.
+    """
     try:
         chart_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "charts"
         chart_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "charts"
@@ -2587,6 +2745,14 @@ def get_chart_descriptors() -> ResponseReturnValue:
 
 @api_bp.route("/system/update_next_version", methods=["POST"])
 def update_app() -> DelayedResponseReturnValue:
+    """
+    Update the Pioreactor app across the cluster to the next version.
+
+    JSON body:
+    {
+      "units": "$broadcast"
+    }
+    """
     body = request.get_json(silent=True) or {}
     units = body.get("units", "$broadcast")
     task = tasks.update_app_across_cluster(units=units)
@@ -2595,6 +2761,15 @@ def update_app() -> DelayedResponseReturnValue:
 
 @api_bp.route("/system/update_from_archive", methods=["POST"])
 def update_app_from_release_archive() -> DelayedResponseReturnValue:
+    """
+    Update the Pioreactor app across the cluster from a staged release archive.
+
+    JSON body:
+    {
+      "release_archive_location": "/tmp/pioreactor_release.zip",
+      "units": "$broadcast"
+    }
+    """
     body = request.get_json(silent=True) or {}
     if not isinstance(body, dict):
         abort_with(
@@ -2681,6 +2856,19 @@ def preview_exportable_dataset(target_dataset: str) -> ResponseReturnValue:
 
 @api_bp.route("/datasets/exportable/export", methods=["POST"])
 def export_exportable_datasets() -> ResponseReturnValue:
+    """
+    Export selected datasets for selected experiments.
+
+    JSON body:
+    {
+      "datasets": ["od_readings"],
+      "experiments": ["experiment-name"],
+      "partition_by_unit": false,
+      "partition_by_experiment": false,
+      "start_time": "2025-01-31T00:00:00Z",
+      "end_time": "2025-02-01T00:00:00Z"
+    }
+    """
     body = request.get_json()
 
     dataset_names: list[str] = body["datasets"]
@@ -2725,6 +2913,18 @@ def get_experiments() -> ResponseReturnValue:
 
 @api_bp.route("/experiments", methods=["POST"])
 def create_experiment() -> ResponseReturnValue:
+    """
+    Create a new experiment.
+
+    JSON body:
+    {
+      "experiment": "experiment-name",
+      "description": "Optional description.",
+      "mediaUsed": "Optional media name.",
+      "organismUsed": "Optional organism name.",
+      "tags": ["optional-tag"]
+    }
+    """
     body = request.get_json()
     proposed_experiment_name = _validate_experiment_name(body.get("experiment"))
     tags = _normalize_experiment_tags(body.get("tags")) if "tags" in body else []
@@ -3252,6 +3452,15 @@ def get_recent_experiment_profile_runs(experiment: str) -> ResponseReturnValue:
 
 @api_bp.route("/experiment_profiles", methods=["POST"])
 def create_experiment_profile() -> ResponseReturnValue:
+    """
+    Create an experiment profile YAML file.
+
+    JSON body:
+    {
+      "filename": "profile.yaml",
+      "body": "<experiment profile YAML>"
+    }
+    """
     body = request.get_json()
     experiment_profile_body = body["body"]
     experiment_profile_filename = Path(body["filename"]).name
@@ -3474,6 +3683,16 @@ def discover_available_workers() -> ResponseReturnValue:
 
 @api_bp.route("/workers/setup", methods=["POST"])
 def setup_worker_pioreactor() -> ResponseReturnValue:
+    """
+    Provision and register a newly discovered worker.
+
+    JSON body:
+    {
+      "name": "pio01",
+      "version": "24.0.0",
+      "model": "pioreactor_40ml"
+    }
+    """
     data = request.get_json()
     new_name = data["name"]
     version = data["version"]

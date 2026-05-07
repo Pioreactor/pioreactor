@@ -5,7 +5,7 @@ This directory contains files used to build or install Pioreactor outside the no
 ## Directories
 
 - `shared-assets/`: one-time provisioning seed data shared by Linux leader installs and CustoPiZer image builds.
-- `linux-leader/`: installer scaffold and service templates for a leader-only Debian 13 Linux workstation.
+- **EXPERIMENTAL** `linux-leader/`: installer scaffold and service templates for a leader-only Debian 13 Linux workstation.
 
 ## Ownership Boundary
 
