@@ -6,10 +6,16 @@ from queue import Queue
 from threading import Thread
 from typing import Generator
 
+import msgspec
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
+
+
+class DiscoveredWorker(msgspec.Struct, frozen=True):
+    hostname: str
+    ipv4_address: str
 
 
 def ssh(address: str, command: str) -> None:
@@ -105,7 +111,7 @@ def get_ip() -> str:
         return ""
 
 
-def discover_workers_on_network(terminate: bool = False) -> Generator[str, None, None]:
+def discover_workers_on_network(terminate: bool = False) -> Generator[DiscoveredWorker, None, None]:
     """
     Discover workers on the network using avahi-browse.
 
@@ -116,20 +122,20 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 
     Yields
     ------
-    str
-        Hostnames of discovered workers.
+    DiscoveredWorker
+        Hostname and IPv4 address of each discovered worker.
 
     Example
     --------
     > for worker in discover_workers_on_network():
-    >     print(worker)
+    >     print(worker.hostname, worker.ipv4_address)
 
     Notes
     -----
     This is very similar to `avahi-browse _pio-worker._tcp -tpr`
     """
 
-    def worker_hostnames(queue: Queue[str]) -> None:
+    def worker_hostnames(queue: Queue[DiscoveredWorker]) -> None:
         with subprocess.Popen(
             ["avahi-browse", "_pio-worker._tcp", "-rp"],
             stdout=subprocess.PIPE,
@@ -146,10 +152,11 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
                 if parsed[0] != "=" or parsed[1] == "lo" or parsed[2] != "IPv4":
                     continue
                 hostname = parsed[6].removesuffix(".local")
-                queue.put(hostname)
+                ipv4_address = parsed[7]
+                queue.put(DiscoveredWorker(hostname=hostname, ipv4_address=ipv4_address))
         return
 
-    hostnames_queue: Queue[str] = Queue()
+    hostnames_queue: Queue[DiscoveredWorker] = Queue()
     worker_thread = Thread(target=worker_hostnames, args=(hostnames_queue,))
     worker_thread.daemon = True
     worker_thread.start()
@@ -157,8 +164,8 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
     while True:
         try:
             # Wait for the next hostname, with a timeout if terminate is True
-            hostname = hostnames_queue.get(timeout=1.5 if terminate else None)
-            yield hostname
+            worker = hostnames_queue.get(timeout=1.5 if terminate else None)
+            yield worker
         except Empty:
             # If the queue is empty and we're in terminate mode, stop the iteration
             if terminate:

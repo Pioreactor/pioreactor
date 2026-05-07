@@ -6,6 +6,7 @@ from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations.temperature import OnlyRecordTemperature
 from pioreactor.automations.temperature import Thermostat
+from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -115,6 +116,31 @@ def test_child_cant_update_heater_when_locked() -> None:
             assert not t.update_heater(50)
 
         assert t.update_heater(50)
+
+
+def test_update_heater_ignores_pwm_cleanup_race() -> None:
+    class PwmCleanedDuringChange:
+        is_cleaned_up = False
+
+        def change_duty_cycle(self, duty_cycle: float) -> None:
+            self.is_cleaned_up = True
+            raise ValueError("must call .start() first!")
+
+    class Logger:
+        messages: list[str] = []
+
+        def debug(self, message: str) -> None:
+            self.messages.append(message)
+
+    temperature_job = TemperatureAutomationJob.__new__(TemperatureAutomationJob)
+    object.__setattr__(temperature_job, "pwm", PwmCleanedDuringChange())
+    object.__setattr__(temperature_job, "logger", Logger())
+    object.__setattr__(temperature_job, "heater_duty_cycle", 0.0)
+    object.__setattr__(temperature_job, "published_settings", {})
+
+    assert TemperatureAutomationJob._update_heater(temperature_job, 30.0) is False
+    assert temperature_job.heater_duty_cycle == 30.0
+    assert temperature_job.logger.messages == ["Ignoring heater duty cycle update after PWM cleanup."]
 
 
 def test_setting_pid_control_after_startup_will_start_some_heating() -> None:

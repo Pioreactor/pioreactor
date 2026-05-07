@@ -1,0 +1,18 @@
+[Unit]
+Description=Lighttpd Daemon
+After=network-online.target
+PartOf=pioreactor-web.target
+
+
+[Service]
+Type=simple
+PIDFile=/run/lighttpd.pid
+EnvironmentFile=/etc/pioreactor.env
+ExecStartPre=/usr/sbin/lighttpd -tt -f /etc/lighttpd/lighttpd.conf
+ExecStart=/usr/sbin/lighttpd -D -f /etc/lighttpd/lighttpd.conf
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+UMask=0007
+
+[Install]
+WantedBy=multi-user.target

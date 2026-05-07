@@ -28,8 +28,8 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     }
 
     const topics = [
-      `pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`,
-      `pioreactor/+/${experiment}/dosing_automation/media_throughput`,
+      `pioreactor/+/${experiment}/bioreactor/cumulative_alt_media_added_ml`,
+      `pioreactor/+/${experiment}/bioreactor/cumulative_media_added_ml`,
     ];
     const onMessage = (topic, message, _packet) => {
       if (!message || !topic) return;
@@ -37,7 +37,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
       const topicParts = topic.toString().split('/');
       const payload = Number.parseFloat(message.toString());
       const unit = topicParts[1];
-      const throughputKey = topicParts.at(-1) === 'alt_media_throughput' ? 'altMedia' : 'media';
+      const throughputKey = topicParts.at(-1) === 'cumulative_alt_media_added_ml' ? 'altMedia' : 'media';
 
       if (Number.isNaN(payload)) {
         return;

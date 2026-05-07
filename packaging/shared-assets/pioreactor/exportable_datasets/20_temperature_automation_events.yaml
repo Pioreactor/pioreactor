@@ -1,0 +1,10 @@
+dataset_name: temperature_automation_events
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: temperature_automation_events
+timestamp_columns:
+- timestamp
+description: This dataset includes a log of automation events created by temperature automations.
+display_name: Temperature automation events

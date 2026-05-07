@@ -1,0 +1,10 @@
+dataset_name: stirring_rates
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: stirring_rates
+timestamp_columns:
+- timestamp
+description: This dataset includes the measured RPM of the onboard stirring.
+display_name: Stirring rates

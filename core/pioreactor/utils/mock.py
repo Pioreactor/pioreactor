@@ -4,12 +4,40 @@ import math
 import random
 from typing import Any
 from typing import cast
+from typing import Protocol
+from typing import TYPE_CHECKING
 
 import pioreactor.types as pt
 from pioreactor.config import config
-from pioreactor.utils.adcs import _I2C_ADC
-from pioreactor.utils.dacs import _DAC
 from pioreactor.whoami import is_testing_env
+
+if TYPE_CHECKING:
+    from pioreactor.utils.adcs import _I2C_ADC as _MockADCBase
+    from pioreactor.utils.dacs import _DAC as _MockDACBase
+
+else:
+
+    class _MockADCBase(Protocol):
+        gain: float
+        i2c_addr: int
+
+        def read_from_channel(self) -> pt.AnalogValue: ...
+
+        def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue: ...
+
+        def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage: ...
+
+        def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None: ...
+
+        def set_ads_gain(self, gain: float) -> None: ...
+
+        def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> pt.AnalogValue: ...
+
+    class _MockDACBase:
+        A = 0
+        B = 1
+        C = 2
+        D = 3
 
 
 class MockI2C:
@@ -41,10 +69,10 @@ class MockI2C:
         return
 
 
-class Mock_ADC(_I2C_ADC):
+class Mock_ADC(_MockADCBase):
     INIT_STATE = 0.01
     OFFSET = 0.002
-    gain = 1
+    gain = 1.0
 
     RESIDUAL_RHO = 0.02
     RESIDUAL_CV = 0.0056
@@ -146,7 +174,7 @@ class Mock_ADC(_I2C_ADC):
         return 4.096 * raw / 32767
 
 
-class Mock_DAC(_DAC):
+class Mock_DAC(_MockDACBase):
     A = 8
     B = 9
     C = 10
@@ -228,10 +256,9 @@ class MockRpmCalculator:
 
 
 if is_testing_env():
-    from rpi_hardware_pwm import HardwarePWM
 
-    class MockHardwarePWM(HardwarePWM):
-        def __init__(self, pwm_channel: int, hz: float, chip: int = 0) -> None:
+    class MockHardwarePWM:
+        def __init__(self, pwm_channel: int, hz: float, _chip: int = 0) -> None:
             self.pwm_channel = pwm_channel
             self._hz = hz
             self.pwm_dir = ""
@@ -245,5 +272,5 @@ if is_testing_env():
         def does_pwmX_exists(self) -> bool:
             return True
 
-        def echo(self, m: int, fil: str) -> None:
+        def echo(self, m: int, _fil: str) -> None:
             pass

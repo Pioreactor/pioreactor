@@ -17,11 +17,11 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useTheme } from '@mui/material/styles';
-import Chip from '@mui/material/Chip';
 import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { useLocation } from "react-router";
+import { fetchTaskResult } from "./utils/tasks";
+import Snackbar from './components/Snackbar';
 
 
 const datasetDescription = {
@@ -31,12 +31,10 @@ const datasetDescription = {
 }
 
 const SYSTEM_EXPERIMENT_LABEL = "<System>";
-const ALL_EXPERIMENTS_LABEL = "<All experiments>";
 
 const DEFAULT_EXPORT_STATE = {
   experimentSelection: [],
   partitionByUnitSelection: false,
-  partitionByExperimentSelection: true,
   selectedDatasets: [],
   // ISO-8601 strings in UTC
   startTime: null,
@@ -45,79 +43,34 @@ const DEFAULT_EXPORT_STATE = {
   useTimeFilter: false,
 };
 
-const TRUE_QUERY_VALUES = new Set(["1", "true", "yes", "on"]);
-const FALSE_QUERY_VALUES = new Set(["0", "false", "no", "off"]);
-
-function parseQueryBoolean(value) {
-  if (value === null) {
-    return null;
-  }
-
-  const normalizedValue = value.toLowerCase();
-  if (TRUE_QUERY_VALUES.has(normalizedValue)) {
-    return true;
-  }
-  if (FALSE_QUERY_VALUES.has(normalizedValue)) {
-    return false;
-  }
-  return null;
-}
-
-function getFirstQueryParam(searchParams, keys) {
-  for (const key of keys) {
-    const value = searchParams.get(key);
-    if (value !== null) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-function getQueryList(searchParams, keys) {
-  const values = keys
-    .flatMap((key) => searchParams.getAll(key))
+function getQueryList(searchParams, key) {
+  return searchParams
+    .getAll(key)
     .flatMap((value) => value.split(","))
     .map((value) => value.trim())
     .filter(Boolean);
-
-  return [...new Set(values)];
 }
 
 function parseExportStateFromSearch(search) {
   const searchParams = new URLSearchParams(search);
 
-  const experimentsFromQuery = getQueryList(searchParams, ["experiments", "experiment"]).map(
+  const experimentsFromQuery = getQueryList(searchParams, "experiments").map(
     (experiment) => (experiment === "$experiment" ? SYSTEM_EXPERIMENT_LABEL : experiment),
   );
-  const experimentSelection = experimentsFromQuery.includes(ALL_EXPERIMENTS_LABEL)
-    ? [ALL_EXPERIMENTS_LABEL]
-    : experimentsFromQuery;
+  const experimentSelection = experimentsFromQuery.slice(0, 1);
 
-  const selectedDatasets = getQueryList(searchParams, ["datasets", "dataset"]);
+  const selectedDatasets = getQueryList(searchParams, "datasets");
 
-  const partitionByUnitSelection =
-    parseQueryBoolean(
-      getFirstQueryParam(searchParams, ["partition_by_unit", "partitionByUnit"]),
-    ) ?? DEFAULT_EXPORT_STATE.partitionByUnitSelection;
-  const partitionByExperimentSelection =
-    parseQueryBoolean(
-      getFirstQueryParam(searchParams, ["partition_by_experiment", "partitionByExperiment"]),
-    ) ?? DEFAULT_EXPORT_STATE.partitionByExperimentSelection;
-
-  const startTime = getFirstQueryParam(searchParams, ["start_time", "startTime"]);
-  const endTime = getFirstQueryParam(searchParams, ["end_time", "endTime"]);
-  const useTimeFilterFromQuery = parseQueryBoolean(
-    getFirstQueryParam(searchParams, ["use_time_filter", "useTimeFilter"]),
-  );
-  const useTimeFilter =
-    useTimeFilterFromQuery ?? Boolean(startTime || endTime || DEFAULT_EXPORT_STATE.useTimeFilter);
+  const startTime = searchParams.get("start_time");
+  const endTime = searchParams.get("end_time");
+  const useTimeFilter = searchParams.has("use_time_filter")
+    ? searchParams.get("use_time_filter") === "true"
+    : Boolean(startTime || endTime);
 
   return {
     ...DEFAULT_EXPORT_STATE,
     experimentSelection,
-    partitionByUnitSelection,
-    partitionByExperimentSelection,
+    partitionByUnitSelection: searchParams.get("partition_by_unit") === "true",
     selectedDatasets,
     startTime,
     endTime,
@@ -125,57 +78,42 @@ function parseExportStateFromSearch(search) {
   };
 }
 
-function arrayShallowEqual(left, right) {
-  if (left.length !== right.length) {
-    return false;
+function getErrorMessageFromPayload(payload, fallback) {
+  if (payload && typeof payload.error === "string" && payload.error.trim()) {
+    return payload.error;
   }
 
-  return left.every((value, index) => value === right[index]);
+  return fallback;
 }
 
 
-function getStyles(value, values, theme) {
+function getStyles(value, selectedValue, theme) {
   return {
-    fontWeight: values.includes(value)
+    fontWeight: selectedValue === value
       ? theme.typography.fontWeightMedium
       : theme.typography.fontWeightRegular,
   };
 }
 
-function MultipleSelectChip({availableValues, parentHandleChange, values}) {
+function SingleExperimentSelect({availableValues, parentHandleChange, values}) {
   const theme = useTheme();
+  const selectedValue = values[0] || "";
 
   const handleChange = (event) => {
-    const {
-      target: { value },
-    } = event;
-    if (value.includes(ALL_EXPERIMENTS_LABEL)){
-      parentHandleChange([ALL_EXPERIMENTS_LABEL])
-    }
-    else {
-      parentHandleChange(value)
-    }
+    parentHandleChange(event.target.value ? [event.target.value] : []);
   };
 
   return (
     <div>
       <FormControl fullWidth variant="standard" component="fieldset" sx={{ maxWidth: 470 }}>
         <Typography variant="h6" gutterBottom >
-          <Box sx={{ fontWeight: "fontWeightRegular" }}>Experiments</Box>
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>Experiment</Box>
         </Typography>
         <Select
           labelId="expSelect"
           variant="standard"
-          multiple
-          value={values}
+          value={selectedValue}
           onChange={handleChange}
-          renderValue={(selected) => (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {selected.map((value) => (
-                <Chip icon=<PlayCircleOutlinedIcon/> key={value} label={value} />
-              ))}
-            </Box>
-          )}
           MenuProps={{ PaperProps: {
           style: {
               maxHeight: 250,
@@ -186,9 +124,9 @@ function MultipleSelectChip({availableValues, parentHandleChange, values}) {
             <MenuItem
               key={value}
               value={value}
-              style={getStyles(value, values, theme)}
+              style={getStyles(value, selectedValue, theme)}
             >
-              <Checkbox checked={values.includes(value)} /> {value}
+              {value}
             </MenuItem>
           ))}
 
@@ -200,7 +138,7 @@ function MultipleSelectChip({availableValues, parentHandleChange, values}) {
 
 
 function ExperimentSelection(props) {
-  const { experimentSelection, handleChange, onExperimentsLoaded } = props;
+  const { experimentSelection, handleChange } = props;
 
   const [experiments, setExperiments] = React.useState([])
 
@@ -213,22 +151,20 @@ function ExperimentSelection(props) {
           .map((e) => e.experiment)
           .filter((name) => name !== "$experiment");
 
-        // Ensure "<System>" and "<All experiments>" are always available and at the bottom.
-        const allExperiments = [...experimentNames, SYSTEM_EXPERIMENT_LABEL, ALL_EXPERIMENTS_LABEL];
-        setExperiments(allExperiments);
-        onExperimentsLoaded(allExperiments);
+        // Ensure "<System>" is always available and at the bottom.
+        setExperiments([...experimentNames, SYSTEM_EXPERIMENT_LABEL]);
       } catch (error) {
         console.error("Failed to fetch experiments:", error);
       }
     }
 
     getData();
-  }, [onExperimentsLoaded]);
+  }, []);
 
 
   return (
     <Box sx={{ m: 1}}>
-      <MultipleSelectChip
+      <SingleExperimentSelect
         availableValues={experiments}
         parentHandleChange={handleChange}
         values={experimentSelection}
@@ -242,10 +178,6 @@ const PartitionBySelection = (props) => {
     <Box sx={{mt: 1}}>
       <FormControl component="fieldset" >
         <Box>
-          <FormControlLabel
-            control={<Checkbox checked={props.partitionByExperimentSelection} onChange={props.handleChange} name="partition_by_experiment" />}
-            label="Partition output CSVs by Experiment"
-          /><br/>
           <FormControlLabel
             control={<Checkbox checked={props.partitionByUnitSelection} onChange={props.handleChange} name="partition_by_unit" />}
             label="Partition output CSVs by Pioreactor"
@@ -425,6 +357,7 @@ function ExportDataContainer() {
   const location = useLocation();
   const [isRunning, setIsRunning] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [datasets, setDatasets] = React.useState([])
 
   const [state, setState] = React.useState(() => parseExportStateFromSearch(location.search));
@@ -440,33 +373,26 @@ function ExportDataContainer() {
       try {
         const response = await fetch("/api/datasets/exportable");
         const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            getErrorMessageFromPayload(data, "Failed to fetch exportable datasets."),
+          );
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error("Exportable datasets response was not a list.");
+        }
+
         setDatasets(data);
       } catch (error) {
         console.error("Failed to fetch datasets:", error);
+        setDatasets([]);
+        setErrorMsg(error.message || "Failed to fetch exportable datasets.");
       }
     }
     getDatasets()
   }, [])
-
-  React.useEffect(() => {
-    if (datasets.length === 0) {
-      return;
-    }
-
-    const datasetNames = new Set(datasets.map((dataset) => dataset.dataset_name));
-    setState((prevState) => {
-      const filteredSelectedDatasets = prevState.selectedDatasets.filter((name) => datasetNames.has(name));
-      if (arrayShallowEqual(filteredSelectedDatasets, prevState.selectedDatasets)) {
-        return prevState;
-      }
-
-      return {
-        ...prevState,
-        selectedDatasets: filteredSelectedDatasets,
-      };
-    });
-  }, [datasets]);
-
 
   const onSubmit =  async (event) => {
     event.preventDefault();
@@ -481,14 +407,18 @@ function ExportDataContainer() {
     );
 
     setIsRunning(true);
+    setSnackbarOpen(true);
     setErrorMsg("");
     try {
-      const res = await fetch('/api/datasets/exportable/export',{
+      const finalPayload = await fetchTaskResult('/api/datasets/exportable/export', {
+        maxRetries: 500,
+        delayMs: 1000,
+        fetchOptions: {
           method: "POST",
           body: JSON.stringify({
             experiments: experimentsForExport,
             partition_by_unit: state.partitionByUnitSelection,
-            partition_by_experiment: state.partitionByExperimentSelection,
+            partition_by_experiment: true,
             datasets: state.selectedDatasets,
             start_time: state.useTimeFilter ? state.startTime : null,
             end_time: state.useTimeFilter ? state.endTime : null,
@@ -497,20 +427,26 @@ function ExportDataContainer() {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           },
+        },
       });
-      const resJson = await res.json();
+      const filename = finalPayload?.result?.filename;
+      if (!filename) {
+        throw new Error("Export failed, check logs.");
+      }
+
       var link = document.createElement("a");
-      const filename = resJson['filename'].replace(/%/g, "%25")
-      link.setAttribute('export', filename);
-      link.href = "/exports/" + filename;
+      const encodedFilename = filename.replace(/%/g, "%25")
+      link.setAttribute('export', encodedFilename);
+      link.href = "/exports/" + encodedFilename;
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch(e) {
-      setErrorMsg("Server error occurred. Check logs.")
+      setErrorMsg(e.message || "Server error occurred. Check logs.")
       console.log(e)
     } finally {
       setIsRunning(false);
+      setSnackbarOpen(false);
     }
   }
 
@@ -532,36 +468,16 @@ function ExportDataContainer() {
     }));
   };
 
-  function handleExperimentsLoaded(availableExperiments) {
-    const availableExperimentSet = new Set(availableExperiments);
-    setState((prevState) => {
-      const filteredSelectedExperiments = prevState.experimentSelection.filter((experiment) =>
-        availableExperimentSet.has(experiment),
-      );
-      if (arrayShallowEqual(filteredSelectedExperiments, prevState.experimentSelection)) {
-        return prevState;
-      }
-
-      return {
-        ...prevState,
-        experimentSelection: filteredSelectedExperiments,
-      };
-    });
-  }
-
   function handlePartitionByChange(event) {
-    const stateKey = {
-      partition_by_unit: "partitionByUnitSelection",
-      partition_by_experiment: "partitionByExperimentSelection",
-    }[event.target.name];
-
-    if (!stateKey) return;
-
     setState(prevState => ({
       ...prevState,
-      [stateKey]: event.target.checked
+      partitionByUnitSelection: event.target.checked
     }));
   };
+
+  function handleSnackbarClose() {
+    setSnackbarOpen(false);
+  }
 
   const errorFeedbackOrDefault = errorMsg ? <Alert severity="error">{errorMsg}</Alert>: ""
   const selectedDatasetsCount = state.selectedDatasets.length;
@@ -607,7 +523,6 @@ function ExportDataContainer() {
                 <ExperimentSelection
                   experimentSelection={state.experimentSelection}
                   handleChange={handleExperimentSelectionChange}
-                  onExperimentsLoaded={handleExperimentsLoaded}
                 />
               </Grid>
               <Grid  size={{
@@ -633,7 +548,6 @@ function ExportDataContainer() {
                   <AccordionDetails>
                     <PartitionBySelection
                       partitionByUnitSelection={state.partitionByUnitSelection}
-                      partitionByExperimentSelection={state.partitionByExperimentSelection}
                       handleChange={handlePartitionByChange}
                     />
                     {/* Time range selectors */}
@@ -699,6 +613,13 @@ function ExportDataContainer() {
       <Grid size={12}>
         <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</p>
       </Grid>
+      <Snackbar
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        message="Export started. Keep this page open; your download will begin automatically when it's ready."
+        key="export-data-running-snackbar"
+      />
     </React.Fragment>
   );
 }

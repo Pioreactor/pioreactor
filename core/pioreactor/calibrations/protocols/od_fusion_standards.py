@@ -12,7 +12,6 @@ from typing import cast
 from msgspec import to_builtins
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import CalibrationStep
@@ -92,6 +91,7 @@ def _measure_fusion_standard_samples(
     repeats: int = SAMPLES_PER_STANDARD,
 ) -> list[dict[pt.PdAngle, float]]:
     from pioreactor.background_jobs.stirring import start_stirring as stirring
+    from pioreactor.background_jobs.od_reading import start_od_reading
     from itertools import cycle
 
     repeats = max(1, int(repeats))

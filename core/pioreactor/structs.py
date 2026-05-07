@@ -193,23 +193,11 @@ class Voltage(JSONPrintedStruct):
 
 class BioreactorVariableDefinition(Struct, frozen=True):
     key: str
-    label: str
-    description: str
-    unit: str | None
     minimum: float
     maximum: float | None
     default_config_key: str
     default_value: float
-
-
-class BioreactorDescriptor(Struct, frozen=True):
-    key: str
-    label: str
-    description: str
-    type: t.Literal["numeric"]
-    unit: str | None
-    min: float | None
-    max: float | None
+    cap_at_model_capacity: bool = True
 
 
 X = float
@@ -575,10 +563,12 @@ class PublishedSettingsDescriptor(Struct, forbid_unknown_fields=True):
     type: t.Literal["numeric", "boolean", "string", "json"]
     display: bool
     description: str | None = None
-    default: str | bool | None = None  # DEPRECATED DO NOT USE
+    default: str | float | bool | None = None  # DEPRECATED DO NOT USE
     unit: str | None = None
     label: str | None = None  # if display is false, this isn't needed
     editable: bool = True
+    min: float | None = None
+    max: float | None = None
 
 
 class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):
@@ -592,16 +582,27 @@ class BackgroundJobDescriptor(Struct, forbid_unknown_fields=True):
     is_testing: bool = False  # DEPRECATED DO NOT USE
 
 
+class SettingsCollectionDescriptor(Struct, forbid_unknown_fields=True):
+    key: str
+    display_name: str
+    display: bool
+    published_settings: list[PublishedSettingsDescriptor]
+    source: str | None = None
+    description: str | None = None
+    subtext: str | None = None
+
+
 #### Automations
 
 
 class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):
     key: str
-    default: str | float | int | None
+    default: str | float | int | bool | None
     label: str
     disabled: bool = False
+    required: bool = True
     unit: str | None = None
-    type: t.Literal["numeric", "string", "select"] = "numeric"  # TODO we will include boolean
+    type: t.Literal["numeric", "string", "select", "boolean"] = "numeric"
     options: list[str] | None = None
 
 

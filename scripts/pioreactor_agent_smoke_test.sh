@@ -549,6 +549,110 @@ check_pio_logs_cli() {
   fi
 }
 
+
+check_update_cli_contract() {
+  info "Checking update CLI command shape"
+
+  if pio update --help | grep -q "app"; then
+    ok "pio update exposes app subcommand"
+  else
+    fail "pio update app subcommand missing"
+  fi
+
+  if pio update app --help >/dev/null; then
+    ok "pio update app help"
+  else
+    fail "pio update app help failed"
+  fi
+
+  if pios update --help | grep -q "app"; then
+    ok "pios update exposes app subcommand"
+  else
+    fail "pios update app subcommand missing"
+  fi
+
+  if pios update app --help >/dev/null; then
+    ok "pios update app help"
+  else
+    fail "pios update app help failed"
+  fi
+}
+
+check_repair_permissions_cli() {
+  info "Checking repair CLI"
+
+  if pio repair --help | grep -q ".pioreactor"; then
+    ok "pio repair help"
+  else
+    fail "pio repair help failed"
+    return
+  fi
+
+  local dot_pioreactor_root test_dir test_file status_before status_after
+  dot_pioreactor_root="${DOT_PIOREACTOR:-$HOME/.pioreactor}"
+  test_dir="$dot_pioreactor_root/agent_smoke_permissions_test"
+  test_file="$test_dir/test.txt"
+
+  mkdir -p "$test_dir"
+  printf 'agent smoke permissions test\n' > "$test_file"
+
+  chmod 0755 "$test_dir"
+  chmod g-s "$test_dir"
+  chmod 0644 "$test_file"
+
+  if [[ -g "$test_dir" ]]; then
+    fail "Unable to remove setgid bit from smoke test directory"
+    rm -rf -- "$test_dir"
+    return
+  fi
+
+  if status_before="$(pio status 2>/dev/null | grep 'storage:dot_pioreactor')"; then
+    if echo "$status_before" | grep -Eq 'missing_group_write=[1-9][0-9]*' && \
+       echo "$status_before" | grep -Eq 'missing_setgid_dirs=[1-9][0-9]*'; then
+      ok "pio status detects intentionally broken .pioreactor permissions"
+    else
+      fail "pio status did not report intentionally broken .pioreactor permissions: $status_before"
+    fi
+  else
+    fail "pio status did not report storage:dot_pioreactor"
+  fi
+
+  if sudo -n true >/dev/null 2>&1; then
+    if pio repair >/dev/null; then
+      ok "pio repair completed"
+    else
+      fail "pio repair failed"
+      rm -rf -- "$test_dir"
+      return
+    fi
+  else
+    fail "passwordless sudo is required for pio repair"
+    rm -rf -- "$test_dir"
+    return
+  fi
+
+  if [[ -g "$test_dir" ]] && \
+     find "$test_dir" -maxdepth 0 -perm -020 -print -quit | grep -q . && \
+     find "$test_file" -maxdepth 0 -perm -020 -print -quit | grep -q .; then
+    ok "pio repair restored group-write and setgid bits"
+  else
+    fail "pio repair did not restore expected permissions on smoke test files"
+  fi
+
+  if status_after="$(pio status 2>/dev/null | grep 'storage:dot_pioreactor')"; then
+    if echo "$status_after" | grep -q 'missing_group_write=0' && \
+       echo "$status_after" | grep -q 'missing_setgid_dirs=0'; then
+      ok "pio status reports repaired .pioreactor permissions"
+    else
+      fail "pio status still reports .pioreactor permission drift after repair: $status_after"
+    fi
+  else
+    fail "pio status did not report storage:dot_pioreactor after repair"
+  fi
+
+  rm -rf -- "$test_dir"
+}
+
 check_leader_api() {
   local hostname
   hostname="$(hostname)"

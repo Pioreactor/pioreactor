@@ -1,0 +1,10 @@
+dataset_name: led_automation_events
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: led_automation_events
+timestamp_columns:
+- timestamp
+description: This dataset includes a log of automation events created by LED automations.
+display_name: LED automation events

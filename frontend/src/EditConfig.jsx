@@ -44,6 +44,15 @@ function getTargetMetadata(target) {
 }
 
 
+function getWorkerReachabilityMessage(target, fallbackMessage) {
+  if (target !== SHARED_TARGET) {
+    return "Could not reach this Pioreactor.";
+  }
+
+  return fallbackMessage;
+}
+
+
 function EditableCodeDiv() {
   const { pioreactorUnit } = useParams();
   const navigate = useNavigate();
@@ -65,6 +74,9 @@ function EditableCodeDiv() {
 
   const loadRequestId = useRef(0);
   const currentTargetRef = useRef(selectedTarget);
+  const displayedSelectedTarget = state.availableTargets.some((entry) => entry.value === selectedTarget)
+    ? selectedTarget
+    : SHARED_TARGET;
 
   useEffect(() => {
     currentTargetRef.current = selectedTarget;
@@ -81,7 +93,7 @@ function EditableCodeDiv() {
       ]);
 
       if (!configResponse.ok || !historyResponse.ok) {
-        throw new Error("Failed to load config data.");
+        throw new Error(getWorkerReachabilityMessage(target, "Failed to load config data."));
       }
 
       const [text, listOfHistoricalConfigs] = await Promise.all([
@@ -113,7 +125,7 @@ function EditableCodeDiv() {
         currentCode: "",
         historicalConfigs: [],
         selectedVersion: CURRENT_VERSION,
-        errorMsg: "Failed to load config. Is the unit online?",
+        errorMsg: getWorkerReachabilityMessage(target, "Failed to load config."),
         isError: true,
       }));
       console.error("Failed to fetch config/history:", err);
@@ -152,12 +164,16 @@ function EditableCodeDiv() {
       const parsedJson = await res.json();
       setState(prev => ({
         ...prev,
-        errorMsg: parsedJson.error || "Save failed.",
+        errorMsg: parsedJson.error || getWorkerReachabilityMessage(targetAtSave, "Save failed."),
         isError: true,
         hasChangedSinceSave: true,
       }));
     } catch (err) {
-      setState(prev => ({ ...prev, errorMsg: "Save failed. Please retry.", isError: true }));
+      setState(prev => ({
+        ...prev,
+        errorMsg: getWorkerReachabilityMessage(targetAtSave, "Save failed. Please retry."),
+        isError: true,
+      }));
       console.error("Error saving config:", err);
     } finally {
       setState(prev => ({ ...prev, saving: false }));
@@ -283,7 +299,7 @@ function EditableCodeDiv() {
             <Select
               labelId="configTargetSelect"
               variant="standard"
-              value={selectedTarget}
+              value={displayedSelectedTarget}
               onChange={onSelectionChange}
             >
               {state.availableTargets.map((target) => (

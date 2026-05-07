@@ -2,9 +2,10 @@
 from typing import Any
 
 from pioreactor.automations import events
+from pioreactor.background_jobs.dosing_automation import (
+    check_pump_calibrations_and_pwm_channels_are_configured,
+)
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
-from pioreactor.exc import CalibrationError
-from pioreactor.utils import local_persistent_storage
 
 
 class Chemostat(DosingAutomationJob):
@@ -14,19 +15,22 @@ class Chemostat(DosingAutomationJob):
 
     automation_name = "chemostat"
     published_settings = {
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
     }
 
-    def __init__(self, exchange_volume_ml: float | str, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        exchange_volume_ml: float | str,
+        duration: float | str = 20,
+        skip_first_run: bool | str | int = False,
+        **kwargs: Any,
+    ) -> None:
+        check_pump_calibrations_and_pwm_channels_are_configured(("media_pump", "waste_pump"))
         super().__init__(**kwargs)
 
-        with local_persistent_storage("active_calibrations") as cache:
-            if "media_pump" not in cache:
-                raise CalibrationError("Media and waste calibrations must be active first.")
-            elif "waste_pump" not in cache:
-                raise CalibrationError("Media and waste calibrations must be active first.")
-
         self.exchange_volume_ml = float(exchange_volume_ml)
+        self.run_every(duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
 
     def execute(self) -> events.DilutionEvent:
         """

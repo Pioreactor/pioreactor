@@ -17,9 +17,6 @@ from typing import ClassVar
 from msgspec import to_builtins
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.background_jobs.od_reading import average_over_od_readings
-from pioreactor.background_jobs.od_reading import REF_keyword
-from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.registry import SessionCleanupExecutor
@@ -43,6 +40,8 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+
+REF_keyword = "REF"
 
 
 def to_struct(
@@ -101,6 +100,9 @@ def _channel_angle_map_from_config(
 def _read_voltages_from_adc(
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
 ) -> dict[pt.PdChannel, pt.Voltage]:
+    from pioreactor.background_jobs.od_reading import average_over_od_readings
+    from pioreactor.background_jobs.od_reading import start_od_reading
+
     signal_channels = sorted(channel_angle_map.keys(), key=int)
 
     with start_od_reading(

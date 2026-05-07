@@ -5,7 +5,7 @@ import os
 # Append ".dev0" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
-__version__ = "26.4.4"
+__version__ = "26.5.0"
 
 
 def get_hardware_version() -> tuple[int, int] | tuple[int, int, str] | None:
@@ -53,7 +53,7 @@ def get_rpi_machine() -> str:
         with open("/proc/device-tree/model") as f:
             return f.read().strip().rstrip("\x00")
     except FileNotFoundError:
-        return "Raspberry Pi 3"
+        return ""
 
 
 def get_firmware_version() -> tuple[int, int] | None:

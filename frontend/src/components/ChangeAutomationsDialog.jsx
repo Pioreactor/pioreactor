@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Dialog from '@mui/material/Dialog';
-import Box from '@mui/material/Box';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -14,13 +13,10 @@ import Select from '@mui/material/Select';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import Snackbar from './Snackbar';
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
-import AutomationForm from "./AutomationForm"
+import AutomationForm, { hasAutomationFormErrors } from "./AutomationForm"
 
 
 const defaultAutomations = {
@@ -47,13 +43,12 @@ function ChangeAutomationsDialog(props) {
   const automationType = props.automationType
   const automationTypeForDisplay = (automationType === "led") ? "LED" : automationType
   const [automationName, setAutomationName] = useState(defaultAutomations[automationType])
-  const [algoSettings, setAlgoSettings] = useState({
-    ...( !props.no_skip_first_run && {skip_first_run: 0})
-  })
+  const [algoSettings, setAlgoSettings] = useState({})
   const [automations, setAutomations] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const selectedAutomation = automations[automationName]
+  const hasValidationErrors = hasAutomationFormErrors(selectedAutomation?.fields, algoSettings)
 
   useEffect(() => {
     setIsLoading(true)
@@ -75,10 +70,9 @@ function ChangeAutomationsDialog(props) {
     const nextAutomationName = getPreferredAutomationName(automationType, automations)
     setAutomationName(nextAutomationName)
     setAlgoSettings({
-      ...( !props.no_skip_first_run && {skip_first_run: 0}),
       ...getDefaultSettingsForAutomation(automations[nextAutomationName]?.fields),
     })
-  }, [props.open, automations, automationType, props.no_skip_first_run])
+  }, [props.open, automations, automationType])
 
 
   const removeEmpty = (obj) => {
@@ -90,16 +84,10 @@ function ChangeAutomationsDialog(props) {
     props.onFinished();
   };
 
-  const handleSkipFirstRunChange = (e) => {
-    setAlgoSettings((prevSettings) => ({...prevSettings, skip_first_run: e.target.checked ? 1 : 0}))
-  }
-
   const handleAlgoSelectionChange = (e) => {
     const nextAutomationName = e.target.value
-    const skipFirstRun = algoSettings.skip_first_run ?? 0
     setAutomationName(nextAutomationName)
     setAlgoSettings({
-        ...( !props.no_skip_first_run && {skip_first_run: skipFirstRun}),
         ...getDefaultSettingsForAutomation(automations[nextAutomationName]?.fields),
     })
   }
@@ -110,6 +98,10 @@ function ChangeAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
+    if (hasValidationErrors) {
+      return
+    }
+
     runPioreactorJob(
       props.unit,
       props.experiment,
@@ -175,28 +167,6 @@ function ChangeAutomationsDialog(props) {
             </Select>
             {selectedAutomation && <AutomationForm fields={selectedAutomation.fields} description={selectedAutomation.description} updateParent={updateFromChild} name={automationName} settings={algoSettings}/>}
 
-            {!props.no_skip_first_run ?
-              <Box sx={{mt: 1}}>
-                <FormControlLabel
-                  control={<Checkbox checked={Boolean(algoSettings.skip_first_run)}
-                                      color="primary"
-                                      onChange={handleSkipFirstRunChange}
-                                      size="small"/>
-                          }
-                  label="Skip first run"
-                  sx={{mr: 0, mt: 0}}
-                />
-                <IconButton
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Learn more about skip first run"
-                  href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run"
-                >
-                  <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }}/>
-                </IconButton>
-              </Box>
-            : <React.Fragment/> }
-
           </FormControl>
         </form>}
         {isLoading && <p>Loading...</p>}
@@ -213,7 +183,7 @@ function ChangeAutomationsDialog(props) {
           variant="contained"
           color="primary"
           onClick={startJob}
-          disabled={isLoading}
+          disabled={isLoading || hasValidationErrors}
         >
           Start
         </Button>

@@ -317,9 +317,9 @@ def subscribe_and_callback(
         def on_subscribe(
             client: Client,
             userdata: dict[str, Any],
-            mid: int,
-            granted_qos: tuple[int, ...],
-            properties: Any = None,
+            _mid: int,
+            _granted_qos: tuple[int, ...],
+            _properties: Any = None,
         ) -> None:
             sub_ready.set()
 

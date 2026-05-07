@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly UI exports cleanup
+
+[Timer]
+OnCalendar=monthly
+RandomizedDelaySec=15m
+Persistent=true
+Unit=ui-exports-cleanup.service
+
+[Install]
+WantedBy=timers.target

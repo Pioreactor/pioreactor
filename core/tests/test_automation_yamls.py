@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # test automation_yamls
 from functools import cache
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -11,25 +12,17 @@ from pioreactor.background_jobs.led_automation import available_led_automations
 from pioreactor.background_jobs.led_automation import LEDAutomationJobContrib
 from pioreactor.background_jobs.temperature_automation import available_temperature_automations
 from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJobContrib
-from pioreactor.mureq import get
-from pioreactor.mureq import head
 from yaml import load  # type: ignore
 from yaml import Loader  # type: ignore
 
 
-CUSTOMIZER_UI_ROOT = (
-    "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/"
-    "pioreactor/workspace/scripts/files/pioreactor/ui"
-)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SHARED_UI_DIR = REPO_ROOT / "packaging" / "shared-assets" / "pioreactor" / "ui"
 
 
 def get_specific_yaml(path: str) -> dict[str, Any]:
-    url = f"{CUSTOMIZER_UI_ROOT}/{path}"
-    r = get(url)
-    print(url)
-    r.raise_for_status()
-    data = r.content
-    return load(data, Loader=Loader)
+    yaml_path = SHARED_UI_DIR / path
+    return load(yaml_path.read_bytes(), Loader=Loader)
 
 
 @cache
@@ -38,11 +31,8 @@ def get_automation_yaml_filename(type_: str, automation_name: str) -> str:
     candidate_filenames = [expected_filename] + [f"{index:02d}_{expected_filename}" for index in range(100)]
 
     for filename in candidate_filenames:
-        response = head(f"{CUSTOMIZER_UI_ROOT}/automations/{type_}/{filename}")
-        if response.status_code == 200:
+        if (SHARED_UI_DIR / "automations" / type_ / filename).exists():
             return filename
-        if response.status_code != 404:
-            response.raise_for_status()
 
     raise FileNotFoundError(f"Unable to locate YAML for automation '{automation_name}' in '{type_}'.")
 

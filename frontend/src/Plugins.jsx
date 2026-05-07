@@ -40,7 +40,7 @@ function PageHeader() {
 
 
 
-function ListSuggestedPlugins({selectedUnit, installedPlugins}){
+function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}){
   const [availablePlugins, setSuggestedPlugins] = React.useState([])
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
@@ -189,7 +189,9 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
                     disabled={installedPlugins.includes(plugin.name)}
                   >
                     <MenuItem value={selectedUnit}>{installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
-                    <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
+                    {hasMultipleUnits && (
+                      <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
+                    )}
                   </SelectButton>
 
                   <Button
@@ -357,6 +359,7 @@ function PluginContainer(){
   const [unitsFetchError, setUnitsFetchError] = React.useState("")
   const [pluginsRefreshCounter, setPluginsRefreshCounter] = React.useState(0)
   const latestPluginsRequestId = React.useRef(0)
+  const displayedSelectedUnit = units.includes(selectedUnit) ? selectedUnit : ""
 
   React.useEffect(() => {
     if (!selectedUnit) {
@@ -376,17 +379,21 @@ function PluginContainer(){
       try {
         // Fetch installed plugins
         const result = await fetchTaskResult(`/api/units/${selectedUnit}/plugins/installed`);
+        const unitPlugins = result?.result?.[selectedUnit]
 
         if (!isActive || requestId !== latestPluginsRequestId.current) {
           return
         }
 
-        // Once 200 is received and JSON is parsed, update state
-        if (result['result'][selectedUnit]){
-          setInstalledPlugins(result['result'][selectedUnit])
-        } else {
-          setInstalledPlugins([])
+        if (unitPlugins == null) {
+          throw new Error("Could not reach this Pioreactor.")
         }
+
+        if (!Array.isArray(unitPlugins)) {
+          throw new Error("Installed plugins payload is not a list.")
+        }
+
+        setInstalledPlugins(unitPlugins)
       } catch (err) {
         if (!isActive || requestId !== latestPluginsRequestId.current) {
           return
@@ -492,7 +499,7 @@ function PluginContainer(){
           <Select
             labelId="configSelect"
             variant="standard"
-            value={selectedUnit}
+            value={displayedSelectedUnit}
             onChange={onSelectionChange}
             disabled={units.length === 0}
             sx={{
@@ -546,7 +553,7 @@ function PluginContainer(){
           Suggested plugins from the community
         </Typography>
 
-        <ListSuggestedPlugins selectedUnit={selectedUnit} installedPlugins={installedPlugins.map(p => p.name)}/>
+        <ListSuggestedPlugins selectedUnit={selectedUnit} installedPlugins={installedPlugins.map(p => p.name)} hasMultipleUnits={units.length > 1}/>
 
         </CardContent>
       </Card>

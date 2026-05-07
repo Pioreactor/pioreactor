@@ -29,17 +29,17 @@ from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as st
-from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.networking import resolve_to_address as resolve_to_address
 from pioreactor.utils.signal_handlers import append_signal_handler
-from pioreactor.utils.signal_handlers import append_signal_handlers
+from pioreactor.utils.signal_handlers import append_signal_handlers as append_signal_handlers
 from pioreactor.utils.signal_handlers import callable_stack
 from pioreactor.utils.signal_handlers import remove_signal_handler
-from pioreactor.utils.signal_handlers import remove_signal_handlers
-from pioreactor.utils.sqlite_cache import cache
-from pioreactor.utils.sqlite_cache import local_intermittent_storage
-from pioreactor.utils.sqlite_cache import local_persistent_storage
-from pioreactor.utils.timing import catchtime
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.signal_handlers import remove_signal_handlers as remove_signal_handlers
+from pioreactor.utils.sqlite_cache import cache as cache
+from pioreactor.utils.sqlite_cache import local_intermittent_storage as local_intermittent_storage
+from pioreactor.utils.sqlite_cache import local_persistent_storage as local_persistent_storage
+from pioreactor.utils.timing import catchtime as catchtime
+from pioreactor.utils.timing import current_utc_timestamp as current_utc_timestamp
 
 if TYPE_CHECKING:
     from pioreactor.pubsub import Client

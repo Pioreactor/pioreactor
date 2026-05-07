@@ -1,8 +1,68 @@
-### 26.4.4
+### 26.5.0
+
+#### Highlights
+
+ - **More reliable data exports.** The Export Data page now exports one experiment at a time and starts exports as async tasks, so the UI can wait for large exports instead of tying up a web request. Exports now write directly into the zip file, clean up stale partial artifacts, and stop early if disk space, memory, or SQLite WAL growth gets too close to unsafe limits.
+ - **Automation schedules now live with the automation.** Automations can choose the right trigger for their behavior: fixed timers, biomass updates, phase boundaries, or manual execution. For example, `turbidostat` now reacts to fresh biomass readings instead of polling every few seconds, while `light_dark_cycle` schedules exact light/dark phase boundaries.
+ - **New repair workflow.** Added `pio repair`, richer `pio status --json` checks, and a UI **Repair system** action under Inventory for fixing common local ownership, permission, and runtime-storage issues without rebooting or stopping running jobs.
+
+   ```bash
+   pio status --json
+   pio repair
+   ```
+
+#### Breaking changes
+
+ - Removed the old `dosing_automation/media_throughput` and `dosing_automation/alt_media_throughput` MQTT variables. Use the retained bioreactor cumulative dosing variables instead:
+
+   ```
+   pioreactor/<unit>/<experiment>/bioreactor/cumulative_media_added_ml
+   pioreactor/<unit>/<experiment>/bioreactor/cumulative_alt_media_added_ml
+   pioreactor/<unit>/<experiment>/bioreactor/cumulative_waste_removed_ml
+   ```
+
+ - Removed the shared `--duration` and `--skip-first-run` CLI flags from `pio run dosing_automation` and `pio run led_automation`. Timer-based automations now expose their own fields instead. For example:
+
+   ```bash
+   pio run dosing_automation --automation-name chemostat --duration 20 --skip-first-run 1
+   pio run led_automation --automation-name light_dark_cycle --light-duration-minutes 12.5 --dark-duration-minutes 12.5
+   ```
+
+ - Removed the old `pio update ...` and `pios update ...` aliases. Use the explicit subcommand:
+
+   ```bash
+   pio update app --version <version>
+   pios update app --version <version>
+   ```
+
+ - Moved passive Pioreactor card setting descriptors out of `ui/jobs/` and into the new `ui/settings/` descriptor directory. Plugin and custom UI descriptors for fields such as LED intensity, PWM intensity, and bioreactor state should now live under `~/.pioreactor/plugins/ui/settings/`. The old `/api/bioreactor/descriptors` endpoint has been replaced by `/api/settings/descriptors` and `/api/workers/<unit>/settings/descriptors`.
 
 #### Enhancements
 
+ - Added retained `bioreactor` variables for cumulative dosing totals: `cumulative_media_added_ml`, `cumulative_alt_media_added_ml`, and `cumulative_waste_removed_ml`. These are updated from dosing events and can be used for media-use, alt-media-use, and waste-removal alerts.
+ - Added YAML-backed UI settings descriptors, allowing built-in, plugin, and custom fields to control whether passive Pioreactor card fields are shown and how they appear in **Manage / Settings**.
+ - Improved automation start forms so each automation can define its own fields, including boolean options like `skip_first_run`, and required fields now block `Start` until valid.
+ - Improved the Light/Dark Cycle LED automation to support fractional-minute light and dark phases and reschedule immediately when phase durations change.
+ - Added per-Pioreactor **Stop all** actions on Pioreactor cards, so a single unit can be stopped without broadcasting to every assigned unit.
+ - Added YAML download buttons for individual calibrations and estimators, alongside the existing source preview.
+ - Improved frontend load performance by lazily loading route-level UI pages.
+
+#### Bug fixes
+
+ - Fixed large exports that could exhaust memory or leave incomplete CSV/tmp files behind after interruption.
+ - Fixed experiment profile save and delete requests so the API waits for the underlying file operation and reports failures instead of returning success too early.
+ - Fixed experiment profile start errors so the UI keeps the dialog open and shows the backend error.
+ - Fixed Advanced Config dialogs to refresh config from the selected worker when opened, avoiding stale values after jobs persist updated settings.
+ - Fixed cluster fan-out reads so offline or slow workers resolve to per-unit failures instead of turning the whole request into a `ResultTimeout`.
+ - Fixed plugin pages for worker-specific views so offline workers show a clear `Could not reach this Pioreactor.` error, and **Install across cluster** is shown only when there is more than one unit.
+ - Fixed model-hardware checks to apply to HAT v1.x hardware generally, not just model version `1.5`.
+ - Fixed dosing automations to check required pump calibrations and PWM assignments before starting, so missing media or waste pump setup is reported immediately.
+
+### 26.4.4
+
+#### Enhancements
  - New multi-pioreactor flow in the UI to run simultaneous protocols for stirring calibrations.
+
 
 #### Breaking changes
 

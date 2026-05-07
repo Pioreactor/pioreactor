@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sqlite3
 from datetime import datetime
 from datetime import UTC
 from io import BytesIO
@@ -14,6 +15,7 @@ from tests.utils import FakeMQTTMessageInfo
 
 from .conftest import capture_requests
 from .test_unit_api import _build_valid_calibration_yaml
+from .test_unit_api import FakeTaskResult
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
@@ -70,10 +72,17 @@ def test_get_workers(client) -> None:
 
 
 def test_discover_workers_endpoint(client, monkeypatch) -> None:
+    from pioreactor.utils.networking import DiscoveredWorker
+
     # Mock network discovery to yield an existing and a new worker
     monkeypatch.setattr(
         "pioreactor.utils.networking.discover_workers_on_network",
-        lambda terminate: iter(["unit1", "new_unit"]),
+        lambda terminate: iter(
+            [
+                DiscoveredWorker(hostname="unit1", ipv4_address="192.168.1.10"),
+                DiscoveredWorker(hostname="new_unit", ipv4_address="192.168.1.11"),
+            ]
+        ),
     )
     response = client.get("/api/workers/discover")
     assert response.status_code == 200
@@ -214,9 +223,13 @@ def test_change_worker_model_triggers_hardware_check_for_v1_5(client, monkeypatc
     assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.5"}
 
 
-def test_change_worker_model_does_not_trigger_hardware_check_for_non_v1_5(client, monkeypatch) -> None:
-    def fake_post_into_unit(*_args, **_kwargs) -> None:
-        raise AssertionError("hardware check should not be triggered")
+def test_change_worker_model_triggers_hardware_check_for_non_v1_5(client, monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_post_into_unit(unit: str, endpoint: str, json: dict | None = None) -> None:
+        captured["unit"] = unit
+        captured["endpoint"] = endpoint
+        captured["json"] = json
 
     monkeypatch.setattr("pioreactor.web.api.tasks.post_into_unit", fake_post_into_unit)
 
@@ -225,6 +238,9 @@ def test_change_worker_model_does_not_trigger_hardware_check_for_non_v1_5(client
         json={"model_name": "pioreactor_20ml", "model_version": "1.1"},
     )
     assert response.status_code == 200
+    assert captured["unit"] == "unit1"
+    assert captured["endpoint"] == "/unit_api/hardware/check"
+    assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.1"}
 
 
 def test_get_unit_labels(client) -> None:
@@ -336,6 +352,50 @@ def test_get_recent_logs_excludes_universal_experiment(client) -> None:
     assert any(row["message"] == "Experiment-only event" for row in data)
     assert all(row["message"] != "Universal event" for row in data)
     assert all(row["experiment"] == "exp1" for row in data)
+
+
+def test_get_experiment_logs_filters_by_min_level_and_orders_by_timestamp(client) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    logs = [
+        ("2023-10-04T12:00:00Z", "Info event", "INFO"),
+        ("2023-10-04T12:01:00Z", "Notice event", "NOTICE"),
+        ("2023-10-04T12:02:00Z", "Warning event", "WARNING"),
+        ("2023-10-04T12:03:00Z", "Error event", "ERROR"),
+    ]
+    for timestamp, message, level in logs:
+        modify_app_db(
+            "INSERT INTO logs (experiment, pioreactor_unit, timestamp, message, source, level, task) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("exp1", "unit1", timestamp, message, "app", level, "app"),
+        )
+
+    response = client.get("/api/experiments/exp1/logs?min_level=NOTICE")
+
+    assert response.status_code == 200
+    messages = [row["message"] for row in response.get_json()]
+    assert messages[:3] == ["Error event", "Warning event", "Notice event"]
+    assert "Info event" not in messages
+
+
+def test_experiment_logs_query_uses_experiment_level_timestamp_index() -> None:
+    from pioreactor.web.api import build_experiment_logs_query
+    from pioreactor.web.api import get_levels_for_min_level
+
+    levels = get_levels_for_min_level("NOTICE")
+    query_args = tuple(arg for level in levels for arg in ("exp1", level)) + (0,)
+    db = sqlite3.connect(":memory:")
+    db.executescript(
+        (Path(__file__).resolve().parents[3] / "packaging/shared-assets/sql/create_tables.sql").read_text()
+    )
+
+    plan = db.execute(
+        "EXPLAIN QUERY PLAN " + build_experiment_logs_query(levels),
+        query_args,
+    ).fetchall()
+
+    details = "\n".join(row[3] for row in plan)
+    assert "logs_exp_level_timestamp_ix" in details
+    assert "logs_exp_timestamp_ix" not in details
 
 
 @pytest.mark.parametrize(
@@ -470,6 +530,24 @@ def test_create_experiment_missing_fields(client) -> None:
         },
     )
     assert response.status_code == 400  # Bad Request
+
+
+@pytest.mark.parametrize(
+    ("experiment_name", "expected_error"),
+    [
+        ("current", "Experiment name cannot be 'current'"),
+        ("_testing_exp", "Experiment name cannot start with '_testing'"),
+        ("bad/name", "Experiment name cannot contain special characters (#, $, %, +, /, \\)"),
+        (["exp4"], "Experiment name is required"),
+    ],
+)
+def test_create_experiment_rejects_invalid_names(
+    client: FlaskClient, experiment_name: object, expected_error: str
+) -> None:
+    response = client.post("/api/experiments", json={"experiment": experiment_name})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected_error
 
 
 def test_404_for_unknown_api(client) -> None:
@@ -639,6 +717,47 @@ common:
     assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0]"
 
 
+def test_create_experiment_profile_reports_save_failure(client, monkeypatch) -> None:
+    monkeypatch.setattr("pioreactor.web.api.tasks.save_file", lambda *_args, **_kwargs: FakeTaskResult(False))
+
+    response = client.post(
+        "/api/experiment_profiles",
+        json={"body": "experiment_profile_name: save_failure_demo", "filename": "save_failure_demo.yaml"},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == "Failed to save experiment profile."
+
+
+def test_update_experiment_profile_reports_save_failure(client, monkeypatch) -> None:
+    monkeypatch.setattr("pioreactor.web.api.tasks.save_file", lambda *_args, **_kwargs: FakeTaskResult(False))
+
+    response = client.patch(
+        "/api/experiment_profiles/save_failure_demo.yaml",
+        json={"body": "experiment_profile_name: save_failure_demo"},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == "Failed to save experiment profile."
+
+
+def test_delete_experiment_profile_reports_delete_failure(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    profiles_dir = tmp_path / "experiment_profiles"
+    profiles_dir.mkdir()
+    (profiles_dir / "delete_failure_demo.yaml").write_text(
+        "experiment_profile_name: delete_failure_demo", encoding="utf-8"
+    )
+    monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
+    monkeypatch.setattr("pioreactor.web.api.tasks.rm", lambda *_args, **_kwargs: FakeTaskResult(False))
+
+    response = client.delete("/api/experiment_profiles/delete_failure_demo.yaml")
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == "Failed to delete experiment profile."
+
+
 def test_broadcasting(client) -> None:
     response = client.get("/api/workers")
     data = response.get_json()
@@ -671,7 +790,6 @@ def test_broadcast_in_manage_all(client) -> None:
             "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 
@@ -704,7 +822,6 @@ def test_run_job(client) -> None:
             "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 
@@ -752,7 +869,6 @@ def test_run_job_with_job_source(client) -> None:
             "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 
@@ -806,6 +922,96 @@ def test_stop_specific_job_returns_task_response_when_mqtt_publish_fails(client,
     assert data["result_url_path"] == "/unit_api/task_results/fallback-task"
 
 
+def test_export_datasets_returns_async_task_response(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+
+    class DummyTask:
+        id = "export-task"
+
+    def fake_export_experiment_data_task(
+        experiments: list[str],
+        dataset_names: list[str],
+        output: str,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        partition_by_unit: bool = False,
+        partition_by_experiment: bool = True,
+    ) -> DummyTask:
+        captured["experiments"] = experiments
+        captured["dataset_names"] = dataset_names
+        captured["output"] = output
+        captured["start_time"] = start_time
+        captured["end_time"] = end_time
+        captured["partition_by_unit"] = partition_by_unit
+        captured["partition_by_experiment"] = partition_by_experiment
+        return DummyTask()
+
+    monkeypatch.setenv("RUN_PIOREACTOR", tmp_path.as_posix())
+    monkeypatch.setattr(
+        "pioreactor.web.api.tasks.export_experiment_data_task", fake_export_experiment_data_task
+    )
+
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiments": [],
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+            "start_time": "2026-01-01T00:00",
+            "end_time": None,
+        },
+    )
+
+    assert response.status_code == 202
+    data = response.get_json()
+    assert data["task_id"] == "export-task"
+    assert data["result_url_path"] == "/unit_api/task_results/export-task"
+    assert captured["experiments"] == []
+    assert captured["dataset_names"] == ["od_readings"]
+    output_path = Path(str(captured["output"]))
+    assert output_path.parent == tmp_path / "exports"
+    assert output_path.name.startswith("export_")
+    assert output_path.name.endswith(".zip")
+    assert captured["start_time"] == "2026-01-01T00:00"
+    assert captured["end_time"] is None
+    assert captured["partition_by_unit"] is True
+    assert captured["partition_by_experiment"] is False
+
+
+def test_update_app_from_release_archive_requires_json_object(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/system/update_from_archive",
+        data='["not", "an", "object"]',
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body"
+
+
+def test_update_app_from_release_archive_requires_zip(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/system/update_from_archive",
+        json={"release_archive_location": "/tmp/release.tar.gz", "units": "$broadcast"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "release_archive_location must point to a .zip file"
+
+
+def test_update_app_from_release_archive_requires_units(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/system/update_from_archive",
+        json={"release_archive_location": "/tmp/release.zip"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Missing units"
+
+
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
 def test_get_settings_unit_api(client) -> None:
     from pioreactor.background_jobs.stirring import start_stirring
@@ -844,16 +1050,11 @@ def test_get_settings_api(client) -> None:
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
 
 
-def test_get_bioreactor_descriptors(client) -> None:
-    response = client.get("/api/bioreactor/descriptors")
+def test_get_settings_descriptors(client) -> None:
+    response = client.get("/api/settings/descriptors")
 
     assert response.status_code == 200
-    data = response.get_json()
-    assert [descriptor["key"] for descriptor in data] == [
-        "current_volume_ml",
-        "efflux_tube_volume_ml",
-        "alt_media_fraction",
-    ]
+    assert isinstance(response.get_json(), list)
 
 
 def test_get_job_descriptors_for_worker_proxies_unit_api(client, monkeypatch: MonkeyPatch) -> None:
@@ -884,12 +1085,52 @@ def test_get_job_descriptors_for_worker_proxies_unit_api(client, monkeypatch: Mo
     ]
 
 
+def test_get_settings_descriptors_for_worker_proxies_unit_api(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    def fake_get_from(*_args, **_kwargs) -> MureqResponse:
+        return MureqResponse(
+            "http://unit1.local:4999/unit_api/settings/descriptors",
+            200,
+            {"Content-Type": "application/json"},
+            b'[{"key":"worker_settings","display_name":"Worker settings","display":true,"published_settings":[]}]',
+        )
+
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    response = client.get("/api/workers/unit1/settings/descriptors")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {
+            "key": "worker_settings",
+            "display_name": "Worker settings",
+            "display": True,
+            "published_settings": [],
+        }
+    ]
+
+
 def test_get_job_descriptors_for_worker_rejects_broadcast(client) -> None:
     response = client.get("/api/workers/$broadcast/jobs/descriptors")
 
     assert response.status_code == 400
+    assert response.mimetype == "application/json"
     data = response.get_json()
     assert data["error"] == "Cannot fetch job descriptors with $broadcast; choose a specific Pioreactor."
+    assert data["status"] == 400
+
+
+def test_get_settings_descriptors_for_worker_rejects_broadcast(client) -> None:
+    response = client.get("/api/workers/$broadcast/settings/descriptors")
+
+    assert response.status_code == 400
+    assert response.mimetype == "application/json"
+    data = response.get_json()
+    assert data["error"] == "Cannot fetch settings descriptors with $broadcast; choose a specific Pioreactor."
+    assert data["status"] == 400
 
 
 def test_get_automation_descriptors_for_worker_proxies_unit_api(client, monkeypatch: MonkeyPatch) -> None:

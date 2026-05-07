@@ -15,7 +15,7 @@ from msgspec.json import encode as dumps
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
-from pioreactor.plugin_management import load_plugins
+from pioreactor.plugin_management import get_plugins
 from pioreactor.version import __version__
 from pioreactor.web.utils import ensure_error_info
 from pioreactor.whoami import am_I_leader
@@ -38,7 +38,9 @@ logger.debug(f"Starting {NAME}={VERSION} on {HOSTNAME}...")
 
 
 try:
-    load_plugins()
+    plugins = get_plugins()
+    for plugin in plugins:
+        logger.debug(f"Loading plugin {plugin}")
 except BaseException as e:
     # BaseExpection since some plugins might use SystemExit, which isn't an Exception.
     logger.debug(f"Web-server encountered error {e} when loading plugins.")

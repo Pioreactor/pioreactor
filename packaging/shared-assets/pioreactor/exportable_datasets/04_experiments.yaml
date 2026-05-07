@@ -1,0 +1,10 @@
+dataset_name: experiments
+default_order_by: created_at
+has_experiment: false
+has_unit: false
+source: app
+table: experiments
+timestamp_columns:
+- created_at
+description: This dataset includes experiment description and metadata.
+display_name: Experiments

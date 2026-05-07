@@ -1,0 +1,10 @@
+dataset_name: temperature_readings
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: temperature_readings
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of temperature readings from the Pioreactors. This data matches what's presented in the "Temperature of vials" chart in the Experiment Overview.
+display_name: Temperature readings

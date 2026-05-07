@@ -113,7 +113,7 @@ def test_collect_stirring_measurements_interrupts_on_exit_event(
         def __enter__(self) -> "DummyLifecycle":
             return self
 
-        def __exit__(self, exc_type, exc, tb) -> None:
+        def __exit__(self, _exc_type, exc, _tb) -> None:
             return
 
     class DummyRpmCalculator:
@@ -126,7 +126,7 @@ def test_collect_stirring_measurements_interrupts_on_exit_event(
         def __enter__(self) -> "DummyRpmCalculator":
             return self
 
-        def __exit__(self, exc_type, exc, tb) -> None:
+        def __exit__(self, _exc_type, exc, _tb) -> None:
             return
 
     class DummyStirrer:
@@ -142,7 +142,7 @@ def test_collect_stirring_measurements_interrupts_on_exit_event(
         def __enter__(self) -> "DummyStirrer":
             return self
 
-        def __exit__(self, exc_type, exc, tb) -> None:
+        def __exit__(self, _exc_type, exc, _tb) -> None:
             return
 
     monkeypatch.setattr(stirring_dc_based, "managed_lifecycle", lambda *args, **kwargs: DummyLifecycle())

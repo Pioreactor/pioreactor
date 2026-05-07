@@ -33,7 +33,7 @@ from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
-from pioreactor.utils.math_helpers import simple_linear_regression
+from pioreactor.utils.splines import spline_fit
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -122,11 +122,6 @@ def _build_stirring_calibration_from_measurements(
     voltage: float,
     unit: str,
 ) -> SimpleStirringCalibration:
-    (alpha, _), (beta, _) = simple_linear_regression(dcs, rpms)
-    logger = create_logger("stirring_calibration", experiment="$experiment")
-    logger.debug(f"rpm = {alpha:.2f} * dc% + {beta:.2f}")
-
-    from pioreactor.utils.splines import spline_fit
 
     return SimpleStirringCalibration(
         pwm_hz=config.getfloat("stirring.config", "pwm_hz"),

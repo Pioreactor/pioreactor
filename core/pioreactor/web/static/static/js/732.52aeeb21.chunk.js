@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkui=self.webpackChunkui||[]).push([[732],{43732:function(e,i,n){n.r(i),n.d(i,{EditExperimentProfilesContent:function(){return u},default:function(){return r}});n(65043);var t=n(7906),l=n(70579);function u(e){let{initialCode:i,profileFilename:n}=e;return(0,l.jsx)(t.T2,{initialCode:i,initialFilename:n,filenameEditable:!1,onSave:async()=>{}})}function r(e){let{title:i}=e;return(0,l.jsx)(t.Ay,{mode:"edit",title:i})}}}]);
+//# sourceMappingURL=732.52aeeb21.chunk.js.map

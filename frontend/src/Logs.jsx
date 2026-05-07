@@ -91,7 +91,6 @@ function Logs(props) {
     exportLogsQueryParams.append("experiments", experimentMetadata.experiment);
   }
   exportLogsQueryParams.append("datasets", "logs");
-  exportLogsQueryParams.set("partition_by_experiment", "false");
   exportLogsQueryParams.set("partition_by_unit", pioreactorUnit ? "true" : "false");
   const exportLogsHref = `/export-data?${exportLogsQueryParams.toString()}`;
 
@@ -122,7 +121,7 @@ function Logs(props) {
                   <MenuItem value="INFO" >= Standard </MenuItem>
                   <MenuItem value="DEBUG">≡ Detailed </MenuItem>
                 </Select>
-                <span style={{marginRight: "8px"}}> event logs for</span>
+                <span style={{marginRight: "4px"}}> event logs for</span>
                 <Select
                   labelId="configSelect"
                   variant="standard"

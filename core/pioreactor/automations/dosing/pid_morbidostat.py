@@ -5,9 +5,10 @@ from typing import Any
 from pioreactor import structs
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
+from pioreactor.background_jobs.dosing_automation import (
+    check_pump_calibrations_and_pwm_channels_are_configured,
+)
 from pioreactor.config import config
-from pioreactor.exc import CalibrationError
-from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.streaming_calculations import PID
 
 
@@ -18,25 +19,26 @@ class PIDMorbidostat(DosingAutomationJob):
 
     automation_name = "pid_morbidostat"
     published_settings = {
-        "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
         "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
     }
 
     def __init__(
-        self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs: Any
+        self,
+        target_growth_rate: float | str,
+        target_normalized_od: float | str,
+        duration: float | str = 60,
+        skip_first_run: bool | str | int = False,
+        **kwargs: Any,
     ) -> None:
-        super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_normalized_od is not None, "`target_normalized_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
 
-        with local_persistent_storage("active_calibrations") as cache:
-            if "media_pump" not in cache:
-                raise CalibrationError("Media pump calibration must be performed first.")
-            elif "waste_pump" not in cache:
-                raise CalibrationError("Waste pump calibration must be performed first.")
-            elif "alt_media_pump" not in cache:
-                raise CalibrationError("Alt-Media pump calibration must be performed first.")
+        check_pump_calibrations_and_pwm_channels_are_configured(
+            ("media_pump", "waste_pump", "alt_media_pump")
+        )
+        super(PIDMorbidostat, self).__init__(**kwargs)
 
         self.set_target_growth_rate(target_growth_rate)
         self.target_normalized_od = float(target_normalized_od)
@@ -51,7 +53,6 @@ class PIDMorbidostat(DosingAutomationJob):
             -Kd,
             setpoint=self.target_growth_rate,
             output_limits=(0, 1),
-            sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
@@ -59,10 +60,12 @@ class PIDMorbidostat(DosingAutomationJob):
             pub_client=self.pub_client,
         )
 
-        assert isinstance(self.duration, float)
-        self.exchange_volume_ml = round(
-            self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4
-        )
+        self.duration = float(duration)
+        self.run_every(self.duration, skip_first_run=skip_first_run, run_after_seconds=2.0)
+
+    @property
+    def exchange_volume_ml(self) -> float:
+        return round(self.target_growth_rate * self.current_volume_ml * (self.duration / 60), 4)
 
     def execute(self) -> structs.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:

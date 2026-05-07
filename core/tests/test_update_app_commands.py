@@ -10,21 +10,21 @@ from pathlib import Path
 from shlex import quote
 
 import click
+import pioreactor.config as config_module
 import pytest
 from pioreactor.cli.pio import get_update_app_commands
-from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.mureq import Response
 
 
 @pytest.fixture(autouse=True)
 def ensure_storage_database_configured() -> object:
-    if config.has_option("storage", "database"):
+    if config_module.config.has_option("storage", "database"):
         yield
         return
 
     database_path = str(Path(".pioreactor") / "storage" / "pioreactor.sqlite")
-    with temporary_config_change(config, "storage", "database", database_path):
+    with temporary_config_change(config_module.config, "storage", "database", database_path):
         yield
 
 
@@ -109,6 +109,30 @@ def test_app_commands_with_branch() -> None:
     assert cmds == [expected]
 
 
+def test_app_commands_with_branch_for_leader_only(monkeypatch) -> None:
+    branch = "feature/test"
+    repo = "org/repo"
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: False)
+
+    cmds, version = get_update_app_commands(
+        branch=branch,
+        repo=repo,
+        source=None,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert version == branch
+    assert cmds == [
+        (
+            "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
+            "--extra-index-url https://pypi.org/simple "
+            f'"pioreactor[leader] @ git+https://github.com/{repo}.git@{branch}#subdirectory=core"',
+            1,
+        )
+    ]
+
+
 def test_app_commands_with_sha() -> None:
     sha = "a0b1c2d3e4f56789a0b1c2d3e4f56789a0b1c2d3"
     repo = "org/repo"
@@ -178,10 +202,13 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
         (f"sudo rm -rf {tmp_rls_dir}", 98),
         (
             f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
+            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
             3,
         ),
-        (f"sudo sqlite3 {config.get('storage','database')} < {tmp_rls_dir}/update.sql || :", 10),
+        (
+            f"sudo sqlite3 {config_module.config.get('storage','database')} < {tmp_rls_dir}/update.sql || :",
+            10,
+        ),
     ]
     assert cmds == expected
 
@@ -283,14 +310,14 @@ def test_app_commands_from_release_metadata_include_restart_by_default(monkeypat
         version=None,
     )
 
-    wget_command = next(command for command, _ in cmds if command.startswith("wget -O "))
-    archive_location = wget_command.removeprefix("wget -O ").removesuffix(
+    wget_command = next(command for command, _ in cmds if command.startswith("wget -nv -O "))
+    archive_location = wget_command.removeprefix("wget -nv -O ").removesuffix(
         " https://example.com/release_26.3.0.zip"
     )
 
     assert archive_location.startswith(quote(f"{tempfile.gettempdir()}/pioreactor_update_archive_"))
     assert archive_location.endswith("release_26.3.0.zip")
-    assert (f"wget -O {archive_location} https://example.com/release_26.3.0.zip", -100) in cmds
+    assert (f"wget -nv -O {archive_location} https://example.com/release_26.3.0.zip", -100) in cmds
     assert ("sudo systemctl restart pioreactor-web.target", 99) in cmds
 
 
@@ -351,15 +378,15 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
 
     assert ver == version
 
-    wget_command = next(command for command, _ in cmds if command.startswith("wget -O "))
-    archive_location = wget_command.removeprefix("wget -O ").removesuffix(
+    wget_command = next(command for command, _ in cmds if command.startswith("wget -nv -O "))
+    archive_location = wget_command.removeprefix("wget -nv -O ").removesuffix(
         f" https://example.com/release_{version}.zip"
     )
     tmp_rls_dir = f"{tempfile.gettempdir()}/release_{version}"
     assert archive_location.startswith(quote(f"{tempfile.gettempdir()}/pioreactor_update_archive_"))
     assert archive_location.endswith(f"release_{version}.zip")
     assert cmds == [
-        (f"wget -O {archive_location} https://example.com/release_{version}.zip", -100),
+        (f"wget -nv -O {archive_location} https://example.com/release_{version}.zip", -100),
         (f"sudo rm -rf {tmp_rls_dir}", -99),
         (f"unzip -o {archive_location} -d {tmp_rls_dir}", 0),
         (f"unzip -o {tmp_rls_dir}/wheels_{version}.zip -d {tmp_rls_dir}/wheels", 1),
@@ -369,10 +396,13 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
         (f"sudo rm -rf {tmp_rls_dir}", 98),
         (
             f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
+            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
             3,
         ),
-        (f"sudo sqlite3 {config.get('storage','database')} < {tmp_rls_dir}/update.sql || :", 10),
+        (
+            f"sudo sqlite3 {config_module.config.get('storage','database')} < {tmp_rls_dir}/update.sql || :",
+            10,
+        ),
         (f"sudo rm -f {archive_location}", 97),
     ]
 
@@ -416,8 +446,27 @@ def test_app_commands_with_release_zip_for_worker_excludes_leader_steps(monkeypa
 
     assert ver == version
     assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
-    assert not any("[leader,worker]" in command for command, _ in cmds)
+    assert not any("[leader_worker]" in command for command, _ in cmds)
     assert not any("update.sql" in command for command, _ in cmds)
+
+
+def test_app_commands_with_release_zip_for_leader_only_uses_leader_extra(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: False)
+    version = "26.3.0"
+    source = str(tmp_path / f"release_{version}.zip")
+
+    cmds, ver = get_update_app_commands(
+        branch=None,
+        repo="org/repo",
+        source=source,
+        version=None,
+        defer_web_restart=True,
+    )
+
+    assert ver == version
+    assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[leader]") for command, _ in cmds)
+    assert not any("[leader_worker]" in command for command, _ in cmds)
+    assert any("update.sql" in command for command, _ in cmds)
 
 
 def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monkeypatch) -> None:
@@ -448,7 +497,7 @@ def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monk
 
     assert ver == version
     assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
-    assert not any("[leader,worker]" in command for command, _ in cmds)
+    assert not any("[leader_worker]" in command for command, _ in cmds)
     assert not any("update.sql" in command for command, _ in cmds)
 
 
@@ -497,9 +546,9 @@ def test_app_commands_from_release_metadata_does_not_fetch_individual_assets(mon
         defer_web_restart=True,
     )
 
-    wget_commands = [command for command, _ in cmds if command.startswith("wget -O ")]
+    wget_commands = [command for command, _ in cmds if command.startswith("wget -nv -O ")]
     assert len(wget_commands) == 1
     assert re.fullmatch(
-        rf"wget -O {re.escape(tempfile.gettempdir())}/pioreactor_update_archive_[0-9a-f]+_release_{re.escape(version)}\.zip https://example\.com/release_{re.escape(version)}\.zip",
+        rf"wget -nv -O {re.escape(tempfile.gettempdir())}/pioreactor_update_archive_[0-9a-f]+_release_{re.escape(version)}\.zip https://example\.com/release_{re.escape(version)}\.zip",
         wget_commands[0],
     )

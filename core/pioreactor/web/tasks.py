@@ -10,6 +10,7 @@ import configparser
 import grp
 import json
 import logging
+import math
 import os
 import pwd
 import shutil
@@ -32,6 +33,7 @@ from typing import cast
 from uuid import uuid4
 
 from huey import chord as huey_chord
+from huey.exceptions import ResultTimeout
 from msgspec import DecodeError
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
@@ -47,7 +49,7 @@ from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
-from pioreactor.plugin_management import load_plugins
+from pioreactor.plugin_management import get_plugins
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
@@ -57,7 +59,7 @@ from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.web import cache
+from pioreactor.version import hardware_version_info
 from pioreactor.web.config import huey
 from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
@@ -70,6 +72,7 @@ CalibrationActionHandler = tuple[
 
 # Registry of calibration action -> handler that returns a Huey task, label, and normalizer.
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
+MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
 
 
 def register_calibration_action(
@@ -219,7 +222,7 @@ def _process_delayed_json_response(
     unit: str,
     response: Response,
     *,
-    max_attempts: int = 60,
+    max_attempts: int = 300,
     retry_sleep_s: float = 0.1,
 ) -> tuple[str, Any]:
     """
@@ -244,14 +247,19 @@ def _process_delayed_json_response(
     return unit, None
 
 
+def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.1) -> int:
+    return max(1, math.ceil(timeout / retry_sleep_s))
+
+
 @huey.on_startup()
 def initialized() -> None:
     logger.debug("Starting Huey consumer...")
-    logger.debug("Loading plugins...")
     try:
-        load_plugins()
+        plugins = get_plugins()
+        for plugin in plugins:
+            logger.debug(f"Loading plugin {plugin}")
     except Exception:
-        pass
+        raise
 
 
 @huey.task(priority=50)
@@ -302,7 +310,7 @@ def pio_run(
         stdio.close()
         result["error"] = f"Command exited during startup grace window. Exit code {proc.returncode}."
         if stderr_output:
-            result["error"] += f" {stderr_output}"
+            result["error"] += f" {stderr_output.splitlines()[-1]}"
         raise RuntimeError(result["error"])
 
 
@@ -324,10 +332,14 @@ def _get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int
     return addresses
 
 
+def _is_hat_v1_x() -> bool:
+    return hardware_version_info is not None and hardware_version_info[0] == 1
+
+
 @huey.task(priority=10)
 def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
-    if model_version != "1.5":
-        return {"status": "skipped", "reason": "hardware check only applies to model version 1.5"}
+    if not _is_hat_v1_x():
+        return {"status": "skipped", "reason": "hardware check only applies to HAT v1.x"}
 
     registered_models = get_registered_models()
     if (model_name, model_version) in registered_models:
@@ -743,6 +755,18 @@ def _register_core_calibration_actions() -> None:
 _register_core_calibration_actions()
 
 
+def require_export_disk_space(output_dir: Path) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    free_bytes = shutil.disk_usage(output_dir).free
+
+    if free_bytes < MINIMUM_EXPORT_FREE_BYTES:
+        free_mb = free_bytes // (1024 * 1024)
+        required_mb = MINIMUM_EXPORT_FREE_BYTES // (1024 * 1024)
+        raise OSError(
+            f"Not enough free space to export datasets. {required_mb} MB required, {free_mb} MB available."
+        )
+
+
 @huey.task()
 @huey.lock_task("export-data-lock")
 def export_experiment_data_task(
@@ -753,31 +777,31 @@ def export_experiment_data_task(
     end_time: str | None = None,
     partition_by_unit: bool = False,
     partition_by_experiment: bool = True,
-) -> tuple[bool, str]:
+) -> dict[str, bool | str]:
+    from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 
     logger.debug("Exporting experiment data.")
     if not output:
-        return False, "Missing output"
+        raise ValueError("Missing output")
     if not output.endswith(".zip"):
-        return False, "output should end with .zip"
+        raise ValueError("output should end with .zip")
     if not dataset_names:
-        return False, "At least one dataset name must be provided."
+        raise ValueError("At least one dataset name must be provided.")
 
-    try:
-        export_experiment_data(
-            experiments,
-            dataset_names,
-            output,
-            start_time=start_time,
-            end_time=end_time,
-            partition_by_unit=partition_by_unit,
-            partition_by_experiment=partition_by_experiment,
-        )
-        return True, "Finished"
-    except Exception as exc:
-        logger.debug(str(exc))
-        return False, str(exc)
+    output_path = Path(output)
+    cleanup_stale_export_artifacts(output_path.parent, logger)
+    require_export_disk_space(output_path.parent)
+    export_experiment_data(
+        experiments,
+        dataset_names,
+        output,
+        start_time=start_time,
+        end_time=end_time,
+        partition_by_unit=partition_by_unit,
+        partition_by_experiment=partition_by_experiment,
+    )
+    return {"result": True, "filename": output_path.name, "msg": "Finished"}
 
 
 @huey.task(priority=100)
@@ -1024,6 +1048,38 @@ def restart_pioreactor_web_target() -> bool:
 
 
 @huey.task()
+@huey.rate_limit("repair-system", limit=1, per=30, retry=False)
+@huey.lock_task("repair-system-lock")
+def repair_system() -> dict[str, Any]:
+    logger.debug("Repairing system permissions and checking status")
+    repair_result = run(
+        [PIO_EXECUTABLE, "repair"],
+        capture_output=True,
+        text=True,
+    )
+    status_result = run(
+        [PIO_EXECUTABLE, "status", "--json"],
+        capture_output=True,
+        text=True,
+    )
+
+    return {
+        "success": repair_result.returncode == 0 and status_result.returncode == 0,
+        "repair": {
+            "returncode": repair_result.returncode,
+            "stdout": repair_result.stdout,
+            "stderr": repair_result.stderr,
+        },
+        "status": {
+            "returncode": status_result.returncode,
+            "stdout": status_result.stdout,
+            "stderr": status_result.stderr,
+            "payload": json.loads(status_result.stdout),
+        },
+    }
+
+
+@huey.task()
 def pios(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pios",) + args + ("-y",))}`, {env=}')
@@ -1083,6 +1139,7 @@ def post_into_unit(
     endpoint: str,
     json: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
+    timeout: float = 30.0,
 ) -> tuple[str, Any]:
     r: Response | None = None
     try:
@@ -1094,7 +1151,7 @@ def post_into_unit(
             return unit, None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r)
+        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1109,8 +1166,7 @@ def post_into_unit(
         return unit, None
 
 
-@huey.task(priority=5)
-def reduce_multicast_results(
+def _reduce_multicast_results(
     units: list[str],
     sort_results: bool,
     ordered_results: list[Any],
@@ -1135,6 +1191,15 @@ def reduce_multicast_results(
     return results_by_unit
 
 
+@huey.task(priority=5)
+def reduce_multicast_results(
+    units: list[str],
+    sort_results: bool,
+    ordered_results: list[Any],
+) -> dict[str, Any]:
+    return _reduce_multicast_results(units, sort_results, ordered_results)
+
+
 def _enqueue_multicast_chord(task_signatures: list[Any], units: list[str], sort_results: bool) -> Any:
     return huey.enqueue(
         huey_chord(
@@ -1145,6 +1210,9 @@ def _enqueue_multicast_chord(task_signatures: list[Any], units: list[str], sort_
 
 
 def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[str]) -> None:
+    # Keep this import lazy so plugins can import the calibration action registry without importing web.app.
+    from pioreactor.web import cache
+
     cache.clear_multicast_get_cache(cache_namespace, endpoint, units)
 
 
@@ -1205,7 +1273,7 @@ def multicast_post(
         return reduce_multicast_results(units, False, [])
 
     return _enqueue_multicast_chord(
-        [post_into_unit.s(units[i], endpoint, json[i], params[i]) for i in range(len(units))],
+        [post_into_unit.s(units[i], endpoint, json[i], params[i], timeout) for i in range(len(units))],
         units,
         False,
     )
@@ -1228,7 +1296,7 @@ def _get_from_unit(
     json: dict[str, Any] | None = None,
     timeout: float = 5.0,
     return_raw: bool = False,
-    max_attempts: int = 60,
+    max_attempts: int | None = None,
 ) -> tuple[str, Any]:
     r: Response | None = None
     try:
@@ -1241,7 +1309,11 @@ def _get_from_unit(
             return unit, r.content or None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r, max_attempts=max_attempts)
+        return _process_delayed_json_response(
+            unit,
+            r,
+            max_attempts=max_attempts if max_attempts is not None else _delayed_result_max_attempts(timeout),
+        )
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1276,7 +1348,20 @@ def _multicast_get_uncached(
         units,
         True,
     )
-    unsorted_responses = result.get(blocking=True, timeout=timeout)
+    try:
+        # Give the aggregate Huey result a small amount of headroom beyond the per-unit
+        # request timeout so offline workers can resolve to `None` instead of turning
+        # the whole fanout into a ResultTimeout.
+        unsorted_responses = result.get(blocking=True, timeout=timeout + 1.0)
+    except ResultTimeout:
+        ordered_results: list[Any] = []
+        for child_result in result.results:
+            try:
+                ordered_results.append(child_result.get(blocking=False, preserve=True))
+            except Exception as exc:
+                ordered_results.append(exc)
+
+        return _reduce_multicast_results(units, True, ordered_results)
 
     return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 
@@ -1311,6 +1396,9 @@ def multicast_get_with_leader_cache(
     timeout: float = 5.0,
     ttl_s: float = 10.0,
 ) -> dict[str, Any]:
+    # Keep this import lazy so plugins can import the calibration action registry without importing web.app.
+    from pioreactor.web import cache
+
     return cache.multicast_get_with_leader_cache(
         cache_namespace=cache_namespace,
         endpoint=endpoint,
@@ -1321,7 +1409,9 @@ def multicast_get_with_leader_cache(
 
 
 @huey.task(priority=50)
-def patch_into_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
+def patch_into_unit(
+    unit: str, endpoint: str, json: dict[str, Any] | None = None, timeout: float = 30.0
+) -> tuple[str, Any]:
     r: Response | None = None
     try:
         address = resolve_to_address(unit)
@@ -1332,7 +1422,7 @@ def patch_into_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None
             return unit, None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r)
+        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1356,7 +1446,7 @@ def multicast_patch(
         return reduce_multicast_results(units, False, [])
 
     return _enqueue_multicast_chord(
-        [patch_into_unit.s(unit, endpoint, json) for unit in units],
+        [patch_into_unit.s(unit, endpoint, json, timeout) for unit in units],
         units,
         False,
     )

@@ -71,6 +71,24 @@ def test_states() -> None:
     bj.clean_up()
 
 
+def test_block_until_ready_returns_current_readiness() -> None:
+    debug_messages: list[str] = []
+
+    class FakeLogger:
+        def debug(self, message: str) -> None:
+            debug_messages.append(message)
+
+    job = object.__new__(BackgroundJob)
+    object.__setattr__(job, "logger", FakeLogger())
+
+    object.__setattr__(job, "state", job.READY)
+    assert job.block_until_ready(timeout=0.0)
+
+    object.__setattr__(job, "state", job.SLEEPING)
+    assert not job.block_until_ready(timeout=-1.0)
+    assert debug_messages == ["Timed out waiting for READY."]
+
+
 def test_init_state_is_sent_to_mqtt() -> None:
     # regression test
     exp = "test_init_state_is_sent_to_mqtt"

@@ -1,0 +1,10 @@
+dataset_name: dosing_events
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: dosing_events
+timestamp_columns:
+- timestamp
+description: In this dataset, you'll find a detailed log table of all dosing events, including the volume exchanged, and the source that triggered the event.
+display_name: Dosing event log

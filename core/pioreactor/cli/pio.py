@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import ast
+import json
 import os
 import re
+import shutil
+import stat
 import subprocess
 import tempfile
 import typing as t
@@ -51,29 +54,240 @@ def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value:
     return validate_git_sha(value)
 
 
-def _runtime_config_path(
-    explicit_env_var: str,
-    dot_pioreactor_filename: str,
-    testing_default: str,
-    production_default: str,
-) -> str:
-    from pioreactor.whoami import is_testing_env
-
-    explicit_path = os.environ.get(explicit_env_var)
-    if explicit_path is not None:
-        return explicit_path
-
-    dot_pioreactor_root = os.environ.get("DOT_PIOREACTOR")
-    if dot_pioreactor_root is not None:
-        return str(Path(dot_pioreactor_root) / dot_pioreactor_filename)
-
-    return testing_default if is_testing_env() else production_default
-
-
 def build_staged_release_archive_location(release_filename: str) -> str:
     return str(
         Path(tempfile.gettempdir()) / f"{STAGED_RELEASE_ARCHIVE_PREFIX}{uuid4().hex}_{release_filename}"
     )
+
+
+def get_dot_pioreactor_root() -> Path:
+    configured_root = os.environ.get("DOT_PIOREACTOR", "/home/pioreactor/.pioreactor")
+    return Path(configured_root)
+
+
+def get_expected_dot_pioreactor_uid_gid() -> tuple[int | None, int | None, str]:
+    import grp
+    import pwd
+
+    expected_owner = "pioreactor:www-data"
+    try:
+        return pwd.getpwnam("pioreactor").pw_uid, grp.getgrnam("www-data").gr_gid, expected_owner
+    except KeyError:
+        return None, None, f"{expected_owner} (missing on this system)"
+
+
+def require_repair_command_paths(*command_names: str) -> dict[str, str]:
+    paths = {name: shutil.which(name) for name in command_names}
+    missing_commands = [name for name, path in paths.items() if path is None]
+
+    if missing_commands:
+        available_commands = ", ".join(command_names[:-1]) + f", and {command_names[-1]}"
+        raise click.ClickException(f"{available_commands} are required.")
+
+    return {name: t.cast(str, path) for name, path in paths.items()}
+
+
+def build_dot_pioreactor_repair_commands(dot_pioreactor_root: Path, tools: dict[str, str]) -> list[list[str]]:
+    return [
+        [
+            tools["sudo"],
+            tools["find"],
+            str(dot_pioreactor_root),
+            "-mindepth",
+            "0",
+            "(",
+            "!",
+            "-user",
+            "pioreactor",
+            "-o",
+            "!",
+            "-group",
+            "www-data",
+            ")",
+            "-exec",
+            tools["chown"],
+            "-h",
+            "pioreactor:www-data",
+            "{}",
+            "+",
+        ],
+        [tools["sudo"], tools["chmod"], "g+w", str(dot_pioreactor_root)],
+        [
+            tools["sudo"],
+            tools["find"],
+            str(dot_pioreactor_root),
+            "-mindepth",
+            "1",
+            "(",
+            "-type",
+            "d",
+            "-o",
+            "-type",
+            "f",
+            ")",
+            "-exec",
+            tools["chmod"],
+            "g+w",
+            "{}",
+            "+",
+        ],
+        [
+            tools["sudo"],
+            tools["find"],
+            str(dot_pioreactor_root),
+            "-type",
+            "d",
+            "!",
+            "-perm",
+            "-2000",
+            "-exec",
+            tools["chmod"],
+            "g+s",
+            "{}",
+            "+",
+        ],
+    ]
+
+
+def get_runtime_cache_database_paths(run_pioreactor_cache: Path) -> list[Path]:
+    return [
+        run_pioreactor_cache / "local_intermittent_pioreactor_metadata.sqlite",
+        run_pioreactor_cache / "huey.db",
+    ]
+
+
+def build_runtime_repair_commands(tools: dict[str, str]) -> list[list[str]]:
+    run_pioreactor_root = Path("/run/pioreactor")
+    run_pioreactor_exports = run_pioreactor_root / "exports"
+    run_pioreactor_cache = run_pioreactor_root / "cache"
+    runtime_cache_databases = [str(path) for path in get_runtime_cache_database_paths(run_pioreactor_cache)]
+
+    cache_sidecar_selector = [
+        tools["sudo"],
+        tools["find"],
+        str(run_pioreactor_cache),
+        "-maxdepth",
+        "1",
+        "-type",
+        "f",
+        "(",
+        "-name",
+        "*-wal",
+        "-o",
+        "-name",
+        "*-shm",
+        ")",
+        "-exec",
+    ]
+
+    return [
+        [
+            tools["sudo"],
+            tools["install"],
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2775",
+            str(run_pioreactor_root),
+        ],
+        [
+            tools["sudo"],
+            tools["install"],
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2775",
+            str(run_pioreactor_exports),
+        ],
+        [
+            tools["sudo"],
+            tools["find"],
+            str(run_pioreactor_exports),
+            "-maxdepth",
+            "1",
+            "-type",
+            "f",
+            "(",
+            "(",
+            "-name",
+            "*.tmp",
+            "-o",
+            "-name",
+            "*.csv",
+            ")",
+            "-mmin",
+            "+30",
+            "-o",
+            "(",
+            "-name",
+            "export_*.zip",
+            "-mmin",
+            "+360",
+            ")",
+            ")",
+            "-delete",
+        ],
+        [
+            tools["sudo"],
+            tools["install"],
+            "-d",
+            "-o",
+            "pioreactor",
+            "-g",
+            "www-data",
+            "-m",
+            "2770",
+            str(run_pioreactor_cache),
+        ],
+        [tools["sudo"], tools["touch"], *runtime_cache_databases],
+        [
+            tools["sudo"],
+            tools["chown"],
+            "-h",
+            "pioreactor:www-data",
+            *runtime_cache_databases,
+        ],
+        [tools["sudo"], tools["chmod"], "0660", *runtime_cache_databases],
+        [
+            *cache_sidecar_selector,
+            tools["chown"],
+            "-h",
+            "pioreactor:www-data",
+            "{}",
+            "+",
+        ],
+        [
+            *cache_sidecar_selector,
+            tools["chmod"],
+            "0660",
+            "{}",
+            "+",
+        ],
+    ]
+
+
+def get_inactive_pioreactor_web_services(systemctl_path: str) -> list[str]:
+    inactive_services: list[str] = []
+    for service in ("lighttpd.service", "huey.service"):
+        result = subprocess.run([systemctl_path, "is-active", "--quiet", service], check=False)
+        if result.returncode != 0:
+            inactive_services.append(service)
+
+    return inactive_services
+
+
+def restart_inactive_pioreactor_web_services(tools: dict[str, str]) -> list[str]:
+    inactive_services = get_inactive_pioreactor_web_services(tools["systemctl"])
+    for service in inactive_services:
+        subprocess.run([tools["sudo"], tools["systemctl"], "restart", service], check=True)
+
+    return inactive_services
 
 
 def get_update_app_commands(
@@ -93,6 +307,11 @@ def get_update_app_commands(
     from pioreactor.mureq import get
     from pioreactor.mureq import HTTPException
     from pioreactor.utils.networking import is_using_local_access_point
+
+    def get_install_extra_for_this_unit() -> str:
+        if whoami.am_I_leader():
+            return "leader_worker" if whoami.am_I_a_worker() else "leader"
+        return "worker"
 
     def create_commands_for_release_archive(
         archive_location: str, release_version: str
@@ -119,11 +338,13 @@ def get_update_app_commands(
         if not defer_web_restart:
             release_commands.append(("sudo systemctl restart pioreactor-web.target", 99))
 
+        install_extra = get_install_extra_for_this_unit()
+
         if whoami.am_I_leader():
             release_commands.extend(
                 [
                     (
-                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[leader,worker]",
+                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
                         3,
                     ),
                     (
@@ -135,7 +356,7 @@ def get_update_app_commands(
         else:
             release_commands.append(
                 (
-                    f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[worker]",
+                    f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
                     3,
                 )
             )
@@ -169,10 +390,11 @@ def get_update_app_commands(
         cleaned_repo = quote(repo)
         version_installed = cleaned_ref
         no_deps_flag = "--no-deps " if no_deps else ""
+        install_extra = get_install_extra_for_this_unit()
         commands_and_priority.append(
             (
                 f"/opt/pioreactor/venv/bin/pip install --force-reinstall {no_deps_flag}--index-url https://piwheels.org/simple --extra-index-url https://pypi.org/simple "
-                f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_ref}#subdirectory=core"',
+                f'"pioreactor[{install_extra}] @ git+https://github.com/{cleaned_repo}.git@{cleaned_ref}#subdirectory=core"',
                 1,
             )  # noqa: E501
         )
@@ -251,31 +473,28 @@ def pio(ctx: click.Context, show_version: bool) -> None:
         click.echo(ctx.get_help())
 
 
-def _resolve_config_paths_like_runtime() -> tuple[str, str]:
-    """
-    Resolve global and local config paths with runtime-like precedence.
-    """
+def _runtime_config_file_path(explicit_env_var: str, filename: str) -> Path:
+    if explicit_env_var in os.environ:
+        return Path(os.environ[explicit_env_var])
+
+    if "DOT_PIOREACTOR" in os.environ:
+        return Path(os.environ["DOT_PIOREACTOR"]) / filename
+
+    raise ValueError(f"Set {explicit_env_var} or DOT_PIOREACTOR env variables")
+
+
+def _resolve_config_paths_like_runtime() -> tuple[Path, Path]:
+    """Resolve global and local config paths with runtime-like precedence."""
     return (
-        _runtime_config_path(
-            "GLOBAL_CONFIG",
-            "config.ini",
-            "./.pioreactor/config.ini",
-            "/home/pioreactor/.pioreactor/config.ini",
-        ),
-        _runtime_config_path(
-            "LOCAL_CONFIG",
-            "unit_config.ini",
-            "./.pioreactor/unit_config.ini",
-            "/home/pioreactor/.pioreactor/unit_config.ini",
-        ),
+        _runtime_config_file_path("GLOBAL_CONFIG", "config.ini"),
+        _runtime_config_file_path("LOCAL_CONFIG", "unit_config.ini"),
     )
 
 
-def _load_config_file(path: str) -> t.Any:
+def _load_config_file(config_path: Path) -> t.Any:
     from pioreactor.config import ConfigParserMod
 
     parser = ConfigParserMod(strict=False)
-    config_path = Path(path)
     if config_path.is_file():
         parser.read([str(config_path)])
     return parser
@@ -299,8 +518,8 @@ def _get_effective_config_value(section_name: str, parameter_name: str) -> str:
     return effective_config.get(section_name, parameter_name)
 
 
-def _get_config_value_from_file(path: str, section_name: str, parameter_name: str) -> str:
-    config = _load_config_file(path)
+def _get_config_value_from_file(config_path: Path, section_name: str, parameter_name: str) -> str:
+    config = _load_config_file(config_path)
 
     if not config.has_section(section_name):
         raise click.ClickException(f"Section '{section_name}' not found in config file.")
@@ -363,10 +582,9 @@ def _refresh_config_caches() -> None:
     config_module.config = config_module.get_config()
 
 
-def _set_config_value_in_file(path: str, section_name: str, parameter_name: str, value: str) -> None:
+def _set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
     from pioreactor.config import ConfigParserMod
 
-    config_path = Path(path)
     existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
     current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
     updated_text = _replace_or_append_config_entry(current_text, section_name, parameter_name, value)
@@ -849,15 +1067,13 @@ def version(verbose: bool) -> None:
 
 
 @pio.command(name="status", short_help="show local system status")
-def status() -> None:
+@click.option("--json", "json_output", is_flag=True, help="output as json")
+def status(json_output: bool) -> None:
     """
     Show a quick, local-only status report for this unit.
     """
-    import shutil
     import socket
     import sqlite3
-    import subprocess
-    from pathlib import Path
 
     from pioreactor import mureq
     from pioreactor.config import config
@@ -871,6 +1087,156 @@ def status() -> None:
 
     def add_check(name: str, status: str, details: str) -> None:
         checks.append((name, status, details))
+
+    def worst_status(current_status: str, next_status: str) -> str:
+        order = {"OK": 0, "WARN": 1, "FAIL": 2}
+        return next_status if order[next_status] > order[current_status] else current_status
+
+    def format_file_size(path: Path) -> str:
+        try:
+            size = path.stat().st_size
+        except OSError as error:
+            return f"unreadable({error})"
+
+        if size < 1024:
+            return f"{size}B"
+        if size < 1024**2:
+            return f"{size / 1024:.1f}KiB"
+        if size < 1024**3:
+            return f"{size / (1024**2):.1f}MiB"
+        return f"{size / (1024**3):.1f}GiB"
+
+    def add_sqlite_storage_check(
+        check_name: str,
+        config_key: str,
+        expected_uid: int | None,
+        expected_gid: int | None,
+        expected_owner: str,
+        check_openability: bool,
+        include_sidecars: bool,
+    ) -> Path | None:
+        try:
+            sqlite_path = Path(config.get("storage", config_key))
+        except Exception as error:
+            add_check(check_name, "WARN", f"storage.{config_key} missing ({error})")
+            return None
+
+        status = "OK"
+        details = [str(sqlite_path)]
+        storage_dir = sqlite_path.parent
+
+        if storage_dir.exists():
+            details.append(f"dir_writable={os.access(storage_dir, os.W_OK)}")
+            if not os.access(storage_dir, os.W_OK):
+                status = worst_status(status, "WARN")
+
+            if expected_uid is not None and expected_gid is not None:
+                try:
+                    storage_dir_stat = storage_dir.stat()
+                except OSError as error:
+                    status = worst_status(status, "WARN")
+                    details.append(f"dir_stat_failed={error}")
+                else:
+                    if storage_dir_stat.st_uid != expected_uid or storage_dir_stat.st_gid != expected_gid:
+                        status = worst_status(status, "WARN")
+                        details.append(f"dir_owner!= {expected_owner}")
+        else:
+            status = worst_status(status, "WARN")
+            details.append("dir=missing")
+
+        sqlite_file_paths = {"db": sqlite_path}
+        if include_sidecars:
+            sqlite_file_paths["wal"] = Path(f"{sqlite_path}-wal")
+            sqlite_file_paths["shm"] = Path(f"{sqlite_path}-shm")
+
+        for label, path in sqlite_file_paths.items():
+            if not path.exists():
+                details.append(f"{label}=missing")
+                if label == "db":
+                    status = worst_status(status, "WARN")
+                continue
+
+            details.append(f"{label}_size={format_file_size(path)}")
+            if expected_uid is not None and expected_gid is not None:
+                try:
+                    stat_result = path.stat()
+                except OSError as error:
+                    status = worst_status(status, "WARN")
+                    details.append(f"{label}_stat_failed={error}")
+                else:
+                    if stat_result.st_uid != expected_uid or stat_result.st_gid != expected_gid:
+                        status = worst_status(status, "WARN")
+                        details.append(f"{label}_owner!= {expected_owner}")
+
+        if check_openability and sqlite_path.exists():
+            try:
+                conn = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
+                conn.execute("select 1;")
+                conn.close()
+            except Exception as error:
+                status = worst_status(status, "FAIL")
+                details.append(f"open_failed={error}")
+        elif check_openability:
+            status = worst_status(status, "FAIL")
+            details.append("open_failed=missing")
+
+        add_check(check_name, status, " ".join(details))
+        return sqlite_path
+
+    def add_dot_pioreactor_tree_check(
+        expected_uid: int | None,
+        expected_gid: int | None,
+        expected_owner: str,
+    ) -> None:
+        dot_pioreactor_root = get_dot_pioreactor_root()
+        if not dot_pioreactor_root.exists():
+            add_check("storage:dot_pioreactor", "WARN", f"missing: {dot_pioreactor_root}")
+            return
+
+        status = "OK"
+        wrong_owner_count = 0
+        missing_group_write_count = 0
+        missing_setgid_dir_count = 0
+        checked_count = 0
+
+        paths_to_check = [dot_pioreactor_root]
+        for root, dirs, files in os.walk(dot_pioreactor_root):
+            root_path = Path(root)
+            paths_to_check.extend(root_path / name for name in dirs)
+            paths_to_check.extend(root_path / name for name in files)
+
+        for path in paths_to_check:
+            checked_count += 1
+            try:
+                stat_result = path.lstat()
+            except OSError:
+                status = worst_status(status, "WARN")
+                continue
+
+            if expected_uid is not None and expected_gid is not None:
+                if stat_result.st_uid != expected_uid or stat_result.st_gid != expected_gid:
+                    wrong_owner_count += 1
+
+            if (
+                path == dot_pioreactor_root
+                or stat.S_ISDIR(stat_result.st_mode)
+                or stat.S_ISREG(stat_result.st_mode)
+            ):
+                if not stat_result.st_mode & stat.S_IWGRP:
+                    missing_group_write_count += 1
+
+            if stat.S_ISDIR(stat_result.st_mode) and not stat_result.st_mode & stat.S_ISGID:
+                missing_setgid_dir_count += 1
+
+        if wrong_owner_count or missing_group_write_count or missing_setgid_dir_count:
+            status = worst_status(status, "WARN")
+
+        details = (
+            f"path={dot_pioreactor_root} checked={checked_count} "
+            f"wrong_owner={wrong_owner_count} expected_owner={expected_owner} "
+            f"missing_group_write={missing_group_write_count} missing_setgid_dirs={missing_setgid_dir_count}"
+        )
+        add_check("storage:dot_pioreactor", status, details)
 
     unit = "<unknown>"
     role = "<unknown>"
@@ -997,56 +1363,44 @@ def status() -> None:
     log_details = str(log_file) if log_file.exists() else f"missing: {log_file}"
     add_check("storage:logs", log_status, log_details)
 
-    db_path: Path | None
-    try:
-        db_path = Path(config.get("storage", "database"))
-    except Exception as error:
-        db_path = None
-        add_check("storage:db", "WARN", f"storage.database missing ({error})")
+    expected_uid, expected_gid, expected_owner = get_expected_dot_pioreactor_uid_gid()
 
-    if db_path is not None and role == "leader":
-        db_status = "OK"
-        db_details = [str(db_path)]
+    db_path: Path | None = None
+    if role == "leader":
+        db_path = add_sqlite_storage_check(
+            "storage:db",
+            "database",
+            expected_uid,
+            expected_gid,
+            expected_owner,
+            check_openability=True,
+            include_sidecars=True,
+        )
+    else:
         try:
-            conn = sqlite3.connect(str(db_path))
-            conn.execute("select 1;")
-            conn.close()
-        except Exception as error:
-            add_check("storage:db", "FAIL", f"{db_path} ({error})")
-        else:
-            shm_path = Path(f"{db_path}-shm")
-            wal_path = Path(f"{db_path}-wal")
-            file_checks = {
-                "db": db_path,
-                "shm": shm_path,
-                "wal": wal_path,
-            }
+            db_path = Path(config.get("storage", "database"))
+        except Exception:
+            db_path = None
 
-            try:
-                import grp
-                import pwd
-
-                expected_uid = pwd.getpwnam("pioreactor").pw_uid
-                expected_gid = grp.getgrnam("www-data").gr_gid
-                expected_owner = "pioreactor:www-data"
-            except KeyError:
-                expected_uid = None
-                expected_gid = None
-                expected_owner = "pioreactor:www-data (missing on this system)"
-
-            for label, path in file_checks.items():
-                if not path.exists():
-                    db_status = "WARN"
-                    db_details.append(f"{label}=missing")
-                    continue
-
-                if expected_uid is not None and expected_gid is not None:
-                    stat_result = path.stat()
-                    if stat_result.st_uid != expected_uid or stat_result.st_gid != expected_gid:
-                        db_status = "WARN"
-                        db_details.append(f"{label}=owner!= {expected_owner}")
-
-            add_check("storage:db", db_status, " ".join(db_details))
+    add_sqlite_storage_check(
+        "storage:temporary_cache",
+        "temporary_cache",
+        expected_uid,
+        expected_gid,
+        expected_owner,
+        check_openability=False,
+        include_sidecars=False,
+    )
+    add_sqlite_storage_check(
+        "storage:persistent_cache",
+        "persistent_cache",
+        expected_uid,
+        expected_gid,
+        expected_owner,
+        check_openability=False,
+        include_sidecars=False,
+    )
+    add_dot_pioreactor_tree_check(expected_uid, expected_gid, expected_owner)
 
     if db_path is not None:
         disk_root = db_path.parent
@@ -1059,7 +1413,25 @@ def status() -> None:
             except Exception as error:
                 add_check("storage:disk", "WARN", f"path={disk_root} ({error})")
 
-    name_width = 22
+    overall_status = "OK"
+    for _, check_status, _ in checks:
+        overall_status = worst_status(overall_status, check_status)
+
+    if json_output:
+        click.echo(
+            json.dumps(
+                {
+                    "status": overall_status,
+                    "checks": [
+                        {"name": name, "status": check_status, "details": details}
+                        for name, check_status, details in checks
+                    ],
+                }
+            )
+        )
+        return
+
+    name_width = max(22, *(len(name) for name, _, _ in checks))
     status_width = 7
     click.echo(f"{'Check':{name_width}s} {'Status':{status_width}s} Details")
     for name, status, details in checks:
@@ -1073,6 +1445,41 @@ def status() -> None:
         else:
             status_display = padded_status
         click.echo(f"{name:{name_width}s} {status_display} {details}")
+
+
+@pio.command(name="repair", short_help="repair Pioreactor ownership and group permissions")
+def repair() -> None:
+    """
+    Repair ownership and group permissions for the local .pioreactor tree and /run/pioreactor runtime tree.
+    Clear stale Pioreactor runtime export artifacts.
+    TODO: add more repair things
+    """
+    dot_pioreactor_root = get_dot_pioreactor_root()
+    if not dot_pioreactor_root.exists():
+        raise click.ClickException(f"{dot_pioreactor_root} does not exist.")
+
+    tools = require_repair_command_paths("sudo", "find", "chown", "chmod", "install", "touch", "systemctl")
+    dot_pioreactor_commands = build_dot_pioreactor_repair_commands(dot_pioreactor_root, tools)
+    runtime_commands = build_runtime_repair_commands(tools)
+    command_groups = [
+        (dot_pioreactor_commands, f"Repaired ownership and group permissions for {dot_pioreactor_root}."),
+        (runtime_commands[:2], "Repaired runtime directories under /run/pioreactor."),
+        (runtime_commands[2:3], "Cleared stale runtime export artifacts from /run/pioreactor/exports."),
+        (runtime_commands[3:], "Repaired runtime cache files under /run/pioreactor/cache."),
+    ]
+
+    for commands, message in command_groups:
+        for command in commands:
+            subprocess.run(command, check=True)
+        click.echo(message)
+
+    restarted_services = restart_inactive_pioreactor_web_services(tools)
+    if restarted_services:
+        click.echo(f"Restarted inactive pioreactor-web.target services: {', '.join(restarted_services)}.")
+    else:
+        click.echo("pioreactor-web.target services are active.")
+
+    click.echo("Repair complete.")
 
 
 @pio.group(short_help="manage the local caches")
@@ -1207,23 +1614,11 @@ def update_settings(ctx: click.Context, job: str) -> None:
         publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=QOS.AT_LEAST_ONCE)
 
 
-@pio.group(invoke_without_command=True)
-@click.option("-s", "--source", help="use a URL, whl file, or release-***.zip file")
-@click.option("-b", "--branch", help="specify a branch")
-@click.option("--sha", callback=validate_git_sha_option, help="specify a commit SHA")
-@click.pass_context
-def update(ctx: click.Context, source: str | None, branch: str | None, sha: str | None) -> None:
+@pio.group()
+def update() -> None:
     """
-    update software for the app (it's an alias for pio update app)
+    Update Pioreactor software.
     """
-    if ctx.invoked_subcommand is None:
-        # run update app
-        if source is not None:
-            ctx.invoke(update_app, source=source)
-        elif branch is not None:
-            ctx.invoke(update_app, branch=branch)
-        else:
-            ctx.invoke(update_app, sha=sha)
 
 
 def get_non_prerelease_tags_of_pioreactor(repo: str) -> list[str]:

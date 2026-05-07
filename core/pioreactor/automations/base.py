@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from threading import Lock
+from threading import Thread
 from time import sleep
 from typing import Any
-from typing import cast
+from typing import Callable
 
 from msgspec.json import decode
 from msgspec.json import encode
@@ -14,6 +16,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import RepeatedTimer
 
 DISALLOWED_AUTOMATION_NAMES = {
     "config",
@@ -60,18 +63,169 @@ class AutomationJob(BackgroundJob):
         self._publish_setting("automation_name")
 
         self._latest_settings_started_at = current_utc_datetime()
+        self._latest_run_at: datetime | None = None
         self.latest_normalized_od_at = current_utc_datetime()
         self.latest_growth_rate_at = current_utc_datetime()
         self.latest_od_at = current_utc_datetime()
         self.latest_od_fused_at = current_utc_datetime()
+        self._automation_execution_lock = Lock()
+        self._automation_trigger_pending = False
+        self._automation_strategy_start_callback: Callable[[], None] | None = None
+        self._automation_timer: RepeatedTimer | None = None
 
         self.start_passive_listeners()
+
+    def __post__init__(self) -> None:
+        super().__post__init__()
+        if self._automation_strategy_start_callback is not None:
+            self._automation_strategy_start_callback()
 
     def execute(self) -> structs.AutomationEvent | None:
         """
         Overwrite in subclass
         """
         return events.NoEvent()
+
+    def run_once(
+        self,
+        timeout: float = 60.0,
+        *,
+        wait_for_ready: bool = True,
+        allowed_states: tuple[object, ...] | None = None,
+    ) -> structs.AutomationEvent | None:
+        """
+        Execute the automation body once, with shared state gating and event handling.
+        """
+        if self.state == self.DISCONNECTED:
+            return None
+
+        if not self._automation_execution_lock.acquire(blocking=False):
+            return None
+
+        try:
+            if wait_for_ready:
+                if not self.block_until_ready(timeout=timeout):
+                    return None
+            elif self.state not in (allowed_states or (self.READY,)):
+                return None
+
+            try:
+                event = self.execute()
+                if event:
+                    self.logger.info(event.display())
+            except exc.JobRequiredError as e:
+                self.logger.debug(e, exc_info=True)
+                self.logger.warning(e)
+                event = events.ErrorOccurred(str(e))
+            except Exception as e:
+                self.logger.debug(e, exc_info=True)
+                self.logger.error(e)
+                event = events.ErrorOccurred(str(e))
+
+            self.latest_event = event
+            self._latest_run_at = current_utc_datetime()
+            return event
+        finally:
+            self._automation_execution_lock.release()
+
+    def run_every(
+        self,
+        duration_minutes: float | str,
+        *,
+        skip_first_run: bool | str | int = False,
+        run_after_seconds: float | None = None,
+    ) -> None:
+        duration_minutes = float(duration_minutes)
+        self.duration = duration_minutes
+
+        def start_periodic_timer() -> None:
+            skip_first_run_bool = self._coerce_bool(skip_first_run)
+            self._set_periodic_timer(
+                duration_minutes,
+                skip_first_run=skip_first_run_bool,
+                run_after_seconds=0.0 if skip_first_run_bool else run_after_seconds,
+            )
+
+        self._automation_strategy_start_callback = start_periodic_timer
+
+    def set_duration(self, duration: float | str) -> None:
+        self.duration = float(duration)
+        self._set_periodic_timer(
+            self.duration,
+            skip_first_run=False,
+            run_after_seconds=self._seconds_until_next_periodic_run(self.duration),
+        )
+
+    def trigger_run_once_from_event(self, *, timeout: float = 5.0) -> None:
+        """
+        Start a non-overlapping automation execution from an MQTT callback.
+        """
+        if self._automation_execution_lock.locked():
+            self._automation_trigger_pending = True
+            return
+
+        def runner() -> None:
+            while self.state != self.DISCONNECTED:
+                self.run_once(timeout=timeout, wait_for_ready=False)
+                if not self._automation_trigger_pending:
+                    break
+                self._automation_trigger_pending = False
+
+        Thread(target=runner, daemon=True).start()
+
+    def on_disconnected(self) -> None:
+        self.cancel_automation_timer()
+
+    def on_sleeping(self) -> None:
+        if self._automation_timer is not None:
+            self._automation_timer.pause()
+
+    def on_sleeping_to_ready(self) -> None:
+        if self._automation_timer is not None:
+            self._automation_timer.unpause()
+
+    def cancel_automation_timer(self) -> None:
+        if self._automation_timer is None:
+            return
+
+        self._automation_timer.cancel(timeout=10)
+        if self._automation_timer.is_alive():
+            self.logger.debug("automation timer still alive!")
+        self._automation_timer = None
+
+    @staticmethod
+    def _coerce_bool(value: bool | str | int) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
+
+    def _set_periodic_timer(
+        self,
+        duration_minutes: float,
+        *,
+        skip_first_run: bool,
+        run_after_seconds: float | None,
+    ) -> None:
+        self.cancel_automation_timer()
+        timer = RepeatedTimer(
+            duration_minutes * 60,
+            self.run_once,
+            job_name=self.job_name,
+            run_immediately=not skip_first_run,
+            run_after=run_after_seconds,
+            logger=self.logger,
+        ).start()
+        self._automation_timer = timer
+        self.run_thread = timer
+
+    def _seconds_until_next_periodic_run(self, duration_minutes: float) -> float:
+        if self._latest_run_at is None:
+            return 0.0
+
+        return max(
+            0.0,
+            (duration_minutes * 60) - (current_utc_datetime() - self._latest_run_at).total_seconds(),
+        )
 
     def _start_general_passive_listeners(self) -> None:
         super()._start_general_passive_listeners()

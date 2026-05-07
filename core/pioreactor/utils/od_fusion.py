@@ -164,6 +164,80 @@ def _global_minimize(
     return float(best_x)
 
 
+def _collect_usable_log_records_by_angle(
+    records: Iterable[tuple[pt.PdAngle, float, float]],
+    angles: tuple[pt.PdAngle, ...],
+) -> dict[pt.PdAngle, list[tuple[float, float]]]:
+    by_angle: dict[pt.PdAngle, list[tuple[float, float]]] = {angle: [] for angle in angles}
+
+    for angle, concentration, reading in records:
+        if angle not in by_angle:
+            continue
+        if concentration <= 0:
+            continue
+        if reading <= 0:
+            continue
+
+        logc = log10(concentration)
+        logy = log(max(reading, 1e-12))
+        by_angle[angle].append((logc, logy))
+
+    return by_angle
+
+
+def _group_log_readings_by_concentration(
+    records_for_angle: Iterable[tuple[float, float]],
+) -> dict[float, list[float]]:
+    grouped: dict[float, list[float]] = {}
+    for logc, logy in records_for_angle:
+        grouped.setdefault(logc, []).append(logy)
+
+    return grouped
+
+
+def _fit_mu_spline_for_angle(
+    angle: pt.PdAngle,
+    grouped_log_readings: Mapping[float, list[float]],
+) -> tuple[structs.AkimaFitData, list[float], list[float]]:
+    # Use the central value at each concentration to be robust to bubbles/artifacts.
+    central_points = sorted((logc, mean(values)) for logc, values in grouped_log_readings.items())
+    if len(central_points) < 4:
+        raise ValueError(f"Need >=4 unique concentration levels to fit fusion spline for angle {angle}.")
+
+    x_vals = [logc for logc, _ in central_points]
+    y_vals = [logy for _, logy in central_points]
+
+    return akima_fit(x_vals, y_vals), x_vals, y_vals
+
+
+def _fit_sigma_spline_log_for_angle(
+    records_for_angle: Iterable[tuple[float, float]],
+    mu_spline: structs.AkimaFitData,
+    sigma_floor: float,
+) -> structs.AkimaFitData:
+    # Residuals contain measurement noise + unmodeled effects.
+    residuals_by_logc: dict[float, list[float]] = {}
+    for logc, logy in records_for_angle:
+        mu = _curve_eval(mu_spline, logc)
+        residuals_by_logc.setdefault(logc, []).append(logy - mu)
+
+    sig_points: list[tuple[float, float]] = []
+    for logc, residuals in residuals_by_logc.items():
+        median_resid = median(residuals)
+        mad = median([abs(r - median_resid) for r in residuals])
+
+        # 1.4826 * MAD approximates std for Gaussian residuals.
+        # sigma_floor prevents pathological overconfidence.
+        sigma = max(1.4826 * mad, sigma_floor)
+        sig_points.append((logc, sigma))
+
+    sig_points.sort(key=lambda pair: pair[0])
+    sig_x = [logc for logc, _ in sig_points]
+    sig_y = [log(sig) for _, sig in sig_points]
+
+    return akima_fit(sig_x, sig_y)
+
+
 def fit_fusion_model(
     records: Iterable[tuple[pt.PdAngle, float, float]],
     *,
@@ -186,19 +260,7 @@ def fit_fusion_model(
     #   residuals r = logy - mu_angle(logc)
     #   sigma_angle(logc) estimated via MAD(residuals at that logc)
     #   then akima_fit(logc -> log(sigma)) to get sigma at arbitrary logc.
-    by_angle: dict[pt.PdAngle, list[tuple[float, float]]] = {angle: [] for angle in angles}
-
-    for angle, concentration, reading in records:
-        if angle not in by_angle:
-            continue
-        if concentration <= 0:
-            continue
-        if reading <= 0:
-            continue
-        logc = log10(concentration)
-        logy = log(max(reading, 1e-12))
-        by_angle[angle].append((logc, logy))
-
+    by_angle = _collect_usable_log_records_by_angle(records, angles)
     if not any(by_angle.values()):
         raise ValueError("No usable fusion calibration records provided.")
 
@@ -215,50 +277,19 @@ def fit_fusion_model(
 
         # Group by concentration level (in log space). This assumes the calibration concentrations
         # are exact repeated levels.
-        grouped: dict[float, list[float]] = {}
-        for logc, logy in records_for_angle:
-            grouped.setdefault(logc, []).append(logy)
-            logc_values.append(logc)
-
-        # Fit mu: use median at each concentration to be robust to bubbles/artifacts.
-        central_points = sorted((lc, mean(values)) for lc, values in grouped.items())
-        if len(central_points) < 4:
-            raise ValueError(f"Need >=4 unique concentration levels to fit fusion spline for angle {angle}.")
-
-        x_vals = [lc for lc, _ in central_points]
-        y_vals = [ly for _, ly in central_points]
+        grouped = _group_log_readings_by_concentration(records_for_angle)
+        logc_values.extend(logc for logc, _ in records_for_angle)
 
         # mu_splines[angle] is forward model mu_angle(logc) in log(signal) space.
-        mu_splines[angle] = akima_fit(x_vals, y_vals)
+        mu_spline, x_vals, y_vals = _fit_mu_spline_for_angle(angle, grouped)
+        mu_splines[angle] = mu_spline
 
         cast_by_angle = recorded_data["by_angle"]
         if isinstance(cast_by_angle, dict):
             cast_by_angle[angle] = {"x": x_vals, "y": y_vals}
 
-        # Compute residuals at calibration points: r = logy - mu(logc)
-        # These residuals contain measurement noise + unmodeled effects.
-        residuals_by_logc: dict[float, list[float]] = {}
-        for logc, logy in records_for_angle:
-            mu = _curve_eval(mu_splines[angle], logc)
-            residuals_by_logc.setdefault(logc, []).append(logy - mu)
-
-        # Estimate sigma per concentration level using MAD (robust scale).
-        # sigma is in log(signal) units.
-        sig_points: list[tuple[float, float]] = []
-        for logc, residuals in residuals_by_logc.items():
-            median_resid = median(residuals)
-            mad = median([abs(r - median_resid) for r in residuals])
-
-            # 1.4826 * MAD approximates std for Gaussian residuals.
-            # sigma_floor prevents pathological overconfidence.
-            sigma = max(1.4826 * mad, sigma_floor)
-            sig_points.append((logc, sigma))
-
         # Fit a curve to log(sigma) vs logc, so sigma(logc) is smooth and positive.
-        sig_points.sort(key=lambda pair: pair[0])
-        sig_x = [lc for lc, _ in sig_points]
-        sig_y = [log(sig) for _, sig in sig_points]
-        sigma_splines_log[angle] = akima_fit(sig_x, sig_y)
+        sigma_splines_log[angle] = _fit_sigma_spline_log_for_angle(records_for_angle, mu_spline, sigma_floor)
 
     # Inversion bounds: restrict to the calibrated logc range.
     min_logc = min(logc_values)

@@ -95,6 +95,6 @@ setup(
     extras_require={
         "worker": WORKER_REQUIREMENTS,
         "leader_worker": LEADER_REQUIREMENTS + WORKER_REQUIREMENTS,
-        "leader": LEADER_REQUIREMENTS + WORKER_REQUIREMENTS,
+        "leader": LEADER_REQUIREMENTS,
     },
 )

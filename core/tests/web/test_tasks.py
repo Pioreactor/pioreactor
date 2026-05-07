@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 import json
+import os
+import subprocess
+import sys
 from http.client import HTTPMessage
+from pathlib import Path
 from subprocess import TimeoutExpired
 from typing import Any
 
@@ -17,6 +21,22 @@ def _response(status_code: int, payload: dict[str, Any]) -> Response:
 def _clear_rate_limit(name: str) -> None:
     tasks.huey.delete(f"{tasks.huey.name}.rl.{name}.w")
     tasks.huey.storage.delete_counter(f"{tasks.huey.name}.rl.{name}")
+
+
+def test_importing_tasks_does_not_import_web_app() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; import pioreactor.web.tasks; print('pioreactor.web.app' in sys.modules)",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**dict(os.environ), "SKIP_PLUGINS": "1"},
+    )
+
+    assert result.stdout.strip() == "False"
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -39,6 +59,32 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
     unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+
+    assert unit == "unit1"
+    assert result == {"ok": True}
+    assert responses == []
+
+
+def test_get_from_unit_uses_timeout_for_delayed_task_polling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old_default_window = 60
+    responses = [
+        _response(202, {"result_url_path": "/unit_api/task_results/abc"})
+        for _ in range(old_default_window + 1)
+    ]
+    responses.append(_response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}}))
+
+    def fake_get_from(
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+    ) -> Response:
+        return responses.pop(0)
+
+    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", timeout=7.0)
 
     assert unit == "unit1"
     assert result == {"ok": True}
@@ -104,6 +150,60 @@ def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPat
     }
 
 
+def test_check_model_hardware_skips_non_v1_hat(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(tasks, "hardware_version_info", (2, 0))
+    monkeypatch.setattr(
+        tasks,
+        "_get_adc_addresses_for_model",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("should not inspect ADCs")),
+    )
+
+    assert tasks.check_model_hardware.call_local("pioreactor_20ml", "1.5") == {
+        "status": "skipped",
+        "reason": "hardware check only applies to HAT v1.x",
+    }
+
+
+def test_repair_system_repairs_permissions_then_checks_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_rate_limit("repair-system")
+    calls: list[list[str]] = []
+
+    class DummyResult:
+        def __init__(self, stdout: str) -> None:
+            self.returncode = 0
+            self.stdout = stdout
+            self.stderr = ""
+
+    def fake_run(command: list[str], **_kwargs: object) -> DummyResult:
+        calls.append(command)
+        if command == [tasks.PIO_EXECUTABLE, "status", "--json"]:
+            return DummyResult('{"status":"WARN","checks":[]}')
+        return DummyResult("ok")
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    result = tasks.repair_system.call_local()
+
+    assert calls == [
+        [tasks.PIO_EXECUTABLE, "repair"],
+        [tasks.PIO_EXECUTABLE, "status", "--json"],
+    ]
+    assert result["success"] is True
+    assert result["repair"]["stdout"] == "ok"
+    assert result["status"]["stdout"] == '{"status":"WARN","checks":[]}'
+    assert result["status"]["payload"] == {"status": "WARN", "checks": []}
+
+
+def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tasks, "hardware_version_info", (1, 2))
+    monkeypatch.setattr(tasks, "_get_adc_addresses_for_model", lambda *_args: {0x48})
+    monkeypatch.setattr(tasks.hardware, "is_i2c_device_present", lambda address: address == 0x48)
+
+    assert tasks.check_model_hardware.call_local("pioreactor_20ml", "1.1") == {"status": "ok"}
+
+
 def test_reduce_multicast_results_handles_partial_failures() -> None:
     units = ["unit1", "unit2", "unit3"]
     ordered_results = [
@@ -113,8 +213,10 @@ def test_reduce_multicast_results_handles_partial_failures() -> None:
     ]
 
     output = tasks.reduce_multicast_results.call_local(units, False, ordered_results)
+    helper_output = tasks._reduce_multicast_results(units, False, ordered_results)
 
     assert output == {"unit1": {"ok": True}, "unit2": None, "unit3": None}
+    assert helper_output == output
 
 
 def test_reduce_multicast_results_sorts_when_requested() -> None:
@@ -129,6 +231,56 @@ def test_reduce_multicast_results_sorts_when_requested() -> None:
     assert list(output.keys()) == ["unit1", "unit2"]
 
 
+def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class DummyResult:
+        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+            captured["blocking"] = blocking
+            captured["timeout"] = timeout
+            return {"unit1": None}
+
+    monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
+
+    output = tasks._multicast_get_uncached("/unit_api/calibration_protocols", ["unit1"], timeout=5.0)
+
+    assert output == {"unit1": None}
+    assert captured == {"blocking": True, "timeout": 6.0}
+
+
+def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ReadyChildResult:
+        def __init__(self, value: Any) -> None:
+            self.value = value
+
+        def get(self, blocking: bool = False, preserve: bool = False) -> Any:
+            return self.value
+
+    class PendingChildResult:
+        def get(self, blocking: bool = False, preserve: bool = False) -> Any:
+            return None
+
+    class DummyResult:
+        def __init__(self) -> None:
+            self.results = [
+                ReadyChildResult(("unit1", {"ok": True})),
+                PendingChildResult(),
+            ]
+
+        def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
+            raise tasks.ResultTimeout("timed out waiting for result")
+
+    monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
+
+    output = tasks._multicast_get_uncached("/unit_api/calibration_protocols", ["unit1", "unit2"])
+
+    assert output == {"unit1": {"ok": True}, "unit2": None}
+
+
 def test_install_plugin_task_is_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_rate_limit("plugins")
     monkeypatch.setattr(
@@ -141,6 +293,66 @@ def test_install_plugin_task_is_rate_limited(monkeypatch: pytest.MonkeyPatch) ->
         tasks.install_plugin_task.call_local("demo-plugin")
 
     _clear_rate_limit("plugins")
+
+
+def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filename(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "export.zip"
+    stale_csv = tmp_path / "old.csv"
+    stale_tmp = tmp_path / ".old.zip.tmp"
+    stale_csv.write_text("old", encoding="utf-8")
+    stale_tmp.write_text("old", encoding="utf-8")
+
+    def fake_export_experiment_data(
+        experiments: list[str],
+        dataset_names: list[str],
+        output: str,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        partition_by_unit: bool = False,
+        partition_by_experiment: bool = True,
+    ) -> None:
+        output_path.write_text("zip", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "pioreactor.actions.leader.export_experiment_data.export_experiment_data",
+        fake_export_experiment_data,
+    )
+
+    result = tasks.export_experiment_data_task.call_local(
+        ["exp1"],
+        ["od_readings"],
+        output_path.as_posix(),
+    )
+
+    assert result == {"result": True, "filename": "export.zip", "msg": "Finished"}
+    assert not stale_csv.exists()
+    assert not stale_tmp.exists()
+    assert output_path.exists()
+
+
+def test_export_disk_space_preflight_rejects_low_space(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class Usage:
+        free = 1
+
+    monkeypatch.setattr(tasks.shutil, "disk_usage", lambda _path: Usage())
+
+    with pytest.raises(OSError, match="Not enough free space to export datasets"):
+        tasks.require_export_disk_space(tmp_path)
+
+
+def test_export_disk_space_preflight_allows_minimum_working_space(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class Usage:
+        free = tasks.MINIMUM_EXPORT_FREE_BYTES
+
+    monkeypatch.setattr(tasks.shutil, "disk_usage", lambda _path: Usage())
+
+    tasks.require_export_disk_space(tmp_path)
 
 
 def test_power_actions_share_rate_limit_bucket() -> None:

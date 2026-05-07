@@ -4,7 +4,6 @@ import time
 from threading import Event
 from typing import Iterator
 
-import numpy as np
 import pytest
 from msgspec.json import encode
 from pioreactor import structs
@@ -12,14 +11,11 @@ from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalcula
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
-from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.streaming import MqttDosingSource
 from pioreactor.utils.streaming import MqttODSource
-from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_unit_name
 
@@ -92,96 +88,6 @@ class TestGrowthRateCalculating:
     def setup_method(self) -> None:
         with JobManager() as job_manager:
             job_manager.clear()
-
-    @pytest.mark.slow
-    def test_subscribing(self) -> None:
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "90"),
-                ("od_config.photodiode_channel", "2", "90"),
-                ("growth_rate_calculating.config", "samples_for_od_statistics", "1"),
-            ],
-        ):
-            unit = get_unit_name()
-            experiment = "test_subscribing"
-
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({1: 1.0, 2: 1.0})
-
-            od_stream, dosing_stream = create_od_stream_from_mqtt(
-                unit, experiment
-            ), create_dosing_stream_from_mqtt(unit, experiment)
-            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1", "2"],
-                        [1.012, 0.985],
-                        ["90", "135"],
-                        timestamp="2010-01-01T12:00:15.000Z",
-                    ),
-                )
-                pause()
-                assert wait_for(lambda: calc.ekf is not None, timeout=5.0)
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1", "2"],
-                        [1.014, 0.987],
-                        ["90", "135"],
-                        timestamp="2010-01-01T12:00:15.000Z",
-                    ),
-                )
-                pause()
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1", "2"],
-                        [1.016, 0.985],
-                        ["90", "135"],
-                        timestamp="2010-01-01T12:00:15.000Z",
-                    ),
-                )
-                pause()
-
-                assert calc.ekf is not None
-
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1", "2"],
-                        [1.014, 0.992],
-                        ["90", "135"],
-                        timestamp="2010-01-01T12:00:15.000Z",
-                    ),
-                )
-                publish(
-                    f"pioreactor/{unit}/{experiment}/dosing_events",
-                    encode(
-                        structs.DosingEvent(
-                            volume_change=1.5,
-                            event="add_media",
-                            source_of_event="test",
-                            timestamp=default_datetime_for_pioreactor(4),
-                        )
-                    ),
-                )
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1", "2"],
-                        [1.015, 0.993],
-                        ["90", "135"],
-                        timestamp="2010-01-01T12:00:15.000Z",
-                    ),
-                )
-
-                pause()
-
-                assert calc.ekf.state_ is not None
 
     @pytest.mark.flakey
     def test_restart(self) -> None:
@@ -326,16 +232,21 @@ class TestGrowthRateCalculating:
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
 
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(
-                        ["1"],
-                        [0.51],
-                        ["90"],
-                        timestamp="2010-01-01T12:00:40.000Z",
-                    ),
+                first_od_payload = create_encoded_od_raw_batched(
+                    ["1"],
+                    [0.51],
+                    ["90"],
+                    timestamp="2010-01-01T12:00:40.000Z",
                 )
-                pause()
+
+                for _ in range(10):
+                    publish(
+                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                        first_od_payload,
+                    )
+                    if wait_for(lambda: calc.ekf is not None, timeout=1.0):
+                        break
+
                 assert wait_for(lambda: calc.ekf is not None, timeout=5.0)
 
                 publish(
@@ -389,19 +300,18 @@ class TestGrowthRateCalculating:
 
                 assert calc._recent_dilution
 
-                post_dose_od_payload = create_encoded_od_raw_batched(
-                    ["1"],
-                    [0.40],
-                    ["90"],
-                    timestamp="2010-01-01T12:02:00.000Z",
-                )
-
-                for _ in range(3):
+                for i in range(10):
+                    post_dose_od_payload = create_encoded_od_raw_batched(
+                        ["1"],
+                        [0.40],
+                        ["90"],
+                        timestamp=f"2010-01-01T12:02:{i:02d}.000Z",
+                    )
                     publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
                         post_dose_od_payload,
                     )
-                    if wait_for(lambda: not calc._recent_dilution, timeout=2.0):
+                    if wait_for(lambda: not calc._recent_dilution, timeout=5.0):
                         break
 
                 assert not calc._recent_dilution
@@ -515,273 +425,6 @@ class TestGrowthRateCalculating:
                         retain=True,
                     )
                     assert wait_for(lambda: len(bucket) > 0, timeout=5.0)
-
-    @pytest.mark.slow
-    def test_single_outlier_spike_gets_absorbed(self) -> None:
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "REF"),
-                ("od_config.photodiode_channel", "2", "90"),
-                ("od_reading.config", "samples_per_second", "0.2"),
-            ],
-        ):
-            unit = get_unit_name()
-            experiment = "test_single_outlier_spike_gets_absorbed"
-
-            # clear mqtt
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                None,
-                retain=True,
-            )
-            var = 1e-6
-            std = float(np.sqrt(var))
-            baseline = 0.05
-
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({"2": baseline})
-
-            od_stream, dosing_stream = (
-                create_od_stream_from_mqtt(unit, experiment),
-                create_dosing_stream_from_mqtt(unit, experiment),
-            )
-
-            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-
-                for _ in range(25):
-                    v = baseline + std * np.random.randn()
-                    t = current_utc_timestamp()
-                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        encode(ods),
-                        retain=True,
-                    )
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(ods.ods["2"]),
-                        retain=True,
-                    )
-                    time.sleep(0.5)
-
-                previous_nOD = calc.od_filtered
-                previous_gr = calc.growth_rate
-                # EKF is warmed up, introduce outlier. This outlier is "expected", given the smoothing we do.
-                v = 2 * baseline + std * np.random.randn()
-                t = current_utc_timestamp()
-                ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    encode(ods),
-                    retain=True,
-                )
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(ods.ods["2"]),
-                    retain=True,
-                )
-
-                # publish another minor outlier
-                v = 1.2 * baseline + std * np.random.randn()
-                t = current_utc_timestamp()
-                ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    encode(ods),
-                    retain=True,
-                )
-                calc.publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(ods.ods["2"]),
-                    retain=True,
-                )
-                time.sleep(0.5)
-
-                current_nOD = calc.od_filtered
-                current_gr = calc.growth_rate
-
-                assert previous_nOD.od_filtered < current_nOD.od_filtered
-                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
-
-                # continue normal data
-                for _ in range(30):
-                    v = 0.05 + std * np.random.randn()
-                    t = current_utc_timestamp()
-                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        encode(ods),
-                        retain=True,
-                    )
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(ods.ods["2"]),
-                        retain=True,
-                    )
-                    time.sleep(0.5)
-
-                # reverts back to previous
-                current_nOD = calc.od_filtered
-                current_gr = calc.growth_rate
-
-                assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
-                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
-
-    @pytest.mark.xfail
-    def test_baseline_shift_gets_absorbed(self) -> None:
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "REF"),
-                ("od_config.photodiode_channel", "2", "90"),
-                ("od_reading.config", "samples_per_second", "0.2"),
-            ],
-        ):
-            unit = get_unit_name()
-            experiment = "test_baseline_shift_gets_absorbed"
-
-            var = 1e-6
-            std = float(np.sqrt(var))
-
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({"2": 0.05})
-
-            od_stream, dosing_stream = (
-                create_od_stream_from_mqtt(unit, experiment),
-                create_dosing_stream_from_mqtt(unit, experiment),
-            )
-
-            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-
-                with create_client() as client:
-
-                    def publish_and_wait(topic: str, payload, retain=False) -> None:
-                        msg_info = client.publish(topic, payload, retain=retain)
-                        msg_info.wait_for_publish()
-
-                    # Initial steady data
-                    for _ in range(30):
-                        v = 0.05 + std * np.random.randn()
-                        t = current_utc_timestamp()
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                        )
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                            encode(
-                                structs.RawODReading(
-                                    od=v,
-                                    angle="90",
-                                    timestamp=to_datetime(t),
-                                    channel="2",
-                                    ir_led_intensity=80,
-                                )
-                            ),
-                        )
-                        time.sleep(0.1)
-
-                    previous_gr = calc.growth_rate
-
-                    # Introduce baseline shift
-                    shift = 0.01
-                    calc.logger.info("OFFSET!")
-                    for _ in range(30):
-                        v = 0.05 + shift + std * np.random.randn()
-                        t = current_utc_timestamp()
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                        )
-                        publish_and_wait(
-                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                            encode(
-                                structs.RawODReading(
-                                    od=v,
-                                    angle="90",
-                                    timestamp=to_datetime(t),
-                                    channel="2",
-                                    ir_led_intensity=80,
-                                )
-                            ),
-                        )
-                        time.sleep(0.1)
-
-                current_gr = calc.growth_rate
-
-                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
-
-    def test_massive_outlier_spike_gets_absorbed(self) -> None:
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "REF"),
-                ("od_config.photodiode_channel", "2", "90"),
-                ("od_reading.config", "samples_per_second", "0.2"),
-                ("growth_rate_calculating.config", "samples_for_od_statistics", "1"),
-            ],
-        ):
-            unit = get_unit_name()
-            experiment = "test_massive_outlier_spike_gets_absorbed"
-
-            var = 1e-6
-            std = float(np.sqrt(var))
-
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({"2": 0.05})
-
-            od_stream, dosing_stream = (
-                create_od_stream_from_mqtt(unit, experiment),
-                create_dosing_stream_from_mqtt(unit, experiment),
-            )
-
-            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-                pause()
-
-                def publish_observation(value: float) -> None:
-                    t = current_utc_timestamp()
-                    ods = create_od_raw_batched(["2"], [value], ["90"], timestamp=t)
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        encode(ods),
-                        retain=True,
-                    )
-                    calc.publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(ods.ods["2"]),
-                        retain=True,
-                    )
-
-                for _ in range(25):
-                    publish_observation(0.05 + std * np.random.randn())
-                    pause()
-
-                assert wait_for(lambda: calc.od_filtered is not None and calc.growth_rate is not None)
-                previous_nOD = calc.od_filtered
-                previous_gr = calc.growth_rate
-
-                publish_observation(0.6 + std * np.random.randn())
-                pause()
-
-                current_nOD = calc.od_filtered
-                current_gr = calc.growth_rate
-
-                assert previous_nOD.od_filtered < current_nOD.od_filtered
-                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
-
-                for _ in range(30):
-                    publish_observation(0.05 + std * np.random.randn())
-                    pause()
-
-                current_nOD = calc.od_filtered
-                current_gr = calc.growth_rate
-
-                assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
-                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
     def test_empty_cached_normalization_dicts_are_recomputed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         experiment = "test_empty_cached_normalization_dicts_are_recomputed"

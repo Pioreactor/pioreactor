@@ -46,6 +46,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Alert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SelfTestDialog from "./components/SelfTestDialog";
+import { fetchTaskResult } from "./utils/tasks";
 
 
 
@@ -1044,6 +1045,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
   const navigate = useNavigate();
   const [isExporting, setIsExporting] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
+  const [isRepairing, setIsRepairing] = React.useState(false);
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -1074,6 +1076,47 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
     }).then(() => {
       fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
     }).catch(() => {});
+  };
+
+  const handleRepair = async () => {
+    let dialogResult;
+    try {
+      dialogResult = await confirm({
+        description: `Repair file permissions on ${unit} and run a system status check. This does not reboot the Pioreactor or stop running jobs.`,
+        title: `Repair system on ${unit}?`,
+        confirmationText: "Repair system",
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      });
+    } catch (_) {
+      return;
+    }
+
+    if (dialogResult && dialogResult.confirmed === false) {
+      return;
+    }
+
+    handleClose();
+    setIsRepairing(true);
+    try {
+      const payload = await fetchTaskResult(`/api/units/${unit}/system/repair`, {
+        fetchOptions: {method: "POST"},
+        maxRetries: 300,
+        delayMs: 200,
+      });
+      const repairResult = payload?.result?.[unit] || payload?.result;
+      if (repairResult?.success) {
+        showSnackbar(`Repair completed on ${unit}.`);
+      } else {
+        showSnackbar(`Repair completed with warnings on ${unit}. Check system logs for details.`);
+        console.warn("Repair system result:", repairResult);
+      }
+    } catch (err) {
+      console.error('Repair failed:', err);
+      showSnackbar(`Repair failed on ${unit}. Please try again.`);
+    } finally {
+      setIsRepairing(false);
+    }
   };
 
   const handleExport = async () => {
@@ -1228,12 +1271,17 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         <MenuItem onClick={handleShutdown}>
           <ListItemText>Shutdown</ListItemText>
         </MenuItem>
+        <Divider/>
+        <MenuItem onClick={handleRepair}>
+          <ListItemText>Repair system</ListItemText>
+        </MenuItem>
         <MenuItem onClick={handleExport}>
           <ListItemText>Export system archive</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleImportClick}>
           <ListItemText>Import system archive</ListItemText>
         </MenuItem>
+        <Divider/>
         <MenuItem onClick={handleRemove} disabled={isLeader} sx={{ color: 'secondary.main' }}>
           <ListItemText>Remove</ListItemText>
         </MenuItem>
@@ -1247,7 +1295,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       />
       <Backdrop
         sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.modal + 1 }}
-        open={isExporting || isImporting}
+        open={isExporting || isImporting || isRepairing}
       >
         <CircularProgress color="inherit" />
       </Backdrop>

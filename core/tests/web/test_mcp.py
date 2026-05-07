@@ -199,7 +199,7 @@ def test_get_pioreactor_unit_capabilities_returns_slim_summary(monkeypatch) -> N
                     ],
                     "published_settings": {
                         "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
-                        "$state": {"datatype": "text", "settable": True},
+                        "$state": {"datatype": "string", "settable": True},
                     },
                     "cli_example": "pio run stirring [OPTIONS]",
                 }
@@ -217,7 +217,7 @@ def test_get_pioreactor_unit_capabilities_returns_slim_summary(monkeypatch) -> N
                 "options": [{"name": "target-rpm", "type": "float range"}],
                 "published_settings": [
                     {"name": "target_rpm", "settable": True, "datatype": "float", "unit": "RPM"},
-                    {"name": "$state", "settable": True, "datatype": "text"},
+                    {"name": "$state", "settable": True, "datatype": "string"},
                 ],
                 "cli_example": "pio run stirring [OPTIONS]",
             }

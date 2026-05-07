@@ -1,0 +1,14 @@
+[Unit]
+Description=Start up %I on boot.
+Wants=network-online.target
+After=network-online.target lighttpd.service huey.service
+
+
+[Service]
+User=pioreactor
+ExecStart=/opt/pioreactor/venv/bin/pio run %I
+Restart=on-failure
+EnvironmentFile=/etc/pioreactor.env
+
+[Install]
+WantedBy=multi-user.target

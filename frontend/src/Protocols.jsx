@@ -266,6 +266,9 @@ function Protocols(props) {
           return;
         }
         const result = finalPayload?.result?.[selectedUnit];
+        if (result == null) {
+          throw new Error("Could not reach this Pioreactor.");
+        }
         if (!Array.isArray(result)) {
           throw new Error("Protocol payload is not a list.");
         }

@@ -17,9 +17,6 @@ from pioreactor.whoami import get_pioreactor_model
 _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     "current_volume_ml": structs.BioreactorVariableDefinition(
         key="current_volume_ml",
-        label="Current volume",
-        description="Current estimated liquid volume in the vial.",
-        unit="mL",
         minimum=0.0,
         maximum=None,
         default_config_key="initial_volume_ml",
@@ -27,9 +24,6 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "efflux_tube_volume_ml": structs.BioreactorVariableDefinition(
         key="efflux_tube_volume_ml",
-        label="Efflux tube level",
-        description="Liquid volume equivalent to the height of the waste/efflux tube.",
-        unit="mL",
         minimum=0.0,
         maximum=None,
         default_config_key="efflux_tube_volume_ml",
@@ -37,19 +31,44 @@ _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     ),
     "alt_media_fraction": structs.BioreactorVariableDefinition(
         key="alt_media_fraction",
-        label="Alt media fraction",
-        description="Fraction of the current volume estimated to be alt media.",
-        unit=None,
         minimum=0.0,
         maximum=1.0,
         default_config_key="initial_alt_media_fraction",
         default_value=0.0,
+    ),
+    "cumulative_media_added_ml": structs.BioreactorVariableDefinition(
+        key="cumulative_media_added_ml",
+        minimum=0.0,
+        maximum=None,
+        default_config_key="initial_cumulative_media_added_ml",
+        default_value=0.0,
+        cap_at_model_capacity=False,
+    ),
+    "cumulative_alt_media_added_ml": structs.BioreactorVariableDefinition(
+        key="cumulative_alt_media_added_ml",
+        minimum=0.0,
+        maximum=None,
+        default_config_key="initial_cumulative_alt_media_added_ml",
+        default_value=0.0,
+        cap_at_model_capacity=False,
+    ),
+    "cumulative_waste_removed_ml": structs.BioreactorVariableDefinition(
+        key="cumulative_waste_removed_ml",
+        minimum=0.0,
+        maximum=None,
+        default_config_key="initial_cumulative_waste_removed_ml",
+        default_value=0.0,
+        cap_at_model_capacity=False,
     ),
 }
 
 
 def _get_bioreactor_variable_definition(variable_name: str) -> structs.BioreactorVariableDefinition:
     return _BIOREACTOR_VARIABLES[variable_name]
+
+
+def get_bioreactor_variable_definitions() -> dict[str, structs.BioreactorVariableDefinition]:
+    return _BIOREACTOR_VARIABLES.copy()
 
 
 def get_default_bioreactor_value(variable_name: str) -> float:
@@ -62,25 +81,6 @@ def get_default_bioreactor_value(variable_name: str) -> float:
     return validate_bioreactor_value(variable_name, resolved_default)
 
 
-def get_bioreactor_descriptors() -> list[structs.BioreactorDescriptor]:
-    descriptors: list[structs.BioreactorDescriptor] = []
-
-    for metadata in _BIOREACTOR_VARIABLES.values():
-        descriptors.append(
-            structs.BioreactorDescriptor(
-                key=metadata.key,
-                label=metadata.label,
-                description=metadata.description,
-                type="numeric",
-                unit=metadata.unit,
-                min=metadata.minimum,
-                max=metadata.maximum,
-            )
-        )
-
-    return descriptors
-
-
 def validate_bioreactor_value(variable_name: str, value: object) -> float:
     metadata = _get_bioreactor_variable_definition(variable_name)
 
@@ -90,15 +90,15 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
         raise ValueError(f"Invalid value for bioreactor variable `{variable_name}`.") from e
 
     minimum = metadata.minimum
-    maximum = get_pioreactor_model().reactor_capacity_ml
-
-    if metadata.maximum is not None:
-        maximum = min(maximum, metadata.maximum)
+    maximum = metadata.maximum
+    if metadata.cap_at_model_capacity:
+        model_capacity = get_pioreactor_model().reactor_capacity_ml
+        maximum = model_capacity if maximum is None else min(model_capacity, maximum)
 
     if parsed < minimum:
         raise ValueError(f"Value for bioreactor variable `{variable_name}` must be >= {minimum}.")
 
-    if parsed > maximum:
+    if maximum is not None and parsed > maximum:
         raise ValueError(f"Value for bioreactor variable `{variable_name}` must be <= {maximum}.")
 
     return parsed
@@ -227,6 +227,25 @@ def calculate_updated_alt_media_fraction(
     return validate_bioreactor_value("alt_media_fraction", frac)
 
 
+def calculate_updated_cumulative_volume(
+    variable_name: str,
+    dosing_event: structs.DosingEvent,
+    current_cumulative_volume_ml: float,
+) -> float:
+    volume, event = float(dosing_event.volume_change), dosing_event.event
+
+    if variable_name == "cumulative_media_added_ml" and event == "add_media":
+        updated = current_cumulative_volume_ml + volume
+    elif variable_name == "cumulative_alt_media_added_ml" and event == "add_alt_media":
+        updated = current_cumulative_volume_ml + volume
+    elif variable_name == "cumulative_waste_removed_ml" and event == "remove_waste":
+        updated = current_cumulative_volume_ml + volume
+    else:
+        updated = current_cumulative_volume_ml
+
+    return validate_bioreactor_value(variable_name, max(updated, 0.0))
+
+
 def apply_dosing_event_to_bioreactor(
     unit: pt.Unit,
     experiment: pt.Experiment,
@@ -236,6 +255,9 @@ def apply_dosing_event_to_bioreactor(
     current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
     efflux_tube_volume_ml = get_bioreactor_value(experiment, "efflux_tube_volume_ml")
     current_alt_media_fraction = get_bioreactor_value(experiment, "alt_media_fraction")
+    current_cumulative_media_added_ml = get_bioreactor_value(experiment, "cumulative_media_added_ml")
+    current_cumulative_alt_media_added_ml = get_bioreactor_value(experiment, "cumulative_alt_media_added_ml")
+    current_cumulative_waste_removed_ml = get_bioreactor_value(experiment, "cumulative_waste_removed_ml")
 
     updated_alt_media_fraction = calculate_updated_alt_media_fraction(
         dosing_event,
@@ -246,6 +268,21 @@ def apply_dosing_event_to_bioreactor(
         dosing_event,
         current_volume_ml=current_volume_ml,
         efflux_tube_volume_ml=efflux_tube_volume_ml,
+    )
+    updated_cumulative_media_added_ml = calculate_updated_cumulative_volume(
+        "cumulative_media_added_ml",
+        dosing_event,
+        current_cumulative_media_added_ml,
+    )
+    updated_cumulative_alt_media_added_ml = calculate_updated_cumulative_volume(
+        "cumulative_alt_media_added_ml",
+        dosing_event,
+        current_cumulative_alt_media_added_ml,
+    )
+    updated_cumulative_waste_removed_ml = calculate_updated_cumulative_volume(
+        "cumulative_waste_removed_ml",
+        dosing_event,
+        current_cumulative_waste_removed_ml,
     )
 
     updated_alt_media_fraction = set_bioreactor_value(
@@ -258,6 +295,21 @@ def apply_dosing_event_to_bioreactor(
         "current_volume_ml",
         updated_current_volume_ml,
     )
+    updated_cumulative_media_added_ml = set_bioreactor_value(
+        experiment,
+        "cumulative_media_added_ml",
+        updated_cumulative_media_added_ml,
+    )
+    updated_cumulative_alt_media_added_ml = set_bioreactor_value(
+        experiment,
+        "cumulative_alt_media_added_ml",
+        updated_cumulative_alt_media_added_ml,
+    )
+    updated_cumulative_waste_removed_ml = set_bioreactor_value(
+        experiment,
+        "cumulative_waste_removed_ml",
+        updated_cumulative_waste_removed_ml,
+    )
 
     _publish_updated_bioreactor_value(
         unit,
@@ -273,10 +325,34 @@ def apply_dosing_event_to_bioreactor(
         updated_current_volume_ml,
         mqtt_client=mqtt_client,
     )
+    _publish_updated_bioreactor_value(
+        unit,
+        experiment,
+        "cumulative_media_added_ml",
+        updated_cumulative_media_added_ml,
+        mqtt_client=mqtt_client,
+    )
+    _publish_updated_bioreactor_value(
+        unit,
+        experiment,
+        "cumulative_alt_media_added_ml",
+        updated_cumulative_alt_media_added_ml,
+        mqtt_client=mqtt_client,
+    )
+    _publish_updated_bioreactor_value(
+        unit,
+        experiment,
+        "cumulative_waste_removed_ml",
+        updated_cumulative_waste_removed_ml,
+        mqtt_client=mqtt_client,
+    )
 
     return {
         "alt_media_fraction": updated_alt_media_fraction,
         "current_volume_ml": updated_current_volume_ml,
+        "cumulative_media_added_ml": updated_cumulative_media_added_ml,
+        "cumulative_alt_media_added_ml": updated_cumulative_alt_media_added_ml,
+        "cumulative_waste_removed_ml": updated_cumulative_waste_removed_ml,
     }
 
 

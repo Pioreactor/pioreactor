@@ -196,7 +196,7 @@ def collect_background_jobs() -> Tuple[Dict[str, Any], ...]:
             # dynamic settings added via add_to_published_settings in class source
             settings.update(_extract_additional_settings(ancestor))
         # always include the "$state" setting (settable) for every BackgroundJob, but never expose as CLI
-        settings["$state"] = {"datatype": "text", "settable": True}
+        settings["$state"] = {"datatype": "string", "settable": True}
 
         if issubclass(cls, AutomationJob):
             automation_name = getattr(cls, "automation_name", None)

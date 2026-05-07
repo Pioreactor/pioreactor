@@ -10,6 +10,7 @@ from typing import cast
 from typing import Iterator
 
 import click
+import pioreactor.config as config_module
 import pytest
 from click.testing import CliRunner
 from pioreactor import bioreactor
@@ -21,7 +22,6 @@ from pioreactor.cli.pios import kill
 from pioreactor.cli.pios import pios
 from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
-from pioreactor.config import config
 from pioreactor.config import get_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.config import temporary_config_change
@@ -31,8 +31,23 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
+from pioreactor.utils.networking import DiscoveredWorker
 from pioreactor.utils.networking import resolve_to_address
 from tests.conftest import capture_requests
+
+
+@pytest.fixture(autouse=True)
+def restore_config_singleton_after_cli_test() -> Iterator[None]:
+    original_config = config_module.config
+
+    yield
+
+    config_module.config = original_config
+    config_module.get_config.cache_clear()
+    config_module.get_leader_hostname.cache_clear()
+    config_module._get_leader_address.cache_clear()
+    config_module._get_mqtt_address.cache_clear()
+    whoami.am_I_leader.cache_clear()
 
 
 def pause() -> None:
@@ -46,6 +61,24 @@ def test_run_exits_if_command_not_found() -> None:
     assert result.exit_code == 2
 
 
+def test_workers_discover_prints_hostname_and_ipv4(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.utils.networking.discover_workers_on_network",
+        lambda terminate: iter(
+            [
+                DiscoveredWorker(hostname="unit1", ipv4_address="192.168.1.10"),
+                DiscoveredWorker(hostname="unit2", ipv4_address="192.168.1.11"),
+            ]
+        ),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["workers", "discover", "--terminate"])
+
+    assert result.exit_code == 0
+    assert result.output == "unit1\t192.168.1.10\nunit2\t192.168.1.11\n"
+
+
 def test_run() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run"])
@@ -53,6 +86,8 @@ def test_run() -> None:
 
 
 def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
+    import pioreactor.config as config_module
+
     captured_args: list[str] = []
 
     class FakePopen:
@@ -68,8 +103,8 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
 
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
 
-    with temporary_config_change(config, "mqtt", "username", "custom-user"):
-        with temporary_config_change(config, "mqtt", "password", "custom-password"):
+    with temporary_config_change(config_module.config, "mqtt", "username", "custom-user"):
+        with temporary_config_change(config_module.config, "mqtt", "password", "custom-password"):
             runner = CliRunner()
             result = runner.invoke(pio, ["mqtt", "-t", "pioreactor/unit/exp/dosing_events"])
 
@@ -88,43 +123,6 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
         "-P",
         "custom-password",
     ]
-
-
-def test_pio_config_show_json_with_sources(tmp_path: Path, monkeypatch) -> None:
-    (tmp_path / "config.ini").write_text(
-        """
-[cluster.topology]
-leader_hostname=leader
-leader_address=leader.local
-
-[mqtt]
-broker_address=global-broker
-
-[PWM]
-0=stirring
-""".strip()
-    )
-    (tmp_path / "unit_config.ini").write_text(
-        """
-[mqtt]
-broker_address=local-broker
-""".strip()
-    )
-
-    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
-    get_config.cache_clear()
-    try:
-        runner = CliRunner()
-        result = runner.invoke(pio, ["config", "show", "--json", "--with-source"])
-        assert result.exit_code == 0
-
-        payload = json.loads(result.output)
-        assert payload["mqtt"]["broker_address"]["value"] == "local-broker"
-        assert payload["mqtt"]["broker_address"]["source"] == "local"
-        assert payload["cluster.topology"]["leader_hostname"]["source"] == "global"
-        assert payload["PWM_reverse"]["stirring"]["source"] == "derived"
-    finally:
-        get_config.cache_clear()
 
 
 def test_pio_config_get(tmp_path: Path, monkeypatch) -> None:
@@ -287,45 +285,6 @@ broker_address=global-broker
     assert "Specify at most one of --shared or --specific." in result.output
 
 
-def test_pio_config_set_specific_updates_unit_config(tmp_path: Path, monkeypatch) -> None:
-    (tmp_path / "config.ini").write_text(
-        """
-[cluster.topology]
-leader_hostname=leader
-leader_address=leader.local
-
-[mqtt]
-broker_address=global-broker
-""".strip(),
-        encoding="utf-8",
-    )
-    (tmp_path / "unit_config.ini").write_text(
-        """
-[mqtt]
-broker_address=local-broker
-""".strip(),
-        encoding="utf-8",
-    )
-
-    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
-    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
-    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
-    get_config.cache_clear()
-    try:
-        runner = CliRunner()
-        result = runner.invoke(
-            pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--specific"]
-        )
-        assert result.exit_code == 0
-        assert "broker_address=updated-broker" in (tmp_path / "unit_config.ini").read_text(encoding="utf-8")
-
-        result = runner.invoke(pio, ["config", "get", "mqtt", "broker_address"])
-        assert result.exit_code == 0
-        assert result.output == "updated-broker\n"
-    finally:
-        get_config.cache_clear()
-
-
 def test_pio_config_set_preserves_existing_file_mode(tmp_path: Path, monkeypatch) -> None:
     config_path = tmp_path / "config.ini"
     config_path.write_text(
@@ -354,34 +313,6 @@ broker_address=global-broker
         get_config.cache_clear()
 
 
-def test_pio_config_set_specific_creates_missing_section(tmp_path: Path, monkeypatch) -> None:
-    (tmp_path / "config.ini").write_text(
-        """
-[cluster.topology]
-leader_hostname=leader
-leader_address=leader.local
-""".strip(),
-        encoding="utf-8",
-    )
-
-    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
-    get_config.cache_clear()
-    try:
-        runner = CliRunner()
-        result = runner.invoke(
-            pio,
-            ["config", "set", "new.section", "new_key", "new_value", "--specific"],
-        )
-        assert result.exit_code == 0
-        assert "[new.section]" in (tmp_path / "unit_config.ini").read_text(encoding="utf-8")
-
-        result = runner.invoke(pio, ["config", "get", "new.section", "new_key"])
-        assert result.exit_code == 0
-        assert result.output == "new_value\n"
-    finally:
-        get_config.cache_clear()
-
-
 def test_pio_config_set_shared_is_noop_if_not_leader(tmp_path: Path, monkeypatch) -> None:
     original_shared_text = """
 [mqtt]
@@ -397,6 +328,40 @@ broker_address=global-broker
         result = runner.invoke(pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--shared"])
         assert result.exit_code == 0
         assert (tmp_path / "config.ini").read_text(encoding="utf-8") == original_shared_text
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_set_specific_uses_dot_pioreactor_fallback(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+""".strip(),
+        encoding="utf-8",
+    )
+    unit_config_path = tmp_path / "unit_config.ini"
+    unit_config_path.write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--specific"]
+        )
+
+        assert result.exit_code == 0
+        assert "broker_address=updated-broker" in unit_config_path.read_text(encoding="utf-8")
     finally:
         get_config.cache_clear()
 
@@ -464,6 +429,45 @@ broker_address=local-broker
         get_config.cache_clear()
 
 
+def test_pio_config_show_with_source_uses_dot_pioreactor_fallback(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio,
+            ["config", "show", "--json", "--with-source", "--section", "mqtt", "--key", "broker_address"],
+        )
+
+        assert result.exit_code == 0
+        assert json.loads(result.output) == {
+            "mqtt": {"broker_address": {"value": "local-broker", "source": "local"}}
+        }
+    finally:
+        get_config.cache_clear()
+
+
 def test_pio_config_show_key_requires_section() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["config", "show", "--key", "broker_address"])
@@ -486,6 +490,23 @@ def test_pio_status_handles_unassigned_experiment(monkeypatch) -> None:
     assert "experiment=" in identity_line
     assert whoami.NO_EXPERIMENT not in identity_line
     assert "worker is not assigned to an experiment" not in result.output
+
+
+def test_pio_status_json_outputs_machine_readable_checks() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] in {"OK", "WARN", "FAIL"}
+    assert "Check" not in result.output
+
+    checks = payload["checks"]
+    assert isinstance(checks, list)
+    identity_check = next(check for check in checks if check["name"] == "identity")
+    assert set(identity_check) == {"name", "status", "details"}
+    assert identity_check["status"] in {"OK", "WARN", "FAIL"}
+    assert "unit=" in identity_check["details"]
 
 
 def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> None:
@@ -535,6 +556,156 @@ def test_pio_status_handles_i2c_scan_errors_without_aborting(monkeypatch) -> Non
     i2c_line = next(line for line in result.output.splitlines() if line.startswith("hardware:i2c_bus1"))
     assert "WARN" in i2c_line
     assert "scan failed (i2c unavailable)" in i2c_line
+
+
+def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    commands: list[list[str]] = []
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+
+    class DummyResult:
+        def __init__(self, returncode: int = 0) -> None:
+            self.returncode = returncode
+
+    def record_command(command: list[str], check: bool) -> DummyResult:
+        commands.append(command)
+        assert check is True
+        return DummyResult()
+
+    def record_run(command: list[str], check: bool) -> DummyResult:
+        if command == ["/usr/bin/systemctl", "is-active", "--quiet", "lighttpd.service"]:
+            commands.append(command)
+            assert check is False
+            return DummyResult()
+        if command == ["/usr/bin/systemctl", "is-active", "--quiet", "huey.service"]:
+            commands.append(command)
+            assert check is False
+            return DummyResult(returncode=3)
+        return record_command(command, check)
+
+    monkeypatch.setattr("subprocess.run", record_run)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["repair"])
+
+    assert result.exit_code == 0
+    assert len(commands) == 16
+    assert commands[0] == [
+        "/usr/bin/sudo",
+        "/usr/bin/find",
+        str(dot_pioreactor),
+        "-mindepth",
+        "0",
+        "(",
+        "!",
+        "-user",
+        "pioreactor",
+        "-o",
+        "!",
+        "-group",
+        "www-data",
+        ")",
+        "-exec",
+        "/usr/bin/chown",
+        "-h",
+        "pioreactor:www-data",
+        "{}",
+        "+",
+    ]
+    assert commands[1] == ["/usr/bin/sudo", "/usr/bin/chmod", "g+w", str(dot_pioreactor)]
+    assert commands[2][-4:] == ["/usr/bin/chmod", "g+w", "{}", "+"]
+    assert commands[3][-7:] == ["-perm", "-2000", "-exec", "/usr/bin/chmod", "g+s", "{}", "+"]
+    assert commands[4] == [
+        "/usr/bin/sudo",
+        "/usr/bin/install",
+        "-d",
+        "-o",
+        "pioreactor",
+        "-g",
+        "www-data",
+        "-m",
+        "2775",
+        "/run/pioreactor",
+    ]
+    assert commands[5] == [
+        "/usr/bin/sudo",
+        "/usr/bin/install",
+        "-d",
+        "-o",
+        "pioreactor",
+        "-g",
+        "www-data",
+        "-m",
+        "2775",
+        "/run/pioreactor/exports",
+    ]
+    assert commands[6] == [
+        "/usr/bin/sudo",
+        "/usr/bin/find",
+        "/run/pioreactor/exports",
+        "-maxdepth",
+        "1",
+        "-type",
+        "f",
+        "(",
+        "(",
+        "-name",
+        "*.tmp",
+        "-o",
+        "-name",
+        "*.csv",
+        ")",
+        "-mmin",
+        "+30",
+        "-o",
+        "(",
+        "-name",
+        "export_*.zip",
+        "-mmin",
+        "+360",
+        ")",
+        ")",
+        "-delete",
+    ]
+    assert commands[7][-2:] == ["2770", "/run/pioreactor/cache"]
+    assert commands[8] == [
+        "/usr/bin/sudo",
+        "/usr/bin/touch",
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[9][-2:] == [
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[10][-3:] == [
+        "0660",
+        "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite",
+        "/run/pioreactor/cache/huey.db",
+    ]
+    assert commands[11][-6:] == [
+        "-exec",
+        "/usr/bin/chown",
+        "-h",
+        "pioreactor:www-data",
+        "{}",
+        "+",
+    ]
+    assert commands[12][-5:] == ["-exec", "/usr/bin/chmod", "0660", "{}", "+"]
+    assert commands[13] == ["/usr/bin/systemctl", "is-active", "--quiet", "lighttpd.service"]
+    assert commands[14] == ["/usr/bin/systemctl", "is-active", "--quiet", "huey.service"]
+    assert commands[15] == ["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "huey.service"]
+    assert f"Repaired ownership and group permissions for {dot_pioreactor}." in result.output
+    assert "Repaired runtime directories under /run/pioreactor." in result.output
+    assert "Cleared stale runtime export artifacts from /run/pioreactor/exports." in result.output
+    assert "Repaired runtime cache files under /run/pioreactor/cache." in result.output
+    assert "Restarted inactive pioreactor-web.target services: huey.service." in result.output
+    assert "Repair complete." in result.output
 
 
 def test_pio_cache_view_without_key_shows_all_keys() -> None:
@@ -857,22 +1028,23 @@ def test_pios_run_requests_with_config_override() -> None:
     )
 
 
-def test_pios_update_requests_with_sha() -> None:
+def test_pios_update_requires_explicit_subcommand() -> None:
     runner = CliRunner()
     git_sha = "a0b1c2d3"
     with capture_requests() as bucket:
         result = runner.invoke(pios, ["update", "--sha", git_sha, "-y"])
 
-    assert result.exit_code == 0
-    update_requests = [req for req in bucket if req.path == "/unit_api/system/update/app"]
-    assert len(update_requests) >= 3
-    update_urls = {req.url for req in update_requests}
-    assert (
-        f"http://{resolve_to_address(get_leader_hostname())}:4999/unit_api/system/update/app" in update_urls
-    )
-    assert "http://unit1.local:4999/unit_api/system/update/app" in update_urls
-    assert "http://unit2.local:4999/unit_api/system/update/app" in update_urls
-    assert all(req.json == {"options": {"sha": git_sha}} for req in update_requests)
+    assert result.exit_code == 2
+    assert "No such option: --sha" in result.output
+    assert bucket == []
+
+
+def test_pio_update_requires_explicit_subcommand() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["update", "--sha", "a0b1c2d3"])
+
+    assert result.exit_code == 2
+    assert "No such option: --sha" in result.output
 
 
 def test_pios_update_app_requests_with_sha() -> None:
@@ -942,30 +1114,15 @@ def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
     assert all("--repo org/repo" in command for command in commands)
 
 
-def test_pios_update_alias_ssh_fallback_includes_repo(monkeypatch) -> None:
-    from pioreactor.mureq import HTTPException
-
+def test_pios_update_app_options_are_not_accepted_on_update_group() -> None:
     runner = CliRunner()
-    commands: list[str] = []
-
-    def fail_post_into(*_args, **_kwargs):
-        raise HTTPException("worker webserver unavailable")
-
-    def record_ssh(_address: str, command: str) -> None:
-        commands.append(command)
-
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fail_post_into)
-    monkeypatch.setattr("pioreactor.cli.pios.ssh", record_ssh)
-
     result = runner.invoke(
         pios,
         ["update", "--version", "1.2.3", "--repo", "org/repo", "-y"],
     )
 
-    assert result.exit_code == 0
-    assert len(commands) >= 1
-    assert all(command.startswith("pio update app ") for command in commands)
-    assert all("--repo org/repo" in command for command in commands)
+    assert result.exit_code == 2
+    assert "No such option: --version" in result.output
 
 
 def test_pios_update_app_explicit_units_exclude_leader(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1145,6 +1302,17 @@ def test_pios_sync_configs_specific_refreshes_unit_snapshots(monkeypatch, tmp_pa
     db_path = tmp_path / "app.sqlite"
     dot_pioreactor = tmp_path / ".pioreactor"
     dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text(
+        f"""
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader
+
+[storage]
+database={db_path}
+""".strip(),
+        encoding="utf-8",
+    )
     (dot_pioreactor / "unit_config.ini").write_text("[leader]\nvalue=1\n", encoding="utf-8")
 
     import sqlite3

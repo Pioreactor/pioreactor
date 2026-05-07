@@ -1,0 +1,12 @@
+dataset_name: od_readings
+default_order_by: timestamp
+description: This dataset includes a time series of readings provided by the sensors
+  (transformed via a calibration curve, if available), the inputs for growth calculations
+  and normalized optical density.
+display_name: Optical density
+has_experiment: true
+has_unit: true
+source: app
+table: od_readings
+timestamp_columns:
+- timestamp

@@ -100,7 +100,7 @@ def test_run_tests_timeout_still_executes_test_cleanup(monkeypatch: pytest.Monke
         def __enter__(self):
             return self
 
-        def __exit__(self, exc_type, exc_value, traceback) -> None:
+        def __exit__(self, _exc_type, _exc_value, _traceback) -> None:
             nonlocal cleaned_up
             cleaned_up = True
 
@@ -161,7 +161,7 @@ def test_click_self_test_filters_registered_tests_with_k(monkeypatch: pytest.Mon
         def __enter__(self):
             return managed_state
 
-        def __exit__(self, exc_type, exc_value, traceback) -> None:
+        def __exit__(self, _exc_type, _exc_value, _traceback) -> None:
             return None
 
     def test_temperature_probe(managed_state, logger, unit: str, experiment: str) -> None:
@@ -199,7 +199,7 @@ def test_click_self_test_retry_failed_filters_to_failed_names(monkeypatch: pytes
         def __enter__(self):
             return managed_state
 
-        def __exit__(self, exc_type, exc_value, traceback) -> None:
+        def __exit__(self, _exc_type, _exc_value, _traceback) -> None:
             return None
 
     def test_temperature_probe(managed_state, logger, unit: str, experiment: str) -> None:

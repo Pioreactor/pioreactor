@@ -154,4 +154,16 @@ describe("Protocols", () => {
     expect(await screen.findByText("Run on all Pioreactors")).toBeInTheDocument();
     expect(fetchTaskResult).toHaveBeenCalledWith("/api/workers/$broadcast/calibration_protocols");
   });
+
+  test("shows an offline-worker message when the selected worker is unreachable", async () => {
+    fetchTaskResult.mockResolvedValue({
+      result: {
+        "unit-1": null,
+      },
+    });
+
+    renderProtocols("/protocols/unit-1");
+
+    expect(await screen.findByText("Could not reach this worker.")).toBeInTheDocument();
+  });
 });

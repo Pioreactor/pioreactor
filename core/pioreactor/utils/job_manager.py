@@ -58,7 +58,6 @@ class JobManager:
             self.conn = sqlite3.connect(db_path, isolation_level=None)
             self.conn.executescript(
                 """
-                PRAGMA journal_mode=WAL;
                 PRAGMA busy_timeout = 5000;
                 PRAGMA temp_store = 2;
                 PRAGMA foreign_keys = ON;
@@ -357,7 +356,7 @@ class JobManager:
     def __enter__(self) -> "JobManager":
         return self
 
-    def __exit__(self, exc_type: object, exc_val: object, tb: object) -> None:
+    def __exit__(self, _exc_type: object, _exc_val: object, _tb: object) -> None:
         self.close()
         return
 

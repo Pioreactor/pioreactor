@@ -36,6 +36,7 @@ import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlin
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import DisplaySourceCode from "./components/DisplaySourceCode";
 import CloseIcon from '@mui/icons-material/Close';
+import DownloadIcon from '@mui/icons-material/Download';
 
 
 function formatPolynomial(coefficients) {
@@ -126,6 +127,25 @@ function formatCurve(curveData) {
   return "Invalid curve data";
 }
 
+function calibrationToYaml(calibration, pioreactorUnit, calibrationName) {
+  const { calibration_type, created_at, curve_data_, x, y, recorded_data } = calibration;
+
+  const yamlObj = {
+    calibration_type,
+    calibration_name: calibrationName,
+    calibrated_on_pioreactor_unit: pioreactorUnit,
+    created_at,
+    curve_data_,
+    x,
+    y,
+    recorded_data,
+    ...calibration,
+  };
+  delete yamlObj["is_active"];
+
+  return yaml.dump(yamlObj, { schema: yaml.JSON_SCHEMA }).replace(/^(\s*)'y':/gm, '$1y:');
+}
+
 
 
 function Delete({ pioreactorUnit, device, calibrationName }) {
@@ -161,42 +181,17 @@ function Delete({ pioreactorUnit, device, calibrationName }) {
 )}
 
 
-function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
+function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled }) {
   const [open, setOpen] = useState(false);
   const [yamlText, setYamlText] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const openAndLoad = async () => {
+  const openAndLoad = () => {
     setOpen(true);
-    setLoading(true);
-    setYamlText("");
     try {
-      const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
-      const data = await fetchTaskResult(apiUrl);
-      const calibration = data.result[pioreactorUnit];
-
-      const { calibration_type, created_at, curve_data_, x, y, recorded_data } = calibration;
-
-      const yamlObj = {
-        calibration_type,
-        calibration_name: calibrationName,
-        calibrated_on_pioreactor_unit: pioreactorUnit,
-        created_at,
-        curve_data_,
-        x,
-        y,
-        recorded_data,
-        ...calibration,
-      };
-      delete yamlObj["is_active"];
-
-      const text = yaml.dump(yamlObj, { schema: yaml.JSON_SCHEMA }).replace(/^(\s*)'y':/gm, '$1y:');
-      setYamlText(text);
+      setYamlText(calibrationToYaml(calibration, pioreactorUnit, calibrationName));
     } catch (err) {
       console.error('Failed to load YAML', err);
       setYamlText('# Error loading YAML');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -205,11 +200,12 @@ function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
   return (
     <>
       <Button
-        style={{ textTransform: 'none', marginRight: '12px', float: 'right' }}
+        style={{ textTransform: 'none', float: 'right' }}
+        disabled={disabled}
         onClick={openAndLoad}
       >
         <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
-        View YAML
+        View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>
@@ -228,17 +224,45 @@ function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {loading ? (
-            <Box sx={{ textAlign: "center", mt: 2 }}><CircularProgress size={20} /></Box>
-          ) : (
-            <DisplaySourceCode sourceCode={yamlText} />
-          )}
+          <DisplaySourceCode sourceCode={yamlText} />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} sx={{ textTransform: 'none' }} autoFocus>Close</Button>
         </DialogActions>
       </Dialog>
     </>
+  );
+}
+
+
+function DownloadCalibrationYaml({ pioreactorUnit, calibrationName, calibration, disabled, onError }) {
+  const downloadCalibration = () => {
+    try {
+      const yamlText = calibrationToYaml(calibration, pioreactorUnit, calibrationName);
+      const blob = new Blob([yamlText], { type: "application/x-yaml" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${calibrationName}.yaml`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed:", error);
+      onError?.("Unable to download calibration YAML.");
+    }
+  };
+
+  return (
+    <Button
+      style={{ textTransform: "none", float: "right" }}
+      disabled={disabled}
+      onClick={downloadCalibration}
+    >
+      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+      Download calibration
+    </Button>
   );
 }
 
@@ -327,7 +351,19 @@ function SingleCalibrationPage(props) {
           </Typography>
 
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap", alignItems: "center"}}>
-            <ViewYamlSource pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
+            <ViewYamlSource
+              pioreactorUnit={pioreactorUnit}
+              calibrationName={calibrationName}
+              calibration={calibration}
+              disabled={loading || !calibration}
+            />
+            <DownloadCalibrationYaml
+              pioreactorUnit={pioreactorUnit}
+              calibrationName={calibrationName}
+              calibration={calibration}
+              disabled={loading || !calibration}
+              onError={showSnackbar}
+            />
             <Delete pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Button

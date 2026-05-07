@@ -1,0 +1,10 @@
+dataset_name: led_change_events
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: led_change_events
+timestamp_columns:
+- timestamp
+description: In this dataset, you'll find a log table of all LED events, including the channel, intensity, and the source that triggered the event.
+display_name: LED event log

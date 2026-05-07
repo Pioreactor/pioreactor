@@ -477,7 +477,7 @@ class Monitor(LongRunningBackgroundJob):
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, self._led_pin, 0)
 
-    def button_down_and_up(self, chip: int, gpio: int, level: int, tick: int) -> None:
+    def button_down_and_up(self, _chip: int, _gpio: int, level: int, _tick: int) -> None:
         # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
         if level == 1:
@@ -642,9 +642,12 @@ class Monitor(LongRunningBackgroundJob):
     def announce_new_workers(self) -> None:
         sleep(10)  # wait for the web server to be available
         for worker in discover_workers_on_network():
+            hostname = worker.hostname
             # not in current cluster, and not leader
-            if (worker not in get_workers_in_inventory()) and (worker != leader_hostname):
-                self.logger.notice(f"Pioreactor worker, {worker}, is available to be added to your cluster.")
+            if (hostname not in get_workers_in_inventory()) and (hostname != leader_hostname):
+                self.logger.notice(
+                    f"Pioreactor worker, {hostname}, is available to be added to your cluster."
+                )
 
     def update_bioreactor_state_from_dosing_event(self, message: MQTTMessage) -> None:
         try:

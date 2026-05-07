@@ -10,6 +10,7 @@ import Button from '@mui/material/Button';
 import Backdrop from '@mui/material/Backdrop';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
@@ -22,7 +23,7 @@ import Box from '@mui/material/Box';
 import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, IconButton, Menu, MenuItem } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
-import { checkTaskCallback } from "./utils/tasks";
+import { checkTaskCallback, fetchTaskResult } from "./utils/tasks";
 import { getConfig } from "./utils/config";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./utils/color";
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
@@ -44,6 +45,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import PioreactorIcon from "./components/PioreactorIcon"
 import Alert from '@mui/material/Alert';
+import Snackbar from './components/Snackbar';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -159,6 +161,87 @@ function Shutdown({unit}) {
         <PowerSettingsNewIcon fontSize="small" sx={textIcon} />Shutdown
       </Button>
 )}
+
+
+function RepairSystem({unit}) {
+  const confirm = useConfirm();
+  const [isRepairing, setIsRepairing] = React.useState(false);
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+  const [snackbarMessage, setSnackbarMessage] = React.useState("");
+
+  const showSnackbar = (message) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = (_event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
+
+  const handleRepair = async () => {
+    let dialogResult;
+    try {
+      dialogResult = await confirm({
+        description: `Repair file permissions on ${unit} and run a system status check. This does not reboot the Pioreactor or stop running jobs.`,
+        title: `Repair system on ${unit}?`,
+        confirmationText: "Repair system",
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      });
+    } catch (_) {
+      return;
+    }
+
+    if (dialogResult && dialogResult.confirmed === false) {
+      return;
+    }
+
+    setIsRepairing(true);
+    try {
+      const payload = await fetchTaskResult(`/api/units/${unit}/system/repair`, {
+        fetchOptions: {method: "POST"},
+        maxRetries: 300,
+        delayMs: 200,
+      });
+      const repairResult = payload?.result?.[unit] || payload?.result;
+      if (repairResult?.success) {
+        showSnackbar(`Repair completed on ${unit}.`);
+      } else {
+        showSnackbar(`Repair completed with warnings on ${unit}. Check system logs for details.`);
+        console.warn("Repair system result:", repairResult);
+      }
+    } catch (err) {
+      console.error('Repair failed:', err);
+      showSnackbar(`Repair failed on ${unit}. Please try again.`);
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
+  return (
+    <React.Fragment>
+      <Button
+        sx={{textTransform: "none"}}
+        size="small"
+        loading={isRepairing}
+        onClick={handleRepair}
+      >
+        <BuildOutlinedIcon fontSize="small" sx={textIcon} />Repair system
+      </Button>
+      <Snackbar
+        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
+        autoHideDuration={2500}
+        key={`snackbar-repair-system-${unit}`}
+      />
+    </React.Fragment>
+  );
+}
 
 
 const Path = styled(Box)(({ theme }) => ({
@@ -610,6 +693,9 @@ function LeaderCard({leaderHostname}) {
         <Divider sx={{margin: "5px 0px"}}/>
       </CardContent>
       <CardActions sx={{display: "flex", justifyContent: "space-between"}}>
+        <Box>
+          <RepairSystem unit={unit} />
+        </Box>
         <Box>
           <Reboot unit={unit} />
           <Shutdown unit={unit} />

@@ -9,10 +9,12 @@ import pytest
 from flask import g
 from msgspec import Struct
 from msgspec import to_builtins
-from pioreactor.mureq import get
 from pioreactor.mureq import Response
 from pioreactor.web.app import _make_dicts
 from pioreactor.web.app import create_app
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SHARED_ASSETS_DIR = REPO_ROOT / "packaging" / "shared-assets"
 
 
 @pytest.fixture()
@@ -25,10 +27,7 @@ def app():
     )
 
     with app.app_context():
-        r = get(
-            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/refs/heads/pioreactor/workspace/scripts/files/sql/create_tables.sql"
-        )
-        table_statements = r.body.decode()
+        table_statements = (SHARED_ASSETS_DIR / "sql" / "create_tables.sql").read_text()
 
         db = getattr(g, "_app_database", None)
         if db is None:
