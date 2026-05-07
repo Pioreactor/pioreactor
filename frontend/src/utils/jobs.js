@@ -7,6 +7,73 @@ function getAutomationCacheKey(unit, automationType) {
   return `${unit || ""}:${automationType}`;
 }
 
+function buildPublishedSetting(field, existingSetting, { includeLimits = false } = {}) {
+  const publishedSetting = {
+    value: existingSetting?.value ?? field.default ?? null,
+    label: field.label,
+    type: field.type,
+    unit: field.unit || null,
+    display: field.display,
+    description: field.description,
+    editable: field.editable ?? true,
+  };
+
+  if (includeLimits) {
+    publishedSetting.min = field.min ?? null;
+    publishedSetting.max = field.max ?? null;
+  }
+
+  return publishedSetting;
+}
+
+function requestJson(endpoint, { createError = createApiErrorFromResponse } = {}) {
+  return fetch(endpoint).then(async (response) => {
+    if (!response.ok) {
+      throw await createError(response);
+    }
+    return response.json();
+  });
+}
+
+function getCachedJson(cache, cacheKey, endpoint, options = {}) {
+  if (!cache.has(cacheKey)) {
+    const pendingRequest = requestJson(endpoint, options)
+      .then((descriptors) => {
+        const resolvedDescriptors = Promise.resolve(descriptors);
+        cache.set(cacheKey, resolvedDescriptors);
+        return descriptors;
+      })
+      .catch((error) => {
+        cache.delete(cacheKey);
+        throw error;
+      });
+
+    cache.set(cacheKey, pendingRequest);
+  }
+
+  return cache.get(cacheKey);
+}
+
+function runJobPatch(endpoint, body) {
+  return fetch(endpoint, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  })
+    .then((response) => {
+      if (response.ok) {
+        return;
+      }
+      throw new Error(`Error ${response.status}.`);
+    })
+    .catch((error) => {
+      throw error;
+    });
+}
+
 export function resetWorkerJobDescriptorsCache() {
   workerJobDescriptorsRequestCache = new Map();
   settingsDescriptorsRequestCache = null;
@@ -65,15 +132,7 @@ export function buildJobsStateFromDescriptors(
 
     for (const field of job.published_settings) {
       const existingSetting = existingJob?.publishedSettings?.[field.key];
-      metaData.publishedSettings[field.key] = {
-        value: existingSetting?.value ?? field.default ?? null,
-        label: field.label,
-        type: field.type,
-        unit: field.unit || null,
-        display: field.display,
-        description: field.description,
-        editable: field.editable ?? true,
-      };
+      metaData.publishedSettings[field.key] = buildPublishedSetting(field, existingSetting);
     }
 
     jobs[job.job_name] = metaData;
@@ -105,17 +164,11 @@ export function buildSettingsCollectionsFromDescriptors(
 
     for (const field of collection.published_settings) {
       const existingSetting = existingCollection?.publishedSettings?.[field.key];
-      metadata.publishedSettings[field.key] = {
-        value: existingSetting?.value ?? field.default ?? null,
-        label: field.label,
-        type: field.type,
-        unit: field.unit || null,
-        display: field.display,
-        description: field.description,
-        editable: field.editable ?? true,
-        min: field.min ?? null,
-        max: field.max ?? null,
-      };
+      metadata.publishedSettings[field.key] = buildPublishedSetting(
+        field,
+        existingSetting,
+        { includeLimits: true },
+      );
     }
 
     collections[collection.key] = metadata;
@@ -208,28 +261,11 @@ export async function getWorkerJobDescriptors(unit) {
     return [];
   }
 
-  if (!workerJobDescriptorsRequestCache.has(unit)) {
-    const pendingRequest = fetch(`/api/workers/${unit}/jobs/descriptors`)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw await createApiErrorFromResponse(response);
-        }
-        return response.json();
-      })
-      .then((descriptors) => {
-        const resolvedDescriptors = Promise.resolve(descriptors);
-        workerJobDescriptorsRequestCache.set(unit, resolvedDescriptors);
-        return descriptors;
-      })
-      .catch((error) => {
-        workerJobDescriptorsRequestCache.delete(unit);
-        throw error;
-      });
-
-    workerJobDescriptorsRequestCache.set(unit, pendingRequest);
-  }
-
-  return workerJobDescriptorsRequestCache.get(unit);
+  return getCachedJson(
+    workerJobDescriptorsRequestCache,
+    unit,
+    `/api/workers/${unit}/jobs/descriptors`,
+  );
 }
 
 export async function getWorkerSettingsDescriptors(unit) {
@@ -237,28 +273,11 @@ export async function getWorkerSettingsDescriptors(unit) {
     return [];
   }
 
-  if (!workerSettingsDescriptorsRequestCache.has(unit)) {
-    const pendingRequest = fetch(`/api/workers/${unit}/settings/descriptors`)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw await createApiErrorFromResponse(response);
-        }
-        return response.json();
-      })
-      .then((descriptors) => {
-        const resolvedDescriptors = Promise.resolve(descriptors);
-        workerSettingsDescriptorsRequestCache.set(unit, resolvedDescriptors);
-        return descriptors;
-      })
-      .catch((error) => {
-        workerSettingsDescriptorsRequestCache.delete(unit);
-        throw error;
-      });
-
-    workerSettingsDescriptorsRequestCache.set(unit, pendingRequest);
-  }
-
-  return workerSettingsDescriptorsRequestCache.get(unit);
+  return getCachedJson(
+    workerSettingsDescriptorsRequestCache,
+    unit,
+    `/api/workers/${unit}/settings/descriptors`,
+  );
 }
 
 export async function getSettingsDescriptors() {
@@ -287,32 +306,13 @@ export async function getAutomationDescriptors(unit, automationType) {
   const isWorkerScoped = Boolean(unit && unit !== "$broadcast");
   const cacheKey = getAutomationCacheKey(isWorkerScoped ? unit : "$leader", automationType);
 
-  if (!workerAutomationDescriptorsRequestCache.has(cacheKey)) {
-    const endpoint = isWorkerScoped
-      ? `/api/workers/${unit}/automations/descriptors/${automationType}`
-      : `/api/automations/descriptors/${automationType}`;
+  const endpoint = isWorkerScoped
+    ? `/api/workers/${unit}/automations/descriptors/${automationType}`
+    : `/api/automations/descriptors/${automationType}`;
 
-    const pendingRequest = fetch(endpoint)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}.`);
-        }
-        return response.json();
-      })
-      .then((descriptors) => {
-        const resolvedDescriptors = Promise.resolve(descriptors);
-        workerAutomationDescriptorsRequestCache.set(cacheKey, resolvedDescriptors);
-        return descriptors;
-      })
-      .catch((error) => {
-        workerAutomationDescriptorsRequestCache.delete(cacheKey);
-        throw error;
-      });
-
-    workerAutomationDescriptorsRequestCache.set(cacheKey, pendingRequest);
-  }
-
-  return workerAutomationDescriptorsRequestCache.get(cacheKey);
+  return getCachedJson(workerAutomationDescriptorsRequestCache, cacheKey, endpoint, {
+    createError: (response) => new Error(`Error ${response.status}.`),
+  });
 }
 
 export function runPioreactorJob(
@@ -323,46 +323,17 @@ export function runPioreactorJob(
   options = {},
   configOverrides = [],
 ) {
-  return fetch(`/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experiment}`, {
-    method: "PATCH",
-    body: JSON.stringify({
+  return runJobPatch(
+    `/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experiment}`,
+    {
       args,
       options,
       env: { EXPERIMENT: experiment, JOB_SOURCE: "user" },
       config_overrides: configOverrides,
-    }),
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
     },
-  })
-    .then((response) => {
-      if (response.ok) {
-        return;
-      }
-      throw new Error(`Error ${response.status}.`);
-    })
-    .catch((error) => {
-      throw error;
-    });
+  );
 }
 
 export function runPioreactorJobViaUnitAPI(job, args = [], options = {}) {
-  return fetch(`/unit_api/jobs/run/job_name/${job}`, {
-    method: "PATCH",
-    body: JSON.stringify({ args, options }),
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  })
-    .then((response) => {
-      if (response.ok) {
-        return;
-      }
-      throw new Error(`Error ${response.status}.`);
-    })
-    .catch((error) => {
-      throw error;
-    });
+  return runJobPatch(`/unit_api/jobs/run/job_name/${job}`, { args, options });
 }
