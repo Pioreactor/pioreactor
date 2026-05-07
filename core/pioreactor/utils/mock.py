@@ -258,7 +258,7 @@ class MockRpmCalculator:
 if is_testing_env():
 
     class MockHardwarePWM:
-        def __init__(self, pwm_channel: int, hz: float, chip: int = 0) -> None:
+        def __init__(self, pwm_channel: int, hz: float, _chip: int = 0) -> None:
             self.pwm_channel = pwm_channel
             self._hz = hz
             self.pwm_dir = ""
@@ -272,5 +272,5 @@ if is_testing_env():
         def does_pwmX_exists(self) -> bool:
             return True
 
-        def echo(self, m: int, fil: str) -> None:
+        def echo(self, m: int, _fil: str) -> None:
             pass

@@ -356,7 +356,7 @@ class JobManager:
     def __enter__(self) -> "JobManager":
         return self
 
-    def __exit__(self, exc_type: object, exc_val: object, tb: object) -> None:
+    def __exit__(self, _exc_type: object, _exc_val: object, _tb: object) -> None:
         self.close()
         return
 

@@ -387,7 +387,7 @@ class DummyStirrer:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, _exc_type, exc, _tb):
         return False
 
     def block_until_rpm_is_close_to_target(self):

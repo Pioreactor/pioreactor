@@ -37,6 +37,8 @@ install_checked_asset() {
     }
 }
 
+bash "$SCRIPT_DIR/30_update_set_initial_bioreactor_cumulative_volumes.sh"
+
 remove_legacy_builtin_descriptors() {
     rm -f \
         "$DOT_PIOREACTOR/ui/automations/dosing/chemostat.yaml" \

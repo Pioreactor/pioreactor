@@ -49,7 +49,6 @@ class PID:
         Kd: float,
         setpoint: float | None,
         output_limits: tuple[float | None, float | None] = (None, None),
-        sample_time: float | None = None,
         unit: str | None = None,
         experiment: str | None = None,
         job_name: str | None = None,

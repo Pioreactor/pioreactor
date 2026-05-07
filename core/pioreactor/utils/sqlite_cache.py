@@ -92,7 +92,7 @@ class cache:
         self._initialize_table()
         return self
 
-    def __exit__(self, exc_type: object, exc_val: object, tb: object) -> None:
+    def __exit__(self, _exc_type: object, _exc_val: object, _tb: object) -> None:
         self.conn.close()
 
     def _initialize_table(self) -> None:

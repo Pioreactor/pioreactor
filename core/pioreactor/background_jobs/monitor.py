@@ -477,7 +477,7 @@ class Monitor(LongRunningBackgroundJob):
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, self._led_pin, 0)
 
-    def button_down_and_up(self, chip: int, gpio: int, level: int, tick: int) -> None:
+    def button_down_and_up(self, _chip: int, _gpio: int, level: int, _tick: int) -> None:
         # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
         if level == 1:

@@ -53,7 +53,6 @@ class PIDMorbidostat(DosingAutomationJob):
             -Kd,
             setpoint=self.target_growth_rate,
             output_limits=(0, 1),
-            sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
