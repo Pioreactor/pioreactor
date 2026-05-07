@@ -28,12 +28,6 @@ published_settings:
     unit: mL
     type: numeric
     display: true
-  - key: cumulative_alt_media_added_ml
-    label: Cumulative alt media added
-    description: Total alternative media added during this experiment.
-    unit: mL
-    type: numeric
-    display: true
   - key: cumulative_waste_removed_ml
     label: Cumulative waste removed
     description: Total waste removed during this experiment.
