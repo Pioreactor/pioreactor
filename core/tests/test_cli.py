@@ -332,6 +332,40 @@ broker_address=global-broker
         get_config.cache_clear()
 
 
+def test_pio_config_set_specific_uses_dot_pioreactor_fallback(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+""".strip(),
+        encoding="utf-8",
+    )
+    unit_config_path = tmp_path / "unit_config.ini"
+    unit_config_path.write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio, ["config", "set", "mqtt", "broker_address", "updated-broker", "--specific"]
+        )
+
+        assert result.exit_code == 0
+        assert "broker_address=updated-broker" in unit_config_path.read_text(encoding="utf-8")
+    finally:
+        get_config.cache_clear()
+
+
 def test_pio_config_set_requires_exactly_one_target(tmp_path: Path, monkeypatch) -> None:
     (tmp_path / "config.ini").write_text(
         """
@@ -391,6 +425,45 @@ broker_address=local-broker
         )
         assert result.exit_code == 0
         assert json.loads(result.output) == {"mqtt": {"broker_address": "local-broker"}}
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_show_with_source_uses_dot_pioreactor_fallback(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+
+[mqtt]
+broker_address=global-broker
+""".strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio,
+            ["config", "show", "--json", "--with-source", "--section", "mqtt", "--key", "broker_address"],
+        )
+
+        assert result.exit_code == 0
+        assert json.loads(result.output) == {
+            "mqtt": {"broker_address": {"value": "local-broker", "source": "local"}}
+        }
     finally:
         get_config.cache_clear()
 

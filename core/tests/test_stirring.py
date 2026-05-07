@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import time
+from threading import RLock
 
 import pioreactor.background_jobs.stirring as stirring_mod
 import pytest
@@ -153,6 +154,33 @@ def test_set_target_rpm_while_paused_does_not_restart_stirring(monkeypatch) -> N
     assert stirrer._estimate_duty_cycle == 75.0
     assert stirrer.duty_cycle == 0.0
     assert set_duty_cycle_calls == []
+
+
+def test_set_duty_cycle_ignores_pwm_cleanup_race() -> None:
+    class PwmCleanedDuringChange:
+        is_cleaned_up = False
+
+        def change_duty_cycle(self, duty_cycle: float) -> None:
+            self.is_cleaned_up = True
+            raise ValueError("must call .start() first!")
+
+    class Logger:
+        messages: list[str] = []
+
+        def debug(self, message: str) -> None:
+            self.messages.append(message)
+
+    stirrer = Stirrer.__new__(Stirrer)
+    object.__setattr__(stirrer, "duty_cycle_lock", RLock())
+    object.__setattr__(stirrer, "pwm", PwmCleanedDuringChange())
+    object.__setattr__(stirrer, "logger", Logger())
+    object.__setattr__(stirrer, "duty_cycle", 0.0)
+    object.__setattr__(stirrer, "published_settings", {})
+
+    Stirrer.set_duty_cycle(stirrer, 30.0)
+
+    assert stirrer.duty_cycle == 30.0
+    assert stirrer.logger.messages == ["Ignoring duty cycle update after PWM cleanup."]
 
 
 def test_publish_target_rpm() -> None:

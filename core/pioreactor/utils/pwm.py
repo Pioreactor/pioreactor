@@ -291,6 +291,10 @@ class PWM:
         except AttributeError:
             return False
 
+    @property
+    def is_cleaned_up(self) -> bool:
+        return self._is_cleaned_up
+
     def _serialize(self) -> None:
         # don't send 0 values to MQTT - waste of space and time
         if self.duty_cycle > 0:

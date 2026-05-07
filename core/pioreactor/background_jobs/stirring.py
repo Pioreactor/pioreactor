@@ -557,9 +557,19 @@ class Stirrer(BackgroundJobWithDodging):
 
     def set_duty_cycle(self, value: float) -> None:
         with self.duty_cycle_lock:
+            if self.pwm.is_cleaned_up:
+                self.logger.debug("Ignoring duty cycle update after PWM cleanup.")
+                return
+
             self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
 
-            self.pwm.change_duty_cycle(self.duty_cycle)
+            try:
+                self.pwm.change_duty_cycle(self.duty_cycle)
+            except ValueError:
+                if self.pwm.is_cleaned_up:
+                    self.logger.debug("Ignoring duty cycle update after PWM cleanup.")
+                    return
+                raise
 
     def set_target_rpm(self, value: float) -> None:
         if self.rpm_calculator is None:

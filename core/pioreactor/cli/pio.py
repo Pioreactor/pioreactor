@@ -474,8 +474,13 @@ def pio(ctx: click.Context, show_version: bool) -> None:
 
 
 def _runtime_config_file_path(explicit_env_var: str, filename: str) -> Path:
-    explicit_path = os.environ.get(explicit_env_var, "/home/pioreactor/.pioreactor")
-    return Path(explicit_path)
+    if explicit_env_var in os.environ:
+        return Path(os.environ[explicit_env_var])
+
+    if "DOT_PIOREACTOR" in os.environ:
+        return Path(os.environ["DOT_PIOREACTOR"]) / filename
+
+    raise ValueError(f"Set {explicit_env_var} or DOT_PIOREACTOR env variables")
 
 
 def _resolve_config_paths_like_runtime() -> tuple[Path, Path]:
