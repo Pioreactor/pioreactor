@@ -2,6 +2,7 @@
 set -euo pipefail
 exec 2>/dev/null
 
+echo "Checking dev services status..."
 # Helper to check whether common dev services are already running.
 
 running_services=()
@@ -14,6 +15,7 @@ add_running() {
 }
 
 add_missing() {
+	
 	local name=$1
 	local hint=$2
 	missing_services+=("${name} (${hint})")
@@ -24,7 +26,7 @@ check_port() {
 	local port=$2
 	local details
 	# Skip header (NR>1) and capture the first listener to keep output compact.
-	details=$(lsof -nPiTCP:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {printf "%s (pid %s)", $1, $2; exit}')
+	details=$(lsof -nPiTCP:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {printf "%s (pid %s)", $1, $2; exit}' || true) 
 	if [[ -n "${details}" ]]; then
 		add_running "${name}" "port ${port} – ${details}"
 	else
@@ -47,6 +49,7 @@ check_huey() {
 		add_missing "Huey consumer" "run 'make huey-dev'"
 	fi
 }
+
 
 check_port "Flask web API" 4999
 check_port "Frontend dev server" 3000
