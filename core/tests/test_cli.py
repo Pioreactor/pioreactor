@@ -586,15 +586,34 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
             commands.append(command)
             assert check is False
             return DummyResult(returncode=3)
+        if command == [
+            "/usr/bin/systemctl",
+            "is-active",
+            "--quiet",
+            "pioreactor_startup_run@monitor.service",
+        ]:
+            commands.append(command)
+            assert check is False
+            return DummyResult()
+        if command == [
+            "/usr/bin/systemctl",
+            "is-active",
+            "--quiet",
+            "pioreactor_startup_run@mqtt_to_db_streaming.service",
+        ]:
+            commands.append(command)
+            assert check is False
+            return DummyResult(returncode=3)
         return record_command(command, check)
 
     monkeypatch.setattr("subprocess.run", record_run)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: True)
 
     runner = CliRunner()
     result = runner.invoke(pio, ["repair"])
 
     assert result.exit_code == 0
-    assert len(commands) == 16
+    assert len(commands) == 19
     assert commands[0] == [
         "/usr/bin/sudo",
         "/usr/bin/find",
@@ -700,12 +719,86 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
     assert commands[13] == ["/usr/bin/systemctl", "is-active", "--quiet", "lighttpd.service"]
     assert commands[14] == ["/usr/bin/systemctl", "is-active", "--quiet", "huey.service"]
     assert commands[15] == ["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "huey.service"]
+    assert commands[16] == [
+        "/usr/bin/systemctl",
+        "is-active",
+        "--quiet",
+        "pioreactor_startup_run@monitor.service",
+    ]
+    assert commands[17] == [
+        "/usr/bin/systemctl",
+        "is-active",
+        "--quiet",
+        "pioreactor_startup_run@mqtt_to_db_streaming.service",
+    ]
+    assert commands[18] == [
+        "/usr/bin/sudo",
+        "/usr/bin/systemctl",
+        "restart",
+        "pioreactor_startup_run@mqtt_to_db_streaming.service",
+    ]
     assert f"Repaired ownership and group permissions for {dot_pioreactor}." in result.output
     assert "Repaired runtime directories under /run/pioreactor." in result.output
     assert "Cleared stale runtime export artifacts from /run/pioreactor/exports." in result.output
     assert "Repaired runtime cache files under /run/pioreactor/cache." in result.output
     assert "Restarted inactive pioreactor-web.target services: huey.service." in result.output
+    assert (
+        "Restarted inactive pioreactor startup services: "
+        "pioreactor_startup_run@mqtt_to_db_streaming.service."
+    ) in result.output
     assert "Repair complete." in result.output
+
+
+def test_pio_repair_does_not_check_mqtt_to_db_streaming_on_workers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    commands: list[list[str]] = []
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+
+    class DummyResult:
+        def __init__(self, returncode: int = 0) -> None:
+            self.returncode = returncode
+
+    def record_run(command: list[str], check: bool) -> DummyResult:
+        commands.append(command)
+        if command == [
+            "/usr/bin/systemctl",
+            "is-active",
+            "--quiet",
+            "pioreactor_startup_run@monitor.service",
+        ]:
+            assert check is False
+            return DummyResult(returncode=3)
+
+        if command[:3] == ["/usr/bin/systemctl", "is-active", "--quiet"]:
+            assert check is False
+        else:
+            assert check is True
+        return DummyResult()
+
+    monkeypatch.setattr("subprocess.run", record_run)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["repair"])
+
+    assert result.exit_code == 0
+    assert [
+        "/usr/bin/systemctl",
+        "is-active",
+        "--quiet",
+        "pioreactor_startup_run@mqtt_to_db_streaming.service",
+    ] not in commands
+    assert [
+        "/usr/bin/sudo",
+        "/usr/bin/systemctl",
+        "restart",
+        "pioreactor_startup_run@monitor.service",
+    ] in commands
 
 
 def test_pio_cache_view_without_key_shows_all_keys() -> None:

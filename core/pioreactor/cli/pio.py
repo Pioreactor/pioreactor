@@ -290,6 +290,29 @@ def restart_inactive_pioreactor_web_services(tools: dict[str, str]) -> list[str]
     return inactive_services
 
 
+def get_inactive_pioreactor_startup_run_services(systemctl_path: str) -> list[str]:
+    job_names = ["monitor"]
+    if whoami.am_I_leader():
+        job_names.append("mqtt_to_db_streaming")
+
+    inactive_services: list[str] = []
+    for job_name in job_names:
+        service = f"pioreactor_startup_run@{job_name}.service"
+        result = subprocess.run([systemctl_path, "is-active", "--quiet", service], check=False)
+        if result.returncode != 0:
+            inactive_services.append(service)
+
+    return inactive_services
+
+
+def restart_inactive_pioreactor_startup_run_services(tools: dict[str, str]) -> list[str]:
+    inactive_services = get_inactive_pioreactor_startup_run_services(tools["systemctl"])
+    for service in inactive_services:
+        subprocess.run([tools["sudo"], tools["systemctl"], "restart", service], check=True)
+
+    return inactive_services
+
+
 def get_update_app_commands(
     branch: str | None,
     repo: str,
@@ -1478,6 +1501,14 @@ def repair() -> None:
         click.echo(f"Restarted inactive pioreactor-web.target services: {', '.join(restarted_services)}.")
     else:
         click.echo("pioreactor-web.target services are active.")
+
+    restarted_startup_run_services = restart_inactive_pioreactor_startup_run_services(tools)
+    if restarted_startup_run_services:
+        click.echo(
+            f"Restarted inactive pioreactor startup services: {', '.join(restarted_startup_run_services)}."
+        )
+    else:
+        click.echo("Pioreactor startup services are active.")
 
     click.echo("Repair complete.")
 
