@@ -670,6 +670,7 @@ class Monitor(LongRunningBackgroundJob):
                 f"bioreactor.{experiment}",
                 unit=unit,
                 experiment=experiment,
+                task="bioreactor",
                 pub_client=self.pub_client,
             ).warning(str(e))
 

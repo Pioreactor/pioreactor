@@ -37,3 +37,22 @@ def test_customised_json_formatter_strips_ansi_decodes_bytes_and_normalizes_newl
     assert payload["message"] == "line1\nline2"
     assert payload["level"] == "DEBUG"
     assert payload["task"] == "install_plugin"
+
+
+def test_customised_json_formatter_uses_semantic_task_override() -> None:
+    formatter = CustomisedJSONFormatter()
+    record = logging.LogRecord(
+        name="bioreactor.experiment-name",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=1,
+        msg="projection failed",
+        args=(),
+        exc_info=None,
+    )
+    record.source = "app"  # type: ignore[attr-defined]
+    record.task = "bioreactor"  # type: ignore[attr-defined]
+
+    payload = json.loads(formatter.format(record))
+
+    assert payload["task"] == "bioreactor"

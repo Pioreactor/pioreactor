@@ -1032,6 +1032,7 @@ def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
                 unit=HOSTNAME,
                 experiment=experiment,
                 source="ui",
+                task="bioreactor",
                 pub_client=mqtt_client,
             )
             try:

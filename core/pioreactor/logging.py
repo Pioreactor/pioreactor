@@ -99,7 +99,7 @@ class CustomisedJSONFormatter(JSONFormatter):
 
         extra["message"] = self._normalize_mqtt_message(message, record)
         extra["level"] = record.levelname
-        extra["task"] = record.name
+        extra["task"] = getattr(record, "task", record.name)
         extra["timestamp"] = current_utc_timestamp()
         extra["source"] = getattr(record, "source", None)
 
@@ -161,6 +161,7 @@ def create_logger(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
     source: str = "app",
+    task: str | None = None,
     to_mqtt: bool = True,
     pub_client: Client | None = None,
     log_file_location: str = config["logging"]["log_file"],
@@ -173,6 +174,8 @@ def create_logger(
         the name of the logger
     source:
         "app" for the core Pioreactor codebase, else the name of the plugin.
+    task:
+        semantic task name used in structured MQTT logs. Defaults to `name`.
     to_mqtt: bool
         connect and log to MQTT
     """
@@ -180,9 +183,10 @@ def create_logger(
     from pioreactor.pubsub import create_client
 
     logger = logging.getLogger(name)
+    extra = {"source": source, "task": task or name}
 
     if len(logger.handlers) > 0:
-        return CustomLogger(logger, {"source": source})
+        return CustomLogger(logger, extra)
 
     logger.setLevel(logging.DEBUG)
 
@@ -245,4 +249,4 @@ def create_logger(
         # add MQTT/remote log handlers
         logger.addHandler(mqtt_to_db_handler)
 
-    return CustomLogger(logger, {"source": source})
+    return CustomLogger(logger, extra)

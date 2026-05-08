@@ -247,6 +247,7 @@ def test_monitor_logs_bioreactor_projection_failures_under_message_experiment(mo
         unit: str | None = None,
         experiment: str | None = None,
         source: str = "app",
+        task: str | None = None,
         to_mqtt: bool = True,
         pub_client=None,
         log_file_location: str = "",
@@ -254,6 +255,7 @@ def test_monitor_logs_bioreactor_projection_failures_under_message_experiment(mo
         captured_logger_request["name"] = name
         captured_logger_request["unit"] = unit
         captured_logger_request["experiment"] = experiment
+        captured_logger_request["task"] = task
         return StubLogger()
 
     monkeypatch.setattr(bioreactor, "apply_dosing_event_to_bioreactor", fake_apply_dosing_event_to_bioreactor)
@@ -281,4 +283,5 @@ def test_monitor_logs_bioreactor_projection_failures_under_message_experiment(mo
         "name": f"bioreactor.{experiment}",
         "unit": unit,
         "experiment": experiment,
+        "task": "bioreactor",
     }
