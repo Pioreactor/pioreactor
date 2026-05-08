@@ -474,6 +474,7 @@ class AnotherStandard(SessionStep):
             min_logc=fit.min_logc,
             max_logc=fit.max_logc,
             sigma_floor=fit.sigma_floor,
+            low_conc_scales=fit.low_conc_scales,
         )
 
         result = ctx.store_estimator(estimator, pt.OD_FUSED_DEVICE)

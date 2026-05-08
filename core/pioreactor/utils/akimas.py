@@ -30,6 +30,7 @@ def akima_fit(x: Sequence[float], y: Sequence[float]) -> structs.AkimaFitData:
     for x_value, y_value in zip(x_sorted.tolist(), y_sorted.tolist()):
         grouped.setdefault(float(x_value), []).append(float(y_value))
 
+    # Duplicate x values are treated as repeated observations at the same knot.
     unique_x = sorted(grouped.keys())
     if len(unique_x) < 2:
         raise ValueError("At least two unique x values are required.")

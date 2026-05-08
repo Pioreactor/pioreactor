@@ -178,6 +178,7 @@ def _apply_logc_affine_to_estimator(
         min_logc=min_logc,
         max_logc=max_logc,
         sigma_floor=float(estimator.sigma_floor),
+        low_conc_scales=dict(estimator.low_conc_scales),
     )
 
 

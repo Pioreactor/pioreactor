@@ -2,20 +2,16 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import Literal
 from typing import Sequence
 
 from pioreactor import structs
 
 
-def _to_pyfloat(seq: list[float]) -> list[float]:
-    # we have trouble serializing numpy floats
-    return [float(_) for _ in seq]
-
-
 def poly_fit(
     x: Sequence[float],
     y: Sequence[float],
-    degree: int | str | None = "auto",
+    degree: int | Literal["auto"] | None = "auto",
     weights: Sequence[float] | None = None,
 ) -> structs.PolyFitCoefficients:
     import numpy as np
@@ -45,7 +41,7 @@ def poly_fit(
         raise ValueError("Not enough data points for requested degree.")
 
     coefs = np.polyfit(x_values, y_values, deg=selected_degree, w=weight_values)
-    return structs.PolyFitCoefficients(coefficients=_to_pyfloat(coefs.tolist()))
+    return structs.PolyFitCoefficients(coefficients=coefs.tolist())
 
 
 def poly_eval(poly_data: structs.PolyFitCoefficients, x: float) -> float:
@@ -64,7 +60,7 @@ def poly_solve(poly_data: structs.PolyFitCoefficients, y: float) -> list[float]:
     coef_shift[-1] = y
     solve_for_poly = np.asarray(poly_data.coefficients, dtype=float) - coef_shift
     roots_ = np.roots(solve_for_poly).tolist()
-    return sorted([float(np.real(r)) for r in roots_ if (abs(np.imag(r)) < 1e-10)])
+    return sorted([float(np.real(r)) for r in roots_ if (abs(np.imag(r)) <= 1e-10 * (abs(np.real(r)) + 1.0))])
 
 
 def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
@@ -78,7 +74,7 @@ def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
 
 
 def _normalize_degree(
-    degree: int | str | None,
+    degree: int | Literal["auto"] | None,
     x_values: Any,
     y_values: Any,
     weight_values: Any,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
+from typing import Literal
 from typing import Sequence
 
 from pioreactor import structs
@@ -14,11 +15,9 @@ from pioreactor.utils.piecewise_cubics import to_pyfloat
 def spline_fit(
     x: Sequence[float],
     y: Sequence[float],
-    knots: int | Sequence[float] | str | None = "auto",
+    knots: int | Sequence[float] | Literal["auto"] | None = "auto",
     weights: Sequence[float] | None = None,
 ) -> structs.SplineFitData:
-    import numpy as np
-
     """
     Fit a natural cubic regression spline.
 
@@ -37,6 +36,8 @@ def spline_fit(
     structs.SplineFitData
         A struct representation containing knots and per-interval coefficients.
     """
+    import numpy as np
+
     x_values = np.asarray(x, dtype=float)
     y_values = np.asarray(y, dtype=float)
 
@@ -76,8 +77,6 @@ def spline_fit(
 
 
 def spline_fit_interpolating(x: Sequence[float], y: Sequence[float]) -> structs.SplineFitData:
-    import numpy as np
-
     """
     Fit a natural cubic spline that interpolates every data point.
 
@@ -86,6 +85,8 @@ def spline_fit_interpolating(x: Sequence[float], y: Sequence[float]) -> structs.
     x, y
         Observations. x values must be strictly increasing after sorting.
     """
+    import numpy as np
+
     x_values = np.asarray(x, dtype=float)
     y_values = np.asarray(y, dtype=float)
 

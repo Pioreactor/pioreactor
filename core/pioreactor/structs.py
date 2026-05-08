@@ -466,6 +466,7 @@ class ODFusionEstimator(EstimatorBase, kw_only=True, tag="od_fused_estimator"):
     max_logc: float
     sigma_floor: float
     recorded_data: dict[str, t.Any]
+    low_conc_scales: dict[pt.PdAngle, float] = {}
     y: str = "log(Voltage)"
 
 

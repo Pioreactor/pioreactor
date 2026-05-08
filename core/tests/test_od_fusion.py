@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import csv
 from collections import defaultdict
+from math import exp
+from math import log
 from pathlib import Path
 from typing import cast
 
@@ -9,6 +11,7 @@ from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.utils.od_fusion import compute_fused_od
+from pioreactor.utils.od_fusion import DEFAULT_LOW_CONC_SCALES
 from pioreactor.utils.od_fusion import fit_fusion_model
 from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.timing import current_utc_datetime
@@ -82,6 +85,7 @@ def _build_estimator_from_records(
         min_logc=fit.min_logc,
         max_logc=fit.max_logc,
         sigma_floor=fit.sigma_floor,
+        low_conc_scales=fit.low_conc_scales,
     )
 
 
@@ -95,7 +99,7 @@ def _build_estimator_from_records(
         pytest.param("4", marks=pytest.mark.xfail(reason="loosey")),
     ],
 )
-def test_fusion_model_predicts_expected_concentration_range(instrument) -> None:
+def test_fusion_model_predicts_expected_concentration_range(instrument: str) -> None:
 
     records = _records_for_instrument(instrument)
     estimator = _build_estimator_from_records(records)  # type: ignore
@@ -131,6 +135,7 @@ def test_estimator_roundtrip_save_and_load(tmp_path, monkeypatch) -> None:
     assert isinstance(loaded, structs.ODFusionEstimator)
     assert loaded.estimator_name == estimator.estimator_name
     assert loaded.angles == estimator.angles
+    assert loaded.low_conc_scales == estimator.low_conc_scales
 
     estimator.set_as_active_calibration_for_device(pt.OD_FUSED_DEVICE)
     active = estimators_module.load_active_estimator(pt.OD_FUSED_DEVICE)
@@ -363,6 +368,7 @@ recorded_data:
 y: log(Voltage)
 """
     estimator = yaml_decode(estimator_yaml, type=structs.ODFusionEstimator)
+    assert estimator.low_conc_scales == {}
 
     readings_by_angle: dict[pt.PdAngle, float] = {
         "45": 0.394,
@@ -371,3 +377,45 @@ y: log(Voltage)
     }
     fused = compute_fused_od(estimator, readings_by_angle)
     assert fused == pytest.approx(3.069325950023412, rel=0.02, abs=0.01)
+
+
+def test_fit_fusion_model_uses_median_central_points() -> None:
+    concentrations = [0.1, 0.2, 0.4, 0.8]
+    records: list[tuple[pt.PdAngle, float, float]] = []
+    for angle in FUSION_ANGLES:
+        for concentration in concentrations:
+            readings = [concentration, concentration, concentration]
+            if angle == "45" and concentration == 0.1:
+                readings = [1.0, 1.0, 1000.0]
+            for reading in readings:
+                records.append((angle, concentration, reading))
+
+    fit = fit_fusion_model(records)
+    by_angle = fit.recorded_data["by_angle"]
+
+    assert isinstance(by_angle, dict)
+    first_y = by_angle["45"]["y"][0]
+    assert first_y == pytest.approx(0.0)
+
+
+def test_fit_fusion_model_stores_default_low_conc_scales_for_canonical_angles() -> None:
+    fit = fit_fusion_model(_records_for_instrument("1"))
+
+    assert fit.low_conc_scales == DEFAULT_LOW_CONC_SCALES
+
+
+def test_fit_fusion_model_derives_low_conc_scales_for_noncanonical_angle_sets() -> None:
+    concentrations = [0.1, 0.2, 0.4, 0.8]
+    angles: tuple[pt.PdAngle, ...] = ("45", "90")
+    noise_by_angle: dict[pt.PdAngle, float] = {"45": 0.3, "90": 0.1}
+    records: list[tuple[pt.PdAngle, float, float]] = []
+    for angle, noise in noise_by_angle.items():
+        for concentration in concentrations:
+            for offset in [-noise, 0.0, noise]:
+                records.append((angle, concentration, exp(log(concentration) + offset)))
+
+    fit = fit_fusion_model(records, sigma_floor=0.001, angles=angles)
+
+    assert set(fit.low_conc_scales) == set(angles)
+    assert fit.low_conc_scales["90"] == pytest.approx(1.0)
+    assert fit.low_conc_scales["45"] > fit.low_conc_scales["90"]

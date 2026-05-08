@@ -34,6 +34,7 @@ from pioreactor.utils.akimas import akima_fit
 # - Channels become less influential where sigma_i is large (noisy/artifacty),
 #   or where mu_i is flat (many logc explain the same logy, so the likelihood is broad).
 FUSION_ANGLES: tuple[pt.PdAngle, ...] = ("45", "90", "135")
+DEFAULT_LOW_CONC_SCALES: dict[pt.PdAngle, float] = {"135": 0.04, "90": 4.0, "45": 10.0}
 
 
 class FusionFitResult(Struct, frozen=True):
@@ -51,6 +52,9 @@ class FusionFitResult(Struct, frozen=True):
     # Lower bound on sigma in log(signal) units, to avoid zero or unrealistically small variance.
     # This acts like an "electronics + model mismatch" floor.
     sigma_floor: float
+
+    # Low-concentration extra noise multipliers used during inversion.
+    low_conc_scales: dict[pt.PdAngle, float]
 
     # Optional diagnostics / plotting payload. Stores per-angle median points.
     recorded_data: dict[str, object]
@@ -199,7 +203,6 @@ def _fit_mu_spline_for_angle(
     angle: pt.PdAngle,
     grouped_log_readings: Mapping[float, list[float]],
 ) -> tuple[structs.AkimaFitData, list[float], list[float]]:
-    # Use the central value at each concentration to be robust to bubbles/artifacts.
     central_points = sorted((logc, mean(values)) for logc, values in grouped_log_readings.items())
     if len(central_points) < 4:
         raise ValueError(f"Need >=4 unique concentration levels to fit fusion spline for angle {angle}.")
@@ -236,6 +239,25 @@ def _fit_sigma_spline_log_for_angle(
     sig_y = [log(sig) for _, sig in sig_points]
 
     return akima_fit(sig_x, sig_y)
+
+
+def _low_conc_scales_from_sigma_curves(
+    sigma_splines_log: Mapping[pt.PdAngle, structs.AkimaFitData],
+    min_logc: float,
+    sigma_floor: float,
+) -> dict[pt.PdAngle, float]:
+    if set(sigma_splines_log) == set(FUSION_ANGLES):
+        return dict(DEFAULT_LOW_CONC_SCALES)
+
+    sigmas_at_low_end = {
+        angle: max(exp(_curve_eval(sigma_spline, min_logc)), sigma_floor)
+        for angle, sigma_spline in sigma_splines_log.items()
+    }
+    if not sigmas_at_low_end:
+        return {}
+
+    lowest_sigma = min(sigmas_at_low_end.values())
+    return {angle: sigma / lowest_sigma for angle, sigma in sigmas_at_low_end.items()}
 
 
 def fit_fusion_model(
@@ -294,6 +316,7 @@ def fit_fusion_model(
     # Inversion bounds: restrict to the calibrated logc range.
     min_logc = min(logc_values)
     max_logc = max(logc_values)
+    low_conc_scales = _low_conc_scales_from_sigma_curves(sigma_splines_log, min_logc, sigma_floor)
 
     return FusionFitResult(
         mu_splines=mu_splines,
@@ -301,6 +324,7 @@ def fit_fusion_model(
         min_logc=min_logc,
         max_logc=max_logc,
         sigma_floor=sigma_floor,
+        low_conc_scales=low_conc_scales,
         recorded_data=recorded_data,
     )
 
@@ -336,19 +360,24 @@ def compute_fused_od(
 
     slope_floor = 0.05
 
+    low_conc_scales = estimator.low_conc_scales or _low_conc_scales_from_sigma_curves(
+        estimator.sigma_splines_log,
+        estimator.min_logc,
+        estimator.sigma_floor,
+    )
+
     def _angle_noise_scale(angle: pt.PdAngle, logc: float) -> float:
-        # Gentle prior: at low concentrations, 135 tends to be the cleanest,
-        # but avoid over-weighting a single angle across instruments.
-        low_logc = -2.5
-        high_logc = -0.1
+        low_logc = estimator.min_logc
+        high_logc = estimator.max_logc
         if logc <= low_logc:
             t = 1.0
         elif logc >= high_logc:
             t = 0.0
+        elif high_logc <= low_logc:
+            t = 1.0
         else:
             t = (high_logc - logc) / (high_logc - low_logc)
-        low_scales = {"135": 0.04, "90": 4.0, "45": 10.0}
-        scale = low_scales[angle]
+        scale = low_conc_scales.get(angle, 1.0)
         return 1.0 * (1.0 - t) + scale * t
 
     def nll(logc: float) -> float:

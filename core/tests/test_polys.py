@@ -33,6 +33,14 @@ def test_poly_solve_matches_numpy_roots() -> None:
     assert poly_solve(structs.PolyFitCoefficients(coefficients=coef), y) == pytest.approx(expected)
 
 
+def test_poly_solve_real_root_tolerance_scales_with_root_magnitude(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(np, "roots", lambda _: np.array([complex(1e9, 5e-2), complex(2.0, 5e-9)]))
+
+    roots = poly_solve(structs.PolyFitCoefficients(coefficients=[1.0, 0.0]), 0.0)
+
+    assert roots == [1e9]
+
+
 def test_poly_fit_rejects_bad_inputs() -> None:
     with pytest.raises(ValueError):
         poly_fit([], [], degree=1)

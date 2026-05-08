@@ -290,15 +290,24 @@ def test_get_bioreactor_values_endpoint_returns_persisted_values(client) -> None
 
 def test_update_bioreactor_values_endpoint_persists_and_publishes(client, monkeypatch) -> None:
     captured: list[tuple[str, str, str, object]] = []
+    logged: list[str] = []
 
     def fake_set_and_publish_bioreactor_value(mqtt_client, unit, experiment, variable_name, value) -> float:
         captured.append((unit, experiment, variable_name, value))
         return float(value)
 
+    class FakeLogger:
+        def info(self, message: str) -> None:
+            logged.append(message)
+
+        def clean_up(self) -> None:
+            pass
+
     monkeypatch.setattr(
         "pioreactor.web.unit_api.set_and_publish_bioreactor_value",
         fake_set_and_publish_bioreactor_value,
     )
+    monkeypatch.setattr("pioreactor.web.unit_api.create_logger", lambda *args, **kwargs: FakeLogger())
 
     resp = client.patch(
         "/unit_api/bioreactor/experiments/exp1",
@@ -310,6 +319,10 @@ def test_update_bioreactor_values_endpoint_persists_and_publishes(client, monkey
     assert captured == [
         ("localhost", "exp1", "current_volume_ml", 11.2),
         ("localhost", "exp1", "alt_media_fraction", 0.3),
+    ]
+    assert logged == [
+        "Updated current_volume_ml from 14.0 mL to 11.2 mL.",
+        "Updated alt_media_fraction from 0.0 to 0.3.",
     ]
 
 

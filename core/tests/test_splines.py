@@ -16,6 +16,15 @@ def _spline_data(knots: list[float], coefficients: list[list[float]]) -> structs
     return structs.SplineFitData(knots=knots, coefficients=coefficients)
 
 
+def test_public_fit_docstrings_are_visible() -> None:
+    assert spline_fit.__doc__ is not None
+    assert "Fit a natural cubic regression spline." in spline_fit.__doc__
+    assert spline_fit_interpolating.__doc__ is not None
+    assert (
+        "Fit a natural cubic spline that interpolates every data point." in spline_fit_interpolating.__doc__
+    )
+
+
 def test_spline_fit_and_eval_linear() -> None:
     x = [0.0, 1.0, 2.0, 3.0]
     y = [1.0, 3.0, 5.0, 7.0]

@@ -4,6 +4,7 @@ import configparser
 import json
 import os
 import zipfile
+from copy import copy
 from functools import wraps
 from io import BytesIO
 from pathlib import Path
@@ -29,6 +30,7 @@ from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import whoami
+from pioreactor.background_jobs.base import format_with_optional_units
 from pioreactor.bioreactor import get_all_bioreactor_values
 from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
@@ -38,6 +40,7 @@ from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
+from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
 from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
@@ -71,6 +74,14 @@ AllCalibrations = subclass_union(CalibrationBase)
 AllEstimators = subclass_union(structs.EstimatorBase)
 
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
+
+BIOREACTOR_VARIABLE_UNITS = {
+    "current_volume_ml": "mL",
+    "efflux_tube_volume_ml": "mL",
+    "cumulative_media_added_ml": "mL",
+    "cumulative_alt_media_added_ml": "mL",
+    "cumulative_waste_removed_ml": "mL",
+}
 
 # Register calibration session routes here to keep unit_api_bp ownership in this module.
 register_calibration_session_routes(unit_api_bp)
@@ -1016,8 +1027,31 @@ def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
 
     try:
         with create_client() as mqtt_client:
-            for variable_name, value in values.items():
-                set_and_publish_bioreactor_value(mqtt_client, HOSTNAME, experiment, variable_name, value)
+            logger = create_logger(
+                f"bioreactor.{experiment}",
+                unit=HOSTNAME,
+                experiment=experiment,
+                source="ui",
+                pub_client=mqtt_client,
+            )
+            try:
+                for variable_name, value in values.items():
+                    previous_value = copy(get_bioreactor_value(experiment, variable_name))
+                    updated_value = set_and_publish_bioreactor_value(
+                        mqtt_client,
+                        HOSTNAME,
+                        experiment,
+                        variable_name,
+                        value,
+                    )
+                    units = BIOREACTOR_VARIABLE_UNITS.get(variable_name)
+                    logger.info(
+                        f"Updated {variable_name} from "
+                        f"{format_with_optional_units(previous_value, units)} to "
+                        f"{format_with_optional_units(updated_value, units)}."
+                    )
+            finally:
+                logger.clean_up()
     except Exception as e:
         publish_to_error_log(str(e), "update_bioreactor_values")
         abort_with(400, str(e))
