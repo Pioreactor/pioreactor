@@ -1753,9 +1753,134 @@ def get_all_active_estimators(pioreactor_unit: str) -> DelayedResponseReturnValu
 def get_all_estimators(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = cache.cached_multicast_get(cache.ESTIMATORS, get_all_workers())
-    else:
-        task = cache.cached_multicast_get(cache.ESTIMATORS, [pioreactor_unit])
     return create_task_response(task)
+
+
+@api_bp.route("/cluster/calibrations/<device>/pool", methods=["POST"])
+def pool_calibrations(device: str) -> ResponseReturnValue:
+    payload = request.get_json(silent=True) or {}
+    donor_units = payload.get("donor_units")
+
+    if donor_units:
+        task = tasks.multicast_get(f"/unit_api/calibrations/{device}/active", donor_units, return_raw=True)
+    else:
+        task = fanout.broadcast_get_across_workers(f"/unit_api/calibrations/{device}/active", return_raw=True)
+
+    try:
+        results = task.get(blocking=True, timeout=15)
+    except (HueyException, TaskException):
+        abort_with(500, "Timed out fetching active calibrations from workers")
+
+    donors = []
+    skipped = []
+    calibrations = []
+
+    from pioreactor.structs import AllCalibrations
+    from pioreactor.utils import yaml_decode, yaml_encode
+    
+    for worker, result in results.items():
+        if result is None:
+            skipped.append(worker)
+            continue
+        try:
+            cal = yaml_decode(result, type=AllCalibrations)
+            calibrations.append(cal)
+            donors.append(worker)
+        except Exception:
+            skipped.append(worker)
+
+    from pioreactor.calibrations.pooling import _POOLING_HANDLERS
+
+    if device.startswith("od"):
+        handler = _POOLING_HANDLERS.get("od")
+    else:
+        handler = _POOLING_HANDLERS.get(device)
+
+    if not handler:
+        abort_with(400, f"Pooling not supported for device {device}")
+
+    try:
+        pooled = handler(calibrations)
+    except Exception as e:
+        abort_with(400, f"Failed to pool calibrations: {e}")
+
+    return jsonify({
+        "calibration_data": yaml_encode(pooled).decode("utf-8"),
+        "calibration_name": pooled.calibration_name,
+        "donors": donors,
+        "skipped": skipped
+    })
+
+
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/apply", methods=["POST"])
+def apply_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
+    payload = request.get_json(silent=True) or {}
+    if "calibration_data" not in payload:
+        abort_with(400, "Missing calibration_data in payload")
+        
+    payload["set_as_active"] = True
+
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = tasks.multicast_post(f"/unit_api/calibrations/{device}", get_all_workers(), json=payload)
+    else:
+        task = tasks.multicast_post(f"/unit_api/calibrations/{device}", [pioreactor_unit], json=payload)
+        
+    # Invalidate cache
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        cache.cache.delete_memoized(cache.get_all_calibrations)
+    else:
+        cache.cache.delete_memoized(cache.get_all_calibrations, pioreactor_unit)
+        
+    return create_task_response(task)
+
+
+@api_bp.route("/workers/<source_unit>/calibrations/<device>/copy_to/<target_unit>", methods=["POST"])
+def copy_calibration(source_unit: str, device: str, target_unit: str) -> DelayedResponseReturnValue:
+    payload = request.get_json(silent=True) or {}
+    calibration_name = payload.get("calibration_name")
+    
+    if calibration_name:
+        task = tasks.multicast_get(f"/unit_api/calibrations/{device}/{calibration_name}", [source_unit], return_raw=True)
+    else:
+        task = tasks.multicast_get(f"/unit_api/calibrations/{device}/active", [source_unit], return_raw=True)
+        
+    try:
+        result = task.get(blocking=True, timeout=10)
+    except (HueyException, TaskException):
+        abort_with(500, "Timed out fetching calibration from source unit")
+        
+    source_result = result.get(source_unit)
+    if source_result is None:
+        abort_with(404, "Source unit did not return a calibration")
+        
+    from pioreactor.structs import AllCalibrations
+    from pioreactor.utils import yaml_decode, yaml_encode
+    from pioreactor.utils.timing import current_utc_datestamp, current_utc_datetime
+    
+    try:
+        cal = yaml_decode(source_result, type=AllCalibrations)
+    except Exception as e:
+        abort_with(500, f"Failed to decode calibration from source unit: {e}")
+        
+    kwargs = {f: getattr(cal, f) for f in cal.__struct_fields__}
+    kwargs["calibration_name"] = f"copy-from-{source_unit}-{current_utc_datestamp()}"
+    kwargs["calibrated_on_pioreactor_unit"] = "$cluster"
+    kwargs["created_at"] = current_utc_datetime()
+    new_cal = type(cal)(**kwargs) # type: ignore
+    
+    apply_payload = {
+        "calibration_data": yaml_encode(new_cal).decode("utf-8"),
+        "set_as_active": True
+    }
+    
+    if target_unit == UNIVERSAL_IDENTIFIER:
+        post_task = tasks.multicast_post(f"/unit_api/calibrations/{device}", get_all_workers(), json=apply_payload)
+        cache.cache.delete_memoized(cache.get_all_calibrations)
+    else:
+        post_task = tasks.multicast_post(f"/unit_api/calibrations/{device}", [target_unit], json=apply_payload)
+        cache.cache.delete_memoized(cache.get_all_calibrations, target_unit)
+        
+    return create_task_response(post_task)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/zipped_calibrations", methods=["GET"])

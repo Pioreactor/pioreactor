@@ -1314,12 +1314,15 @@ def create_calibration(device: str) -> ResponseReturnValue:
                 remediation="Check file permissions and server logs.",
             )
 
+        activated = False
         if set_as_active:
             with local_persistent_storage("active_calibrations") as c:
-                c[device] = calibration_name
+                if device not in c:
+                    c[device] = calibration_name
+                    activated = True
 
         # Respond with success and the created calibration details
-        response = jsonify({"msg": "Calibration created successfully.", "path": str(path)})
+        response = jsonify({"msg": "Calibration created successfully.", "path": str(path), "activated": activated})
         response.status_code = 201
         return response
 
@@ -1370,6 +1373,39 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
             cause="Unable to delete calibration file.",
             remediation="Check file permissions and server logs.",
         )
+
+
+@unit_api_bp.route("/calibrations/<device>/active", methods=["GET"])
+def get_active_calibration(device: str) -> ResponseReturnValue:
+    with local_persistent_storage("active_calibrations") as c:
+        if device not in c:
+            abort_with(404, description=f"No active calibration for {device}.")
+        calibration_name = str(c[device])
+
+    calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+    if not calibration_path.exists():
+        abort_with(404, description=f"Active calibration file for {device} missing.")
+
+    try:
+        raw_yaml = calibration_path.read_text()
+        return attach_cache_control(Response(response=raw_yaml, status=200, mimetype="application/yaml"))
+    except Exception as e:
+        publish_to_error_log(f"Error reading active calibration: {e}", "get_active_calibration")
+        abort_with(500, description="Failed to read active calibration.")
+
+
+@unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["GET"])
+def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
+    calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+    if not calibration_path.exists():
+        abort_with(404, description=f"Calibration file for {device} missing.")
+
+    try:
+        raw_yaml = calibration_path.read_text()
+        return attach_cache_control(Response(response=raw_yaml, status=200, mimetype="application/yaml"))
+    except Exception as e:
+        publish_to_error_log(f"Error reading calibration: {e}", "get_calibration")
+        abort_with(500, description="Failed to read calibration.")
 
 
 @unit_api_bp.route("/calibrations", methods=["GET"])
