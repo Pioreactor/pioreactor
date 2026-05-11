@@ -71,17 +71,25 @@ def get_bioreactor_variable_definitions() -> dict[str, structs.BioreactorVariabl
     return _BIOREACTOR_VARIABLES.copy()
 
 
-def get_default_bioreactor_value(variable_name: str) -> float:
+def get_default_bioreactor_value(
+    variable_name: str, *, validate_against_model_capacity: bool = True
+) -> float:
     metadata = _get_bioreactor_variable_definition(variable_name)
     resolved_default = config.getfloat(
         "bioreactor",
         metadata.default_config_key,
         fallback=metadata.default_value,
     )
-    return validate_bioreactor_value(variable_name, resolved_default)
+    return validate_bioreactor_value(
+        variable_name,
+        resolved_default,
+        validate_against_model_capacity=validate_against_model_capacity,
+    )
 
 
-def validate_bioreactor_value(variable_name: str, value: object) -> float:
+def validate_bioreactor_value(
+    variable_name: str, value: object, *, validate_against_model_capacity: bool = True
+) -> float:
     metadata = _get_bioreactor_variable_definition(variable_name)
 
     try:
@@ -91,7 +99,7 @@ def validate_bioreactor_value(variable_name: str, value: object) -> float:
 
     minimum = metadata.minimum
     maximum = metadata.maximum
-    if metadata.cap_at_model_capacity:
+    if metadata.cap_at_model_capacity and validate_against_model_capacity:
         model_capacity = get_pioreactor_model().reactor_capacity_ml
         maximum = model_capacity if maximum is None else min(model_capacity, maximum)
 

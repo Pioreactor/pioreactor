@@ -111,6 +111,39 @@ published_settings:
     assert descriptors[1].published_settings[0].editable is False
 
 
+def test_load_settings_collection_descriptors_does_not_require_local_model_for_bioreactor_defaults(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pioreactor import bioreactor
+    from pioreactor.exc import NoWorkerFoundError
+
+    ui_dir = tmp_path / "ui" / "settings"
+    ui_dir.mkdir(parents=True)
+    (ui_dir / "00_bioreactor.yaml").write_text(
+        """\
+key: bioreactor
+display_name: Bioreactor
+display: true
+published_settings:
+  - key: current_volume_ml
+    label: Current volume
+    type: numeric
+    display: true
+""",
+        encoding="utf-8",
+    )
+
+    def raise_no_worker_found():
+        raise NoWorkerFoundError("Worker debian-testing is not found.")
+
+    monkeypatch.setattr(bioreactor, "get_pioreactor_model", raise_no_worker_found)
+
+    descriptors = load_settings_collection_descriptors(tmp_path)
+
+    assert descriptors[0].published_settings[0].default == pytest.approx(14.0)
+
+
 def test_is_rate_limited_blocks_second_request_within_window() -> None:
     job_name = "test_rate_limit_second_blocked"
     with local_intermittent_storage("debounce") as cache:

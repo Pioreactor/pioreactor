@@ -227,7 +227,10 @@ def load_settings_collection_descriptors(
                     type=field.type,
                     display=field.display,
                     description=field.description,
-                    default=get_default_bioreactor_value(field.key),
+                    default=get_default_bioreactor_value(
+                        field.key,
+                        validate_against_model_capacity=False,
+                    ),
                     unit=field.unit,
                     label=field.label,
                     editable=field.editable,

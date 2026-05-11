@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component {
             <h1>Something went wrong with the PioreactorUI!</h1>
             <h3>Don't worry. It's our fault. Here's what you can do:</h3>
             <p> Looks like there's a bug in the UI.
-            We would appreciate it if you could create an issue in <a href="https://github.com/Pioreactor/pioreactorui/issues">Github</a> for us, with the information below.</p>
+            We would appreciate it if you could create an issue in <a href="https://github.com/Pioreactor/pioreactor/issues">Github</a> for us, with the information below.</p>
             <p>
               <strong>Tip:</strong> To view the original-source stack trace, open your browser's developer
               tools (F12 or Ctrl+Shift+I), switch to the Console tab, and inspect the error there. Copy and paste the contents there to the GitHub issue.

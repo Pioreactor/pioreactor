@@ -9,6 +9,7 @@ PIO_VENV=/opt/pioreactor/venv
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 SHARED_ASSETS_DIR=$(cd -- "$SCRIPT_DIR/../shared-assets" && pwd)
 INSTALLER_FILES_DIR="$SCRIPT_DIR/files"
+REPO_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
 UI_PORT=80
 LEADER_HOSTNAME=$(hostname -s)
 LEADER_ADDRESS=""
@@ -131,6 +132,9 @@ install_apt_dependencies() {
     rsyslog \
     rsync \
     sqlite3 \
+    sshpass \
+    sudo \
+    unzip \
     ufw
 }
 
@@ -139,13 +143,21 @@ ensure_pioreactor_user() {
     adduser --system --home "$PIO_HOME" --shell /bin/bash --group "$PIO_USER"
   fi
 
-  for group_name in www-data systemd-journal; do
+  for group_name in sudo www-data systemd-journal; do
     if getent group "$group_name" >/dev/null; then
       usermod -a -G "$group_name" "$PIO_USER"
     fi
   done
 
   chmod 755 "$PIO_HOME"
+}
+
+install_sudoers_policy() {
+  install -d -o root -g root -m 0755 /etc/sudoers.d
+  printf '%s ALL=(ALL) NOPASSWD: ALL\n' "$PIO_USER" >/etc/sudoers.d/010_pioreactor-nopasswd
+  chown root:root /etc/sudoers.d/010_pioreactor-nopasswd
+  chmod 0440 /etc/sudoers.d/010_pioreactor-nopasswd
+  visudo -cf /etc/sudoers.d/010_pioreactor-nopasswd >/dev/null
 }
 
 ensure_leader_ssh_keys() {
@@ -174,6 +186,17 @@ ensure_leader_ssh_keys() {
   chmod 0700 "$ssh_dir"
   chmod 0600 "$ssh_dir/authorized_keys" "$ssh_dir/known_hosts" "$ssh_dir/id_rsa"
   chmod 0644 "$ssh_dir/id_rsa.pub"
+}
+
+install_agents() {
+  local agents_dir="$REPO_ROOT/.agents"
+
+  if [ ! -d "$agents_dir" ]; then
+    return
+  fi
+
+  install -d -o "$PIO_USER" -g "$PIO_USER" -m 0755 "$PIO_HOME/.agents"
+  rsync -a --delete --chown="$PIO_USER":"$PIO_USER" "$agents_dir/" "$PIO_HOME/.agents/"
 }
 
 install_log_file() {
@@ -217,6 +240,13 @@ exec /opt/pioreactor/venv/bin/$executable_name "\$@"
 EOF
     chmod 0755 "/usr/local/bin/$executable_name"
   done
+}
+
+install_runtime_helper_scripts() {
+  install -d -o root -g root -m 0755 /usr/local/bin
+  install -o root -g root -m 0755 "$INSTALLER_FILES_DIR/bash/install_pioreactor_plugin.sh" /usr/local/bin/install_pioreactor_plugin.sh
+  install -o root -g root -m 0755 "$INSTALLER_FILES_DIR/bash/uninstall_pioreactor_plugin.sh" /usr/local/bin/uninstall_pioreactor_plugin.sh
+  install -o root -g root -m 0755 "$INSTALLER_FILES_DIR/bash/add_new_pioreactor_worker_from_leader.sh" /usr/local/bin/add_new_pioreactor_worker_from_leader.sh
 }
 
 install_static_asset_link() {
@@ -335,10 +365,13 @@ main() {
   require_debian_13
   install_apt_dependencies
   ensure_pioreactor_user
+  install_sudoers_policy
   ensure_leader_ssh_keys
+  install_agents
   install_log_file
   install_python_package
   install_environment_and_wrappers
+  install_runtime_helper_scripts
   install_static_asset_link
   install_system_files
   configure_mosquitto
