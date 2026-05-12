@@ -164,7 +164,7 @@ function ExperimentSummaryForm(props) {
       if (json && json.error) {
         setHelperText(`${json.error} Please retry.`);
       } else {
-        setHelperText("Server error while creating experiment. Please retry or check UI logs.");
+        setHelperText("Server error while creating experiment. Please retry or check system logs.");
       }
     } catch (_error) {
       setFormError(true);

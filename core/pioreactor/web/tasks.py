@@ -782,25 +782,31 @@ def export_experiment_data_task(
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 
     logger.debug("Exporting experiment data.")
-    if not output:
-        raise ValueError("Missing output")
-    if not output.endswith(".zip"):
-        raise ValueError("output should end with .zip")
-    if not dataset_names:
-        raise ValueError("At least one dataset name must be provided.")
+    try:
+        if not output:
+            raise ValueError("Missing output")
+        if not output.endswith(".zip"):
+            raise ValueError("output should end with .zip")
+        if not dataset_names:
+            raise ValueError("At least one dataset name must be provided.")
 
-    output_path = Path(output)
-    cleanup_stale_export_artifacts(output_path.parent, logger)
-    require_export_disk_space(output_path.parent)
-    export_experiment_data(
-        experiments,
-        dataset_names,
-        output,
-        start_time=start_time,
-        end_time=end_time,
-        partition_by_unit=partition_by_unit,
-        partition_by_experiment=partition_by_experiment,
-    )
+        output_path = Path(output)
+        cleanup_stale_export_artifacts(output_path.parent, logger)
+        require_export_disk_space(output_path.parent)
+        export_experiment_data(
+            experiments,
+            dataset_names,
+            output,
+            start_time=start_time,
+            end_time=end_time,
+            partition_by_unit=partition_by_unit,
+            partition_by_experiment=partition_by_experiment,
+        )
+    except Exception as exc:
+        error = str(exc) or exc.__class__.__name__
+        logger.error(f"Exporting experiment data failed: {error}", exc_info=True)
+        raise
+
     return {"result": True, "filename": output_path.name, "msg": "Finished"}
 
 

@@ -126,7 +126,7 @@ function SystemLogs(props) {
           <Grid size={{ md: 12, lg: 5}}>
             <Box sx={{display: "flex", justifyContent: "flex-end", flexFlow: "wrap"}}>
               <Button to={exportLogsHref} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export logs
+                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export system logs
               </Button>
             </Box>
           </Grid>

@@ -431,7 +431,7 @@ function ExportDataContainer() {
       });
       const filename = finalPayload?.result?.filename;
       if (!filename) {
-        throw new Error("Export failed, check logs.");
+        throw new Error("Export failed. Check system logs.");
       }
 
       var link = document.createElement("a");
@@ -442,7 +442,7 @@ function ExportDataContainer() {
       link.click();
       link.remove();
     } catch(e) {
-      setErrorMsg(e.message || "Server error occurred. Check logs.")
+      setErrorMsg(e.message || "Server error occurred. Check system logs.")
       console.log(e)
     } finally {
       setIsRunning(false);

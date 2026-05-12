@@ -91,7 +91,7 @@ function ErrorSnackbar() {
 
   const showLogsHelper = ["ERROR", "WARNING"].includes(level);
   const logsRoute = experiment === "$experiment" ? "/system-logs" : "/logs";
-  const logsLabel = experiment === "$experiment" ? "View System Logs" : "View Logs";
+  const logsLabel = experiment === "$experiment" ? "View System Logs" : "View Experiment Logs";
 
 
   return (

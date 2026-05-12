@@ -210,7 +210,7 @@ function EstimatorData() {
   }
 
   if (!isDataComplete) {
-    return <Alert severity="error">Something went wrong or data is incomplete. Check web server logs.</Alert>;
+    return <Alert severity="error">Something went wrong or data is incomplete. Check system logs.</Alert>;
   }
 
   return (

@@ -332,6 +332,38 @@ def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filena
     assert output_path.exists()
 
 
+def test_export_experiment_data_task_logs_export_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "export.zip"
+    logged_errors: list[tuple[str, bool]] = []
+
+    class FakeLogger:
+        def debug(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def error(self, message: str, *args: object, **kwargs: object) -> None:
+            logged_errors.append((message, bool(kwargs.get("exc_info"))))
+
+    def fake_export_experiment_data(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(tasks, "logger", FakeLogger())
+    monkeypatch.setattr(
+        "pioreactor.actions.leader.export_experiment_data.export_experiment_data",
+        fake_export_experiment_data,
+    )
+
+    with pytest.raises(RuntimeError, match="database is locked"):
+        tasks.export_experiment_data_task.call_local(
+            ["exp1"],
+            ["od_readings"],
+            output_path.as_posix(),
+        )
+
+    assert logged_errors == [("Exporting experiment data failed: database is locked", True)]
+
+
 def test_export_disk_space_preflight_rejects_low_space(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
