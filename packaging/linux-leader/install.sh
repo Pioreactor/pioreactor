@@ -325,6 +325,7 @@ create_dot_pioreactor_tree() {
 
   rsync -a --chown="$PIO_USER":www-data "$SHARED_ASSETS_DIR/pioreactor/exportable_datasets/" "$DOT_PIOREACTOR/exportable_datasets/"
   rsync -a --chown="$PIO_USER":www-data "$SHARED_ASSETS_DIR/pioreactor/ui/" "$DOT_PIOREACTOR/ui/"
+  rsync -a --ignore-existing --chown="$PIO_USER":www-data "$SHARED_ASSETS_DIR/pioreactor/experiment_profiles/" "$DOT_PIOREACTOR/experiment_profiles/"
 }
 
 initialize_databases_and_config() {

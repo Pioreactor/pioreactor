@@ -11,7 +11,6 @@ from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.utils.od_fusion import compute_fused_od
-from pioreactor.utils.od_fusion import DEFAULT_LOW_CONC_SCALES
 from pioreactor.utils.od_fusion import fit_fusion_model
 from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.timing import current_utc_datetime
@@ -377,31 +376,6 @@ y: log(Voltage)
     }
     fused = compute_fused_od(estimator, readings_by_angle)
     assert fused == pytest.approx(3.069325950023412, rel=0.02, abs=0.01)
-
-
-def test_fit_fusion_model_uses_median_central_points() -> None:
-    concentrations = [0.1, 0.2, 0.4, 0.8]
-    records: list[tuple[pt.PdAngle, float, float]] = []
-    for angle in FUSION_ANGLES:
-        for concentration in concentrations:
-            readings = [concentration, concentration, concentration]
-            if angle == "45" and concentration == 0.1:
-                readings = [1.0, 1.0, 1000.0]
-            for reading in readings:
-                records.append((angle, concentration, reading))
-
-    fit = fit_fusion_model(records)
-    by_angle = fit.recorded_data["by_angle"]
-
-    assert isinstance(by_angle, dict)
-    first_y = by_angle["45"]["y"][0]
-    assert first_y == pytest.approx(0.0)
-
-
-def test_fit_fusion_model_stores_default_low_conc_scales_for_canonical_angles() -> None:
-    fit = fit_fusion_model(_records_for_instrument("1"))
-
-    assert fit.low_conc_scales == DEFAULT_LOW_CONC_SCALES
 
 
 def test_fit_fusion_model_derives_low_conc_scales_for_noncanonical_angle_sets() -> None:

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from pathlib import Path
+
+from msgspec.yaml import decode as yaml_decode
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Job
 from pioreactor.experiment_profiles.profile_struct import Metadata
@@ -7,6 +10,19 @@ from pioreactor.experiment_profiles.profile_struct import Repeat
 from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Update
 from pioreactor.experiment_profiles.validate import validate_profile
+
+
+def test_shared_example_experiment_profiles_are_valid() -> None:
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    profiles_dir = repo_root / "packaging" / "shared-assets" / "pioreactor" / "experiment_profiles"
+
+    profile_files = sorted(profiles_dir.glob("*.y*ml"))
+    assert profile_files
+
+    for profile_file in profile_files:
+        profile = yaml_decode(profile_file.read_bytes(), type=Profile)
+        result = validate_profile(profile)
+        assert result.ok, f"{profile_file}: {result.diagnostics}"
 
 
 def test_validate_profile_returns_error_diagnostic_for_invalid_expression() -> None:

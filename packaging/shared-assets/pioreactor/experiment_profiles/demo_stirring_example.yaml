@@ -1,0 +1,20 @@
+experiment_profile_name: Demo stirring example
+
+metadata:
+  author: Cam Davidson-Pilon
+  description: A simple profile to start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
+
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          t: 0s
+          options:
+            target_rpm: 400.0
+        - type: update
+          t: 1.5m
+          options:
+            target_rpm: 800.0
+        - type: stop
+          t: 3m

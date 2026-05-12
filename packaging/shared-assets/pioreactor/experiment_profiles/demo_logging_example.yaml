@@ -1,0 +1,32 @@
+experiment_profile_name: Demo of logging real-time data
+
+metadata:
+  author: Cam Davidson-Pilon
+  description: A profile to demonstrate logging real-time data, start stirring in your Pioreactor(s), update RPM, and log the value.
+
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          t: 0s
+          options:
+            target_rpm: 400.0
+        - type: log
+          t: 2s
+          options:
+            message: "${{job_name()}} starting at target ${{::stirring:target_rpm}} RPM"
+        - type: log
+          t: 10s
+          options:
+            message: "Increasing to 800 RPM in ${{unit()}}. Try changing the target RPM in the UI."
+        - type: update
+          t: 10s
+          options:
+            target_rpm: 800.0
+        - type: log
+          t: 15s
+          options:
+            message: "Value of target_rpm in ${{unit()}} is ${{::stirring:target_rpm}} RPM. Stopping."
+        - type: stop
+          t: 20s

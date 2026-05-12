@@ -55,20 +55,6 @@ if is_testing_env():
 
 
 SELF_TEST_TIMEOUT_SECONDS = 180.0
-ORDERED_SELF_TEST_NAMES: tuple[str, ...] = (
-    # order in UI - good for responsiveness.
-    "test_pioreactor_HAT_present",
-    "test_all_positive_correlations_between_pds_and_leds",
-    "test_ambient_light_interference",
-    "test_dark_offset_correction_is_effective",
-    "test_REF_is_lower_than_0_dot_256_volts",
-    "test_REF_is_in_correct_position",
-    "test_PD_is_near_0_volts_for_blank",
-    "test_detect_heating_pcb",
-    "test_positive_correlation_between_temperature_and_heating",
-    "test_positive_correlation_between_rpm_and_stirring",
-    "test_aux_power_is_not_too_high",
-)
 type SelfTest = Callable[[managed_lifecycle, CustomLogger, str, str], None]
 REGISTERED_SELF_TESTS: list[SelfTest] = []
 
@@ -86,11 +72,6 @@ def register_self_tests(*tests: SelfTest) -> None:
 @cache
 def _ensure_plugin_self_tests_registered() -> None:
     plugin_management.load_plugins()
-
-
-def get_builtin_self_tests() -> list[SelfTest]:
-    current_module = globals()
-    return [cast(SelfTest, current_module[name]) for name in ORDERED_SELF_TEST_NAMES]
 
 
 @contextmanager
@@ -651,6 +632,26 @@ def test_positive_correlation_between_rpm_and_stirring(
         logger.debug(f"Correlation between stirring RPM and duty cycle: {measured_correlation}")
         logger.debug(f"{dcs=}, {measured_rpms=}")
         assert measured_correlation > 0.9, f"RPM correlation not high enough: {(dcs, measured_rpms)}"
+
+
+BUILTIN_SELF_TESTS: tuple[SelfTest, ...] = (
+    # order in UI - good for responsiveness.
+    test_pioreactor_HAT_present,
+    test_all_positive_correlations_between_pds_and_leds,
+    test_ambient_light_interference,
+    test_dark_offset_correction_is_effective,
+    test_REF_is_lower_than_0_dot_256_volts,
+    test_REF_is_in_correct_position,
+    test_PD_is_near_0_volts_for_blank,
+    test_detect_heating_pcb,
+    test_positive_correlation_between_temperature_and_heating,
+    test_positive_correlation_between_rpm_and_stirring,
+    test_aux_power_is_not_too_high,
+)
+
+
+def get_builtin_self_tests() -> list[SelfTest]:
+    return list(BUILTIN_SELF_TESTS)
 
 
 def run_tests(
