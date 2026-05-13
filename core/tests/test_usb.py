@@ -82,6 +82,44 @@ def test_scan_usb_mount_detects_release_archives(tmp_path: Path, monkeypatch) ->
     assert scan.updates[0].version == "25.6.0"
 
 
+def test_mount_usb_partition_uses_user_writable_options_for_vfat(tmp_path: Path, monkeypatch) -> None:
+    mount_root = tmp_path / "run" / "pioreactor" / "usb"
+    commands: list[list[str]] = []
+    partition = usb_utils.UsbPartition(
+        device="/dev/sda1",
+        parent_device="/dev/sda",
+        label="PRUSA3D",
+        uuid="1C2C-7EA6",
+        fstype="vfat",
+        size_bytes=1000,
+        mountpoints=(),
+        removable=True,
+    )
+
+    def fake_run(command: list[str], **kwargs) -> DummyCompletedProcess:
+        commands.append(command)
+        return DummyCompletedProcess()
+
+    monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
+    monkeypatch.setattr(usb_utils.os, "getuid", lambda: 1000)
+    monkeypatch.setattr(usb_utils.os, "getgid", lambda: 1001)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    mountpoint = usb_utils.mount_usb_partition(partition)
+
+    assert mountpoint == mount_root / "usb-1C2C-7EA6"
+    assert commands == [
+        [
+            "sudo",
+            "mount",
+            "-o",
+            "rw,nosuid,nodev,noexec,uid=1000,gid=1001,umask=002",
+            "/dev/sda1",
+            str(mountpoint),
+        ]
+    ]
+
+
 def test_pio_usb_scan_prints_update_artifacts(tmp_path: Path, monkeypatch) -> None:
     mount_root = tmp_path / "run" / "pioreactor" / "usb"
     mountpoint = mount_root / "usb-7A2B-91FE"

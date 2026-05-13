@@ -118,12 +118,23 @@ def mount_usb_partition(partition: UsbPartition) -> Path:
         mountpoint = Path(partition.mountpoints[0])
         if not _is_relative_to(mountpoint, USB_MOUNT_ROOT):
             raise ValueError(f"{partition.device} is already mounted outside {USB_MOUNT_ROOT}: {mountpoint}")
+        if not _verify_writable(mountpoint):
+            _remount_usb_partition(partition, mountpoint)
+        if not _verify_writable(mountpoint):
+            raise ValueError(f"{mountpoint} is not writable.")
         return mountpoint
 
     mountpoint = partition.pioreactor_mountpoint
     mountpoint.mkdir(parents=True, exist_ok=True)
     subprocess.run(
-        ["sudo", "mount", "-o", "rw,nosuid,nodev,noexec", partition.device, str(mountpoint)],
+        [
+            "sudo",
+            "mount",
+            "-o",
+            ",".join(_mount_options_for_partition(partition)),
+            partition.device,
+            str(mountpoint),
+        ],
         check=True,
     )
     if not _verify_writable(mountpoint):
@@ -266,6 +277,31 @@ def _safe_path_component(value: str) -> str:
 
 def _normalize_device_path(value: str) -> str:
     return value if value.startswith("/dev/") else f"/dev/{value}"
+
+
+def _mount_options_for_partition(partition: UsbPartition) -> list[str]:
+    options = ["rw", "nosuid", "nodev", "noexec"]
+
+    if partition.fstype in {"exfat", "vfat"}:
+        options.extend([f"uid={os.getuid()}", f"gid={os.getgid()}", "umask=002"])
+
+    return options
+
+
+def _remount_usb_partition(partition: UsbPartition, mountpoint: Path) -> None:
+    if partition.fstype not in {"exfat", "vfat"}:
+        return
+
+    subprocess.run(
+        [
+            "sudo",
+            "mount",
+            "-o",
+            f"remount,{','.join(_mount_options_for_partition(partition))}",
+            str(mountpoint),
+        ],
+        check=True,
+    )
 
 
 def _verify_writable(mountpoint: Path) -> bool:
