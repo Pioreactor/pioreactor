@@ -25,6 +25,7 @@ lazy_subcommands = {
     "plugins": "pioreactor.cli.plugins.plugins",
     "calibrations": "pioreactor.cli.calibrations.calibration",
     "estimators": "pioreactor.cli.estimators.estimators",
+    "usb": "pioreactor.cli.usb.usb",
 }
 
 if whoami.am_I_leader():
