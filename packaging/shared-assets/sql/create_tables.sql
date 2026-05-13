@@ -262,25 +262,6 @@ CREATE INDEX IF NOT EXISTS led_automation_settings_ix
 ON led_automation_settings (experiment, pioreactor_unit);
 
 
-CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
-    experiment TEXT NOT NULL,
-    pioreactor_unit TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
-    state_0 REAL NOT NULL,
-    state_1 REAL NOT NULL,
-    state_2 REAL NOT NULL,
-    cov_00 REAL NOT NULL,
-    cov_01 REAL NOT NULL,
-    cov_02 REAL NOT NULL,
-    cov_11 REAL NOT NULL,
-    cov_12 REAL NOT NULL,
-    cov_22 REAL NOT NULL,
-    FOREIGN KEY (experiment) REFERENCES experiments (
-        experiment
-    ) ON DELETE CASCADE
-);
-
-
 
 CREATE TABLE IF NOT EXISTS temperature_readings (
     experiment TEXT NOT NULL,
@@ -335,6 +316,8 @@ CREATE TABLE IF NOT EXISTS od_blanks (
     ) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS od_blanks_ix
+ON od_blanks (experiment, pioreactor_unit, timestamp);
 
 CREATE TABLE IF NOT EXISTS ir_led_intensities (
     experiment TEXT NOT NULL,
@@ -506,6 +489,9 @@ CREATE TABLE IF NOT EXISTS experiment_profile_runs (
 );
 
 
+CREATE INDEX IF NOT EXISTS experiment_profile_runs_ix
+ON experiment_profile_runs (experiment);
+
 --
 -- the tables below are more "oltp" than "olap", hence the FK
 --
@@ -523,6 +509,9 @@ CREATE TABLE IF NOT EXISTS experiment_worker_assignments (
         experiment
     ) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS experiment_worker_assignments_experiment_ix
+ON experiment_worker_assignments (experiment);
 
 CREATE TABLE IF NOT EXISTS workers (
     pioreactor_unit TEXT NOT NULL, -- id

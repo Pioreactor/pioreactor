@@ -1115,6 +1115,12 @@ def repair_system() -> dict[str, Any]:
             (status_result.stderr or "").strip()[:2000],
         )
 
+    if status_result.returncode == 0 and repair_result.returncode == 0:
+        logger.debug(
+            "Repair task finished successfully. stdout: %s stderr: %s",
+            (status_result.stdout or "").strip()[:2000],
+            (status_result.stderr or "").strip()[:2000],
+        )
     return {
         "success": repair_result.returncode == 0 and status_result.returncode == 0,
         "repair": {
