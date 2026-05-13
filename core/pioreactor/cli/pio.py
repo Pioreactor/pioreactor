@@ -1388,9 +1388,8 @@ def status(json_output: bool) -> None:
 
     expected_uid, expected_gid, expected_owner = get_expected_dot_pioreactor_uid_gid()
 
-    db_path: Path | None = None
     if role == "leader":
-        db_path = add_sqlite_storage_check(
+        add_sqlite_storage_check(
             "storage:db",
             "database",
             expected_uid,
@@ -1399,11 +1398,6 @@ def status(json_output: bool) -> None:
             check_openability=True,
             include_sidecars=True,
         )
-    else:
-        try:
-            db_path = Path(config.get("storage", "database"))
-        except Exception:
-            db_path = None
 
     add_sqlite_storage_check(
         "storage:temporary_cache",
@@ -1425,16 +1419,14 @@ def status(json_output: bool) -> None:
     )
     add_dot_pioreactor_tree_check(expected_uid, expected_gid, expected_owner)
 
-    if db_path is not None:
-        disk_root = db_path.parent
-        if disk_root.exists():
-            try:
-                free_bytes = shutil.disk_usage(disk_root).free
-                free_gb = free_bytes / (1024**3)
-                disk_status = "WARN" if free_gb < 1.0 else "OK"
-                add_check("storage:disk", disk_status, f"free={free_gb:.1f}GB path={disk_root}")
-            except Exception as error:
-                add_check("storage:disk", "WARN", f"path={disk_root} ({error})")
+    disk_root = "/"
+    try:
+        free_bytes = shutil.disk_usage(disk_root).free
+        free_gb = free_bytes / (1024**3)
+        disk_status = "WARN" if free_gb < 3.0 else "OK"
+        add_check("storage:disk", disk_status, f"free={free_gb:.1f}GB path={disk_root}")
+    except Exception as error:
+        add_check("storage:disk", "WARN", f"path={disk_root} ({error})")
 
     overall_status = "OK"
     for _, check_status, _ in checks:

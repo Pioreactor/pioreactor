@@ -529,19 +529,18 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.debug("Power status okay.")
 
     def check_and_publish_self_statistics(self) -> None:
-        import os
+        import shutil
 
-        # Disk usage percentage
-        statvfs = os.statvfs("/")
-        total_disk_space = statvfs.f_frsize * statvfs.f_blocks
-        available_disk_space = statvfs.f_frsize * statvfs.f_bavail
-        disk_usage_percent = round((1 - available_disk_space / total_disk_space) * 100)
+        free_bytes = shutil.disk_usage("/").free
+        free_gb = free_bytes / (1024**3)
 
-        if disk_usage_percent <= 80:
-            self.logger.debug(f"Disk space at {disk_usage_percent}%.")
+        if free_gb >= 3.0:
+            self.logger.debug(f"Available disk space: {free_gb:.1f}GB.")
         else:
             # TODO: add documentation to clear disk space.
-            self.logger.warning(f"Disk space at {disk_usage_percent}%.")
+            self.logger.warning(
+                f"Available disk space: {free_gb:.1f}GB. Export and delete experiments to free up space."
+            )
             self.flicker_led_with_error_code(error_codes.DISK_IS_ALMOST_FULL)
 
         cpu_temperature_celcius = round(utils.get_cpu_temperature())
@@ -553,7 +552,7 @@ class Monitor(LongRunningBackgroundJob):
             self.flicker_led_with_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
         self.computer_statistics = {
-            "disk_usage_percent": disk_usage_percent,
+            "available_disk_space": free_gb,
             "cpu_temperature_celcius": cpu_temperature_celcius,
             "timestamp": current_utc_timestamp(),
         }
