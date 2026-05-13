@@ -872,7 +872,7 @@ def kill_jobs_task(
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=60, retry=False)
+@huey.rate_limit("plugins", limit=1, per=10, retry=False)
 @huey.lock_task("plugins-lock")
 def install_plugin_task(name: str, source: str | None = None) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
@@ -887,7 +887,7 @@ def install_plugin_task(name: str, source: str | None = None) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=60, retry=False)
+@huey.rate_limit("plugins", limit=1, per=10, retry=False)
 @huey.lock_task("plugins-lock")
 def uninstall_plugin_task(name: str) -> bool:
     from pioreactor.plugin_management.uninstall_plugin import uninstall_plugin
@@ -1017,7 +1017,7 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("update-app", limit=1, per=60, retry=False)
+@huey.rate_limit("update-app", limit=1, per=10, retry=False)
 @huey.lock_task("update-lock")
 def pio_update_app(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
@@ -1085,7 +1085,6 @@ def restart_pioreactor_web_target() -> bool:
 
 
 @huey.task()
-@huey.rate_limit("repair-system", limit=1, per=30, retry=False)
 @huey.lock_task("repair-system-lock")
 def repair_system() -> dict[str, Any]:
     logger.debug("Repairing system permissions and checking status")
@@ -1099,6 +1098,22 @@ def repair_system() -> dict[str, Any]:
         capture_output=True,
         text=True,
     )
+
+    if repair_result.returncode != 0:
+        logger.warning(
+            "System repair command failed with return code %s. stdout: %s stderr: %s",
+            repair_result.returncode,
+            (repair_result.stdout or "").strip()[:2000],
+            (repair_result.stderr or "").strip()[:2000],
+        )
+
+    if status_result.returncode != 0:
+        logger.warning(
+            "System status check after repair failed with return code %s. stdout: %s stderr: %s",
+            status_result.returncode,
+            (status_result.stdout or "").strip()[:2000],
+            (status_result.stderr or "").strip()[:2000],
+        )
 
     return {
         "success": repair_result.returncode == 0 and status_result.returncode == 0,
@@ -1139,7 +1154,7 @@ def save_file(path: str, content: str) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("config-sync", limit=1, per=30, retry=False)
+@huey.rate_limit("config-sync", limit=1, per=10, retry=False)
 @huey.lock_task("config-sync-lock")
 def write_config_and_sync(
     config_path: str, text: str, units: str, flags: tuple[str, ...] = (), env: dict[str, str] | None = None

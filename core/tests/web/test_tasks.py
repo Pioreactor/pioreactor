@@ -243,6 +243,42 @@ def test_repair_system_repairs_permissions_then_checks_status(monkeypatch: pytes
     assert result["status"]["payload"] == {"status": "WARN", "checks": []}
 
 
+def test_repair_system_logs_failed_repair_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_rate_limit("repair-system")
+    warnings: list[tuple[str, tuple[object, ...]]] = []
+
+    class DummyLogger:
+        def debug(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def warning(self, message: str, *args: object, **_kwargs: object) -> None:
+            warnings.append((message, args))
+
+    class DummyResult:
+        def __init__(self, returncode: int, stdout: str, stderr: str) -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(command: list[str], **_kwargs: object) -> DummyResult:
+        if command == [tasks.PIO_EXECUTABLE, "repair"]:
+            return DummyResult(1, "fixed one thing", "permission denied")
+        return DummyResult(0, '{"status":"OK","checks":[]}', "")
+
+    monkeypatch.setattr(tasks, "logger", DummyLogger())
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    result = tasks.repair_system.call_local()
+
+    assert result["success"] is False
+    assert warnings == [
+        (
+            "System repair command failed with return code %s. stdout: %s stderr: %s",
+            (1, "fixed one thing", "permission denied"),
+        )
+    ]
+
+
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -226,7 +226,6 @@ function RepairSystem({unit}) {
       <Button
         sx={{textTransform: "none"}}
         size="small"
-        loading={isRepairing}
         onClick={handleRepair}
       >
         <BuildOutlinedIcon fontSize="small" sx={textIcon} />Repair system
@@ -239,6 +238,12 @@ function RepairSystem({unit}) {
         autoHideDuration={2500}
         key={`snackbar-repair-system-${unit}`}
       />
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.modal + 1 }}
+        open={isRepairing}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
     </React.Fragment>
   );
 }

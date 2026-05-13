@@ -3,6 +3,8 @@ import React from "react";
 import MenuItem from "@mui/material/MenuItem";
 import Menu from "@mui/material/Menu";
 import Button from "@mui/material/Button";
+import Backdrop from "@mui/material/Backdrop";
+import CircularProgress from "@mui/material/CircularProgress";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useNavigate } from 'react-router';
@@ -11,13 +13,17 @@ import { useExperiment } from '../providers/ExperimentContext';
 import Divider from '@mui/material/Divider';
 import ExperimentMetadataDialog from "./ExperimentMetadataDialog";
 import { fetchTaskResult } from "../utils/tasks";
+import Snackbar from "./Snackbar";
 
 
 export default function ManageExperimentMenu({experiment}){
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState("");
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+  const [snackbarMessage, setSnackbarMessage] = React.useState("");
   const open = Boolean(anchorEl);
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -28,6 +34,18 @@ export default function ManageExperimentMenu({experiment}){
   };
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const showSnackbar = (message) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = (_event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   const currentExperiment = React.useMemo(() => {
@@ -107,24 +125,41 @@ export default function ManageExperimentMenu({experiment}){
 
   };
 
-  const handleDeleteExperiment = () => {
-    confirm({
-      description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?',
-      title: "Delete experiment?",
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+  const handleDeleteExperiment = async () => {
+    let dialogResult;
+    try {
+      dialogResult = await confirm({
+        description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?',
+        title: "Delete experiment?",
+        confirmationText: "Confirm",
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      });
+    } catch (_) {
+      return;
+    }
 
-      }).then(() =>
-        fetchTaskResult(`/api/experiments/${encodeURIComponent(experiment)}`, {
-          fetchOptions: {method: "DELETE"},
-          maxRetries: 600,
-          delayMs: 100,
-        }).then(() => {
-          updateExperiment(allExperiments.find((em) => em.experiment !== experiment));
-          setAllExperiments(allExperiments.filter((em) => em.experiment !== experiment));
-        })
-      ).catch(() => {})
+    if (dialogResult && dialogResult.confirmed === false) {
+      return;
+    }
+
+    handleClose();
+    setIsDeleting(true);
+    try {
+      await fetchTaskResult(`/api/experiments/${encodeURIComponent(experiment)}`, {
+        fetchOptions: {method: "DELETE"},
+        maxRetries: 600,
+        delayMs: 100,
+      });
+      updateExperiment(allExperiments.find((em) => em.experiment !== experiment));
+      setAllExperiments(allExperiments.filter((em) => em.experiment !== experiment));
+      showSnackbar(`Deleted experiment ${experiment}.`);
+    } catch (error) {
+      console.error("Failed to delete experiment:", error);
+      showSnackbar(`Failed to delete ${experiment}. Please try again.`);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -168,6 +203,18 @@ export default function ManageExperimentMenu({experiment}){
         allTagOptions={allTagOptions}
         isSaving={isSaving}
         errorMessage={errorMessage}
+      />
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.modal + 1 }}
+        open={isDeleting}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
+      <Snackbar
+        open={snackbarOpen}
+        message={snackbarMessage}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
     </div>
   );

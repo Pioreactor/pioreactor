@@ -3,10 +3,12 @@ import dayjs from "dayjs";
 
 import Alert from "@mui/material/Alert";
 import Autocomplete from "@mui/material/Autocomplete";
+import Backdrop from "@mui/material/Backdrop";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
@@ -33,6 +35,7 @@ import ExperimentMetadataDialog from "./components/ExperimentMetadataDialog";
 import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
 import { fetchTaskResult } from "./utils/tasks";
+import Snackbar from "./components/Snackbar";
 
 const TAGS_TO_SHOW = 6;
 
@@ -52,7 +55,6 @@ const TableRowStyled = styled(TableRow)(() => ({
 
 function ExperimentActionsMenu({
   experiment,
-  disabled,
   onEdit,
   onExport,
   onEnd,
@@ -70,7 +72,6 @@ function ExperimentActionsMenu({
       <IconButton
         size="small"
         onClick={(event) => setAnchorEl(event.currentTarget)}
-        disabled={disabled}
         aria-label={`More actions for ${experiment.experiment}`}
       >
         <MoreVertIcon fontSize="small" />
@@ -133,6 +134,8 @@ function ExperimentsContainer(props) {
   const [isSavingDialog, setIsSavingDialog] = React.useState(false);
   const [dialogError, setDialogError] = React.useState("");
   const [busyExperimentName, setBusyExperimentName] = React.useState("");
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+  const [snackbarMessage, setSnackbarMessage] = React.useState("");
 
   React.useEffect(() => {
     document.title = props.title;
@@ -161,6 +164,18 @@ function ExperimentsContainer(props) {
   React.useEffect(() => {
     refreshExperiments();
   }, [refreshExperiments]);
+
+  const showSnackbar = (message) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = (_event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
 
   const allTagOptions = React.useMemo(() => {
     return [...new Set(experiments.flatMap((experiment) => experiment.tags || []))].sort((left, right) =>
@@ -287,6 +302,10 @@ function ExperimentsContainer(props) {
         updateExperiment(nextExperiments[0], true);
       }
 
+      showSnackbar(`Deleted experiment ${experiment.experiment}.`);
+    } catch (error) {
+      console.error("Failed to delete experiment:", error);
+      showSnackbar(`Failed to delete ${experiment.experiment}. Please try again.`);
     } finally {
       setBusyExperimentName("");
     }
@@ -371,7 +390,6 @@ function ExperimentsContainer(props) {
             </TableHead>
             <TableBody>
               {filteredExperiments.map((experiment) => {
-                const isBusy = busyExperimentName === experiment.experiment;
                 const visibleTags = (experiment.tags || []).slice(0, TAGS_TO_SHOW);
                 const remainingTagCount = Math.max((experiment.tags || []).length - visibleTags.length, 0);
 
@@ -433,7 +451,6 @@ function ExperimentsContainer(props) {
                     <StyledTableCell align="right" sx={{ whiteSpace: "nowrap", verticalAlign: "top" }}>
                       <ExperimentActionsMenu
                         experiment={experiment}
-                        disabled={isBusy}
                         onEdit={() => {
                           setDialogError("");
                           setEditingExperiment(experiment);
@@ -459,6 +476,19 @@ function ExperimentsContainer(props) {
           </Table>
         </TableContainer>
       </Card>
+
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.modal + 1 }}
+        open={Boolean(busyExperimentName)}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
+      <Snackbar
+        open={snackbarOpen}
+        message={snackbarMessage}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      />
 
       <ExperimentMetadataDialog
         experiment={editingExperiment}
