@@ -445,6 +445,62 @@ def test_media_circulation() -> None:
     assert waste_removed > media_added
 
 
+def test_media_circulation_uses_remaining_duration_for_final_media_pulse(monkeypatch) -> None:
+    exp = "test_media_circulation_uses_remaining_duration"
+    media_durations: list[float] = []
+
+    class FakeExitEvent:
+        def is_set(self) -> bool:
+            return False
+
+        def wait(self, timeout: float) -> bool:
+            return False
+
+    class FakeLifecycle:
+        mqtt_client = FakeMQTTClient()
+        exit_event = FakeExitEvent()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+    class FakePump:
+        def __init__(self, unit, experiment, pin, calibration, mqtt_client=None, logger=None) -> None:
+            self.pin = pin
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def continuously(self, block: bool) -> None:
+            return None
+
+        def by_duration(self, duration: float, block: bool) -> None:
+            if self.pin == 2:
+                media_durations.append(duration)
+
+        def stop(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "pioreactor.actions.pump._get_pin", lambda pump_device: 1 if pump_device == "waste_pump" else 2
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.PWMPump", FakePump)
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.utils.managed_lifecycle", lambda *args, **kwargs: FakeLifecycle()
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.time.sleep", lambda seconds: None)
+
+    media_added, _waste_removed = circulate_media(1.2, unit, exp)
+
+    assert media_durations == pytest.approx([0.85, 0.35])
+    assert media_added == pytest.approx(1.2)
+
+
 def test_media_circulation_cant_run_when_waste_pump_is_running() -> None:
     from threading import Thread
 

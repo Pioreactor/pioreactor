@@ -1191,6 +1191,43 @@ def test_old_readings_will_not_execute_io() -> None:
         assert isinstance(algo.run(), events.NoEvent)
 
 
+@pytest.mark.parametrize(
+    ("age", "expect_stale"),
+    [
+        (timedelta(minutes=1), False),
+        (timedelta(minutes=10), True),
+        (timedelta(days=1, minutes=1), True),
+    ],
+)
+def test_latest_readings_reject_stale_timestamps(age: timedelta, expect_stale: bool) -> None:
+    job = DosingAutomationJob.__new__(DosingAutomationJob)
+    job._latest_growth_rate = 0.1
+    job._latest_normalized_od = 1.0
+    job._latest_od = {"2": 0.05}
+    job._latest_od_fused = 1.1
+
+    reading_at = current_utc_datetime() - age
+    job.latest_growth_rate_at = reading_at
+    job.latest_normalized_od_at = reading_at
+    job.latest_od_at = reading_at
+    job.latest_od_fused_at = reading_at
+
+    if expect_stale:
+        with pytest.raises(exc.JobRequiredError, match="too stale"):
+            job.latest_growth_rate
+        with pytest.raises(exc.JobRequiredError, match="too stale"):
+            job.latest_normalized_od
+        with pytest.raises(exc.JobRequiredError, match="too stale"):
+            job.latest_od
+        with pytest.raises(exc.JobRequiredError, match="too stale"):
+            job.latest_od_fused
+    else:
+        assert job.latest_growth_rate == 0.1
+        assert job.latest_normalized_od == 1.0
+        assert job.latest_od == {"2": 0.05}
+        assert job.latest_od_fused == 1.1
+
+
 @pytest.mark.slow
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
@@ -1389,6 +1426,81 @@ def test_sleeping_state_stops_active_pumps() -> None:
         (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
     ]
+
+
+def test_current_volume_mqtt_update_at_stop_threshold_sleeps_and_stops_active_pumps() -> None:
+    experiment = "test_current_volume_mqtt_update_at_stop_threshold_sleeps"
+    stop_messages: list[tuple[str, bytes, int]] = []
+    errors: list[str] = []
+
+    class FakeLogger:
+        def error(self, msg: str, *args: object, **kwargs: object) -> None:
+            errors.append(msg)
+
+        def debug(self, msg: str, *args: object, **kwargs: object) -> None:
+            pass
+
+    class Message:
+        payload = str(DosingAutomationJob.MAX_VIAL_VOLUME_TO_STOP).encode()
+
+    def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
+        if topic.endswith("/$state/set"):
+            stop_messages.append((topic, payload, qos))
+
+    job = DosingAutomationJob.__new__(DosingAutomationJob)
+    object.__setattr__(job, "unit", unit)
+    object.__setattr__(job, "experiment", experiment)
+    object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
+    object.__setattr__(job, "logger", FakeLogger())
+    object.__setattr__(job, "state", job.READY)
+    object.__setattr__(job, "_automation_timer", None)
+
+    job._set_current_volume_ml_from_mqtt(Message())
+
+    assert job.current_volume_ml == pytest.approx(DosingAutomationJob.MAX_VIAL_VOLUME_TO_STOP)
+    assert job.state == job.SLEEPING
+    assert stop_messages[:3] == [
+        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
+        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
+    ]
+    assert errors
+
+
+def test_current_volume_mqtt_update_at_warning_threshold_warns_without_stopping() -> None:
+    experiment = "test_current_volume_mqtt_update_at_warning_threshold"
+    stop_messages: list[tuple[str, bytes, int]] = []
+    warnings: list[str] = []
+
+    class FakeLogger:
+        def warning(self, msg: str, *args: object, **kwargs: object) -> None:
+            warnings.append(msg)
+
+    warning_volume = (
+        DosingAutomationJob.MAX_VIAL_VOLUME_TO_WARN + DosingAutomationJob.MAX_VIAL_VOLUME_TO_STOP
+    ) / 2
+
+    class Message:
+        payload = str(warning_volume).encode()
+
+    def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
+        if topic.endswith("/$state/set"):
+            stop_messages.append((topic, payload, qos))
+
+    job = DosingAutomationJob.__new__(DosingAutomationJob)
+    object.__setattr__(job, "unit", unit)
+    object.__setattr__(job, "experiment", experiment)
+    object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
+    object.__setattr__(job, "logger", FakeLogger())
+    object.__setattr__(job, "state", job.READY)
+    object.__setattr__(job, "_last_vial_volume_warning_at", None)
+
+    job._set_current_volume_ml_from_mqtt(Message())
+
+    assert job.current_volume_ml == pytest.approx(warning_volume)
+    assert job.state == job.READY
+    assert stop_messages == []
+    assert warnings
 
 
 def test_disconnected_state_stops_active_pumps() -> None:

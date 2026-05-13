@@ -523,11 +523,14 @@ def _liquid_circulation(
                 running_dosing_duration = 0.0
 
                 while not state.exit_event.is_set() and (running_duration < duration):
-                    media_pump.by_duration(min(duration, ratio), block=True)
+                    remaining_dosing_duration = duration - running_dosing_duration
+                    media_dosing_duration = min(remaining_dosing_duration, ratio)
+
+                    media_pump.by_duration(media_dosing_duration, block=True)
                     state.exit_event.wait(1 - ratio)
 
                     running_duration += 1.0
-                    running_dosing_duration += min(duration, ratio)
+                    running_dosing_duration += media_dosing_duration
 
                 time.sleep(1)
                 waste_pump_duration = running_waste_duration()

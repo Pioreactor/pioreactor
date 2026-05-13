@@ -8,7 +8,7 @@ import DialogContent from '@mui/material/DialogContent';
 import Alert from '@mui/material/Alert';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
-import { fetchTaskResult } from "./utils/tasks";
+import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
 import { readyGreen } from "./utils/color";
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
@@ -99,11 +99,12 @@ function estimatorToYaml(estimator) {
 }
 
 
-function Delete({ pioreactorUnit, device, estimatorName }) {
+function Delete({ pioreactorUnit, device, estimatorName, onError }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
 
   const deleteEstimator = async () => {
+    let confirmed = false;
     try {
       await confirm({
         description: 'Deleting this estimator will remove it from disk. This is irreversible. Do you wish to continue?',
@@ -112,16 +113,22 @@ function Delete({ pioreactorUnit, device, estimatorName }) {
         confirmationButtonProps: { color: "primary", sx: { textTransform: 'none' } },
         cancellationButtonProps: { color: "secondary", sx: { textTransform: 'none' } },
       });
+      confirmed = true;
 
-      const response = await fetch(`/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`, {
-        method: "DELETE",
+      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`, {
+        fetchOptions: { method: "DELETE" },
       });
-
-      if (response.ok) {
-        navigate(`/estimators/${pioreactorUnit}/${device}`, { replace: true });
-      }
+      assertUnitTaskResultSucceeded(
+        taskResult,
+        pioreactorUnit,
+        `Unable to delete estimator on ${pioreactorUnit}.`,
+      );
+      navigate(`/estimators/${pioreactorUnit}/${device}`, { replace: true });
     } catch (err) {
-      // confirmation rejected or request failed; no further action needed
+      if (confirmed) {
+        console.error("Error deleting estimator:", err);
+        onError?.(err.message || "Unable to delete estimator.");
+      }
     }
   };
 
@@ -267,28 +274,34 @@ function SingleEstimatorPage(props) {
   const handleSetActive = async () => {
     const apiUrl = `/api/workers/${pioreactorUnit}/active_estimators/${device}/${estimatorName}`;
     try {
-      const response = await fetch(apiUrl, { method: "PATCH" });
-      if (!response.ok) {
-        throw new Error("Failed to activate estimator");
-      }
+      const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
+      assertUnitTaskResultSucceeded(
+        taskResult,
+        pioreactorUnit,
+        `Unable to set estimator active on ${pioreactorUnit}.`,
+      );
       showSnackbar("Estimator set as Active");
       await fetchSingleEstimator();
     } catch (err) {
       console.error("Error setting active estimator:", err);
+      showSnackbar(err.message || "Unable to set estimator active.");
     }
   };
 
   const handleRemoveActive = async () => {
     const apiUrl = `/api/workers/${pioreactorUnit}/active_estimators/${device}`;
     try {
-      const response = await fetch(apiUrl, { method: "DELETE" });
-      if (!response.ok) {
-        throw new Error("Failed to remove active estimator");
-      }
+      const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "DELETE" } });
+      assertUnitTaskResultSucceeded(
+        taskResult,
+        pioreactorUnit,
+        `Unable to remove active estimator on ${pioreactorUnit}.`,
+      );
       showSnackbar("Estimator is no longer Active");
       await fetchSingleEstimator();
     } catch (err) {
       console.error("Error removing active estimator:", err);
+      showSnackbar(err.message || "Unable to remove active estimator.");
     }
   };
 
@@ -318,7 +331,12 @@ function SingleEstimatorPage(props) {
               disabled={loading || !estimator}
               onError={showSnackbar}
             />
-            <Delete pioreactorUnit={pioreactorUnit} device={device} estimatorName={estimatorName} />
+            <Delete
+              pioreactorUnit={pioreactorUnit}
+              device={device}
+              estimatorName={estimatorName}
+              onError={showSnackbar}
+            />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Button
               startIcon={isActive ? <DoNotDisturbOnOutlinedIcon /> : <CheckCircleOutlineOutlinedIcon />}

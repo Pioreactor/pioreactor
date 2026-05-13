@@ -50,6 +50,49 @@ def test_query_app_db_disallows_dml_via_query_only_pragma(app, tmp_path) -> None
     assert _count_rows(db_path) == 1
 
 
+def test_temp_local_metadata_db_connection_closes_on_app_teardown(app, monkeypatch, tmp_path) -> None:
+    from pioreactor.config import config
+    from pioreactor.web.app import query_temp_local_metadata_db
+
+    db_path = tmp_path / "temp_metadata.sqlite"
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("CREATE TABLE pio_job_metadata (job_name TEXT)")
+        conn.execute("INSERT INTO pio_job_metadata VALUES ('stirring')")
+        conn.commit()
+    finally:
+        conn.close()
+
+    closed_connections: list[sqlite3.Connection] = []
+    original_connect = sqlite3.connect
+
+    class TrackedConnection(sqlite3.Connection):
+        def close(self) -> None:
+            closed_connections.append(self)
+            super().close()
+
+    def connect_with_tracked_connection(*args, **kwargs):
+        kwargs["factory"] = TrackedConnection
+        return original_connect(*args, **kwargs)
+
+    monkeypatch.setattr(sqlite3, "connect", connect_with_tracked_connection)
+
+    original_temporary_cache = config.get("storage", "temporary_cache")
+    config.set("storage", "temporary_cache", str(db_path))
+    try:
+        with app.app_context():
+            assert query_temp_local_metadata_db("SELECT job_name FROM pio_job_metadata", one=True) == {
+                "job_name": "stirring"
+            }
+            assert closed_connections == []
+    finally:
+        config.set("storage", "temporary_cache", original_temporary_cache)
+
+    assert len(closed_connections) == 1
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        closed_connections[0].execute("SELECT 1")
+
+
 def test_app_db_enables_recursive_triggers_for_assignment_history(app, monkeypatch, tmp_path) -> None:
     from pioreactor.web import app as web_app
 

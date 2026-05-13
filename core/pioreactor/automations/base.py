@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from datetime import timedelta
 from threading import Lock
 from threading import Thread
 from time import sleep
@@ -21,6 +22,8 @@ from pioreactor.utils.timing import RepeatedTimer
 DISALLOWED_AUTOMATION_NAMES = {
     "config",
 }
+
+STALE_READING_LIMIT = timedelta(minutes=5)
 
 
 class AutomationJob(BackgroundJob):
@@ -297,7 +300,7 @@ class AutomationJob(BackgroundJob):
                 sleep(0.5)
 
         # check most stale time
-        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
+        if current_utc_datetime() - self.most_stale_time > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -318,7 +321,7 @@ class AutomationJob(BackgroundJob):
                 sleep(0.5)
 
         # check most stale time
-        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
+        if current_utc_datetime() - self.most_stale_time > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -339,7 +342,7 @@ class AutomationJob(BackgroundJob):
                 sleep(0.5)
 
         # check most stale time
-        if (current_utc_datetime() - self.latest_od_at).seconds > 5 * 60:
+        if current_utc_datetime() - self.latest_od_at > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 f"readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_at}."
             )
@@ -360,7 +363,7 @@ class AutomationJob(BackgroundJob):
                 sleep(0.5)
 
         # check most stale time
-        if (current_utc_datetime() - self.latest_od_fused_at).seconds > 5 * 60:
+        if current_utc_datetime() - self.latest_od_fused_at > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 f"fused readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_fused_at}."
             )

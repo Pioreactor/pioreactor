@@ -288,3 +288,33 @@ The Pioreactor software enables users to control and monitor small-scale bioreac
 ## Tickets
 
 Tickets from `tk` look like `pio-xxxx`. Use tickets (`tk`) to write notes to your future self.
+
+Use tags sparingly. Prefer 2-4 broad tags per ticket: one area tag, one domain tag when relevant, and one concern tag only if it changes how the work should be found later. Do not tag ticket type, priority, status, or temporary review batches; `tk` already tracks those better.
+
+Preferred broad tags:
+
+- `frontend`
+- `backend`
+- `web-api`
+- `cli`
+- `packaging`
+- `docs`
+- `automations`
+- `dosing`
+- `temperature`
+- `od`
+- `calibration`
+- `experiment-profiles`
+- `plugins`
+- `config`
+- `typing`
+- `reliability`
+
+Tagging tips:
+
+- Use `web-api` for Flask leader/unit API routes, response contracts, and fanout behavior; use `frontend` for React/UI behavior.
+- Use `backend` for core Python/runtime work that is not primarily CLI, web API, or packaging.
+- Use domain tags like `dosing`, `temperature`, `od`, `calibration`, `automations`, `experiment-profiles`, and `plugins` when the ticket is about that subsystem.
+- Use `reliability` for races, stale state, task-result handling, lifecycle leaks, startup/shutdown behavior, or user-visible failures caused by async/state issues.
+- Use `typing` for mypy/type-boundary work. Do not also add a routine `mypy` tag.
+- Avoid narrow one-off tags unless at least a few future tickets are likely to need the same search key.

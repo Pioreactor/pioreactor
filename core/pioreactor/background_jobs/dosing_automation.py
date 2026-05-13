@@ -428,17 +428,19 @@ class DosingAutomationJob(AutomationJob):
 
         self.current_volume_ml = bioreactor.validate_bioreactor_value("current_volume_ml", message.payload)
 
-        if (
+        if self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
+            self.logger.error(
+                f"Pausing all pumping since the vial is calculated to have a volume of {self.current_volume_ml:.2f} mL, "
+                f"which is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
+            )
+            self.set_state(self.SLEEPING)
+        elif (
             self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN
             and self._should_warn_about_high_vial_volume()
         ):
             self.logger.warning(
                 f"Vial is calculated to have a volume of {self.current_volume_ml:.2f} mL. Is this expected?"
             )
-        elif self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
-            pass
-            # TODO: this should publish to pumps to stop them.
-            # but it is checked elsewhere
 
     def _set_efflux_tube_volume_ml_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if not message.payload:

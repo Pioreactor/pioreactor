@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Enhancements
+
+ - More useful error messages in the UI
+
 #### Bug fixes
 
  - Fixed the Pioreactors page on leader-only installs so settings descriptors load even when the leader itself is not assigned a Pioreactor model.

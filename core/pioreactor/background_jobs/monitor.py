@@ -621,12 +621,7 @@ class Monitor(LongRunningBackgroundJob):
         Thread(target=self.flicker_led_with_error_code, args=(error_code,), daemon=True).start()
 
     def set_versions(self, data: dict[str, str | None]) -> None:
-        # first remove any extra keys
-        for key in data:
-            if key not in self.versions:
-                data.pop(key)
-
-        self.versions = self.versions | data
+        self.versions = self.versions | {key: value for key, value in data.items() if key in self.versions}
 
     def watch_for_lost_state(self, state_message: MQTTMessage) -> None:
         unit = state_message.topic.split("/")[1]

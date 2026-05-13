@@ -72,7 +72,7 @@ def create_app() -> Flask:
         if db is not None:
             db.close()
 
-        db = getattr(g, "_metadata_database", None)
+        db = getattr(g, "_local_metadata_database", None)
         if db is not None:
             db.close()
 

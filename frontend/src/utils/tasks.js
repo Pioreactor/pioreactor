@@ -66,3 +66,23 @@ export async function fetchTaskResult(
 
   return checkTaskCallback(payload.result_url_path, { maxRetries, delayMs });
 }
+
+export function assertUnitTaskResultSucceeded(taskPayload, unit, fallbackMessage) {
+  const result = taskPayload?.result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error(fallbackMessage);
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(result, unit)) {
+    throw new Error(fallbackMessage);
+  }
+
+  const unitResult = result[unit];
+  if (unitResult === null || unitResult === undefined) {
+    throw new Error(fallbackMessage);
+  }
+
+  if (typeof unitResult === "object" && unitResult.error) {
+    throw new Error(unitResult.error);
+  }
+}

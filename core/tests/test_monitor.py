@@ -25,6 +25,29 @@ def pause(n=1):
     time.sleep(n * 0.5)
 
 
+def test_monitor_set_versions_ignores_unknown_keys_without_mutating_input(monkeypatch) -> None:
+    monkeypatch.setattr(Monitor, "_publish_setting", lambda self, setting: None)
+
+    monitor = object.__new__(Monitor)
+    monitor.versions = {
+        "app": "1.0.0",
+        "hat": "1.0",
+        "firmware": "2.0",
+        "hat_serial": "abc",
+        "rpi_machine": "pi",
+        "timestamp": "2026-01-01T00:00:00Z",
+    }
+    update = {"app": "1.0.1", "timestamp": "2026-01-02T00:00:00Z", "extra": "ignored"}
+
+    monitor.set_versions(update)
+
+    assert monitor.versions["app"] == "1.0.1"
+    assert monitor.versions["timestamp"] == "2026-01-02T00:00:00Z"
+    assert monitor.versions["hat"] == "1.0"
+    assert "extra" not in monitor.versions
+    assert update == {"app": "1.0.1", "timestamp": "2026-01-02T00:00:00Z", "extra": "ignored"}
+
+
 @pytest.mark.slow
 @pytest.mark.skip()
 def test_check_job_states_in_monitor() -> None:

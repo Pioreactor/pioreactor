@@ -8,7 +8,7 @@ import Alert from '@mui/material/Alert';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
-import { fetchTaskResult } from "./utils/tasks";
+import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
 import { colors, ColorCycler, readyGreen } from "./utils/color";
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
@@ -148,11 +148,12 @@ function calibrationToYaml(calibration, pioreactorUnit, calibrationName) {
 
 
 
-function Delete({ pioreactorUnit, device, calibrationName }) {
+function Delete({ pioreactorUnit, device, calibrationName, onError }) {
   const navigate = useNavigate()
   const confirm = useConfirm();
 
   const deleteCalibration = async () => {
+    let confirmed = false;
     try {
       await confirm({
         description: 'Deleting this calibration will remove it from disk. This is irreversible. Do you wish to continue?',
@@ -161,16 +162,22 @@ function Delete({ pioreactorUnit, device, calibrationName }) {
         confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
         cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
       });
+      confirmed = true;
 
-      const response = await fetch(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`, {
-        method: "DELETE",
+      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`, {
+        fetchOptions: { method: "DELETE" },
       });
-
-      if (response.ok){
-         navigate(`/calibrations/${pioreactorUnit}/${device}`, {replace: true})
-      }
+      assertUnitTaskResultSucceeded(
+        taskResult,
+        pioreactorUnit,
+        `Unable to delete calibration on ${pioreactorUnit}.`,
+      );
+      navigate(`/calibrations/${pioreactorUnit}/${device}`, {replace: true})
     } catch (err) {
-      // confirmation rejected or request failed; no further action needed
+      if (confirmed) {
+        console.error("Error deleting calibration:", err);
+        onError?.(err.message || "Unable to delete calibration.");
+      }
     }
   };
 
@@ -316,22 +323,34 @@ function SingleCalibrationPage(props) {
   const handleSetActive = async () => {
     const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}/${calibrationName}`;
     try {
-      await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
+      const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
+      assertUnitTaskResultSucceeded(
+        taskResult,
+        pioreactorUnit,
+        `Unable to set calibration active on ${pioreactorUnit}.`,
+      );
       showSnackbar("Calibration set as Active")
       await fetchSingleCalibration();
     } catch (err) {
       console.error("Error setting active calibration:", err);
+      showSnackbar(err.message || "Unable to set calibration active.");
     }
   };
 
   const handleRemoveActive = async () => {
     const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}`;
     try {
-      await fetchTaskResult(apiUrl, { fetchOptions: { method: "DELETE" } });
+      const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "DELETE" } });
+      assertUnitTaskResultSucceeded(
+        taskResult,
+        pioreactorUnit,
+        `Unable to remove active calibration on ${pioreactorUnit}.`,
+      );
       showSnackbar("Calibration is no longer Active")
       await fetchSingleCalibration();
     } catch (err) {
       console.error("Error removing active calibration:", err);
+      showSnackbar(err.message || "Unable to remove active calibration.");
     }
   };
 
@@ -364,7 +383,12 @@ function SingleCalibrationPage(props) {
               disabled={loading || !calibration}
               onError={showSnackbar}
             />
-            <Delete pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
+            <Delete
+              pioreactorUnit={pioreactorUnit}
+              device={device}
+              calibrationName={calibrationName}
+              onError={showSnackbar}
+            />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Button
               startIcon={isActive ? <DoNotDisturbOnOutlinedIcon/> : <CheckCircleOutlineOutlinedIcon />}
