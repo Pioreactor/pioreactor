@@ -433,6 +433,22 @@ def test_pio_run_returns_structured_success_when_process_stays_running(
     assert result == {"ok": True}
 
 
+def test_pio_run_returns_success_when_process_exits_zero_during_grace_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeProc:
+        returncode = 0
+
+        def wait(self, timeout: float) -> None:
+            return None
+
+    monkeypatch.setattr(tasks, "Popen", lambda *args, **kwargs: FakeProc())
+
+    result = tasks.pio_run.call_local("led_intensity", "--A", "50", env={"EXPERIMENT": "exp1"})
+
+    assert result == {"ok": True}
+
+
 def test_pio_run_fast_fail_raises_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeProc:
         returncode = 2

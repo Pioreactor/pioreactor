@@ -306,11 +306,15 @@ def pio_run(
         return {"ok": True}
     else:
         stdio.seek(0)
-        stderr_output = stdio.read().decode("utf-8", errors="replace").strip()
+        process_output = stdio.read().decode("utf-8", errors="replace").strip()
         stdio.close()
+
+        if proc.returncode == 0:
+            return {"ok": True}
+
         result["error"] = f"Command exited during startup grace window. Exit code {proc.returncode}."
-        if stderr_output:
-            result["error"] += f" {stderr_output.splitlines()[-1]}"
+        if process_output:
+            result["error"] += f" {process_output.splitlines()[-1]}"
         raise RuntimeError(result["error"])
 
 
