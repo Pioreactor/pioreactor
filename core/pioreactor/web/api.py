@@ -4122,7 +4122,7 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
             )
 
         publish_to_experiment_log(
-            f"Assigned {pioreactor_unit} to {experiment}.",
+            f"Assigned pioreactor {pioreactor_unit} to experiment {experiment}.",
             experiment=experiment,
             task="assignment",
             level="INFO",

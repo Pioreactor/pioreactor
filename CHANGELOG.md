@@ -2,7 +2,7 @@
 
 #### Enhancements
 
- - More useful error messages in the UI
+ - More useful error and log messages in the UI
 
 #### Bug fixes
 

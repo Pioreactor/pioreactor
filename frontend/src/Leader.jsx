@@ -8,9 +8,8 @@ import Tooltip from '@mui/material/Tooltip';
 import { useConfirm } from 'material-ui-confirm';
 import Button from '@mui/material/Button';
 import Backdrop from '@mui/material/Backdrop';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
@@ -26,7 +25,6 @@ import LogTableByUnit from './components/LogTableByUnit';
 import { checkTaskCallback, fetchTaskResult } from "./utils/tasks";
 import { getConfig } from "./utils/config";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./utils/color";
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import { Link } from 'react-router';
 
 import {
@@ -117,53 +115,9 @@ function RestartJobMenu({ jobName, onRestart, isRestarting }) {
 }
 
 
-function Reboot({unit}) {
-
-  const confirm = useConfirm();
-
-  const rebootWorker = () => {
-    confirm({
-      description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
-      title: `Reboot ${unit}?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
-    }).then(() => {
-      fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
-    }).catch(() => {});
-  };
-
-  return (
-      <Button sx={{textTransform: "none"}} size="small" onClick={rebootWorker}>
-        <RestartAltIcon fontSize="small" sx={textIcon} />Reboot
-      </Button>
-)}
-
-
-function Shutdown({unit}) {
-
-  const confirm = useConfirm();
-
-  const shworker = () => {
-    confirm({
-      description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
-      title: `Shutdown ${unit}?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
-    }).then(() => {
-      fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
-    }).catch(() => {});
-  };
-
-  return (
-      <Button style={{textTransform: "none"}} size="small" onClick={shworker}>
-        <PowerSettingsNewIcon fontSize="small" sx={textIcon} />Shutdown
-      </Button>
-)}
-
-
-function RepairSystem({unit}) {
+function ManageLeaderMenu({unit}) {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
   const confirm = useConfirm();
   const [isRepairing, setIsRepairing] = React.useState(false);
   const [snackbarOpen, setSnackbarOpen] = React.useState(false);
@@ -179,6 +133,40 @@ function RepairSystem({unit}) {
       return;
     }
     setSnackbarOpen(false);
+  };
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleReboot = () => {
+    confirm({
+      description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
+      title: `Reboot ${unit}?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+    }).then(() => {
+      handleClose();
+      fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
+    }).catch(() => {});
+  };
+
+  const handleShutdown = () => {
+    confirm({
+      description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
+      title: `Shutdown ${unit}?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+    }).then(() => {
+      handleClose();
+      fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
+    }).catch(() => {});
   };
 
   const handleRepair = async () => {
@@ -199,6 +187,7 @@ function RepairSystem({unit}) {
       return;
     }
 
+    handleClose();
     setIsRepairing(true);
     try {
       const payload = await fetchTaskResult(`/api/units/${unit}/system/repair`, {
@@ -224,12 +213,37 @@ function RepairSystem({unit}) {
   return (
     <React.Fragment>
       <Button
-        sx={{textTransform: "none"}}
-        size="small"
-        onClick={handleRepair}
+        id="manage-leader-button"
+        aria-controls={open ? 'manage-leader-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : undefined}
+        onClick={handleClick}
+        style={{textTransform: "none"}}
       >
-        <BuildOutlinedIcon fontSize="small" sx={textIcon} />Repair system
+        Manage leader <ArrowDropDownIcon/>
       </Button>
+      <Menu
+        id="manage-leader-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        slotProps={{
+          list: {
+            'aria-labelledby': 'manage-leader-button',
+          },
+        }}
+      >
+        <MenuItem onClick={handleReboot}>
+          <ListItemText>Reboot</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleShutdown}>
+          <ListItemText>Shutdown</ListItemText>
+        </MenuItem>
+        <Divider/>
+        <MenuItem onClick={handleRepair}>
+          <ListItemText>Repair system</ListItemText>
+        </MenuItem>
+      </Menu>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
@@ -697,14 +711,8 @@ function LeaderCard({leaderHostname}) {
         </table>
         <Divider sx={{margin: "5px 0px"}}/>
       </CardContent>
-      <CardActions sx={{display: "flex", justifyContent: "space-between"}}>
-        <Box>
-          <RepairSystem unit={unit} />
-        </Box>
-        <Box>
-          <Reboot unit={unit} />
-          <Shutdown unit={unit} />
-        </Box>
+      <CardActions sx={{display: "flex", justifyContent: "flex-end"}}>
+        <ManageLeaderMenu unit={unit} />
       </CardActions>
     </Card>
 )}
