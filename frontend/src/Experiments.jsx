@@ -59,6 +59,7 @@ function ExperimentActionsMenu({
   onExport,
   onEnd,
   onDelete,
+  deleteDisabled,
 }) {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const menuOpen = Boolean(anchorEl);
@@ -104,6 +105,7 @@ function ExperimentActionsMenu({
           </MenuItem>
         )}
         <MenuItem
+          disabled={deleteDisabled}
           onClick={() => {
             handleClose();
             onDelete();
@@ -458,6 +460,7 @@ function ExperimentsContainer(props) {
                         onExport={() => navigate(`/export-data?experiments=${encodeURIComponent(experiment.experiment)}`)}
                         onEnd={() => handleEndExperiment(experiment).catch(() => {})}
                         onDelete={() => handleDeleteExperiment(experiment).catch(() => {})}
+                        deleteDisabled={experiments.length <= 1}
                       />
                     </StyledTableCell>
                   </TableRowStyled>

@@ -510,12 +510,6 @@ class Log(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class KalmanFilterOutput(JSONPrintedStruct):
-    state: t.Annotated[list[float], Meta(max_length=3)]
-    covariance_matrix: list[list[float]]
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
-
-
 class Dataset(JSONPrintedStruct):
     dataset_name: str  # the unique key
     description: str | None

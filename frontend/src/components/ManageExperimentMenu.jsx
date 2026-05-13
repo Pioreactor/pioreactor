@@ -129,7 +129,7 @@ export default function ManageExperimentMenu({experiment}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?',
+        description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. This may take a while if your database is larger, too. Do you wish to continue?',
         title: "Delete experiment?",
         confirmationText: "Confirm",
         confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
@@ -149,7 +149,7 @@ export default function ManageExperimentMenu({experiment}){
       await fetchTaskResult(`/api/experiments/${encodeURIComponent(experiment)}`, {
         fetchOptions: {method: "DELETE"},
         maxRetries: 600,
-        delayMs: 100,
+        delayMs: 200,
       });
       updateExperiment(allExperiments.find((em) => em.experiment !== experiment));
       setAllExperiments(allExperiments.filter((em) => em.experiment !== experiment));

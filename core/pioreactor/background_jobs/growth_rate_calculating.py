@@ -98,10 +98,6 @@ class GrowthRateCalculator(BackgroundJob):
             "unit": "h⁻¹",
         },
         "od_filtered": {"datatype": "ODFiltered", "settable": False},
-        "kalman_filter_outputs": {
-            "datatype": "KalmanFilterOutput",
-            "settable": False,
-        },
     }
 
     def __init__(
@@ -126,7 +122,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.od_normalization_factors: dict[pt.PdChannel, float] = {}
         self.growth_rate = cast(structs.GrowthRate, None)
         self.od_filtered = cast(structs.ODFiltered, None)
-        self.kalman_filter_outputs = cast(structs.KalmanFilterOutput, None)
         self._initialization_complete = Event()
 
     def _initialize_extended_kalman_filter(
@@ -382,17 +377,14 @@ class GrowthRateCalculator(BackgroundJob):
 
     def _update_state_from_observation(
         self, od_readings: structs.ODReadings
-    ) -> tuple[structs.ODReadings, tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]]:
+    ) -> tuple[structs.ODReadings, tuple[structs.GrowthRate, structs.ODFiltered]]:
         timestamp = od_readings.timestamp
 
         scaled_observations = self.scale_raw_observations(od_readings)
         dt = self.compute_dt_hours(timestamp)
 
-        updated_state_, covariance_ = self.ekf.update(
-            list(scaled_observations.values()), dt, self._recent_dilution
-        )
+        updated_state_, _ = self.ekf.update(list(scaled_observations.values()), dt, self._recent_dilution)
         updated_state = cast(Any, updated_state_)
-        covariance = cast(Any, covariance_)
         latest_od_filtered = exp(float(updated_state[0]))
         latest_growth_rate = float(updated_state[1])
 
@@ -407,13 +399,7 @@ class GrowthRateCalculator(BackgroundJob):
             timestamp=timestamp,
         )
 
-        kf_outputs = structs.KalmanFilterOutput(
-            state=cast(Any, self.ekf.state_).tolist(),
-            covariance_matrix=covariance.tolist(),
-            timestamp=timestamp,
-        )
-
-        return od_readings, (growth_rate, od_filtered, kf_outputs)
+        return od_readings, (growth_rate, od_filtered)
 
     def _respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
         self.start_post_dose_reset_window()
@@ -442,7 +428,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def process_until_disconnected_or_exhausted(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
-    ) -> Generator[tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput], None, None]:
+    ) -> Generator[tuple[structs.GrowthRate, structs.ODFiltered], None, None]:
         assert od_stream.is_live and dosing_stream.is_live
         od_events_iter = self._initialize_state_and_get_od_iterator(od_stream, dosing_stream)
 
@@ -454,13 +440,12 @@ class GrowthRateCalculator(BackgroundJob):
                     _, (
                         self.growth_rate,
                         self.od_filtered,
-                        self.kalman_filter_outputs,
                     ) = self._update_state_from_observation(event)
                 except ValueError as e:
                     self.logger.error(f"Error processing OD readings: {e}", exc_info=True)
                     continue
 
-                yield self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+                yield self.growth_rate, self.od_filtered
 
             elif isinstance(event, structs.DosingEvent):
                 self._respond_to_dosing_event(event)

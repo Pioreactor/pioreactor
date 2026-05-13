@@ -352,25 +352,6 @@ def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     }
 
 
-def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
-    metadata = produce_metadata(topic)
-    kf_output = msgspec_loads(payload, type=structs.KalmanFilterOutput)
-    return {
-        "experiment": metadata.experiment,
-        "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": kf_output.timestamp,
-        "state_0": kf_output.state[0],
-        "state_1": kf_output.state[1],
-        "state_2": 0.0,  # prev acc
-        "cov_00": kf_output.covariance_matrix[0][0],
-        "cov_01": kf_output.covariance_matrix[0][1],
-        "cov_02": 0.0,
-        "cov_11": kf_output.covariance_matrix[1][1],
-        "cov_12": 0.0,
-        "cov_22": 0.0,
-    }
-
-
 def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     return cast(ParsedSqliteRow, loads(payload))
 

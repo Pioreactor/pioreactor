@@ -167,7 +167,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                assert wait_for(lambda: calc1.kalman_filter_outputs is not None, timeout=10.0)
+                assert wait_for(lambda: calc1.growth_rate is not None, timeout=10.0)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
                 od_stream, dosing_stream = create_od_stream_from_mqtt(
@@ -195,7 +195,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:40.000Z",
                     ),
                 )
-                assert wait_for(lambda: calc2.kalman_filter_outputs is not None, timeout=3.0)
+                assert wait_for(lambda: calc2.growth_rate is not None, timeout=3.0)
 
     def test_scaling_works(self) -> None:
         experiment = "test_scaling_works"
