@@ -1267,27 +1267,23 @@ def status(json_output: bool) -> None:
     identity_status = "OK"
     identity_details: list[str] = []
 
-    try:
-        unit = whoami.get_unit_name()
-    except Exception as error:
-        identity_status = "FAIL"
-        identity_details.append(f"unit lookup failed ({error})")
-    else:
-        try:
-            role = "leader" if whoami.am_I_leader() else "worker"
-        except Exception as error:
-            if identity_status != "FAIL":
-                identity_status = "WARN"
-            identity_details.append(f"role lookup failed ({error})")
+    unit = whoami.get_unit_name()
 
-        try:
-            experiment = whoami.get_assigned_experiment_name(unit)
-        except exc.NotAssignedAnExperimentError:
-            experiment = ""
-        except Exception as error:
-            if identity_status != "FAIL":
-                identity_status = "WARN"
-            identity_details.append(f"experiment lookup failed ({error})")
+    try:
+        role = "leader" if whoami.am_I_leader() else "worker"
+    except Exception as error:
+        if identity_status != "FAIL":
+            identity_status = "WARN"
+        identity_details.append(f"role lookup failed ({error})")
+
+    try:
+        experiment = whoami.get_assigned_experiment_name(unit)
+    except exc.NotAssignedAnExperimentError:
+        experiment = ""
+    except Exception as error:
+        if identity_status != "FAIL":
+            identity_status = "WARN"
+        identity_details.append(f"experiment lookup failed ({error})")
 
     identity_summary = f"unit={unit} role={role} experiment={experiment}"
     if identity_details:
