@@ -6,6 +6,7 @@
 
 #### Bug fixes
 
+ - Fix `pio workers add` failing with a config bug due to a environment issue.
  - Deleting experiments is now async, and no longer blocks the web worker.
  - Fixed the Pioreactors page on leader-only installs so settings descriptors load even when the leader itself is not assigned a Pioreactor model.
 

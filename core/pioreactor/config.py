@@ -183,6 +183,29 @@ def build_config(
     return _apply_runtime_config_sections(config)
 
 
+def resolve_config_file_path(explicit_env_var: str, filename: str) -> Path:
+    if explicit_env_var in os.environ:
+        return Path(os.environ[explicit_env_var])
+
+    if "DOT_PIOREACTOR" in os.environ:
+        return Path(os.environ["DOT_PIOREACTOR"]) / filename
+
+    from pioreactor.whoami import is_testing_env
+
+    if is_testing_env():
+        return Path(".pioreactor") / filename
+
+    return Path("/home/pioreactor/.pioreactor") / filename
+
+
+def resolve_global_config_path() -> Path:
+    return resolve_config_file_path("GLOBAL_CONFIG", "config.ini")
+
+
+def resolve_local_config_path() -> Path:
+    return resolve_config_file_path("LOCAL_CONFIG", "unit_config.ini")
+
+
 @cache
 def get_config() -> ConfigParserMod:
     """
@@ -212,37 +235,19 @@ def get_config() -> ConfigParserMod:
         media=4
 
     """
-    from pioreactor.whoami import is_testing_env
+    global_config_path = resolve_global_config_path()
+    local_config_path = resolve_local_config_path()
 
-    if os.environ.get("GLOBAL_CONFIG") is not None:
-        global_config_path = os.environ["GLOBAL_CONFIG"]
-    elif os.environ.get("DOT_PIOREACTOR") is not None:
-        global_config_path = os.environ["DOT_PIOREACTOR"] + "/config.ini"
-    else:
-        if is_testing_env():
-            global_config_path = "./.pioreactor/config.ini"
-        else:
-            global_config_path = "/home/pioreactor/.pioreactor/config.ini"
-
-    if os.environ.get("LOCAL_CONFIG") is not None:
-        local_config_path = os.environ["LOCAL_CONFIG"]
-    elif os.environ.get("DOT_PIOREACTOR") is not None:
-        local_config_path = os.environ["DOT_PIOREACTOR"] + "/unit_config.ini"
-    else:
-        if is_testing_env():
-            local_config_path = "./.pioreactor/unit_config.ini"
-        else:
-            local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
-
-    if not Path(global_config_path).is_file():
+    if not global_config_path.is_file():
         raise FileNotFoundError(
             f"Configuration file at {global_config_path} is missing. Has it completed initializing? Does it need to connect to a leader? Alternatively, use the env variable GLOBAL_CONFIG to specify its location."
         )
     config = ConfigParserMod(strict=False)
     try:
-        global_config_text = Path(global_config_path).read_text(encoding="utf-8")
-        local_config = Path(local_config_path)
-        local_config_text = local_config.read_text(encoding="utf-8") if local_config.exists() else ""
+        global_config_text = global_config_path.read_text(encoding="utf-8")
+        local_config_text = (
+            local_config_path.read_text(encoding="utf-8") if local_config_path.exists() else ""
+        )
         config.read_string(global_config_text)
         if local_config_text.strip():
             config.read_string(local_config_text)
