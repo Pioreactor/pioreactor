@@ -2974,18 +2974,23 @@ def create_experiment() -> ResponseReturnValue:
 
 @api_bp.route("/experiments/<experiment>", methods=["DELETE"])
 def delete_experiment(experiment: str) -> ResponseReturnValue:
-    row_count = modify_app_db("DELETE FROM experiments WHERE experiment=?;", (experiment,))
-    fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
+    experiment_exists = query_app_db(
+        "SELECT 1 FROM experiments WHERE experiment=?;",
+        (experiment,),
+        one=True,
+    )
 
-    if row_count > 0:
-        return {"status": "success"}, 200
-    else:
+    if experiment_exists is None:
         abort_with(
             404,
             f"Experiment {experiment} not found",
             cause="Experiment name not found in database.",
             remediation="List experiments and choose a valid experiment name.",
         )
+
+    fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
+    task = tasks.delete_experiment_task(experiment)
+    return create_task_response(task)
 
 
 @api_bp.route("/experiments/latest", methods=["GET"])

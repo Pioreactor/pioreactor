@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 from http.client import HTTPMessage
@@ -11,6 +12,7 @@ from typing import Any
 import pytest
 from huey.exceptions import RateLimitExceeded
 from pioreactor.mureq import Response
+from pioreactor.web import db as web_db
 from pioreactor.web import tasks
 
 
@@ -37,6 +39,53 @@ def test_importing_tasks_does_not_import_web_app() -> None:
     )
 
     assert result.stdout.strip() == "False"
+
+
+def test_delete_experiment_task_deletes_and_reports_reclaimable_space(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_path = tmp_path / "app.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            PRAGMA foreign_keys = ON;
+            CREATE TABLE experiments (
+                experiment TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE workers (
+                pioreactor_unit TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE logs (
+                experiment TEXT NOT NULL,
+                message TEXT NOT NULL,
+                FOREIGN KEY (experiment) REFERENCES experiments (experiment) ON DELETE CASCADE
+            );
+            INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2026-01-01T00:00:00Z');
+            INSERT INTO workers (pioreactor_unit) VALUES ('unit1'), ('unit2');
+            INSERT INTO logs (experiment, message) VALUES ('exp1', 'hello');
+            """
+        )
+
+    original_config_get = web_db.pioreactor_config.get
+
+    def fake_config_get(section: str, option: str, *args: Any, **kwargs: Any) -> str:
+        if section == "storage" and option == "database":
+            return str(db_path)
+        return original_config_get(section, option, *args, **kwargs)
+
+    monkeypatch.setattr(web_db.pioreactor_config, "get", fake_config_get)
+
+    result = tasks.delete_experiment_task.call_local("exp1")
+
+    assert result["result"] is True
+    assert result["experiment"] == "exp1"
+    assert result["msg"] == "Deleted experiment"
+    assert result["database_space"]["reclaimable_bytes"] >= 0
+
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM experiments WHERE experiment='exp1'").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM logs").fetchone()[0] == 0
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:

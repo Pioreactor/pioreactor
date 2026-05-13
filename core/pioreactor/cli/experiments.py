@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from time import sleep
+from typing import Any
+
 import click
 from pioreactor.pubsub import delete_from_leader
 from pioreactor.pubsub import get_from_leader
@@ -71,6 +74,32 @@ def list_experiments(verbose: bool) -> None:
             click.echo(name)
 
 
+def wait_for_delete_experiment_task(task_payload: dict[str, Any], name: str) -> None:
+    result_url_path = task_payload.get("result_url_path")
+    if not result_url_path:
+        raise click.ClickException(f"Failed to delete experiment '{name}' (missing task result URL)")
+
+    for _ in range(600):
+        resp = get_from_leader(result_url_path, timeout=5)
+        if resp.status_code == 202:
+            sleep(0.1)
+            continue
+
+        if resp.status_code != 200:
+            raise click.ClickException(f"Failed to delete experiment '{name}' (task HTTP {resp.status_code})")
+
+        payload = resp.json()
+        status = payload.get("status")
+        if status == "succeeded":
+            return
+        if status == "failed":
+            raise click.ClickException(payload.get("error") or f"Failed to delete experiment '{name}'")
+
+        sleep(0.1)
+
+    raise click.ClickException(f"Timed out while deleting experiment '{name}'")
+
+
 @experiments.command(name="delete", short_help="delete an experiment")
 @click.argument("name", nargs=1, required=True)
 @click.option("--yes", "-y", is_flag=True, help="do not prompt for confirmation")
@@ -90,7 +119,10 @@ def delete_experiment(name: str, yes: bool) -> None:
     except Exception as e:
         raise click.ClickException(str(e))
 
-    if resp.status_code == 200:
+    if resp.status_code == 202:
+        wait_for_delete_experiment_task(resp.json(), name)
+        click.echo(f"Deleted experiment: {name}")
+    elif resp.status_code == 200:
         click.echo(f"Deleted experiment: {name}")
     elif resp.status_code == 404:
         raise click.ClickException(f"Experiment '{name}' not found (404)")

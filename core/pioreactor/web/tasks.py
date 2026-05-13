@@ -61,6 +61,8 @@ from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.version import hardware_version_info
 from pioreactor.web.config import huey
+from pioreactor.web.db import get_database_space_stats
+from pioreactor.web.db import open_app_database_connection
 from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
 
@@ -812,6 +814,31 @@ def export_experiment_data_task(
         raise
 
     return {"result": True, "filename": output_path.name, "msg": "Finished"}
+
+
+@huey.task()
+@huey.lock_task("delete-experiment-lock")
+def delete_experiment_task(experiment: str) -> dict[str, Any]:
+    logger.debug(f"Deleting experiment {experiment}.")
+    conn = open_app_database_connection()
+    try:
+        cursor = conn.execute("DELETE FROM experiments WHERE experiment=?;", (experiment,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+
+        if not deleted:
+            raise ValueError(f"Experiment {experiment} not found.")
+
+        database_space = get_database_space_stats(conn)
+    finally:
+        conn.close()
+
+    return {
+        "result": True,
+        "experiment": experiment,
+        "database_space": database_space,
+        "msg": "Deleted experiment",
+    }
 
 
 @huey.task(priority=100)

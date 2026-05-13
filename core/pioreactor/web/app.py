@@ -17,6 +17,7 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.plugin_management import get_plugins
 from pioreactor.version import __version__
+from pioreactor.web.db import open_app_database_connection
 from pioreactor.web.utils import ensure_error_info
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_unit_name
@@ -184,7 +185,7 @@ def _get_app_db_connection() -> sqlite3.Connection:
     db = getattr(g, "_app_database", None)
     if db is None:
         try:
-            db = g._app_database = sqlite3.connect(pioreactor_config.get("storage", "database"))
+            db = g._app_database = open_app_database_connection()
         except sqlite3.OperationalError as e:
             if "database is locked" in str(e):
                 logger.error("Database is locked, please close any other connections or restart.")

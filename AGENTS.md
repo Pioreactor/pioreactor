@@ -9,7 +9,7 @@ This repository contains the **executable code for the Pioreactor project**. It 
    - `core/pioreactor/web/unit_api.py` is the pioreactor-specific API for controlling individual actions on a Pioreactor.
    - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web APIs.
 3. `frontend/src` — React-based web UI
-4. `packaging/` - contains files used to build or install Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR.
+4. `packaging/shared-assets/` - contains files used to build or install Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR.
 
 ---
 
@@ -266,6 +266,7 @@ curl -fsSL https://raw.githubusercontent.com/Pioreactor/CustoPiZer/refs/heads/pi
 
 Make sure to consider the following when editing and reviewing code.
 
+- This software almost always runs on a Raspberry Pi in production. Typically a RPi 4B or RPi Zero 2, maximum 1GB RAM and an 32GB SD card.
 - One of the Raspberry Pi's is assigned as the "leader", and this hosts most of the services: web server, MQTT broker, database, etc. It also sends commands to any "workers". The leader can also be a worker. Together, the leader and all the workers are called a "cluster". A cluster can be a small as a single leader+worker. Pioreactors are assigned to be a leader, worker, or both based on the custom image they install.
 - Different jobs, like stirring, OD reading, dosing, etc. are controlled by separate Python objects. Some jobs will passively listen for events from other jobs, and change their behavior in response, for example, dosing automations listen to OD readings, and may respond by dosing or not dosing.
 - The main "control plane" for the Pioreactor software is the command line interface, pio. For example, when the user starts a activity from the UI, the web server will run `pio run X ...`, which launches a Python process that will instantiate the object the controls the activity.

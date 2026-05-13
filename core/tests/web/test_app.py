@@ -450,6 +450,58 @@ def test_create_duplicate_experiment(client) -> None:
     assert response.status_code == 409
 
 
+def test_delete_experiment_endpoint_schedules_task(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as api
+
+    class DummyTask:
+        id = "delete-experiment-task"
+
+    captured: dict[str, object] = {}
+
+    def fake_delete_experiment_task(experiment: str) -> DummyTask:
+        captured["experiment"] = experiment
+        return DummyTask()
+
+    monkeypatch.setattr(api.tasks, "delete_experiment_task", fake_delete_experiment_task)
+    monkeypatch.setattr(
+        api.fanout,
+        "broadcast_post_across_cluster",
+        lambda endpoint, json=None: captured.update({"endpoint": endpoint, "json": json}),
+    )
+
+    response = client.delete("/api/experiments/exp1")
+
+    assert response.status_code == 202
+    assert response.get_json()["task_id"] == "delete-experiment-task"
+    assert captured == {
+        "experiment": "exp1",
+        "endpoint": "/unit_api/jobs/stop",
+        "json": {"experiment": "exp1"},
+    }
+
+
+def test_delete_experiment_endpoint_returns_404_without_scheduling_task(
+    client, monkeypatch: MonkeyPatch
+) -> None:
+    import pioreactor.web.api as api
+
+    def fail_delete_experiment_task(experiment: str) -> None:
+        raise AssertionError("delete task should not be scheduled")
+
+    monkeypatch.setattr(api.tasks, "delete_experiment_task", fail_delete_experiment_task)
+    monkeypatch.setattr(
+        api.fanout,
+        "broadcast_post_across_cluster",
+        lambda endpoint, json=None: (_ for _ in ()).throw(
+            AssertionError("stop fanout should not be scheduled")
+        ),
+    )
+
+    response = client.delete("/api/experiments/not-real")
+
+    assert response.status_code == 404
+
+
 def test_update_experiment(client) -> None:
     # Update an existing experiment
     response = client.patch(

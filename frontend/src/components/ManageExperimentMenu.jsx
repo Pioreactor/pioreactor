@@ -10,6 +10,7 @@ import { useConfirm } from 'material-ui-confirm';
 import { useExperiment } from '../providers/ExperimentContext';
 import Divider from '@mui/material/Divider';
 import ExperimentMetadataDialog from "./ExperimentMetadataDialog";
+import { fetchTaskResult } from "../utils/tasks";
 
 
 export default function ManageExperimentMenu({experiment}){
@@ -115,11 +116,13 @@ export default function ManageExperimentMenu({experiment}){
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>
-        fetch(`/api/experiments/${encodeURIComponent(experiment)}`, {method: "DELETE"}).then((res) => {
-          if (res.ok){
-            updateExperiment(allExperiments.find((em) => em.experiment !== experiment));
-            setAllExperiments(allExperiments.filter((em) => em.experiment !== experiment));
-          }
+        fetchTaskResult(`/api/experiments/${encodeURIComponent(experiment)}`, {
+          fetchOptions: {method: "DELETE"},
+          maxRetries: 600,
+          delayMs: 100,
+        }).then(() => {
+          updateExperiment(allExperiments.find((em) => em.experiment !== experiment));
+          setAllExperiments(allExperiments.filter((em) => em.experiment !== experiment));
         })
       ).catch(() => {})
   };

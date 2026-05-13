@@ -32,6 +32,7 @@ import { Link, useNavigate } from "react-router";
 import ExperimentMetadataDialog from "./components/ExperimentMetadataDialog";
 import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
+import { fetchTaskResult } from "./utils/tasks";
 
 const TAGS_TO_SHOW = 6;
 
@@ -272,12 +273,11 @@ function ExperimentsContainer(props) {
     setBusyExperimentName(experiment.experiment);
 
     try {
-      const response = await fetch(`/api/experiments/${encodeURIComponent(experiment.experiment)}`, {
-        method: "DELETE",
+      await fetchTaskResult(`/api/experiments/${encodeURIComponent(experiment.experiment)}`, {
+        fetchOptions: { method: "DELETE" },
+        maxRetries: 600,
+        delayMs: 100,
       });
-      if (!response.ok) {
-        throw new Error(`Failed to delete ${experiment.experiment}.`);
-      }
 
       const responseAfterDelete = await fetch("/api/experiments");
       const nextExperiments = responseAfterDelete.ok ? await responseAfterDelete.json() : [];
