@@ -477,7 +477,7 @@ def test_mount_usb_task_mounts_selected_partition(monkeypatch: pytest.MonkeyPatc
     }
 
 
-def test_export_experiment_data_to_usb_task_writes_temp_then_renames(
+def test_export_experiment_data_to_usb_task_writes_final_output_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     export_dir = tmp_path / "pioreactor" / "exports"
@@ -491,6 +491,7 @@ def test_export_experiment_data_to_usb_task_writes_temp_then_renames(
         partition_by_unit: bool = False,
         partition_by_experiment: bool = True,
     ) -> None:
+        assert output == (export_dir / "export.zip").as_posix()
         Path(output).write_text("zip", encoding="utf-8")
 
     monkeypatch.setattr(tasks.usb_utils, "get_usb_export_directory", lambda: export_dir)

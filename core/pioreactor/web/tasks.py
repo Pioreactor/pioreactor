@@ -78,6 +78,42 @@ calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandl
 MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
 
 
+def _format_usb_partition_for_log(partition: usb_utils.UsbPartition) -> str:
+    return f"{partition.display_name} ({partition.device})"
+
+
+def _format_usb_path_for_log(path: Path) -> str:
+    try:
+        resolved_path = path.resolve()
+    except OSError:
+        resolved_path = path
+
+    try:
+        for partition in usb_utils.find_mounted_pioreactor_usb_partitions():
+            for mountpoint in partition.mountpoints:
+                mountpoint_path = Path(mountpoint)
+                try:
+                    resolved_mountpoint = mountpoint_path.resolve()
+                except OSError:
+                    resolved_mountpoint = mountpoint_path
+                if resolved_path == resolved_mountpoint or _is_relative_to(
+                    resolved_path, resolved_mountpoint
+                ):
+                    return _format_usb_partition_for_log(partition)
+    except Exception:
+        pass
+
+    return path.as_posix()
+
+
+def _is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
 def register_calibration_action(
     action: str,
     handler: Callable[[dict[str, Any]], CalibrationActionHandler],
@@ -830,7 +866,9 @@ def mount_usb_task(device: str | None = None) -> dict[str, Any]:
         }
 
     partition = usb_utils.choose_usb_partition(device)
+    logger.debug(f"Mounting USB {_format_usb_partition_for_log(partition)}.")
     mountpoint = usb_utils.mount_usb_partition(partition)
+    logger.debug(f"Mounted USB {_format_usb_partition_for_log(partition)} at {mountpoint}.")
     return {
         "result": True,
         "device": partition.device,
@@ -853,7 +891,9 @@ def eject_usb_task(device: str | None = None) -> dict[str, Any]:
 
     partition = usb_utils.choose_usb_partition(device, require_mounted=True)
     display_name = partition.display_name
+    logger.debug(f"Ejecting USB {_format_usb_partition_for_log(partition)}.")
     usb_utils.eject_usb_partition(partition)
+    logger.debug(f"Ejected USB {_format_usb_partition_for_log(partition)}.")
     return {
         "result": True,
         "device": partition.device,
@@ -877,8 +917,6 @@ def export_experiment_data_to_usb_task(
     from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 
-    logger.debug("Exporting experiment data to USB.")
-
     if not filename:
         raise ValueError("Missing filename.")
     if Path(filename).name != filename:
@@ -891,25 +929,23 @@ def export_experiment_data_to_usb_task(
     output_dir = usb_utils.get_usb_export_directory()
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / filename
-    tmp_output_path = output_dir / f".{filename}.tmp.zip"
+    usb_name = _format_usb_path_for_log(output_dir)
+    logger.debug(f"Exporting experiment data to USB {usb_name}.")
 
     try:
         cleanup_stale_export_artifacts(output_dir, logger)
         export_experiment_data(
             experiments,
             dataset_names,
-            tmp_output_path.as_posix(),
+            output_path.as_posix(),
             start_time=start_time,
             end_time=end_time,
             partition_by_unit=partition_by_unit,
             partition_by_experiment=partition_by_experiment,
         )
-        tmp_output_path.replace(output_path)
     except Exception as exc:
         error = str(exc) or exc.__class__.__name__
-        logger.error(f"Exporting experiment data to USB failed: {error}", exc_info=True)
-        if tmp_output_path.exists():
-            tmp_output_path.unlink()
+        logger.error(f"Exporting experiment data to USB {usb_name} failed: {error}", exc_info=True)
         raise
 
     return {
@@ -998,12 +1034,13 @@ def install_plugin_from_usb_task(filepath: str) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
     plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
-    logger.debug(f"Installing plugin from USB: {plugin_path}.")
+    usb_name = _format_usb_path_for_log(plugin_path)
+    logger.debug(f"Installing plugin from USB {usb_name}: {plugin_path}.")
     try:
         install_plugin(plugin_path.stem, source=plugin_path.as_posix())
         return True
     except Exception as exc:
-        logger.debug(str(exc))
+        logger.debug(f"Installing plugin from USB {usb_name} failed: {exc}")
         return False
 
 
