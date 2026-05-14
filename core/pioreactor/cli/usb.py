@@ -3,12 +3,9 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path
 
 import click
-from pioreactor.actions.leader.backup_database import backup_database
 from pioreactor.utils import usb as usb_utils
-from pioreactor.whoami import get_unit_name
 
 
 @click.group(short_help="manage USB drives")
@@ -79,27 +76,21 @@ def scan(mountpoint: str | None, json_output: bool) -> None:
         click.echo("App updates:")
         for update in scan_result.updates:
             click.echo(f"  {update.path.name} ({update.version})")
+            click.echo(f"  source: {update.path}")
     else:
         click.echo("App updates: none")
 
 
-@usb.command(name="backup-db")
+@usb.command(name="path")
 @click.option("--mount", "mountpoint")
-@click.option("--force", is_flag=True, help="force backing up even if writes are occurring")
-def backup_db(mountpoint: str | None, force: bool) -> None:
-    """Back up the local database to USB."""
+def path(mountpoint: str | None) -> None:
+    """Print the active Pioreactor-managed USB mount path."""
     try:
         selected_mountpoint = usb_utils.choose_usb_mountpoint(mountpoint)
-        destination = usb_utils.build_usb_database_backup_path(
-            selected_mountpoint,
-            get_unit_name(),
-        )
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        backup_database(str(destination), force=force, backup_to_workers=0)
     except (OSError, ValueError) as error:
         raise click.ClickException(str(error)) from error
 
-    click.echo(f"Backed up database to USB:/{destination.relative_to(selected_mountpoint)}.")
+    click.echo(selected_mountpoint)
 
 
 @usb.command(name="eject")
@@ -113,58 +104,3 @@ def eject(device: str | None) -> None:
         raise click.ClickException(str(error)) from error
 
     click.echo(f"Ejected {partition.display_name}.")
-
-
-@usb.group(name="update")
-def update() -> None:
-    """Run updates from USB artifacts."""
-
-
-@update.command(name="app")
-@click.argument("source", required=False)
-@click.option("--mount", "mountpoint")
-@click.option("--yes", is_flag=True, help="run without confirmation")
-def update_app(source: str | None, mountpoint: str | None, yes: bool) -> None:
-    """Update the Pioreactor app from a release archive on USB."""
-    try:
-        update_source = _resolve_update_source(source, mountpoint)
-    except (OSError, ValueError) as error:
-        raise click.ClickException(str(error)) from error
-
-    if not yes:
-        click.confirm(f"Update Pioreactor app from {update_source.name}?", abort=True)
-
-    from pioreactor.cli.pio import update_app as pio_update_app
-
-    callback = pio_update_app.callback
-    if callback is None:
-        raise click.ClickException("Unable to locate `pio update app` callback.")
-
-    callback(
-        branch=None,
-        sha=None,
-        no_deps=False,
-        repo="pioreactor/pioreactor",
-        source=str(update_source),
-        version=None,
-        defer_web_restart=False,
-    )
-    click.echo(f"Started app update from USB:{update_source.name}.")
-
-
-def _resolve_update_source(source: str | None, mountpoint: str | None) -> Path:
-    if source is not None:
-        path = Path(source)
-        if not path.is_absolute():
-            path = usb_utils.choose_usb_mountpoint(mountpoint) / path
-        if not path.is_file():
-            raise ValueError(f"{path} does not exist.")
-        return path
-
-    scan_result = usb_utils.scan_usb_mount(usb_utils.choose_usb_mountpoint(mountpoint))
-    if not scan_result.updates:
-        raise ValueError("No release archive found on USB.")
-    if len(scan_result.updates) > 1:
-        names = ", ".join(update.path.name for update in scan_result.updates)
-        raise ValueError(f"Multiple release archives found. Choose one explicitly: {names}")
-    return scan_result.updates[0].path

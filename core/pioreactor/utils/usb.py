@@ -6,10 +6,10 @@ import os
 import re
 import shutil
 import subprocess
-from dataclasses import asdict
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import msgspec
 
 
 USB_MOUNT_ROOT = Path(os.environ.get("PIOREACTOR_USB_MOUNT_ROOT", "/run/pioreactor/usb"))
@@ -17,8 +17,7 @@ SUPPORTED_FILESYSTEMS = {"exfat", "vfat", "ext4"}
 UPDATE_ARCHIVE_PATTERN = re.compile(r"^release_(?P<version>\d{2}\.\d{1,2}\.\d+\w{0,6})\.zip$")
 
 
-@dataclass(frozen=True)
-class UsbPartition:
+class UsbPartition(msgspec.Struct, frozen=True):
     device: str
     parent_device: str | None
     label: str | None
@@ -49,15 +48,14 @@ class UsbPartition:
         return USB_MOUNT_ROOT / self.mount_id
 
     def as_dict(self) -> dict[str, Any]:
-        payload = asdict(self)
+        payload = msgspec.structs.asdict(self)
         payload["mounted"] = self.is_mounted
         payload["display_name"] = self.display_name
         payload["pioreactor_mountpoint"] = str(self.pioreactor_mountpoint)
         return payload
 
 
-@dataclass(frozen=True)
-class UsbUpdateArchive:
+class UsbUpdateArchive(msgspec.Struct, frozen=True):
     path: Path
     version: str
 
@@ -65,8 +63,7 @@ class UsbUpdateArchive:
         return {"path": str(self.path), "version": self.version}
 
 
-@dataclass(frozen=True)
-class UsbScan:
+class UsbScan(msgspec.Struct, frozen=True):
     mountpoint: Path
     updates: tuple[UsbUpdateArchive, ...]
     writable: bool
@@ -216,10 +213,6 @@ def choose_usb_mountpoint(mountpoint: str | None = None) -> Path:
         names = ", ".join(partition.mountpoints[0] for partition in mounted)
         raise ValueError(f"Multiple Pioreactor-managed USB mounts found. Choose one with --mount: {names}")
     return Path(mounted[0].mountpoints[0])
-
-
-def build_usb_database_backup_path(mountpoint: Path, unit: str) -> Path:
-    return mountpoint / "pioreactor" / "backups" / unit / "pioreactor.sqlite.backup"
 
 
 def _parse_lsblk_node(

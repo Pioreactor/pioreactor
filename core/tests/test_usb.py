@@ -133,62 +133,18 @@ def test_pio_usb_scan_prints_update_artifacts(tmp_path: Path, monkeypatch) -> No
     assert result.exit_code == 0
     assert "Writable: yes" in result.output
     assert "release_25.6.0.zip (25.6.0)" in result.output
+    assert f"source: {mountpoint / 'release_25.6.0.zip'}" in result.output
 
 
-def test_pio_usb_backup_db_writes_to_usb_backup_path(tmp_path: Path, monkeypatch) -> None:
+def test_pio_usb_path_prints_selected_mount_path(tmp_path: Path, monkeypatch) -> None:
     mount_root = tmp_path / "run" / "pioreactor" / "usb"
     mountpoint = mount_root / "usb-7A2B-91FE"
     mountpoint.mkdir(parents=True)
-    calls: list[tuple[str, bool, int]] = []
-
-    monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
-    monkeypatch.setattr("pioreactor.cli.usb.get_unit_name", lambda: "pio-abc")
-
-    def fake_backup_database(output: str, force: bool, backup_to_workers: int) -> None:
-        calls.append((output, force, backup_to_workers))
-
-    monkeypatch.setattr("pioreactor.cli.usb.backup_database", fake_backup_database)
-
-    runner = CliRunner()
-    result = runner.invoke(pio, ["usb", "backup-db", "--mount", str(mountpoint), "--force"])
-
-    assert result.exit_code == 0
-    assert calls == [
-        (
-            str(mountpoint / "pioreactor" / "backups" / "pio-abc" / "pioreactor.sqlite.backup"),
-            True,
-            0,
-        )
-    ]
-
-
-def test_pio_usb_update_app_uses_single_scanned_release(tmp_path: Path, monkeypatch) -> None:
-    mount_root = tmp_path / "run" / "pioreactor" / "usb"
-    mountpoint = mount_root / "usb-7A2B-91FE"
-    mountpoint.mkdir(parents=True)
-    release = mountpoint / "release_25.6.0.zip"
-    release.write_text("release", encoding="utf-8")
-    calls: list[dict[str, object]] = []
 
     monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
 
-    def fake_update_app(**kwargs) -> None:
-        calls.append(kwargs)
-
-    monkeypatch.setattr("pioreactor.cli.pio.update_app.callback", fake_update_app)
-
     runner = CliRunner()
-    result = runner.invoke(pio, ["usb", "update", "app", "--mount", str(mountpoint), "--yes"])
+    result = runner.invoke(pio, ["usb", "path", "--mount", str(mountpoint)])
 
     assert result.exit_code == 0
-    assert calls == [
-        {
-            "branch": None,
-            "sha": None,
-            "no_deps": False,
-            "repo": "pioreactor/pioreactor",
-            "source": str(release),
-            "version": None,
-            "defer_web_restart": False,
-        }
-    ]
+    assert result.output == f"{mountpoint}\n"
