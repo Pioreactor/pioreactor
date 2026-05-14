@@ -820,6 +820,15 @@ def export_experiment_data_task(
 @huey.task()
 @huey.lock_task("usb-lock")
 def mount_usb_task(device: str | None = None) -> dict[str, Any]:
+    if whoami.is_testing_env():
+        return {
+            "result": True,
+            "device": device or "/dev/sda1",
+            "display_name": "PIOREACTOR",
+            "mountpoint": "/run/pioreactor/usb/usb-7A2B-91FE",
+            "msg": "Mounted",
+        }
+
     partition = usb_utils.choose_usb_partition(device)
     mountpoint = usb_utils.mount_usb_partition(partition)
     return {
@@ -834,6 +843,14 @@ def mount_usb_task(device: str | None = None) -> dict[str, Any]:
 @huey.task()
 @huey.lock_task("usb-lock")
 def eject_usb_task(device: str | None = None) -> dict[str, Any]:
+    if whoami.is_testing_env():
+        return {
+            "result": True,
+            "device": device or "/dev/sda1",
+            "display_name": "PIOREACTOR",
+            "msg": "Ejected",
+        }
+
     partition = usb_utils.choose_usb_partition(device, require_mounted=True)
     display_name = partition.display_name
     usb_utils.eject_usb_partition(partition)

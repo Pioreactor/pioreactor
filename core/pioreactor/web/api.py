@@ -41,7 +41,6 @@ from pioreactor.pubsub import QOS
 from pioreactor.states import JobState
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
-from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
@@ -2327,35 +2326,6 @@ def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> 
 
 
 ## PLUGINS
-
-
-@api_bp.route("/usb", methods=["GET"])
-def get_leader_usb_status() -> ResponseReturnValue:
-    return jsonify(usb_utils.get_usb_status().as_dict())
-
-
-@api_bp.route("/usb/mount", methods=["POST"])
-def mount_leader_usb() -> DelayedResponseReturnValue:
-    body = request.get_json(silent=True) or {}
-    return create_task_response(tasks.mount_usb_task(body.get("device")))
-
-
-@api_bp.route("/usb/eject", methods=["POST"])
-def eject_leader_usb() -> DelayedResponseReturnValue:
-    body = request.get_json(silent=True) or {}
-    return create_task_response(tasks.eject_usb_task(body.get("device")))
-
-
-@api_bp.route("/usb/artifacts", methods=["GET"])
-def get_leader_usb_artifacts() -> ResponseReturnValue:
-    try:
-        scan = usb_utils.scan_usb_mount(usb_utils.choose_usb_mountpoint())
-    except OSError as exc:
-        abort_with(400, str(exc))
-    except ValueError as exc:
-        abort_with(400, str(exc))
-
-    return jsonify(scan.as_dict())
 
 
 @api_bp.route("/units/<pioreactor_unit>/usb", methods=["GET"])

@@ -40,7 +40,7 @@ import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRig
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import whiteLogo from '../assets/white_colour.png';
-import { disconnectedGrey, readyGreen, WARNING_COLOR } from '../utils/color';
+import { disconnectedGrey } from '../utils/color';
 
 const ExpIcon = PlayCircleOutlinedIcon
 
@@ -66,10 +66,10 @@ function getUsbNavColor(status) {
   switch (status) {
     case "mounted":
     case "mounted_readonly":
-      return readyGreen;
+      return "#2FBB39";
     case "unsupported":
     case "multiple_present":
-      return WARNING_COLOR;
+      return "#fcdf53";
     default:
       return disconnectedGrey;
   }
@@ -283,7 +283,7 @@ export default function SideNavAndHeader() {
 
     async function fetchUsbStatus() {
       try {
-        const response = await fetch("/api/usb");
+        const response = await fetch("/unit_api/usb");
         if (!response.ok) {
           return;
         }

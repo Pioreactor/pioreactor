@@ -23,23 +23,6 @@ import UsbIcon from "@mui/icons-material/Usb";
 import Snackbar from "./Snackbar";
 import { fetchTaskResult } from "../utils/tasks";
 
-function formatBytes(bytes) {
-  if (bytes == null) {
-    return "-";
-  }
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  const precision = value >= 10 || unitIndex === 0 ? 0 : 1;
-  return `${value.toFixed(precision)} ${units[unitIndex]}`;
-}
-
 function unwrapUnitTaskResult(payload, unit) {
   const result = payload?.result;
   if (result && typeof result === "object" && !Array.isArray(result) && unit in result) {
@@ -142,26 +125,35 @@ export default function UsbDriveCard({unit}) {
     setSnackbarOpen(true);
   };
 
-  const refreshUsbStatus = React.useCallback(async () => {
-    if (!unit) {
-      if (isMountedRef.current) {
-        setUsbStatus(null);
-        setIsLoading(false);
-      }
-      return;
+  const usbEndpoint = React.useCallback((suffix = "") => {
+    if (unit) {
+      return `/api/units/${encodeURIComponent(unit)}/usb${suffix}`;
     }
+    return `/unit_api/usb${suffix}`;
+  }, [unit]);
 
+  const refreshUsbStatus = React.useCallback(async () => {
     if (isMountedRef.current) {
       setError("");
     }
     try {
-      const payload = await fetchTaskResult(`/api/units/${encodeURIComponent(unit)}/usb`, {
-        maxRetries: 80,
-        delayMs: 100,
-      });
-      const unitStatus = unwrapUnitTaskResult(payload, unit);
+      let unitStatus;
+      if (unit) {
+        const payload = await fetchTaskResult(usbEndpoint(), {
+          maxRetries: 80,
+          delayMs: 100,
+        });
+        unitStatus = unwrapUnitTaskResult(payload, unit);
+      } else {
+        const response = await fetch(usbEndpoint());
+        if (!response.ok) {
+          throw new Error(`Failed to fetch USB status (HTTP ${response.status}).`);
+        }
+        unitStatus = await response.json();
+      }
+
       if (!unitStatus) {
-        throw new Error(`Could not reach ${unit}.`);
+        throw new Error(unit ? `Could not reach ${unit}.` : "Could not read USB status.");
       }
       if (isMountedRef.current) {
         setUsbStatus(unitStatus);
@@ -176,7 +168,7 @@ export default function UsbDriveCard({unit}) {
         setIsLoading(false);
       }
     }
-  }, [unit]);
+  }, [unit, usbEndpoint]);
 
   React.useEffect(() => {
     isMountedRef.current = true;
@@ -197,18 +189,27 @@ export default function UsbDriveCard({unit}) {
     setIsBusy(true);
     setError("");
     try {
-      await fetchTaskResult(`/api/units/${encodeURIComponent(unit)}/usb/mount`, {
-        fetchOptions: {
-          method: "POST",
-          body: JSON.stringify(device ? {device} : {}),
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
+      const fetchOptions = {
+        method: "POST",
+        body: JSON.stringify(device ? {device} : {}),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
-        maxRetries: 300,
-        delayMs: 200,
-      });
+      };
+      if (unit) {
+        await fetchTaskResult(usbEndpoint("/mount"), {
+          fetchOptions,
+          maxRetries: 300,
+          delayMs: 200,
+        });
+      } else {
+        await fetchTaskResult("/unit_api/usb/mount", {
+          fetchOptions,
+          maxRetries: 300,
+          delayMs: 200,
+        });
+      }
       showSnackbar("USB drive mounted.");
       await refreshUsbStatus();
     } catch (err) {
@@ -223,18 +224,27 @@ export default function UsbDriveCard({unit}) {
     setIsBusy(true);
     setError("");
     try {
-      await fetchTaskResult(`/api/units/${encodeURIComponent(unit)}/usb/eject`, {
-        fetchOptions: {
-          method: "POST",
-          body: JSON.stringify(device ? {device} : {}),
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
+      const fetchOptions = {
+        method: "POST",
+        body: JSON.stringify(device ? {device} : {}),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
-        maxRetries: 300,
-        delayMs: 200,
-      });
+      };
+      if (unit) {
+        await fetchTaskResult(usbEndpoint("/eject"), {
+          fetchOptions,
+          maxRetries: 300,
+          delayMs: 200,
+        });
+      } else {
+        await fetchTaskResult("/unit_api/usb/eject", {
+          fetchOptions,
+          maxRetries: 300,
+          delayMs: 200,
+        });
+      }
       showSnackbar("USB drive ejected.");
       await refreshUsbStatus();
     } catch (err) {
@@ -293,8 +303,6 @@ export default function UsbDriveCard({unit}) {
                     <TableRow>
                       <TableCell sx={{padding: "6px 0px"}}>Name</TableCell>
                       <TableCell>Device</TableCell>
-                      <TableCell>Filesystem</TableCell>
-                      <TableCell>Available</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell align="right" sx={{padding: "6px 0px", width: 36}} />
                     </TableRow>
@@ -306,8 +314,6 @@ export default function UsbDriveCard({unit}) {
                           {partition.display_name || "-"}
                         </TableCell>
                         <TableCell>{partition.device}</TableCell>
-                        <TableCell>{partition.fstype || "-"}</TableCell>
-                        <TableCell>{partition.mounted ? formatBytes(partition.free_bytes) : "-"}</TableCell>
                         <TableCell>{getPartitionStatus(partition)}</TableCell>
                         <TableCell align="right" sx={{padding: "6px 0px"}}>
                           <UsbPartitionActionMenu

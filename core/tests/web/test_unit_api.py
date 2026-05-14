@@ -153,12 +153,26 @@ def test_get_usb_status_returns_status_payload(client, monkeypatch: pytest.Monke
         def as_dict(self) -> dict[str, object]:
             return {"status": "absent", "partitions": [], "active_mount": None}
 
+    monkeypatch.setattr(mod.whoami, "is_testing_env", lambda: False)
     monkeypatch.setattr(mod.usb_utils, "get_usb_status", lambda: FakeUsbStatus())
 
     resp = client.get("/unit_api/usb")
 
     assert resp.status_code == 200
     assert resp.get_json() == {"status": "absent", "partitions": [], "active_mount": None}
+
+
+def test_get_usb_status_returns_fake_payload_in_testing(client) -> None:
+    resp = client.get("/unit_api/usb")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["status"] == "mounted"
+    assert data["active_mount"]["display_name"] == "PIOREACTOR"
+    assert [partition["display_name"] for partition in data["partitions"]] == [
+        "PIOREACTOR",
+        "LAB-EXPORTS",
+    ]
 
 
 def test_usb_mount_schedules_task(client, monkeypatch: pytest.MonkeyPatch) -> None:

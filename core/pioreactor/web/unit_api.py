@@ -91,6 +91,9 @@ register_calibration_session_routes(unit_api_bp)
 
 @unit_api_bp.route("/usb", methods=["GET"])
 def get_usb_status() -> ResponseReturnValue:
+    if whoami.is_testing_env():
+        return jsonify(usb_utils.get_fake_usb_status().as_dict())
+
     return jsonify(usb_utils.get_usb_status().as_dict())
 
 

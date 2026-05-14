@@ -464,6 +464,7 @@ def test_mount_usb_task_mounts_selected_partition(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(tasks.usb_utils, "choose_usb_partition", lambda device=None: partition)
     monkeypatch.setattr(tasks.usb_utils, "mount_usb_partition", lambda _partition: mountpoint)
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
 
     result = tasks.mount_usb_task.call_local("/dev/sda1")
 

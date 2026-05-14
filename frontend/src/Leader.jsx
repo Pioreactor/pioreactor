@@ -1095,14 +1095,14 @@ function LeaderContainer({config}) {
               xs: 12,
               sm: 12
             }}>
-            <UsbDriveCard unit={leaderHostname}/>
+            <LeaderJobs/>
           </Grid>
           <Grid
             size={{
               xs: 12,
               sm: 12
             }}>
-            <LeaderJobs/>
+            <UsbDriveCard/>
           </Grid>
         </Grid>
 
