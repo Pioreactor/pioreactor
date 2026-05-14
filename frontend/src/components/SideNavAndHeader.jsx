@@ -9,7 +9,6 @@ import IconButton from '@mui/material/IconButton';
 import DownloadIcon from '@mui/icons-material/Download';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import UpdateIcon from '@mui/icons-material/Update';
-import UsbIcon from '@mui/icons-material/Usb';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import Toolbar from '@mui/material/Toolbar';
@@ -66,8 +65,8 @@ function getUsbNavLabel(status) {
 function getUsbNavColor(status) {
   switch (status) {
     case "mounted":
-      return readyGreen;
     case "mounted_readonly":
+      return readyGreen;
     case "unsupported":
     case "multiple_present":
       return WARNING_COLOR;
@@ -574,7 +573,6 @@ export default function SideNavAndHeader() {
                 }
                 {shouldShowUsbNavStatus(usbStatus) &&
                   <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader"}}>
-                    <UsbIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>
                     <div
                       aria-label={getUsbNavLabel(usbStatus)}
                       className="indicator-dot"

@@ -7,12 +7,16 @@ import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
 import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import EjectIcon from "@mui/icons-material/Eject";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import UsbIcon from "@mui/icons-material/Usb";
 
@@ -44,71 +48,83 @@ function unwrapUnitTaskResult(payload, unit) {
   return result;
 }
 
-function getStatusLabel(status) {
-  switch (status) {
-    case "absent":
-      return "No USB drive detected.";
-    case "present_unmounted":
-      return "USB drive detected.";
-    case "mounted":
-      return "USB drive mounted.";
-    case "mounted_readonly":
-      return "USB drive mounted read-only.";
-    case "multiple_present":
-      return "Multiple USB partitions detected.";
-    case "unsupported":
-      return "USB filesystem is not supported.";
-    case "error":
-      return "Unable to read USB status.";
-    default:
-      return "USB status unavailable.";
+function getUsbRows(status) {
+  if (!status) {
+    return [];
   }
+
+  const partitions = Array.isArray(status.partitions) ? status.partitions : [];
+  if (!status.active_mount) {
+    return partitions;
+  }
+
+  return partitions.map((partition) => {
+    if (partition.device !== status.active_mount.device) {
+      return partition;
+    }
+    return {
+      ...partition,
+      ...status.active_mount,
+      mounted: true,
+    };
+  });
 }
 
-function getPrimaryPartition(status) {
-  if (status?.active_mount) {
-    return status.active_mount;
+function getPartitionStatus(partition) {
+  if (partition.unsupported_reason) {
+    return "Unsupported";
   }
-
-  if (Array.isArray(status?.partitions) && status.partitions.length === 1) {
-    return status.partitions[0];
+  if (partition.mounted) {
+    return partition.writable === false ? "Mounted read-only" : "Mounted";
   }
-
-  return null;
+  return "Detected";
 }
 
-function PartitionList({partitions, isBusy, onMount}) {
-  if (!Array.isArray(partitions) || partitions.length === 0) {
-    return null;
-  }
+function UsbPartitionActionMenu({partition, isBusy, onMount, onEject}) {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const menuOpen = Boolean(anchorEl);
+  const canMount = !partition.mounted && !partition.unsupported_reason;
+  const canEject = Boolean(partition.mounted);
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
 
   return (
-    <List dense sx={{mt: 1}}>
-      {partitions.map((partition) => (
-        <ListItem
-          key={partition.device}
-          disableGutters
-          secondaryAction={
-            !partition.mounted && (
-              <Button
-                size="small"
-                variant="text"
-                disabled={isBusy || Boolean(partition.unsupported_reason)}
-                onClick={() => onMount(partition.device)}
-                sx={{textTransform: "none"}}
-              >
-                Mount
-              </Button>
-            )
-          }
+    <React.Fragment>
+      <span>
+        <IconButton
+          size="small"
+          aria-label={`More actions for ${partition.display_name || partition.device}`}
+          disabled={isBusy || (!canMount && !canEject)}
+          onClick={(event) => setAnchorEl(event.currentTarget)}
         >
-          <ListItemText
-            primary={partition.display_name || partition.device}
-            secondary={`${partition.device} · ${partition.fstype || "unknown filesystem"}`}
-          />
-        </ListItem>
-      ))}
-    </List>
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      </span>
+      <Menu anchorEl={anchorEl} open={menuOpen} onClose={handleClose}>
+        {canMount && (
+          <MenuItem
+            onClick={() => {
+              handleClose();
+              onMount(partition.device);
+            }}
+          >
+            Mount
+          </MenuItem>
+        )}
+        {canEject && (
+          <MenuItem
+            onClick={() => {
+              handleClose();
+              onEject(partition.device);
+            }}
+          >
+            Eject
+          </MenuItem>
+        )}
+      </Menu>
+    </React.Fragment>
   );
 }
 
@@ -203,14 +219,14 @@ export default function UsbDriveCard({unit}) {
     }
   };
 
-  const handleEject = async () => {
+  const handleEject = async (device) => {
     setIsBusy(true);
     setError("");
     try {
       await fetchTaskResult(`/api/units/${encodeURIComponent(unit)}/usb/eject`, {
         fetchOptions: {
           method: "POST",
-          body: JSON.stringify({}),
+          body: JSON.stringify(device ? {device} : {}),
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
@@ -236,13 +252,7 @@ export default function UsbDriveCard({unit}) {
     setSnackbarOpen(false);
   };
 
-  const primaryPartition = getPrimaryPartition(usbStatus);
-  const isMounted = usbStatus?.status === "mounted" || usbStatus?.status === "mounted_readonly";
-  const canMountSingle =
-    usbStatus?.status === "present_unmounted" &&
-    Array.isArray(usbStatus?.partitions) &&
-    usbStatus.partitions.length === 1 &&
-    !usbStatus.partitions[0].unsupported_reason;
+  const usbRows = getUsbRows(usbStatus);
 
   return (
     <Card>
@@ -266,45 +276,58 @@ export default function UsbDriveCard({unit}) {
 
         {!isLoading && !error && usbStatus && (
           <React.Fragment>
-            <Typography variant="body2" color="text.secondary" sx={{mt: 1}}>
-              {getStatusLabel(usbStatus.status)}
-            </Typography>
-
             {usbStatus.error && (
               <Alert severity="error" sx={{mt: 2}}>{usbStatus.error}</Alert>
             )}
 
-            {primaryPartition && (
-              <Box sx={{mt: 2}}>
-                <Typography variant="body2">
-                  {primaryPartition.display_name || primaryPartition.device}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {primaryPartition.device}
-                  {primaryPartition.fstype ? ` · ${primaryPartition.fstype}` : ""}
-                </Typography>
-                {isMounted && (
-                  <Typography variant="body2" color="text.secondary">
-                    {formatBytes(primaryPartition.free_bytes)} available
-                  </Typography>
-                )}
-                {primaryPartition.unsupported_reason && (
-                  <Alert severity="warning" sx={{mt: 2}}>
-                    {primaryPartition.unsupported_reason}
-                  </Alert>
-                )}
+            {usbRows.length === 0 && !usbStatus.error && (
+              <Typography variant="body2" color="text.secondary" sx={{mt: 1}}>
+                No USB drives detected.
+              </Typography>
+            )}
+
+            {usbRows.length > 0 && (
+              <Box sx={{mt: 1}}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{padding: "6px 0px"}}>Name</TableCell>
+                      <TableCell>Device</TableCell>
+                      <TableCell>Filesystem</TableCell>
+                      <TableCell>Available</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="right" sx={{padding: "6px 0px", width: 36}} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {usbRows.map((partition) => (
+                      <TableRow key={partition.device}>
+                        <TableCell sx={{padding: "6px 0px"}}>
+                          {partition.display_name || "-"}
+                        </TableCell>
+                        <TableCell>{partition.device}</TableCell>
+                        <TableCell>{partition.fstype || "-"}</TableCell>
+                        <TableCell>{partition.mounted ? formatBytes(partition.free_bytes) : "-"}</TableCell>
+                        <TableCell>{getPartitionStatus(partition)}</TableCell>
+                        <TableCell align="right" sx={{padding: "6px 0px"}}>
+                          <UsbPartitionActionMenu
+                            partition={partition}
+                            isBusy={isBusy}
+                            onMount={handleMount}
+                            onEject={handleEject}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </Box>
             )}
 
-            {usbStatus.status === "multiple_present" && (
-              <React.Fragment>
-                <Divider sx={{mt: 2}} />
-                <PartitionList
-                  partitions={usbStatus.partitions}
-                  isBusy={isBusy}
-                  onMount={handleMount}
-                />
-              </React.Fragment>
+            {usbRows.some((partition) => partition.unsupported_reason) && (
+              <Alert severity="warning" sx={{mt: 2}}>
+                {usbRows.find((partition) => partition.unsupported_reason).unsupported_reason}
+              </Alert>
             )}
           </React.Fragment>
         )}
@@ -320,29 +343,6 @@ export default function UsbDriveCard({unit}) {
           <RefreshIcon fontSize="small" sx={{mr: 0.5}} />
           Refresh
         </Button>
-        {canMountSingle && (
-          <Button
-            size="small"
-            variant="contained"
-            onClick={() => handleMount(usbStatus.partitions[0].device)}
-            disabled={isBusy}
-            sx={{textTransform: "none"}}
-          >
-            Mount
-          </Button>
-        )}
-        {isMounted && (
-          <Button
-            size="small"
-            color="secondary"
-            onClick={handleEject}
-            disabled={isBusy}
-            sx={{textTransform: "none"}}
-          >
-            <EjectIcon fontSize="small" sx={{mr: 0.5}} />
-            Eject
-          </Button>
-        )}
       </CardActions>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
