@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkui=self.webpackChunkui||[]).push([[117],{35117:function(u,s,a){var e=a(80190),c=a(70579);s.A=(0,e.A)((0,c.jsx)("path",{d:"M8 5v14l11-7z"}),"PlayArrow")}}]);
+//# sourceMappingURL=117.eae22773.chunk.js.map

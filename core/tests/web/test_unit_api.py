@@ -2,6 +2,7 @@
 """
 Additional unit tests for unit_api endpoints.
 """
+from collections import namedtuple
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
@@ -164,6 +165,73 @@ def test_get_clock_time_success(client) -> None:
     data = resp.get_json()
     assert data.get("status") == "success"
     assert "clock_time" in data
+
+
+def test_get_disk_space(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    Usage = namedtuple("Usage", ("total", "used", "free"))
+    monkeypatch.setattr(mod.shutil, "disk_usage", lambda _path: Usage(total=1000, used=600, free=400))
+
+    resp = client.get("/unit_api/system/disk_space")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data == {
+        "available_bytes": 400,
+        "total_bytes": 1000,
+    }
+
+
+def test_get_memory(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod, "read_memory_stats", lambda: (200, 1000))
+
+    resp = client.get("/unit_api/system/memory")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data == {
+        "available_bytes": 200,
+        "total_bytes": 1000,
+    }
+
+
+def test_read_memory_stats_uses_proc_meminfo(tmp_path: Path) -> None:
+    from pioreactor.web.unit_api import read_memory_stats
+
+    meminfo = tmp_path / "meminfo"
+    meminfo.write_text(
+        """\
+MemTotal:        1024 kB
+MemFree:          128 kB
+MemAvailable:     512 kB
+""",
+        encoding="utf-8",
+    )
+
+    assert read_memory_stats(meminfo) == (512 * 1024, 1024 * 1024)
+
+
+def test_read_memory_stats_handles_missing_available_pages_sysconf(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    def fake_sysconf(name: str) -> int:
+        if name == "SC_PAGE_SIZE":
+            return 4096
+        if name == "SC_PHYS_PAGES":
+            return 1000
+        raise ValueError("unrecognized configuration name")
+
+    monkeypatch.setattr(mod.os, "sysconf_names", {"SC_PAGE_SIZE": 30, "SC_PHYS_PAGES": 31})
+    monkeypatch.setattr(mod.os, "sysconf", fake_sysconf)
+    monkeypatch.setattr(mod, "read_available_memory_bytes_from_vm_stat", lambda: 800_000)
+
+    assert mod.read_memory_stats(tmp_path / "missing-meminfo") == (800_000, 4_096_000)
 
 
 def test_set_clock_non_leader(client) -> None:
