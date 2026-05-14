@@ -200,6 +200,19 @@ def test_choose_usb_mountpoint_selects_first_device_path_writable_managed_usb_wh
     assert usb_utils.choose_usb_mountpoint() == a_mountpoint
 
 
+def test_verify_writable_uses_mount_read_write_options(tmp_path: Path, monkeypatch) -> None:
+    mountpoint = tmp_path / "run" / "pioreactor" / "usb" / "usb-a"
+    mountpoint.mkdir(parents=True)
+    mountinfo = (
+        f"1 0 8:1 / {tmp_path.as_posix()} rw,relatime - ext4 /dev/root rw\n"
+        f"2 1 8:2 / {mountpoint.as_posix()} ro,nosuid,nodev - vfat /dev/sda1 rw\n"
+    )
+
+    monkeypatch.setattr(Path, "read_text", lambda _path, encoding=None: mountinfo)
+
+    assert usb_utils._verify_writable(mountpoint) is False
+
+
 def test_resolve_usb_plugin_wheel_rejects_paths_outside_usb_mount(tmp_path: Path, monkeypatch) -> None:
     mount_root = tmp_path / "run" / "pioreactor" / "usb"
     mountpoint = mount_root / "usb-7A2B-91FE"

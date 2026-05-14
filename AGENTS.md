@@ -257,6 +257,7 @@ Get the latest database schema:
 curl -fsSL https://raw.githubusercontent.com/Pioreactor/CustoPiZer/refs/heads/pioreactor/workspace/scripts/files/sql/create_tables.sql
 ```
 
+---
 
 ## Business logic
 
@@ -281,6 +282,8 @@ The Pioreactor software enables users to control and monitor small-scale bioreac
 * Managing a cluster of Pioreactors via MQTT and HTTP APIs.
 * Applying calibrations for pumps, stirring, and OD readings.
 * Scheduling complex experiment profiles that coordinate multiple jobs across workers.
+
+---
 
 ## Tickets
 

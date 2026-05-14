@@ -524,13 +524,33 @@ def _remount_usb_partition(partition: UsbPartition, mountpoint: Path) -> None:
 
 
 def _verify_writable(mountpoint: Path) -> bool:
-    probe = mountpoint / ".pioreactor-usb-write-test"
     try:
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink()
-        return True
+        mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8")
+        resolved_mountpoint = mountpoint.resolve()
     except OSError:
-        return False
+        return True
+
+    best_match_options: str | None = None
+    best_match_length = -1
+    for line in mountinfo.splitlines():
+        fields = line.split()
+        if len(fields) < 6:
+            continue
+        mounted_at = Path(_decode_mountinfo_path(fields[4]))
+        if not (resolved_mountpoint == mounted_at or _is_relative_to(resolved_mountpoint, mounted_at)):
+            continue
+        mounted_at_length = len(mounted_at.as_posix())
+        if mounted_at_length > best_match_length:
+            best_match_length = mounted_at_length
+            best_match_options = fields[5]
+
+    if best_match_options is None:
+        return True
+    return "ro" not in best_match_options.split(",")
+
+
+def _decode_mountinfo_path(value: str) -> str:
+    return value.replace(r"\040", " ").replace(r"\011", "\t").replace(r"\012", "\n").replace(r"\134", "\\")
 
 
 def _assert_mount_is_under_usb_root(mountpoint: Path) -> None:
