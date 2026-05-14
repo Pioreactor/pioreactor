@@ -63,6 +63,8 @@ class TopicToCallback(Struct):
 class MqttToDBStreamer(LongRunningBackgroundJob):
     job_name = "mqtt_to_db_streaming"
     _inserts_in_last_60s = 0
+    _database_write_errors_in_last_60s = 0
+    _latest_database_write_error: str | None = None
 
     def __init__(
         self,
@@ -72,8 +74,14 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
     ) -> None:
         super().__init__(unit, experiment)
         self.logger.debug(f'Streaming MQTT data to {config["storage"]["database"]}.')
+        self._inserts_in_last_60s = 0
+        self._database_write_errors_in_last_60s = 0
+        self._latest_database_write_error = None
         self.sqliteworker = Sqlite3Worker(
-            config["storage"]["database"], max_queue_size=250, raise_on_error=False
+            config["storage"]["database"],
+            max_queue_size=250,
+            raise_on_error=False,
+            on_error=self.on_database_write_error,
         )
 
         self.logger.debug(f"Listening to {topics_to_tables}")
@@ -96,8 +104,28 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
     def write_stats(self) -> None:
         with local_intermittent_storage(self.job_name) as c:
             c["inserts_in_last_60s"] = self._inserts_in_last_60s
+            c["database_write_errors_in_last_60s"] = self._database_write_errors_in_last_60s
+            if self._latest_database_write_error is not None:
+                c["latest_database_write_error"] = self._latest_database_write_error
+            elif "latest_database_write_error" in c:
+                del c["latest_database_write_error"]
 
         self._inserts_in_last_60s = 0
+        self._database_write_errors_in_last_60s = 0
+        self._latest_database_write_error = None
+
+    def on_database_write_error(
+        self, error: Exception, query: str, values: tuple[object, ...] | dict[str, object]
+    ) -> None:
+        self._database_write_errors_in_last_60s += 1
+        self._latest_database_write_error = str(error)
+
+        if self._database_write_errors_in_last_60s == 1:
+            self.logger.error(
+                f"Unable to persist MQTT data to SQLite: {error}. "
+                "Experiment data may not be saved. Check leader disk space and database health."
+            )
+            self.logger.debug(f"SQL that failed: `{query}`")
 
     def on_disconnected(self) -> None:
         self.timer.cancel()

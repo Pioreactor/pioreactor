@@ -10,6 +10,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -219,7 +220,7 @@ def test_produce_metadata() -> None:
     assert v.rest_of_topic == ["this", "is", "a", "test"]
 
 
-def test_table_does_not_exist_in_db_but_parser_exists() -> None:
+def test_table_does_not_exist_in_db_but_parser_exists_logs_write_error() -> None:
     unit = "unit"
     exp = "test_table_does_not_exist_in_db_but_parser_exists"
 
@@ -248,10 +249,65 @@ def test_table_does_not_exist_in_db_but_parser_exists() -> None:
         )
     ]
 
-    with m2db.MqttToDBStreamer(unit, exp, parsers):
+    with local_intermittent_storage("mqtt_to_db_streaming") as cache:
+        cache.empty()
+
+    with m2db.MqttToDBStreamer(unit, exp, parsers) as job:
         with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
             t = TestJob(unit=unit, experiment=exp)
             sleep(2)
             t.clean_up()
+            sleep(1)
 
-        assert len(bucket) == 0
+        job.write_stats()
+
+    assert any("Unable to persist MQTT data to SQLite" in log["message"] for log in bucket)
+
+    with local_intermittent_storage("mqtt_to_db_streaming") as cache:
+        assert cache.get("database_write_errors_in_last_60s") == 1
+        assert "no such table: table_setting" in str(cache.get("latest_database_write_error"))
+
+
+def test_database_write_error_stats_reset() -> None:
+    class Logger:
+        def __init__(self) -> None:
+            self.errors: list[str] = []
+            self.debugs: list[str] = []
+
+        def error(self, message: str) -> None:
+            self.errors.append(message)
+
+        def debug(self, message: str) -> None:
+            self.debugs.append(message)
+
+    with local_intermittent_storage("mqtt_to_db_streaming") as cache:
+        cache.empty()
+
+    job = m2db.MqttToDBStreamer.__new__(m2db.MqttToDBStreamer)
+    job.logger = Logger()
+    job._inserts_in_last_60s = 3
+    job._database_write_errors_in_last_60s = 0
+    job._latest_database_write_error = None
+
+    job.on_database_write_error(
+        sqlite3.OperationalError("database or disk is full"),
+        "INSERT INTO test_table (id) VALUES (:id)",
+        {"id": 1},
+    )
+    job.write_stats()
+
+    with local_intermittent_storage("mqtt_to_db_streaming") as cache:
+        assert cache.get("inserts_in_last_60s") == 3
+        assert cache.get("database_write_errors_in_last_60s") == 1
+        assert cache.get("latest_database_write_error") == "database or disk is full"
+
+    assert len(job.logger.errors) == 1
+    assert job._inserts_in_last_60s == 0
+    assert job._database_write_errors_in_last_60s == 0
+    assert job._latest_database_write_error is None
+
+    job.write_stats()
+
+    with local_intermittent_storage("mqtt_to_db_streaming") as cache:
+        assert cache.get("database_write_errors_in_last_60s") == 0
+        assert cache.get("latest_database_write_error") is None

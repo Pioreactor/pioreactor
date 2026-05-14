@@ -1033,6 +1033,104 @@ def test_export_datasets_returns_async_task_response(
     assert captured["partition_by_experiment"] is False
 
 
+def test_preview_exportable_dataset_uses_default_row_limit(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    exportable_datasets_dir = tmp_path / "exportable_datasets"
+    exportable_datasets_dir.mkdir()
+    (exportable_datasets_dir / "test_dataset.yaml").write_text(
+        """\
+dataset_name: test_dataset
+default_order_by: null
+description: Test dataset
+display_name: Test dataset
+has_experiment: false
+has_unit: false
+table: experiments
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
+
+    captured: dict[str, object] = {}
+
+    def fake_query_app_db(
+        query: str, args: tuple[object, ...] = (), one: bool = False
+    ) -> list[dict[str, object]]:
+        captured["query"] = query
+        captured["args"] = args
+        captured["one"] = one
+        return [{"experiment": "exp1"}]
+
+    monkeypatch.setattr("pioreactor.web.api.query_app_db", fake_query_app_db)
+
+    response = client.get("/api/datasets/exportable/test_dataset/preview")
+
+    assert response.status_code == 200
+    assert response.get_json() == [{"experiment": "exp1"}]
+    assert captured["query"] == "SELECT * FROM (experiments) LIMIT ?;"
+    assert captured["args"] == (5,)
+    assert captured["one"] is False
+
+
+def test_preview_exportable_dataset_accepts_small_row_limit(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    exportable_datasets_dir = tmp_path / "exportable_datasets"
+    exportable_datasets_dir.mkdir()
+    (exportable_datasets_dir / "test_dataset.yaml").write_text(
+        """\
+dataset_name: test_dataset
+default_order_by: null
+description: Test dataset
+display_name: Test dataset
+has_experiment: false
+has_unit: false
+table: experiments
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
+
+    response = client.get("/api/datasets/exportable/test_dataset/preview?n_rows=2")
+
+    assert response.status_code == 200
+    assert len(response.get_json()) == 2
+
+
+@pytest.mark.parametrize("n_rows", ["-1", "0", "101", "not-an-int"])
+def test_preview_exportable_dataset_rejects_invalid_row_limit(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path, n_rows: str
+) -> None:
+    exportable_datasets_dir = tmp_path / "exportable_datasets"
+    exportable_datasets_dir.mkdir()
+    (exportable_datasets_dir / "test_dataset.yaml").write_text(
+        """\
+dataset_name: test_dataset
+default_order_by: null
+description: Test dataset
+display_name: Test dataset
+has_experiment: false
+has_unit: false
+table: experiments
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
+
+    def fake_query_app_db(
+        query: str, args: tuple[object, ...] = (), one: bool = False
+    ) -> list[dict[str, object]]:
+        raise AssertionError("preview should reject invalid n_rows before querying the database")
+
+    monkeypatch.setattr("pioreactor.web.api.query_app_db", fake_query_app_db)
+
+    response = client.get(f"/api/datasets/exportable/test_dataset/preview?n_rows={n_rows}")
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid n_rows"
+
+
 def test_update_app_from_release_archive_requires_json_object(client: FlaskClient) -> None:
     response = client.post(
         "/api/system/update_from_archive",

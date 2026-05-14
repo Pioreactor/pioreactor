@@ -497,22 +497,12 @@ def pio(ctx: click.Context, show_version: bool) -> None:
         click.echo(ctx.get_help())
 
 
-def _runtime_config_file_path(explicit_env_var: str, filename: str) -> Path:
-    if explicit_env_var in os.environ:
-        return Path(os.environ[explicit_env_var])
-
-    if "DOT_PIOREACTOR" in os.environ:
-        return Path(os.environ["DOT_PIOREACTOR"]) / filename
-
-    raise ValueError(f"Set {explicit_env_var} or DOT_PIOREACTOR env variables")
-
-
 def _resolve_config_paths_like_runtime() -> tuple[Path, Path]:
     """Resolve global and local config paths with runtime-like precedence."""
-    return (
-        _runtime_config_file_path("GLOBAL_CONFIG", "config.ini"),
-        _runtime_config_file_path("LOCAL_CONFIG", "unit_config.ini"),
-    )
+    from pioreactor.config import resolve_global_config_path
+    from pioreactor.config import resolve_local_config_path
+
+    return resolve_global_config_path(), resolve_local_config_path()
 
 
 def _load_config_file(config_path: Path) -> t.Any:

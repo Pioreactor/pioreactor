@@ -9,7 +9,7 @@ This repository contains the **executable code for the Pioreactor project**. It 
    - `core/pioreactor/web/unit_api.py` is the pioreactor-specific API for controlling individual actions on a Pioreactor.
    - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web APIs.
 3. `frontend/src` — React-based web UI
-4. `packaging/shared-assets/` - contains files used to build or install Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR.
+4. `packaging/` - contains files used to build, install, and run Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR.
 
 ---
 
@@ -46,13 +46,8 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 ## Running the system
 
-ALWAYS use the project virtualenv for any Python, mypy, or pytest commands.
-
-```bash
-.venv/bin/
-```
-
-We use Python 3.13.
+ALWAYS use the project virtualenv, `.env`, for any Python, mypy, or pytest commands.
+Ignore the system Python version for project work. Use `.venv/bin/python`; this project targets Python 3.13.
 
 ## Environment model
 
@@ -132,7 +127,6 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   .venv/bin/pytest core/tests/test_cli.py
   ```
  - Don't run tests in parallel.
- - Skipping tests is okay, but note it to the user.
  - Disabling tests is okay, however you MUST ASK PERMISSION to **disable** a test only if any of the following:
     - it is incredibly flakey and unreliable.
     - relies on an unresponsive external service.

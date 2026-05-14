@@ -24,6 +24,8 @@ from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
 from pioreactor.config import get_config
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import resolve_global_config_path
+from pioreactor.config import resolve_local_config_path
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
@@ -466,6 +468,15 @@ broker_address=local-broker
         }
     finally:
         get_config.cache_clear()
+
+
+def test_config_path_resolvers_use_testing_fallback(monkeypatch) -> None:
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
+    monkeypatch.delenv("DOT_PIOREACTOR", raising=False)
+
+    assert resolve_global_config_path() == Path(".pioreactor/config.ini")
+    assert resolve_local_config_path() == Path(".pioreactor/unit_config.ini")
 
 
 def test_pio_config_show_key_requires_section() -> None:
