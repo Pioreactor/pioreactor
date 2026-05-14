@@ -83,6 +83,9 @@ AllCalibrations = structs.subclass_union(CalibrationBase)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
+EXPORTABLE_DATASET_PREVIEW_DEFAULT_ROWS = 5
+EXPORTABLE_DATASET_PREVIEW_MAX_ROWS = 100
+
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
 DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
@@ -2835,14 +2838,30 @@ def preview_exportable_dataset(target_dataset: str) -> ResponseReturnValue:
     builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
     plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
 
-    n_rows = request.args.get("n_rows", 5)
+    try:
+        n_rows = int(request.args.get("n_rows", EXPORTABLE_DATASET_PREVIEW_DEFAULT_ROWS))
+    except ValueError:
+        abort_with(
+            400,
+            "Invalid n_rows",
+            cause="n_rows must be an integer.",
+            remediation=(f"Provide n_rows as an integer from 1 to {EXPORTABLE_DATASET_PREVIEW_MAX_ROWS}."),
+        )
+
+    if n_rows < 1 or n_rows > EXPORTABLE_DATASET_PREVIEW_MAX_ROWS:
+        abort_with(
+            400,
+            "Invalid n_rows",
+            cause=f"n_rows must be between 1 and {EXPORTABLE_DATASET_PREVIEW_MAX_ROWS}.",
+            remediation=(f"Provide n_rows as an integer from 1 to {EXPORTABLE_DATASET_PREVIEW_MAX_ROWS}."),
+        )
 
     for file in builtins + plugins:
         try:
             dataset = yaml_decode(file.read_bytes(), type=Dataset)
             if dataset.dataset_name == target_dataset:
-                query = f"SELECT * FROM ({dataset.table or dataset.query}) LIMIT {n_rows};"
-                result = query_app_db(query)
+                query = f"SELECT * FROM ({dataset.table or dataset.query}) LIMIT ?;"
+                result = query_app_db(query, (n_rows,))
                 return jsonify(result)
         except (ValidationError, DecodeError):
             pass

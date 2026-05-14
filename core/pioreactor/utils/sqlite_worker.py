@@ -24,6 +24,10 @@ import threading
 import uuid
 from queue import Queue
 from typing import Any
+from typing import Callable
+
+type SqliteValues = tuple[Any, ...] | dict[str, Any]
+type SqliteErrorCallback = Callable[[Exception, str, SqliteValues], None]
 
 
 class Sqlite3Worker(threading.Thread):
@@ -42,13 +46,20 @@ class Sqlite3Worker(threading.Thread):
         sql_worker.close()
     """
 
-    def __init__(self, file_name: str, max_queue_size: int = 100, raise_on_error: bool = True) -> None:
+    def __init__(
+        self,
+        file_name: str,
+        max_queue_size: int = 100,
+        raise_on_error: bool = True,
+        on_error: SqliteErrorCallback | None = None,
+    ) -> None:
         """Automatically starts the thread.
 
         Args:
             file_name: The name of the file.
             max_queue_size: The max queries that will be queued.
             raise_on_error: raise the exception on commit error
+            on_error: Called when a queued write or commit fails.
         """
         threading.Thread.__init__(self, name=__name__)
         self.daemon = True
@@ -65,10 +76,11 @@ class Sqlite3Worker(threading.Thread):
             PRAGMA cache_size = -4000;
         """
         )
-        self._sql_queue: Queue[tuple[str, str, tuple[Any, ...]]] = Queue(maxsize=max_queue_size)
+        self._sql_queue: Queue[tuple[str, str, SqliteValues]] = Queue(maxsize=max_queue_size)
         self._results: dict[str, list[Any] | str] = {}
         self._max_queue_size = max_queue_size
         self._raise_on_error = raise_on_error
+        self._on_error = on_error
         # Event that is triggered once the run_query has been executed.
         self._select_events: dict[str, Any] = {}
         # Event to start the close process.
@@ -101,16 +113,27 @@ class Sqlite3Worker(threading.Thread):
                         self._sqlite3_conn.commit()
                         execute_count = 0
                     except Exception as e:
+                        self.report_error(e, "COMMIT", tuple())
                         if self._raise_on_error:
                             raise e
             # Only close if the queue is empty.  Otherwise keep getting
             # through the queue until it's empty.
             if self._close_event.is_set() and self._sql_queue.empty():
-                self._sqlite3_conn.commit()
-                self._sqlite3_conn.close()
+                try:
+                    self._sqlite3_conn.commit()
+                except Exception as e:
+                    self.report_error(e, "COMMIT", tuple())
+                    if self._raise_on_error:
+                        raise e
+                finally:
+                    self._sqlite3_conn.close()
                 return
 
-    def _run_query(self, token: str, query: str, values: tuple[Any, ...]) -> None:
+    def report_error(self, error: Exception, query: str, values: SqliteValues) -> None:
+        if self._on_error is not None:
+            self._on_error(error, query, values)
+
+    def _run_query(self, token: str, query: str, values: SqliteValues) -> None:
         """Run a query.
 
         Args:
@@ -140,6 +163,7 @@ class Sqlite3Worker(threading.Thread):
             try:
                 self._sqlite3_cursor.execute(query, values)
             except sqlite3.Error as e:
+                self.report_error(e, query, values)
                 if self._raise_on_error:
                     raise e
 
@@ -174,7 +198,7 @@ class Sqlite3Worker(threading.Thread):
             del self._results[token]
             del self._select_events[token]
 
-    def execute(self, query: str, values: tuple[Any, ...] | None = None) -> list[Any] | str | None:
+    def execute(self, query: str, values: SqliteValues | None = None) -> list[Any] | str | None:
         """Execute a query.
 
         Args:
