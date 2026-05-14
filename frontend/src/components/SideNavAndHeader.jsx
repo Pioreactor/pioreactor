@@ -9,6 +9,7 @@ import IconButton from '@mui/material/IconButton';
 import DownloadIcon from '@mui/icons-material/Download';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import UpdateIcon from '@mui/icons-material/Update';
+import UsbIcon from '@mui/icons-material/Usb';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import Toolbar from '@mui/material/Toolbar';
@@ -40,10 +41,40 @@ import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRig
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import whiteLogo from '../assets/white_colour.png';
+import { disconnectedGrey, readyGreen, WARNING_COLOR } from '../utils/color';
 
 const ExpIcon = PlayCircleOutlinedIcon
 
 const drawerWidth = 230;
+
+function shouldShowUsbNavStatus(status) {
+  return status && status !== "absent" && status !== "error";
+}
+
+function getUsbNavLabel(status) {
+  switch (status) {
+    case "mounted":
+    case "mounted_readonly":
+      return "USB mounted";
+    case "unsupported":
+      return "USB unsupported";
+    default:
+      return "USB detected";
+  }
+}
+
+function getUsbNavColor(status) {
+  switch (status) {
+    case "mounted":
+      return readyGreen;
+    case "mounted_readonly":
+    case "unsupported":
+    case "multiple_present":
+      return WARNING_COLOR;
+    default:
+      return disconnectedGrey;
+  }
+}
 
 export function pathnameMatchesAnySubmenu(pathname, prefixes) {
   return prefixes.some((prefix) => pathname.startsWith(`/${prefix}`));
@@ -205,6 +236,7 @@ export default function SideNavAndHeader() {
   const [helpDialogOpen, setHelpDialogOpen] = React.useState(false);
   const [version, setVersion] = React.useState(null)
   const [lap, setLAP] = React.useState(false)
+  const [usbStatus, setUsbStatus] = React.useState(null)
   const [latestVersion, setLatestVersion] = React.useState(null)
   const {experimentMetadata, selectExperiment, allExperiments} = useExperiment()
   const allExperimentNames = Array.isArray(allExperiments) ? allExperiments.map((v) => v.experiment) : [];
@@ -246,6 +278,35 @@ export default function SideNavAndHeader() {
       window.clearTimeout(latestVersionTimerId);
     };
   }, [])
+
+  React.useEffect(() => {
+    let isActive = true;
+
+    async function fetchUsbStatus() {
+      try {
+        const response = await fetch("/api/usb");
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setUsbStatus(data?.status || null);
+        }
+      } catch (_error) {
+        if (isActive) {
+          setUsbStatus(null);
+        }
+      }
+    }
+
+    fetchUsbStatus();
+    const usbTimerId = window.setInterval(fetchUsbStatus, 10000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(usbTimerId);
+    };
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -509,6 +570,19 @@ export default function SideNavAndHeader() {
                 { lap &&
                   <Button color="inherit" sx={{textTransform: "none"}}  component={Link}  to={{pathname: "/inventory"}}>
                     <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
+                  </Button>
+                }
+                {shouldShowUsbNavStatus(usbStatus) &&
+                  <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader"}}>
+                    <UsbIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>
+                    <div
+                      aria-label={getUsbNavLabel(usbStatus)}
+                      className="indicator-dot"
+                      style={{
+                        boxShadow: `0 0 2px ${getUsbNavColor(usbStatus)}, inset 0 0 12px ${getUsbNavColor(usbStatus)}`,
+                      }}
+                    />
+                    {getUsbNavLabel(usbStatus)}
                   </Button>
                 }
                 <Button onClick={openHelpDialog} color="inherit" style={{textTransform: "none"}}>

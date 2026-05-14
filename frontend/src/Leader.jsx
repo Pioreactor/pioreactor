@@ -20,6 +20,7 @@ import Box from '@mui/material/Box';
 import { Table, TableBody, TableCell, TableHead, TableRow, IconButton, Menu, MenuItem } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
+import UsbDriveCard from './components/UsbDriveCard';
 import { fetchTaskResult } from "./utils/tasks";
 import { getConfig } from "./utils/config";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./utils/color";
@@ -1088,6 +1089,13 @@ function LeaderContainer({config}) {
               sm: 12
             }}>
             <SystemSpaceCard/>
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 12
+            }}>
+            <UsbDriveCard unit={leaderHostname}/>
           </Grid>
           <Grid
             size={{
