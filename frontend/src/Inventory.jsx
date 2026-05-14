@@ -138,6 +138,8 @@ function parsePayloadToType(payloadString, typeOfSetting) {
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 function Header(props) {
+  const leaderHostname = props.config?.["cluster.topology"]?.leader_hostname ?? null;
+
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -149,7 +151,7 @@ function Header(props) {
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <AddNewPioreactor setWorkers={props.setWorkers}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
-          <ManageInventoryMenu/>
+          <ManageInventoryMenu showSyncClocks leaderHostname={leaderHostname}/>
         </Box>
       </Box>
       <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
@@ -1026,7 +1028,7 @@ function Inventory({title}) {
             md: 12,
             xs: 12
           }}>
-          <Header setWorkers={setWorkers}/>
+          <Header setWorkers={setWorkers} config={config}/>
           <InventoryDisplay isLoading={isLoading} workers={workers} config={config} />
           <Grid size={12}>
             <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</p>

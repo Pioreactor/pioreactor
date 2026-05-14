@@ -1,6 +1,4 @@
 import React from "react";
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
 
 import CircularProgress from '@mui/material/CircularProgress';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
@@ -11,21 +9,20 @@ import Backdrop from '@mui/material/Backdrop';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Grid from '@mui/material/Grid';
-import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardActions from '@mui/material/CardActions';
 import List from '@mui/material/List';
+import LinearProgress, { linearProgressClasses } from '@mui/material/LinearProgress';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
-import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, IconButton, Menu, MenuItem } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, IconButton, Menu, MenuItem } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
-import { checkTaskCallback, fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult } from "./utils/tasks";
 import { getConfig } from "./utils/config";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./utils/color";
-import { Link } from 'react-router';
 
 import {
   ListItem,
@@ -39,14 +36,9 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import { styled } from '@mui/material/styles';
-import Chip from '@mui/material/Chip';
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
-import PioreactorIcon from "./components/PioreactorIcon"
 import Alert from '@mui/material/Alert';
 import Snackbar from './components/Snackbar';
-
-// Activate the UTC plugin
-dayjs.extend(utc);
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
@@ -279,6 +271,20 @@ const Path = styled(Box)(({ theme }) => ({
 const FileDir = styled(Box)(({ theme }) => ({
   fontFamily: 'monospace',
   color: theme.palette.text.primary,
+}));
+
+const BorderLinearProgress = styled(LinearProgress, {
+  shouldForwardProp: (prop) => prop !== "isLowSpace",
+})(({ theme, isLowSpace }) => ({
+  height: 10,
+  borderRadius: 5,
+  [`&.${linearProgressClasses.colorPrimary}`]: {
+    backgroundColor: theme.palette.grey[200],
+  },
+  [`& .${linearProgressClasses.bar}`]: {
+    borderRadius: 5,
+    backgroundColor: isLowSpace ? theme.palette.error.light : theme.palette.primary.light,
+  },
 }));
 
 
@@ -718,6 +724,135 @@ function LeaderCard({leaderHostname}) {
 )}
 
 
+function formatBytes(bytes) {
+  if (bytes == null) {
+    return "-";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const precision = value >= 10 || unitIndex === 0 ? 0 : 1;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+function systemSpaceUsedPercent(space) {
+  if (!space?.total_bytes) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, ((space.total_bytes - space.available_bytes) / space.total_bytes) * 100));
+}
+
+function hasLowAvailableSpace(space) {
+  if (!space?.total_bytes) {
+    return false;
+  }
+
+  return (space.available_bytes / space.total_bytes) < 0.1;
+}
+
+function SpaceProgressRow({label, space}) {
+  const usedPercent = systemSpaceUsedPercent(space);
+  const isLowSpace = hasLowAvailableSpace(space);
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.75 }}>
+        <Typography variant="body2" component="div">
+          {label}
+        </Typography>
+        <Typography variant="body2" component="div" color={isLowSpace ? "error" : "text.secondary"}>
+          {formatBytes(space?.available_bytes)} available of {formatBytes(space?.total_bytes)}
+        </Typography>
+      </Box>
+      <BorderLinearProgress variant="determinate" value={usedPercent} isLowSpace={isLowSpace} />
+    </Box>
+  );
+}
+
+function SystemSpaceCard() {
+  const [space, setSpace] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    let isActive = true;
+
+    async function fetchSystemSpace() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [diskResponse, memoryResponse] = await Promise.all([
+          fetch("/unit_api/system/disk_space"),
+          fetch("/unit_api/system/memory"),
+        ]);
+
+        if (!diskResponse.ok || !memoryResponse.ok) {
+          throw new Error("Failed to fetch system space.");
+        }
+
+        const [disk, memory] = await Promise.all([
+          diskResponse.json(),
+          memoryResponse.json(),
+        ]);
+
+        if (isActive) {
+          setSpace({disk, memory});
+        }
+      } catch (err) {
+        console.error(err);
+        if (isActive) {
+          setError(err.message);
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchSystemSpace();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  return (
+    <Card>
+      <CardContent sx={{p: 2}}>
+        <Typography variant="h6" component="h2">
+          <Box sx={{ fontWeight: "fontWeightRegular" }}>System space</Box>
+        </Typography>
+
+        {loading && (
+          <Box sx={{textAlign: "center", mt: 2}}>
+            <CircularProgress size={33}/>
+          </Box>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{mt: 2}}>{error}</Alert>
+        )}
+
+        {!loading && !error && space && (
+          <React.Fragment>
+            <SpaceProgressRow label="Disk" space={space.disk} />
+            <SpaceProgressRow label="Memory" space={space.memory} />
+          </React.Fragment>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
 
 
 function LeaderJobs(){
@@ -912,177 +1047,6 @@ function LeaderJobs(){
       </CardContent>
     </Card>)}
 
-function ClusterClockCard({leaderHostname}){
-  const [clockData, setClockData] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [updatingClock, setUpdatingClock] = React.useState(false);
-  const [error, setError] = React.useState(null);
-  const [timestampLocal, setTimestampLocal] = React.useState(dayjs().local().format('YYYY-MM-DD HH:mm:ss'));
-  const hasUserEditedTimestamp = React.useRef(false);
-
-  const normalizeClockData = React.useCallback((result) => Object.fromEntries(
-    Object.entries(result || {}).map(([unitName, info]) => {
-      const baseInfo = info || {};
-      const clockTimeMs = baseInfo.clock_time
-        ? dayjs.utc(baseInfo.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().valueOf()
-        : null;
-      return [unitName, { ...baseInfo, clock_time_ms: clockTimeMs }];
-    })
-  ), []);
-
-  const fetchBroadcastData = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/units/$broadcast/system/utc_clock', {
-        method: 'GET'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Broadcast request failed with status ${response.status}`);
-      }
-
-      const broadcastData = await response.json();
-
-      // Poll for the final result using checkTaskCallback
-      const finalResult = await checkTaskCallback(broadcastData.result_url_path);
-
-      setClockData(normalizeClockData(finalResult.result));
-    } catch (err) {
-      setError(err.message);
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [normalizeClockData]);
-
-  React.useEffect(() => {
-    fetchBroadcastData();
-  }, [fetchBroadcastData]);
-
-  React.useEffect(() => {
-    const intervalId = setInterval(() => {
-      setClockData((prev) => {
-        if (!prev) return prev;
-        return Object.fromEntries(Object.entries(prev).map(([unitName, info]) => {
-          if (info?.clock_time_ms == null) return [unitName, info];
-          return [unitName, { ...info, clock_time_ms: info.clock_time_ms + 1000 }];
-        }));
-      });
-
-      if (!hasUserEditedTimestamp.current) {
-        setTimestampLocal((prev) => {
-          const parsed = dayjs(prev, 'YYYY-MM-DD HH:mm:ss', true);
-          const baseMs = parsed.isValid() ? parsed.valueOf() : dayjs().local().valueOf();
-          return dayjs(baseMs + 1000).format('YYYY-MM-DD HH:mm:ss');
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, []);
-
-
-  async function handlePostTimestamp() {
-    setUpdatingClock(true)
-    try {
-      const response = await fetch('/api/system/utc_clock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ utc_clock_time: dayjs(timestampLocal, 'YYYY-MM-DD HH:mm:ss').utc().format() })
-      });
-      if (!response.ok) {
-        throw new Error(`Request failed with status: ${response.status}`);
-      }
-      const broadcastData = await response.json();
-      await checkTaskCallback(broadcastData.result_url_path);
-      await new Promise(r => setTimeout(r, 1000));
-
-      setUpdatingClock(false)
-      fetchBroadcastData();
-
-      // Optionally handle success, e.g., show a confirmation message
-    } catch (err) {
-      console.error('Error posting timestamp:', err);
-    }
-  }
-
-  return (
-    <Card>
-
-      <CardContent sx={{ p: 2 }}>
-        <Typography variant="h6" component="h2">
-          <Box sx={{ fontWeight: "fontWeightRegular" }}>Cluster clocks</Box>
-        </Typography>
-
-        {loading && (
-          <Box sx={{textAlign: "center"}}>
-            <CircularProgress size={33}/>
-          </Box>
-        )}
-
-        {error && (
-          <Alert severity="error">{error}</Alert>
-        )}
-
-        {!loading && !error && clockData && (
-          <TableContainer sx={{ maxHeight: '400px', width: '100%', overflowY: 'auto' }}>
-            <Table size="small" sx={{mt: 1}}>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{padding: "6px 0px"}}>Pioreactor</TableCell>
-                  <TableCell align="right" sx={{padding: "6px 0px"}}>Clock time (localtime)</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Object.entries(clockData).map(([unitName, info]) => {
-                  return (
-                    <TableRow key={unitName}>
-                      <TableCell sx={{padding: "6px 0px"}}>
-                        <Chip
-                          size="small"
-                          icon={<PioreactorIcon/>}
-                          label={unitName}
-                          clickable
-                          component={Link}
-                          to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
-                          />
-                      </TableCell>
-                      <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time_ms ? dayjs(info.clock_time_ms).format('MMM D, YYYY HH:mm:ss') : "No data received"}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-
-        <Box sx={{ mt: 4 }}>
-        <TextField
-          size="small"
-          variant="outlined"
-          label="Timestamp (localtime)"
-          value={timestampLocal}
-          onChange={(e) => {
-            setTimestampLocal(e.target.value);
-            hasUserEditedTimestamp.current = true;
-          }}
-        />
-        <Button
-          variant="text"
-          loading={updatingClock}
-          sx={{ ml: 2, textTransform: "none" }}
-          onClick={handlePostTimestamp}
-        >
-          Update clocks
-        </Button>
-      </Box>
-      </CardContent>
-    </Card>
-  );
-}
-
 function LeaderContainer({config}) {
   const leaderHostname = config?.["cluster.topology"]?.leader_hostname ?? null;
 
@@ -1123,14 +1087,14 @@ function LeaderContainer({config}) {
               xs: 12,
               sm: 12
             }}>
-            <LeaderJobs/>
+            <SystemSpaceCard/>
           </Grid>
           <Grid
             size={{
               xs: 12,
               sm: 12
             }}>
-            <ClusterClockCard leaderHostname={leaderHostname}/>
+            <LeaderJobs/>
           </Grid>
         </Grid>
 

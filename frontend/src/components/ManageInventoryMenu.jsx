@@ -7,10 +7,12 @@ import Menu from "@mui/material/Menu";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Divider from '@mui/material/Divider';
+import ClusterClockDialog from "./ClusterClockDialog";
 
 
-function ManageInventoryMenu(){
+function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [clockDialogOpen, setClockDialogOpen] = React.useState(false);
   const open = Boolean(anchorEl);
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -63,6 +65,11 @@ function ManageInventoryMenu(){
 
   };
 
+  const handleSyncClocks = () => {
+    handleClose();
+    setClockDialogOpen(true);
+  };
+
   return (
     <div>
       <Button
@@ -89,6 +96,11 @@ function ManageInventoryMenu(){
 
           <ListItemText>Unassign all workers</ListItemText>
         </MenuItem>
+        {showSyncClocks && (
+          <MenuItem onClick={handleSyncClocks}>
+            <ListItemText>Sync clocks</ListItemText>
+          </MenuItem>
+        )}
         <Divider/>
         <MenuItem onClick={handleReboot}>
           <ListItemText>Reboot all workers</ListItemText>
@@ -97,6 +109,11 @@ function ManageInventoryMenu(){
           <ListItemText>Shutdown all workers</ListItemText>
         </MenuItem>
       </Menu>
+      <ClusterClockDialog
+        open={clockDialogOpen}
+        onClose={() => setClockDialogOpen(false)}
+        leaderHostname={leaderHostname}
+      />
     </div>
   );
 }

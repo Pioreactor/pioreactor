@@ -3,6 +3,7 @@ import ast
 import configparser
 import json
 import os
+import shutil
 import zipfile
 from copy import copy
 from functools import wraps
@@ -558,6 +559,113 @@ def repair_system() -> DelayedResponseReturnValue:
 
     task = tasks.repair_system()
     return create_task_response(task)
+
+
+@unit_api_bp.route("/system/disk_space", methods=["GET"])
+def get_disk_space() -> ResponseReturnValue:
+    """
+    Return this unit's root filesystem disk space.
+    """
+    usage = shutil.disk_usage("/")
+    return attach_cache_control(
+        jsonify(
+            {
+                "available_bytes": usage.free,
+                "total_bytes": usage.total,
+            }
+        ),
+        max_age=3,
+    )
+
+
+@unit_api_bp.route("/system/memory", methods=["GET"])
+def get_memory() -> ResponseReturnValue:
+    """
+    Return this unit's memory availability.
+    """
+    available_bytes, total_bytes = read_memory_stats()
+    return attach_cache_control(
+        jsonify(
+            {
+                "available_bytes": available_bytes,
+                "total_bytes": total_bytes,
+            }
+        ),
+        max_age=3,
+    )
+
+
+def read_memory_stats(meminfo_path: Path = Path("/proc/meminfo")) -> tuple[int, int]:
+    if meminfo_path.exists():
+        meminfo = _read_meminfo(meminfo_path)
+        if "MemAvailable" in meminfo and "MemTotal" in meminfo:
+            return meminfo["MemAvailable"], meminfo["MemTotal"]
+
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    total_pages = os.sysconf("SC_PHYS_PAGES")
+    total_bytes = total_pages * page_size
+
+    available_pages = get_available_memory_pages_from_sysconf()
+    if available_pages is not None:
+        return available_pages * page_size, total_bytes
+
+    available_bytes = read_available_memory_bytes_from_vm_stat()
+    if available_bytes is not None:
+        return available_bytes, total_bytes
+
+    return total_bytes, total_bytes
+
+
+def get_available_memory_pages_from_sysconf() -> int | None:
+    if "SC_AVPHYS_PAGES" not in os.sysconf_names:
+        return None
+
+    try:
+        return os.sysconf("SC_AVPHYS_PAGES")
+    except ValueError:
+        return None
+
+
+def read_available_memory_bytes_from_vm_stat() -> int | None:
+    try:
+        result = run(["vm_stat"], capture_output=True, text=True)
+    except FileNotFoundError:
+        return None
+
+    if result.returncode != 0:
+        return None
+
+    page_size = None
+    available_pages = 0
+
+    for line in result.stdout.splitlines():
+        if line.startswith("Mach Virtual Memory Statistics:"):
+            _, _, page_size_text = line.partition("page size of ")
+            page_size = int(page_size_text.split()[0]) if page_size_text else None
+            continue
+
+        key, _, value = line.partition(":")
+        if key not in {"Pages free", "Pages inactive", "Pages speculative"}:
+            continue
+        available_pages += int(value.strip().rstrip("."))
+
+    if page_size is None or available_pages == 0:
+        return None
+
+    return available_pages * page_size
+
+
+def _read_meminfo(meminfo_path: Path) -> dict[str, int]:
+    meminfo: dict[str, int] = {}
+
+    for line in meminfo_path.read_text(encoding="utf-8").splitlines():
+        key, _, value = line.partition(":")
+        parts = value.strip().split()
+        if len(parts) < 2 or parts[1] != "kB":
+            continue
+        meminfo[key] = int(parts[0]) * 1024
+
+    return meminfo
 
 
 @unit_api_bp.route("/system/remove_file", methods=["POST", "PATCH"])
