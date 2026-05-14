@@ -57,6 +57,8 @@ function getUsbNavLabel(status) {
       return "USB mounted";
     case "unsupported":
       return "USB unsupported";
+    case "multiple_present":
+      return "USBs present";
     default:
       return "USB detected";
   }
@@ -69,7 +71,7 @@ function getUsbNavColor(status) {
       return "#2FBB39";
     case "unsupported":
     case "multiple_present":
-      return "#fcdf53";
+      return disconnectedGrey;
     default:
       return disconnectedGrey;
   }

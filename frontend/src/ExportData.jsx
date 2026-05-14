@@ -22,6 +22,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useLocation } from "react-router";
 import { fetchTaskResult } from "./utils/tasks";
 import Snackbar from './components/Snackbar';
+import SelectButton from "./components/SelectButton";
 
 
 const datasetDescription = {
@@ -358,7 +359,10 @@ function ExportDataContainer() {
   const [isRunning, setIsRunning] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
+  const [snackbarMsg, setSnackbarMsg] = React.useState("")
   const [datasets, setDatasets] = React.useState([])
+  const [usbStatus, setUsbStatus] = React.useState(null)
+  const [exportDestination, setExportDestination] = React.useState("download")
 
   const [state, setState] = React.useState(() => parseExportStateFromSearch(location.search));
 
@@ -394,6 +398,40 @@ function ExportDataContainer() {
     getDatasets()
   }, [])
 
+  React.useEffect(() => {
+    let isActive = true;
+
+    async function getUsbStatus() {
+      try {
+        const response = await fetch("/unit_api/usb");
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        if (isActive) {
+          setUsbStatus(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch USB status:", error);
+      }
+    }
+
+    getUsbStatus();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const hasWritableUsb = Boolean(usbStatus?.active_mount?.writable);
+
+  React.useEffect(() => {
+    if (!hasWritableUsb && exportDestination === "usb") {
+      setExportDestination("download");
+    }
+  }, [hasWritableUsb, exportDestination]);
+
   const onSubmit =  async (event) => {
     event.preventDefault();
 
@@ -408,9 +446,18 @@ function ExportDataContainer() {
 
     setIsRunning(true);
     setSnackbarOpen(true);
+    setSnackbarMsg(
+      exportDestination === "usb"
+        ? "Export started. Keep this page open; data will be saved to the mounted USB drive."
+        : "Export started. Keep this page open; your download will begin automatically when it's ready."
+    );
     setErrorMsg("");
     try {
-      const finalPayload = await fetchTaskResult('/api/datasets/exportable/export', {
+      const exportEndpoint = exportDestination === "usb"
+        ? "/api/datasets/exportable/export-to-usb"
+        : "/api/datasets/exportable/export";
+
+      const finalPayload = await fetchTaskResult(exportEndpoint, {
         maxRetries: 500,
         delayMs: 1000,
         fetchOptions: {
@@ -434,13 +481,18 @@ function ExportDataContainer() {
         throw new Error("Export failed. Check system logs.");
       }
 
-      var link = document.createElement("a");
-      const encodedFilename = filename.replace(/%/g, "%25")
-      link.setAttribute('export', encodedFilename);
-      link.href = "/exports/" + encodedFilename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      if (exportDestination === "usb") {
+        setSnackbarMsg(`Export saved to USB as ${filename}.`);
+        return;
+      } else {
+        var link = document.createElement("a");
+        const encodedFilename = filename.replace(/%/g, "%25")
+        link.setAttribute('download', encodedFilename);
+        link.href = "/exports/" + encodedFilename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
     } catch(e) {
       setErrorMsg(e.message || "Server error occurred. Check system logs.")
       console.log(e)
@@ -479,6 +531,10 @@ function ExportDataContainer() {
     setSnackbarOpen(false);
   }
 
+  function handleExportDestinationChange(event) {
+    setExportDestination(event.target.value);
+  }
+
   const errorFeedbackOrDefault = errorMsg ? <Alert severity="error">{errorMsg}</Alert>: ""
   const selectedDatasetsCount = state.selectedDatasets.length;
   const experimentSelectionCount = state.experimentSelection.length;
@@ -492,19 +548,36 @@ function ExportDataContainer() {
             </Box>
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-            <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                loading={isRunning}
-                loadingPosition="end"
+            {hasWritableUsb ? (
+              <SelectButton
+                value={exportDestination}
+                onChange={handleExportDestinationChange}
                 onClick={onSubmit}
                 endIcon={<DownloadIcon />}
-                disabled={(selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
-                style={{textTransform: 'none'}}
+                disabled={isRunning || (selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
               >
-                Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
-            </Button>
+                <MenuItem value="download">
+                  Export
+                </MenuItem>
+                <MenuItem value="usb">
+                  Export to USB
+                </MenuItem>
+              </SelectButton>
+            ) : (
+              <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  loading={isRunning}
+                  loadingPosition="end"
+                  onClick={onSubmit}
+                  endIcon={<DownloadIcon />}
+                  disabled={(selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
+                  style={{textTransform: 'none'}}
+                >
+                  Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
+              </Button>
+            )}
           </Box>
         </Box>
       <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
@@ -617,7 +690,8 @@ function ExportDataContainer() {
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
-        message="Export started. Keep this page open; your download will begin automatically when it's ready."
+        message={snackbarMsg}
+        persist
         key="export-data-running-snackbar"
       />
     </React.Fragment>
