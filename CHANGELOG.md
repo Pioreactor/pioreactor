@@ -1,3 +1,10 @@
+### Upcoming
+
+#### Enhancements
+
+ - Moved **Cluster clocks** from the Leader page into Inventory's **Manage inventory** menu as **Sync clocks**.
+ - Added a Leader **System space** card that shows available disk space and memory, with warning-colored progress bars when available space is below 20%.
+
 ### 26.5.1
 
 #### Enhancements
