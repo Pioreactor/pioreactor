@@ -145,7 +145,7 @@ def eject_usb_partition(partition: UsbPartition) -> None:
         subprocess.run(["sudo", "umount", mountpoint], check=True)
 
     if partition.parent_device and shutil.which("udisksctl"):
-        subprocess.run(["udisksctl", "power-off", "-b", partition.parent_device], check=True)
+        subprocess.run(["sudo", "udisksctl", "power-off", "-b", partition.parent_device], check=True)
     elif partition.parent_device and shutil.which("eject"):
         subprocess.run(["sudo", "eject", partition.parent_device], check=True)
 

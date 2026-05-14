@@ -120,6 +120,37 @@ def test_mount_usb_partition_uses_user_writable_options_for_vfat(tmp_path: Path,
     ]
 
 
+def test_eject_usb_partition_runs_udisksctl_through_sudo(monkeypatch) -> None:
+    commands: list[list[str]] = []
+    partition = usb_utils.UsbPartition(
+        device="/dev/sda1",
+        parent_device="/dev/sda",
+        label="PRUSA3D",
+        uuid="1C2C-7EA6",
+        fstype="vfat",
+        size_bytes=1000,
+        mountpoints=("/run/pioreactor/usb/usb-1C2C-7EA6",),
+        removable=True,
+    )
+
+    def fake_run(command: list[str], **kwargs) -> DummyCompletedProcess:
+        commands.append(command)
+        return DummyCompletedProcess()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        usb_utils.shutil, "which", lambda name: f"/usr/bin/{name}" if name == "udisksctl" else None
+    )
+
+    usb_utils.eject_usb_partition(partition)
+
+    assert commands == [
+        ["sync"],
+        ["sudo", "umount", "/run/pioreactor/usb/usb-1C2C-7EA6"],
+        ["sudo", "udisksctl", "power-off", "-b", "/dev/sda"],
+    ]
+
+
 def test_pio_usb_scan_prints_update_artifacts(tmp_path: Path, monkeypatch) -> None:
     mount_root = tmp_path / "run" / "pioreactor" / "usb"
     mountpoint = mount_root / "usb-7A2B-91FE"
