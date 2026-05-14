@@ -1132,6 +1132,49 @@ def test_pios_run_requests_with_config_override() -> None:
     )
 
 
+def test_pios_cp_copies_to_same_path_when_target_is_omitted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    copied: list[tuple[str, str, str, int]] = []
+    source = tmp_path / "plugin.whl"
+    source.write_text("wheel", encoding="utf-8")
+
+    def fake_cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int) -> None:
+        copied.append((unit, localpath, remotepath, timeout))
+
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.resolve_all_worker_units", lambda _units, _experiments: ("unit1",)
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.cp_file_across_cluster", fake_cp_file_across_cluster)
+
+    runner = CliRunner()
+    result = runner.invoke(pios, ["cp", source.as_posix(), "--units", "unit1", "-y"])
+
+    assert result.exit_code == 0
+    assert copied == [("unit1", source.as_posix(), source.as_posix(), 15)]
+
+
+def test_pios_cp_copies_to_explicit_target(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    copied: list[tuple[str, str, str, int]] = []
+    source = tmp_path / "plugin.whl"
+    target = "/tmp/plugin.whl"
+    source.write_text("wheel", encoding="utf-8")
+
+    def fake_cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int) -> None:
+        copied.append((unit, localpath, remotepath, timeout))
+
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.resolve_all_worker_units", lambda _units, _experiments: ("unit1",)
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.cp_file_across_cluster", fake_cp_file_across_cluster)
+
+    runner = CliRunner()
+    result = runner.invoke(pios, ["cp", source.as_posix(), target, "--units", "unit1", "-y"])
+
+    assert result.exit_code == 0
+    assert copied == [("unit1", source.as_posix(), target, 15)]
+
+
 def test_pios_update_requires_explicit_subcommand() -> None:
     runner = CliRunner()
     git_sha = "a0b1c2d3"

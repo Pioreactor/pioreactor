@@ -58,6 +58,7 @@ from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils import usb as usb_utils
+from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.version import hardware_version_info
@@ -992,6 +993,47 @@ def install_plugin_from_usb_task(filepath: str) -> bool:
     except Exception as exc:
         logger.debug(f"Installing plugin from USB {plugin_path} failed: {exc}")
         return False
+
+
+@huey.task()
+@huey.rate_limit("plugins", limit=1, per=10, retry=False)
+@huey.lock_task("plugins-lock")
+@huey.lock_task("usb-lock")
+def install_plugin_from_leader_usb_on_worker_task(unit: pt.Unit, filepath: str) -> dict[str, Any]:
+    plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
+    plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+    remote_source = f"/tmp/{plugin_path.name}"
+
+    logger.debug(f"Copying USB plugin {plugin_path} to {unit}:{remote_source}.")
+    cp_file_across_cluster(unit, plugin_path.as_posix(), remote_source, timeout=60)
+
+    payload = {"args": [plugin_name], "options": {"source": remote_source}}
+    logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
+    response = post_into(resolve_to_address(unit), "/unit_api/plugins/install", json=payload, timeout=60)
+    response.raise_for_status()
+
+    return {
+        "result": True,
+        "unit": unit,
+        "plugin": plugin_name,
+        "source": remote_source,
+        "install_response": response.json(),
+    }
+
+
+def install_plugin_from_leader_usb_across_units(units: list[str], filepath: str, leader: str) -> Any:
+    if not units:
+        return reduce_multicast_results(units, False, [])
+
+    task_signatures = [
+        (
+            install_plugin_from_usb_task.s(filepath)
+            if unit == leader
+            else install_plugin_from_leader_usb_on_worker_task.s(unit, filepath)
+        )
+        for unit in units
+    ]
+    return _enqueue_multicast_chord(task_signatures, units, False)
 
 
 @huey.task()

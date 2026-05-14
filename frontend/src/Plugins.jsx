@@ -9,7 +9,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
-import {Typography} from '@mui/material';
+import {Alert, Typography} from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Snackbar from './components/Snackbar';
 import List from '@mui/material/List';
@@ -346,6 +346,180 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
 }
 
 
+function ListUsbPlugins({selectedUnit, installedPlugins, hasMultipleUnits}){
+  const [usbName, setUsbName] = React.useState("")
+  const [usbPlugins, setUsbPlugins] = React.useState([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState("")
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false)
+  const [snackbarMsg, setSnackbarMsg] = React.useState("")
+
+  React.useEffect(() => {
+    let isActive = true
+
+    async function getUsbPlugins() {
+      setIsLoading(true)
+      setError("")
+
+      try {
+        const statusResponse = await fetch("/unit_api/usb")
+
+        if (!statusResponse.ok) {
+          throw new Error(`Unable to load USB status (HTTP ${statusResponse.status}).`)
+        }
+
+        const status = await statusResponse.json()
+        const activeMount = status?.active_mount
+
+        if (!activeMount?.mountpoint || status.status !== "mounted") {
+          if (isActive) {
+            setUsbName("")
+            setUsbPlugins([])
+          }
+          return
+        }
+
+        const artifactsResponse = await fetch("/unit_api/usb/artifacts")
+
+        if (!artifactsResponse.ok) {
+          throw new Error(`Unable to scan USB plugins (HTTP ${artifactsResponse.status}).`)
+        }
+
+        const artifacts = await artifactsResponse.json()
+
+        if (!isActive) {
+          return
+        }
+
+        setUsbName(activeMount.display_name || "USB")
+        setUsbPlugins(Array.isArray(artifacts?.plugins) ? artifacts.plugins : [])
+      } catch (err) {
+        if (!isActive) {
+          return
+        }
+
+        console.error("Error getting USB plugins:", err)
+        setUsbName("")
+        setUsbPlugins([])
+        setError(err instanceof Error ? err.message : "Failed to load USB plugins.")
+      } finally {
+        if (isActive) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    getUsbPlugins()
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  const installPlugin = async (name, plugin)  => {
+    setSnackbarOpen(true);
+    setSnackbarMsg(`Installing ${plugin.name} from USB to ${name === '$broadcast' ? "all units" : name} in the background - this may take a minute...`);
+    try {
+      const response = await fetch(`/api/units/${name}/plugins/install-from-leader-usb`, {
+        method: "POST",
+        body: JSON.stringify({filepath: plugin.path}),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to start USB plugin install (HTTP ${response.status}).`)
+      }
+    } catch (err) {
+      console.error("Error installing USB plugin:", err)
+      setSnackbarMsg(err instanceof Error ? err.message : "Failed to start USB plugin install.")
+    }
+  }
+
+  const handleSnackbarClose = (_event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false)
+  }
+
+  if (isLoading) {
+    return null
+  }
+
+  if (error) {
+    return (
+      <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    )
+  }
+
+  if (!selectedUnit || usbPlugins.length === 0) {
+    return null
+  }
+
+  return (
+    <React.Fragment>
+      <Typography variant="h6" component="h3">
+        Plugins found on USB {usbName}
+      </Typography>
+
+      <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
+        <List>
+          {usbPlugins.map((plugin) => {
+            const label = `${plugin.name}${plugin.version ? " (" + plugin.version + ")" : ""}`
+            const isInstalled = installedPlugins.includes(plugin.name)
+
+            return (
+              <ListItem key={plugin.path}>
+                <ListItemAvatar>
+                  <Avatar name={plugin.name+"usb"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={label}
+                  slotProps={{ primary: { style: { fontSize: '0.95rem' } } }}
+                  secondary={plugin.path}
+                  style={{maxWidth: "525px"}}
+                />
+                <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
+                  <SelectButton
+                    variant="contained"
+                    color="primary"
+                    aria-label="install USB plugin"
+                    value={selectedUnit}
+                    onClick={(e) => installPlugin(e.target.value, plugin)}
+                    style={{textTransform: 'none'}}
+                    sx={{ml: "3px"}}
+                    disabled={isInstalled}
+                  >
+                    <MenuItem value={selectedUnit}>{isInstalled ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
+                    {hasMultipleUnits && (
+                      <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
+                    )}
+                  </SelectButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            )
+          })}
+        </List>
+      </Box>
+
+      <Snackbar
+        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        message={snackbarMsg}
+        autoHideDuration={10000}
+        key="snackbar-usb-plugins"
+      />
+    </React.Fragment>
+  )
+}
+
+
 function PluginContainer(){
 
   const {pioreactorUnit} = useParams();
@@ -548,6 +722,8 @@ function PluginContainer(){
           {!unitsFetchError && isFetchComplete && !installedPluginsFetchError && (
            <ListInstalledPlugins  selectedUnit={selectedUnit} installedPlugins={installedPlugins}/>
           )}
+
+        <ListUsbPlugins selectedUnit={selectedUnit} installedPlugins={installedPlugins.map(p => p.name)} hasMultipleUnits={units.length > 1}/>
 
         <Typography variant="h6" component="h3">
           Suggested plugins from the community

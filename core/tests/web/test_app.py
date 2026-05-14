@@ -1127,6 +1127,70 @@ def test_install_plugin_from_usb_rejects_broadcast(client: FlaskClient) -> None:
     assert response.status_code == 400
 
 
+def test_install_plugin_from_leader_usb_targets_selected_unit(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_install_plugin_from_leader_usb_across_units(units: list[str], filepath: str, leader: str) -> str:
+        captured["units"] = units
+        captured["filepath"] = filepath
+        captured["leader"] = leader
+        return "task"
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.tasks.install_plugin_from_leader_usb_across_units",
+        fake_install_plugin_from_leader_usb_across_units,
+    )
+    monkeypatch.setattr("pioreactor.web.api.get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.post(
+        "/api/units/unit1/plugins/install-from-leader-usb",
+        json={"filepath": "/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl"},
+    )
+
+    assert response.status_code == 202
+    assert response.get_json() == {"task": "task"}
+    assert captured == {
+        "units": ["unit1"],
+        "filepath": "/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl",
+        "leader": "leader",
+    }
+
+
+def test_install_plugin_from_leader_usb_accepts_broadcast(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_install_plugin_from_leader_usb_across_units(units: list[str], filepath: str, leader: str) -> str:
+        captured["units"] = units
+        captured["filepath"] = filepath
+        captured["leader"] = leader
+        return "task"
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.tasks.install_plugin_from_leader_usb_across_units",
+        fake_install_plugin_from_leader_usb_across_units,
+    )
+    monkeypatch.setattr("pioreactor.web.api.get_all_units", lambda: ["leader", "unit1"])
+    monkeypatch.setattr("pioreactor.web.api.get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.post(
+        "/api/units/$broadcast/plugins/install-from-leader-usb",
+        json={"filepath": "/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl"},
+    )
+
+    assert response.status_code == 202
+    assert captured == {
+        "units": ["leader", "unit1"],
+        "filepath": "/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl",
+        "leader": "leader",
+    }
+
+
 def test_preview_exportable_dataset_uses_default_row_limit(
     client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:

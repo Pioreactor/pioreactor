@@ -2443,6 +2443,40 @@ def install_plugin_from_usb_on_machine(pioreactor_unit: str) -> DelayedResponseR
     )
 
 
+@api_bp.route("/units/<pioreactor_unit>/plugins/install-from-leader-usb", methods=["POST", "PATCH"])
+def install_plugin_from_leader_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    """
+    Install one wheel plugin from the leader's Pioreactor-managed USB mount onto selected unit(s).
+
+    JSON body:
+    {
+      "filepath": "/run/pioreactor/usb/.../pioreactor_foo-1.0.0-py3-none-any.whl"
+    }
+    """
+    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
+        abort_with(403, "Not UI installed allowed.")
+
+    body = request.get_json(silent=True) or {}
+    filepath = body.get("filepath")
+    if not isinstance(filepath, str) or not filepath:
+        abort_with(
+            400,
+            "filepath is required",
+            cause="No leader USB plugin filepath provided.",
+            remediation="Provide filepath for a .whl file on the leader's Pioreactor-managed USB mount.",
+        )
+
+    units = get_all_units() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
+    cache.invalidate_multicast_get_cache(
+        [cache.PLUGINS_INSTALLED, cache.CALIBRATION_PROTOCOLS],
+        units,
+    )
+
+    return create_task_response(
+        tasks.install_plugin_from_leader_usb_across_units(units, filepath, get_leader_hostname())
+    )
+
+
 @api_bp.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """

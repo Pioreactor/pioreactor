@@ -414,39 +414,49 @@ if am_I_leader() or is_testing_env():
         return
 
     @pios.command("cp", short_help="copy a local file from leader to workers")
-    @click.argument("filepath", type=click.Path(exists=True, resolve_path=True))
+    @click.argument("src", type=click.Path(exists=True, resolve_path=True))
+    @click.argument("target", required=False)
     @which_units
     @confirmation
     def cp(
-        filepath: str,
+        src: str,
+        target: str | None,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
         yes: bool,
     ) -> None:
         """
-        Copy a local file from the leader onto workers at the same path.
+        Copy a local file from the leader onto workers.
+
+        If TARGET is omitted, copy SRC onto each worker at the same path.
 
         \b
         Examples:
           pios cp /home/pioreactor/.pioreactor/config.ini --units worker1
+          pios cp /run/pioreactor/usb/plugin.whl /tmp/plugin.whl --units worker1
           pios cp /home/pioreactor/.pioreactor/plugins/my_plugin.py
         """
         units = resolve_all_worker_units(units, experiments)
+        remotepath = target or src
 
         if len(units) == 0:
             return
 
         if not yes:
-            confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip().upper()
+            if remotepath == src:
+                prompt = f"Confirm copying {src} onto {units}? Y/n: "
+            else:
+                prompt = f"Confirm copying {src} to {remotepath} on {units}? Y/n: "
+            confirm = input(prompt).strip().upper()
             if confirm != "Y":
                 raise click.Abort()
 
         logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         def _thread_function(unit: str) -> bool:
-            logger.debug(f"Copying {filepath} to {unit}:{filepath}...")
+            logger.debug(f"Copying {src} to {unit}:{remotepath}...")
             try:
-                cp_file_across_cluster(unit, filepath, filepath, timeout=15)
+                cp_file_across_cluster(unit, src, remotepath, timeout=15)
                 return True
             except Exception as e:
                 logger.error(f"Error occurred copying to {unit}. See logs for more.")
