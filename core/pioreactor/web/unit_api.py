@@ -91,9 +91,6 @@ register_calibration_session_routes(unit_api_bp)
 
 @unit_api_bp.route("/usb", methods=["GET"])
 def get_usb_status() -> ResponseReturnValue:
-    if whoami.is_testing_env():
-        return jsonify(usb_utils.get_fake_usb_status().as_dict())
-
     return jsonify(usb_utils.get_usb_status().as_dict())
 
 
@@ -115,9 +112,7 @@ def eject_usb() -> DelayedResponseReturnValue:
 def get_usb_artifacts() -> ResponseReturnValue:
     try:
         scan = usb_utils.scan_usb_mount(usb_utils.choose_usb_mountpoint())
-    except OSError as exc:
-        abort_with(400, str(exc))
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         abort_with(400, str(exc))
 
     return jsonify(scan.as_dict())

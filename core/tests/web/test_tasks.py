@@ -532,7 +532,7 @@ def test_install_plugin_from_usb_task_installs_resolved_wheel(
     monkeypatch.setattr("pioreactor.plugin_management.install_plugin.install_plugin", fake_install_plugin)
 
     assert tasks.install_plugin_from_usb_task.call_local(wheel.as_posix()) is True
-    assert installed == {"name": wheel.stem, "source": wheel.as_posix()}
+    assert installed == {"name": "pioreactor-demo", "source": wheel.as_posix()}
     _clear_rate_limit("plugins")
 
 

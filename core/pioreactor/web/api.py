@@ -2328,28 +2328,26 @@ def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> 
 ## PLUGINS
 
 
-@api_bp.route("/units/<pioreactor_unit>/usb", methods=["GET"])
-def get_usb_status_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+def abort_if_usb_target_is_broadcast(pioreactor_unit: str, operation: str = "USB operations") -> None:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
-            "USB operations target one Pioreactor at a time.",
+            f"{operation} target one Pioreactor at a time.",
             cause="USB state is local to the Pioreactor with the attached USB drive.",
             remediation="Choose a specific Pioreactor unit.",
         )
+
+
+@api_bp.route("/units/<pioreactor_unit>/usb", methods=["GET"])
+def get_usb_status_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    abort_if_usb_target_is_broadcast(pioreactor_unit)
 
     return create_task_response(tasks.multicast_get("/unit_api/usb", [pioreactor_unit], timeout=5))
 
 
 @api_bp.route("/units/<pioreactor_unit>/usb/mount", methods=["POST"])
 def mount_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(
-            400,
-            "USB operations target one Pioreactor at a time.",
-            cause="USB state is local to the Pioreactor with the attached USB drive.",
-            remediation="Choose a specific Pioreactor unit.",
-        )
+    abort_if_usb_target_is_broadcast(pioreactor_unit)
 
     return create_task_response(
         tasks.multicast_post(
@@ -2362,13 +2360,7 @@ def mount_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/units/<pioreactor_unit>/usb/eject", methods=["POST"])
 def eject_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(
-            400,
-            "USB operations target one Pioreactor at a time.",
-            cause="USB state is local to the Pioreactor with the attached USB drive.",
-            remediation="Choose a specific Pioreactor unit.",
-        )
+    abort_if_usb_target_is_broadcast(pioreactor_unit)
 
     return create_task_response(
         tasks.multicast_post(
@@ -2381,13 +2373,7 @@ def eject_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/units/<pioreactor_unit>/usb/artifacts", methods=["GET"])
 def get_usb_artifacts_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(
-            400,
-            "USB operations target one Pioreactor at a time.",
-            cause="USB state is local to the Pioreactor with the attached USB drive.",
-            remediation="Choose a specific Pioreactor unit.",
-        )
+    abort_if_usb_target_is_broadcast(pioreactor_unit)
 
     return create_task_response(tasks.multicast_get("/unit_api/usb/artifacts", [pioreactor_unit], timeout=5))
 
@@ -2440,13 +2426,7 @@ def install_plugin_from_usb_on_machine(pioreactor_unit: str) -> DelayedResponseR
       "filepath": "/run/pioreactor/usb/.../pioreactor_foo-1.0.0-py3-none-any.whl"
     }
     """
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(
-            400,
-            "USB plugin installs target one Pioreactor at a time.",
-            cause="USB plugin installs use the USB mounted on the selected Pioreactor.",
-            remediation="Choose a specific Pioreactor unit.",
-        )
+    abort_if_usb_target_is_broadcast(pioreactor_unit, operation="USB plugin installs")
 
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "Not UI installed allowed.")

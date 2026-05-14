@@ -82,38 +82,6 @@ def _format_usb_partition_for_log(partition: usb_utils.UsbPartition) -> str:
     return f"{partition.display_name} ({partition.device})"
 
 
-def _format_usb_path_for_log(path: Path) -> str:
-    try:
-        resolved_path = path.resolve()
-    except OSError:
-        resolved_path = path
-
-    try:
-        for partition in usb_utils.find_mounted_pioreactor_usb_partitions():
-            for mountpoint in partition.mountpoints:
-                mountpoint_path = Path(mountpoint)
-                try:
-                    resolved_mountpoint = mountpoint_path.resolve()
-                except OSError:
-                    resolved_mountpoint = mountpoint_path
-                if resolved_path == resolved_mountpoint or _is_relative_to(
-                    resolved_path, resolved_mountpoint
-                ):
-                    return _format_usb_partition_for_log(partition)
-    except Exception:
-        pass
-
-    return path.as_posix()
-
-
-def _is_relative_to(path: Path, parent: Path) -> bool:
-    try:
-        path.relative_to(parent)
-        return True
-    except ValueError:
-        return False
-
-
 def register_calibration_action(
     action: str,
     handler: Callable[[dict[str, Any]], CalibrationActionHandler],
@@ -856,15 +824,6 @@ def export_experiment_data_task(
 @huey.task()
 @huey.lock_task("usb-lock")
 def mount_usb_task(device: str | None = None) -> dict[str, Any]:
-    if whoami.is_testing_env():
-        return {
-            "result": True,
-            "device": device or "/dev/sda1",
-            "display_name": "PIOREACTOR",
-            "mountpoint": "/run/pioreactor/usb/usb-7A2B-91FE",
-            "msg": "Mounted",
-        }
-
     partition = usb_utils.choose_usb_partition(device)
     logger.debug(f"Mounting USB {_format_usb_partition_for_log(partition)}.")
     mountpoint = usb_utils.mount_usb_partition(partition)
@@ -881,14 +840,6 @@ def mount_usb_task(device: str | None = None) -> dict[str, Any]:
 @huey.task()
 @huey.lock_task("usb-lock")
 def eject_usb_task(device: str | None = None) -> dict[str, Any]:
-    if whoami.is_testing_env():
-        return {
-            "result": True,
-            "device": device or "/dev/sda1",
-            "display_name": "PIOREACTOR",
-            "msg": "Ejected",
-        }
-
     partition = usb_utils.choose_usb_partition(device, require_mounted=True)
     display_name = partition.display_name
     logger.debug(f"Ejecting USB {_format_usb_partition_for_log(partition)}.")
@@ -929,8 +880,7 @@ def export_experiment_data_to_usb_task(
     output_dir = usb_utils.get_usb_export_directory()
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / filename
-    usb_name = _format_usb_path_for_log(output_dir)
-    logger.debug(f"Exporting experiment data to USB {usb_name}.")
+    logger.debug(f"Exporting experiment data to USB {output_dir}.")
 
     try:
         cleanup_stale_export_artifacts(output_dir, logger)
@@ -945,7 +895,7 @@ def export_experiment_data_to_usb_task(
         )
     except Exception as exc:
         error = str(exc) or exc.__class__.__name__
-        logger.error(f"Exporting experiment data to USB {usb_name} failed: {error}", exc_info=True)
+        logger.error(f"Exporting experiment data to USB {output_dir} failed: {error}", exc_info=True)
         raise
 
     return {
@@ -1034,13 +984,13 @@ def install_plugin_from_usb_task(filepath: str) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
     plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
-    usb_name = _format_usb_path_for_log(plugin_path)
-    logger.debug(f"Installing plugin from USB {usb_name}: {plugin_path}.")
+    plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+    logger.debug(f"Installing plugin from USB {plugin_path}.")
     try:
-        install_plugin(plugin_path.stem, source=plugin_path.as_posix())
+        install_plugin(plugin_name, source=plugin_path.as_posix())
         return True
     except Exception as exc:
-        logger.debug(f"Installing plugin from USB {usb_name} failed: {exc}")
+        logger.debug(f"Installing plugin from USB {plugin_path} failed: {exc}")
         return False
 
 

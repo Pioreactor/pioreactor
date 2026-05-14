@@ -485,6 +485,7 @@ function ExportDataContainer() {
         setSnackbarMsg(`Export saved to USB as ${filename}.`);
         return;
       } else {
+        setSnackbarOpen(false);
         var link = document.createElement("a");
         const encodedFilename = filename.replace(/%/g, "%25")
         link.setAttribute('download', encodedFilename);
@@ -572,7 +573,7 @@ function ExportDataContainer() {
                   loadingPosition="end"
                   onClick={onSubmit}
                   endIcon={<DownloadIcon />}
-                  disabled={(selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
+                  disabled={isRunning || (selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
                   style={{textTransform: 'none'}}
                 >
                   Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
@@ -691,7 +692,7 @@ function ExportDataContainer() {
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMsg}
-        persist
+        persist={isRunning}
         key="export-data-running-snackbar"
       />
     </React.Fragment>

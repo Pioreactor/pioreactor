@@ -106,42 +106,6 @@ class UsbStatus(msgspec.Struct, frozen=True):
         return payload
 
 
-def get_fake_usb_status() -> UsbStatus:
-    mounted = UsbPartition(
-        device="/dev/sda1",
-        parent_device="/dev/sda",
-        label="PIOREACTOR",
-        uuid="7A2B-91FE",
-        fstype="exfat",
-        size_bytes=31_000_000_000,
-        mountpoints=("/run/pioreactor/usb/usb-7A2B-91FE",),
-        removable=True,
-    )
-    detected = UsbPartition(
-        device="/dev/sdb1",
-        parent_device="/dev/sdb",
-        label="LAB-EXPORTS",
-        uuid="B8E1-4C91",
-        fstype="vfat",
-        size_bytes=15_500_000_000,
-        mountpoints=(),
-        removable=True,
-    )
-    active_mount = mounted.as_dict()
-    active_mount["mountpoint"] = mounted.mountpoints[0]
-    active_mount["writable"] = True
-    active_mount["free_bytes"] = 24_000_000_000
-
-    return UsbStatus(
-        status="mounted",
-        partitions=(
-            _partition_status_as_dict(mounted),
-            _partition_status_as_dict(detected),
-        ),
-        active_mount=active_mount,
-    )
-
-
 def discover_usb_partitions() -> list[UsbPartition]:
     result = subprocess.run(
         [
@@ -472,13 +436,13 @@ def _find_plugin_wheels(mountpoint: Path) -> list[tuple[Path, str, str | None]]:
             if path in seen:
                 continue
             seen.add(path)
-            name, version = _parse_wheel_name(path.name)
+            name, version = parse_wheel_name(path.name)
             plugins.append((path, name, version))
 
     return plugins
 
 
-def _parse_wheel_name(filename: str) -> tuple[str, str | None]:
+def parse_wheel_name(filename: str) -> tuple[str, str | None]:
     parts = filename.removesuffix(".whl").split("-")
     if len(parts) < 2:
         return filename.removesuffix(".whl").replace("_", "-"), None
