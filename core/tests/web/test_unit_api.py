@@ -146,6 +146,42 @@ def test_create_task_response_uses_chord_callback_id(client) -> None:
     assert response.get_json()["task_id"] == "callback-task"
 
 
+def test_get_usb_status_returns_status_payload(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class FakeUsbStatus:
+        def as_dict(self) -> dict[str, object]:
+            return {"status": "absent", "partitions": [], "active_mount": None}
+
+    monkeypatch.setattr(mod.usb_utils, "get_usb_status", lambda: FakeUsbStatus())
+
+    resp = client.get("/unit_api/usb")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "absent", "partitions": [], "active_mount": None}
+
+
+def test_usb_mount_schedules_task(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class DummyTask:
+        id = "mount-usb-task"
+
+    monkeypatch.setattr(mod.tasks, "mount_usb_task", lambda device=None: DummyTask())
+
+    resp = client.post("/unit_api/usb/mount", json={"device": "/dev/sda1"})
+
+    assert resp.status_code == 202
+    assert resp.get_json()["task_id"] == "mount-usb-task"
+
+
+def test_install_plugin_from_usb_requires_filepath(client) -> None:
+    resp = client.post("/unit_api/plugins/install-from-usb", json={})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "filepath is required"
+
+
 @pytest.mark.parametrize(
     "endpoint",
     ["/unit_api/system/reboot", "/unit_api/system/shutdown", "/unit_api/system/repair"],

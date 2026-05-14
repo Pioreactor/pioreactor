@@ -449,6 +449,91 @@ def test_export_experiment_data_task_logs_export_failures(
     assert logged_errors == [("Exporting experiment data failed: database is locked", True)]
 
 
+def test_mount_usb_task_mounts_selected_partition(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    partition = tasks.usb_utils.UsbPartition(
+        device="/dev/sda1",
+        parent_device="/dev/sda",
+        label="PIOREACTOR",
+        uuid="7A2B-91FE",
+        fstype="exfat",
+        size_bytes=1000,
+        mountpoints=(),
+        removable=True,
+    )
+    mountpoint = tmp_path / "usb-7A2B-91FE"
+
+    monkeypatch.setattr(tasks.usb_utils, "choose_usb_partition", lambda device=None: partition)
+    monkeypatch.setattr(tasks.usb_utils, "mount_usb_partition", lambda _partition: mountpoint)
+
+    result = tasks.mount_usb_task.call_local("/dev/sda1")
+
+    assert result == {
+        "result": True,
+        "device": "/dev/sda1",
+        "display_name": "PIOREACTOR",
+        "mountpoint": mountpoint.as_posix(),
+        "msg": "Mounted",
+    }
+
+
+def test_export_experiment_data_to_usb_task_writes_temp_then_renames(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    export_dir = tmp_path / "pioreactor" / "exports"
+
+    def fake_export_experiment_data(
+        experiments: list[str],
+        dataset_names: list[str],
+        output: str,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        partition_by_unit: bool = False,
+        partition_by_experiment: bool = True,
+    ) -> None:
+        Path(output).write_text("zip", encoding="utf-8")
+
+    monkeypatch.setattr(tasks.usb_utils, "get_usb_export_directory", lambda: export_dir)
+    monkeypatch.setattr(
+        "pioreactor.actions.leader.export_experiment_data.export_experiment_data",
+        fake_export_experiment_data,
+    )
+
+    result = tasks.export_experiment_data_to_usb_task.call_local(
+        ["exp1"],
+        ["od_readings"],
+        "export.zip",
+    )
+
+    assert result == {
+        "result": True,
+        "filename": "export.zip",
+        "path": (export_dir / "export.zip").as_posix(),
+        "msg": "Finished",
+    }
+    assert (export_dir / "export.zip").read_text(encoding="utf-8") == "zip"
+    assert not (export_dir / ".export.zip.tmp.zip").exists()
+
+
+def test_install_plugin_from_usb_task_installs_resolved_wheel(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _clear_rate_limit("plugins")
+    installed: dict[str, str | None] = {}
+    wheel = tmp_path / "pioreactor_demo-1.2.3-py3-none-any.whl"
+    wheel.write_text("wheel", encoding="utf-8")
+
+    def fake_install_plugin(name: str, source: str | None = None) -> None:
+        installed["name"] = name
+        installed["source"] = source
+
+    monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_wheel", lambda _filepath: wheel)
+    monkeypatch.setattr("pioreactor.plugin_management.install_plugin.install_plugin", fake_install_plugin)
+
+    assert tasks.install_plugin_from_usb_task.call_local(wheel.as_posix()) is True
+    assert installed == {"name": wheel.stem, "source": wheel.as_posix()}
+    _clear_rate_limit("plugins")
+
+
 def test_export_disk_space_preflight_rejects_low_space(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

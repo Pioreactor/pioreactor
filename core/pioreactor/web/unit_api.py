@@ -47,6 +47,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
 from pioreactor.version import __version__
@@ -86,6 +87,37 @@ BIOREACTOR_VARIABLE_UNITS = {
 
 # Register calibration session routes here to keep unit_api_bp ownership in this module.
 register_calibration_session_routes(unit_api_bp)
+
+
+@unit_api_bp.route("/usb", methods=["GET"])
+def get_usb_status() -> ResponseReturnValue:
+    return jsonify(usb_utils.get_usb_status().as_dict())
+
+
+@unit_api_bp.route("/usb/mount", methods=["POST"])
+def mount_usb() -> DelayedResponseReturnValue:
+    body = request.get_json(silent=True) or {}
+    task = tasks.mount_usb_task(body.get("device"))
+    return create_task_response(task)
+
+
+@unit_api_bp.route("/usb/eject", methods=["POST"])
+def eject_usb() -> DelayedResponseReturnValue:
+    body = request.get_json(silent=True) or {}
+    task = tasks.eject_usb_task(body.get("device"))
+    return create_task_response(task)
+
+
+@unit_api_bp.route("/usb/artifacts", methods=["GET"])
+def get_usb_artifacts() -> ResponseReturnValue:
+    try:
+        scan = usb_utils.scan_usb_mount(usb_utils.choose_usb_mountpoint())
+    except OSError as exc:
+        abort_with(400, str(exc))
+    except ValueError as exc:
+        abort_with(400, str(exc))
+
+    return jsonify(scan.as_dict())
 
 
 for rule, options, view_func in registered_unit_api_routes():
@@ -1331,6 +1363,38 @@ def install_plugin() -> DelayedResponseReturnValue:
 
     source = body.options.get("source")
     task = tasks.install_plugin_task(body.args[0], source=source)
+    return create_task_response(task)
+
+
+@unit_api_bp.route("/plugins/install-from-usb", methods=["POST", "PATCH"])
+def install_plugin_from_usb() -> DelayedResponseReturnValue:
+    """
+    Install one wheel plugin from a Pioreactor-managed USB mount.
+
+    JSON body:
+    {
+      "filepath": "/run/pioreactor/usb/.../pioreactor_foo-1.0.0-py3-none-any.whl"
+    }
+    """
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+        abort_with(
+            403,
+            "DISALLOW_UI_INSTALLS is present",
+            cause="Plugin installs are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
+        )
+
+    body = request.get_json(silent=True) or {}
+    filepath = body.get("filepath")
+    if not isinstance(filepath, str) or not filepath:
+        abort_with(
+            400,
+            "filepath is required",
+            cause="No USB plugin filepath provided.",
+            remediation="Provide filepath for a .whl file on a Pioreactor-managed USB mount.",
+        )
+
+    task = tasks.install_plugin_from_usb_task(filepath)
     return create_task_response(task)
 
 

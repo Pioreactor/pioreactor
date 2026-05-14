@@ -63,9 +63,19 @@ class UsbUpdateArchive(msgspec.Struct, frozen=True):
         return {"path": str(self.path), "version": self.version}
 
 
+class UsbPluginWheel(msgspec.Struct, frozen=True):
+    path: Path
+    name: str
+    version: str | None
+
+    def as_dict(self) -> dict[str, str | None]:
+        return {"path": str(self.path), "name": self.name, "version": self.version}
+
+
 class UsbScan(msgspec.Struct, frozen=True):
     mountpoint: Path
     updates: tuple[UsbUpdateArchive, ...]
+    plugins: tuple[UsbPluginWheel, ...]
     writable: bool
     free_bytes: int
 
@@ -73,9 +83,27 @@ class UsbScan(msgspec.Struct, frozen=True):
         return {
             "mountpoint": str(self.mountpoint),
             "updates": [update.as_dict() for update in self.updates],
+            "plugins": [plugin.as_dict() for plugin in self.plugins],
             "writable": self.writable,
             "free_bytes": self.free_bytes,
         }
+
+
+class UsbStatus(msgspec.Struct, frozen=True):
+    status: str
+    partitions: tuple[dict[str, Any], ...]
+    active_mount: dict[str, Any] | None
+    error: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        payload = {
+            "status": self.status,
+            "partitions": list(self.partitions),
+            "active_mount": self.active_mount,
+        }
+        if self.error is not None:
+            payload["error"] = self.error
+        return payload
 
 
 def discover_usb_partitions() -> list[UsbPartition]:
@@ -143,6 +171,12 @@ def eject_usb_partition(partition: UsbPartition) -> None:
     for mountpoint in partition.mountpoints:
         subprocess.run(["sync"], check=True)
         subprocess.run(["sudo", "umount", mountpoint], check=True)
+        mountpoint_path = Path(mountpoint)
+        if mountpoint_path.exists() and _is_relative_to(mountpoint_path, USB_MOUNT_ROOT):
+            try:
+                mountpoint_path.rmdir()
+            except OSError:
+                pass
 
     if partition.parent_device and shutil.which("udisksctl"):
         subprocess.run(["sudo", "udisksctl", "power-off", "-b", partition.parent_device], check=True)
@@ -162,13 +196,54 @@ def scan_usb_mount(mountpoint: Path) -> UsbScan:
             key=lambda update: update.path.name,
         )
     )
+    plugins = tuple(
+        UsbPluginWheel(path=path, name=name, version=version)
+        for path, name, version in _find_plugin_wheels(mountpoint)
+    )
     usage = shutil.disk_usage(mountpoint)
     return UsbScan(
         mountpoint=mountpoint,
         updates=updates,
+        plugins=plugins,
         writable=_verify_writable(mountpoint),
         free_bytes=usage.free,
     )
+
+
+def get_usb_status() -> UsbStatus:
+    try:
+        partitions = discover_usb_partitions()
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        return UsbStatus(status="error", partitions=(), active_mount=None, error=str(exc))
+
+    active_partitions = [
+        partition
+        for partition in partitions
+        if any(_is_relative_to(Path(mountpoint), USB_MOUNT_ROOT) for mountpoint in partition.mountpoints)
+    ]
+    partition_payloads = tuple(_partition_status_as_dict(partition) for partition in partitions)
+
+    if not partitions:
+        return UsbStatus(status="absent", partitions=partition_payloads, active_mount=None)
+
+    if len(active_partitions) > 1:
+        return UsbStatus(status="multiple_present", partitions=partition_payloads, active_mount=None)
+
+    if len(active_partitions) == 1:
+        active_mount = _active_mount_as_dict(active_partitions[0])
+        status = "mounted"
+        if active_mount.get("writable") is False:
+            status = "mounted_readonly"
+        return UsbStatus(status=status, partitions=partition_payloads, active_mount=active_mount)
+
+    supported_partitions = [
+        partition for partition in partitions if partition.fstype in SUPPORTED_FILESYSTEMS
+    ]
+    if len(partitions) > 1:
+        return UsbStatus(status="multiple_present", partitions=partition_payloads, active_mount=None)
+    if not supported_partitions:
+        return UsbStatus(status="unsupported", partitions=partition_payloads, active_mount=None)
+    return UsbStatus(status="present_unmounted", partitions=partition_payloads, active_mount=None)
 
 
 def find_mounted_pioreactor_usb_partitions() -> list[UsbPartition]:
@@ -215,6 +290,30 @@ def choose_usb_mountpoint(mountpoint: str | None = None) -> Path:
     return Path(mounted[0].mountpoints[0])
 
 
+def resolve_usb_plugin_wheel(filepath: str) -> Path:
+    path = Path(filepath)
+    if path.suffix != ".whl":
+        raise ValueError("USB plugin installs currently support .whl files only.")
+    if not path.exists():
+        raise ValueError(f"{filepath} does not exist.")
+
+    resolved_path = path.resolve()
+    for partition in find_mounted_pioreactor_usb_partitions():
+        for mountpoint in partition.mountpoints:
+            mountpoint_path = Path(mountpoint)
+            if mountpoint_path.exists() and _is_relative_to(resolved_path, mountpoint_path.resolve()):
+                return resolved_path
+
+    raise ValueError(f"{filepath} is not on a Pioreactor-managed USB mount.")
+
+
+def get_usb_export_directory() -> Path:
+    mountpoint = choose_usb_mountpoint()
+    export_dir = mountpoint / "pioreactor" / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    return export_dir
+
+
 def _parse_lsblk_node(
     node: dict[str, Any], parent_device: str | None, parent_removable: bool
 ) -> list[UsbPartition]:
@@ -257,6 +356,52 @@ def _normalize_mountpoints(value: object) -> tuple[str, ...]:
     if isinstance(value, list):
         return tuple(str(item) for item in value if item)
     return ()
+
+
+def _partition_status_as_dict(partition: UsbPartition) -> dict[str, Any]:
+    payload = partition.as_dict()
+    if partition.fstype not in SUPPORTED_FILESYSTEMS:
+        supported = ", ".join(sorted(SUPPORTED_FILESYSTEMS))
+        payload["unsupported_reason"] = (
+            f"Unsupported filesystem {partition.fstype!r}. Supported: {supported}."
+        )
+    else:
+        payload["unsupported_reason"] = None
+    return payload
+
+
+def _active_mount_as_dict(partition: UsbPartition) -> dict[str, Any]:
+    mountpoint = Path(partition.mountpoints[0])
+    payload = partition.as_dict()
+    payload["mountpoint"] = str(mountpoint)
+    payload["writable"] = _verify_writable(mountpoint)
+    payload["free_bytes"] = shutil.disk_usage(mountpoint).free
+    return payload
+
+
+def _find_plugin_wheels(mountpoint: Path) -> list[tuple[Path, str, str | None]]:
+    candidates = [mountpoint, mountpoint / "pioreactor" / "plugins"]
+    seen: set[Path] = set()
+    plugins: list[tuple[Path, str, str | None]] = []
+
+    for directory in candidates:
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.whl")):
+            if path in seen:
+                continue
+            seen.add(path)
+            name, version = _parse_wheel_name(path.name)
+            plugins.append((path, name, version))
+
+    return plugins
+
+
+def _parse_wheel_name(filename: str) -> tuple[str, str | None]:
+    parts = filename.removesuffix(".whl").split("-")
+    if len(parts) < 2:
+        return filename.removesuffix(".whl").replace("_", "-"), None
+    return parts[0].replace("_", "-"), parts[1]
 
 
 def _as_bool(value: object) -> bool:

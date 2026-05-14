@@ -82,6 +82,94 @@ def test_scan_usb_mount_detects_release_archives(tmp_path: Path, monkeypatch) ->
     assert scan.updates[0].version == "25.6.0"
 
 
+def test_scan_usb_mount_detects_plugin_wheels(tmp_path: Path, monkeypatch) -> None:
+    mount_root = tmp_path / "run" / "pioreactor" / "usb"
+    mountpoint = mount_root / "usb-7A2B-91FE"
+    plugins_dir = mountpoint / "pioreactor" / "plugins"
+    plugins_dir.mkdir(parents=True)
+    (mountpoint / "pioreactor_demo-1.2.3-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (plugins_dir / "pioreactor_other-2.0.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (plugins_dir / "plugin.py").write_text("ignore", encoding="utf-8")
+    monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
+
+    scan = usb_utils.scan_usb_mount(mountpoint)
+
+    assert [plugin.name for plugin in scan.plugins] == ["pioreactor-demo", "pioreactor-other"]
+    assert [plugin.version for plugin in scan.plugins] == ["1.2.3", "2.0.0"]
+
+
+def test_get_usb_status_reports_present_unmounted(monkeypatch) -> None:
+    partition = usb_utils.UsbPartition(
+        device="/dev/sda1",
+        parent_device="/dev/sda",
+        label="PIOREACTOR",
+        uuid="7A2B-91FE",
+        fstype="exfat",
+        size_bytes=1000,
+        mountpoints=(),
+        removable=True,
+    )
+
+    monkeypatch.setattr(usb_utils, "discover_usb_partitions", lambda: [partition])
+
+    status = usb_utils.get_usb_status()
+
+    assert status.status == "present_unmounted"
+    assert status.active_mount is None
+    assert status.partitions[0]["unsupported_reason"] is None
+
+
+def test_resolve_usb_plugin_wheel_rejects_paths_outside_usb_mount(tmp_path: Path, monkeypatch) -> None:
+    mount_root = tmp_path / "run" / "pioreactor" / "usb"
+    mountpoint = mount_root / "usb-7A2B-91FE"
+    mountpoint.mkdir(parents=True)
+    outside_wheel = tmp_path / "pioreactor_demo-1.2.3-py3-none-any.whl"
+    outside_wheel.write_text("wheel", encoding="utf-8")
+    partition = usb_utils.UsbPartition(
+        device="/dev/sda1",
+        parent_device="/dev/sda",
+        label="PIOREACTOR",
+        uuid="7A2B-91FE",
+        fstype="exfat",
+        size_bytes=1000,
+        mountpoints=(mountpoint.as_posix(),),
+        removable=True,
+    )
+
+    monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
+    monkeypatch.setattr(usb_utils, "discover_usb_partitions", lambda: [partition])
+
+    try:
+        usb_utils.resolve_usb_plugin_wheel(outside_wheel.as_posix())
+    except ValueError as exc:
+        assert "not on a Pioreactor-managed USB mount" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError")
+
+
+def test_resolve_usb_plugin_wheel_accepts_wheels_on_usb_mount(tmp_path: Path, monkeypatch) -> None:
+    mount_root = tmp_path / "run" / "pioreactor" / "usb"
+    mountpoint = mount_root / "usb-7A2B-91FE"
+    mountpoint.mkdir(parents=True)
+    wheel = mountpoint / "pioreactor_demo-1.2.3-py3-none-any.whl"
+    wheel.write_text("wheel", encoding="utf-8")
+    partition = usb_utils.UsbPartition(
+        device="/dev/sda1",
+        parent_device="/dev/sda",
+        label="PIOREACTOR",
+        uuid="7A2B-91FE",
+        fstype="exfat",
+        size_bytes=1000,
+        mountpoints=(mountpoint.as_posix(),),
+        removable=True,
+    )
+
+    monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
+    monkeypatch.setattr(usb_utils, "discover_usb_partitions", lambda: [partition])
+
+    assert usb_utils.resolve_usb_plugin_wheel(wheel.as_posix()) == wheel.resolve()
+
+
 def test_mount_usb_partition_uses_user_writable_options_for_vfat(tmp_path: Path, monkeypatch) -> None:
     mount_root = tmp_path / "run" / "pioreactor" / "usb"
     commands: list[list[str]] = []

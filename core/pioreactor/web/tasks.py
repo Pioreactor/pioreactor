@@ -57,6 +57,7 @@ from pioreactor.pubsub import post_into
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
+from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.version import hardware_version_info
@@ -817,6 +818,92 @@ def export_experiment_data_task(
 
 
 @huey.task()
+@huey.lock_task("usb-lock")
+def mount_usb_task(device: str | None = None) -> dict[str, Any]:
+    partition = usb_utils.choose_usb_partition(device)
+    mountpoint = usb_utils.mount_usb_partition(partition)
+    return {
+        "result": True,
+        "device": partition.device,
+        "display_name": partition.display_name,
+        "mountpoint": str(mountpoint),
+        "msg": "Mounted",
+    }
+
+
+@huey.task()
+@huey.lock_task("usb-lock")
+def eject_usb_task(device: str | None = None) -> dict[str, Any]:
+    partition = usb_utils.choose_usb_partition(device, require_mounted=True)
+    display_name = partition.display_name
+    usb_utils.eject_usb_partition(partition)
+    return {
+        "result": True,
+        "device": partition.device,
+        "display_name": display_name,
+        "msg": "Ejected",
+    }
+
+
+@huey.task()
+@huey.lock_task("export-data-lock")
+@huey.lock_task("usb-lock")
+def export_experiment_data_to_usb_task(
+    experiments: list[str],
+    dataset_names: list[str],
+    filename: str,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    partition_by_unit: bool = False,
+    partition_by_experiment: bool = True,
+) -> dict[str, bool | str]:
+    from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
+    from pioreactor.actions.leader.export_experiment_data import export_experiment_data
+
+    logger.debug("Exporting experiment data to USB.")
+
+    if not filename:
+        raise ValueError("Missing filename.")
+    if Path(filename).name != filename:
+        raise ValueError("filename must not include directories.")
+    if not filename.endswith(".zip"):
+        raise ValueError("filename should end with .zip")
+    if not dataset_names:
+        raise ValueError("At least one dataset name must be provided.")
+
+    output_dir = usb_utils.get_usb_export_directory()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / filename
+    tmp_output_path = output_dir / f".{filename}.tmp.zip"
+
+    try:
+        cleanup_stale_export_artifacts(output_dir, logger)
+        export_experiment_data(
+            experiments,
+            dataset_names,
+            tmp_output_path.as_posix(),
+            start_time=start_time,
+            end_time=end_time,
+            partition_by_unit=partition_by_unit,
+            partition_by_experiment=partition_by_experiment,
+        )
+        tmp_output_path.replace(output_path)
+    except Exception as exc:
+        error = str(exc) or exc.__class__.__name__
+        logger.error(f"Exporting experiment data to USB failed: {error}", exc_info=True)
+        if tmp_output_path.exists():
+            tmp_output_path.unlink()
+        raise
+
+    return {
+        "result": True,
+        "filename": output_path.name,
+        "path": output_path.as_posix(),
+        "msg": "Finished",
+    }
+
+
+@huey.task()
 @huey.lock_task("delete-experiment-lock")
 def delete_experiment_task(experiment: str) -> dict[str, Any]:
     logger.debug(f"Deleting experiment {experiment}.")
@@ -880,6 +967,23 @@ def install_plugin_task(name: str, source: str | None = None) -> bool:
     logger.debug(f"Installing plugin {name}.")
     try:
         install_plugin(name, source=source)
+        return True
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False
+
+
+@huey.task()
+@huey.rate_limit("plugins", limit=1, per=10, retry=False)
+@huey.lock_task("plugins-lock")
+@huey.lock_task("usb-lock")
+def install_plugin_from_usb_task(filepath: str) -> bool:
+    from pioreactor.plugin_management.install_plugin import install_plugin
+
+    plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
+    logger.debug(f"Installing plugin from USB: {plugin_path}.")
+    try:
+        install_plugin(plugin_path.stem, source=plugin_path.as_posix())
         return True
     except Exception as exc:
         logger.debug(str(exc))

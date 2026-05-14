@@ -139,6 +139,8 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   ```bash
   .venv/bin/mypy core/pioreactor --ignore-missing-imports
   ```
+ - However you can skip code linting with ruff or black - we do that automatically later.
+
 ---
 
 ## Logging

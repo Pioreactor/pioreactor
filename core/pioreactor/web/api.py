@@ -41,6 +41,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.states import JobState
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
+from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
@@ -2328,6 +2329,99 @@ def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> 
 ## PLUGINS
 
 
+@api_bp.route("/usb", methods=["GET"])
+def get_leader_usb_status() -> ResponseReturnValue:
+    return jsonify(usb_utils.get_usb_status().as_dict())
+
+
+@api_bp.route("/usb/mount", methods=["POST"])
+def mount_leader_usb() -> DelayedResponseReturnValue:
+    body = request.get_json(silent=True) or {}
+    return create_task_response(tasks.mount_usb_task(body.get("device")))
+
+
+@api_bp.route("/usb/eject", methods=["POST"])
+def eject_leader_usb() -> DelayedResponseReturnValue:
+    body = request.get_json(silent=True) or {}
+    return create_task_response(tasks.eject_usb_task(body.get("device")))
+
+
+@api_bp.route("/usb/artifacts", methods=["GET"])
+def get_leader_usb_artifacts() -> ResponseReturnValue:
+    try:
+        scan = usb_utils.scan_usb_mount(usb_utils.choose_usb_mountpoint())
+    except OSError as exc:
+        abort_with(400, str(exc))
+    except ValueError as exc:
+        abort_with(400, str(exc))
+
+    return jsonify(scan.as_dict())
+
+
+@api_bp.route("/units/<pioreactor_unit>/usb", methods=["GET"])
+def get_usb_status_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "USB operations target one Pioreactor at a time.",
+            cause="USB state is local to the Pioreactor with the attached USB drive.",
+            remediation="Choose a specific Pioreactor unit.",
+        )
+
+    return create_task_response(tasks.multicast_get("/unit_api/usb", [pioreactor_unit], timeout=5))
+
+
+@api_bp.route("/units/<pioreactor_unit>/usb/mount", methods=["POST"])
+def mount_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "USB operations target one Pioreactor at a time.",
+            cause="USB state is local to the Pioreactor with the attached USB drive.",
+            remediation="Choose a specific Pioreactor unit.",
+        )
+
+    return create_task_response(
+        tasks.multicast_post(
+            "/unit_api/usb/mount",
+            [pioreactor_unit],
+            request.get_json(silent=True) or {},
+        )
+    )
+
+
+@api_bp.route("/units/<pioreactor_unit>/usb/eject", methods=["POST"])
+def eject_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "USB operations target one Pioreactor at a time.",
+            cause="USB state is local to the Pioreactor with the attached USB drive.",
+            remediation="Choose a specific Pioreactor unit.",
+        )
+
+    return create_task_response(
+        tasks.multicast_post(
+            "/unit_api/usb/eject",
+            [pioreactor_unit],
+            request.get_json(silent=True) or {},
+        )
+    )
+
+
+@api_bp.route("/units/<pioreactor_unit>/usb/artifacts", methods=["GET"])
+def get_usb_artifacts_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "USB operations target one Pioreactor at a time.",
+            cause="USB state is local to the Pioreactor with the attached USB drive.",
+            remediation="Choose a specific Pioreactor unit.",
+        )
+
+    return create_task_response(tasks.multicast_get("/unit_api/usb/artifacts", [pioreactor_unit], timeout=5))
+
+
 @api_bp.route("/units/<pioreactor_unit>/plugins/installed", methods=["GET"])
 def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -2364,6 +2458,39 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
         return create_task_response(
             tasks.multicast_post("/unit_api/plugins/install", [pioreactor_unit], request.get_json())
         )
+
+
+@api_bp.route("/units/<pioreactor_unit>/plugins/install-from-usb", methods=["POST", "PATCH"])
+def install_plugin_from_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    """
+    Install one wheel plugin from a Pioreactor-managed USB mount on one selected unit.
+
+    JSON body:
+    {
+      "filepath": "/run/pioreactor/usb/.../pioreactor_foo-1.0.0-py3-none-any.whl"
+    }
+    """
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "USB plugin installs target one Pioreactor at a time.",
+            cause="USB plugin installs use the USB mounted on the selected Pioreactor.",
+            remediation="Choose a specific Pioreactor unit.",
+        )
+
+    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
+        abort_with(403, "Not UI installed allowed.")
+
+    cache.invalidate_plugins_installed_cache(pioreactor_unit)
+    cache.invalidate_calibration_protocols_cache(pioreactor_unit)
+
+    return create_task_response(
+        tasks.multicast_post(
+            "/unit_api/plugins/install-from-usb",
+            [pioreactor_unit],
+            request.get_json(silent=True) or {},
+        )
+    )
 
 
 @api_bp.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
@@ -2904,6 +3031,44 @@ def export_exportable_datasets() -> ResponseReturnValue:
         experiments,
         dataset_names,
         filename_with_path.as_posix(),
+        start_time=body.get("start_time"),
+        end_time=body.get("end_time"),
+        partition_by_unit=partition_by_unit,
+        partition_by_experiment=partition_by_experiment,
+    )
+    return create_task_response(task)
+
+
+@api_bp.route("/datasets/exportable/export-to-usb", methods=["POST"])
+def export_exportable_datasets_to_usb() -> ResponseReturnValue:
+    """
+    Export selected datasets for selected experiments to the leader's mounted USB.
+
+    JSON body:
+    {
+      "datasets": ["od_readings"],
+      "experiments": ["experiment-name"],
+      "partition_by_unit": false,
+      "partition_by_experiment": false,
+      "start_time": "2025-01-31T00:00:00Z",
+      "end_time": "2025-02-01T00:00:00Z"
+    }
+    """
+    body = request.get_json()
+
+    dataset_names: list[str] = body["datasets"]
+
+    experiments: list[str] = body["experiments"]
+    partition_by_unit: bool = body["partition_by_unit"]
+    partition_by_experiment: bool = body["partition_by_experiment"]
+
+    timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
+    filename = f"export_{timestamp}.zip"
+
+    task = tasks.export_experiment_data_to_usb_task(
+        experiments,
+        dataset_names,
+        filename,
         start_time=body.get("start_time"),
         end_time=body.get("end_time"),
         partition_by_unit=partition_by_unit,
