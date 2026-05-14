@@ -71,7 +71,7 @@ function getUsbNavColor(status) {
       return "#2FBB39";
     case "unsupported":
     case "multiple_present":
-      return disconnectedGrey;
+      return "#2FBB39";
     default:
       return disconnectedGrey;
   }

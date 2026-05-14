@@ -258,12 +258,13 @@ def get_usb_status() -> UsbStatus:
         if any(_is_relative_to(Path(mountpoint), USB_MOUNT_ROOT) for mountpoint in partition.mountpoints)
     ]
     partition_payloads = tuple(_partition_status_as_dict(partition) for partition in partitions)
+    active_mount = _default_active_mount_as_dict(active_partitions)
 
     if not partitions:
         return UsbStatus(status="absent", partitions=partition_payloads, active_mount=None)
 
     if len(active_partitions) > 1:
-        return UsbStatus(status="multiple_present", partitions=partition_payloads, active_mount=None)
+        return UsbStatus(status="multiple_present", partitions=partition_payloads, active_mount=active_mount)
 
     if len(active_partitions) == 1:
         active_mount = _active_mount_as_dict(active_partitions[0])
@@ -321,8 +322,13 @@ def choose_usb_mountpoint(mountpoint: str | None = None) -> Path:
     if not mounted:
         raise ValueError("No Pioreactor-managed USB mount found. Run `pio usb mount` first.")
     if len(mounted) > 1:
+        default_partition = _default_writable_partition(mounted)
+        if default_partition is not None:
+            return _pioreactor_managed_mountpoint(default_partition)
         names = ", ".join(partition.mountpoints[0] for partition in mounted)
-        raise ValueError(f"Multiple Pioreactor-managed USB mounts found. Choose one with --mount: {names}")
+        raise ValueError(
+            f"Multiple Pioreactor-managed USB mounts found, but none are writable. Choose one with --mount: {names}"
+        )
     return Path(mounted[0].mountpoints[0])
 
 
@@ -396,6 +402,15 @@ def _normalize_mountpoints(value: object) -> tuple[str, ...]:
 
 def _partition_status_as_dict(partition: UsbPartition) -> dict[str, Any]:
     payload = partition.as_dict()
+    managed_mountpoints = _pioreactor_managed_mountpoints(partition)
+    if managed_mountpoints:
+        mountpoint = managed_mountpoints[0]
+        payload["mountpoint"] = str(mountpoint)
+        payload["writable"] = _verify_writable(mountpoint)
+        try:
+            payload["free_bytes"] = shutil.disk_usage(mountpoint).free
+        except OSError:
+            payload["free_bytes"] = None
     if partition.fstype not in SUPPORTED_FILESYSTEMS:
         supported = ", ".join(sorted(SUPPORTED_FILESYSTEMS))
         payload["unsupported_reason"] = (
@@ -407,12 +422,42 @@ def _partition_status_as_dict(partition: UsbPartition) -> dict[str, Any]:
 
 
 def _active_mount_as_dict(partition: UsbPartition) -> dict[str, Any]:
-    mountpoint = Path(partition.mountpoints[0])
+    mountpoint = _pioreactor_managed_mountpoint(partition)
     payload = partition.as_dict()
     payload["mountpoint"] = str(mountpoint)
     payload["writable"] = _verify_writable(mountpoint)
     payload["free_bytes"] = shutil.disk_usage(mountpoint).free
     return payload
+
+
+def _default_active_mount_as_dict(partitions: list[UsbPartition]) -> dict[str, Any] | None:
+    default_partition = _default_writable_partition(partitions)
+    if default_partition is None:
+        return None
+    return _active_mount_as_dict(default_partition)
+
+
+def _default_writable_partition(partitions: list[UsbPartition]) -> UsbPartition | None:
+    for partition in sorted(partitions, key=lambda p: p.device):
+        mountpoint = _pioreactor_managed_mountpoint(partition)
+        if _verify_writable(mountpoint):
+            return partition
+    return None
+
+
+def _pioreactor_managed_mountpoint(partition: UsbPartition) -> Path:
+    mountpoints = _pioreactor_managed_mountpoints(partition)
+    if not mountpoints:
+        raise ValueError(f"{partition.device} is not mounted under {USB_MOUNT_ROOT}.")
+    return mountpoints[0]
+
+
+def _pioreactor_managed_mountpoints(partition: UsbPartition) -> list[Path]:
+    return [
+        mountpoint
+        for mountpoint in (Path(raw_mountpoint) for raw_mountpoint in partition.mountpoints)
+        if _is_relative_to(mountpoint, USB_MOUNT_ROOT)
+    ]
 
 
 def _find_plugin_wheels(mountpoint: Path) -> list[tuple[Path, str, str | None]]:
