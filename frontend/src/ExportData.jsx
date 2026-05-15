@@ -358,6 +358,7 @@ function ExportDataContainer() {
   const location = useLocation();
   const [isRunning, setIsRunning] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
+  const [successMsg, setSuccessMsg] = React.useState("")
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
   const [datasets, setDatasets] = React.useState([])
@@ -452,7 +453,7 @@ function ExportDataContainer() {
         : "Export started. Keep this page open; your download will begin automatically when it's ready."
     );
     setErrorMsg("");
-    let keepSnackbarOpenAfterRun = false;
+    setSuccessMsg("");
     try {
       const exportEndpoint = exportDestination === "usb"
         ? "/api/datasets/exportable/export-to-usb"
@@ -483,8 +484,7 @@ function ExportDataContainer() {
       }
 
       if (exportDestination === "usb") {
-        setSnackbarMsg(`Export saved to USB as ${filename}.`);
-        keepSnackbarOpenAfterRun = true;
+        setSuccessMsg(`Export saved to USB as ${filename}.`);
         return;
       } else {
         setSnackbarOpen(false);
@@ -497,13 +497,12 @@ function ExportDataContainer() {
         link.remove();
       }
     } catch(e) {
+      setSuccessMsg("");
       setErrorMsg(e.message || "Server error occurred. Check system logs.")
       console.log(e)
     } finally {
       setIsRunning(false);
-      if (!keepSnackbarOpenAfterRun) {
-        setSnackbarOpen(false);
-      }
+      setSnackbarOpen(false);
     }
   }
 
@@ -540,7 +539,11 @@ function ExportDataContainer() {
     setExportDestination(event.target.value);
   }
 
-  const errorFeedbackOrDefault = errorMsg ? <Alert severity="error">{errorMsg}</Alert>: ""
+  const feedback = errorMsg
+    ? <Alert severity="error">{errorMsg}</Alert>
+    : successMsg
+      ? <Alert onClose={() => setSuccessMsg("")} severity="success">{successMsg}</Alert>
+      : "";
   const selectedDatasetsCount = state.selectedDatasets.length;
   const experimentSelectionCount = state.experimentSelection.length;
   return (
@@ -589,7 +592,9 @@ function ExportDataContainer() {
       </Box>
       <Card>
         <CardContent sx={{ p: 1 }}>
-          <p style={{ marginLeft: 10 }}>{errorFeedbackOrDefault}</p>
+          <Box sx={{ ml: 1, mr: 1 }}>
+            {feedback}
+          </Box>
 
           <form>
             <Grid container spacing={2}>
@@ -697,7 +702,6 @@ function ExportDataContainer() {
         onClose={handleSnackbarClose}
         message={snackbarMsg}
         persist={isRunning}
-        autoHideDuration={isRunning ? null : 3000}
         key="export-data-running-snackbar"
       />
     </React.Fragment>

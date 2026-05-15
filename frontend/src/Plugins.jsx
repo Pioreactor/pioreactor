@@ -67,6 +67,50 @@ function makeTaskKey(action, source, pluginName, target) {
   return `${action}:${source}:${pluginName}:${target}`;
 }
 
+function pluginUnitTaskResultSucceeded(unitResult) {
+  if (unitResult === true) {
+    return true;
+  }
+
+  if (unitResult === false || unitResult === null || unitResult === undefined) {
+    return false;
+  }
+
+  if (typeof unitResult !== "object" || Array.isArray(unitResult)) {
+    return false;
+  }
+
+  if (unitResult.error || unitResult.status === "failed") {
+    return false;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(unitResult, "result")) {
+    return unitResult.result === true;
+  }
+
+  return true;
+}
+
+function assertPluginTaskResultSucceeded(taskPayload, failureMessage) {
+  const result = taskPayload?.result;
+
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error(`${failureMessage}.`);
+  }
+
+  const failedUnits = Object.entries(result)
+    .filter(([_unit, unitResult]) => !pluginUnitTaskResultSucceeded(unitResult))
+    .map(([unit]) => unit);
+
+  if (failedUnits.length === 1) {
+    throw new Error(`${failureMessage} on ${failedUnits[0]}.`);
+  }
+
+  if (failedUnits.length > 1) {
+    throw new Error(`${failureMessage} on ${failedUnits.join(", ")}.`);
+  }
+}
+
 function getTaskStatusLabel(task) {
   if (!task) {
     return "";
@@ -775,11 +819,15 @@ function PluginContainer() {
       showSnackbar(`${runningLabel} ${visiblePluginName} on ${getTargetLabel(target)}...`);
 
       try {
-        await fetchTaskResult(endpoint, {
+        const taskPayload = await fetchTaskResult(endpoint, {
           fetchOptions,
           maxRetries: 240,
           delayMs: 500,
         });
+        assertPluginTaskResultSucceeded(
+          taskPayload,
+          `Could not ${action === "uninstall" ? "remove" : "install"} ${visiblePluginName}`,
+        );
 
         setPluginTasks((current) => ({
           ...current,
