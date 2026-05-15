@@ -3884,7 +3884,7 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
     if status:
         return {"msg": f"Worker {new_name} added successfully."}, 200
     else:
-        abort_with(404, f"Failed to add worker {new_name}. See logs.")
+        abort_with(404, f"Failed to add worker {new_name}.")
 
 
 @api_bp.route("/workers", methods=["PUT"])

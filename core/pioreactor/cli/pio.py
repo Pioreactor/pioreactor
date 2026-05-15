@@ -1852,7 +1852,7 @@ def update_firmware(version: str | None) -> None:
         )
         if p.returncode != 0:
             logger.debug(p.stderr)
-            logger.error("Update failed. See logs.")
+            logger.error("Update failed.")
             # end early
             raise click.Abort()
 

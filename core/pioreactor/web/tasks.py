@@ -987,7 +987,6 @@ def kill_jobs_task(
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=10, retry=False)
 @huey.lock_task("plugins-lock")
 def install_plugin_task(name: str, source: str | None = None) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
@@ -1002,7 +1001,6 @@ def install_plugin_task(name: str, source: str | None = None) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=10, retry=False)
 @huey.lock_task("plugins-lock")
 @huey.lock_task("usb-lock")
 def install_plugin_from_usb_task(filepath: str) -> bool:
@@ -1020,7 +1018,6 @@ def install_plugin_from_usb_task(filepath: str) -> bool:
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=10, retry=False)
 @huey.lock_task("plugins-lock")
 @huey.lock_task("usb-lock")
 def install_plugin_from_leader_usb_on_worker_task(unit: pt.Unit, filepath: str) -> dict[str, Any]:
@@ -1061,7 +1058,6 @@ def install_plugin_from_leader_usb_across_units(units: list[str], filepath: str,
 
 
 @huey.task()
-@huey.rate_limit("plugins", limit=1, per=10, retry=False)
 @huey.lock_task("plugins-lock")
 def uninstall_plugin_task(name: str) -> bool:
     from pioreactor.plugin_management.uninstall_plugin import uninstall_plugin

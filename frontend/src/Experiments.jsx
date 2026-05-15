@@ -396,7 +396,7 @@ function ExperimentsContainer(props) {
                 const remainingTagCount = Math.max((experiment.tags || []).length - visibleTags.length, 0);
 
                 return (
-                  <TableRowStyled key={experiment.experiment} hover>
+                  <TableRowStyled key={experiment.experiment}>
                     <StyledTableCell sx={{ width: "65%"}}>
                       <Stack spacing={0.75}>
                         <Box>
