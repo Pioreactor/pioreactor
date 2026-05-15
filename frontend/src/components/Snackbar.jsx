@@ -50,6 +50,11 @@ export default function Snackbar({
       return;
     }
 
+    if (activeSnackbarKeyRef.current !== null) {
+      closeSnackbar(activeSnackbarKeyRef.current);
+      activeSnackbarKeyRef.current = null;
+    }
+
     const snackbarKey = enqueueSnackbar(message ?? "", {
       ...enqueueOptions,
       content: (_key, snackMessage) => {
