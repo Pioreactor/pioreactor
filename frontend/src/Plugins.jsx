@@ -25,7 +25,6 @@ import { styled } from "@mui/material/styles";
 import PioreactorsIcon from "./components/PioreactorsIcon";
 
 const BROADCAST_TARGET = "$broadcast";
-const TASK_CLEAR_DELAY_MS = 6000;
 const PLUGIN_ROW_CONTENT_INSET = "2%";
 const PLUGIN_ROW_ACTION_SX = {
   display: { xs: "contents", md: "block" },
@@ -127,8 +126,9 @@ function InstallButton({
   const isFailed = task?.status === "failed";
   const disabled =
     !selectedTarget || isRunning || installedStatePending || (!isFailed && isInstalled);
+  const broadcastTarget = selectedTarget === BROADCAST_TARGET
 
-  let buttonText = "Install";
+  let buttonText = broadcastTarget ? "Install across cluster" : "Install";
   if (isRunning) {
     buttonText = "Installing";
   } else if (installedStatePending) {
@@ -152,56 +152,6 @@ function InstallButton({
     >
       {buttonText}
     </Button>
-  );
-}
-
-function PluginTaskActivity({ tasks, onDismiss }) {
-  if (tasks.length === 0) {
-    return null;
-  }
-
-  return (
-    <Box
-      sx={{
-        borderTop: 1,
-        borderBottom: 1,
-        borderColor: "divider",
-        py: 1,
-        mb: 2,
-      }}
-    >
-      {tasks.map((task) => (
-        <Box
-          key={task.id}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 2,
-            py: 0.25,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-            {task.status === "running" && <CircularProgress size={14} />}
-            <Typography variant="body2" component="span" sx={{ overflowWrap: "anywhere" }}>
-              {getTaskStatusLabel(task)} {task.displayName || task.pluginName} on{" "}
-              {getTargetLabel(task.target)}
-            </Typography>
-          </Box>
-          {task.status === "failed" && (
-            <Button
-              variant="text"
-              size="small"
-              color="secondary"
-              onClick={() => onDismiss(task.id)}
-              sx={{ textTransform: "none", flexShrink: 0 }}
-            >
-              Dismiss
-            </Button>
-          )}
-        </Box>
-      ))}
-    </Box>
   );
 }
 
@@ -362,8 +312,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
     return (
       <Box sx={{ textAlign: "center", marginBottom: "50px", marginTop: "30px" }}>
         <Typography variant="body2" component="p" color="text.secondary">
-          Select a Pioreactor to inspect installed plugins. All Pioreactors can still be used as
-          the target for new installs below.
+          Choose a Pioreactor to view installed plugins.
         </Typography>
       </Box>
     );
@@ -554,8 +503,19 @@ function ListUsbPlugins({
     );
   }
 
-  if (!selectedTarget || usbPlugins.length === 0) {
+  if (!selectedTarget) {
     return null;
+  }
+
+  if (usbPlugins.length === 0) {
+    return (
+    <>
+      <Typography variant="h6" component="h3">
+        Plugins found on USB
+      </Typography>
+      <p> You can attach a USB with Pioreactor plugins to install them on your cluster.</p>
+    </>
+    )
   }
 
   return (
@@ -634,7 +594,6 @@ function PluginContainer() {
   const [snackbarMsg, setSnackbarMsg] = React.useState("");
   const latestPluginsRequestId = React.useRef(0);
   const selectedTargetRef = React.useRef(selectedTarget);
-  const clearTaskTimersRef = React.useRef({});
   const displayedSelectedTarget =
     selectedTarget === BROADCAST_TARGET || units.includes(selectedTarget) ? selectedTarget : "";
   const targetIsRealUnit = isRealUnitTarget(selectedTarget, units);
@@ -647,12 +606,6 @@ function PluginContainer() {
   React.useEffect(() => {
     selectedTargetRef.current = selectedTarget;
   }, [selectedTarget]);
-
-  React.useEffect(() => {
-    return () => {
-      Object.values(clearTaskTimersRef.current).forEach(clearTimeout);
-    };
-  }, []);
 
   React.useEffect(() => {
     if (!targetIsRealUnit) {
@@ -792,27 +745,6 @@ function PluginContainer() {
     setSnackbarOpen(true);
   }, []);
 
-  const clearTask = React.useCallback((taskId) => {
-    if (clearTaskTimersRef.current[taskId]) {
-      clearTimeout(clearTaskTimersRef.current[taskId]);
-      delete clearTaskTimersRef.current[taskId];
-    }
-    setPluginTasks((current) => {
-      const next = { ...current };
-      delete next[taskId];
-      return next;
-    });
-  }, []);
-
-  const scheduleTaskClear = React.useCallback((taskId) => {
-    if (clearTaskTimersRef.current[taskId]) {
-      clearTimeout(clearTaskTimersRef.current[taskId]);
-    }
-    clearTaskTimersRef.current[taskId] = setTimeout(() => {
-      clearTask(taskId);
-    }, TASK_CLEAR_DELAY_MS);
-  }, [clearTask]);
-
   const refreshInstalledPluginsIfVisible = React.useCallback((target) => {
     const visibleTarget = selectedTargetRef.current;
 
@@ -826,11 +758,6 @@ function PluginContainer() {
       const taskId = makeTaskKey(action, source, pluginName, target);
       const runningLabel = action === "uninstall" ? "Uninstalling" : "Installing";
       const visiblePluginName = displayName || pluginName;
-
-      if (clearTaskTimersRef.current[taskId]) {
-        clearTimeout(clearTaskTimersRef.current[taskId]);
-        delete clearTaskTimersRef.current[taskId];
-      }
 
       setPluginTasks((current) => ({
         ...current,
@@ -868,7 +795,6 @@ function PluginContainer() {
             : `Installed ${visiblePluginName} on ${getTargetLabel(target)}.`,
         );
         refreshInstalledPluginsIfVisible(target);
-        scheduleTaskClear(taskId);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Plugin task failed.";
         console.error("Plugin task failed:", err);
@@ -883,7 +809,7 @@ function PluginContainer() {
         showSnackbar(message);
       }
     },
-    [refreshInstalledPluginsIfVisible, scheduleTaskClear, showSnackbar],
+    [refreshInstalledPluginsIfVisible, showSnackbar],
   );
 
   const installCommunityPlugin = React.useCallback(
@@ -978,15 +904,14 @@ function PluginContainer() {
       <Card>
         <CardContent sx={{ p: 2 }}>
           <p>
-            Discover, install, and manage Pioreactor plugins created by the community. These
+            Discover, install, and manage Pioreactor plugins. These
             plugins can provide new functionalities for your Pioreactor (additional hardware may be
             necessary), or new automations to control dosing, temperature and LED tasks.
           </p>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, flexWrap: "wrap" }}>
-            <Typography variant="h6" component="h3">
-              Plugin target
-            </Typography>
+            <Typography variant="h5" component="h2" sx={{ fontWeight: "bold", my: 2}}>
+              Manage plugins for
 
             <Select
               labelId="pluginTargetSelect"
@@ -998,11 +923,12 @@ function PluginContainer() {
                 "& .MuiSelect-select": {
                   paddingY: 0,
                 },
-                fontWeight: 500,
-                fontSize: "20px",
+                fontWeight: 700,
+                fontSize: "24px",
                 letterSpacing: "0.15px",
                 fontFamily: "inherit",
-                lineHeight: "1.4375em",
+                lineHeight: "34.5px",
+                marginLeft: "5px",
               }}
             >
               {units.map((unit) => (
@@ -1017,12 +943,11 @@ function PluginContainer() {
                 </MenuItem>
               )}
             </Select>
+            </Typography>
           </Box>
 
-          <PluginTaskActivity tasks={Object.values(pluginTasks)} onDismiss={clearTask} />
-
           <Typography variant="h6" component="h3">
-            Installed plugins
+           Installed plugins
           </Typography>
 
           {!isFetchComplete && targetIsRealUnit && (

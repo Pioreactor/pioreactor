@@ -1004,6 +1004,10 @@ def install_plugin_task(name: str, source: str | None = None) -> bool:
 @huey.lock_task("plugins-lock")
 @huey.lock_task("usb-lock")
 def install_plugin_from_usb_task(filepath: str) -> bool:
+    return _install_plugin_from_usb(filepath)
+
+
+def _install_plugin_from_usb(filepath: str) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
     plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
@@ -1021,6 +1025,10 @@ def install_plugin_from_usb_task(filepath: str) -> bool:
 @huey.lock_task("plugins-lock")
 @huey.lock_task("usb-lock")
 def install_plugin_from_leader_usb_on_worker_task(unit: pt.Unit, filepath: str) -> dict[str, Any]:
+    return _install_plugin_from_leader_usb_on_worker(unit, filepath)
+
+
+def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> dict[str, Any]:
     plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
     plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
     remote_source = f"/tmp/{plugin_path.name}"
@@ -1042,19 +1050,33 @@ def install_plugin_from_leader_usb_on_worker_task(unit: pt.Unit, filepath: str) 
     }
 
 
-def install_plugin_from_leader_usb_across_units(units: list[str], filepath: str, leader: str) -> Any:
+@huey.task()
+@huey.lock_task("plugins-lock")
+@huey.lock_task("usb-lock")
+def install_plugin_from_leader_usb_across_units_task(
+    units: list[str],
+    filepath: str,
+    leader: str,
+) -> dict[str, Any]:
     if not units:
-        return reduce_multicast_results(units, False, [])
+        return _reduce_multicast_results(units, False, [])
 
-    task_signatures = [
-        (
-            install_plugin_from_usb_task.s(filepath)
-            if unit == leader
-            else install_plugin_from_leader_usb_on_worker_task.s(unit, filepath)
-        )
-        for unit in units
-    ]
-    return _enqueue_multicast_chord(task_signatures, units, False)
+    ordered_results: list[Any] = []
+    for unit in units:
+        try:
+            if unit == leader:
+                ordered_results.append(_install_plugin_from_usb(filepath))
+            else:
+                ordered_results.append(_install_plugin_from_leader_usb_on_worker(unit, filepath))
+        except Exception as exc:
+            logger.debug(f"Installing USB plugin on {unit} failed: {exc}", exc_info=True)
+            ordered_results.append(exc)
+
+    return _reduce_multicast_results(units, False, ordered_results)
+
+
+def install_plugin_from_leader_usb_across_units(units: list[str], filepath: str, leader: str) -> Any:
+    return install_plugin_from_leader_usb_across_units_task(units, filepath, leader)
 
 
 @huey.task()

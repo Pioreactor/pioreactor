@@ -25,6 +25,10 @@ def _clear_rate_limit(name: str) -> None:
     tasks.huey.storage.delete_counter(f"{tasks.huey.name}.rl.{name}")
 
 
+def _clear_lock(name: str) -> None:
+    tasks.huey.delete(f"{tasks.huey.name}.lock.{name}")
+
+
 def test_importing_tasks_does_not_import_web_app() -> None:
     result = subprocess.run(
         [
@@ -586,6 +590,63 @@ def test_install_plugin_from_leader_usb_on_worker_task_copies_then_installs(
         )
     ]
     _clear_rate_limit("plugins")
+
+
+def test_install_plugin_from_leader_usb_across_units_runs_units_sequentially(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_lock("plugins-lock")
+    _clear_lock("usb-lock")
+    calls: list[tuple[str, str]] = []
+
+    def fake_install_plugin_from_usb(filepath: str) -> bool:
+        calls.append(("leader", filepath))
+        return True
+
+    def fake_install_plugin_from_leader_usb_on_worker(unit: str, filepath: str) -> dict[str, str | bool]:
+        calls.append((unit, filepath))
+        return {
+            "result": True,
+            "unit": unit,
+            "plugin": "pioreactor-demo",
+            "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
+        }
+
+    monkeypatch.setattr(tasks, "_install_plugin_from_usb", fake_install_plugin_from_usb)
+    monkeypatch.setattr(
+        tasks,
+        "_install_plugin_from_leader_usb_on_worker",
+        fake_install_plugin_from_leader_usb_on_worker,
+    )
+
+    result = tasks.install_plugin_from_leader_usb_across_units_task.call_local(
+        ["leader", "worker1", "worker2"],
+        "/run/pioreactor/usb/usb-1/pioreactor_demo-1.2.3-py3-none-any.whl",
+        "leader",
+    )
+
+    assert calls == [
+        ("leader", "/run/pioreactor/usb/usb-1/pioreactor_demo-1.2.3-py3-none-any.whl"),
+        ("worker1", "/run/pioreactor/usb/usb-1/pioreactor_demo-1.2.3-py3-none-any.whl"),
+        ("worker2", "/run/pioreactor/usb/usb-1/pioreactor_demo-1.2.3-py3-none-any.whl"),
+    ]
+    assert result == {
+        "leader": True,
+        "worker1": {
+            "result": True,
+            "unit": "worker1",
+            "plugin": "pioreactor-demo",
+            "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
+        },
+        "worker2": {
+            "result": True,
+            "unit": "worker2",
+            "plugin": "pioreactor-demo",
+            "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
+        },
+    }
+    _clear_lock("plugins-lock")
+    _clear_lock("usb-lock")
 
 
 def test_export_disk_space_preflight_rejects_low_space(
