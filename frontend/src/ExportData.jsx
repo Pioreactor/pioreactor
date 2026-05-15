@@ -452,6 +452,7 @@ function ExportDataContainer() {
         : "Export started. Keep this page open; your download will begin automatically when it's ready."
     );
     setErrorMsg("");
+    let keepSnackbarOpenAfterRun = false;
     try {
       const exportEndpoint = exportDestination === "usb"
         ? "/api/datasets/exportable/export-to-usb"
@@ -483,6 +484,7 @@ function ExportDataContainer() {
 
       if (exportDestination === "usb") {
         setSnackbarMsg(`Export saved to USB as ${filename}.`);
+        keepSnackbarOpenAfterRun = true;
         return;
       } else {
         setSnackbarOpen(false);
@@ -499,7 +501,9 @@ function ExportDataContainer() {
       console.log(e)
     } finally {
       setIsRunning(false);
-      setSnackbarOpen(false);
+      if (!keepSnackbarOpenAfterRun) {
+        setSnackbarOpen(false);
+      }
     }
   }
 
@@ -693,6 +697,7 @@ function ExportDataContainer() {
         onClose={handleSnackbarClose}
         message={snackbarMsg}
         persist={isRunning}
+        autoHideDuration={isRunning ? null : 3000}
         key="export-data-running-snackbar"
       />
     </React.Fragment>

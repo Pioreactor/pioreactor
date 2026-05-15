@@ -13,6 +13,10 @@ p[contenteditable="true"]:hover {
     border-radius: 3px;
 }
 
+html {
+  scroll-padding-top: 48px;
+}
+
 
 .underlineSpan {
   border-bottom: 1px dotted rgba(0, 0, 0, 0.87);

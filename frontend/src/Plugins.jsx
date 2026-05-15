@@ -511,7 +511,7 @@ function ListUsbPlugins({
     return (
     <>
       <Typography variant="h6" component="h3">
-        Plugins found on USB
+        USB Device
       </Typography>
       <p> You can attach a USB with Pioreactor plugins to install them on your cluster.</p>
     </>

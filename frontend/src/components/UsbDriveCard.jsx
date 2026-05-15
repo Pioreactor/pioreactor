@@ -269,7 +269,7 @@ export default function UsbDriveCard({unit}) {
 
   return (
     <Card>
-      <CardContent sx={{p: 2}}>
+      <CardContent sx={{p: 2}} id="usb-card">
         <Typography variant="h6" component="h2">
           <Box sx={{ fontWeight: "fontWeightRegular", display: "flex", alignItems: "center" }}>
             <UsbIcon fontSize="small" sx={{mr: 0.75}} />

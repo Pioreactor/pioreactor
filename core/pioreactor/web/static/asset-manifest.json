@@ -1,9 +1,9 @@
 {
   "files": {
-    "main.css": "/static/static/css/main.b7eec0ec.css",
-    "main.js": "/static/static/js/main.db58adf5.js",
+    "main.css": "/static/static/css/main.8b6977f4.css",
+    "main.js": "/static/static/js/main.624a23b0.js",
     "static/js/498.a9407062.chunk.js": "/static/static/js/498.a9407062.chunk.js",
-    "static/js/780.c990cab5.chunk.js": "/static/static/js/780.c990cab5.chunk.js",
+    "static/js/780.f1c2274c.chunk.js": "/static/static/js/780.f1c2274c.chunk.js",
     "static/js/858.4fec5c81.chunk.js": "/static/static/js/858.4fec5c81.chunk.js",
     "static/js/963.5f616083.chunk.js": "/static/static/js/963.5f616083.chunk.js",
     "static/js/21.76bd2b4f.chunk.js": "/static/static/js/21.76bd2b4f.chunk.js",
@@ -13,10 +13,10 @@
     "static/js/732.52aeeb21.chunk.js": "/static/static/js/732.52aeeb21.chunk.js",
     "static/js/812.d9db6fae.chunk.js": "/static/static/js/812.d9db6fae.chunk.js",
     "static/js/446.c3cfcb82.chunk.js": "/static/static/js/446.c3cfcb82.chunk.js",
-    "static/js/196.cd5b929c.chunk.js": "/static/static/js/196.cd5b929c.chunk.js",
+    "static/js/196.5e3434a4.chunk.js": "/static/static/js/196.5e3434a4.chunk.js",
     "static/js/117.eae22773.chunk.js": "/static/static/js/117.eae22773.chunk.js",
     "static/js/2.9ac56d20.chunk.js": "/static/static/js/2.9ac56d20.chunk.js",
-    "static/js/356.dbfb46c5.chunk.js": "/static/static/js/356.dbfb46c5.chunk.js",
+    "static/js/356.e5dd882a.chunk.js": "/static/static/js/356.e5dd882a.chunk.js",
     "static/js/639.1761875a.chunk.js": "/static/static/js/639.1761875a.chunk.js",
     "static/js/496.a8cdc2ce.chunk.js": "/static/static/js/496.a8cdc2ce.chunk.js",
     "static/js/815.a21d1e50.chunk.js": "/static/static/js/815.a21d1e50.chunk.js",
@@ -75,10 +75,10 @@
     "static/media/roboto-greek-ext-400-normal.woff2": "/static/static/media/roboto-greek-ext-400-normal.169619821ea93019d1bb.woff2",
     "static/media/roboto-greek-ext-700-normal.woff2": "/static/static/media/roboto-greek-ext-700-normal.bd9854c751441ccc1a70.woff2",
     "index.html": "/static/index.html",
-    "main.b7eec0ec.css.map": "/static/static/css/main.b7eec0ec.css.map",
-    "main.db58adf5.js.map": "/static/static/js/main.db58adf5.js.map",
+    "main.8b6977f4.css.map": "/static/static/css/main.8b6977f4.css.map",
+    "main.624a23b0.js.map": "/static/static/js/main.624a23b0.js.map",
     "498.a9407062.chunk.js.map": "/static/static/js/498.a9407062.chunk.js.map",
-    "780.c990cab5.chunk.js.map": "/static/static/js/780.c990cab5.chunk.js.map",
+    "780.f1c2274c.chunk.js.map": "/static/static/js/780.f1c2274c.chunk.js.map",
     "858.4fec5c81.chunk.js.map": "/static/static/js/858.4fec5c81.chunk.js.map",
     "963.5f616083.chunk.js.map": "/static/static/js/963.5f616083.chunk.js.map",
     "21.76bd2b4f.chunk.js.map": "/static/static/js/21.76bd2b4f.chunk.js.map",
@@ -88,10 +88,10 @@
     "732.52aeeb21.chunk.js.map": "/static/static/js/732.52aeeb21.chunk.js.map",
     "812.d9db6fae.chunk.js.map": "/static/static/js/812.d9db6fae.chunk.js.map",
     "446.c3cfcb82.chunk.js.map": "/static/static/js/446.c3cfcb82.chunk.js.map",
-    "196.cd5b929c.chunk.js.map": "/static/static/js/196.cd5b929c.chunk.js.map",
+    "196.5e3434a4.chunk.js.map": "/static/static/js/196.5e3434a4.chunk.js.map",
     "117.eae22773.chunk.js.map": "/static/static/js/117.eae22773.chunk.js.map",
     "2.9ac56d20.chunk.js.map": "/static/static/js/2.9ac56d20.chunk.js.map",
-    "356.dbfb46c5.chunk.js.map": "/static/static/js/356.dbfb46c5.chunk.js.map",
+    "356.e5dd882a.chunk.js.map": "/static/static/js/356.e5dd882a.chunk.js.map",
     "639.1761875a.chunk.js.map": "/static/static/js/639.1761875a.chunk.js.map",
     "496.a8cdc2ce.chunk.js.map": "/static/static/js/496.a8cdc2ce.chunk.js.map",
     "815.a21d1e50.chunk.js.map": "/static/static/js/815.a21d1e50.chunk.js.map",
@@ -127,7 +127,7 @@
     "307.bb1fe410.chunk.js.map": "/static/static/js/307.bb1fe410.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.b7eec0ec.css",
-    "static/js/main.db58adf5.js"
+    "static/css/main.8b6977f4.css",
+    "static/js/main.624a23b0.js"
   ]
 }

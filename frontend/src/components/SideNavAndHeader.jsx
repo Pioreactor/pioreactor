@@ -574,7 +574,7 @@ export default function SideNavAndHeader() {
                   </Button>
                 }
                 {shouldShowUsbNavStatus(usbStatus) &&
-                  <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader"}}>
+                  <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader", hash: "#usb-card"}}>
                     <div
                       aria-label={getUsbNavLabel(usbStatus)}
                       className="indicator-dot"
