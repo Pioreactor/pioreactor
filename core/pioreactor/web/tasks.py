@@ -413,6 +413,9 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
 
 @huey.task()
 def update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
+    worker_archive_location = f"/tmp/{Path(archive_location).name}"
+    leader = get_leader_hostname()
+
     if units == "$broadcast":
         logger.debug(f"Updating app on leader from {archive_location}")
         leader_update_command = [
@@ -425,20 +428,25 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
         ]
         check_call(leader_update_command)
 
-        workers = [unit for unit in get_workers_in_inventory() if unit != get_leader_hostname()]
+        workers = [unit for unit in get_workers_in_inventory() if unit != leader]
         if workers:
             logger.debug(f"Copying release archive to non-leader workers {workers} from {archive_location}")
-            archive_copy_command = _with_units([PIOS_EXECUTABLE, "cp", archive_location, "-y"], workers)
+            archive_copy_command = _with_units(
+                [PIOS_EXECUTABLE, "cp", archive_location, worker_archive_location, "-y"],
+                workers,
+            )
             run(archive_copy_command)
 
-            logger.debug(f"Updating non-leader workers {workers} from release archive {archive_location}")
+            logger.debug(
+                f"Updating non-leader workers {workers} from release archive {worker_archive_location}"
+            )
             worker_update_command = _with_units(
                 [
                     PIOS_EXECUTABLE,
                     "update",
                     "app",
                     "--source",
-                    archive_location,
+                    worker_archive_location,
                     "-y",
                 ],
                 workers,
@@ -453,11 +461,27 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
 
         return True
 
+    if units == leader:
+        logger.debug(f"Updating leader from {archive_location}")
+        leader_update_command = [
+            PIO_EXECUTABLE,
+            "update",
+            "app",
+            "--source",
+            archive_location,
+            "--defer-web-restart",
+        ]
+        check_call(leader_update_command)
+        sleep(2)
+        check_call(["sudo", "systemctl", "restart", "pioreactor-web.target"])
+        return True
+
     logger.debug(f"Updating app on unit {units} from {archive_location}")
     archive_copy_command = [
         PIOS_EXECUTABLE,
         "cp",
         archive_location,
+        worker_archive_location,
         "-y",
         "--units",
         units,
@@ -469,7 +493,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
         "update",
         "app",
         "--source",
-        archive_location,
+        worker_archive_location,
         "-y",
         "--units",
         units,

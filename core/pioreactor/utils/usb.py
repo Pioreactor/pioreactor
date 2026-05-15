@@ -13,6 +13,7 @@ import msgspec
 
 
 USB_MOUNT_ROOT = Path(os.environ.get("PIOREACTOR_USB_MOUNT_ROOT", "/run/pioreactor/usb"))
+DEV_USB_MOUNTPOINT = USB_MOUNT_ROOT / "DEV_USB"
 SUPPORTED_FILESYSTEMS = {"exfat", "vfat", "ext4"}
 UPDATE_ARCHIVE_PATTERN = re.compile(r"^release_(?P<version>\d{2}\.\d{1,2}\.\d+\w{0,6})\.zip$")
 
@@ -107,26 +108,36 @@ class UsbStatus(msgspec.Struct, frozen=True):
 
 
 def discover_usb_partitions() -> list[UsbPartition]:
-    result = subprocess.run(
-        [
-            "lsblk",
-            "--json",
-            "--bytes",
-            "--fs",
-            "--paths",
-            "--output",
-            "NAME,PATH,PKNAME,TYPE,RM,SIZE,FSTYPE,LABEL,UUID,MOUNTPOINTS",
-        ],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    fake_usb_partition = _dev_usb_partition()
+    try:
+        result = subprocess.run(
+            [
+                "lsblk",
+                "--json",
+                "--bytes",
+                "--fs",
+                "--paths",
+                "--output",
+                "NAME,PATH,PKNAME,TYPE,RM,SIZE,FSTYPE,LABEL,UUID,MOUNTPOINTS",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        if fake_usb_partition is not None:
+            return [fake_usb_partition]
+        raise
+
     payload = json.loads(result.stdout)
     partitions: list[UsbPartition] = []
 
     for device in payload.get("blockdevices", []):
         partitions.extend(_parse_lsblk_node(device, parent_device=None, parent_removable=False))
+
+    if fake_usb_partition is not None:
+        partitions.append(fake_usb_partition)
 
     return partitions
 
@@ -352,6 +363,22 @@ def _parse_lsblk_node(
         partitions.extend(_parse_lsblk_node(child, parent_device=device, parent_removable=removable))
 
     return partitions
+
+
+def _dev_usb_partition() -> UsbPartition | None:
+    if os.environ.get("TESTING") != "1" or not DEV_USB_MOUNTPOINT.exists():
+        return None
+
+    return UsbPartition(
+        device="/dev/pioreactor-dev-usb1",
+        parent_device="/dev/pioreactor-dev-usb",
+        label="DEV_USB",
+        uuid="DEV-USB",
+        fstype="ext4",
+        size_bytes=None,
+        mountpoints=(str(DEV_USB_MOUNTPOINT),),
+        removable=True,
+    )
 
 
 def _normalize_mountpoints(value: object) -> tuple[str, ...]:

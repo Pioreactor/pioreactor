@@ -46,7 +46,6 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
   const [isSuggestedPluginsLoading, setIsSuggestedPluginsLoading] = React.useState(true)
   const [suggestedPluginsFetchError, setSuggestedPluginsFetchError] = React.useState("")
-  const [suggestedPluginsRefreshCounter, setSuggestedPluginsRefreshCounter] = React.useState(0)
 
 
   React.useEffect(() => {
@@ -92,7 +91,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}
     return () => {
       isActive = false
     }
-  }, [suggestedPluginsRefreshCounter])
+  }, [])
 
   const installPlugin = (name, plugin_name)  => {
       setSnackbarOpen(true);
@@ -114,9 +113,6 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}
     setSnackbarOpen(false)
   }
 
-  const refreshSuggestedPlugins = () => {
-    setSuggestedPluginsRefreshCounter((counter) => counter + 1)
-  }
 
   return (
     <React.Fragment>
@@ -132,9 +128,6 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}
             <Typography variant="body2" component="p" color="error">
               {suggestedPluginsFetchError}
             </Typography>
-            <Button variant="text" onClick={refreshSuggestedPlugins} sx={{mt: 1, textTransform: 'none'}}>
-              Retry
-            </Button>
           </Box>
         )}
 
@@ -176,7 +169,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}
                   style={{maxWidth: "525px"}}
                 />
                 <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
-
+                  {hasMultipleUnits && (
                   <SelectButton
                     variant="contained"
                     color="primary"
@@ -189,10 +182,23 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins, hasMultipleUnits}
                     disabled={installedPlugins.includes(plugin.name)}
                   >
                     <MenuItem value={selectedUnit}>{installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
-                    {hasMultipleUnits && (
-                      <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
-                    )}
+                    <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
                   </SelectButton>
+                  )}
+                  {!hasMultipleUnits && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    aria-label="install"
+                    value={selectedUnit}
+                    onClick={(e) => installPlugin(e.target.value, plugin.name)}
+                    style={{textTransform: 'none'}}
+                    sx={{ml: "3px"}}
+                    disabled={installedPlugins.includes(plugin.name)}
+                  >
+                    {installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }
+                  </Button>
+                  )}
 
                   <Button
                     component={Link}
@@ -485,6 +491,7 @@ function ListUsbPlugins({selectedUnit, installedPlugins, hasMultipleUnits}){
                   style={{maxWidth: "525px"}}
                 />
                 <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
+                  {hasMultipleUnits && (
                   <SelectButton
                     variant="contained"
                     color="primary"
@@ -496,10 +503,23 @@ function ListUsbPlugins({selectedUnit, installedPlugins, hasMultipleUnits}){
                     disabled={isInstalled}
                   >
                     <MenuItem value={selectedUnit}>{isInstalled ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
-                    {hasMultipleUnits && (
-                      <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
-                    )}
+                    <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
                   </SelectButton>
+                  )}
+                  {!hasMultipleUnits && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    aria-label="install USB plugin"
+                    value={selectedUnit}
+                    onClick={(e) => installPlugin(e.target.value, plugin)}
+                    style={{textTransform: 'none'}}
+                    sx={{ml: "3px"}}
+                    disabled={isInstalled}
+                  >
+                    {isInstalled ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }
+                  </Button>
+                  )}
                 </ListItemSecondaryAction>
               </ListItem>
             )
@@ -531,7 +551,6 @@ function PluginContainer(){
   const [units, setUnits] = React.useState([])
   const [installedPluginsFetchError, setInstalledPluginsFetchError] = React.useState("")
   const [unitsFetchError, setUnitsFetchError] = React.useState("")
-  const [pluginsRefreshCounter, setPluginsRefreshCounter] = React.useState(0)
   const latestPluginsRequestId = React.useRef(0)
   const displayedSelectedUnit = units.includes(selectedUnit) ? selectedUnit : ""
 
@@ -587,7 +606,7 @@ function PluginContainer(){
     return () => {
       isActive = false
     }
-  }, [selectedUnit, pluginsRefreshCounter])
+  }, [selectedUnit])
 
 
   React.useEffect(() => {
@@ -652,9 +671,6 @@ function PluginContainer(){
     }
   }, [pioreactorUnit])
 
-  const refreshInstalledPlugins = () => {
-    setPluginsRefreshCounter((counter) => counter + 1)
-  }
 
   const onSelectionChange = (e) => {
     setSelectedUnit(e.target.value)
@@ -713,9 +729,6 @@ function PluginContainer(){
               <Typography variant="body2" component="p" color="error">
                 {installedPluginsFetchError}
               </Typography>
-              <Button variant="text" onClick={refreshInstalledPlugins} sx={{mt: 1, textTransform: 'none'}}>
-                Retry
-              </Button>
             </Box>
           )}
 

@@ -16,8 +16,10 @@ import MenuItem from '@mui/material/MenuItem';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import UsbIcon from "@mui/icons-material/Usb";
 import SelectButton from "./components/SelectButton";
 import FolderZipIcon from '@mui/icons-material/FolderZip';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -414,13 +416,152 @@ function UpdateFromInternetAndConfirm(props) {
 }
 
 
+function UpdateFromUsbAndConfirm(props) {
+  const [errorMsg, setErrorMsg] = React.useState(null);
+  const [units, setUnits] = React.useState([]);
+  const [selectedUnits, setSelectedUnits] = React.useState("$broadcast");
+  const [selectedArchivePath, setSelectedArchivePath] = React.useState(props.releaseArchives[0]?.path || "");
+  const [isUpdating, setIsUpdating] = React.useState(false);
+  const handleClose = props.onClose
+
+  React.useEffect(() => {
+    async function fetchUnits() {
+      try {
+        const response = await fetch(`/api/units`);
+        if (response.ok) {
+          const units = await response.json();
+          setUnits(units.map(u => u.pioreactor_unit));
+        } else {
+          console.error('Failed to fetch units:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching units:', error);
+      }
+    };
+    fetchUnits()
+  }, [])
+
+  const handleUpdate = async () => {
+    setIsUpdating(true)
+    setErrorMsg(null)
+
+    try {
+      const response = await fetch("/api/system/update_from_archive", {
+        method: "POST",
+        body: JSON.stringify({ release_archive_location: selectedArchivePath, units: selectedUnits }),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        let message = `Update failed with status ${response.status}`;
+        try {
+          const errorData = await response.json();
+          message = errorData.error || message;
+        } catch (_) {
+          // Keep fallback status-based message if error response isn't JSON.
+        }
+        throw new Error(message);
+      }
+
+      handleClose();
+      props.onSuccess()
+    } catch (error) {
+      setErrorMsg(error.message)
+      setIsUpdating(false)
+      console.error(error);
+    }
+  };
+
+  return (
+    <React.Fragment>
+      <Dialog
+        open={true}
+        onClose={handleClose}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {props.title}
+          <IconButton
+            aria-label="close"
+            onClick={handleClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+            size="large">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description" component="div">
+            {props.description}
+            <Box sx={{my: 2}}>
+              <FormControl sx={{mt: 2, minWidth: "260px"}} variant="outlined" size="small">
+                <InputLabel>Release archive</InputLabel>
+                <Select
+                  labelId="usbArchiveSelect"
+                  value={selectedArchivePath}
+                  onChange={(event) => setSelectedArchivePath(event.target.value)}
+                  label="Release archive"
+                >
+                  {props.releaseArchives.map((archive) => (
+                    <MenuItem key={archive.path} value={archive.path}>
+                      {archive.path.split("/").pop()}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {units.length > 1 &&
+            <Box sx={{my: 2}}>
+              <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
+                <InputLabel >Units to update</InputLabel>
+                <Select
+                  labelId="usbUnitsSelect"
+                  value={selectedUnits ? selectedUnits : "$broadcast"}
+                  onChange={(event) => setSelectedUnits(event.target.value)}
+                  label="Units to update"
+                >
+                  {units.map((unit) => (
+                    <MenuItem key={unit} value={unit}>{unit}</MenuItem>
+                  ))}
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          }
+            <Box sx={{minHeight: "30px", alignItems: "center", display: "flex"}}>
+              {errorMsg ? <Alert severity="error">{errorMsg}</Alert> : <React.Fragment/>}
+            </Box>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
+          <Button variant="contained" loading={isUpdating} disabled={!selectedArchivePath} onClick={handleUpdate} sx={{textTransform: "None"}}>Update</Button>
+        </DialogActions>
+      </Dialog>
+    </React.Fragment>
+  );
+}
+
+
 function UpdateSoftwareConfirmDialog() {
   const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
   const [installOption, setInstallOption] = React.useState("archive")
   const [showArchiveConfirm, setShowArchiveConfirm] = React.useState(false);
   const [showInternetConfirm, setShowInternetConfirm] = React.useState(false);
+  const [showUsbConfirm, setShowUsbConfirm] = React.useState(false);
   const [internetAccess, setInternetAccess] = React.useState(false);
+  const [usbName, setUsbName] = React.useState("");
+  const [usbReleaseArchives, setUsbReleaseArchives] = React.useState([]);
 
   React.useEffect(() => {
     const checkConnectivity = () => {
@@ -436,6 +577,66 @@ function UpdateSoftwareConfirmDialog() {
   checkConnectivity();
   }, []);
 
+  React.useEffect(() => {
+    let isActive = true
+
+    async function fetchUsbReleaseArchives() {
+      try {
+        const statusResponse = await fetch("/unit_api/usb");
+
+        if (!statusResponse.ok) {
+          throw new Error(`Unable to load USB status (HTTP ${statusResponse.status}).`)
+        }
+
+        const status = await statusResponse.json();
+        const activeMount = status?.active_mount;
+
+        if (!activeMount?.mountpoint || status.status !== "mounted") {
+          if (isActive) {
+            setUsbName("");
+            setUsbReleaseArchives([]);
+          }
+          return
+        }
+
+        const artifactsResponse = await fetch("/unit_api/usb/artifacts");
+
+        if (!artifactsResponse.ok) {
+          throw new Error(`Unable to scan USB updates (HTTP ${artifactsResponse.status}).`)
+        }
+
+        const artifacts = await artifactsResponse.json();
+
+        if (!isActive) {
+          return
+        }
+
+        setUsbName(activeMount.display_name || "USB");
+        setUsbReleaseArchives(Array.isArray(artifacts?.updates) ? artifacts.updates : []);
+      } catch (error) {
+        if (!isActive) {
+          return
+        }
+
+        console.error("Error fetching USB updates:", error);
+        setUsbName("");
+        setUsbReleaseArchives([]);
+      }
+    }
+
+    fetchUsbReleaseArchives();
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (installOption === "usb" && usbReleaseArchives.length === 0) {
+      setInstallOption("archive")
+    }
+  }, [installOption, usbReleaseArchives.length])
+
   const updateVersion = () => {
     setOpenSnackbar(true)
   }
@@ -445,17 +646,23 @@ function UpdateSoftwareConfirmDialog() {
       // Open the UploadArchiveAndConfirm dialog
       setShowArchiveConfirm(true);
     }
-    else {
+    else if (installOption === "usb") {
+      setShowUsbConfirm(true);
+    }
+    else if (installOption === "latest") {
       setShowInternetConfirm(true);
     }
   };
 
   const getIcon = () =>{
     if (installOption === "latest") {
-      return <UpdateIcon/>
+      return <CloudDownloadIcon/>
     }
     else if (installOption === "archive"){
       return <FolderZipIcon/>
+    }
+    else if (installOption === "usb"){
+      return <UsbIcon/>
     }
   }
 
@@ -466,6 +673,9 @@ function UpdateSoftwareConfirmDialog() {
     else if (installOption === "archive"){
       return "Update from zip file?"
     }
+    else if (installOption === "usb"){
+      return "Update from USB?"
+    }
   }
 
   const getDescription = () => {
@@ -475,6 +685,9 @@ function UpdateSoftwareConfirmDialog() {
     else if (installOption === "archive"){
       return ""
 
+    }
+    else if (installOption === "usb"){
+      return <p>Update from a release archive found on USB {usbName}. To avoid possible data interruptions, we suggest updating between running experiments.</p>
     }
   }
 
@@ -490,8 +703,11 @@ function UpdateSoftwareConfirmDialog() {
         disabled={updating}
         endIcon={getIcon()}
       >
-        <MenuItem disabled={!internetAccess} value={"latest"}>Update to next release over internet</MenuItem>
+        <MenuItem disabled={!internetAccess} value={"latest"}>Update over internet</MenuItem>
         <MenuItem value={"archive"}>Update from zip file</MenuItem>
+        {usbReleaseArchives.length > 0 &&
+          <MenuItem value={"usb"}>Update from USB</MenuItem>
+        }
       </SelectButton>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
@@ -517,6 +733,18 @@ function UpdateSoftwareConfirmDialog() {
             setUpdating(true)
           }}
           onClose={() => setShowInternetConfirm(false)}
+        />
+      )}
+      {showUsbConfirm && (
+        <UpdateFromUsbAndConfirm
+          title={getTitle()}
+          description={getDescription()}
+          releaseArchives={usbReleaseArchives}
+          onSuccess={() => {
+            updateVersion();
+            setUpdating(true)
+          }}
+          onClose={() => setShowUsbConfirm(false)}
         />
       )}
       </React.Fragment>

@@ -9,7 +9,11 @@ This repository contains the **executable code for the Pioreactor project**. It 
    - `core/pioreactor/web/unit_api.py` is the pioreactor-specific API for controlling individual actions on a Pioreactor.
    - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web APIs.
 3. `frontend/src` — React-based web UI
-4. `packaging/` - contains files used to build, install, and run Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR.
+4. `packaging/` - contains files used to build, install, and run Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR. Specific important files:
+  - `pioreactor/packaging/linux-leader/files/pioreactor.env`
+  - `pioreactor/packaging/shared-assets/sql/create_tables.sql`
+  - `pioreactor/packaging/shared-assets/pioreactor/config.example.ini`
+
 
 ---
 

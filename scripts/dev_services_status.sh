@@ -6,6 +6,7 @@ exec 2>/dev/null
 
 running_services=()
 missing_services=()
+unknown_services=()
 
 add_running() {
 	local name=$1
@@ -17,6 +18,12 @@ add_missing() {
 	local name=$1
 	local hint=$2
 	missing_services+=("${name} (${hint})")
+}
+
+add_unknown() {
+	local name=$1
+	local detail=$2
+	unknown_services+=("${name} (${detail})")
 }
 
 check_port() {
@@ -34,9 +41,8 @@ check_port() {
 
 check_huey() {
 	local pattern="huey_consumer.*pioreactor\\.web\\.tasks\\.huey"
-	local details summary count
-	details=$(pgrep -fl "${pattern}" || true)
-	if [[ -n "${details}" ]]; then
+	local details summary count pgrep_status
+	if details=$(pgrep -fl "${pattern}"); then
 		summary=$(printf '%s\n' "${details}" | head -n1)
 		count=$(printf '%s\n' "${details}" | awk 'END {print NR}')
 		if [[ ${count} -gt 1 ]]; then
@@ -44,7 +50,12 @@ check_huey() {
 		fi
 		add_running "Huey consumer" "${summary}"
 	else
-		add_missing "Huey consumer" "run 'make huey-dev'"
+		pgrep_status=$?
+		if [[ ${pgrep_status} -eq 1 ]]; then
+			add_missing "Huey consumer" "run 'make huey-dev'"
+		else
+			add_unknown "Huey consumer" "unable to inspect process list"
+		fi
 	fi
 }
 
@@ -53,15 +64,23 @@ check_port "Frontend dev server" 3000
 check_huey
 
 print_summary() {
-	if [[ ${#missing_services[@]} -eq 0 ]]; then
+	if [[ ${#missing_services[@]} -eq 0 && ${#unknown_services[@]} -eq 0 ]]; then
 		local joined_running
 		joined_running=$(IFS='; '; echo "${running_services[*]}")
 		echo "All dev services appear to be running: ${joined_running}"
 	else
-		echo "Need to start:"
-		for svc in "${missing_services[@]}"; do
-			echo " - ${svc}"
-		done
+		if [[ ${#missing_services[@]} -gt 0 ]]; then
+			echo "Need to start:"
+			for svc in "${missing_services[@]}"; do
+				echo " - ${svc}"
+			done
+		fi
+		if [[ ${#unknown_services[@]} -gt 0 ]]; then
+			echo "Unable to verify:"
+			for svc in "${unknown_services[@]}"; do
+				echo " - ${svc}"
+			done
+		fi
 		if [[ ${#running_services[@]} -gt 0 ]]; then
 			local joined_running
 			joined_running=$(IFS='; '; echo "${running_services[*]}")

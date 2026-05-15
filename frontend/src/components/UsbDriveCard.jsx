@@ -114,6 +114,7 @@ function UsbPartitionActionMenu({partition, isBusy, onMount, onEject}) {
 export default function UsbDriveCard({unit}) {
   const [usbStatus, setUsbStatus] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isBusy, setIsBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const [snackbarOpen, setSnackbarOpen] = React.useState(false);
@@ -135,6 +136,7 @@ export default function UsbDriveCard({unit}) {
   const refreshUsbStatus = React.useCallback(async () => {
     if (isMountedRef.current) {
       setError("");
+      setIsRefreshing(true);
     }
     try {
       let unitStatus;
@@ -166,6 +168,7 @@ export default function UsbDriveCard({unit}) {
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
     }
   }, [unit, usbEndpoint]);
@@ -344,9 +347,11 @@ export default function UsbDriveCard({unit}) {
           size="small"
           onClick={refreshUsbStatus}
           disabled={isBusy || isLoading}
+          loading={isRefreshing}
+          loadingPosition="start"
+          startIcon={<RefreshIcon fontSize="small" />}
           sx={{textTransform: "none"}}
         >
-          <RefreshIcon fontSize="small" sx={{mr: 0.5}} />
           Refresh
         </Button>
       </CardActions>

@@ -3,6 +3,7 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from pioreactor.cli.pio import pio
 from pioreactor.utils import usb as usb_utils
@@ -13,6 +14,11 @@ class DummyCompletedProcess:
         self.stdout = stdout
         self.stderr = ""
         self.returncode = 0
+
+
+@pytest.fixture(autouse=True)
+def disable_dev_usb_mount(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(usb_utils, "DEV_USB_MOUNTPOINT", tmp_path / "missing-dev-usb")
 
 
 def test_discover_usb_partitions_parses_removable_partition(monkeypatch) -> None:
@@ -64,6 +70,24 @@ def test_discover_usb_partitions_parses_removable_partition(monkeypatch) -> None
     assert partition.parent_device == "/dev/sda"
     assert partition.display_name == "PIOREACTOR"
     assert partition.pioreactor_mountpoint == usb_utils.USB_MOUNT_ROOT / "usb-7A2B-91FE"
+
+
+def test_discover_usb_partitions_adds_dev_usb_mount_when_present(tmp_path: Path, monkeypatch) -> None:
+    dev_usb_mountpoint = tmp_path / "dev_usb_mounts" / "DEV_USB"
+    dev_usb_mountpoint.mkdir(parents=True)
+
+    def fake_run(command: list[str], **kwargs) -> DummyCompletedProcess:
+        assert command[0] == "lsblk"
+        return DummyCompletedProcess(json.dumps({"blockdevices": []}))
+
+    monkeypatch.setattr(usb_utils, "DEV_USB_MOUNTPOINT", dev_usb_mountpoint)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    partitions = usb_utils.discover_usb_partitions()
+
+    assert len(partitions) == 1
+    assert partitions[0].display_name == "DEV_USB"
+    assert partitions[0].mountpoints == (str(dev_usb_mountpoint),)
 
 
 def test_scan_usb_mount_detects_release_archives(tmp_path: Path, monkeypatch) -> None:
