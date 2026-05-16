@@ -301,7 +301,7 @@ export default function SideNavAndHeader() {
     }
 
     fetchUsbStatus();
-    const usbTimerId = window.setInterval(fetchUsbStatus, 10000);
+    const usbTimerId = window.setInterval(fetchUsbStatus, 15000);
 
     return () => {
       isActive = false;

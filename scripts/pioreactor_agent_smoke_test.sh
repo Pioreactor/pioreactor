@@ -31,17 +31,20 @@ declare -a TEST_SEQUENCE=(
   check_database_access
   check_worker_model_metadata
   check_unit_api_core
+  check_usb_status_surface
   check_descriptor_endpoints
   check_unit_api_job_history
   check_blink
   check_pio_run_latency
   check_pio_logs_cli
+  check_pio_usb_cli
   check_leader_api
   check_experiment_cli
   check_stirring_job
   check_experiment_scoping
   check_experiment_profiles
   check_exportable_datasets_listing
+  check_exportable_dataset_preview_validation
   check_export_datasets_endpoint
   check_dropin_plugin_discovery
   check_calibration_discovery
@@ -50,6 +53,7 @@ declare -a TEST_SEQUENCE=(
   check_pump_actions
   check_plugin_install_cycle
   check_pios_cli
+  check_pios_cp_target_help
   check_pios_sync_configs
   check_numpy_installation
 )
@@ -219,6 +223,16 @@ curl_check() {
 curl_ok() {
   local url="$1"
   curl -fsS "$url" >/dev/null
+}
+
+http_status_is() {
+  local expected_status="$1"
+  local url="$2"
+  shift 2
+
+  local status
+  status="$(curl -sS -o /dev/null -w "%{http_code}" "$@" "$url")"
+  [[ "$status" == "$expected_status" ]]
 }
 
 fetch_running_jobs() {
@@ -463,6 +477,68 @@ check_unit_api_core() {
   run_step "Checking /unit_api/active_calibrations" curl_check http://localhost/unit_api/active_calibrations
 }
 
+check_usb_status_surface() {
+  local hostname
+  hostname="$(hostname)"
+
+  run_step \
+    "Checking /unit_api/usb status shape" \
+    curl_check \
+    http://localhost/unit_api/usb \
+    '. as $p | type=="object" and (["absent","present_unmounted","mounted","mounted_readonly","multiple_present","unsupported","error"] | index($p.status) != null) and ($p.partitions | type=="array") and ($p | has("active_mount"))'
+
+  run_step \
+    "Checking /unit_api/usb/artifacts handles current USB state" \
+    usb_artifacts_endpoint_ok
+
+  run_step \
+    "Checking /api/units/$hostname/usb target route" \
+    curl_check \
+    "http://localhost/api/units/$hostname/usb"
+
+  run_step \
+    "Checking /api/units/\$broadcast/usb rejects broadcast USB target" \
+    http_status_is \
+    400 \
+    "http://localhost/api/units/\$broadcast/usb"
+
+  run_step \
+    "Checking USB plugin install rejects broadcast target" \
+    http_status_is \
+    400 \
+    "http://localhost/api/units/\$broadcast/plugins/install-from-usb" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"filepath":"/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl"}'
+}
+
+usb_artifacts_endpoint_ok() {
+  local response_file status
+  response_file="$(mktemp)"
+  status="$(curl -sS -o "$response_file" -w "%{http_code}" http://localhost/unit_api/usb/artifacts)"
+
+  case "$status" in
+    200)
+      if [[ "$HAS_JQ" == true ]]; then
+        jq -e 'type=="object" and (.mountpoint | type=="string") and (.updates | type=="array") and (.plugins | type=="array")' "$response_file" >/dev/null
+      else
+        [[ -s "$response_file" ]]
+      fi
+      ;;
+    400)
+      [[ -s "$response_file" ]]
+      ;;
+    *)
+      rm -f "$response_file"
+      return 1
+      ;;
+  esac
+
+  local result=$?
+  rm -f "$response_file"
+  return "$result"
+}
+
 check_descriptor_endpoints() {
   run_step \
     "Checking /unit_api/jobs/descriptors" \
@@ -546,6 +622,31 @@ check_pio_logs_cli() {
     ok "pio logs CLI"
   else
     fail "pio logs CLI failed"
+  fi
+}
+
+check_pio_usb_cli() {
+  info "Checking pio usb CLI"
+
+  if pio usb --help | grep -q "list"; then
+    ok "pio usb exposes list subcommand"
+  else
+    fail "pio usb list subcommand missing"
+  fi
+
+  local usb_list
+  if usb_list="$(pio usb list --json)"; then
+    if [[ "$HAS_JQ" == true ]]; then
+      if echo "$usb_list" | jq -e 'type=="array"' >/dev/null; then
+        ok "pio usb list --json returns an array"
+      else
+        fail "pio usb list --json did not return an array"
+      fi
+    else
+      ok "pio usb list --json responded"
+    fi
+  else
+    fail "pio usb list --json failed"
   fi
 }
 
@@ -810,6 +911,42 @@ YAML
   rm -f ~/.pioreactor/exportable_datasets/test_dataset.yaml
 }
 
+check_exportable_dataset_preview_validation() {
+  info "Testing exportable dataset preview row limit validation"
+  mkdir -p ~/.pioreactor/exportable_datasets
+  cat <<'YAML' > ~/.pioreactor/exportable_datasets/agent_smoke_preview_dataset.yaml
+dataset_name: agent_smoke_preview_dataset
+description: "Smoke test preview dataset"
+display_name: "Agent Smoke Preview Dataset"
+has_experiment: false
+has_unit: false
+timestamp_columns: []
+default_order_by: null
+query: "SELECT 1 AS value"
+source: "app"
+YAML
+
+  if http_json_ok http://localhost/api/datasets/exportable/agent_smoke_preview_dataset/preview?n_rows=2 'type=="array"'; then
+    ok "preview accepts valid n_rows"
+  else
+    fail "preview rejected valid n_rows"
+  fi
+
+  if http_status_is 400 "http://localhost/api/datasets/exportable/agent_smoke_preview_dataset/preview?n_rows=101"; then
+    ok "preview rejects n_rows above limit"
+  else
+    fail "preview did not reject n_rows above limit"
+  fi
+
+  if http_status_is 400 "http://localhost/api/datasets/exportable/agent_smoke_preview_dataset/preview?n_rows=not-an-int"; then
+    ok "preview rejects non-integer n_rows"
+  else
+    fail "preview did not reject non-integer n_rows"
+  fi
+
+  rm -f ~/.pioreactor/exportable_datasets/agent_smoke_preview_dataset.yaml
+}
+
 check_export_datasets_endpoint() {
   info "Testing export_datasets endpoint"
   local payload
@@ -1006,6 +1143,15 @@ check_pios_cli() {
     ok "pios kill stirring"
   else
     fail "pios kill stirring failed"
+  fi
+}
+
+check_pios_cp_target_help() {
+  info "Checking pios cp target argument"
+  if pios cp --help | grep -q "TARGET"; then
+    ok "pios cp exposes optional TARGET argument"
+  else
+    fail "pios cp optional TARGET argument missing"
   fi
 }
 
