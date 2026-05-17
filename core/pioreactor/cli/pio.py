@@ -10,6 +10,7 @@ import tempfile
 import typing as t
 from os import geteuid
 from pathlib import Path
+from shlex import join
 from shlex import quote
 from typing import Any
 from uuid import uuid4
@@ -36,8 +37,11 @@ if whoami.am_I_leader():
 
 
 GIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{4,40}$")
+GITHUB_REPO_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+GIT_REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$")
 RELEASE_ARCHIVE_PATTERN = re.compile(r"release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$")
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
+UpdateCommand = tuple[list[str], float, bool]
 
 
 def validate_git_sha(value: str | None) -> str | None:
@@ -53,6 +57,46 @@ def validate_git_sha(value: str | None) -> str | None:
 
 def validate_git_sha_option(_ctx: click.Context, _param: click.Parameter, value: str | None) -> str | None:
     return validate_git_sha(value)
+
+
+def validate_github_repo(value: str) -> str:
+    cleaned_value = value.strip()
+    if not GITHUB_REPO_PATTERN.fullmatch(cleaned_value):
+        raise click.BadParameter("Expected a GitHub repo in owner/repo format.")
+
+    return cleaned_value
+
+
+def validate_github_repo_option(
+    _ctx: click.Context, _param: click.Parameter, value: str | None
+) -> str | None:
+    if value is None:
+        return None
+    return validate_github_repo(value)
+
+
+def validate_git_ref(value: str) -> str:
+    cleaned_value = value.strip()
+    if (
+        not GIT_REF_PATTERN.fullmatch(cleaned_value)
+        or ".." in cleaned_value
+        or cleaned_value.endswith((".", "/"))
+    ):
+        raise click.BadParameter(
+            "Expected a branch/ref without quotes, whitespace, control characters, or shell metacharacters."
+        )
+
+    return cleaned_value
+
+
+def validate_git_ref_option(_ctx: click.Context, _param: click.Parameter, value: str | None) -> str | None:
+    if value is None:
+        return None
+    return validate_git_ref(value)
+
+
+def update_command(command: list[str], priority: float, allow_failure: bool = False) -> UpdateCommand:
+    return command, priority, allow_failure
 
 
 def build_staged_release_archive_location(release_filename: str) -> str:
@@ -322,7 +366,7 @@ def get_update_app_commands(
     sha: str | None = None,
     no_deps: bool = False,
     defer_web_restart: bool = False,
-) -> tuple[list[tuple[str, float]], str]:
+) -> tuple[list[UpdateCommand], str]:
     """Build the commands_and_priority list and return the installed version."""
     import tempfile
     import re
@@ -339,56 +383,71 @@ def get_update_app_commands(
 
     def create_commands_for_release_archive(
         archive_location: str, release_version: str
-    ) -> list[tuple[str, float]]:
+    ) -> list[UpdateCommand]:
         tmp_dir = tempfile.gettempdir()
         tmp_rls_dir = f"{tmp_dir}/release_{release_version}"
-        archive_source = quote(archive_location)
         database_path = config.get("storage", "database")
 
-        release_commands: list[tuple[str, float]] = [
-            (f"sudo rm -rf {tmp_rls_dir}", -99),
-            (f"unzip -o {archive_source} -d {tmp_rls_dir}", 0),
-            (
-                f"unzip -o {tmp_rls_dir}/wheels_{release_version}.zip -d {tmp_rls_dir}/wheels",
+        release_commands: list[UpdateCommand] = [
+            update_command(["sudo", "rm", "-rf", tmp_rls_dir], -99),
+            update_command(["unzip", "-o", archive_location, "-d", tmp_rls_dir], 0),
+            update_command(
+                ["unzip", "-o", f"{tmp_rls_dir}/wheels_{release_version}.zip", "-d", f"{tmp_rls_dir}/wheels"],
                 1,
             ),
-            (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
-            (f"sudo bash {tmp_rls_dir}/update.sh", 4),
-            (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
+            update_command(["sudo", "bash", f"{tmp_rls_dir}/pre_update.sh"], 2),
+            update_command(["sudo", "bash", f"{tmp_rls_dir}/update.sh"], 4),
+            update_command(["sudo", "bash", f"{tmp_rls_dir}/post_update.sh"], 20),
         ]
 
-        release_commands.append((f"sudo rm -rf {tmp_rls_dir}", 98))
+        release_commands.append(update_command(["sudo", "rm", "-rf", tmp_rls_dir], 98))
 
         if not defer_web_restart:
-            release_commands.append(("sudo systemctl restart pioreactor-web.target", 99))
+            release_commands.append(
+                update_command(["sudo", "systemctl", "restart", "pioreactor-web.target"], 99)
+            )
 
         install_extra = get_install_extra_for_this_unit()
 
         if whoami.am_I_leader():
             release_commands.extend(
                 [
-                    (
-                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
+                    update_command(
+                        [
+                            "/opt/pioreactor/venv/bin/pip",
+                            "install",
+                            "--no-index",
+                            f"--find-links={tmp_rls_dir}/wheels/",
+                            f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
+                        ],
                         3,
                     ),
-                    (
-                        f"sudo sqlite3 {database_path} < {tmp_rls_dir}/update.sql || :",
+                    update_command(
+                        ["sudo", "sqlite3", database_path, f".read {tmp_rls_dir}/update.sql"],
                         10,
+                        allow_failure=True,
                     ),
                 ]
             )
         else:
             release_commands.append(
-                (
-                    f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
+                update_command(
+                    [
+                        "/opt/pioreactor/venv/bin/pip",
+                        "install",
+                        "--no-index",
+                        f"--find-links={tmp_rls_dir}/wheels/",
+                        f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
+                    ],
                     3,
                 )
             )
 
         return release_commands
 
-    commands_and_priority: list[tuple[str, float]] = []
+    commands_and_priority: list[UpdateCommand] = []
     sha = validate_git_sha(sha)
+    repo = validate_github_repo(repo)
     # source overrides branch/version/sha
     if source is not None:
         # download production
@@ -399,10 +458,21 @@ def get_update_app_commands(
         elif source.endswith(".whl"):
             version_installed = source
             commands_and_priority.append(
-                (f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {quote(source)}", 1)
+                update_command(
+                    [
+                        "/opt/pioreactor/venv/bin/pip",
+                        "install",
+                        "--force-reinstall",
+                        "--no-index",
+                        source,
+                    ],
+                    1,
+                )
             )
             if not defer_web_restart:
-                commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
+                commands_and_priority.append(
+                    update_command(["sudo", "systemctl", "restart", "pioreactor-web.target"], 30)
+                )
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             raise click.Abort()
@@ -410,20 +480,30 @@ def get_update_app_commands(
         # download dev
         git_ref = branch if branch is not None else sha
         assert git_ref is not None
-        cleaned_ref = quote(git_ref)
-        cleaned_repo = quote(repo)
+        cleaned_ref = validate_git_ref(git_ref)
         version_installed = cleaned_ref
-        no_deps_flag = "--no-deps " if no_deps else ""
+        no_deps_args = ["--no-deps"] if no_deps else []
         install_extra = get_install_extra_for_this_unit()
         commands_and_priority.append(
-            (
-                f"/opt/pioreactor/venv/bin/pip install --force-reinstall {no_deps_flag}--index-url https://piwheels.org/simple --extra-index-url https://pypi.org/simple "
-                f'"pioreactor[{install_extra}] @ git+https://github.com/{cleaned_repo}.git@{cleaned_ref}#subdirectory=core"',
+            update_command(
+                [
+                    "/opt/pioreactor/venv/bin/pip",
+                    "install",
+                    "--force-reinstall",
+                    *no_deps_args,
+                    "--index-url",
+                    "https://piwheels.org/simple",
+                    "--extra-index-url",
+                    "https://pypi.org/simple",
+                    f"pioreactor[{install_extra}] @ git+https://github.com/{repo}.git@{cleaned_ref}#subdirectory=core",
+                ],
                 1,
             )  # noqa: E501
         )
         if not defer_web_restart:
-            commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))  # noqa: E501
+            commands_and_priority.append(
+                update_command(["sudo", "systemctl", "restart", "pioreactor-web.target"], 30)
+            )
 
     else:
         # source is specified, likely in /tmp
@@ -451,9 +531,11 @@ def get_update_app_commands(
             raise FileNotFoundError(f"Could not find {archive_name} in assets of {repo} release {tag}")
 
         archive_location = build_staged_release_archive_location(archive_name)
-        commands_and_priority.append((f"wget -nv -O {quote(archive_location)} {archive_url}", -100))
+        commands_and_priority.append(
+            update_command(["wget", "-nv", "-O", archive_location, archive_url], -100)
+        )
         commands_and_priority.extend(create_commands_for_release_archive(archive_location, version_installed))
-        commands_and_priority.append((f"sudo rm -f {quote(archive_location)}", 97))
+        commands_and_priority.append(update_command(["sudo", "rm", "-f", archive_location], 97))
     return commands_and_priority, version_installed
 
 
@@ -1695,7 +1777,7 @@ def get_tag_to_install(repo: str, version_desired: str | None) -> str:
 
 
 @update.command(name="app")
-@click.option("-b", "--branch", help="install from a branch on github")
+@click.option("-b", "--branch", callback=validate_git_ref_option, help="install from a branch on github")
 @click.option("--sha", callback=validate_git_sha_option, help="install from a commit SHA on github")
 @click.option(
     "--no-deps",
@@ -1708,6 +1790,7 @@ def get_tag_to_install(repo: str, version_desired: str | None) -> str:
     "--repo",
     help="install from a repo on github. Format: 'username/project'",
     default="pioreactor/pioreactor",
+    callback=validate_github_repo_option,
 )
 @click.option("--source", help="use a URL, whl file, or release-***.zip file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
@@ -1758,26 +1841,29 @@ def update_app(
         "Prepared %s update commands. target_version=%s", len(commands_and_priority), version_installed
     )
 
-    for index, (command, priority) in enumerate(sorted(commands_and_priority, key=lambda t: t[1]), start=1):
+    for index, (command, priority, allow_failure) in enumerate(
+        sorted(commands_and_priority, key=lambda t: t[1]), start=1
+    ):
         if whoami.is_testing_env():
-            logger.debug("DRY-RUN (step %s, priority %s): %s", index, priority, command)
+            logger.debug("DRY-RUN (step %s, priority %s): %s", index, priority, join(command))
             continue
 
         logger.debug(
             "Running update step %s/%s: %s",
             index,
             len(commands_and_priority),
-            command,
+            join(command),
         )
 
         p = subprocess.run(
             command,
-            shell=True,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        if p.returncode != 0:
+        if p.returncode != 0 and allow_failure:
+            logger.debug("Update step %s returned %s but is allowed to fail.", index, p.returncode)
+        elif p.returncode != 0:
             if p.stdout:
                 logger.debug("Update step %s stdout: %s", index, p.stdout)
             if p.stderr:

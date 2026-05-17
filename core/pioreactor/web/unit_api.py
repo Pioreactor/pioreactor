@@ -17,6 +17,7 @@ from typing import Callable
 from typing import cast
 from typing import SupportsFloat
 
+from click import BadParameter
 from flask import after_this_request
 from flask import Blueprint
 from flask import current_app
@@ -37,6 +38,9 @@ from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
+from pioreactor.cli.pio import validate_git_ref
+from pioreactor.cli.pio import validate_git_sha
+from pioreactor.cli.pio import validate_github_repo
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
@@ -77,13 +81,6 @@ AllEstimators = subclass_union(structs.EstimatorBase)
 
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
-BIOREACTOR_VARIABLE_UNITS = {
-    "current_volume_ml": "mL",
-    "efflux_tube_volume_ml": "mL",
-    "cumulative_media_added_ml": "mL",
-    "cumulative_alt_media_added_ml": "mL",
-    "cumulative_waste_removed_ml": "mL",
-}
 
 # Register calibration session routes here to keep unit_api_bp ownership in this module.
 register_calibration_session_routes(unit_api_bp)
@@ -302,6 +299,29 @@ def _locked_task_response(lock_name: str) -> DelayedResponseReturnValue:
     return cast(DelayedResponseReturnValue, (jsonify({"status": "in_progress", "lock": lock_name}), 202))
 
 
+def build_pio_update_app_args(body: structs.ArgsOptionsEnvs) -> tuple[str, ...]:
+    commands: tuple[str, ...] = tuple(body.args)
+    for option, value in body.options.items():
+        if option in ("branch", "repo", "sha") and value is None:
+            abort_with(400, f"Option '{option}' requires a value.")
+
+        try:
+            if option == "branch":
+                value = validate_git_ref(str(value))
+            elif option == "repo":
+                value = validate_github_repo(str(value))
+            elif option == "sha":
+                value = validate_git_sha(str(value))
+        except (BadParameter, ValueError) as exc:
+            abort_with(400, str(exc))
+
+        commands += (f"--{option.replace('_', '-')}",)
+        if value is not None:
+            commands += (str(value),)
+
+    return commands
+
+
 def _get_shared_config_path() -> Path:
     return Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
 
@@ -443,12 +463,7 @@ def update_software_target(target: str) -> DelayedResponseReturnValue:
 
     body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
 
-    commands: tuple[str, ...] = tuple()
-    commands += tuple(body.args)
-    for option, value in body.options.items():
-        commands += (f"--{option.replace('_', '-')}",)
-        if value is not None:
-            commands += (str(value),)
+    commands = build_pio_update_app_args(body)
 
     if target == "app":
         task = tasks.pio_update_app(*commands)
@@ -475,12 +490,7 @@ def update_software() -> DelayedResponseReturnValue:
 
     body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
 
-    commands: tuple[str, ...] = tuple()
-    commands += tuple(body.args)
-    for option, value in body.options.items():
-        commands += (f"--{option.replace('_', '-')}",)
-        if value is not None:
-            commands += (str(value),)
+    commands = build_pio_update_app_args(body)
 
     task = tasks.pio_update_app(*commands)
     return create_task_response(task)
@@ -1152,6 +1162,15 @@ def get_bioreactor_values(experiment: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/bioreactor/experiments/<experiment>", methods=["PATCH"])
 def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
+
+    BIOREACTOR_VARIABLE_UNITS = {
+        "current_volume_ml": "mL",
+        "efflux_tube_volume_ml": "mL",
+        "cumulative_media_added_ml": "mL",
+        "cumulative_alt_media_added_ml": "mL",
+        "cumulative_waste_removed_ml": "mL",
+    }
+
     body = request.get_json(silent=True) or {}
     values = body.get("values", {})
 

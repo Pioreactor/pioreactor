@@ -123,6 +123,66 @@ def test_invalid_update_target(client) -> None:
     assert data.get("remediation") is None
 
 
+def test_update_app_rejects_malicious_branch_payload(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    def fail_pio_update_app(*_args: str):
+        raise AssertionError("update task should not be scheduled")
+
+    monkeypatch.setattr(mod.tasks, "pio_update_app", fail_pio_update_app)
+
+    resp = client.post(
+        "/unit_api/system/update/app",
+        json={"args": [], "options": {"branch": 'main"; /usr/bin/touch /tmp/pwned #'}, "env": {}},
+    )
+
+    assert resp.status_code == 400
+    assert "branch/ref" in resp.get_json()["error"]
+
+
+def test_update_app_rejects_malicious_repo_payload(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    def fail_pio_update_app(*_args: str):
+        raise AssertionError("update task should not be scheduled")
+
+    monkeypatch.setattr(mod.tasks, "pio_update_app", fail_pio_update_app)
+
+    resp = client.post(
+        "/unit_api/system/update/app",
+        json={"args": [], "options": {"branch": "main", "repo": "pioreactor/pioreactor;touch"}, "env": {}},
+    )
+
+    assert resp.status_code == 400
+    assert "owner/repo" in resp.get_json()["error"]
+
+
+def test_update_app_validates_and_schedules_safe_update_payload(
+    client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    captured_args: list[str] = []
+
+    class DummyTask:
+        id = "update-app-task"
+
+    def fake_pio_update_app(*args: str):
+        captured_args.extend(args)
+        return DummyTask()
+
+    monkeypatch.setattr(mod.tasks, "pio_update_app", fake_pio_update_app)
+
+    resp = client.post(
+        "/unit_api/system/update/app",
+        json={"args": [], "options": {"branch": "feature/test", "repo": "pioreactor/pioreactor"}, "env": {}},
+    )
+
+    assert resp.status_code == 202
+    assert resp.get_json()["task_id"] == "update-app-task"
+    assert captured_args == ["--branch", "feature/test", "--repo", "pioreactor/pioreactor"]
+
+
 def test_extract_error_message_uses_error_field_only() -> None:
     from pioreactor.web.utils import _extract_error_message
 

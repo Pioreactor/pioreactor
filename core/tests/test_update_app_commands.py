@@ -7,7 +7,6 @@ import tempfile
 from http.client import HTTPMessage
 from json import dumps
 from pathlib import Path
-from shlex import quote
 
 import click
 import pioreactor.config as config_module
@@ -36,6 +35,31 @@ def mock_release_metadata_response(tag_name: str, assets: list[dict[str, str]]) 
     return Response("", 200, HTTPMessage(), dumps(release_metadata).encode())
 
 
+def pip_install_app_from_git(repo: str, ref: str, extra: str = "leader_worker") -> list[str]:
+    return [
+        "/opt/pioreactor/venv/bin/pip",
+        "install",
+        "--force-reinstall",
+        "--index-url",
+        "https://piwheels.org/simple",
+        "--extra-index-url",
+        "https://pypi.org/simple",
+        f"pioreactor[{extra}] @ git+https://github.com/{repo}.git@{ref}#subdirectory=core",
+    ]
+
+
+def pip_install_app_from_wheel(source: str) -> list[str]:
+    return ["/opt/pioreactor/venv/bin/pip", "install", "--force-reinstall", "--no-index", source]
+
+
+def command_priorities(commands: list[tuple[list[str], float, bool]]) -> list[tuple[list[str], float]]:
+    return [(command, priority) for command, priority, _allow_failure in commands]
+
+
+def command_lines(commands: list[tuple[list[str], float, bool]]) -> list[str]:
+    return [" ".join(command) for command, _priority, _allow_failure in commands]
+
+
 def test_app_commands_with_whl_source() -> None:
     source = "/some/path/pioreactor-1.2.3-py3-none-any.whl"
     cmds, version = get_update_app_commands(
@@ -46,9 +70,9 @@ def test_app_commands_with_whl_source() -> None:
         defer_web_restart=True,
     )
     assert version == source
-    assert cmds == [
+    assert command_priorities(cmds) == [
         (
-            f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {source}",
+            pip_install_app_from_wheel(source),
             1,
         )
     ]
@@ -63,10 +87,10 @@ def test_app_commands_with_whl_source_includes_restart_by_default() -> None:
         version=None,
     )
     assert (
-        f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {source}",
+        pip_install_app_from_wheel(source),
         1,
-    ) in cmds
-    assert ("sudo systemctl restart pioreactor-web.target", 30) in cmds
+    ) in command_priorities(cmds)
+    assert (["sudo", "systemctl", "restart", "pioreactor-web.target"], 30) in command_priorities(cmds)
 
 
 def test_app_commands_with_whl_source_quotes_spaces_in_path() -> None:
@@ -80,9 +104,9 @@ def test_app_commands_with_whl_source_quotes_spaces_in_path() -> None:
     )
 
     assert version == source
-    assert cmds == [
+    assert command_priorities(cmds) == [
         (
-            f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {quote(source)}",
+            pip_install_app_from_wheel(source),
             1,
         )
     ]
@@ -100,13 +124,8 @@ def test_app_commands_with_branch() -> None:
     )
     assert version == branch
     # Only one command: pip install from monorepo subdirectory=core
-    expected = (
-        "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
-        "--extra-index-url https://pypi.org/simple "
-        f'"pioreactor[leader_worker] @ git+https://github.com/{repo}.git@{branch}#subdirectory=core"',
-        1,
-    )
-    assert cmds == [expected]
+    expected = (pip_install_app_from_git(repo, branch), 1)
+    assert command_priorities(cmds) == [expected]
 
 
 def test_app_commands_with_branch_for_leader_only(monkeypatch) -> None:
@@ -123,11 +142,9 @@ def test_app_commands_with_branch_for_leader_only(monkeypatch) -> None:
     )
 
     assert version == branch
-    assert cmds == [
+    assert command_priorities(cmds) == [
         (
-            "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
-            "--extra-index-url https://pypi.org/simple "
-            f'"pioreactor[leader] @ git+https://github.com/{repo}.git@{branch}#subdirectory=core"',
+            pip_install_app_from_git(repo, branch, "leader"),
             1,
         )
     ]
@@ -145,13 +162,8 @@ def test_app_commands_with_sha() -> None:
         defer_web_restart=True,
     )
     assert version == sha
-    expected = (
-        "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
-        "--extra-index-url https://pypi.org/simple "
-        f'"pioreactor[leader_worker] @ git+https://github.com/{repo}.git@{sha}#subdirectory=core"',
-        1,
-    )
-    assert cmds == [expected]
+    expected = (pip_install_app_from_git(repo, sha), 1)
+    assert command_priorities(cmds) == [expected]
 
 
 def test_app_commands_with_4_char_sha() -> None:
@@ -166,13 +178,8 @@ def test_app_commands_with_4_char_sha() -> None:
         defer_web_restart=True,
     )
     assert version == sha
-    expected = (
-        "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
-        "--extra-index-url https://pypi.org/simple "
-        f'"pioreactor[leader_worker] @ git+https://github.com/{repo}.git@{sha}#subdirectory=core"',
-        1,
-    )
-    assert cmds == [expected]
+    expected = (pip_install_app_from_git(repo, sha), 1)
+    assert command_priorities(cmds) == [expected]
 
 
 def test_app_commands_with_release_zip(tmp_path) -> None:
@@ -193,24 +200,35 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
     tmp_rls_dir = f"{tmp_dir}/release_{version}"
     # verify expected sequence of commands and their priorities
     expected = [
-        (f"sudo rm -rf {tmp_rls_dir}", -99),
-        (f"unzip -o {source} -d {tmp_rls_dir}", 0),
-        (f"unzip -o {tmp_rls_dir}/wheels_{version}.zip -d {tmp_rls_dir}/wheels", 1),
-        (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
-        (f"sudo bash {tmp_rls_dir}/update.sh", 4),
-        (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-        (f"sudo rm -rf {tmp_rls_dir}", 98),
+        (["sudo", "rm", "-rf", tmp_rls_dir], -99),
+        (["unzip", "-o", source, "-d", tmp_rls_dir], 0),
+        (["unzip", "-o", f"{tmp_rls_dir}/wheels_{version}.zip", "-d", f"{tmp_rls_dir}/wheels"], 1),
+        (["sudo", "bash", f"{tmp_rls_dir}/pre_update.sh"], 2),
+        (["sudo", "bash", f"{tmp_rls_dir}/update.sh"], 4),
+        (["sudo", "bash", f"{tmp_rls_dir}/post_update.sh"], 20),
+        (["sudo", "rm", "-rf", tmp_rls_dir], 98),
         (
-            f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
+            [
+                "/opt/pioreactor/venv/bin/pip",
+                "install",
+                "--no-index",
+                f"--find-links={tmp_rls_dir}/wheels/",
+                f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
+            ],
             3,
         ),
         (
-            f"sudo sqlite3 {config_module.config.get('storage','database')} < {tmp_rls_dir}/update.sql || :",
+            [
+                "sudo",
+                "sqlite3",
+                config_module.config.get("storage", "database"),
+                f".read {tmp_rls_dir}/update.sql",
+            ],
             10,
         ),
     ]
-    assert cmds == expected
+    assert command_priorities(cmds) == expected
+    assert cmds[-1][2] is True
 
 
 def test_app_commands_with_release_zip_with_spaces_in_path(tmp_path) -> None:
@@ -226,7 +244,10 @@ def test_app_commands_with_release_zip_with_spaces_in_path(tmp_path) -> None:
     )
 
     assert ver == version
-    assert cmds[1] == (f"unzip -o {quote(source)} -d {tempfile.gettempdir()}/release_{version}", 0)
+    assert (cmds[1][0], cmds[1][1]) == (
+        ["unzip", "-o", source, "-d", f"{tempfile.gettempdir()}/release_{version}"],
+        0,
+    )
 
 
 def test_app_commands_with_release_zip_prerelease_source() -> None:
@@ -243,8 +264,9 @@ def test_app_commands_with_release_zip_prerelease_source() -> None:
 
     assert ver == version
     assert any(
-        command == f"unzip -o {quote(source)} -d {tempfile.gettempdir()}/release_{version}" and priority == 0
-        for command, priority in cmds
+        command == ["unzip", "-o", source, "-d", f"{tempfile.gettempdir()}/release_{version}"]
+        and priority == 0
+        for command, priority, _allow_failure in cmds
     )
 
 
@@ -267,25 +289,24 @@ def test_app_commands_invalid_sha() -> None:
         )
 
 
-def test_app_commands_branch_with_special_chars() -> None:
-    branch = "feature/special branch"
-    repo = "org/my repo"
-    cmds, ver = get_update_app_commands(
-        branch=branch,
-        repo=repo,
-        source=None,
-        version=None,
-        defer_web_restart=True,
-    )
-    cleaned_branch = quote(branch)
-    cleaned_repo = quote(repo)
-    assert ver == cleaned_branch
-    expected_cmd = (
-        "/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple "
-        "--extra-index-url https://pypi.org/simple "
-        f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"'
-    )
-    assert cmds == [(expected_cmd, 1)]
+@pytest.mark.parametrize(
+    ("branch", "repo"),
+    [
+        ('main"; /usr/bin/touch /tmp/pwned #', "org/repo"),
+        ("feature/special branch", "org/repo"),
+        ("feature/test", "org/my repo"),
+        ("feature/test", "org/repo;touch"),
+    ],
+)
+def test_app_commands_reject_unsafe_branch_or_repo(branch: str, repo: str) -> None:
+    with pytest.raises(click.BadParameter):
+        get_update_app_commands(
+            branch=branch,
+            repo=repo,
+            source=None,
+            version=None,
+            defer_web_restart=True,
+        )
 
 
 def test_app_commands_from_release_metadata_include_restart_by_default(monkeypatch) -> None:
@@ -310,15 +331,18 @@ def test_app_commands_from_release_metadata_include_restart_by_default(monkeypat
         version=None,
     )
 
-    wget_command = next(command for command, _ in cmds if command.startswith("wget -nv -O "))
-    archive_location = wget_command.removeprefix("wget -nv -O ").removesuffix(
-        " https://example.com/release_26.3.0.zip"
+    wget_command = next(
+        command for command, _priority, _allow_failure in cmds if command[:3] == ["wget", "-nv", "-O"]
     )
+    archive_location = wget_command[3]
 
-    assert archive_location.startswith(quote(f"{tempfile.gettempdir()}/pioreactor_update_archive_"))
+    assert archive_location.startswith(f"{tempfile.gettempdir()}/pioreactor_update_archive_")
     assert archive_location.endswith("release_26.3.0.zip")
-    assert (f"wget -nv -O {archive_location} https://example.com/release_26.3.0.zip", -100) in cmds
-    assert ("sudo systemctl restart pioreactor-web.target", 99) in cmds
+    assert (
+        ["wget", "-nv", "-O", archive_location, "https://example.com/release_26.3.0.zip"],
+        -100,
+    ) in command_priorities(cmds)
+    assert (["sudo", "systemctl", "restart", "pioreactor-web.target"], 99) in command_priorities(cmds)
 
 
 def test_app_commands_from_release_metadata_skip_restart_when_deferred(monkeypatch) -> None:
@@ -344,7 +368,7 @@ def test_app_commands_from_release_metadata_skip_restart_when_deferred(monkeypat
         defer_web_restart=True,
     )
 
-    assert ("sudo systemctl restart pioreactor-web.target", 99) not in cmds
+    assert (["sudo", "systemctl", "restart", "pioreactor-web.target"], 99) not in command_priorities(cmds)
 
 
 def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatch) -> None:
@@ -378,33 +402,45 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
 
     assert ver == version
 
-    wget_command = next(command for command, _ in cmds if command.startswith("wget -nv -O "))
-    archive_location = wget_command.removeprefix("wget -nv -O ").removesuffix(
-        f" https://example.com/release_{version}.zip"
+    wget_command = next(
+        command for command, _priority, _allow_failure in cmds if command[:3] == ["wget", "-nv", "-O"]
     )
+    archive_location = wget_command[3]
     tmp_rls_dir = f"{tempfile.gettempdir()}/release_{version}"
-    assert archive_location.startswith(quote(f"{tempfile.gettempdir()}/pioreactor_update_archive_"))
+    assert archive_location.startswith(f"{tempfile.gettempdir()}/pioreactor_update_archive_")
     assert archive_location.endswith(f"release_{version}.zip")
-    assert cmds == [
-        (f"wget -nv -O {archive_location} https://example.com/release_{version}.zip", -100),
-        (f"sudo rm -rf {tmp_rls_dir}", -99),
-        (f"unzip -o {archive_location} -d {tmp_rls_dir}", 0),
-        (f"unzip -o {tmp_rls_dir}/wheels_{version}.zip -d {tmp_rls_dir}/wheels", 1),
-        (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
-        (f"sudo bash {tmp_rls_dir}/update.sh", 4),
-        (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-        (f"sudo rm -rf {tmp_rls_dir}", 98),
+    assert command_priorities(cmds) == [
+        (["wget", "-nv", "-O", archive_location, f"https://example.com/release_{version}.zip"], -100),
+        (["sudo", "rm", "-rf", tmp_rls_dir], -99),
+        (["unzip", "-o", archive_location, "-d", tmp_rls_dir], 0),
+        (["unzip", "-o", f"{tmp_rls_dir}/wheels_{version}.zip", "-d", f"{tmp_rls_dir}/wheels"], 1),
+        (["sudo", "bash", f"{tmp_rls_dir}/pre_update.sh"], 2),
+        (["sudo", "bash", f"{tmp_rls_dir}/update.sh"], 4),
+        (["sudo", "bash", f"{tmp_rls_dir}/post_update.sh"], 20),
+        (["sudo", "rm", "-rf", tmp_rls_dir], 98),
         (
-            f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-            f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
+            [
+                "/opt/pioreactor/venv/bin/pip",
+                "install",
+                "--no-index",
+                f"--find-links={tmp_rls_dir}/wheels/",
+                f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
+            ],
             3,
         ),
         (
-            f"sudo sqlite3 {config_module.config.get('storage','database')} < {tmp_rls_dir}/update.sql || :",
+            [
+                "sudo",
+                "sqlite3",
+                config_module.config.get("storage", "database"),
+                f".read {tmp_rls_dir}/update.sql",
+            ],
             10,
         ),
-        (f"sudo rm -f {archive_location}", 97),
+        (["sudo", "rm", "-f", archive_location], 97),
     ]
+    sqlite_update_command = next(command for command in cmds if command[0][:2] == ["sudo", "sqlite3"])
+    assert sqlite_update_command[2] is True
 
 
 def test_app_commands_from_release_metadata_requires_release_archive(monkeypatch) -> None:
@@ -445,9 +481,10 @@ def test_app_commands_with_release_zip_for_worker_excludes_leader_steps(monkeypa
     )
 
     assert ver == version
-    assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
-    assert not any("[leader_worker]" in command for command, _ in cmds)
-    assert not any("update.sql" in command for command, _ in cmds)
+    lines = command_lines(cmds)
+    assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for line in lines)
+    assert not any("[leader_worker]" in line for line in lines)
+    assert not any("update.sql" in line for line in lines)
 
 
 def test_app_commands_with_release_zip_for_leader_only_uses_leader_extra(monkeypatch, tmp_path) -> None:
@@ -464,9 +501,10 @@ def test_app_commands_with_release_zip_for_leader_only_uses_leader_extra(monkeyp
     )
 
     assert ver == version
-    assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[leader]") for command, _ in cmds)
-    assert not any("[leader_worker]" in command for command, _ in cmds)
-    assert any("update.sql" in command for command, _ in cmds)
+    lines = command_lines(cmds)
+    assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[leader]") for line in lines)
+    assert not any("[leader_worker]" in line for line in lines)
+    assert any("update.sql" in line for line in lines)
 
 
 def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monkeypatch) -> None:
@@ -496,9 +534,10 @@ def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monk
     )
 
     assert ver == version
-    assert any(command.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for command, _ in cmds)
-    assert not any("[leader_worker]" in command for command, _ in cmds)
-    assert not any("update.sql" in command for command, _ in cmds)
+    lines = command_lines(cmds)
+    assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for line in lines)
+    assert not any("[leader_worker]" in line for line in lines)
+    assert not any("update.sql" in line for line in lines)
 
 
 def test_app_commands_from_release_metadata_does_not_fetch_individual_assets(monkeypatch) -> None:
@@ -546,9 +585,12 @@ def test_app_commands_from_release_metadata_does_not_fetch_individual_assets(mon
         defer_web_restart=True,
     )
 
-    wget_commands = [command for command, _ in cmds if command.startswith("wget -nv -O ")]
+    wget_commands = [
+        command for command, _priority, _allow_failure in cmds if command[:3] == ["wget", "-nv", "-O"]
+    ]
     assert len(wget_commands) == 1
     assert re.fullmatch(
-        rf"wget -nv -O {re.escape(tempfile.gettempdir())}/pioreactor_update_archive_[0-9a-f]+_release_{re.escape(version)}\.zip https://example\.com/release_{re.escape(version)}\.zip",
-        wget_commands[0],
+        rf"{re.escape(tempfile.gettempdir())}/pioreactor_update_archive_[0-9a-f]+_release_{re.escape(version)}\.zip",
+        wget_commands[0][3],
     )
+    assert wget_commands[0][4] == f"https://example.com/release_{version}.zip"

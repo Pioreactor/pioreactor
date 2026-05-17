@@ -15,6 +15,8 @@ import click
 from msgspec import DecodeError
 from msgspec.json import encode as dumps
 from pioreactor import types as pt
+from pioreactor.cli.pio import validate_git_ref_option
+from pioreactor.cli.pio import validate_github_repo_option
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.cluster_management import get_workers_in_inventory
@@ -525,7 +527,7 @@ if am_I_leader() or is_testing_env():
         """
 
     @update.command(name="app", short_help="update Pioreactor app on workers")
-    @click.option("-b", "--branch", help="update to the github branch")
+    @click.option("-b", "--branch", callback=validate_git_ref_option, help="update to the github branch")
     @click.option("--sha", callback=validate_git_sha_option, help="update to a github commit SHA")
     @click.option(
         "--no-deps",
@@ -537,6 +539,7 @@ if am_I_leader() or is_testing_env():
         "-r",
         "--repo",
         help="install from a repo on github. Format: username/project",
+        callback=validate_github_repo_option,
     )
     @click.option("-v", "--version", help="install a specific version, default is latest")
     @click.option("-s", "--source", help="install from a source, whl or release archive")

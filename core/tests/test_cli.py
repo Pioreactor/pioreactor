@@ -1194,6 +1194,110 @@ def test_pio_update_requires_explicit_subcommand() -> None:
     assert "No such option: --sha" in result.output
 
 
+def test_pio_update_app_runs_argv_without_shell(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    run_calls: list[tuple[list[str], dict[str, object]]] = []
+
+    class FakeCompletedProcess:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    class FakeLogger:
+        def debug(self, *_args: object, **_kwargs: object) -> None:
+            return
+
+        def notice(self, *_args: object, **_kwargs: object) -> None:
+            return
+
+        def error(self, *_args: object, **_kwargs: object) -> None:
+            return
+
+    def fake_run(command: list[str], **kwargs: object) -> FakeCompletedProcess:
+        run_calls.append((command, kwargs))
+        return FakeCompletedProcess()
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.is_testing_env", lambda: False)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.check_firstboot_successful", lambda: True)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: True)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    monkeypatch.setattr("pioreactor.cli.pio.geteuid", lambda: 1000)
+    monkeypatch.setattr("pioreactor.cli.pio.subprocess.run", fake_run)
+    monkeypatch.setattr("pioreactor.logging.create_logger", lambda *_args, **_kwargs: FakeLogger())
+    monkeypatch.setattr("pioreactor.pubsub.publish", lambda *_args, **_kwargs: None)
+
+    result = runner.invoke(pio, ["update", "app", "--branch", "main", "--repo", "pioreactor/pioreactor"])
+
+    assert result.exit_code == 0
+    assert len(run_calls) >= 1
+    assert all(call_kwargs.get("shell") is not True for _command, call_kwargs in run_calls)
+    assert run_calls[0][0][:3] == ["/opt/pioreactor/venv/bin/pip", "install", "--force-reinstall"]
+
+
+def test_pio_update_app_allows_release_archive_sql_step_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    run_calls: list[list[str]] = []
+
+    class FakeCompletedProcess:
+        stdout = ""
+        stderr = ""
+
+        def __init__(self, returncode: int) -> None:
+            self.returncode = returncode
+
+    class FakeLogger:
+        def debug(self, *_args: object, **_kwargs: object) -> None:
+            return
+
+        def notice(self, *_args: object, **_kwargs: object) -> None:
+            return
+
+        def error(self, *_args: object, **_kwargs: object) -> None:
+            return
+
+    def fake_run(command: list[str], **_kwargs: object) -> FakeCompletedProcess:
+        run_calls.append(command)
+        if command[:2] == ["sudo", "sqlite3"]:
+            return FakeCompletedProcess(1)
+        return FakeCompletedProcess(0)
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.is_testing_env", lambda: False)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.check_firstboot_successful", lambda: True)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: True)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    monkeypatch.setattr("pioreactor.cli.pio.geteuid", lambda: 1000)
+    monkeypatch.setattr("pioreactor.cli.pio.subprocess.run", fake_run)
+    monkeypatch.setattr("pioreactor.logging.create_logger", lambda *_args, **_kwargs: FakeLogger())
+    monkeypatch.setattr("pioreactor.pubsub.publish", lambda *_args, **_kwargs: None)
+
+    result = runner.invoke(
+        pio,
+        ["update", "app", "--source", "/tmp/release_26.3.0.zip", "--defer-web-restart"],
+    )
+
+    assert result.exit_code == 0
+    assert any(command[:2] == ["sudo", "sqlite3"] for command in run_calls)
+
+
+def test_pio_update_app_rejects_malicious_branch() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        pio,
+        [
+            "update",
+            "app",
+            "--branch",
+            'main"; /usr/bin/touch /tmp/pwned #',
+            "--repo",
+            "pioreactor/pioreactor",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "branch/ref" in result.output
+
+
 def test_pios_update_app_requests_with_sha() -> None:
     runner = CliRunner()
     git_sha = "a0b1c2d3"
