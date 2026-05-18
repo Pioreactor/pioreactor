@@ -1300,14 +1300,52 @@ def test_update_app_from_release_archive_requires_json_object(client: FlaskClien
     assert response.get_json()["error"] == "Invalid request body"
 
 
-def test_update_app_from_release_archive_requires_zip(client: FlaskClient) -> None:
+def test_update_app_from_release_archive_requires_zip_suffix(
+    client: FlaskClient,
+) -> None:
     response = client.post(
         "/api/system/update_from_archive",
-        json={"release_archive_location": "/tmp/release.tar.gz", "units": "$broadcast"},
+        json={"release_archive_location": "/tmp/release_26.5.2.zip_1", "units": "$broadcast"},
     )
 
     assert response.status_code == 400
     assert response.get_json()["error"] == "release_archive_location must point to a .zip file"
+
+
+def test_update_app_from_release_archive_verifies_renamed_zip_upload(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    from pioreactor.release_archive import ReleaseArchiveManifest
+
+    uploaded_archive = tmp_path / "release_26.5.2_1.zip"
+    uploaded_archive.write_bytes(b"archive")
+    monkeypatch.setattr("pioreactor.web.api.tempfile.gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        "pioreactor.web.api.verify_release_archive",
+        lambda *_args, **_kwargs: ReleaseArchiveManifest(
+            format=1, product="pioreactor", version="26.5.2", files={}
+        ),
+    )
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    captured: dict[str, str] = {}
+
+    def fake_update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> str:
+        captured["archive_location"] = archive_location
+        return "task"
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.tasks.update_app_from_release_archive_across_cluster",
+        fake_update_app_from_release_archive_across_cluster,
+    )
+
+    response = client.post(
+        "/api/system/update_from_archive",
+        json={"release_archive_location": str(uploaded_archive), "units": "$broadcast"},
+    )
+
+    assert response.status_code == 202
+    assert captured["archive_location"].endswith("_release_26.5.2.zip")
 
 
 def test_update_app_from_release_archive_requires_units(client: FlaskClient) -> None:
@@ -1318,6 +1356,82 @@ def test_update_app_from_release_archive_requires_units(client: FlaskClient) -> 
 
     assert response.status_code == 400
     assert response.get_json()["error"] == "Missing units"
+
+
+def test_update_app_from_release_archive_verifies_archive_before_queuing(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    from pioreactor.release_archive import ReleaseArchiveManifest
+
+    captured: dict[str, object] = {}
+    uploaded_archive = tmp_path / "release_26.5.2_1.zip"
+    uploaded_archive.write_bytes(b"archive")
+    monkeypatch.setattr("pioreactor.web.api.tempfile.gettempdir", lambda: str(tmp_path))
+
+    def fake_verify_release_archive(
+        archive_location: str, expected_version: str | None = None
+    ) -> ReleaseArchiveManifest:
+        captured["verified_archive_location"] = archive_location
+        captured["verified_expected_version"] = expected_version
+        return ReleaseArchiveManifest(format=1, product="pioreactor", version="26.5.2", files={})
+
+    def fake_update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> str:
+        captured["archive_location"] = archive_location
+        captured["units"] = units
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api.verify_release_archive", fake_verify_release_archive)
+    monkeypatch.setattr(
+        "pioreactor.web.api.tasks.update_app_from_release_archive_across_cluster",
+        fake_update_app_from_release_archive_across_cluster,
+    )
+    monkeypatch.setattr("pioreactor.web.api.create_task_response", lambda task: ({"task": task}, 202))
+
+    response = client.post(
+        "/api/system/update_from_archive",
+        json={"release_archive_location": str(uploaded_archive), "units": "$broadcast"},
+    )
+
+    assert response.status_code == 202
+    assert captured["verified_archive_location"] == str(uploaded_archive)
+    assert captured["verified_expected_version"] is None
+    assert captured["units"] == "$broadcast"
+    staged_archive_location = Path(str(captured["archive_location"]))
+    assert staged_archive_location.parent == tmp_path
+    assert staged_archive_location.name.startswith("pioreactor_update_archive_")
+    assert staged_archive_location.name.endswith("_release_26.5.2.zip")
+    assert staged_archive_location.read_bytes() == b"archive"
+
+
+def test_update_app_from_release_archive_rejects_unverified_archive(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.release_archive import ReleaseArchiveVerificationError
+
+    queued = False
+
+    def fake_verify_release_archive(_archive_location: str, expected_version: str | None = None) -> None:
+        raise ReleaseArchiveVerificationError("bad signature")
+
+    def fake_update_app_from_release_archive_across_cluster(_archive_location: str, units: str) -> str:
+        nonlocal queued
+        queued = True
+        return "task"
+
+    monkeypatch.setattr("pioreactor.web.api.verify_release_archive", fake_verify_release_archive)
+    monkeypatch.setattr(
+        "pioreactor.web.api.tasks.update_app_from_release_archive_across_cluster",
+        fake_update_app_from_release_archive_across_cluster,
+    )
+
+    response = client.post(
+        "/api/system/update_from_archive",
+        json={"release_archive_location": "/tmp/release_26.5.2.zip", "units": "$broadcast"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Release archive failed verification"
+    assert queued is False
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")

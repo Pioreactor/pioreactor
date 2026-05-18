@@ -6,6 +6,7 @@ import re
 import tempfile
 from http.client import HTTPMessage
 from json import dumps
+from os import environ
 from pathlib import Path
 
 import click
@@ -50,6 +51,17 @@ def pip_install_app_from_git(repo: str, ref: str, extra: str = "leader_worker") 
 
 def pip_install_app_from_wheel(source: str) -> list[str]:
     return ["/opt/pioreactor/venv/bin/pip", "install", "--force-reinstall", "--no-index", source]
+
+
+def verify_release_archive_command(source: str, version: str) -> list[str]:
+    return [
+        environ.get("PIO_EXECUTABLE", "pio"),
+        "update",
+        "verify-release-archive",
+        source,
+        "--expected-version",
+        version,
+    ]
 
 
 def command_priorities(commands: list[tuple[list[str], float, bool]]) -> list[tuple[list[str], float]]:
@@ -200,6 +212,7 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
     tmp_rls_dir = f"{tmp_dir}/release_{version}"
     # verify expected sequence of commands and their priorities
     expected = [
+        (verify_release_archive_command(source, version), -99.5),
         (["sudo", "rm", "-rf", tmp_rls_dir], -99),
         (["unzip", "-o", source, "-d", tmp_rls_dir], 0),
         (["unzip", "-o", f"{tmp_rls_dir}/wheels_{version}.zip", "-d", f"{tmp_rls_dir}/wheels"], 1),
@@ -244,7 +257,7 @@ def test_app_commands_with_release_zip_with_spaces_in_path(tmp_path) -> None:
     )
 
     assert ver == version
-    assert (cmds[1][0], cmds[1][1]) == (
+    assert (cmds[2][0], cmds[2][1]) == (
         ["unzip", "-o", source, "-d", f"{tempfile.gettempdir()}/release_{version}"],
         0,
     )
@@ -411,6 +424,7 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
     assert archive_location.endswith(f"release_{version}.zip")
     assert command_priorities(cmds) == [
         (["wget", "-nv", "-O", archive_location, f"https://example.com/release_{version}.zip"], -100),
+        (verify_release_archive_command(archive_location, version), -99.5),
         (["sudo", "rm", "-rf", tmp_rls_dir], -99),
         (["unzip", "-o", archive_location, "-d", tmp_rls_dir], 0),
         (["unzip", "-o", f"{tmp_rls_dir}/wheels_{version}.zip", "-d", f"{tmp_rls_dir}/wheels"], 1),

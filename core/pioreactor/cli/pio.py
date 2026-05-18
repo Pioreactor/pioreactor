@@ -41,6 +41,7 @@ GITHUB_REPO_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9][A-
 GIT_REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$")
 RELEASE_ARCHIVE_PATTERN = re.compile(r"release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$")
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
+LOCAL_PIO_EXECUTABLE = os.environ.get("PIO_EXECUTABLE", "pio")
 UpdateCommand = tuple[list[str], float, bool]
 
 
@@ -389,6 +390,17 @@ def get_update_app_commands(
         database_path = config.get("storage", "database")
 
         release_commands: list[UpdateCommand] = [
+            update_command(
+                [
+                    LOCAL_PIO_EXECUTABLE,
+                    "update",
+                    "verify-release-archive",
+                    archive_location,
+                    "--expected-version",
+                    release_version,
+                ],
+                -99.5,
+            ),
             update_command(["sudo", "rm", "-rf", tmp_rls_dir], -99),
             update_command(["unzip", "-o", archive_location, "-d", tmp_rls_dir], 0),
             update_command(
@@ -1711,6 +1723,19 @@ def update() -> None:
     """
     Update Pioreactor software.
     """
+
+
+@update.command(name="verify-release-archive", hidden=True)
+@click.argument("archive_location")
+@click.option("--expected-version")
+def verify_release_archive_command(archive_location: str, expected_version: str | None) -> None:
+    from pioreactor.release_archive import ReleaseArchiveVerificationError
+    from pioreactor.release_archive import verify_release_archive
+
+    try:
+        verify_release_archive(archive_location, expected_version=expected_version)
+    except ReleaseArchiveVerificationError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 def get_non_prerelease_tags_of_pioreactor(repo: str) -> list[str]:

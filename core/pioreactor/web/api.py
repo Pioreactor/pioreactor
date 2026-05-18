@@ -2,6 +2,7 @@
 import configparser
 import json
 import os
+import shutil
 import sqlite3
 import tempfile
 import typing as t
@@ -38,6 +39,8 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import QOS
+from pioreactor.release_archive import ReleaseArchiveVerificationError
+from pioreactor.release_archive import verify_release_archive
 from pioreactor.states import JobState
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
@@ -2601,12 +2604,12 @@ def upload_system_file() -> ResponseReturnValue:
             cause="Uploaded file field has an empty filename.",
             remediation="Select a file before submitting the form.",
         )
-    if file.content_length >= 30_000_000:  # 30mb?
+    if file.content_length >= 60_000_000:  # 30mb?
         abort_with(
             400,
             "Too large",
-            cause="Uploaded file exceeds 30 MB limit.",
-            remediation="Upload a smaller file (under 30 MB).",
+            cause="Uploaded file exceeds 60 MB limit.",
+            remediation="Upload a smaller file (under 60 MB).",
         )
 
     filename = secure_filename(file.filename)
@@ -2908,7 +2911,6 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
             cause="Release archive path does not end in .zip.",
             remediation="Upload or choose a .zip release archive.",
         )
-
     units = body.get("units")
     if not isinstance(units, str) or not units:
         abort_with(
@@ -2918,7 +2920,23 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
             remediation="Provide a concrete unit name or $broadcast.",
         )
 
-    task = tasks.update_app_from_release_archive_across_cluster(release_archive_location, units=units)
+    try:
+        release_manifest = verify_release_archive(release_archive_location)
+    except ReleaseArchiveVerificationError as exc:
+        abort_with(
+            400,
+            "Release archive failed verification",
+            cause=str(exc),
+            remediation="Upload an official signed Pioreactor release archive.",
+        )
+
+    staged_release_archive_location = str(
+        Path(tempfile.gettempdir())
+        / f"{STAGED_RELEASE_ARCHIVE_PREFIX}{uuid.uuid4().hex}_release_{release_manifest.version}.zip"
+    )
+    shutil.copy2(release_archive_location, staged_release_archive_location)
+
+    task = tasks.update_app_from_release_archive_across_cluster(staged_release_archive_location, units=units)
     return create_task_response(task)
 
 

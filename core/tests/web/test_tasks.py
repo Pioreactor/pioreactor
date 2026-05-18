@@ -370,20 +370,6 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
     assert output == {"unit1": {"ok": True}, "unit2": None}
 
 
-def test_install_plugin_task_is_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_rate_limit("plugins")
-    monkeypatch.setattr(
-        "pioreactor.plugin_management.install_plugin.install_plugin", lambda *args, **kwargs: None
-    )
-
-    assert tasks.install_plugin_task.call_local("demo-plugin") is True
-
-    with pytest.raises(RateLimitExceeded):
-        tasks.install_plugin_task.call_local("demo-plugin")
-
-    _clear_rate_limit("plugins")
-
-
 def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filename(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

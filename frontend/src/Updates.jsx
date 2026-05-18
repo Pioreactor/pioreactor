@@ -47,20 +47,18 @@ const VisuallyHiddenInput = styled('input')({
   width: 1,
 });
 
-const RELEASE_ARCHIVE_FILENAME_REGEX = /^release_\d{2}\.\d{1,2}\.\d+\w{0,6}\.zip$/;
-
 function validateReleaseArchive(file) {
   if (!file) {
     return { file: null, error: null };
   }
 
-  if (RELEASE_ARCHIVE_FILENAME_REGEX.test(file.name)) {
+  if (file.name.toLowerCase().endsWith(".zip")) {
     return { file, error: null };
   }
 
   return {
     file: null,
-    error: "Not a valid release archive file. It should be a zip file, starting with `release_` and ending in `<version>.zip`. ",
+    error: "Not a valid release archive file. It should be a zip file downloaded from Pioreactor releases.",
   };
 }
 

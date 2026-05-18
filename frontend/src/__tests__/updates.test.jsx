@@ -126,7 +126,7 @@ describe("Updates page", () => {
     expect(screen.getByRole("button", { name: "Update" })).toBeEnabled();
   });
 
-  test("shows an error for an invalid dropped archive in the update dialog", async () => {
+  test("accepts a duplicate downloaded release archive filename in the update dialog", async () => {
     const user = userEvent.setup();
     global.fetch = jest.fn((url) => {
       if (url === "https://api.github.com/repos/pioreactor/pioreactor/releases/latest") {
@@ -160,12 +160,55 @@ describe("Updates page", () => {
 
     fireEvent.drop(dropTarget, {
       dataTransfer: {
-        files: [new File(["zip"], "notes.zip", { type: "application/zip" })],
+        files: [new File(["zip"], "release_26.4.0 (1).zip", { type: "application/zip" })],
+      },
+    });
+
+    expect(await screen.findByText("release_26.4.0 (1).zip")).toBeInTheDocument();
+    expect(screen.queryByText(/not a valid release archive file/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update" })).toBeEnabled();
+  });
+
+  test("shows an error for a filename that does not end in zip", async () => {
+    const user = userEvent.setup();
+    global.fetch = jest.fn((url) => {
+      if (url === "https://api.github.com/repos/pioreactor/pioreactor/releases/latest") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ tag_name: "26.3.10" }),
+        });
+      }
+
+      if (url === "https://raw.githubusercontent.com/Pioreactor/pioreactor/master/CHANGELOG.md") {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve("# Changelog"),
+        });
+      }
+
+      if (url === "/api/units") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ pioreactor_unit: "leader1" }]),
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    });
+
+    render(<Updates title="Pioreactor ~ Updates" />);
+
+    await user.click(screen.getByRole("button", { name: /update from zip file/i }));
+    const dropTarget = await screen.findByText(/drop a/i);
+
+    fireEvent.drop(dropTarget, {
+      dataTransfer: {
+        files: [new File(["zip"], "release_26.4.0.zip (1)", { type: "application/zip" })],
       },
     });
 
     expect(await screen.findByText(/not a valid release archive file/i)).toBeInTheDocument();
-    expect(screen.queryByText("notes.zip")).not.toBeInTheDocument();
+    expect(screen.queryByText("release_26.4.0.zip (1)")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update" })).toBeDisabled();
   });
 });

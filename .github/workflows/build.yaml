@@ -145,8 +145,47 @@ jobs:
             [ -f "release_assets/$filename" ] || : > "release_assets/$filename"
           done
 
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          release_assets = Path("release_assets")
+          files = {}
+          for path in sorted(release_assets.iterdir()):
+            if path.is_file():
+              files[path.name] = f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+
+          manifest = {
+            "format": 1,
+            "product": "pioreactor",
+            "version": tag,
+            "files": files,
+          }
+          (release_assets / "pioreactor-release-manifest.json").write_text(
+            json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+          )
+          PY
+
+          test -n "${{ secrets.PIOREACTOR_RELEASE_SIGNING_KEY }}" || {
+            echo "Missing PIOREACTOR_RELEASE_SIGNING_KEY secret; refusing to publish unsigned release archive." >&2
+            exit 1
+          }
+          signing_key="$RUNNER_TEMP/pioreactor_release_signing_key"
+          printf '%s\n' "${{ secrets.PIOREACTOR_RELEASE_SIGNING_KEY }}" > "$signing_key"
+          chmod 600 "$signing_key"
+          ssh-keygen -Y sign \
+            -f "$signing_key" \
+            -n pioreactor-release \
+            release_assets/pioreactor-release-manifest.json
+
           cd release_assets
           zip -r ../release_${{ github.event.release.tag_name }}.zip .
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
       - name: Upload zipped assets
         uses: svenstaro/upload-release-action@v2
         with:

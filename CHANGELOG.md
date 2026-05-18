@@ -5,6 +5,7 @@
  - Added USB drive support in the UI and CLI. The Leader page now shows detected USB drives, can mount or eject supported drives, and the top navigation shows when a USB drive is present. The new `pio usb` command can list, mount, scan, print the active path for, and eject Pioreactor-managed USB drives.
  - Added **Export to USB** on the Export Data page. When a writable USB drive is mounted, exports can be saved directly to `pioreactor/exports/` on the drive instead of downloaded through the browser.
  - Added **Update from USB** on the Updates page. Release archives named like `release_26.5.0.zip` on a mounted USB drive can now be selected and installed on one Pioreactor or across the cluster.
+ - Added signed manifest verification for uploaded and downloaded `release_*.zip` software update archives. Official release archives now include a signed manifest, and Pioreactors verify the manifest and bundled files before running update scripts.
  - Added USB plugin installation. The Plugins page can scan mounted USB drives for `.whl` plugin files and install them on one Pioreactor or across the cluster.
  - Updated `pios cp` so a copied file can be staged at a different path on workers, for example:
 
@@ -18,6 +19,7 @@
 #### Bug fixes
 
  - Fixed release-archive updates for non-leader workers so archives are copied to `/tmp` before running the worker update. This makes cluster updates work when the source archive is on the leader's mounted USB drive.
+ - Fixed update-from-zip uploads so browser-renamed downloads like `release_26.5.0 (1).zip` are accepted after signature verification instead of requiring the filename itself to encode the release version.
 
 ### 26.5.1
 
