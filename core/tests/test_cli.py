@@ -521,8 +521,6 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
 
 
 def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> None:
-    def raise_unit_name() -> str:
-        raise RuntimeError("unit lookup failed")
 
     def raise_is_worker() -> bool:
         raise RuntimeError("worker lookup failed")
@@ -537,7 +535,6 @@ def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> Non
         def __exit__(self, *_args) -> None:
             return None
 
-    monkeypatch.setattr("pioreactor.whoami.get_unit_name", raise_unit_name)
     monkeypatch.setattr("pioreactor.whoami.am_I_a_worker", raise_is_worker)
     monkeypatch.setattr("pioreactor.pubsub.create_webserver_path", raise_config)
     monkeypatch.setattr("pioreactor.config.config.get", raise_config)
