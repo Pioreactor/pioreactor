@@ -917,16 +917,17 @@ class NullBlankTransformer(LoggerMixin, BlankTransformerProtocol):
 
 class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
     _logger_name = "blank_transformer"
+    _PERSISTENT_CACHE_NAME = "od_blank"
 
     def __init__(self) -> None:
         super().__init__()
         self.od_blank: dict[pt.PdChannel, float] | None = None
 
-    @staticmethod
     def _load_od_blank_for_experiment(
+        self,
         experiment: pt.Experiment,
     ) -> dict[pt.PdChannel, float] | None:
-        with local_persistent_storage("od_blank") as cache:
+        with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
             cached_blank = cache.getjson(experiment)
 
         if not cached_blank:

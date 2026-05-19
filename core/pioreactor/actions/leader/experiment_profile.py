@@ -1007,7 +1007,7 @@ def execute_experiment_profile(
 
         if dry_run:
             logger.notice(
-                f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}. See logs."
+                f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}."
             )
         else:
             logger.notice(

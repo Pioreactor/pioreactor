@@ -148,7 +148,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             try:
                 new_rows = parser(message.topic, message.payload)
             except Exception as e:
-                self.logger.warning(f"Encountered error in saving to DB: {e}. See logs.")
+                self.logger.warning(f"Encountered error in saving to DB: {e}.")
                 self.logger.debug(
                     f"Error in {parser.__name__}. Payload: `{message.payload.decode()}`. Topic: `{message.topic}`",
                     exc_info=True,

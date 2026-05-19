@@ -145,6 +145,10 @@ def od_blank(
         raise click.Abort()
 
     with managed_lifecycle(unit, experiment, action_name):
+        with local_persistent_storage("ir_led_reference_normalization") as cache:
+            if testing_experiment in cache:
+                del cache[testing_experiment]
+
         try:
             with start_od_reading(
                 config["od_config.photodiode_channel"],
@@ -167,6 +171,10 @@ def od_blank(
             logger.debug(e, exc_info=True)
             logger.error(e)
             raise e
+        finally:
+            with local_persistent_storage("ir_led_reference_normalization") as cache:
+                if testing_experiment in cache:
+                    del cache[testing_experiment]
 
         with local_persistent_storage(action_name) as cache:
             cache[experiment] = dumps(means)
