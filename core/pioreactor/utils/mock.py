@@ -246,9 +246,6 @@ class MockRpmCalculator:
         pass
 
     def estimate(self, seconds_to_observe: float = 0.1) -> float:
-        import time
-
-        time.sleep(seconds_to_observe)
         return self.ALWAYS_RETURN_RPM
 
     def clean_up(self) -> None:

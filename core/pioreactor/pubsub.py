@@ -2,8 +2,10 @@
 import random
 import socket
 import string
+import sys
 import threading
 from contextlib import suppress
+from os import environ
 from time import sleep
 from typing import Any
 from typing import Callable
@@ -143,7 +145,8 @@ def create_client(
         except (socket.gaierror, OSError):
             if retries == max_connection_attempts:
                 break
-            sleep(2 * retries)
+            if "pytest" not in sys.modules and environ.get("TESTING", "") != "1":
+                sleep(2 * retries)
         else:
             if not skip_loop:
                 client.loop_start()

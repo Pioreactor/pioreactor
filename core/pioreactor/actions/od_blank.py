@@ -153,7 +153,7 @@ def od_blank(
             with start_od_reading(
                 config["od_config.photodiode_channel"],
                 unit=unit,
-                interval=1.5,
+                interval=0.01 if whoami.is_testing_env() else 1.5,
                 experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
                 fake_data=whoami.is_testing_env(),
                 calibration=True,

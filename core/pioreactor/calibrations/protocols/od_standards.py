@@ -116,12 +116,15 @@ def _read_voltages_from_adc(
 
         for _ in range(3):
             od_reader.record_from_adc()
-            sleep(1.0)
+            if not is_testing_env():
+                sleep(1.0)
 
         od_readings1 = od_reader.record_from_adc()
-        sleep(3.0)
+        if not is_testing_env():
+            sleep(3.0)
         od_readings2 = od_reader.record_from_adc()
-        sleep(3.0)
+        if not is_testing_env():
+            sleep(3.0)
         od_readings3 = od_reader.record_from_adc()
         assert od_readings1 is not None
         assert od_readings2 is not None
@@ -142,7 +145,8 @@ def _measure_standard(
         experiment=get_testing_experiment_name(),
     ) as st:
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
-        sleep(1.0)
+        if not is_testing_env():
+            sleep(1.0)
         return _read_voltages_from_adc(channel_angle_map)
 
 
