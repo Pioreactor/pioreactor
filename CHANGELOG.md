@@ -1,4 +1,4 @@
-### Upcoming
+### 26.5.2
 
 #### Enhancements
 
