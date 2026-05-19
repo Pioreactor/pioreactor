@@ -526,58 +526,6 @@ def test_install_plugin_from_usb_task_installs_resolved_wheel(
     _clear_rate_limit("plugins")
 
 
-def test_install_plugin_from_leader_usb_on_worker_task_copies_then_installs(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _clear_rate_limit("plugins")
-    copied: list[tuple[str, str, str, int]] = []
-    posts: list[tuple[str, str, dict[str, object], int]] = []
-    wheel = tmp_path / "pioreactor_demo-1.2.3-py3-none-any.whl"
-    wheel.write_text("wheel", encoding="utf-8")
-
-    class FakeResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict[str, str]:
-            return {"task": "abc123"}
-
-    def fake_cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int) -> None:
-        copied.append((unit, localpath, remotepath, timeout))
-
-    def fake_post_into(address: str, endpoint: str, json: dict[str, object], timeout: int) -> FakeResponse:
-        posts.append((address, endpoint, json, timeout))
-        return FakeResponse()
-
-    monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_wheel", lambda _filepath: wheel)
-    monkeypatch.setattr(tasks, "cp_file_across_cluster", fake_cp_file_across_cluster)
-    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(tasks, "post_into", fake_post_into)
-
-    result = tasks.install_plugin_from_leader_usb_on_worker_task.call_local("worker1", wheel.as_posix())
-
-    assert result == {
-        "result": True,
-        "unit": "worker1",
-        "plugin": "pioreactor-demo",
-        "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
-        "install_response": {"task": "abc123"},
-    }
-    assert copied == [("worker1", wheel.as_posix(), "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl", 60)]
-    assert posts == [
-        (
-            "worker1.local",
-            "/unit_api/plugins/install",
-            {
-                "args": ["pioreactor-demo"],
-                "options": {"source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl"},
-            },
-            60,
-        )
-    ]
-    _clear_rate_limit("plugins")
-
-
 def test_install_plugin_from_leader_usb_across_units_runs_units_sequentially(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

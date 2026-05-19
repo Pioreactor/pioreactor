@@ -1087,46 +1087,6 @@ def test_export_datasets_to_usb_returns_async_task_response(
     assert captured["partition_by_experiment"] is False
 
 
-def test_install_plugin_from_usb_targets_one_selected_unit(
-    client: FlaskClient, monkeypatch: MonkeyPatch
-) -> None:
-    captured: dict[str, object] = {}
-
-    class DummyTask:
-        id = "install-usb-plugin-task"
-
-    def fake_multicast_post(endpoint: str, units: list[str], json: dict[str, object]) -> DummyTask:
-        captured["endpoint"] = endpoint
-        captured["units"] = units
-        captured["json"] = json
-        return DummyTask()
-
-    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", fake_multicast_post)
-
-    response = client.post(
-        "/api/units/unit1/plugins/install-from-usb",
-        json={"filepath": "/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl"},
-    )
-
-    assert response.status_code == 202
-    data = response.get_json()
-    assert data["task_id"] == "install-usb-plugin-task"
-    assert captured == {
-        "endpoint": "/unit_api/plugins/install-from-usb",
-        "units": ["unit1"],
-        "json": {"filepath": "/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl"},
-    }
-
-
-def test_install_plugin_from_usb_rejects_broadcast(client: FlaskClient) -> None:
-    response = client.post(
-        "/api/units/$broadcast/plugins/install-from-usb",
-        json={"filepath": "/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl"},
-    )
-
-    assert response.status_code == 400
-
-
 def test_install_plugin_from_leader_usb_targets_selected_unit(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:

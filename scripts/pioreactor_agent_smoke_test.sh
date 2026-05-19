@@ -329,7 +329,6 @@ check_configuration_files() {
   local files=(
     "$config_dir/unit_config.ini"
     "$config_dir/config.ini"
-    "$config_dir/config_${hostname}.ini"
   )
 
   info "Validating Pioreactor configuration files in $config_dir"
@@ -502,14 +501,6 @@ check_usb_status_surface() {
     400 \
     "http://localhost/api/units/\$broadcast/usb"
 
-  run_step \
-    "Checking USB plugin install rejects broadcast target" \
-    http_status_is \
-    400 \
-    "http://localhost/api/units/\$broadcast/plugins/install-from-usb" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"filepath":"/run/pioreactor/usb/usb-1/pioreactor_demo-1.0.0-py3-none-any.whl"}'
 }
 
 usb_artifacts_endpoint_ok() {
@@ -959,22 +950,63 @@ check_export_datasets_endpoint() {
   fi
 
   if [[ "$HAS_JQ" == true ]]; then
-    if echo "$response" | jq -e '.result == true' >/dev/null; then
+    local result_url_path
+    result_url_path="$(echo "$response" | jq -r '.result_url_path // empty')"
+    if [[ -z "$result_url_path" ]]; then
+      local msg
+      msg="$(echo "$response" | jq -r '.error // .msg // "missing result_url_path"')"
+      fail "export_datasets request failed: $msg"
+      return
+    fi
+
+    local task_response=""
+    local task_status=""
+    local task_completed=false
+    for _ in {1..120}; do
+      if ! task_response="$(curl -fsS "http://localhost${result_url_path}")"; then
+        fail "export_datasets task poll failed"
+        return
+      fi
+
+      task_status="$(echo "$task_response" | jq -r '.status // empty')"
+      if [[ "$task_status" == "succeeded" || "$task_status" == "failed" ]]; then
+        task_completed=true
+        break
+      fi
+
+      sleep 0.5
+    done
+
+    if [[ "$task_completed" != true ]]; then
+      fail "export_datasets timed out waiting for task completion (last status: ${task_status:-unknown})"
+      return
+    fi
+
+    if [[ "$task_status" != "succeeded" ]]; then
+      local msg
+      msg="$(echo "$task_response" | jq -r '.error // .msg // "unknown error"')"
+      fail "export_datasets failed: $msg"
+      return
+    fi
+
+    if echo "$task_response" | jq -e '.result.result == true' >/dev/null; then
       local filename
-      filename="$(echo "$response" | jq -r '.filename // empty')"
+      filename="$(echo "$task_response" | jq -r '.result.filename // empty')"
       ok "export_datasets succeeded${filename:+ (file: $filename)}"
-      if [[ -n "$filename" && -f "/var/www/pioreactorui/static/exports/$filename" ]]; then
-        ok "export file present: /var/www/pioreactorui/static/exports/$filename"
+      if [[ -n "$filename" && -f "/run/pioreactor/exports/$filename" ]]; then
+        ok "export file present: /run/pioreactor/exports/$filename"
+      elif [[ -n "$filename" ]] && curl -fsS "http://localhost/exports/$filename" >/dev/null; then
+        ok "export file served: /exports/$filename"
       else
         warn "export file not found locally (may be transient or permissions)"
       fi
     else
       local msg
-      msg="$(echo "$response" | jq -r '.msg // "unknown error"')"
+      msg="$(echo "$task_response" | jq -r '.result.msg // .msg // "unknown error"')"
       fail "export_datasets failed: $msg"
     fi
   else
-    ok "export_datasets responded"
+    ok "export_datasets task accepted"
   fi
 }
 

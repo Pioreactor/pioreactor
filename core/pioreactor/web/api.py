@@ -2419,33 +2419,6 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
         )
 
 
-@api_bp.route("/units/<pioreactor_unit>/plugins/install-from-usb", methods=["POST", "PATCH"])
-def install_plugin_from_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    """
-    Install one wheel plugin from a Pioreactor-managed USB mount on one selected unit.
-
-    JSON body:
-    {
-      "filepath": "/run/pioreactor/usb/.../pioreactor_foo-1.0.0-py3-none-any.whl"
-    }
-    """
-    abort_if_usb_target_is_broadcast(pioreactor_unit, operation="USB plugin installs")
-
-    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
-        abort_with(403, "Not UI installed allowed.")
-
-    cache.invalidate_plugins_installed_cache(pioreactor_unit)
-    cache.invalidate_calibration_protocols_cache(pioreactor_unit)
-
-    return create_task_response(
-        tasks.multicast_post(
-            "/unit_api/plugins/install-from-usb",
-            [pioreactor_unit],
-            request.get_json(silent=True) or {},
-        )
-    )
-
-
 @api_bp.route("/units/<pioreactor_unit>/plugins/install-from-leader-usb", methods=["POST", "PATCH"])
 def install_plugin_from_leader_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """

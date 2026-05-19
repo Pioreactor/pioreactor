@@ -1021,13 +1021,6 @@ def _install_plugin_from_usb(filepath: str) -> bool:
         return False
 
 
-@huey.task()
-@huey.lock_task("plugins-lock")
-@huey.lock_task("usb-lock")
-def install_plugin_from_leader_usb_on_worker_task(unit: pt.Unit, filepath: str) -> dict[str, Any]:
-    return _install_plugin_from_leader_usb_on_worker(unit, filepath)
-
-
 def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> dict[str, Any]:
     plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
     plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
