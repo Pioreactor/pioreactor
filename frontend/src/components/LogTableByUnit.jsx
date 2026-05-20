@@ -135,10 +135,10 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
   }, []);
 
   useEffect(() => {
-    if (!client) {
+    if (!client || experiment !== "$experiment") {
       return undefined;
     }
-    const levelRequested = 'INFO';
+    const levelRequested = level.toUpperCase();
     const ix = LEVELS.indexOf(levelRequested);
     const topics = LEVELS.slice(ix).map(
       (level) => `pioreactor/${unit}/$experiment/logs/+/${level.toLowerCase()}`
@@ -147,13 +147,13 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
     return () => {
       unsubscribeFromTopic(topics, 'LogTableByUnit');
     };
-  }, [client, onMessage, unit, subscribeToTopic, unsubscribeFromTopic]);
+  }, [client, experiment, level, onMessage, unit, subscribeToTopic, unsubscribeFromTopic]);
 
   useEffect(() => {
-    if (!experiment || !client) {
+    if (!experiment || !client || experiment === "$experiment") {
       return undefined;
     }
-    const levelRequested = 'INFO';
+    const levelRequested = level.toUpperCase();
     const ix = LEVELS.indexOf(levelRequested);
     const topics = LEVELS.slice(ix).map(
       (level) => `pioreactor/${unit}/${experiment}/logs/+/${level.toLowerCase()}`
@@ -162,7 +162,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
     return () => {
       unsubscribeFromTopic(topics, 'LogTableByUnit');
     };
-  }, [client, experiment, onMessage, unit, subscribeToTopic, unsubscribeFromTopic]);
+  }, [client, experiment, level, onMessage, unit, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSubmitDialog = async (newLog) => {

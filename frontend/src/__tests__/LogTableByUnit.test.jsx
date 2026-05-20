@@ -30,6 +30,60 @@ describe("LogTableByUnit", () => {
     jest.clearAllMocks();
   });
 
+  test("subscribes to live debug log topics when level is debug", async () => {
+    const subscribeToTopic = jest.fn();
+    const unsubscribeFromTopic = jest.fn();
+
+    useMQTT.mockReturnValue({
+      client: {},
+      subscribeToTopic,
+      unsubscribeFromTopic,
+    });
+
+    render(
+      <MemoryRouter>
+        <LogTableByUnit experiment="$experiment" unit="leader" level="debug" />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/workers/leader/experiments/$experiment/recent_logs?min_level=debug"
+      )
+    );
+
+    const subscribedTopics = subscribeToTopic.mock.calls.flatMap(([topics]) => topics);
+
+    expect(subscribedTopics).toContain("pioreactor/leader/$experiment/logs/+/debug");
+  });
+
+  test("does not subscribe to system logs for a concrete experiment", async () => {
+    const subscribeToTopic = jest.fn();
+    const unsubscribeFromTopic = jest.fn();
+
+    useMQTT.mockReturnValue({
+      client: {},
+      subscribeToTopic,
+      unsubscribeFromTopic,
+    });
+
+    render(
+      <MemoryRouter>
+        <LogTableByUnit experiment="exp1" unit="unit1" />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/workers/unit1/experiments/exp1/recent_logs?min_level=info"
+      )
+    );
+
+    const subscribedTopics = subscribeToTopic.mock.calls.flatMap(([topics]) => topics);
+
+    expect(subscribedTopics.some((topic) => topic.includes("/$experiment/"))).toBe(false);
+  });
+
   test("re-sorts MQTT log events by timestamp after out-of-order delivery", async () => {
     const subscribeToTopic = jest.fn();
     const unsubscribeFromTopic = jest.fn();

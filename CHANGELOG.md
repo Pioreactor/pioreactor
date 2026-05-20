@@ -1,3 +1,9 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Fixed per-Pioreactor live log tables so debug-level system logs appear live on the Leader page, and experiment-specific tables no longer show unrelated system logs.
+
 ### 26.5.2
 
 #### Enhancements
