@@ -614,7 +614,7 @@ def get_disk_space() -> ResponseReturnValue:
                 "total_bytes": usage.total,
             }
         ),
-        max_age=3,
+        max_age=10,
     )
 
 
@@ -631,7 +631,7 @@ def get_memory() -> ResponseReturnValue:
                 "total_bytes": total_bytes,
             }
         ),
-        max_age=3,
+        max_age=10,
     )
 
 
@@ -1471,7 +1471,7 @@ def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/versions/app", methods=["GET"])
 def get_app_version() -> ResponseReturnValue:
-    return attach_cache_control(jsonify({"version": __version__}), max_age=10000)
+    return attach_cache_control(jsonify({"version": __version__}), max_age=30)
 
 
 ### CALIBRATIONS

@@ -50,6 +50,14 @@ function shouldShowUsbNavStatus(status) {
   return status && status !== "absent" && status !== "error";
 }
 
+function shouldShowDiskSpaceWarning(space) {
+  if (!space?.total_bytes) {
+    return false;
+  }
+
+  return (space.available_bytes / space.total_bytes) < 0.8;
+}
+
 function getUsbNavLabel(status) {
   switch (status) {
     case "mounted":
@@ -238,6 +246,7 @@ export default function SideNavAndHeader() {
   const [version, setVersion] = React.useState(null)
   const [lap, setLAP] = React.useState(false)
   const [usbStatus, setUsbStatus] = React.useState(null)
+  const [diskSpace, setDiskSpace] = React.useState(null)
   const [latestVersion, setLatestVersion] = React.useState(null)
   const {experimentMetadata, selectExperiment, allExperiments} = useExperiment()
   const allExperimentNames = Array.isArray(allExperiments) ? allExperiments.map((v) => v.experiment) : [];
@@ -252,6 +261,16 @@ export default function SideNavAndHeader() {
         })
         .catch(() => {});
     }, 1000);
+
+
+    const diskSpaceID = window.setTimeout(() => {
+      fetch("/unit_api/system/disk_space")
+        .then((response) => response.json())
+        .then((data) => {
+          setDiskSpace(data)
+        })
+        .catch(() => {});
+    }, 1250);
 
     const currentAppTimerId = window.setTimeout(() => {
       fetch("/unit_api/versions/app")
@@ -277,6 +296,7 @@ export default function SideNavAndHeader() {
       window.clearTimeout(lapTimerId);
       window.clearTimeout(currentAppTimerId);
       window.clearTimeout(latestVersionTimerId);
+      window.clearTimeout(diskSpaceID);
     };
   }, [])
 
@@ -573,6 +593,18 @@ export default function SideNavAndHeader() {
                     <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
                   </Button>
                 }
+                {shouldShowDiskSpaceWarning(diskSpace) &&
+                  <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader"}}>
+                    <div
+                      className="indicator-dot"
+                      style={{
+                        boxShadow: `0 0 2px red, inset 0 0 12px red`,
+                      }}
+                    />
+                    Disk Space Low
+                  </Button>
+                }
+
                 {shouldShowUsbNavStatus(usbStatus) &&
                   <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader", hash: "#usb-card"}}>
                     <div

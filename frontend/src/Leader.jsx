@@ -769,7 +769,7 @@ function SpaceProgressRow({label, space}) {
           {label}
         </Typography>
         <Typography variant="body2" component="div" color={isLowSpace ? "error" : "text.secondary"}>
-          {formatBytes(space?.available_bytes)} available of {formatBytes(space?.total_bytes)}
+          {formatBytes(space?.total_bytes - space?.available_bytes)} of {formatBytes(space?.total_bytes)} used
         </Typography>
       </Box>
       <BorderLinearProgress variant="determinate" value={usedPercent} isLowSpace={isLowSpace} />

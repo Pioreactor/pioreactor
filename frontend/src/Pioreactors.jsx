@@ -567,12 +567,14 @@ const CustomFormControlLabel = ({ label, sublabel, control, ...props }) => (
   />
 );
 
-function AssignPioreactors({ experiment, variant="text" }) {
+export function AssignPioreactors({ experiment, variant="text" }) {
   const [workers, setWorkers] = React.useState([]);
   const [assigned, setAssigned] = React.useState({});
   const [initialAssigned, setInitialAssigned] = React.useState({});
   const [selectAll, setSelectAll] = React.useState(false);
   const [open, setOpen] = React.useState(false);
+  const [assignmentError, setAssignmentError] = React.useState(null);
+  const [isSubmittingAssignments, setIsSubmittingAssignments] = React.useState(false);
   const navigate = useNavigate();
   const { selectExperiment } = useExperiment();
 
@@ -650,41 +652,55 @@ function AssignPioreactors({ experiment, variant="text" }) {
 
   const updateAssignments = async () => {
     const delta = compareObjects(assigned, initialAssigned);
-    const promises = [];
+    const requests = [];
+    setAssignmentError(null);
+    setIsSubmittingAssignments(true);
 
     for (const worker in delta) {
       if (delta[worker].current && !delta[worker].initial) {
-        const promise = fetch(`/api/experiments/${experiment}/workers`, {
+        requests.push(fetch(`/api/experiments/${experiment}/workers`, {
           method: "PUT",
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ pioreactor_unit: worker }),
-        });
-        promises.push(promise);
+        }));
       } else {
-        const promise = fetch(`/api/experiments/${experiment}/workers/${worker}`, {
+        requests.push(fetch(`/api/experiments/${experiment}/workers/${worker}`, {
           method: "DELETE",
-        });
-        promises.push(promise);
+        }));
       }
     }
 
-    await Promise.all(promises);
-    setOpen(false);
-    navigate(0);
+    try {
+      const responses = await Promise.all(requests);
+      if (responses.some((response) => !response.ok)) {
+        setAssignmentError("Some Pioreactor assignments could not be updated. Please refresh and try again.");
+        return;
+      }
+
+      setOpen(false);
+      navigate(0);
+    } catch (_error) {
+      setAssignmentError("Some Pioreactor assignments could not be updated. Please refresh and try again.");
+    } finally {
+      setIsSubmittingAssignments(false);
+    }
   };
 
   const handleClickOpen = () => {
+    setAssignmentError(null);
     setOpen(true);
   };
 
   const handleClose = () => {
+    setAssignmentError(null);
     setOpen(false);
   };
 
   const handleChange = (event) => {
+    setAssignmentError(null);
     setAssigned({
       ...assigned,
       [event.target.name]: event.target.checked,
@@ -694,6 +710,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
   const handleSelectAllChange = (event) => {
     const newValue = event.target.checked;
     const newAssigned = { ...assigned };
+    setAssignmentError(null);
 
     workersSelectableByBulkAction.forEach((worker) => {
       newAssigned[worker.pioreactor_unit] = newValue;
@@ -752,6 +769,11 @@ function AssignPioreactors({ experiment, variant="text" }) {
             Assign and unassign Pioreactors to experiment{" "}
             <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} />.
           </Typography>
+          {assignmentError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {assignmentError}
+            </Alert>
+          )}
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
             {workersSelectableByBulkAction.length > 1 &&
@@ -847,10 +869,11 @@ function AssignPioreactors({ experiment, variant="text" }) {
           <Button
             variant="contained"
             onClick={updateAssignments}
-            disabled={true && assignmentDeltaCount === 0}
+            disabled={assignmentDeltaCount === 0 || isSubmittingAssignments}
             style={{ textTransform: "none" }}
+            startIcon={isSubmittingAssignments ? <CircularProgress color="inherit" size={16} /> : null}
           >
-            {assignmentDeltaLabel}
+            {isSubmittingAssignments ? "Updating" : assignmentDeltaLabel}
           </Button>
         </DialogActions>
       </Dialog>

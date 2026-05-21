@@ -10,7 +10,7 @@
     "@fontsource/roboto": "^4.4.5",
     "@mui/icons-material": "9.0.0",
     "@mui/lab": "9.0.0-beta.2",
-    "@mui/material": "9.0.0",
+    "@mui/material": "9.0.1",
     "@mui/system": "9.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",

@@ -71,6 +71,81 @@ def test_get_workers(client) -> None:
     assert "unit4" in units
 
 
+@pytest.mark.parametrize("pioreactor_unit", ["203.0.113.10", "unknown-worker"])
+@pytest.mark.parametrize("action", ["reboot", "shutdown"])
+def test_system_fanout_rejects_unregistered_unit_targets(
+    client: FlaskClient, monkeypatch: MonkeyPatch, pioreactor_unit: str, action: str
+) -> None:
+    def fail_multicast_post(*_args, **_kwargs) -> None:
+        raise AssertionError("invalid unit target should not enqueue multicast work")
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", fail_multicast_post)
+
+    response = client.post(f"/api/units/{pioreactor_unit}/system/{action}")
+
+    assert response.status_code == 400
+
+
+def test_system_fanout_allows_registered_unit_target(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    class FakeHueyTask:
+        id = "fake-task-id"
+
+    captured: dict[str, object] = {}
+
+    def fake_multicast_post(endpoint: str, units: list[str], **_kwargs) -> FakeHueyTask:
+        captured["endpoint"] = endpoint
+        captured["units"] = units
+        return FakeHueyTask()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast_post", fake_multicast_post)
+
+    response = client.post("/api/units/unit1/system/reboot")
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == "/unit_api/system/reboot"
+    assert captured["units"] == ["unit1"]
+
+
+def test_config_proxy_rejects_unregistered_unit_target(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    def fail_get_from(*_args, **_kwargs) -> None:
+        raise AssertionError("invalid unit target should not be proxied")
+
+    monkeypatch.setattr("pioreactor.web.api.get_from", fail_get_from)
+
+    response = client.get("/api/config/units/203.0.113.10/specific")
+
+    assert response.status_code == 400
+
+
+def test_calibration_session_proxy_rejects_unregistered_worker_target(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    def fail_post_into(*_args, **_kwargs) -> None:
+        raise AssertionError("invalid worker target should not be proxied")
+
+    monkeypatch.setattr("pioreactor.web.api.post_into", fail_post_into)
+
+    response = client.post(
+        "/api/workers/203.0.113.10/calibrations/sessions",
+        json={"target_device": "stirring", "protocol_name": "dc_based"},
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("pioreactor_unit", ["203.0.113.10", "localhost", "unit1.local"])
+def test_add_worker_rejects_address_like_names(client: FlaskClient, pioreactor_unit: str) -> None:
+    response = client.put("/api/workers", json={"pioreactor_unit": pioreactor_unit})
+
+    assert response.status_code == 400
+
+
+def test_assign_worker_to_experiment_rejects_unregistered_worker(client: FlaskClient) -> None:
+    response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "203.0.113.10"})
+
+    assert response.status_code == 400
+
+
 def test_discover_workers_endpoint(client, monkeypatch) -> None:
     from pioreactor.utils.networking import DiscoveredWorker
 
