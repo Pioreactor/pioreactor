@@ -139,6 +139,8 @@ class AutomationJob(BackgroundJob):
         run_after_seconds: float | None = None,
     ) -> None:
         duration_minutes = float(duration_minutes)
+        if duration_minutes <= 0:
+            raise ValueError("Automation duration must be greater than 0 minutes.")
         self.duration = duration_minutes
 
         def start_periodic_timer() -> None:
@@ -152,7 +154,10 @@ class AutomationJob(BackgroundJob):
         self._automation_strategy_start_callback = start_periodic_timer
 
     def set_duration(self, duration: float | str) -> None:
-        self.duration = float(duration)
+        duration = float(duration)
+        if duration <= 0:
+            raise ValueError("Automation duration must be greater than 0 minutes.")
+        self.duration = duration
         self._set_periodic_timer(
             self.duration,
             skip_first_run=False,

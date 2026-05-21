@@ -1993,6 +1993,62 @@ def test_chemostat_duration_starts_periodic_timer_without_immediate_dose_when_sk
         cancel_run_thread(chemostat)
 
 
+@pytest.mark.parametrize("duration", [0, -1, "0", "-0.1"])
+def test_chemostat_rejects_non_positive_duration(duration: float | str, fast_dosing_timers) -> None:
+    with pytest.raises(ValueError, match="duration must be greater than 0"):
+        Chemostat(
+            unit=unit,
+            experiment="test_chemostat_rejects_non_positive_duration",
+            exchange_volume_ml=0.25,
+            duration=duration,
+        )
+
+
+@pytest.mark.parametrize("duration", [0, -1, "0", "-0.1"])
+def test_changing_duration_rejects_non_positive_values(duration: float | str, fast_dosing_timers) -> None:
+    experiment = f"test_changing_duration_rejects_non_positive_values_{duration}"
+
+    with Chemostat(
+        unit=unit,
+        experiment=experiment,
+        exchange_volume_ml=0.25,
+        duration=0.05,
+        skip_first_run=True,
+    ) as chemostat:
+        original_timer = chemostat.run_thread
+        assert isinstance(original_timer, RepeatedTimer)
+
+        with pytest.raises(ValueError, match="duration must be greater than 0"):
+            chemostat.set_duration(duration)
+
+        assert chemostat.duration == 0.05
+        assert chemostat.run_thread is original_timer
+        assert chemostat.run_thread.interval == pytest.approx(3.0)
+        cancel_run_thread(chemostat)
+
+
+def test_changing_duration_over_mqtt_rejects_non_positive_values(fast_dosing_timers) -> None:
+    experiment = "test_changing_duration_over_mqtt_rejects_non_positive_values"
+
+    with Chemostat(
+        unit=unit,
+        experiment=experiment,
+        exchange_volume_ml=0.25,
+        duration=0.05,
+        skip_first_run=True,
+    ) as chemostat:
+        original_timer = chemostat.run_thread
+        assert isinstance(original_timer, RepeatedTimer)
+
+        pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set", 0)
+        pause()
+
+        assert chemostat.duration == 0.05
+        assert chemostat.run_thread is original_timer
+        assert chemostat.run_thread.interval == pytest.approx(3.0)
+        cancel_run_thread(chemostat)
+
+
 def test_chemostat_default_schedule_waits_before_first_immediate_run(
     fast_dosing_timers,
 ) -> None:

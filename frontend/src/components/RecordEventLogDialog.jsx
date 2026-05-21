@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -18,6 +19,9 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import PioreactorsIcon from './PioreactorsIcon';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+
+dayjs.extend(utc);
 
 function RecordEventLogDialog({
   defaultPioreactor = "",
@@ -31,30 +35,41 @@ function RecordEventLogDialog({
   const [timestampLocal, setTimestampLocal] = useState(dayjs().local().format('YYYY-MM-DD HH:mm:ss'));
   const [task, setTask] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const handleSubmit = () => {
-    if (onSubmit) {
+  const handleSubmit = async () => {
+    if (onSubmit && !isSubmitting) {
       const timestampUTC = dayjs(timestampLocal, 'YYYY-MM-DD HH:mm:ss', true)
         .utc()
         .format('YYYY-MM-DD[T]HH:mm:ss.000[Z]');
-      onSubmit({
-        pioreactor_unit: selectedPioreactor,
-        experiment: selectedExperiment,
-        message: message,
-        timestamp: timestampUTC,
-        task: task,
-        source: "UI",
-        level: "INFO",
-      });
-      setMessage("")
-      setTask("")
-      onClose()
+      setIsSubmitting(true);
+      setSubmitError("");
+      try {
+        await onSubmit({
+          pioreactor_unit: selectedPioreactor,
+          experiment: selectedExperiment,
+          message: message,
+          timestamp: timestampUTC,
+          task: task,
+          source: "UI",
+          level: "INFO",
+        });
+        setMessage("")
+        setTask("")
+        onClose()
+      } catch (error) {
+        setSubmitError(error?.message || "Failed to submit new log entry.");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
 
   const handleOpenDialog = () => {
     setTimestampLocal(dayjs().local().format('YYYY-MM-DD HH:mm:ss'))
+    setSubmitError("");
     setOpenDialog(true);
   };
 
@@ -92,6 +107,11 @@ function RecordEventLogDialog({
         <Typography variant="body2" sx={{ mb: 3 }}>
           Add a new event log manually.
         </Typography>
+        {submitError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {submitError}
+          </Alert>
+        )}
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
           <FormControl required size="small" variant="outlined" sx={{ flex: 1 }}>
             <InputLabel id="select-pioreactor-label">Pioreactor</InputLabel>
@@ -160,9 +180,9 @@ function RecordEventLogDialog({
           variant="contained"
           onClick={handleSubmit}
           style={{ textTransform: "none" }}
-          disabled={message === "" || selectedExperiment === "" || selectedPioreactor === ""}
+          disabled={isSubmitting || message === "" || selectedExperiment === "" || selectedPioreactor === ""}
         >
-          Submit
+          {isSubmitting ? "Submitting..." : "Submit"}
         </Button>
       </DialogActions>
     </Dialog>

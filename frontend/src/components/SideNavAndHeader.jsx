@@ -55,7 +55,7 @@ function shouldShowDiskSpaceWarning(space) {
     return false;
   }
 
-  return (space.available_bytes / space.total_bytes) < 0.8;
+  return (space.available_bytes / space.total_bytes) < 0.1;
 }
 
 function getUsbNavLabel(status) {

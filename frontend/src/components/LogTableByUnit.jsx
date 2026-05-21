@@ -166,17 +166,13 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
 
 
   const handleSubmitDialog = async (newLog) => {
-    try {
-      const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newLog),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to submit new log entry.');
-      }
-    } catch (error) {
-      console.error('Error adding new log entry:', error);
+    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newLog),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to submit new log entry.');
     }
   };
 

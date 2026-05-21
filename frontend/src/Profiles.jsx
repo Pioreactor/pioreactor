@@ -214,7 +214,7 @@ function RunExperimentProfilesContent({
           <Alert severity="error">{startProfileError}</Alert>
         </Grid>
       )}
-      <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 1 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 0 }}>
         <SelectButton
           variant="contained"
           color="primary"
