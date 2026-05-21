@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from datetime import timedelta
+from threading import Event
 from threading import Lock
 from threading import Thread
-from time import sleep
 from typing import Any
 from typing import Callable
 
@@ -24,6 +24,7 @@ DISALLOWED_AUTOMATION_NAMES = {
 }
 
 STALE_READING_LIMIT = timedelta(minutes=5)
+FIRST_READING_TIMEOUT_SECONDS = 5.0
 
 
 class AutomationJob(BackgroundJob):
@@ -71,6 +72,10 @@ class AutomationJob(BackgroundJob):
         self.latest_growth_rate_at = current_utc_datetime()
         self.latest_od_at = current_utc_datetime()
         self.latest_od_fused_at = current_utc_datetime()
+        self._latest_growth_rate_event = Event()
+        self._latest_normalized_od_event = Event()
+        self._latest_od_event = Event()
+        self._latest_od_fused_event = Event()
         self._automation_execution_lock = Lock()
         self._automation_trigger_pending = False
         self._automation_strategy_start_callback: Callable[[], None] | None = None
@@ -263,6 +268,7 @@ class AutomationJob(BackgroundJob):
         payload = decode(message.payload, type=structs.GrowthRate)
         self._latest_growth_rate = payload.growth_rate
         self.latest_growth_rate_at = payload.timestamp
+        self._latest_growth_rate_event.set()
 
     def _set_normalized_od(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
@@ -272,6 +278,7 @@ class AutomationJob(BackgroundJob):
         payload = decode(message.payload, type=structs.ODFiltered)
         self._latest_normalized_od = payload.od_filtered
         self.latest_normalized_od_at = payload.timestamp
+        self._latest_normalized_od_event.set()
 
     def _set_ods(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
@@ -281,6 +288,7 @@ class AutomationJob(BackgroundJob):
         payload = decode(message.payload, type=structs.ODReadings)
         self._latest_od: dict[pt.PdChannel, float] = {c: payload.ods[c].od for c in payload.ods}
         self.latest_od_at = payload.timestamp
+        self._latest_od_event.set()
 
     def _set_od_fused(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
@@ -290,6 +298,7 @@ class AutomationJob(BackgroundJob):
         payload = decode(message.payload, type=structs.ODFused)
         self._latest_od_fused = payload.od_fused
         self.latest_od_fused_at = payload.timestamp
+        self._latest_od_fused_event.set()
 
     @property
     def latest_growth_rate(self) -> float:
@@ -299,13 +308,11 @@ class AutomationJob(BackgroundJob):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
-            while True:
-                if self._latest_growth_rate is not None:
-                    break
-                sleep(0.5)
+            self._latest_growth_rate_event.wait(FIRST_READING_TIMEOUT_SECONDS)
+            if self._latest_growth_rate is None:
+                raise exc.JobRequiredError("`growth_rate_calculating` should publish a growth_rate reading.")
 
-        # check most stale time
-        if current_utc_datetime() - self.most_stale_time > STALE_READING_LIMIT:
+        if current_utc_datetime() - self.latest_growth_rate_at > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -320,13 +327,11 @@ class AutomationJob(BackgroundJob):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be running.")
-            while True:
-                if self._latest_normalized_od is not None:
-                    break
-                sleep(0.5)
+            self._latest_normalized_od_event.wait(FIRST_READING_TIMEOUT_SECONDS)
+            if self._latest_normalized_od is None:
+                raise exc.JobRequiredError("`growth_rate_calculating` should publish an od_filtered reading.")
 
-        # check most stale time
-        if current_utc_datetime() - self.most_stale_time > STALE_READING_LIMIT:
+        if current_utc_datetime() - self.latest_normalized_od_at > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -341,12 +346,10 @@ class AutomationJob(BackgroundJob):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading"):
                 raise exc.JobRequiredError("`od_reading` should be Ready.")
-            while True:
-                if self._latest_od is not None:
-                    break
-                sleep(0.5)
+            self._latest_od_event.wait(FIRST_READING_TIMEOUT_SECONDS)
+            if self._latest_od is None:
+                raise exc.JobRequiredError("`od_reading` should publish raw OD readings.")
 
-        # check most stale time
         if current_utc_datetime() - self.latest_od_at > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 f"readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_at}."
@@ -362,12 +365,10 @@ class AutomationJob(BackgroundJob):
             self.logger.debug("Waiting for fused OD data to arrive")
             if not is_pio_job_running("od_reading"):
                 raise exc.JobRequiredError("`od_reading` should be Ready.")
-            while True:
-                if self._latest_od_fused is not None:
-                    break
-                sleep(0.5)
+            self._latest_od_fused_event.wait(FIRST_READING_TIMEOUT_SECONDS)
+            if self._latest_od_fused is None:
+                raise exc.JobRequiredError("`od_reading` should publish fused OD readings.")
 
-        # check most stale time
         if current_utc_datetime() - self.latest_od_fused_at > STALE_READING_LIMIT:
             raise exc.JobRequiredError(
                 f"fused readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_fused_at}."

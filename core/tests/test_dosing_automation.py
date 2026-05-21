@@ -192,7 +192,7 @@ def test_waste_exchanging_automations_require_waste_pwm_channel() -> None:
         config.set("PWM_reverse", "waste", original_waste_pwm_channel)
 
 
-def test_silent_automation() -> None:
+def test_silent_automation_updates_cached_readings_without_dosing() -> None:
     experiment = "test_silent_automation"
     with Silent(exchange_volume_ml=None, duration=60, unit=unit, experiment=experiment) as algo:
         pause()
@@ -265,7 +265,7 @@ def test_silent_automation() -> None:
 
 
 @pytest.mark.slow
-def test_turbidostat_automation(monkeypatch) -> None:
+def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypatch) -> None:
     experiment = "test_turbidostat_automation"
     target_biomass = 1.0
     monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
@@ -900,7 +900,7 @@ def test_turbidostat_auto_falls_back_to_normalized_od_without_active_models(monk
         assert algo.resolved_biomass_signal == "normalized_od"
 
 
-def test_cant_change_target_in_turbidostat() -> None:
+def test_turbidostat_allows_target_biomass_changes() -> None:
     experiment = "test_cant_change_target_in_turbidostat"
 
     with Turbidostat(
@@ -919,7 +919,7 @@ def test_cant_change_target_in_turbidostat() -> None:
 
 
 @pytest.mark.slow
-def test_turbidostat_targeting_od(monkeypatch) -> None:
+def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) -> None:
     experiment = "test_turbidostat_targeting_od"
     monkeypatch.setattr("pioreactor.automations.dosing.turbidostat.SETTLING_TIME_SECONDS", 0)
 
@@ -1024,7 +1024,7 @@ def test_turbidostat_targeting_od(monkeypatch) -> None:
 
 
 @pytest.mark.slow
-def test_pid_morbidostat_automation() -> None:
+def test_pid_morbidostat_adds_alt_media_when_od_is_near_target_and_growth_rate_is_low() -> None:
     experiment = "test_pid_morbidostat_automation"
     target_growth_rate = 0.09
     with PIDMorbidostat(
@@ -1077,7 +1077,7 @@ def test_pid_morbidostat_automation() -> None:
         assert isinstance(algo.run(), events.AddAltMediaEvent)
 
 
-def test_changing_morbidostat_parameters_over_mqtt() -> None:
+def test_pid_morbidostat_updates_target_growth_rate_over_mqtt() -> None:
     experiment = "test_changing_morbidostat_parameters_over_mqtt"
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
@@ -1100,7 +1100,7 @@ def test_changing_morbidostat_parameters_over_mqtt() -> None:
     algo.clean_up()
 
 
-def test_changing_turbidostat_params_over_mqtt() -> None:
+def test_turbidostat_updates_exchange_volume_and_target_biomass_over_mqtt() -> None:
     experiment = "test_changing_turbidostat_params_over_mqtt"
     og_volume = 0.5
     og_target_biomass = 1.0
@@ -1171,7 +1171,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
     assert wait_for(lambda: any("garbage" in log["message"] for log in bucket), timeout=4.0)
 
 
-def test_old_readings_will_not_execute_io() -> None:
+def test_run_returns_no_event_when_latest_required_reading_is_stale() -> None:
     experiment = "test_old_readings_will_not_execute_io"
     with DosingAutomationJob(
         target_growth_rate=0.05,
@@ -1228,8 +1228,53 @@ def test_latest_readings_reject_stale_timestamps(age: timedelta, expect_stale: b
         assert job.latest_od_fused == 1.1
 
 
+@pytest.mark.parametrize(
+    ("property_name", "message"),
+    [
+        ("latest_growth_rate", "growth_rate"),
+        ("latest_normalized_od", "od_filtered"),
+        ("latest_od", "raw OD"),
+        ("latest_od_fused", "fused OD"),
+    ],
+)
+def test_latest_readings_timeout_when_first_reading_never_arrives(
+    monkeypatch, property_name: str, message: str
+) -> None:
+    experiment = f"test_latest_readings_timeout_when_first_reading_never_arrives_{property_name}"
+    monkeypatch.setattr("pioreactor.automations.base.FIRST_READING_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(
+        "pioreactor.automations.base.is_pio_job_running",
+        lambda jobs: [True for _ in jobs] if isinstance(jobs, list) else True,
+    )
+
+    with DosingAutomationJob(unit=unit, experiment=experiment, current_volume_ml=10.0) as job:
+        with pytest.raises(exc.JobRequiredError, match=message):
+            getattr(job, property_name)
+
+
+def test_missing_first_reading_becomes_error_event(monkeypatch) -> None:
+    experiment = "test_missing_first_reading_becomes_error_event"
+    monkeypatch.setattr("pioreactor.automations.base.FIRST_READING_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(
+        "pioreactor.automations.base.is_pio_job_running",
+        lambda jobs: [True for _ in jobs] if isinstance(jobs, list) else True,
+    )
+
+    with DosingAutomationJob(unit=unit, experiment=experiment, current_volume_ml=10.0) as job:
+
+        def execute_with_missing_reading() -> events.NoEvent:
+            job.latest_normalized_od
+            return events.NoEvent()
+
+        monkeypatch.setattr(job, "execute", execute_with_missing_reading)
+        result = job.run(timeout=1.0)
+
+    assert isinstance(result, events.ErrorOccurred)
+    assert "od_filtered" in result.message
+
+
 @pytest.mark.slow
-def test_execute_io_action() -> None:
+def test_execute_io_action_preserves_current_volume_for_balanced_transfers() -> None:
     experiment = "test_execute_io_action"
 
     with Silent(unit=unit, experiment=experiment, current_volume_ml=15.0, efflux_tube_volume_ml=15.0) as ca:
@@ -1255,7 +1300,7 @@ def test_execute_io_action() -> None:
 
 
 @pytest.mark.slow
-def test_execute_io_action2() -> None:
+def test_execute_io_action_updates_alt_media_fraction_from_dosing_results() -> None:
     experiment = "test_execute_io_action2"
 
     with dosing_events_to_bioreactor_projector(unit, experiment):
@@ -1269,7 +1314,7 @@ def test_execute_io_action2() -> None:
             assert wait_for(lambda: close(ca.alt_media_fraction, 0.0006688099108144436), timeout=5.0)
 
 
-def test_execute_io_action_outputs1() -> None:
+def test_execute_io_action_reports_requested_pump_volumes() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs1"
 
@@ -1280,7 +1325,7 @@ def test_execute_io_action_outputs1() -> None:
         assert result["waste_ml"] == 1.26
 
 
-def test_execute_io_action_outputs_float_point_error() -> None:
+def test_execute_io_action_preserves_requested_waste_despite_float_rounding() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs1"
 
@@ -1576,7 +1621,7 @@ def test_fed_batch_skips_dose_that_would_overflow() -> None:
     ]
 
 
-def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
+def test_execute_io_action_raises_when_required_pump_calibration_is_missing() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined"
 
@@ -1589,7 +1634,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
             ca.execute_io_action(media_ml=0.1, alt_media_ml=0.1, waste_ml=0.2)
 
 
-def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
+def test_execute_io_action_returns_zero_volumes_when_disconnected() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs_will_shortcut_if_disconnected"
 
@@ -1601,7 +1646,9 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     assert result["waste_ml"] == 0.0
 
 
-def test_PIDMorbidostat(fast_dosing_timers) -> None:
+def test_pid_morbidostat_run_updates_latest_event_from_growth_rate_and_od(
+    fast_dosing_timers,
+) -> None:
     experiment = "test_PIDMorbidostat"
     algo = PIDMorbidostat(
         target_normalized_od=1.0,
@@ -1640,7 +1687,9 @@ def test_PIDMorbidostat(fast_dosing_timers) -> None:
     algo.clean_up()
 
 
-def test_changing_duration_over_mqtt(fast_dosing_timers) -> None:
+def test_pid_morbidostat_updates_duration_and_timer_interval_over_mqtt(
+    fast_dosing_timers,
+) -> None:
     experiment = "test_changing_duration_over_mqtt"
     with PIDMorbidostat(
         target_normalized_od=1.0,
@@ -1672,7 +1721,9 @@ def test_changing_duration_over_mqtt(fast_dosing_timers) -> None:
         assert wait_for(lambda: close(algo.run_thread.interval, 60.0), timeout=10.0)  # in seconds
 
 
-def test_changing_duration_over_mqtt_will_start_next_run_earlier(fast_dosing_timers) -> None:
+def test_pid_morbidostat_duration_change_reschedules_next_run_from_now(
+    fast_dosing_timers,
+) -> None:
     experiment = "test_changing_duration_over_mqtt_will_start_next_run_earlier"
     with PIDMorbidostat(
         target_normalized_od=1.0,
@@ -1705,7 +1756,7 @@ def test_changing_duration_over_mqtt_will_start_next_run_earlier(fast_dosing_tim
         assert wait_for(lambda: algo.run_thread.run_after > 0, timeout=5.0)
 
 
-def test_disconnect_cleanly(fast_dosing_timers) -> None:
+def test_turbidostat_transitions_to_disconnected_state_over_mqtt(fast_dosing_timers) -> None:
     experiment = "test_disconnect_cleanly"
     algo = Turbidostat(
         unit=unit,
@@ -1721,7 +1772,9 @@ def test_disconnect_cleanly(fast_dosing_timers) -> None:
     algo.clean_up()
 
 
-def test_disconnect_cleanly_during_pumping_execution(fast_dosing_timers) -> None:
+def test_chemostat_transitions_to_disconnected_state_over_mqtt(
+    fast_dosing_timers,
+) -> None:
     experiment = "test_disconnect_cleanly_during_pumping_execution"
     algo = Chemostat(
         unit=unit,
@@ -1736,7 +1789,7 @@ def test_disconnect_cleanly_during_pumping_execution(fast_dosing_timers) -> None
     algo.clean_up()
 
 
-def test_custom_class_will_register_and_run() -> None:
+def test_custom_dosing_automation_subclass_can_be_instantiated_and_registered() -> None:
     experiment = "test_custom_class_will_register_and_run"
 
     class NaiveTurbidostat(DosingAutomationJob):
@@ -1763,7 +1816,7 @@ def test_custom_class_will_register_and_run() -> None:
         pass
 
 
-def test_what_happens_when_no_od_data_is_coming_in() -> None:
+def test_turbidostat_returns_error_event_when_required_readings_are_missing() -> None:
     experiment = "test_what_happens_when_no_od_data_is_coming_in"
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -1784,7 +1837,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
         assert isinstance(event, events.ErrorOccurred)
 
 
-def test_latest_event_goes_to_mqtt(fast_dosing_timers) -> None:
+def test_run_publishes_latest_event_to_mqtt(fast_dosing_timers) -> None:
     experiment = "test_latest_event_goes_to_mqtt"
 
     class FakeAutomation(DosingAutomationJob):
@@ -1944,7 +1997,9 @@ def test_execute_io_action_does_not_report_extra_waste_in_result(fast_dosing_tim
             assert automation.latest_event.data["waste_ml"] == pytest.approx(0.5)
 
 
-def test_strings_are_okay_for_chemostat(fast_dosing_timers) -> None:
+def test_start_dosing_automation_coerces_string_inputs_for_chemostat(
+    fast_dosing_timers,
+) -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
@@ -2122,7 +2177,9 @@ def test_chemostat_from_cli() -> None:
 
 @pytest.mark.slow
 @pytest.mark.skip()
-def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
+def test_chemostat_reuses_persisted_alt_media_fraction_between_runs(
+    fast_dosing_timers,
+) -> None:
     experiment = "test_pass_in_alt_media_fraction"
     unit = get_unit_name()
 
@@ -2160,7 +2217,9 @@ def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
             assert wait_for(lambda: close(chemostat.alt_media_fraction, target), timeout=5.0)
 
 
-def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
+def test_chemostat_from_zero_volume_accumulates_current_volume_from_doses(
+    fast_dosing_timers,
+) -> None:
     experiment = "test_chemostat_from_0_volume"
     unit = get_unit_name()
 
@@ -2196,7 +2255,9 @@ def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
 
 
 @pytest.mark.slow
-def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
+def test_execute_io_preserves_alt_media_fraction_across_mixed_media_dilutions(
+    fast_dosing_timers,
+) -> None:
     # https://forum.pioreactor.com/t/inconsistent-dosing-behavior-with-multiple-media/37/3
 
     unit = get_unit_name()
@@ -2302,7 +2363,7 @@ def test_bioreactor_mqtt_updates_running_dosing_job() -> None:
 
 
 @pytest.mark.slow
-def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
+def test_execute_io_action_supports_custom_pump_methods() -> None:
     experiment = "test_adding_pumps_and_calling_them_from_execute_io_action"
     unit = get_unit_name()
 
@@ -2344,7 +2405,7 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
         pause(40)
 
 
-def test_execute_io_action_errors() -> None:
+def test_execute_io_action_rejects_invalid_pump_arguments() -> None:
     experiment = "test_execute_io_action_errors"
 
     with Silent(
@@ -2365,7 +2426,7 @@ def test_execute_io_action_errors() -> None:
 
 
 @pytest.mark.flakey
-def test_timeout_in_run(fast_dosing_timers) -> None:
+def test_run_logs_timeout_when_called_while_sleeping(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_timeout_in_run"
 
@@ -2378,7 +2439,7 @@ def test_timeout_in_run(fast_dosing_timers) -> None:
 
 
 @pytest.mark.slow
-def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -> None:
+def test_chemostat_pauses_when_current_volume_crosses_safety_threshold() -> None:
     experiment = "test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold"
 
     with Chemostat(
@@ -2409,7 +2470,9 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
 
 
 @pytest.mark.flakey
-def test_warning_is_logged_if_under_remove_waste(fast_dosing_timers) -> None:
+def test_warning_is_logged_when_less_waste_is_removed_than_requested(
+    fast_dosing_timers,
+) -> None:
     unit = get_unit_name()
     experiment = "test_warning_is_logged_if_under_remove_waste"
 
@@ -2435,7 +2498,7 @@ def test_warning_is_logged_if_under_remove_waste(fast_dosing_timers) -> None:
         assert len(bucket) >= 1
 
 
-def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
+def test_failed_automation_start_clears_retained_duration_setting_from_mqtt() -> None:
     experiment = "test_a_failing_automation_cleans_duration_attr_in_mqtt_up"
 
     pubsub.publish(f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", None, retain=True)
@@ -2463,7 +2526,7 @@ def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
     assert result is None
 
 
-def test_custom_class_without_duration() -> None:
+def test_custom_dosing_automation_without_duration_setting_does_not_publish_duration() -> None:
     experiment = "test_custom_class_without_duration"
 
     class NaiveTurbidostat(DosingAutomationJob):
