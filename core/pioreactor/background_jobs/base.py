@@ -269,13 +269,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
             except Exception:
                 try:
                     self.clean_up()
-                except Exception:
-                    pass
+                except Exception as cleanup_error:
+                    if hasattr(self, "logger"):
+                        self.logger.debug("Error while cleaning up after constructor failure:")
+                        self.logger.debug(cleanup_error, exc_info=True)
                 raise
 
         setattr(cls, "__init__", t.cast(FunctionType, wrapped_init))
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment, source: str = "app") -> None:
+        self._is_cleaned_up = False
+        self._blocking_event = threading.Event()
+
         if self.job_name in DISALLOWED_JOB_NAMES:
             raise ValueError("Job name not allowed.")
         if not self.job_name.islower():
@@ -326,7 +331,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.set_state(JobState.INIT)
 
         self._set_up_exit_protocol()
-        self._blocking_event = threading.Event()
 
         try:
             # this is one function in the __init__ that we may deliberately raise an error
@@ -575,8 +579,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         Disconnect from brokers, set state to "disconnected", stop any activity.
         """
-        if self.state is not JobState.DISCONNECTED:
-            self.set_state(JobState.DISCONNECTED)
+        if getattr(self, "_is_cleaned_up", False):
+            return
+
+        if self.state != JobState.DISCONNECTED:
+            try:
+                self.set_state(JobState.DISCONNECTED)
+            except Exception as e:
+                if hasattr(self, "logger"):
+                    self.logger.debug("Error while setting disconnected state during cleanup:")
+                    self.logger.debug(e, exc_info=True)
+                object.__setattr__(self, "state", JobState.DISCONNECTED)
+                if hasattr(self, "_blocking_event"):
+                    self._blocking_event.set()
+        else:
+            if hasattr(self, "_blocking_event"):
+                self._blocking_event.set()
+
         self._clean_up_resources()
 
     def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:
@@ -860,20 +879,31 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers
-        self.logger.clean_up()
+        if hasattr(self, "logger"):
+            self.logger.clean_up()
 
     def _disconnect_from_mqtt_clients(self) -> None:
         # disconnect from MQTT
-        self.sub_client.shutdown()
+        if hasattr(self, "sub_client"):
+            self.sub_client.shutdown()
 
         # this HAS to happen last, because this contains our publishing client
-        self.pub_client.shutdown()
+        if hasattr(self, "pub_client"):
+            self.pub_client.shutdown()
 
     def _clean_up_resources(self) -> None:
-        self._clear_caches()
-        self._remove_from_job_manager()
-        self._disconnect_from_mqtt_clients()
-        self._disconnect_from_loggers()
+        for cleanup_resource in (
+            self._clear_caches,
+            self._remove_from_job_manager,
+            self._disconnect_from_mqtt_clients,
+            self._disconnect_from_loggers,
+        ):
+            try:
+                cleanup_resource()
+            except Exception as e:
+                if hasattr(self, "logger"):
+                    self.logger.debug(f"Error in {cleanup_resource.__name__}:")
+                    self.logger.debug(e, exc_info=True)
 
         self._is_cleaned_up = True
 

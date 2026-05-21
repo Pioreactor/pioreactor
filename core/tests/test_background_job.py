@@ -508,6 +508,54 @@ def test_clean_up_still_disconnects_when_ready_to_disconnected_hook_errors() -> 
     assert state_msg.payload.decode() == job.DISCONNECTED
 
 
+def test_constructor_failure_after_parent_init_cleans_up_job() -> None:
+    class FailingAfterParentInitJob(BackgroundJob):
+        job_name = "failing_after_parent_init"
+        on_disconnected_called = False
+
+        def __init__(self, unit: str, experiment: str) -> None:
+            super().__init__(unit=unit, experiment=experiment)
+            raise RuntimeError("failed after parent init")
+
+        def on_disconnected(self) -> None:
+            type(self).on_disconnected_called = True
+
+    exp = "test_constructor_failure_after_parent_init_cleans_up_job"
+    unit = get_unit_name()
+
+    with pytest.raises(RuntimeError, match="failed after parent init"):
+        FailingAfterParentInitJob(unit=unit, experiment=exp)
+
+    assert FailingAfterParentInitJob.on_disconnected_called
+    assert not is_pio_job_running("failing_after_parent_init")
+
+
+def test_clean_up_can_be_called_twice() -> None:
+    exp = "test_clean_up_can_be_called_twice"
+    unit = get_unit_name()
+    job = BackgroundJob(unit=unit, experiment=exp)
+
+    job.clean_up()
+    job.clean_up()
+
+    assert job.state == job.DISCONNECTED
+    assert job._blocking_event.is_set()
+    assert not is_pio_job_running("background_job")
+
+
+def test_clean_up_tolerates_pre_parent_init_failure() -> None:
+    class FailingBeforeParentInitJob(BackgroundJob):
+        job_name = "failing_before_parent_init"
+
+        def __init__(self, unit: str, experiment: str) -> None:
+            raise RuntimeError("failed before parent init")
+
+    with pytest.raises(RuntimeError, match="failed before parent init"):
+        FailingBeforeParentInitJob(
+            unit=get_unit_name(), experiment="test_clean_up_tolerates_pre_parent_init_failure"
+        )
+
+
 def test_dodging_jobs_respect_inactive_worker_guard(monkeypatch) -> None:
     monkeypatch.setattr(
         "pioreactor.background_jobs.base.is_active",
