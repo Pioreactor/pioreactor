@@ -267,12 +267,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             try:
                 orig_init(self, *args, **kwargs)
             except Exception:
-                try:
-                    self.clean_up()
-                except Exception as cleanup_error:
-                    if hasattr(self, "logger"):
-                        self.logger.debug("Error while cleaning up after constructor failure:")
-                        self.logger.debug(cleanup_error, exc_info=True)
+                if hasattr(self, "_is_cleaned_up"):
+                    try:
+                        self.clean_up()
+                    except Exception as cleanup_error:
+                        if hasattr(self, "logger"):
+                            self.logger.debug("Error while cleaning up after constructor failure:")
+                            self.logger.debug(cleanup_error, exc_info=True)
                 raise
 
         setattr(cls, "__init__", t.cast(FunctionType, wrapped_init))
@@ -579,7 +580,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         Disconnect from brokers, set state to "disconnected", stop any activity.
         """
-        if getattr(self, "_is_cleaned_up", False):
+        if self._is_cleaned_up:
             return
 
         if self.state != JobState.DISCONNECTED:
@@ -590,11 +591,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     self.logger.debug("Error while setting disconnected state during cleanup:")
                     self.logger.debug(e, exc_info=True)
                 object.__setattr__(self, "state", JobState.DISCONNECTED)
-                if hasattr(self, "_blocking_event"):
-                    self._blocking_event.set()
-        else:
-            if hasattr(self, "_blocking_event"):
                 self._blocking_event.set()
+        else:
+            self._blocking_event.set()
 
         self._clean_up_resources()
 
@@ -892,18 +891,28 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.pub_client.shutdown()
 
     def _clean_up_resources(self) -> None:
-        for cleanup_resource in (
-            self._clear_caches,
-            self._remove_from_job_manager,
-            self._disconnect_from_mqtt_clients,
-            self._disconnect_from_loggers,
-        ):
-            try:
-                cleanup_resource()
-            except Exception as e:
-                if hasattr(self, "logger"):
-                    self.logger.debug(f"Error in {cleanup_resource.__name__}:")
-                    self.logger.debug(e, exc_info=True)
+        try:
+            self._clear_caches()
+        except Exception as e:
+            if hasattr(self, "logger"):
+                self.logger.debug("Error in _clear_caches:")
+                self.logger.debug(e, exc_info=True)
+
+        self._remove_from_job_manager()
+
+        try:
+            self._disconnect_from_mqtt_clients()
+        except Exception as e:
+            if hasattr(self, "logger"):
+                self.logger.debug("Error in _disconnect_from_mqtt_clients:")
+                self.logger.debug(e, exc_info=True)
+
+        try:
+            self._disconnect_from_loggers()
+        except Exception as e:
+            if hasattr(self, "logger"):
+                self.logger.debug("Error in _disconnect_from_loggers:")
+                self.logger.debug(e, exc_info=True)
 
         self._is_cleaned_up = True
 
