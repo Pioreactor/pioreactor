@@ -71,6 +71,25 @@ def test_get_workers(client) -> None:
     assert "unit4" in units
 
 
+def test_get_workers_includes_literal_ipv4_addresses(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text(
+        "[cluster.addresses]\nunit1=192.168.1.10\nunit2=unit2.local\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    response = client.get("/api/workers")
+
+    assert response.status_code == 200
+    data = {worker["pioreactor_unit"]: worker for worker in response.get_json()}
+    assert data["unit1"]["ipv4_address"] == "192.168.1.10"
+    assert data["unit2"]["ipv4_address"] is None
+
+
 @pytest.mark.parametrize("pioreactor_unit", ["203.0.113.10", "unknown-worker"])
 @pytest.mark.parametrize("action", ["reboot", "shutdown"])
 def test_system_fanout_rejects_unregistered_unit_targets(
@@ -165,6 +184,100 @@ def test_discover_workers_endpoint(client, monkeypatch) -> None:
     units = [w["pioreactor_unit"] for w in data]
     assert "new_unit" in units
     assert "unit1" not in units
+
+
+def test_setup_worker_waits_one_minute_and_preserves_blank_ipv4(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeAddWorkerResult:
+        def __call__(self, blocking: bool, timeout: float) -> bool:
+            captured["blocking"] = blocking
+            captured["timeout"] = timeout
+            return True
+
+    def fake_add_new_pioreactor(
+        name: str, version: str, model: str, address: str | None = None
+    ) -> FakeAddWorkerResult:
+        captured["name"] = name
+        captured["version"] = version
+        captured["model"] = model
+        captured["address"] = address
+        return FakeAddWorkerResult()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fake_add_new_pioreactor)
+
+    response = client.post(
+        "/api/workers/setup",
+        json={
+            "name": "new-unit",
+            "version": "1.5",
+            "model": "pioreactor_40ml",
+            "ipv4_address": "",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "name": "new-unit",
+        "version": "1.5",
+        "model": "pioreactor_40ml",
+        "address": None,
+        "blocking": True,
+        "timeout": 60,
+    }
+
+
+def test_setup_worker_passes_optional_ipv4_address(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeAddWorkerResult:
+        def __call__(self, blocking: bool, timeout: float) -> bool:
+            return True
+
+    def fake_add_new_pioreactor(
+        name: str, version: str, model: str, address: str | None = None
+    ) -> FakeAddWorkerResult:
+        captured["address"] = address
+        return FakeAddWorkerResult()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fake_add_new_pioreactor)
+
+    response = client.post(
+        "/api/workers/setup",
+        json={
+            "name": "new-unit",
+            "version": "1.5",
+            "model": "pioreactor_40ml",
+            "ipv4_address": "192.168.1.22",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["address"] == "192.168.1.22"
+
+
+@pytest.mark.parametrize("ipv4_address", ["999.1.1.1", "not-an-ip", "2001:db8::1"])
+def test_setup_worker_rejects_invalid_ipv4_address(
+    client: FlaskClient, monkeypatch: MonkeyPatch, ipv4_address: str
+) -> None:
+    def fail_add_new_pioreactor(*_args, **_kwargs) -> None:
+        raise AssertionError("invalid IPv4 should not enqueue add worker task")
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fail_add_new_pioreactor)
+
+    response = client.post(
+        "/api/workers/setup",
+        json={
+            "name": "new-unit",
+            "version": "1.5",
+            "model": "pioreactor_40ml",
+            "ipv4_address": ipv4_address,
+        },
+    )
+
+    assert response.status_code == 400
 
 
 def test_get_worker(client) -> None:

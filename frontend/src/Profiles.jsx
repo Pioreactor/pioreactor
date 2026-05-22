@@ -1,5 +1,6 @@
 import React from "react";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
@@ -33,6 +34,8 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
+
+dayjs.extend(utc);
 
 /**
  * 1) Child component that displays the experiment profile dropdown,

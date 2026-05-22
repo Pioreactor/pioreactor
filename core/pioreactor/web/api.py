@@ -3927,9 +3927,22 @@ def get_list_of_units() -> ResponseReturnValue:
 @api_bp.route("/workers", methods=["GET"])
 def get_list_of_workers() -> ResponseReturnValue:
     # Get a list of all workers
-    all_workers = query_app_db(
-        "SELECT pioreactor_unit, added_at, is_active, model_name, model_version FROM workers ORDER BY pioreactor_unit;"
+    all_workers = t.cast(
+        list[dict[str, t.Any]],
+        query_app_db(
+            "SELECT pioreactor_unit, added_at, is_active, model_name, model_version FROM workers ORDER BY pioreactor_unit;"
+        ),
     )
+    config = ConfigParserMod()
+    config.read(_get_shared_config_path())
+    for worker in all_workers:
+        address = config.get("cluster.addresses", worker["pioreactor_unit"], fallback="")
+        try:
+            parsed_address = ipaddress.ip_address(address)
+        except ValueError:
+            worker["ipv4_address"] = None
+        else:
+            worker["ipv4_address"] = address if parsed_address.version == 4 else None
     return jsonify(all_workers)
 
 
@@ -3962,6 +3975,7 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
     new_name = data["name"]
     version = data["version"]
     model = data["model"]
+    ipv4_address = (data.get("ipv4_address") or "").strip()
 
     if not isinstance(new_name, str) or not pioreactor_unit_name_can_be_persisted(new_name):
         abort_with(
@@ -3971,13 +3985,21 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
             remediation="Use the Pioreactor hostname without a .local suffix.",
         )
 
+    if ipv4_address:
+        try:
+            parsed_address = ipaddress.ip_address(ipv4_address)
+        except ValueError:
+            abort_with(400, "Invalid IPv4 address")
+        if parsed_address.version != 4:
+            abort_with(400, "Invalid IPv4 address")
+
     try:
-        result = tasks.add_new_pioreactor(new_name, version, model)
+        result = tasks.add_new_pioreactor(new_name, version, model, ipv4_address or None)
     except Exception as e:
         return abort_with(404, str(e))
 
     try:
-        status = result(blocking=True, timeout=250)
+        status = result(blocking=True, timeout=60)
     except (HueyException, TaskException):
         status = False
 

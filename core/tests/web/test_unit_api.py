@@ -45,6 +45,15 @@ def test_task_results_pending(client) -> None:
     assert data["status"] == "pending"
 
 
+def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pioreactor.web.unit_api.get_ip", lambda: "192.168.1.5")
+
+    resp = client.get("/unit_api/system/ipv4")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
+
+
 def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 

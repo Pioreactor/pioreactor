@@ -560,6 +560,31 @@ function LeaderCard({leaderHostname}) {
 
 
   React.useEffect(() => {
+    let isActive = true;
+
+    fetch("/unit_api/system/ipv4")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch leader IPv4");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (isActive) {
+          setIpv4(data.ipv4_address || null);
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+
+  React.useEffect(() => {
     if (!client) {
       return undefined;
     }
@@ -1161,4 +1186,5 @@ function Leader({title}) {
   );
 }
 
+export { LeaderCard };
 export default Leader;

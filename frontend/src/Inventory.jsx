@@ -164,9 +164,21 @@ function Header(props) {
 
 
 
+function ipv4AddressIsValid(value) {
+  const parts = value.split(".");
+  return parts.length === 4 && parts.every((part) => {
+    if (!/^\d+$/.test(part)) {
+      return false;
+    }
+    const octet = Number(part);
+    return octet >= 0 && octet <= 255 && String(octet) === part;
+  });
+}
+
 function AddNewPioreactor({setWorkers}){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [ipv4Address, setIpv4Address] = useState("");
   const [model, setModel] = React.useState(["pioreactor_40ml", "1.5"])
 
   const [isError, setIsError] = useState(false)
@@ -210,11 +222,9 @@ function AddNewPioreactor({setWorkers}){
     setName(evt.target.value)
   }
 
-
-
-
   const onSubmit = (event) =>{
     event.preventDefault()
+    const trimmedIpv4Address = ipv4Address.trim();
     if (!name) {
       setIsError(true)
       setErrorMsg("Provide the hostname for the new Pioreactor worker")
@@ -225,13 +235,22 @@ function AddNewPioreactor({setWorkers}){
       setErrorMsg("Provide the model for the new Pioreactor worker. You can change the model later, too.")
       return
     }
+    else if (trimmedIpv4Address && !ipv4AddressIsValid(trimmedIpv4Address)) {
+      setIsError(true)
+      setErrorMsg("Provide a valid IPv4 address, or leave the IPv4 field blank.")
+      return
+    }
     setIsError(false)
     setIsSuccess(false)
     setIsRunning(true)
     setExpectedPathMsg("Setting up your new Pioreactor...")
+    const requestBody = {name: name, model: model[0], version: model[1]};
+    if (trimmedIpv4Address) {
+      requestBody.ipv4_address = trimmedIpv4Address;
+    }
     fetch('/api/workers/setup', {
         method: "POST",
-        body: JSON.stringify({name: name, model: model[0], version: model[1]}),
+        body: JSON.stringify(requestBody),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -246,7 +265,17 @@ function AddNewPioreactor({setWorkers}){
         } else {
           setIsSuccess(true)
           setName("")
-          setWorkers((prevWorkers) => [...prevWorkers, {pioreactor_unit: name, is_active: true, model_name: model[0], model_version: model[1]}].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
+          setIpv4Address("")
+          setWorkers((prevWorkers) => [
+            ...prevWorkers,
+            {
+              pioreactor_unit: name,
+              is_active: true,
+              model_name: model[0],
+              model_version: model[1],
+              ipv4_address: requestBody.ipv4_address || null,
+            },
+          ].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
           setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
         }
     })
@@ -255,6 +284,10 @@ function AddNewPioreactor({setWorkers}){
   const standard = availableModels.filter(m => !(m.is_contrib) && !(m.is_legacy));
   const contrib = availableModels.filter(m => (m.is_contrib));
   const legacy = availableModels.filter(m => (m.is_legacy));
+  const modelValue = `${model[0]}::${model[1]}`;
+  const selectValue = availableModels.some(
+    ({model_name, model_version}) => model_name === model[0] && String(model_version) === String(model[1])
+  ) ? modelValue : "";
   return (
     <React.Fragment>
     <Button
@@ -284,7 +317,7 @@ function AddNewPioreactor({setWorkers}){
       <DialogContent>
         <p>First, follow the instructions <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">here</a> to set up your new Pioreactor's worker software.</p>
 
-        <p>After,
+        <div>After,
 
         <ol>
          <li> worker image installation is complete and,</li>
@@ -292,7 +325,7 @@ function AddNewPioreactor({setWorkers}){
          <li> the new worker is displaying a blue light, </li>
         </ol>
 
-        provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</p>
+        provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</div>
         <p>Your existing leader will automatically connect the new Pioreactor to the cluster.</p>
         <Box sx={{ mt: 2, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
@@ -335,44 +368,53 @@ function AddNewPioreactor({setWorkers}){
             onChange={handleNameChange}
             value={name}
           />
-        <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
-          <InputLabel id="add-model-label">Pioreactor model</InputLabel>
-          <Select
-            labelId="add-model-label"
-            value={`${model[0]}::${model[1]}`}
-            onChange={(evt) => {
-              const [modelName, modelVersion] = String(evt.target.value).split('::');
-              setModel([modelName, modelVersion]);
-            }}
-            label="Pioreactor model"
-            MenuProps={{ disablePortal: true }}
-            renderValue={(val) => {
-              const [mn, mv] = String(val).split('::');
-              const m = availableModels.find(x => x.model_name === mn && String(x.model_version) === String(mv));
-              return m ? m.display_name : `${mn}, v${mv}`;
-            }}
-          >
-            {standard.length > 0 && <ListSubheader disableSticky>Latest</ListSubheader>}
-            {standard.map(({ model_name, model_version, display_name }) => (
-              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
-                {display_name}
-              </MenuItem>
-            ))}
-            {contrib.length > 0 && <ListSubheader disableSticky>Custom</ListSubheader>}
-            {contrib.map(({ model_name, model_version, display_name }) => (
-              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
-                {display_name}
-              </MenuItem>
-            ))}
-            {legacy.length > 0 && <ListSubheader disableSticky>Legacy</ListSubheader>}
-            {legacy.map(({ model_name, model_version, display_name }) => (
-              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
-                {display_name}
-              </MenuItem>
-            ))}
+          <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
+            <InputLabel id="add-model-label">Pioreactor model</InputLabel>
+            <Select
+              labelId="add-model-label"
+              value={selectValue}
+              onChange={(evt) => {
+                const [modelName, modelVersion] = String(evt.target.value).split('::');
+                setModel([modelName, modelVersion]);
+              }}
+              label="Pioreactor model"
+              MenuProps={{ disablePortal: true }}
+              renderValue={(val) => {
+                const [mn, mv] = String(val).split('::');
+                const m = availableModels.find(x => x.model_name === mn && String(x.model_version) === String(mv));
+                return m ? m.display_name : `${mn}, v${mv}`;
+              }}
+            >
+              {standard.length > 0 && <ListSubheader disableSticky>Latest</ListSubheader>}
+              {standard.map(({ model_name, model_version, display_name }) => (
+                <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
+                  {display_name}
+                </MenuItem>
+              ))}
+              {contrib.length > 0 && <ListSubheader disableSticky>Custom</ListSubheader>}
+              {contrib.map(({ model_name, model_version, display_name }) => (
+                <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
+                  {display_name}
+                </MenuItem>
+              ))}
+              {legacy.length > 0 && <ListSubheader disableSticky>Legacy</ListSubheader>}
+              {legacy.map(({ model_name, model_version, display_name }) => (
+                <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
+                  {display_name}
+                </MenuItem>
+              ))}
 
-          </Select>
-        </FormControl>
+            </Select>
+          </FormControl>
+          <TextField
+            size="small"
+            id="new-pioreactor-ipv4"
+            label="IPv4 address (optional)"
+            variant="outlined"
+            sx={{mt: "15px", maxWidth: "215px"}}
+            onChange={(evt) => setIpv4Address(evt.target.value)}
+            value={ipv4Address}
+          />
 
         </div>
 
@@ -425,7 +467,7 @@ function WorkerCard({worker, config, leaderVersion}) {
   const selfTestDefinition = useSelfTestJobDefinition();
   const [state, setState] = React.useState(null)
   const [versions, setVersions] = React.useState({})
-  const [ipv4, setIpv4] = React.useState(null)
+  const [ipv4, setIpv4] = React.useState(worker.ipv4_address || null)
   const [WLANaddress, setWLANaddress] = React.useState(null)
   const [ETHAddress, setETHAddress] = React.useState(null)
   const [selfTestJob, setSelfTestJob] = React.useState(null)
@@ -1305,4 +1347,5 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
   );
 }
 
+export { AddNewPioreactor, WorkerCard };
 export default Inventory;

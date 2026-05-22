@@ -328,8 +328,12 @@ def pio_run(
 
 @huey.task()
 @huey.lock_task("inventory-lock")
-def add_new_pioreactor(new_pioreactor_name: str, version: str, model: str) -> bool:
+def add_new_pioreactor(
+    new_pioreactor_name: str, version: str, model: str, address: str | None = None
+) -> bool:
     command = [PIO_EXECUTABLE, "workers", "add", new_pioreactor_name, "-v", version, "-m", model]
+    if address:
+        command.extend(["--address", address])
     logger.debug(f"Executing `{join(command)}`")
     check_call(command)
     return True

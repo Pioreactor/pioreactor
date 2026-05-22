@@ -52,6 +52,7 @@ from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import usb as usb_utils
+from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
 from pioreactor.version import __version__
@@ -128,6 +129,11 @@ def health_check() -> ResponseReturnValue:
         "utc_time": current_utc_timestamp(),
     }
     return attach_cache_control(jsonify(payload), max_age=0)
+
+
+@unit_api_bp.route("/system/ipv4", methods=["GET"])
+def get_system_ipv4() -> ResponseReturnValue:
+    return attach_cache_control(jsonify({"ipv4_address": get_ip()}), max_age=0)
 
 
 @unit_api_bp.route("/hardware/check", methods=["POST", "PATCH"])

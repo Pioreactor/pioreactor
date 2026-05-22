@@ -69,6 +69,8 @@ const profilesResponse = [
   },
 ];
 
+let recentRunsResponse = [];
+
 function NewProfileLocationState() {
   const location = useLocation();
   return <pre data-testid="new-profile-state">{JSON.stringify(location.state)}</pre>;
@@ -92,6 +94,7 @@ function countFetches(url) {
 describe("Profiles", () => {
   beforeEach(() => {
     mockStartProfile.mockReset();
+    recentRunsResponse = [];
     global.fetch = jest.fn((url) => {
       if (url === "/api/experiment_profiles") {
         return Promise.resolve({
@@ -103,7 +106,7 @@ describe("Profiles", () => {
       if (url === "/api/experiments/exp-1/experiment_profiles/recent") {
         return Promise.resolve({
           ok: true,
-          json: async () => [],
+          json: async () => recentRunsResponse,
         });
       }
 
@@ -179,5 +182,20 @@ describe("Profiles", () => {
 
     await screen.findByText("Unable to queue profile");
     await waitFor(() => expect(runButton).not.toBeDisabled());
+  });
+
+  test("renders recent profile runs with UTC timestamps", async () => {
+    recentRunsResponse = [
+      {
+        experiment_profile_name: "Profile A",
+        started_at: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+
+    renderProfiles();
+
+    await screen.findByText("Preview: Profile A");
+    await waitFor(() => expect(screen.getAllByText("Profile A").length).toBeGreaterThan(1));
+    await screen.findByText(/Dec 31|Jan 1/);
   });
 });
