@@ -122,13 +122,13 @@ def test_fusion_model_predicts_expected_concentration_range(instrument: str) -> 
 
 
 def test_estimator_roundtrip_save_and_load(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    import pioreactor.estimators as estimators_module
+
+    monkeypatch.setattr(estimators_module, "ESTIMATOR_PATH", tmp_path)
 
     estimator = _build_estimator_from_records(_records_for_instrument("1"))  # type: ignore
     saved_path = estimator.save_to_disk_for_device(pt.OD_FUSED_DEVICE)
     assert estimator.estimator_name in saved_path
-
-    import pioreactor.estimators as estimators_module
 
     loaded = estimators_module.load_estimator(pt.OD_FUSED_DEVICE, estimator.estimator_name)
     assert isinstance(loaded, structs.ODFusionEstimator)
