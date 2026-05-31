@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
+import zipfile
 from datetime import datetime
 from datetime import UTC
 from io import BytesIO
@@ -33,7 +34,7 @@ def test_process_delayed_json_response_accepts_created_status() -> None:
 
     assert mod._process_delayed_json_response("unit1", DummyResponse()) == (
         "unit1",
-        {"msg": "Calibration created successfully."},
+        {"ok": True, "unit": "unit1", "value": {"msg": "Calibration created successfully."}},
     )
 
 
@@ -123,6 +124,39 @@ def test_system_fanout_allows_registered_unit_target(client: FlaskClient, monkey
     assert response.status_code == 202
     assert captured["endpoint"] == "/unit_api/system/reboot"
     assert captured["units"] == ["unit1"]
+
+
+def test_system_fanout_task_result_returns_unit_envelope(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    import pioreactor.web.tasks as tasks
+
+    class DummyUnitResponse:
+        status_code = 200
+        content = b'{"success": true}'
+        body = content
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict[str, bool]:
+            return {"success": True}
+
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
+    monkeypatch.setattr(tasks, "post_into", lambda *_args, **_kwargs: DummyUnitResponse())
+
+    response = client.post("/api/units/unit1/system/reboot")
+
+    assert response.status_code == 202
+    task_payload = client.get(response.get_json()["result_url_path"]).get_json()
+    assert task_payload["status"] == "succeeded"
+    assert task_payload["result"] == {
+        "unit1": {
+            "ok": True,
+            "unit": "unit1",
+            "value": {"success": True},
+        }
+    }
 
 
 def test_config_proxy_rejects_unregistered_unit_target(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
@@ -1609,15 +1643,17 @@ def test_get_settings_api(client) -> None:
         # follow the task
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
-        assert settings_per_unit["unit2"] is None
-        assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
+        assert settings_per_unit["unit2"]["ok"] is False
+        assert settings_per_unit["unit1"]["ok"] is True
+        assert settings_per_unit["unit1"]["value"]["settings"]["target_rpm"] == 500.0
 
         # next api
         r = client.get("/api/workers/unit1/jobs/settings/job_name/stirring/experiments/exp1")
         # follow the task
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
-        assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
+        assert settings_per_unit["unit1"]["ok"] is True
+        assert settings_per_unit["unit1"]["value"]["settings"]["target_rpm"] == 500.0
 
 
 def test_get_settings_descriptors(client) -> None:
@@ -1824,6 +1860,79 @@ def test_system_upload_uses_unique_staged_temp_archive_name(
     assert save_path.read_bytes() == b"archive-bytes"
 
 
+def test_zipped_calibrations_unwraps_raw_fanout_envelopes(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    archive = BytesIO()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("od.yaml", "calibration-data")
+
+    class FakeTask:
+        def get(self, blocking: bool, timeout: float) -> dict[str, object]:
+            return {
+                "unit1": {"ok": True, "unit": "unit1", "value": archive.getvalue()},
+                "unit2": {
+                    "ok": False,
+                    "unit": "unit2",
+                    "error": {"kind": "connection_error", "message": "Could not reach unit2."},
+                    "status_code": None,
+                    "retryable": True,
+                },
+            }
+
+    monkeypatch.setattr("pioreactor.web.api.fanout.broadcast_get_across_workers", lambda *a, **k: FakeTask())
+
+    response = client.get("/api/workers/$broadcast/zipped_calibrations")
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(BytesIO(response.data), "r") as zf:
+        assert zf.read("unit1/od.yaml") == b"calibration-data"
+        assert all(not name.startswith("unit2/") for name in zf.namelist())
+
+
+def test_zipped_dot_pioreactor_single_unit_unwraps_raw_fanout_envelope(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    archive = BytesIO()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("config.ini", "[section]\n")
+
+    class FakeTask:
+        def get(self, blocking: bool, timeout: float) -> dict[str, object]:
+            return {"unit1": {"ok": True, "unit": "unit1", "value": archive.getvalue()}}
+
+    monkeypatch.setattr("pioreactor.web.api.multicast_get_to_unit", lambda *a, **k: FakeTask())
+
+    response = client.get("/api/units/unit1/zipped_dot_pioreactor")
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(BytesIO(response.data), "r") as zf:
+        assert zf.read("config.ini") == b"[section]\n"
+
+
+def test_zipped_dot_pioreactor_single_unit_rejects_failed_fanout_envelope(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    class FakeTask:
+        def get(self, blocking: bool, timeout: float) -> dict[str, object]:
+            return {
+                "unit1": {
+                    "ok": False,
+                    "unit": "unit1",
+                    "error": {"kind": "connection_error", "message": "Could not reach unit1."},
+                    "status_code": None,
+                    "retryable": True,
+                }
+            }
+
+    monkeypatch.setattr("pioreactor.web.api.multicast_get_to_unit", lambda *a, **k: FakeTask())
+
+    response = client.get("/api/units/unit1/zipped_dot_pioreactor")
+
+    assert response.status_code == 502
+    assert response.get_json()["error"] == "No data received from worker"
+
+
 def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.tasks as mod
 
@@ -1845,7 +1954,13 @@ def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch
         assert json is None
         assert timeout == 5.0
         assert return_raw is False
-        return {"unit1": {"od90": [{"calibration_name": "cached-on-leader"}]}}
+        return {
+            "unit1": {
+                "ok": True,
+                "unit": "unit1",
+                "value": {"od90": [{"calibration_name": "cached-on-leader"}]},
+            }
+        }
 
     monkeypatch.setattr("pioreactor.web.tasks._multicast_get_uncached", fake_multicast_get_uncached)
 
@@ -1855,9 +1970,67 @@ def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch
     first_payload = first.get(blocking=True, timeout=1)
     second_payload = second.get(blocking=True, timeout=1)
 
-    assert first_payload == {"unit1": {"od90": [{"calibration_name": "cached-on-leader"}]}}
+    assert first_payload == {
+        "unit1": {
+            "ok": True,
+            "unit": "unit1",
+            "value": {"od90": [{"calibration_name": "cached-on-leader"}]},
+        }
+    }
     assert second_payload == first_payload
     assert calls == 1
+
+    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+
+
+def test_multicast_get_with_leader_cache_does_not_cache_unit_failures(monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.tasks as mod
+
+    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+
+    calls = 0
+
+    def fake_multicast_get_uncached(
+        endpoint: str,
+        units: list[str],
+        json: dict[str, object] | list[dict[str, object] | None] | None = None,
+        timeout: float = 5.0,
+        return_raw: bool = False,
+    ) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return {
+                "unit1": {
+                    "ok": False,
+                    "unit": "unit1",
+                    "error": {"kind": "connection_error", "message": "Could not reach unit1."},
+                    "status_code": None,
+                    "retryable": True,
+                }
+            }
+        return {
+            "unit1": {
+                "ok": True,
+                "unit": "unit1",
+                "value": {"od90": [{"calibration_name": "after-retry"}]},
+            }
+        }
+
+    monkeypatch.setattr("pioreactor.web.tasks._multicast_get_uncached", fake_multicast_get_uncached)
+
+    first = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    second = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+
+    assert first.get(blocking=True, timeout=1)["unit1"]["ok"] is False
+    assert second.get(blocking=True, timeout=1) == {
+        "unit1": {
+            "ok": True,
+            "unit": "unit1",
+            "value": {"od90": [{"calibration_name": "after-retry"}]},
+        }
+    }
+    assert calls == 2
 
     mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
 

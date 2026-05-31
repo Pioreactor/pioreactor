@@ -10,9 +10,9 @@ This repository contains the **executable code for the Pioreactor project**. It 
    - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web APIs.
 3. `frontend/src` — React-based web UI
 4. `packaging/` - contains files used to build, install, and run Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR. Specific important files:
-  - `pioreactor/packaging/linux-leader/files/pioreactor.env`
-  - `pioreactor/packaging/shared-assets/sql/create_tables.sql`
-  - `pioreactor/packaging/shared-assets/pioreactor/config.example.ini`
+  - `packaging/linux-leader/files/pioreactor.env`
+  - `packaging/shared-assets/sql/create_tables.sql`
+  - `packaging/shared-assets/pioreactor/config.example.ini`
 
 
 ---
@@ -44,13 +44,13 @@ This repository contains the **executable code for the Pioreactor project**. It 
   Additional functionality can be loaded via Python entry points or drop-in `.py` files under `~/.pioreactor/plugins`. Plugins are discovered and registered in `core/pioreactor/plugin_management/__init__.py`.
 
 * **Web API and UI**
-  The `core/pioreactor/web/` directory includes our APIs and built frontend React projects.
+  The `core/pioreactor/web/` directory includes our APIs and generated static frontend output.
 
 ---
 
 ## Running the system
 
-ALWAYS use the project virtualenv, `.env`, for any Python, mypy, or pytest commands.
+ALWAYS use the project virtualenv, `.venv`, for any Python, mypy, or pytest commands.
 Ignore the system Python version for project work. Use `.venv/bin/python`; this project targets Python 3.13.
 
 ## Environment model
@@ -131,10 +131,10 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   .venv/bin/pytest core/tests/test_cli.py
   ```
  - Don't run tests in parallel.
- - Disabling tests is okay, however you MUST ASK PERMISSION to **disable** a test only if any of the following:
+ - Do not disable or skip tests as a fix. If a test is genuinely invalid, flaky, or external-service-bound, ask Cameron before changing the test contract:
     - it is incredibly flakey and unreliable.
     - relies on an unresponsive external service.
- - Deleting tests is okay, however you MUST ASK PERMISSION to **delete** a test only if:
+ - Do not delete tests unless Cameron explicitly asks after reviewing the reason. Reasons to discuss include:
     - its conclusion is orthogonal to the logic being written.
     - its preventing a better refactor or feature.
     - its an incredibly trivial feature that is unlikely to be used.
@@ -143,7 +143,7 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   ```bash
   .venv/bin/mypy core/pioreactor --ignore-missing-imports
   ```
- - However you can skip code linting with ruff or black - we do that automatically later.
+ - However you can skip Python formatting/linting with ruff or black - we do that automatically later.
 
 ---
 
@@ -170,7 +170,6 @@ When searching the repo, exclude these directories:
 
 * `core/tests/data/`
 * `core/update_scripts/`
-* `core/tests/data`
 * `core/experiments/`
 
 Also exclude  `CHANGELOG.md` files.
@@ -323,7 +322,7 @@ Tagging tips:
 - Use `typing` for mypy/type-boundary work. Do not also add a routine `mypy` tag.
 - Avoid narrow one-off tags unless at least a few future tickets are likely to need the same search key.
 
---
+---
 
 ## Ignore generated frontend assets
 

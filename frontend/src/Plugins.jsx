@@ -20,7 +20,7 @@ import ListItemText from "@mui/material/ListItemText";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Link, useParams, useNavigate } from "react-router";
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { styled } from "@mui/material/styles";
 import PioreactorsIcon from "./components/PioreactorsIcon";
 
@@ -84,8 +84,16 @@ function pluginUnitTaskResultSucceeded(unitResult) {
     return false;
   }
 
-  if (Object.prototype.hasOwnProperty.call(unitResult, "result")) {
-    return unitResult.result === true;
+  if (unitResult.ok === false) {
+    return false;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(unitResult, "value")) {
+    return pluginUnitTaskResultSucceeded(unitResult.value);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(unitResult, "success")) {
+    return unitResult.success === true;
   }
 
   return true;
@@ -669,14 +677,10 @@ function PluginContainer() {
 
       try {
         const result = await fetchTaskResult(`/api/units/${selectedTarget}/plugins/installed`);
-        const unitPlugins = result?.result?.[selectedTarget];
+        const unitPlugins = getUnitTaskResult(result, selectedTarget, "Could not reach this Pioreactor.");
 
         if (!isActive || requestId !== latestPluginsRequestId.current) {
           return;
-        }
-
-        if (unitPlugins == null) {
-          throw new Error("Could not reach this Pioreactor.");
         }
 
         if (!Array.isArray(unitPlugins)) {

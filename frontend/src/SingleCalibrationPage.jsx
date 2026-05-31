@@ -8,7 +8,7 @@ import Alert from '@mui/material/Alert';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
-import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
+import { assertUnitTaskResultSucceeded, fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { colors, ColorCycler, readyGreen } from "./utils/color";
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
@@ -290,11 +290,11 @@ function SingleCalibrationPage(props) {
     const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
     try {
       const data = await fetchTaskResult(apiUrl)
-      const result = data.result?.[pioreactorUnit];
-      if (!result || result.error) {
-        setCalibration(null);
-      } else {
+      try {
+        const result = getUnitTaskResult(data, pioreactorUnit, "Failed to fetch calibration.");
         setCalibration(result);
+      } catch (_err) {
+        setCalibration(null);
       }
 
     } catch (err) {

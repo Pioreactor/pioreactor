@@ -8,7 +8,7 @@ import DialogContent from '@mui/material/DialogContent';
 import Alert from '@mui/material/Alert';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
-import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
+import { assertUnitTaskResultSucceeded, fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { readyGreen } from "./utils/color";
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
@@ -242,11 +242,11 @@ function SingleEstimatorPage(props) {
     const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`;
     try {
       const data = await fetchTaskResult(apiUrl)
-      const result = data.result?.[pioreactorUnit];
-      if (!result || result.error) {
-        setEstimator(null);
-      } else {
+      try {
+        const result = getUnitTaskResult(data, pioreactorUnit, "Failed to fetch estimator.");
         setEstimator(result);
+      } catch (_err) {
+        setEstimator(null);
       }
     } catch (err) {
       console.error("Failed to fetch estimator:", err);

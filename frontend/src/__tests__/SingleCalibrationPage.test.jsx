@@ -33,7 +33,7 @@ const SingleCalibrationPage = require("../SingleCalibrationPage").default;
 function calibrationPayload(isActive = false) {
   return {
     result: {
-      "unit-1": {
+      "unit-1": fanoutSuccess({
         calibration_type: "od",
         created_at: "2026-05-12T12:00:00Z",
         curve_data_: { type: "poly", coefficients: [1, 2] },
@@ -41,8 +41,22 @@ function calibrationPayload(isActive = false) {
         y: "od",
         recorded_data: { x: [1, 2], y: [3, 4] },
         is_active: isActive,
-      },
+      }),
     },
+  };
+}
+
+function fanoutSuccess(value = {}) {
+  return { ok: true, unit: "unit-1", value };
+}
+
+function fanoutFailure(message = "Worker rejected this request.") {
+  return {
+    ok: false,
+    unit: "unit-1",
+    error: { kind: "http_error", message },
+    status_code: 500,
+    retryable: true,
   };
 }
 
@@ -73,7 +87,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
         return Promise.resolve(calibrationPayload(false));
       }
       if (endpoint === "/api/workers/unit-1/active_calibrations/od/calibration-a") {
-        return Promise.resolve({ result: { "unit-1": { status: "success" } } });
+        return Promise.resolve({ result: { "unit-1": fanoutSuccess() } });
       }
       throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
     });
@@ -106,7 +120,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
         return Promise.resolve(calibrationPayload(false));
       }
       if (endpoint === "/api/workers/unit-1/active_calibrations/od/calibration-a") {
-        return Promise.resolve({ result: { "unit-1": null } });
+        return Promise.resolve({ result: { "unit-1": fanoutFailure() } });
       }
       throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
     });
@@ -116,9 +130,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
     await screen.findByText("Calibration: calibration-a");
     await user.click(screen.getByRole("button", { name: /set active/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Unable to set calibration active on unit-1.",
-    );
+    expect(await screen.findByRole("status")).toHaveTextContent("Worker rejected this request.");
     expect(screen.queryByText("Calibration set as Active")).not.toBeInTheDocument();
   });
 
@@ -129,7 +141,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
         return Promise.resolve(calibrationPayload(true));
       }
       if (endpoint === "/api/workers/unit-1/active_calibrations/od") {
-        return Promise.resolve({ result: { "unit-1": { status: "success" } } });
+        return Promise.resolve({ result: { "unit-1": fanoutSuccess() } });
       }
       throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
     });
@@ -151,7 +163,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
   test("waits for the delete task before navigating away", async () => {
     const user = userEvent.setup();
     fetchTaskResult.mockResolvedValueOnce(calibrationPayload(false));
-    fetchTaskResult.mockResolvedValueOnce({ result: { "unit-1": { msg: "deleted" } } });
+    fetchTaskResult.mockResolvedValueOnce({ result: { "unit-1": fanoutSuccess({ msg: "deleted" }) } });
 
     renderSingleCalibrationPage();
 

@@ -73,6 +73,7 @@ CalibrationActionHandler = tuple[
     str,
     Callable[[Any], dict[str, Any]],
 ]
+FanoutResult = dict[str, Any]
 
 # Registry of calibration action -> handler that returns a Huey task, label, and normalizer.
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
@@ -226,6 +227,105 @@ def filter_to_allowed_env(env: Mapping[str, str | None]) -> dict[str, str]:
     }
 
 
+def fanout_success(unit: str, value: Any) -> FanoutResult:
+    """Wrap a successful per-unit fanout value.
+
+    Fanout aggregation never unwraps these envelopes. Edge consumers that need
+    domain data should read ``value`` after checking ``ok``.
+    """
+    return {
+        "ok": True,
+        "unit": unit,
+        "value": normalize_fanout_success_value(value),
+    }
+
+
+def normalize_fanout_success_value(value: Any) -> Any:
+    if not isinstance(value, dict) or value.get("status") != "success":
+        return value
+
+    value_without_status = {key: item for key, item in value.items() if key != "status"}
+    return value_without_status or {}
+
+
+def fanout_failure(
+    unit: str,
+    error_kind: str,
+    message: str,
+    *,
+    retryable: bool,
+    status_code: int | None = None,
+    cause: str | None = None,
+    remediation: str | None = None,
+) -> FanoutResult:
+    """Wrap a failed per-unit fanout result without aborting the aggregate fanout."""
+    error: dict[str, Any] = {
+        "kind": error_kind,
+        "message": message,
+    }
+    if cause:
+        error["cause"] = cause
+    if remediation:
+        error["remediation"] = remediation
+
+    return {
+        "ok": False,
+        "unit": unit,
+        "error": error,
+        "status_code": status_code,
+        "retryable": retryable,
+    }
+
+
+def fanout_result_succeeded(value: Any) -> bool:
+    return isinstance(value, dict) and value.get("ok") is True and "value" in value
+
+
+def fanout_result_failed(value: Any) -> bool:
+    return isinstance(value, dict) and value.get("ok") is False and "error" in value
+
+
+def _decode_unit_api_error_payload(response: Response | None) -> UnitApiErrorPayload | None:
+    if response is None or not response.body:
+        return None
+
+    try:
+        return json_decode(response.body, type=UnitApiErrorPayload)
+    except DecodeError:
+        return None
+
+
+def _fanout_failure_from_response(
+    unit: str,
+    response: Response | None,
+    *,
+    fallback_kind: str,
+    fallback_message: str,
+    retryable: bool,
+) -> FanoutResult:
+    payload = _decode_unit_api_error_payload(response)
+    status_code = response.status_code if response is not None else None
+
+    if payload is None:
+        return fanout_failure(
+            unit,
+            fallback_kind,
+            fallback_message,
+            retryable=retryable,
+            status_code=status_code,
+        )
+
+    return fanout_failure(
+        unit,
+        fallback_kind,
+        payload.error,
+        retryable=retryable,
+        status_code=status_code,
+        cause=payload.cause,
+        remediation=payload.remediation,
+    )
+
+
 def _process_delayed_json_response(
     unit: str,
     response: Response,
@@ -241,18 +341,44 @@ def _process_delayed_json_response(
     if response.status_code == 202 and "result_url_path" in data:
         # Follow up shortly on async responses where the unit returns a result URL.
         if max_attempts <= 0:
-            return unit, None
+            return unit, fanout_failure(
+                unit,
+                "task_timeout",
+                "Timed out waiting for unit task result.",
+                retryable=True,
+                status_code=response.status_code,
+            )
         sleep(retry_sleep_s)
         return _get_from_unit(unit, data["result_url_path"], max_attempts=max_attempts - 1)
     if 200 <= response.status_code < 300:
         if "task_id" in data:
             if data.get("status") == "succeeded":
-                return unit, data.get("result")
+                return unit, fanout_success(unit, data.get("result"))
             if data.get("status") == "failed":
-                return unit, data
-            return unit, None
-        return unit, data
-    return unit, None
+                return unit, fanout_failure(
+                    unit,
+                    "task_failed",
+                    data.get("error") or "Unit task failed.",
+                    retryable=False,
+                    status_code=response.status_code,
+                    cause=data.get("cause"),
+                    remediation=data.get("remediation"),
+                )
+            return unit, fanout_failure(
+                unit,
+                "task_incomplete",
+                f"Unit task status is {data.get('status') or 'unknown'}.",
+                retryable=True,
+                status_code=response.status_code,
+            )
+        return unit, fanout_success(unit, data)
+    return unit, fanout_failure(
+        unit,
+        "http_error",
+        f"Unit returned HTTP {response.status_code}.",
+        retryable=response.status_code >= 500,
+        status_code=response.status_code,
+    )
 
 
 def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.1) -> int:
@@ -1039,7 +1165,7 @@ def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> d
     response.raise_for_status()
 
     return {
-        "result": True,
+        "success": True,
         "unit": unit,
         "plugin": plugin_name,
         "source": remote_source,
@@ -1388,13 +1514,14 @@ def post_into_unit(
     timeout: float = 30.0,
 ) -> tuple[str, Any]:
     r: Response | None = None
+    address: str | None = None
     try:
         address = resolve_to_address(unit)
         r = post_into(address, endpoint, json=json, params=params, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
-            return unit, None
+            return unit, fanout_success(unit, None)
 
         # delayed or immediate JSON response
         return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
@@ -1404,12 +1531,24 @@ def post_into_unit(
             f"Could not post to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
-        return unit, None
+        return unit, _fanout_failure_from_response(
+            unit,
+            r,
+            fallback_kind="http_error" if r is not None else "connection_error",
+            fallback_message=f"Could not POST to {unit}'s {endpoint}.",
+            retryable=r is None or r.status_code >= 500,
+        )
     except DecodeError:
         logger.debug(
             f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
-        return unit, None
+        return unit, fanout_failure(
+            unit,
+            "decode_error",
+            f"Could not decode response from {unit}'s {endpoint}.",
+            retryable=False,
+            status_code=r.status_code if r is not None else None,
+        )
 
 
 def _reduce_multicast_results(
@@ -1420,16 +1559,36 @@ def _reduce_multicast_results(
     results_by_unit: dict[str, Any] = {}
 
     for unit, result in zip(units, ordered_results):
-        if isinstance(result, Exception) or result is None:
-            results_by_unit[unit] = None
+        if isinstance(result, Exception):
+            results_by_unit[unit] = fanout_failure(
+                unit,
+                "task_exception",
+                str(result) or result.__class__.__name__,
+                retryable=True,
+            )
+            continue
+
+        if result is None:
+            results_by_unit[unit] = fanout_failure(
+                unit,
+                "missing_result",
+                "No result returned for unit.",
+                retryable=True,
+            )
             continue
 
         if isinstance(result, tuple) and len(result) == 2:
             _, response = result
-            results_by_unit[unit] = response
+            if fanout_result_succeeded(response) or fanout_result_failed(response):
+                results_by_unit[unit] = response
+            else:
+                results_by_unit[unit] = fanout_success(unit, response)
             continue
 
-        results_by_unit[unit] = result
+        if fanout_result_succeeded(result) or fanout_result_failed(result):
+            results_by_unit[unit] = result
+        else:
+            results_by_unit[unit] = fanout_success(unit, result)
 
     if sort_results:
         return dict(sorted(results_by_unit.items()))
@@ -1463,12 +1622,8 @@ def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[s
 
 
 def _summarize_unit_api_error(response: Response | None) -> str:
-    if response is None or not response.body:
-        return ""
-
-    try:
-        payload = json_decode(response.body, type=UnitApiErrorPayload)
-    except DecodeError:
+    payload = _decode_unit_api_error_payload(response)
+    if payload is None:
         return ""
 
     details: list[str] = []
@@ -1545,6 +1700,7 @@ def _get_from_unit(
     max_attempts: int | None = None,
 ) -> tuple[str, Any]:
     r: Response | None = None
+    address: str | None = None
     try:
         address = resolve_to_address(unit)
 
@@ -1552,7 +1708,9 @@ def _get_from_unit(
         r.raise_for_status()
 
         if return_raw:
-            return unit, r.content or None
+            # return_raw places the HTTP response body in the fanout envelope's value.
+            # Callers that need bytes unwrap at the route edge after checking ok.
+            return unit, fanout_success(unit, r.content or None)
 
         # delayed or immediate JSON response
         return _process_delayed_json_response(
@@ -1566,12 +1724,24 @@ def _get_from_unit(
             f"Could not get from {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
-        return unit, None
+        return unit, _fanout_failure_from_response(
+            unit,
+            r,
+            fallback_kind="http_error" if r is not None else "connection_error",
+            fallback_message=f"Could not GET from {unit}'s {endpoint}.",
+            retryable=r is None or r.status_code >= 500,
+        )
     except DecodeError:
         logger.debug(
             f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
-        return unit, None
+        return unit, fanout_failure(
+            unit,
+            "decode_error",
+            f"Could not decode response from {unit}'s {endpoint}.",
+            retryable=False,
+            status_code=r.status_code if r is not None else None,
+        )
 
 
 def _multicast_get_uncached(
@@ -1659,13 +1829,14 @@ def patch_into_unit(
     unit: str, endpoint: str, json: dict[str, Any] | None = None, timeout: float = 30.0
 ) -> tuple[str, Any]:
     r: Response | None = None
+    address: str | None = None
     try:
         address = resolve_to_address(unit)
         r = patch_into(address, endpoint, json=json, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
-            return unit, None
+            return unit, fanout_success(unit, None)
 
         # delayed or immediate JSON response
         return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
@@ -1675,12 +1846,24 @@ def patch_into_unit(
             f"Could not PATCH to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
-        return unit, None
+        return unit, _fanout_failure_from_response(
+            unit,
+            r,
+            fallback_kind="http_error" if r is not None else "connection_error",
+            fallback_message=f"Could not PATCH to {unit}'s {endpoint}.",
+            retryable=r is None or r.status_code >= 500,
+        )
     except DecodeError:
         logger.debug(
             f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
-        return unit, None
+        return unit, fanout_failure(
+            unit,
+            "decode_error",
+            f"Could not decode response from {unit}'s {endpoint}.",
+            retryable=False,
+            status_code=r.status_code if r is not None else None,
+        )
 
 
 def multicast_patch(
@@ -1704,18 +1887,30 @@ def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = Non
     try:
         r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=2.0)
         r.raise_for_status()
-        return unit, r.json() if r.content else None
+        return unit, fanout_success(unit, r.json() if r.content else None)
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
             f"Could not DELETE {unit}'s {endpoint=}, sent {json=} and returned {e}. Check connection?"
             f"{_summarize_unit_api_error(r)}"
         )
-        return unit, None
+        return unit, _fanout_failure_from_response(
+            unit,
+            r,
+            fallback_kind="http_error" if r is not None else "connection_error",
+            fallback_message=f"Could not DELETE {unit}'s {endpoint}.",
+            retryable=r is None or r.status_code >= 500,
+        )
     except DecodeError:
         logger.debug(
             f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
-        return unit, None
+        return unit, fanout_failure(
+            unit,
+            "decode_error",
+            f"Could not decode response from {unit}'s {endpoint}.",
+            retryable=False,
+            status_code=r.status_code if r is not None else None,
+        )
 
 
 def multicast_delete(

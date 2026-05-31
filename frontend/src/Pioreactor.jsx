@@ -93,7 +93,7 @@ import {
   runPioreactorJob,
   updatePublishedSettingValue,
 } from "./utils/jobs";
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import {
   colors,
   disconnectedGrey,
@@ -639,7 +639,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
     const fetchCalibrations = async () => {
       try {
         const data = await fetchTaskResult(apiUrl, {delayMs: 2000})
-        setActiveCalibrations(data.result[unit]);
+        setActiveCalibrations(getUnitTaskResult(data, unit, "Failed to fetch calibration."));
         setLoadingCalibrations(false);
 
       } catch (err) {
@@ -651,7 +651,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
     const fetchEstimators = async () => {
       try {
         const data = await fetchTaskResult(estimatorsUrl, {delayMs: 2000})
-        setActiveEstimators(data.result[unit]);
+        setActiveEstimators(getUnitTaskResult(data, unit, "Failed to fetch estimators."));
         setLoadingEstimators(false);
       } catch (err) {
         console.error("Failed to fetch estimators:", err);

@@ -22,7 +22,7 @@ import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getSuccessfulUnitTaskResults } from "./utils/tasks";
 import { colors, ColorCycler, readyGreen } from "./utils/color";
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
@@ -60,7 +60,7 @@ export function getFailedCalibrationUploadUnits(taskPayload) {
   }
 
   return Object.entries(result)
-    .filter(([_unit, unitResult]) => unitResult == null)
+    .filter(([_unit, unitResult]) => !unitResult || unitResult.ok === false)
     .map(([unit]) => unit)
     .sort((a, b) => a.localeCompare(b));
 }
@@ -373,7 +373,7 @@ function CalibrationData() {
       return;
     }
 
-    const allMachines = rawData.result; // e.g. { worker: {...}, leader: {...}, ... }
+    const allMachines = getSuccessfulUnitTaskResults(rawData); // e.g. { worker: {...}, leader: {...}, ... }
 
     // temporary structures
     const deviceSet = new Set();
