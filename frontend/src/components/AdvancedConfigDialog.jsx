@@ -48,7 +48,7 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled) return;
-        const fresh = data?.[unit]?.[`${jobName}.config`];
+        const fresh = data?.configs?.[unit]?.[`${jobName}.config`];
         if (fresh !== undefined) {
           setOriginal(fresh);
           if (!userEditedRef.current) {

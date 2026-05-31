@@ -2964,7 +2964,7 @@ function Pioreactor({title}) {
       }
       return response.json();
     })
-    .then((data) => setUnitConfig(data[unit]))
+    .then((data) => setUnitConfig(data.configs[unit]))
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
     });

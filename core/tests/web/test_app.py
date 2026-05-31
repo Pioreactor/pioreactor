@@ -858,17 +858,88 @@ def test_get_config_for_broadcast_uses_worker_merged_config(
     monkeypatch.setattr(
         "pioreactor.web.cache.multicast_get_with_leader_cache",
         lambda *_args, **_kwargs: {
-            "unit1": {"shared": {"value": "unit1"}},
-            "unit2": {"shared": {"value": "unit2"}},
+            "unit1": {"ok": True, "unit": "unit1", "value": {"shared": {"value": "unit1"}}},
+            "unit2": {
+                "ok": False,
+                "unit": "unit2",
+                "error": {
+                    "kind": "connection_error",
+                    "message": "Could not reach unit2.",
+                    "remediation": "Check that unit2 is online and retry.",
+                },
+                "status_code": None,
+                "retryable": True,
+            },
         },
     )
     response = client.get("/api/config/units/$broadcast")
     assert response.status_code == 200
 
     data = response.get_json()
-    assert data[HOSTNAME]["shared"]["value"] == "leader"
-    assert data["unit1"]["shared"]["value"] == "unit1"
-    assert data["unit2"]["shared"]["value"] == "unit2"
+    assert data["configs"][HOSTNAME]["shared"]["value"] == "leader"
+    assert data["configs"]["unit1"]["shared"]["value"] == "unit1"
+    assert data["errors"]["unit2"] == {
+        "ok": False,
+        "unit": "unit2",
+        "error": {
+            "kind": "connection_error",
+            "message": "Could not reach unit2.",
+            "remediation": "Check that unit2 is online and retry.",
+        },
+        "status_code": None,
+        "retryable": True,
+    }
+
+
+def test_get_config_for_worker_unwraps_merged_config(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.web.cache.multicast_get_with_leader_cache",
+        lambda *_args, **_kwargs: {
+            "unit1": {"ok": True, "unit": "unit1", "value": {"shared": {"value": "unit1"}}},
+        },
+    )
+
+    response = client.get("/api/config/units/unit1")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "configs": {"unit1": {"shared": {"value": "unit1"}}},
+        "errors": {},
+    }
+
+
+@pytest.mark.parametrize(
+    ("worker_status_code", "expected_status_code"), [(None, 502), (200, 502), (400, 400)]
+)
+def test_get_config_for_worker_surfaces_merged_config_failure(
+    client: FlaskClient, monkeypatch: MonkeyPatch, worker_status_code: int | None, expected_status_code: int
+) -> None:
+    monkeypatch.setattr(
+        "pioreactor.web.cache.multicast_get_with_leader_cache",
+        lambda *_args, **_kwargs: {
+            "unit1": {
+                "ok": False,
+                "unit": "unit1",
+                "error": {
+                    "kind": "connection_error",
+                    "message": "Could not reach unit1.",
+                    "remediation": "Check that unit1 is online and retry.",
+                },
+                "status_code": worker_status_code,
+                "retryable": True,
+            },
+        },
+    )
+
+    response = client.get("/api/config/units/unit1")
+
+    assert response.status_code == expected_status_code
+    assert response.get_json() == {
+        "error": "Could not reach unit1.",
+        "status": expected_status_code,
+        "cause": "Could not reach unit1.",
+        "remediation": "Check that unit1 is online and retry.",
+    }
 
 
 def test_unit_api_specific_config_round_trip(

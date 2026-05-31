@@ -1326,7 +1326,7 @@ function SettingsActionsDialog({
       }
       return response.json();
     })
-    .then((data) => setConfig(data[unit]))
+    .then((data) => setConfig(data.configs[unit]))
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
     });
@@ -4183,7 +4183,7 @@ function Pioreactors({title}) {
             continue;
           }
 
-          Object.assign(nextUnitConfigs, result.value || {});
+          Object.assign(nextUnitConfigs, result.value?.configs || {});
         }
 
         setUnitConfigs(nextUnitConfigs);

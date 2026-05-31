@@ -3467,11 +3467,11 @@ def get_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
         pioreactor_units = _single_registered_unit(pioreactor_unit)
 
     worker_units = [unit for unit in pioreactor_units if unit != HOSTNAME]
-    result: dict[str, t.Any] = {}
+    result: dict[str, dict[str, t.Any]] = {"configs": {}, "errors": {}}
 
     if HOSTNAME in pioreactor_units:
         try:
-            result[HOSTNAME] = _render_leader_merged_config()
+            result["configs"][HOSTNAME] = _render_leader_merged_config()
         except Exception as e:
             publish_to_error_log(str(e), "get_config_for_pioreactor_unit")
             abort_with(400, str(e))
@@ -3484,13 +3484,29 @@ def get_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
             timeout=10.0,
         )
         for unit in worker_units:
-            result[unit] = worker_results.get(unit)
+            worker_result = worker_results.get(unit)
+            if worker_result is not None and tasks.fanout_result_succeeded(worker_result):
+                result["configs"][unit] = worker_result["value"]
+            elif tasks.fanout_result_failed(worker_result):
+                result["errors"][unit] = worker_result
+            else:
+                result["errors"][unit] = tasks.fanout_failure(
+                    unit,
+                    "invalid_response",
+                    f"Fetching merged config failed on {unit}.",
+                    retryable=True,
+                )
 
-    if pioreactor_unit != UNIVERSAL_IDENTIFIER and result.get(pioreactor_unit) is None:
+    if pioreactor_unit != UNIVERSAL_IDENTIFIER and pioreactor_unit in result["errors"]:
+        failure = result["errors"][pioreactor_unit]
+        error = failure["error"]
+        status_code = failure["status_code"]
         abort_with(
-            502,
-            f"Fetching merged config failed on {pioreactor_unit}.",
-            remediation="Check that the unit is online and its web server is healthy, then retry.",
+            status_code if isinstance(status_code, int) and status_code >= 400 else 502,
+            error["message"],
+            cause=error.get("cause"),
+            remediation=error.get("remediation")
+            or "Check that the unit is online and its web server is healthy, then retry.",
         )
 
     return result

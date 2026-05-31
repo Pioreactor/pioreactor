@@ -76,7 +76,7 @@ export default function AutomationAdvancedConfigButton({
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled) return;
-        const freshConfigSections = data?.[unit];
+        const freshConfigSections = data?.configs?.[unit];
         if (freshConfigSections !== undefined) {
           const fresh = getAutomationConfigValues(freshConfigSections, jobName);
           setOriginal(fresh.values);
