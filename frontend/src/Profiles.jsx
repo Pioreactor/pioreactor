@@ -46,8 +46,8 @@ function RunExperimentProfilesContent({
   experimentProfilesAvailable,
   selectedExperimentProfile,
   selectedExperimentProfileRecord,
-  confirmed,
-  setConfirmed,
+  startInFlight,
+  setStartInFlight,
   viewSource,
   setViewSource,
   selectedProfileDetail,
@@ -63,14 +63,15 @@ function RunExperimentProfilesContent({
     if (!selectedExperimentProfileRecord) {
       return;
     }
-    setConfirmed(true);
+    setStartInFlight(true);
     setStartProfileError("");
     // The “selectedExperimentProfile” is the file key we pass to start
     try {
       await startProfile(selectedExperimentProfileRecord.fullpath, experiment, dryRun);
     } catch (error) {
-      setConfirmed(false);
       setStartProfileError(error?.message || "Unable to start experiment profile.");
+    } finally {
+      setStartInFlight(false);
     }
   };
 
@@ -224,7 +225,7 @@ function RunExperimentProfilesContent({
           value={dryRun ? "execute_dry_run" : "execute"}
           onClick={onSubmit}
           endIcon={dryRun ? <PlayDisabledIcon /> : <PlayArrowIcon />}
-          disabled={confirmed}
+          disabled={startInFlight}
           onChange={({ target: { value } }) =>
             setDryRun(value === "execute_dry_run")
           }
@@ -341,7 +342,7 @@ function Profiles(props) {
   const { profileFilename } = useParams();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
-  const [confirmed, setConfirmed] = React.useState(false);
+  const [startInFlight, setStartInFlight] = React.useState(false);
   const [viewSource, setViewSource] = React.useState(false);
   const [selectedProfileDetail, setSelectedProfileDetail] = React.useState({
     filename: "",
@@ -483,7 +484,7 @@ function Profiles(props) {
   }, [fetchRecentRuns]);
 
   React.useEffect(() => {
-    setConfirmed(false);
+    setStartInFlight(false);
 
     if (!selectedExperimentProfile) {
       setSelectedProfileDetail({
@@ -589,8 +590,8 @@ function Profiles(props) {
             experimentProfilesAvailable={experimentProfilesAvailable}
             selectedExperimentProfile={selectedExperimentProfile}
             selectedExperimentProfileRecord={selectedExperimentProfileRecord}
-            confirmed={confirmed}
-            setConfirmed={setConfirmed}
+            startInFlight={startInFlight}
+            setStartInFlight={setStartInFlight}
             viewSource={viewSource}
             setViewSource={setViewSource}
             selectedProfileDetail={selectedProfileDetail}

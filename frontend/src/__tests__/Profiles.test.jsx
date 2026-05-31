@@ -33,10 +33,18 @@ jest.mock("material-ui-confirm", () => ({
 }));
 
 jest.mock("../components/ManageExperimentMenu", () => () => <div data-testid="manage-experiment-menu" />);
-jest.mock("../components/SelectButton", () => ({ onClick, disabled }) => (
-  <button onClick={onClick} disabled={disabled} type="button">
-    Run profile
-  </button>
+jest.mock("../components/SelectButton", () => ({ onClick, disabled, onChange }) => (
+  <>
+    <button onClick={onClick} disabled={disabled} type="button">
+      Run profile
+    </button>
+    <button
+      onClick={() => onChange({ target: { value: "execute_dry_run" } })}
+      type="button"
+    >
+      Choose dry-run
+    </button>
+  </>
 ));
 jest.mock("../components/DisplaySourceCode", () => ({ sourceCode }) => <pre>{sourceCode}</pre>);
 jest.mock("../components/DisplayProfile", () => ({
@@ -182,6 +190,42 @@ describe("Profiles", () => {
 
     await screen.findByText("Unable to queue profile");
     await waitFor(() => expect(runButton).not.toBeDisabled());
+  });
+
+  test("re-enables the run button after each successful start", async () => {
+    mockStartProfile.mockResolvedValue();
+    renderProfiles();
+
+    await screen.findByText("Preview: Profile A");
+
+    const runButton = screen.getByRole("button", { name: /run profile/i });
+    fireEvent.click(runButton);
+
+    expect(runButton).toBeDisabled();
+    await waitFor(() => expect(runButton).not.toBeDisabled());
+
+    fireEvent.click(runButton);
+
+    expect(runButton).toBeDisabled();
+    await waitFor(() => expect(runButton).not.toBeDisabled());
+    expect(mockStartProfile).toHaveBeenNthCalledWith(1, "/tmp/profile-a.yaml", "exp-1", false);
+    expect(mockStartProfile).toHaveBeenNthCalledWith(2, "/tmp/profile-a.yaml", "exp-1", false);
+  });
+
+  test("re-enables the run button after a successful dry-run", async () => {
+    mockStartProfile.mockResolvedValueOnce();
+    renderProfiles();
+
+    await screen.findByText("Preview: Profile A");
+
+    fireEvent.click(screen.getByRole("button", { name: /choose dry-run/i }));
+
+    const runButton = screen.getByRole("button", { name: /run profile/i });
+    fireEvent.click(runButton);
+
+    expect(runButton).toBeDisabled();
+    await waitFor(() => expect(runButton).not.toBeDisabled());
+    expect(mockStartProfile).toHaveBeenCalledWith("/tmp/profile-a.yaml", "exp-1", true);
   });
 
   test("renders recent profile runs with UTC timestamps", async () => {

@@ -1,3 +1,5 @@
+import { fetchTaskResult } from "./tasks";
+
 let workerJobDescriptorsRequestCache = new Map();
 let settingsDescriptorsRequestCache = null;
 let workerSettingsDescriptorsRequestCache = new Map();
@@ -334,6 +336,24 @@ export function runPioreactorJob(
   );
 }
 
-export function runPioreactorJobViaUnitAPI(job, args = [], options = {}) {
-  return runJobPatch(`/unit_api/jobs/run/job_name/${job}`, { args, options });
+export async function runPioreactorJobViaUnitAPI(job, args = [], options = {}) {
+  const taskPayload = await fetchTaskResult(
+    `/unit_api/jobs/run/job_name/${job}`,
+    {
+      fetchOptions: {
+        method: "PATCH",
+        body: JSON.stringify({ args, options }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
+    },
+  );
+
+  if (taskPayload.result?.ok !== true) {
+    throw new Error(taskPayload.result?.error || "Failed to start job.");
+  }
+
+  return taskPayload.result;
 }

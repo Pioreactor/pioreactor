@@ -7,6 +7,7 @@ import {
   getWorkerJobDescriptors,
   getWorkerSettingsDescriptors,
   resetWorkerJobDescriptorsCache,
+  runPioreactorJobViaUnitAPI,
   updatePublishedSettingValue,
 } from "../utils/jobs";
 import {
@@ -248,5 +249,68 @@ describe("jobs utils", () => {
     await expect(getWorkerJobDescriptors("worker02")).rejects.toThrow(
       "Fetching job descriptors failed on worker02.",
     );
+  });
+
+  test("runPioreactorJobViaUnitAPI waits for the launch task result", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          status: "accepted",
+          result_url_path: "/unit_api/task_results/task-1",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          status: "succeeded",
+          result: { ok: true },
+        }),
+      });
+
+    await expect(
+      runPioreactorJobViaUnitAPI("experiment_profile", ["execute", "/tmp/profile.yaml", "exp-1"]),
+    ).resolves.toEqual({ ok: true });
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      "/unit_api/jobs/run/job_name/experiment_profile",
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          args: ["execute", "/tmp/profile.yaml", "exp-1"],
+          options: {},
+        }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(2, "/unit_api/task_results/task-1");
+  });
+
+  test("runPioreactorJobViaUnitAPI surfaces a failed launch task", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          status: "accepted",
+          result_url_path: "/unit_api/task_results/task-2",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          status: "failed",
+          error: "Profile could not start.",
+        }),
+      });
+
+    await expect(
+      runPioreactorJobViaUnitAPI("experiment_profile", ["execute", "/tmp/profile.yaml", "exp-1"]),
+    ).rejects.toThrow("Profile could not start.");
   });
 });
