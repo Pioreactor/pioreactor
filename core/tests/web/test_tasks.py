@@ -114,7 +114,7 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
     unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
-    assert result == {"ok": True}
+    assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
     assert responses == []
 
 
@@ -140,7 +140,7 @@ def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     unit, result = tasks._get_from_unit("unit1", "/unit_api/do", timeout=7.0)
 
     assert unit == "unit1"
-    assert result == {"ok": True}
+    assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
     assert responses == []
 
 
@@ -165,7 +165,13 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
     unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=1)
 
     assert unit == "unit1"
-    assert result is None
+    assert result == {
+        "ok": False,
+        "unit": "unit1",
+        "error": {"kind": "task_timeout", "message": "Timed out waiting for unit task result."},
+        "status_code": 202,
+        "retryable": True,
+    }
     assert responses == []
 
 
@@ -196,10 +202,31 @@ def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPat
 
     assert unit == "unit1"
     assert result == {
-        "task_id": "abc",
-        "status": "failed",
-        "error": "No such command.",
-        "cause": "Huey task failed with an exception.",
+        "ok": False,
+        "unit": "unit1",
+        "error": {
+            "kind": "task_failed",
+            "message": "No such command.",
+            "cause": "Huey task failed with an exception.",
+        },
+        "status_code": 200,
+        "retryable": False,
+    }
+
+
+def test_fanout_success_strips_generic_success_status() -> None:
+    assert tasks.fanout_success(
+        "unit1",
+        {"status": "success", "clock_time": "2026-05-30T02:44:50.585Z"},
+    ) == {
+        "ok": True,
+        "unit": "unit1",
+        "value": {"clock_time": "2026-05-30T02:44:50.585Z"},
+    }
+    assert tasks.fanout_success("unit1", {"status": "success"}) == {
+        "ok": True,
+        "unit": "unit1",
+        "value": {},
     }
 
 
@@ -296,7 +323,7 @@ def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
 def test_reduce_multicast_results_handles_partial_failures() -> None:
     units = ["unit1", "unit2", "unit3"]
     ordered_results = [
-        ("unit1", {"ok": True}),
+        ("unit1", tasks.fanout_success("unit1", {"ok": True})),
         RuntimeError("boom"),
         None,
     ]
@@ -304,15 +331,31 @@ def test_reduce_multicast_results_handles_partial_failures() -> None:
     output = tasks.reduce_multicast_results.call_local(units, False, ordered_results)
     helper_output = tasks._reduce_multicast_results(units, False, ordered_results)
 
-    assert output == {"unit1": {"ok": True}, "unit2": None, "unit3": None}
+    assert output == {
+        "unit1": {"ok": True, "unit": "unit1", "value": {"ok": True}},
+        "unit2": {
+            "ok": False,
+            "unit": "unit2",
+            "error": {"kind": "task_exception", "message": "boom"},
+            "status_code": None,
+            "retryable": True,
+        },
+        "unit3": {
+            "ok": False,
+            "unit": "unit3",
+            "error": {"kind": "missing_result", "message": "No result returned for unit."},
+            "status_code": None,
+            "retryable": True,
+        },
+    }
     assert helper_output == output
 
 
 def test_reduce_multicast_results_sorts_when_requested() -> None:
     units = ["unit2", "unit1"]
     ordered_results = [
-        ("unit2", {"value": 2}),
-        ("unit1", {"value": 1}),
+        ("unit2", tasks.fanout_success("unit2", {"value": 2})),
+        ("unit1", tasks.fanout_success("unit1", {"value": 1})),
     ]
 
     output = tasks.reduce_multicast_results.call_local(units, True, ordered_results)
@@ -329,13 +372,29 @@ def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
         def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
             captured["blocking"] = blocking
             captured["timeout"] = timeout
-            return {"unit1": None}
+            return {
+                "unit1": {
+                    "ok": False,
+                    "unit": "unit1",
+                    "error": {"kind": "missing_result", "message": "No result returned for unit."},
+                    "status_code": None,
+                    "retryable": True,
+                }
+            }
 
     monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
 
     output = tasks._multicast_get_uncached("/unit_api/calibration_protocols", ["unit1"], timeout=5.0)
 
-    assert output == {"unit1": None}
+    assert output == {
+        "unit1": {
+            "ok": False,
+            "unit": "unit1",
+            "error": {"kind": "missing_result", "message": "No result returned for unit."},
+            "status_code": None,
+            "retryable": True,
+        }
+    }
     assert captured == {"blocking": True, "timeout": 6.0}
 
 
@@ -356,7 +415,7 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
     class DummyResult:
         def __init__(self) -> None:
             self.results = [
-                ReadyChildResult(("unit1", {"ok": True})),
+                ReadyChildResult(("unit1", tasks.fanout_success("unit1", {"ok": True}))),
                 PendingChildResult(),
             ]
 
@@ -367,7 +426,16 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
 
     output = tasks._multicast_get_uncached("/unit_api/calibration_protocols", ["unit1", "unit2"])
 
-    assert output == {"unit1": {"ok": True}, "unit2": None}
+    assert output == {
+        "unit1": {"ok": True, "unit": "unit1", "value": {"ok": True}},
+        "unit2": {
+            "ok": False,
+            "unit": "unit2",
+            "error": {"kind": "missing_result", "message": "No result returned for unit."},
+            "status_code": None,
+            "retryable": True,
+        },
+    }
 
 
 def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filename(
@@ -540,7 +608,7 @@ def test_install_plugin_from_leader_usb_across_units_runs_units_sequentially(
     def fake_install_plugin_from_leader_usb_on_worker(unit: str, filepath: str) -> dict[str, str | bool]:
         calls.append((unit, filepath))
         return {
-            "result": True,
+            "success": True,
             "unit": unit,
             "plugin": "pioreactor-demo",
             "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
@@ -565,18 +633,26 @@ def test_install_plugin_from_leader_usb_across_units_runs_units_sequentially(
         ("worker2", "/run/pioreactor/usb/usb-1/pioreactor_demo-1.2.3-py3-none-any.whl"),
     ]
     assert result == {
-        "leader": True,
+        "leader": {"ok": True, "unit": "leader", "value": True},
         "worker1": {
-            "result": True,
+            "ok": True,
             "unit": "worker1",
-            "plugin": "pioreactor-demo",
-            "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
+            "value": {
+                "success": True,
+                "unit": "worker1",
+                "plugin": "pioreactor-demo",
+                "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
+            },
         },
         "worker2": {
-            "result": True,
+            "ok": True,
             "unit": "worker2",
-            "plugin": "pioreactor-demo",
-            "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
+            "value": {
+                "success": True,
+                "unit": "worker2",
+                "plugin": "pioreactor-demo",
+                "source": "/tmp/pioreactor_demo-1.2.3-py3-none-any.whl",
+            },
         },
     }
     _clear_lock("plugins-lock")

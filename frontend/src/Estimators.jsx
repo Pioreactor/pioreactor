@@ -15,7 +15,7 @@ import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getSuccessfulUnitTaskResults } from "./utils/tasks";
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
@@ -86,7 +86,7 @@ function EstimatorData() {
       return;
     }
 
-    const allMachines = rawData.result;
+    const allMachines = getSuccessfulUnitTaskResults(rawData);
     const deviceSet = new Set();
     const deviceMap = {};
 

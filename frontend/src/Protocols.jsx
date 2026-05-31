@@ -18,7 +18,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CalibrationSessionDialog from "./components/CalibrationSessionDialog";
 import StirringCalibrationBatchDialog from "./components/StirringCalibrationBatchDialog";
 import PioreactorsIcon from "./components/PioreactorsIcon";
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getSuccessfulUnitTaskResults, getUnitTaskResult } from "./utils/tasks";
 import CircularProgress from "@mui/material/CircularProgress";
 import RequirementsAlert from "./components/RequirementsAlert";
 
@@ -259,16 +259,13 @@ function Protocols(props) {
           `/api/workers/${selectedUnit}/calibration_protocols`
         );
         if (selectedUnit === ALL_PIOREACTORS) {
-          const sharedProtocols = getSharedProtocolsById(finalPayload?.result || {}).filter(
+          const sharedProtocols = getSharedProtocolsById(getSuccessfulUnitTaskResults(finalPayload)).filter(
             isAllPioreactorsStirringProtocol,
           );
           setProtocols(sharedProtocols);
           return;
         }
-        const result = finalPayload?.result?.[selectedUnit];
-        if (result == null) {
-          throw new Error("Could not reach this Pioreactor.");
-        }
+        const result = getUnitTaskResult(finalPayload, selectedUnit, "Could not reach this Pioreactor.");
         if (!Array.isArray(result)) {
           throw new Error("Protocol payload is not a list.");
         }

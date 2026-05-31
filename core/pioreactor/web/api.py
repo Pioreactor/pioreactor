@@ -1877,7 +1877,8 @@ def get_zipped_calibrations(pioreactor_unit: str) -> ResponseReturnValue:
     aggregate_buffer = BytesIO()
 
     with zipfile.ZipFile(aggregate_buffer, "w", zipfile.ZIP_DEFLATED) as aggregate_zip:
-        for worker, content in results.items():
+        for worker, raw_result in results.items():
+            content = fanout_raw_bytes_value(raw_result)
             if content is None:
                 continue  # worker did not respond
             # Load the remote ZIP into memory
@@ -1907,6 +1908,14 @@ def get_zipped_calibrations(pioreactor_unit: str) -> ResponseReturnValue:
     )
 
 
+def fanout_raw_bytes_value(raw_result: t.Any) -> bytes | None:
+    if not isinstance(raw_result, dict) or raw_result.get("ok") is not True:
+        return None
+
+    value = raw_result.get("value")
+    return value if isinstance(value, bytes) else None
+
+
 @api_bp.route("/units/<pioreactor_unit>/zipped_dot_pioreactor", methods=["GET"])
 def get_zipped_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
     """Download a ZIP of ~/.pioreactor from one or all workers.
@@ -1933,7 +1942,7 @@ def get_zipped_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
 
     # If only one worker, proxy its ZIP directly
     if isinstance(results, dict) and len(results) == 1:
-        content = next(iter(results.values()))
+        content = fanout_raw_bytes_value(next(iter(results.values())))
         if content is None:
             abort_with(
                 502,
@@ -1953,7 +1962,8 @@ def get_zipped_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
     # Aggregate multiple zips into a single zip
     aggregate_buffer = BytesIO()
     with zipfile.ZipFile(aggregate_buffer, "w", zipfile.ZIP_DEFLATED) as aggregate_zip:
-        for worker, content in (results or {}).items():
+        for worker, raw_result in (results or {}).items():
+            content = fanout_raw_bytes_value(raw_result)
             if content is None:
                 continue
             remote_zip_buffer = BytesIO(content)

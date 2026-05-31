@@ -33,7 +33,7 @@ const SingleEstimatorPage = require("../SingleEstimatorPage").default;
 function estimatorPayload(isActive = false) {
   return {
     result: {
-      "unit-1": {
+      "unit-1": fanoutSuccess({
         estimator_type: "od",
         created_at: "2026-05-12T12:00:00Z",
         recorded_data: null,
@@ -41,8 +41,22 @@ function estimatorPayload(isActive = false) {
         angles: ["90"],
         mu_splines: { 90: { type: "poly", coefficients: [1, 2] } },
         sigma_splines_log: { 90: { type: "poly", coefficients: [1] } },
-      },
+      }),
     },
+  };
+}
+
+function fanoutSuccess(value = {}) {
+  return { ok: true, unit: "unit-1", value };
+}
+
+function fanoutFailure(message = "Worker rejected this request.") {
+  return {
+    ok: false,
+    unit: "unit-1",
+    error: { kind: "http_error", message },
+    status_code: 500,
+    retryable: true,
   };
 }
 
@@ -73,7 +87,7 @@ describe("SingleEstimatorPage task-backed mutations", () => {
         return Promise.resolve(estimatorPayload(false));
       }
       if (endpoint === "/api/workers/unit-1/active_estimators/od90/estimator-a") {
-        return Promise.resolve({ result: { "unit-1": { status: "success" } } });
+        return Promise.resolve({ result: { "unit-1": fanoutSuccess() } });
       }
       throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
     });
@@ -106,7 +120,7 @@ describe("SingleEstimatorPage task-backed mutations", () => {
         return Promise.resolve(estimatorPayload(false));
       }
       if (endpoint === "/api/workers/unit-1/active_estimators/od90/estimator-a") {
-        return Promise.resolve({ result: { "unit-1": null } });
+        return Promise.resolve({ result: { "unit-1": fanoutFailure() } });
       }
       throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
     });
@@ -116,9 +130,7 @@ describe("SingleEstimatorPage task-backed mutations", () => {
     await screen.findByText("Estimator: estimator-a");
     await user.click(screen.getByRole("button", { name: /set active/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Unable to set estimator active on unit-1.",
-    );
+    expect(await screen.findByRole("status")).toHaveTextContent("Worker rejected this request.");
     expect(screen.queryByText("Estimator set as Active")).not.toBeInTheDocument();
   });
 
@@ -129,7 +141,7 @@ describe("SingleEstimatorPage task-backed mutations", () => {
         return Promise.resolve(estimatorPayload(true));
       }
       if (endpoint === "/api/workers/unit-1/active_estimators/od90") {
-        return Promise.resolve({ result: { "unit-1": { status: "success" } } });
+        return Promise.resolve({ result: { "unit-1": fanoutSuccess() } });
       }
       throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
     });
@@ -157,7 +169,7 @@ describe("SingleEstimatorPage task-backed mutations", () => {
       throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
     });
     fetchTaskResult.mockResolvedValueOnce(estimatorPayload(false));
-    fetchTaskResult.mockResolvedValueOnce({ result: { "unit-1": { msg: "deleted" } } });
+    fetchTaskResult.mockResolvedValueOnce({ result: { "unit-1": fanoutSuccess({ msg: "deleted" }) } });
 
     renderSingleEstimatorPage();
 

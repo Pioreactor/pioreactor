@@ -7,7 +7,7 @@ import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 // copy-to-clipboard removed per app constraints
 
-import {fetchTaskResult} from '../utils/tasks';
+import {fetchTaskResult, getSuccessfulUnitTaskResults} from '../utils/tasks';
 import useCapabilityExamplesOverride from '../hooks/useCapabilityExamplesOverride';
 
 function dedupeCapabilitiesAcrossUnits(resultByUnit) {
@@ -217,7 +217,7 @@ export default function CapabilitiesPanel() {
       setError('');
       try {
         const final = await fetchTaskResult('/api/units/$broadcast/capabilities', {delayMs: 400});
-        const deduped = dedupeCapabilitiesAcrossUnits(final.result || {});
+        const deduped = dedupeCapabilitiesAcrossUnits(getSuccessfulUnitTaskResults(final));
         if (mounted) setCaps(deduped);
       } catch (e) {
         if (mounted) setError('Failed to load capabilities');

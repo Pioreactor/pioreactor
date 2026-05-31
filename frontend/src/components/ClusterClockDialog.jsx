@@ -20,7 +20,7 @@ import TextField from "@mui/material/TextField";
 import CloseIcon from "@mui/icons-material/Close";
 import { Link } from "react-router";
 import PioreactorIcon from "./PioreactorIcon";
-import { checkTaskCallback } from "../utils/tasks";
+import { checkTaskCallback, getSuccessfulUnitTaskResults } from "../utils/tasks";
 
 dayjs.extend(utc);
 
@@ -58,7 +58,7 @@ function ClusterClockDialog({open, onClose, leaderHostname}) {
       const broadcastData = await response.json();
       const finalResult = await checkTaskCallback(broadcastData.result_url_path);
 
-      setClockData(normalizeClockData(finalResult.result));
+      setClockData(normalizeClockData(getSuccessfulUnitTaskResults(finalResult)));
     } catch (err) {
       setError(err.message);
       console.error(err);

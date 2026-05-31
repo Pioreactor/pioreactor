@@ -95,7 +95,7 @@ def multicast_get_with_leader_cache(
                 ttl_s=ttl_s,
             )
             if is_hit:
-                cached_results[unit] = value
+                cached_results[unit] = tasks.fanout_success(unit, value)
             else:
                 cache_misses.append(unit)
 
@@ -106,10 +106,10 @@ def multicast_get_with_leader_cache(
 
     with local_intermittent_storage(LEADER_MULTICAST_GET_CACHE) as cache_store:
         for unit, value in fetched_results.items():
-            if value is None:
+            if not tasks.fanout_result_succeeded(value):
                 continue
 
-            blob = json_encode(CachedGetEntry(cached_at=time(), value=value))
+            blob = json_encode(CachedGetEntry(cached_at=time(), value=value["value"]))
             key = _multicast_get_cache_key(cache_namespace, endpoint, unit)
             cache_store[key] = blob
 

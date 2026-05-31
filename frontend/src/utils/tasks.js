@@ -68,21 +68,49 @@ export async function fetchTaskResult(
 }
 
 export function assertUnitTaskResultSucceeded(taskPayload, unit, fallbackMessage) {
-  const result = taskPayload?.result;
-  if (!result || typeof result !== "object" || Array.isArray(result)) {
+  getUnitTaskResult(taskPayload, unit, fallbackMessage);
+}
+
+export function getUnitTaskResult(taskPayload, unit, fallbackMessage = "Unit task failed.") {
+  const resultsByUnit = taskPayload?.result;
+  if (!resultsByUnit || typeof resultsByUnit !== "object" || Array.isArray(resultsByUnit)) {
     throw new Error(fallbackMessage);
   }
 
-  if (!Object.prototype.hasOwnProperty.call(result, unit)) {
+  if (!Object.prototype.hasOwnProperty.call(resultsByUnit, unit)) {
     throw new Error(fallbackMessage);
   }
 
-  const unitResult = result[unit];
-  if (unitResult === null || unitResult === undefined) {
+  const unitResult = resultsByUnit[unit];
+  if (!unitResult || typeof unitResult !== "object" || Array.isArray(unitResult)) {
     throw new Error(fallbackMessage);
   }
 
-  if (typeof unitResult === "object" && unitResult.error) {
-    throw new Error(unitResult.error);
+  if (unitResult.ok === false) {
+    throw new Error(unitResult.error?.message || fallbackMessage);
   }
+
+  if (unitResult.ok !== true) {
+    throw new Error(fallbackMessage);
+  }
+
+  return unitResult.value;
+}
+
+export function getSuccessfulUnitTaskResults(taskPayload) {
+  const resultsByUnit = taskPayload?.result;
+  if (!resultsByUnit || typeof resultsByUnit !== "object" || Array.isArray(resultsByUnit)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(resultsByUnit)
+      .filter(([_unit, unitResult]) => (
+        unitResult
+        && typeof unitResult === "object"
+        && !Array.isArray(unitResult)
+        && unitResult.ok === true
+      ))
+      .map(([unit, unitResult]) => [unit, unitResult.value])
+  );
 }

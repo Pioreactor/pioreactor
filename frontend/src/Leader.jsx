@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow, IconButton, Menu, Men
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
 import UsbDriveCard from './components/UsbDriveCard';
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { getConfig } from "./utils/config";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./utils/color";
 
@@ -188,7 +188,7 @@ function ManageLeaderMenu({unit}) {
         maxRetries: 300,
         delayMs: 200,
       });
-      const repairResult = payload?.result?.[unit] || payload?.result;
+      const repairResult = getUnitTaskResult(payload, unit, `Repair failed on ${unit}.`);
       if (repairResult?.success) {
         showSnackbar(`Repair completed on ${unit}.`);
       } else {

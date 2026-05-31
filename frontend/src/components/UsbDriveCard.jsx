@@ -21,15 +21,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import UsbIcon from "@mui/icons-material/Usb";
 
 import Snackbar from "./Snackbar";
-import { fetchTaskResult } from "../utils/tasks";
-
-function unwrapUnitTaskResult(payload, unit) {
-  const result = payload?.result;
-  if (result && typeof result === "object" && !Array.isArray(result) && unit in result) {
-    return result[unit];
-  }
-  return result;
-}
+import { assertUnitTaskResultSucceeded, fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
 
 function getUsbRows(status) {
   if (!status) {
@@ -145,7 +137,7 @@ export default function UsbDriveCard({unit}) {
           maxRetries: 80,
           delayMs: 100,
         });
-        unitStatus = unwrapUnitTaskResult(payload, unit);
+        unitStatus = getUnitTaskResult(payload, unit, "Failed to fetch USB status.");
       } else {
         const response = await fetch(usbEndpoint());
         if (!response.ok) {
@@ -201,11 +193,12 @@ export default function UsbDriveCard({unit}) {
         },
       };
       if (unit) {
-        await fetchTaskResult(usbEndpoint("/mount"), {
+        const payload = await fetchTaskResult(usbEndpoint("/mount"), {
           fetchOptions,
           maxRetries: 300,
           delayMs: 200,
         });
+        assertUnitTaskResultSucceeded(payload, unit, "Failed to mount USB drive.");
       } else {
         await fetchTaskResult("/unit_api/usb/mount", {
           fetchOptions,
@@ -236,11 +229,12 @@ export default function UsbDriveCard({unit}) {
         },
       };
       if (unit) {
-        await fetchTaskResult(usbEndpoint("/eject"), {
+        const payload = await fetchTaskResult(usbEndpoint("/eject"), {
           fetchOptions,
           maxRetries: 300,
           delayMs: 200,
         });
+        assertUnitTaskResultSucceeded(payload, unit, "Failed to eject USB drive.");
       } else {
         await fetchTaskResult("/unit_api/usb/eject", {
           fetchOptions,

@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import TuneIcon from "@mui/icons-material/Tune";
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getSuccessfulUnitTaskResults } from "./utils/tasks";
 import PioreactorIcon from "./components/PioreactorIcon";
 import {
   COVERAGE_STATUS,
@@ -90,8 +90,8 @@ function CalibrationCoverage(props) {
           fetchTaskResult("/api/workers/$broadcast/calibrations"),
         ]);
 
-        const activeByUnit = activeResult?.result || {};
-        const availableByUnit = availableResult?.result || {};
+        const activeByUnit = getSuccessfulUnitTaskResults(activeResult);
+        const availableByUnit = getSuccessfulUnitTaskResults(availableResult);
         setMatrix(deriveCalibrationCoverageMatrix(availableByUnit, activeByUnit));
       } catch (err) {
         setError(err.message || "Failed to load calibration coverage matrix.");

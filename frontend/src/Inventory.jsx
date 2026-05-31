@@ -46,7 +46,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Alert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SelfTestDialog from "./components/SelfTestDialog";
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 
 
 
@@ -1148,7 +1148,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         maxRetries: 300,
         delayMs: 200,
       });
-      const repairResult = payload?.result?.[unit] || payload?.result;
+      const repairResult = getUnitTaskResult(payload, unit, `Repair failed on ${unit}.`);
       if (repairResult?.success) {
         showSnackbar(`Repair completed on ${unit}.`);
       } else {
