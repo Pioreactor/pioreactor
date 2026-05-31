@@ -118,6 +118,7 @@ def create_task_response(task: t.Any) -> DelayedResponseReturnValue:
                 "unit": get_unit_name(),
                 "task_id": task_id,
                 "result_url_path": f"/unit_api/task_results/{task_id}",
+                "status": "accepted",
             }
         ),
         202,

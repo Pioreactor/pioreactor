@@ -1196,6 +1196,17 @@ def test_stop_specific_job_returns_task_response_when_mqtt_publish_fails(client,
     assert data["result_url_path"] == "/unit_api/task_results/fallback-task"
 
 
+def test_stop_specific_job_returns_accepted_when_mqtt_publish_succeeds(client, monkeypatch) -> None:
+    import pioreactor.web.api as mod
+
+    monkeypatch.setattr(mod, "create_client", lambda *_args, **_kwargs: FakeMQTTClient())
+
+    response = client.post("/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1")
+
+    assert response.status_code == 202
+    assert response.get_json() == {"status": "accepted"}
+
+
 def test_export_datasets_returns_async_task_response(
     client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:

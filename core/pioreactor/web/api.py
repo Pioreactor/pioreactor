@@ -542,7 +542,7 @@ def stop_specific_job_on_unit(
         )
         return create_task_response(task)
 
-    return {"status": "success"}, 202
+    return {"status": "accepted"}, 202
 
 
 @api_bp.route(
@@ -691,7 +691,7 @@ def blink_worker(pioreactor_unit: str) -> ResponseReturnValue:
             qos=QOS.AT_LEAST_ONCE,
         )
         msg.wait_for_publish(timeout=2.0)
-    return {"status": "success"}, 202
+    return {"status": "accepted"}, 202
 
 
 @api_bp.route(
@@ -742,7 +742,7 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
         publish_to_error_log(str(e), "update_job_on_unit")
         abort_with(400, str(e))
 
-    return {"status": "success"}, 202
+    return {"status": "accepted"}, 202
 
 
 @api_bp.route(
@@ -1089,7 +1089,7 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
                 qos=QOS.EXACTLY_ONCE,
             )
             msg.wait_for_publish(timeout=2.0)
-    return {"status": "success"}, 202
+    return {"status": "accepted"}, 202
 
 
 ## Time series data

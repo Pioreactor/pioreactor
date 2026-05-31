@@ -302,7 +302,20 @@ def _task_is_locked(lock_name: str) -> bool:
 
 
 def _locked_task_response(lock_name: str) -> DelayedResponseReturnValue:
-    return cast(DelayedResponseReturnValue, (jsonify({"status": "in_progress", "lock": lock_name}), 202))
+    return cast(
+        DelayedResponseReturnValue,
+        (
+            jsonify(
+                {
+                    "status": "running",
+                    "lock": lock_name,
+                    "retry_after_s": 1,
+                    "remediation": "Wait for the running operation to finish, then retry.",
+                }
+            ),
+            202,
+        ),
+    )
 
 
 def build_pio_update_app_args(body: structs.ArgsOptionsEnvs) -> tuple[str, ...]:

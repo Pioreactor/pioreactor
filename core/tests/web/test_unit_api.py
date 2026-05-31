@@ -213,6 +213,22 @@ def test_create_task_response_uses_chord_callback_id(client) -> None:
 
     assert status_code == 202
     assert response.get_json()["task_id"] == "callback-task"
+    assert response.get_json()["status"] == "accepted"
+
+
+def test_locked_task_response_describes_running_operation(client) -> None:
+    from pioreactor.web.unit_api import _locked_task_response
+
+    with client.application.app_context():
+        response, status_code = _locked_task_response("power-lock")
+
+    assert status_code == 202
+    assert response.get_json() == {
+        "status": "running",
+        "lock": "power-lock",
+        "retry_after_s": 1,
+        "remediation": "Wait for the running operation to finish, then retry.",
+    }
 
 
 def test_get_usb_status_returns_status_payload(client, monkeypatch: pytest.MonkeyPatch) -> None:
