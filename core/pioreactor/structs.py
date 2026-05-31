@@ -651,5 +651,23 @@ class ArgsOptionsEnvsConfigOverrides(ArgsOptionsEnvs):
     config_overrides: list[list[str]] = []
 
 
-class CodePatch(Struct):
+class ExportDatasetsRequest(Struct, forbid_unknown_fields=True):
+    datasets: list[str]
+    experiments: list[str]
+    partition_by_unit: bool
+    partition_by_experiment: bool
+    start_time: str | None = None
+    end_time: str | None = None
+
+
+class CreateExperimentProfileRequest(Struct, forbid_unknown_fields=True):
+    filename: str
+    body: str
+
+
+class UpdateExperimentProfileRequest(Struct, forbid_unknown_fields=True):
+    body: str
+
+
+class CodePatch(Struct, forbid_unknown_fields=True):
     code: str

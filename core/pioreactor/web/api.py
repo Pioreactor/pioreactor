@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import configparser
 import ipaddress
-import json
 import os
 import re
 import shutil
@@ -24,8 +23,11 @@ from flask.typing import ResponseReturnValue
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
 from msgspec import DecodeError
+from msgspec import Struct
 from msgspec import to_builtins
 from msgspec import ValidationError
+from msgspec.json import decode as json_decode
+from msgspec.structs import fields as struct_fields
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.config import build_config
@@ -67,6 +69,7 @@ from pioreactor.web.app import query_app_db
 from pioreactor.web.app import query_temp_local_metadata_db
 from pioreactor.web.plugin_registry import registered_api_routes
 from pioreactor.web.utils import abort_with
+from pioreactor.web.utils import abort_with_payload
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
@@ -75,6 +78,7 @@ from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import load_settings_collection_descriptors
 from pioreactor.web.utils import scrub_to_valid
+from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.web.utils import wait_for_bool_task_result
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -85,6 +89,7 @@ from werkzeug.utils import secure_filename
 
 
 AllCalibrations = structs.subclass_union(CalibrationBase)
+RequestBody = t.TypeVar("RequestBody", bound=Struct)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -260,25 +265,45 @@ def _get_experiment_metadata(experiment: str) -> dict[str, t.Any] | None:
     return _serialize_experiment_row(result)
 
 
-def _extract_unit_api_error(response: MureqResponse | None) -> str | None:
-    if response is None:
-        return None
-    body = response.content
-    if not body:
-        return None
-    content_type = response.headers.get("Content-Type", "")
-    if "application/json" not in content_type:
-        return None
+def decode_request_body(payload_type: type[RequestBody]) -> RequestBody:
     try:
-        payload = json.loads(body)
-    except Exception:
-        return None
-    if isinstance(payload, dict):
-        for key in ("error", "description"):
-            value = payload.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    return None
+        return current_app.json.loads(request.data, type=payload_type)
+    except (DecodeError, ValidationError) as exc:
+        required_fields = ", ".join(field.name for field in struct_fields(payload_type) if field.required)
+        abort_with(
+            400,
+            "Invalid request body.",
+            cause=str(exc),
+            remediation=f"Send a JSON object with the required fields: {required_fields}.",
+        )
+
+
+def abort_with_worker_error(response: MureqResponse | None, fallback_error: str) -> t.NoReturn:
+    if response is not None and response.content:
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type:
+            try:
+                payload = json_decode(response.content, type=UnitApiErrorPayload)
+            except (DecodeError, ValidationError):
+                pass
+            else:
+                if payload.status == response.status_code:
+                    abort_with_payload(payload)
+
+    if response is not None:
+        abort_with(
+            502,
+            f"{fallback_error} (HTTP {response.status_code}).",
+            cause="The worker returned an invalid error response.",
+            remediation="Check the worker logs and retry.",
+        )
+
+    abort_with(
+        502,
+        fallback_error,
+        cause="The worker could not be reached.",
+        remediation="Check that the worker is online and retry.",
+    )
 
 
 CONFIG_HISTORY_SHARED_KEY = "config.ini"
@@ -2199,15 +2224,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(502, f"{detail}")
-        if response is not None:
-            abort_with(
-                502,
-                f"Starting calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Starting calibration session failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Starting calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -2235,15 +2252,7 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}: {detail}")
-        if response is not None:
-            abort_with(
-                502,
-                f"Fetching calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Fetching calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -2291,15 +2300,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(502, detail)
-        if response is not None:
-            abort_with(
-                502,
-                f"Updating calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Updating calibration session failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Updating calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -2332,15 +2333,7 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}: {detail}")
-        if response is not None:
-            abort_with(
-                502,
-                f"Aborting calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Aborting calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -2770,18 +2763,9 @@ def get_automation_descriptors_for_worker(pioreactor_unit: str, automation_type:
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(
-                502,
-                f"Fetching {automation_type} automation descriptors failed on {pioreactor_unit}: {detail}",
-            )
-        if response is not None:
-            abort_with(
-                502,
-                f"Fetching {automation_type} automation descriptors failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Fetching {automation_type} automation descriptors failed on {pioreactor_unit}.")
+        abort_with_worker_error(
+            response, f"Fetching {automation_type} automation descriptors failed on {pioreactor_unit}."
+        )
 
     return Response(
         response.content,
@@ -2837,15 +2821,7 @@ def get_job_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(502, f"Fetching job descriptors failed on {pioreactor_unit}: {detail}")
-        if response is not None:
-            abort_with(
-                502,
-                f"Fetching job descriptors failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Fetching job descriptors failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Fetching job descriptors failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -2896,15 +2872,7 @@ def get_settings_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnV
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(502, f"Fetching settings descriptors failed on {pioreactor_unit}: {detail}")
-        if response is not None:
-            abort_with(
-                502,
-                f"Fetching settings descriptors failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Fetching settings descriptors failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Fetching settings descriptors failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -3099,26 +3067,20 @@ def export_exportable_datasets() -> ResponseReturnValue:
       "end_time": "2025-02-01T00:00:00Z"
     }
     """
-    body = request.get_json()
-
-    dataset_names: list[str] = body["datasets"]
-
-    experiments: list[str] = body["experiments"]
-    partition_by_unit: bool = body["partition_by_unit"]
-    partition_by_experiment: bool = body["partition_by_experiment"]
+    body = decode_request_body(structs.ExportDatasetsRequest)
 
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
     filename = f"export_{timestamp}.zip"
 
     filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
     task = tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
-        experiments,
-        dataset_names,
+        body.experiments,
+        body.datasets,
         filename_with_path.as_posix(),
-        start_time=body.get("start_time"),
-        end_time=body.get("end_time"),
-        partition_by_unit=partition_by_unit,
-        partition_by_experiment=partition_by_experiment,
+        start_time=body.start_time,
+        end_time=body.end_time,
+        partition_by_unit=body.partition_by_unit,
+        partition_by_experiment=body.partition_by_experiment,
     )
     return create_task_response(task)
 
@@ -3138,25 +3100,19 @@ def export_exportable_datasets_to_usb() -> ResponseReturnValue:
       "end_time": "2025-02-01T00:00:00Z"
     }
     """
-    body = request.get_json()
-
-    dataset_names: list[str] = body["datasets"]
-
-    experiments: list[str] = body["experiments"]
-    partition_by_unit: bool = body["partition_by_unit"]
-    partition_by_experiment: bool = body["partition_by_experiment"]
+    body = decode_request_body(structs.ExportDatasetsRequest)
 
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
     filename = f"export_{timestamp}.zip"
 
     task = tasks.export_experiment_data_to_usb_task(
-        experiments,
-        dataset_names,
+        body.experiments,
+        body.datasets,
         filename,
-        start_time=body.get("start_time"),
-        end_time=body.get("end_time"),
-        partition_by_unit=partition_by_unit,
-        partition_by_experiment=partition_by_experiment,
+        start_time=body.start_time,
+        end_time=body.end_time,
+        partition_by_unit=body.partition_by_unit,
+        partition_by_experiment=body.partition_by_experiment,
     )
     return create_task_response(task)
 
@@ -3443,8 +3399,8 @@ def get_shared_config() -> ResponseReturnValue:
 
 @api_bp.route("/config/shared", methods=["PATCH"])
 def update_shared_config() -> ResponseReturnValue:
-    body = request.get_json()
-    code = body["code"]
+    body = decode_request_body(structs.CodePatch)
+    code = body.code
 
     try:
         code = _validate_shared_config(code)
@@ -3566,15 +3522,7 @@ def get_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseRet
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if detail:
-            abort_with(502, f"Fetching unit-specific config failed on {pioreactor_unit}: {detail}")
-        if response is not None:
-            abort_with(
-                502,
-                f"Fetching unit-specific config failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Fetching unit-specific config failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Fetching unit-specific config failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -3624,17 +3572,7 @@ def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> Response
     except ValueError as e:
         abort_with(400, str(e))
     except (HTTPErrorStatus, HTTPException):
-        detail = _extract_unit_api_error(response)
-        if response is not None and response.status_code < 500 and detail:
-            abort_with(response.status_code, detail)
-        if detail:
-            abort_with(502, f"Updating unit-specific config failed on {pioreactor_unit}: {detail}")
-        if response is not None:
-            abort_with(
-                502,
-                f"Updating unit-specific config failed on {pioreactor_unit} (HTTP {response.status_code}).",
-            )
-        abort_with(502, f"Updating unit-specific config failed on {pioreactor_unit}.")
+        abort_with_worker_error(response, f"Updating unit-specific config failed on {pioreactor_unit}.")
     except Exception as e:
         publish_to_error_log(str(e), "update_specific_config_for_pioreactor_unit")
         abort_with(500, str(e))
@@ -3736,9 +3674,9 @@ def create_experiment_profile() -> ResponseReturnValue:
       "body": "<experiment profile YAML>"
     }
     """
-    body = request.get_json()
-    experiment_profile_body = body["body"]
-    experiment_profile_filename = Path(body["filename"]).name
+    body = decode_request_body(structs.CreateExperimentProfileRequest)
+    experiment_profile_body = body.body
+    experiment_profile_filename = Path(body.filename).name
 
     # verify content
     try:
@@ -3749,14 +3687,12 @@ def create_experiment_profile() -> ResponseReturnValue:
 
     validation = validate_profile(profile)
     if not validation.ok:
-        return (
-            jsonify(
-                {
-                    "error": "Validation error.",
-                    "diagnostics": to_builtins(validation.diagnostics),
-                }
-            ),
+        abort_with(
             400,
+            "Validation error.",
+            cause="Experiment profile failed semantic validation.",
+            remediation="Fix the reported diagnostics and retry.",
+            diagnostics=validation.diagnostics,
         )
 
     # verify file
@@ -3793,8 +3729,8 @@ def create_experiment_profile() -> ResponseReturnValue:
 
 @api_bp.route("/experiment_profiles/<filename>", methods=["PATCH"])
 def update_experiment_profile(filename: str) -> ResponseReturnValue:
-    body = request.get_json()
-    experiment_profile_body = body["body"]
+    body = decode_request_body(structs.UpdateExperimentProfileRequest)
+    experiment_profile_body = body.body
     experiment_profile_filename = Path(filename).name
 
     # verify content
@@ -3806,14 +3742,12 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
 
     validation = validate_profile(profile)
     if not validation.ok:
-        return (
-            jsonify(
-                {
-                    "error": "Validation error.",
-                    "diagnostics": to_builtins(validation.diagnostics),
-                }
-            ),
+        abort_with(
             400,
+            "Validation error.",
+            cause="Experiment profile failed semantic validation.",
+            remediation="Fix the reported diagnostics and retry.",
+            diagnostics=validation.diagnostics,
         )
 
     # verify file - user could have provided a different filename so we still check this.

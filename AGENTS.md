@@ -143,7 +143,11 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   ```bash
   .venv/bin/mypy core/pioreactor --ignore-missing-imports
   ```
- - However you can skip Python formatting/linting with ruff or black - we do that automatically later.
+ - For Python formatting and linting, treat `.pre-commit-config.yaml` as the source of truth:
+   - use Black for formatting
+   - use flake8 for linting
+   - do not use Ruff
+ - You can skip Python formatting and linting during focused implementation work; pre-commit runs them automatically later.
 
 ---
 

@@ -26,7 +26,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
 
 
-class UnitApiErrorPayload(Struct, omit_defaults=True):
+class UnitApiErrorPayload(Struct, forbid_unknown_fields=True, omit_defaults=True):
     error: str
     status: int
     cause: str | None = None
@@ -40,15 +40,21 @@ def abort_with(
     *,
     remediation: str | None = None,
     cause: str | None = None,
+    diagnostics: list[Diagnostic] | None = None,
 ) -> NoReturn:
     payload = UnitApiErrorPayload(
         error=description,
         status=status,
         cause=cause,
         remediation=remediation,
+        diagnostics=diagnostics,
     )
+    abort_with_payload(payload)
+
+
+def abort_with_payload(payload: UnitApiErrorPayload) -> NoReturn:
     response = jsonify(t.cast(dict[str, t.Any], to_builtins(payload)))
-    response.status_code = status
+    response.status_code = payload.status
     abort(response)
     raise AssertionError("abort should not return")
 

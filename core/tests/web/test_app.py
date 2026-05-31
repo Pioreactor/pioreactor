@@ -941,13 +941,52 @@ def test_update_specific_config_for_worker_propagates_validation_error(
             "http://unit1.local:4999/unit_api/config/specific",
             400,
             {"Content-Type": "application/json"},
-            b'{"error":"Incorrect syntax. Please fix and try again."}',
+            (
+                b'{"error":"Incorrect syntax. Please fix and try again.",'
+                b'"status":400,'
+                b'"cause":"The INI text could not be parsed.",'
+                b'"remediation":"Fix the INI syntax and retry."}'
+            ),
         ),
     )
 
     response = client.patch("/api/config/units/unit1/specific", json={"code": "[broken"})
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Incorrect syntax. Please fix and try again."
+    assert response.get_json() == {
+        "error": "Incorrect syntax. Please fix and try again.",
+        "status": 400,
+        "cause": "The INI text could not be parsed.",
+        "remediation": "Fix the INI syntax and retry.",
+    }
+
+
+def test_update_specific_config_for_worker_rejects_unstructured_worker_error(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(
+        mod,
+        "post_into",
+        lambda *_args, **_kwargs: MureqResponse(
+            "http://unit1.local:4999/unit_api/config/specific",
+            400,
+            {"Content-Type": "application/json"},
+            b'{"error":"legacy worker error"}',
+        ),
+    )
+
+    response = client.patch("/api/config/units/unit1/specific", json={"code": "[broken"})
+
+    assert response.status_code == 502
+    assert response.get_json() == {
+        "error": "Updating unit-specific config failed on unit1. (HTTP 400).",
+        "status": 502,
+        "cause": "The worker returned an invalid error response.",
+        "remediation": "Check the worker logs and retry.",
+    }
 
 
 def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
@@ -964,6 +1003,60 @@ def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
         json={"body": "experiment_profile_name: demo"},
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        ("post", "/api/experiment_profiles", {}),
+        ("patch", "/api/experiment_profiles/demo.yaml", {}),
+        ("patch", "/api/config/shared", {}),
+        ("post", "/api/datasets/exportable/export", {}),
+        ("post", "/api/datasets/exportable/export-to-usb", {}),
+    ],
+)
+def test_mutation_routes_reject_missing_required_json_fields(
+    client: FlaskClient, method: str, path: str, payload: dict[str, object]
+) -> None:
+    response = client.open(path, method=method, json=payload)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+    assert response.get_json()["status"] == 400
+
+
+def test_export_datasets_rejects_malformed_json(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        data=b"{",
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+
+
+def test_export_datasets_rejects_wrong_field_types(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": "od_readings",
+            "experiments": [],
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "Invalid request body.",
+        "status": 400,
+        "cause": "Expected `array`, got `str` - at `$.datasets`",
+        "remediation": (
+            "Send a JSON object with the required fields: datasets, experiments, "
+            "partition_by_unit, partition_by_experiment."
+        ),
+    }
 
 
 def test_create_experiment_profile_returns_diagnostics_for_semantic_validation_errors(client) -> None:
