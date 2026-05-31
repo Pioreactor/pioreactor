@@ -39,6 +39,10 @@ def _clear_test_artifacts(test_name: str) -> None:
         for key in list(cache.iterkeys()):
             del cache[key]
 
+    with local_persistent_storage("active_estimators") as cache:
+        for key in list(cache.iterkeys()):
+            del cache[key]
+
     with local_persistent_storage("alt_media_fraction") as c:
         c.pop(test_name)
 

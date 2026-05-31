@@ -801,3 +801,27 @@ def test_create_calibration_returns_error_if_save_fails(client, monkeypatch) -> 
     assert response.status_code == 500
     with local_persistent_storage("active_calibrations") as cache:
         assert cache.get("media_pump") is None
+
+
+def test_set_active_calibration_rejects_missing_file(client, monkeypatch, tmp_path) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod, "CALIBRATION_PATH", tmp_path)
+
+    response = client.patch("/unit_api/active_calibrations/od90/missing")
+
+    assert response.status_code == 404
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache.get("od90") is None
+
+
+def test_set_active_estimator_rejects_missing_file(client, monkeypatch, tmp_path) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod, "ESTIMATOR_PATH", tmp_path)
+
+    response = client.patch("/unit_api/active_estimators/od_fused/missing")
+
+    assert response.status_code == 404
+    with local_persistent_storage("active_estimators") as cache:
+        assert cache.get("od_fused") is None

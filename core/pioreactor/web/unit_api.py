@@ -2054,6 +2054,15 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/active_calibrations/<device>/<calibration_name>", methods=["PATCH"])
 def set_active_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
+    calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+    if not calibration_path.is_file():
+        abort_with(
+            404,
+            description=f"Calibration '{calibration_name}' not found for device '{device}'.",
+            cause="Calibration file is missing from disk.",
+            remediation="List available calibrations for this device and retry.",
+        )
+
     with local_persistent_storage("active_calibrations") as c:
         c[device] = calibration_name
 
@@ -2071,6 +2080,15 @@ def remove_active_status_calibration(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/active_estimators/<device>/<estimator_name>", methods=["PATCH"])
 def set_active_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
+    if not estimator_path.is_file():
+        abort_with(
+            404,
+            description=f"Estimator '{estimator_name}' not found for device '{device}'.",
+            cause="Estimator file is missing from disk.",
+            remediation="List available estimators for this device and retry.",
+        )
+
     with local_persistent_storage("active_estimators") as c:
         c[device] = estimator_name
 
