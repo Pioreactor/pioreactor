@@ -15,6 +15,7 @@ import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import RecordEventLogDialog from './components/RecordEventLogDialog';
 import PioreactorsIcon from './components/PioreactorsIcon';
+import { experimentPathSegment } from "./utils/url";
 
 function Logs(props) {
 
@@ -41,7 +42,7 @@ function Logs(props) {
   useEffect(() => {
     async function fetchWorkers(experiment) {
       try {
-        const response = await fetch(`/api/experiments/${experiment}/historical_worker_assignments`);
+        const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/historical_worker_assignments`);
         if (response.ok) {
           const units = await response.json();
           setAssignedUnits(units.map(u => u.pioreactor_unit));
@@ -72,7 +73,7 @@ function Logs(props) {
 
 
   const handleSubmitDialog = async (newLog) => {
-    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
+    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${experimentPathSegment(newLog.experiment)}/logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newLog),

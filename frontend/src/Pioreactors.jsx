@@ -102,6 +102,7 @@ import {
   updatePublishedSettingValue,
 } from "./utils/jobs";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { experimentPathSegment } from "./utils/url";
 import {
   disconnectedGrey,
   lostRed,
@@ -539,7 +540,7 @@ function ButtonStopProcess({experiment, unit = "$broadcast", disabled = false}) 
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>
-        fetch(`/api/workers/${unit}/jobs/stop/experiments/${experiment}`, {method: "POST"})
+        fetch(`/api/workers/${unit}/jobs/stop/experiments/${experimentPathSegment(experiment)}`, {method: "POST"})
     ).catch(() => {});
 
   };
@@ -658,7 +659,7 @@ export function AssignPioreactors({ experiment, variant="text" }) {
 
     for (const worker in delta) {
       if (delta[worker].current && !delta[worker].initial) {
-        requests.push(fetch(`/api/experiments/${experiment}/workers`, {
+        requests.push(fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers`, {
           method: "PUT",
           headers: {
             Accept: "application/json",
@@ -667,7 +668,7 @@ export function AssignPioreactors({ experiment, variant="text" }) {
           body: JSON.stringify({ pioreactor_unit: worker }),
         }));
       } else {
-        requests.push(fetch(`/api/experiments/${experiment}/workers/${worker}`, {
+        requests.push(fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers/${worker}`, {
           method: "DELETE",
         }));
       }
@@ -1361,7 +1362,7 @@ function SettingsActionsDialog({
       )
     }
 
-    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
+    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experimentPathSegment(experiment)}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {
@@ -1376,7 +1377,7 @@ function SettingsActionsDialog({
       const relabeledTo = value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
-      fetch(`/api/experiments/${experiment}/unit_labels`,{
+      fetch(`/api/experiments/${experimentPathSegment(experiment)}/unit_labels`,{
           method: "PUT",
           body: JSON.stringify({label: relabeledTo, unit: unit}),
           headers: {
@@ -2410,7 +2411,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
       )
     }
 
-    fetch(`/api/workers/${broadcastUnit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
+    fetch(`/api/workers/${broadcastUnit}/jobs/update/job_name/${job}/experiments/${experimentPathSegment(experiment)}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {
@@ -3558,7 +3559,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
       )
     }
 
-    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
+    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experimentPathSegment(experiment)}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {
@@ -4121,7 +4122,7 @@ function Pioreactors({title}) {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/experiments/${experimentMetadata.experiment}/workers`);
+      const response = await fetch(`/api/experiments/${experimentPathSegment(experimentMetadata.experiment)}/workers`);
       if (response.ok) {
         const data = await response.json();
         setWorkers(data);

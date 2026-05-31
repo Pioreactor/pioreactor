@@ -1,3 +1,5 @@
+import { experimentPathSegment } from "./url";
+
 function parseINIString(data) {
   const regex = {
     section: /^\s*\[\s*([^\]]*)\s*\]\s*$/,
@@ -53,7 +55,7 @@ export function getConfig(setCallback) {
 }
 
 export function getRelabelMap(setCallback, experiment = "current") {
-  fetch(`/api/experiments/${experiment}/unit_labels`)
+  fetch(`/api/experiments/${experimentPathSegment(experiment)}/unit_labels`)
     .then((response) => response.json())
     .then((data) => {
       setCallback(data);

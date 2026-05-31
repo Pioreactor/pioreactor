@@ -1,3 +1,5 @@
+import { experimentPathSegment } from "./url";
+
 const BIOREACTOR_CONFIG_KEYS = {
   current_volume_ml: "initial_volume_ml",
   efflux_tube_volume_ml: "efflux_tube_volume_ml",
@@ -115,7 +117,7 @@ export function getBioreactorSubscriptionTopics(unit, experiment, keys = DEFAULT
 }
 
 export async function updateBioreactorValues(unit, experiment, values) {
-  const response = await fetch(`/api/workers/${unit}/bioreactor/update/experiments/${experiment}`, {
+  const response = await fetch(`/api/workers/${unit}/bioreactor/update/experiments/${experimentPathSegment(experiment)}`, {
     method: "PATCH",
     body: JSON.stringify({ values }),
     headers: {

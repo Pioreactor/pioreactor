@@ -1,4 +1,5 @@
 import { fetchTaskResult } from "./tasks";
+import { experimentPathSegment } from "./url";
 
 let workerJobDescriptorsRequestCache = new Map();
 let settingsDescriptorsRequestCache = null;
@@ -326,7 +327,7 @@ export function runPioreactorJob(
   configOverrides = [],
 ) {
   return runJobPatch(
-    `/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experiment}`,
+    `/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experimentPathSegment(experiment)}`,
     {
       args,
       options,

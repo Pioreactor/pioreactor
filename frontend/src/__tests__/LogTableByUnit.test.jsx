@@ -48,7 +48,7 @@ describe("LogTableByUnit", () => {
 
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
-        "/api/workers/leader/experiments/$experiment/recent_logs?min_level=debug"
+        "/api/workers/leader/experiments/%24experiment/recent_logs?min_level=debug"
       )
     );
 

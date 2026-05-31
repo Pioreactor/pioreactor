@@ -19,6 +19,7 @@ import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
+import { experimentPathSegment } from "../utils/url";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -98,9 +99,9 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     if (unit && experiment === "$experiment"){
       return `/api/units/${unit}/system_logs`;
     } else if (unit && onlyAssignedLogs){
-      return `/api/workers/${unit}/experiments/${experiment}/logs`;
+      return `/api/workers/${unit}/experiments/${experimentPathSegment(experiment)}/logs`;
     } else if (!unit && onlyAssignedLogs) {
-      return `/api/experiments/${experiment}/logs`
+      return `/api/experiments/${experimentPathSegment(experiment)}/logs`
     } else if (unit && !onlyAssignedLogs) {
       return `/api/units/${unit}/logs`;
     } else {

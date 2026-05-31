@@ -13,9 +13,9 @@ const { MemoryRouter, Route, Routes } = require("react-router");
 const { fetchTaskResult } = require("../utils/tasks");
 const ExportData = require("../ExportData").default;
 
-function renderExportData() {
+function renderExportData(initialEntry = "/export-data") {
   return render(
-    <MemoryRouter initialEntries={["/export-data"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/export-data" element={<ExportData title="Pioreactor ~ Export data" />} />
       </Routes>
@@ -60,6 +60,33 @@ describe("ExportData", () => {
     expect(await screen.findByText("Could not read exportable datasets.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^export$/i })).toBeDisabled();
     expect(consoleErrorSpy).toHaveBeenCalled();
+  });
+
+  test("preserves a comma-containing experiment from the URL", async () => {
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/experiments") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ experiment: "E coli, 37C" }],
+        });
+      }
+
+      if (url === "/api/datasets/exportable") {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: async () => ({ error: "Could not read exportable datasets." }),
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    renderExportData("/export-data?experiments=E%20coli%2C%2037C");
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toHaveTextContent("E coli, 37C");
+    });
   });
 
   test("shows a durable success alert when USB export completes", async () => {
@@ -115,6 +142,59 @@ describe("ExportData", () => {
           fetchOptions: expect.objectContaining({ method: "POST" }),
         }),
       );
+    });
+  });
+
+  test("downloads a completed browser export with the returned filename", async () => {
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/experiments") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ experiment: "exp-1" }],
+        });
+      }
+
+      if (url === "/api/datasets/exportable") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            {
+              dataset_name: "od_readings",
+              display_name: "OD readings",
+              description: "Optical density readings.",
+              source: "app",
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+    const filename = "export 100% & ready.zip";
+    fetchTaskResult.mockResolvedValue({ result: { filename } });
+    const originalCreateElement = document.createElement.bind(document);
+    let downloadLink;
+    jest.spyOn(document, "createElement").mockImplementation((tagName, options) => {
+      const element = originalCreateElement(tagName, options);
+      if (tagName === "a") {
+        downloadLink = element;
+      }
+      return element;
+    });
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderExportData();
+
+    fireEvent.mouseDown(await screen.findByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "exp-1" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "OD readings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^export 1$/i }));
+
+    await waitFor(() => {
+      expect(downloadLink).toBeDefined();
+      expect(downloadLink.getAttribute("download")).toBe(filename);
+      expect(downloadLink.getAttribute("href")).toBe("/exports/export%20100%25%20%26%20ready.zip");
+      expect(downloadLink.click).toHaveBeenCalled();
     });
   });
 });

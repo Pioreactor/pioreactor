@@ -15,6 +15,7 @@ import PioreactorIcon from "./PioreactorIcon"
 import PioreactorsIcon from "./PioreactorsIcon"
 import { useMQTT } from '../providers/MQTTContext';
 import { Link } from 'react-router';
+import { experimentPathSegment } from "../utils/url";
 
 
 function MediaCard({experiment, relabelMap, activeUnits}) {
@@ -63,7 +64,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     let isCancelled = false;
 
     async function getRecentRates() {
-      const response = await fetch(`/api/experiments/${experiment}/media_rates`);
+      const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/media_rates`);
       const data = await response.json();
 
       if (!isCancelled) {

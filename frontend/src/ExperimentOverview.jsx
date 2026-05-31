@@ -14,6 +14,7 @@ import Stack from "@mui/material/Stack";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
+import { experimentPathSegment } from "./utils/url";
 
 function evaluateChartLookback(timeWindow, lookbackExpression) {
   if (timeWindow >= 0) {
@@ -133,7 +134,7 @@ function Overview(props) {
   useEffect(() => {
     async function fetchWorkers(experiment) {
       try {
-        const response = await fetch(`/api/experiments/${experiment}/workers`);
+        const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers`);
         if (response.ok) {
           const units = await response.json();
           setUnits(units);

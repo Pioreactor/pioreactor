@@ -47,6 +47,7 @@ import Alert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SelfTestDialog from "./components/SelfTestDialog";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { experimentPathSegment } from "./utils/url";
 
 
 
@@ -944,7 +945,7 @@ function Blink({unit}){
 function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
 
   const unassignWorker = () => {
-    fetch(`/api/experiments/${experimentAssigned}/workers/${unit}`, {method: "DELETE"})
+    fetch(`/api/experiments/${experimentPathSegment(experimentAssigned)}/workers/${unit}`, {method: "DELETE"})
     .then((res) => {
       if (res.ok){
         setExperimentAssigned(null)

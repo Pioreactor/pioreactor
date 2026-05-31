@@ -55,10 +55,10 @@ function getQueryList(searchParams, key) {
 function parseExportStateFromSearch(search) {
   const searchParams = new URLSearchParams(search);
 
-  const experimentsFromQuery = getQueryList(searchParams, "experiments").map(
-    (experiment) => (experiment === "$experiment" ? SYSTEM_EXPERIMENT_LABEL : experiment),
-  );
-  const experimentSelection = experimentsFromQuery.slice(0, 1);
+  const experimentFromQuery = searchParams.get("experiments")?.trim();
+  const experimentSelection = experimentFromQuery
+    ? [experimentFromQuery === "$experiment" ? SYSTEM_EXPERIMENT_LABEL : experimentFromQuery]
+    : [];
 
   const selectedDatasets = getQueryList(searchParams, "datasets");
 
@@ -99,6 +99,9 @@ function getStyles(value, selectedValue, theme) {
 function SingleExperimentSelect({availableValues, parentHandleChange, values}) {
   const theme = useTheme();
   const selectedValue = values[0] || "";
+  const selectableValues = selectedValue && !availableValues.includes(selectedValue)
+    ? [selectedValue, ...availableValues]
+    : availableValues;
 
   const handleChange = (event) => {
     parentHandleChange(event.target.value ? [event.target.value] : []);
@@ -121,7 +124,7 @@ function SingleExperimentSelect({availableValues, parentHandleChange, values}) {
             },
           }}}
         >
-          {availableValues.map((value) => (
+          {selectableValues.map((value) => (
             <MenuItem
               key={value}
               value={value}
@@ -489,8 +492,8 @@ function ExportDataContainer() {
       } else {
         setSnackbarOpen(false);
         var link = document.createElement("a");
-        const encodedFilename = filename.replace(/%/g, "%25")
-        link.setAttribute('download', encodedFilename);
+        const encodedFilename = encodeURIComponent(filename)
+        link.setAttribute('download', filename);
         link.href = "/exports/" + encodedFilename;
         document.body.appendChild(link);
         link.click();

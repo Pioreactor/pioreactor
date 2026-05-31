@@ -23,6 +23,7 @@ import RecordEventLogDialog from './RecordEventLogDialog';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
+import { experimentPathSegment } from "../utils/url";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -71,7 +72,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
   useEffect(() => {
     const getData = async () => {
       const response = await fetch(
-        `/api/experiments/${experiment}/recent_logs?` +
+        `/api/experiments/${experimentPathSegment(experiment)}/recent_logs?` +
           new URLSearchParams({
             min_level: config.logging.ui_log_level,
           })
@@ -156,7 +157,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
 
 
   const handleSubmitDialog = async (newLog) => {
-    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
+    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${experimentPathSegment(newLog.experiment)}/logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newLog),

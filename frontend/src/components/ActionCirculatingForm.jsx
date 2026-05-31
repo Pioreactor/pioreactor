@@ -5,6 +5,7 @@ import Snackbar from './Snackbar';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utils/jobs"
+import { experimentPathSegment } from "../utils/url";
 
 
 const StyledTextField = {
@@ -50,7 +51,7 @@ export default function ActionCirculatingForm(props) {
   }
 
   function stopPump() {
-    fetch(`/api/workers/${props.unit}/jobs/stop/job_name/${props.action}/experiments/${props.experiment}`, {method: "PATCH"})
+    fetch(`/api/workers/${props.unit}/jobs/stop/job_name/${props.action}/experiments/${experimentPathSegment(props.experiment)}`, {method: "PATCH"})
     .catch(() => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)

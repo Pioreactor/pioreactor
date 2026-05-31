@@ -94,6 +94,7 @@ import {
   updatePublishedSettingValue,
 } from "./utils/jobs";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { experimentPathSegment } from "./utils/url";
 import {
   colors,
   disconnectedGrey,
@@ -543,7 +544,7 @@ function ButtonStopProcess({experiment, unit, disabled = false}) {
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>
-        fetch(`/api/workers/${unit}/jobs/stop/experiments/${experiment}`, {method: "POST"})
+        fetch(`/api/workers/${unit}/jobs/stop/experiments/${experimentPathSegment(experiment)}`, {method: "POST"})
     ).catch(() => {});
 
   };
@@ -970,7 +971,7 @@ function SettingsActionsDialog(props) {
       )
     }
 
-    return fetch(`/api/workers/${props.unit}/jobs/update/job_name/${job}/experiments/${props.experiment}`, {
+    return fetch(`/api/workers/${props.unit}/jobs/update/job_name/${job}/experiments/${experimentPathSegment(props.experiment)}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {
@@ -985,7 +986,7 @@ function SettingsActionsDialog(props) {
       const relabeledTo = value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
-      fetch(`/api/experiments/${props.experiment}/unit_labels`,{
+      fetch(`/api/experiments/${experimentPathSegment(props.experiment)}/unit_labels`,{
           method: "PUT",
           body: JSON.stringify({label: relabeledTo, unit: props.unit}),
           headers: {
@@ -2356,7 +2357,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       )
     }
 
-    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
+    return fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experimentPathSegment(experiment)}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {

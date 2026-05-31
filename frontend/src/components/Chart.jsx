@@ -25,6 +25,7 @@ import {
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { shiftHue } from "../utils/color";
+import { experimentPathSegment } from "../utils/url";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -672,8 +673,8 @@ function Chart(props) {
     }
 
     const basePath = unit
-      ? `/api/workers/${unit}/experiments/${experiment}/time_series/${dataSource}`
-      : `/api/experiments/${experiment}/time_series/${dataSource}`;
+      ? `/api/workers/${unit}/experiments/${experimentPathSegment(experiment)}/time_series/${dataSource}`
+      : `/api/experiments/${experimentPathSegment(experiment)}/time_series/${dataSource}`;
     const columnSegment = dataSourceColumn ? `/${dataSourceColumn}` : "";
     const url = `${basePath}${columnSegment}?${queryParams}`;
 

@@ -22,6 +22,7 @@ import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
 
 import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
+import { experimentPathSegment } from "../utils/url";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -76,7 +77,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
   useEffect(() => {
     const getData = async () => {
       const response = await fetch(
-        `/api/workers/${unit}/experiments/${experiment}/recent_logs?` +
+        `/api/workers/${unit}/experiments/${experimentPathSegment(experiment)}/recent_logs?` +
           new URLSearchParams({ min_level: level })
       );
       const logs = await response.json();
@@ -166,7 +167,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
 
 
   const handleSubmitDialog = async (newLog) => {
-    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
+    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${experimentPathSegment(newLog.experiment)}/logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newLog),

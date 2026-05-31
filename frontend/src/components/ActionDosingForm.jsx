@@ -9,6 +9,7 @@ import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import Alert from "@mui/material/Alert";
 import {runPioreactorJob} from "../utils/jobs"
+import { experimentPathSegment } from "../utils/url";
 
 
 const actionTextField = {
@@ -78,7 +79,7 @@ export default function ActionPumpForm(props) {
   }
 
   function stopPump() {
-    fetch(`/api/workers/${unit}/jobs/stop/job_name/${action}/experiments/${experiment}`, {method: "PATCH"})
+    fetch(`/api/workers/${unit}/jobs/stop/job_name/${action}/experiments/${experimentPathSegment(experiment)}`, {method: "PATCH"})
     .catch(() => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)
