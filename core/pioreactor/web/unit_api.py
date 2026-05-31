@@ -20,7 +20,6 @@ from typing import SupportsFloat
 from click import BadParameter
 from flask import after_this_request
 from flask import Blueprint
-from flask import current_app
 from flask import jsonify
 from flask import request
 from flask import Response
@@ -67,6 +66,7 @@ from pioreactor.web.unit_calibration_sessions_api import register_calibration_se
 from pioreactor.web.utils import abort_with
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
+from pioreactor.web.utils import decode_request_body
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
@@ -94,15 +94,15 @@ def get_usb_status() -> ResponseReturnValue:
 
 @unit_api_bp.route("/usb/mount", methods=["POST"])
 def mount_usb() -> DelayedResponseReturnValue:
-    body = request.get_json(silent=True) or {}
-    task = tasks.mount_usb_task(body.get("device"))
+    body = decode_request_body(structs.UsbDeviceRequest) if request.data else structs.UsbDeviceRequest()
+    task = tasks.mount_usb_task(body.device)
     return create_task_response(task)
 
 
 @unit_api_bp.route("/usb/eject", methods=["POST"])
 def eject_usb() -> DelayedResponseReturnValue:
-    body = request.get_json(silent=True) or {}
-    task = tasks.eject_usb_task(body.get("device"))
+    body = decode_request_body(structs.UsbDeviceRequest) if request.data else structs.UsbDeviceRequest()
+    task = tasks.eject_usb_task(body.device)
     return create_task_response(task)
 
 
@@ -147,16 +147,9 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
       "model_version": "1.0"
     }
     """
-    data = request.get_json(silent=True) or {}
-    model_name = data.get("model_name")
-    model_version = data.get("model_version")
-    if not model_name or not model_version:
-        abort_with(
-            400,
-            "Missing model_name or model_version",
-            cause="Request JSON missing model_name or model_version.",
-            remediation="Provide both model_name and model_version in the JSON payload.",
-        )
+    body = decode_request_body(structs.CheckHardwareForModelRequest)
+    model_name = body.model_name
+    model_version = body.model_version
     if (model_name, model_version) not in get_registered_models():
         abort_with(
             400,
@@ -423,7 +416,7 @@ def update_specific_config() -> ResponseReturnValue:
     }
     """
     try:
-        body = current_app.json.loads(request.data, type=structs.CodePatch)
+        body = decode_request_body(structs.CodePatch)
         code = _validate_ini_text(body.code)
         _render_merged_config_from_disk(specific_config_text=code)
     except configparser.DuplicateSectionError as e:
@@ -480,7 +473,7 @@ def update_software_target(target: str) -> DelayedResponseReturnValue:
     if target not in ("app",):  # todo: firmware
         abort_with(404, description="Invalid target")
 
-    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
+    body = decode_request_body(structs.ArgsOptionsEnvs)
 
     commands = build_pio_update_app_args(body)
 
@@ -507,7 +500,7 @@ def update_software() -> DelayedResponseReturnValue:
     if _task_is_locked("update-lock"):
         return _locked_task_response("update-lock")
 
-    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
+    body = decode_request_body(structs.ArgsOptionsEnvs)
 
     commands = build_pio_update_app_args(body)
 
@@ -748,17 +741,7 @@ def remove_file() -> DelayedResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the action locally via SSH.",
         )
 
-    # use filepath in body
-    body = current_app.json.loads(request.data) or {}
-    filepath = body.get("filepath")
-    if not filepath:
-        abort_with(
-            400,
-            "filepath field is required",
-            cause="Request JSON missing 'filepath'.",
-            remediation="Include a 'filepath' field in the JSON payload.",
-        )
-    assert filepath is not None
+    filepath = decode_request_body(structs.RemoveFileRequest).filepath
 
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
     candidate_path = Path(filepath).expanduser()
@@ -812,23 +795,7 @@ def set_clock_time() -> DelayedResponseReturnValue:
         return _locked_task_response("clock-lock")
 
     if HOSTNAME == get_leader_hostname():
-        data = request.get_json(silent=True)  # don't throw 415
-        if not data:
-            abort_with(
-                400,
-                "utc_clock_time field is required",
-                cause="Request body is empty or not JSON.",
-                remediation="Send JSON with a 'utc_clock_time' field.",
-            )
-
-        new_time = data.get("utc_clock_time")
-        if not new_time:
-            abort_with(
-                400,
-                "utc_clock_time field is required",
-                cause="Missing 'utc_clock_time' value in JSON payload.",
-                remediation="Provide an ISO 8601 timestamp in 'utc_clock_time'.",
-            )
+        new_time = decode_request_body(structs.SetClockTimeRequest).utc_clock_time
 
         # validate the timestamp
         try:
@@ -950,7 +917,7 @@ def run_job(job_name: str) -> DelayedResponseReturnValue:
     if is_rate_limited(job_name):
         abort_with(429, "Too many requests, please try again later.")
 
-    json = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
+    json = decode_request_body(structs.ArgsOptionsEnvsConfigOverrides)
     args = json.args
     options = json.options
     env = json.env | {
@@ -1040,17 +1007,14 @@ def stop_jobs() -> DelayedResponseReturnValue:
       "job_name": "stirring",
       "experiment": "experiment-name",
       "job_source": "user",
-      "job_id": "stirring-abc123"
+      "job_id": 123
     }
     """
-    if not request.data:
-        return abort_with(400, "No job filter specified")
-    request_payload = current_app.json.loads(request.data)
-
-    job_name = request_payload.get("job_name")
-    experiment = request_payload.get("experiment")
-    job_source = request_payload.get("job_source")
-    job_id = request_payload.get("job_id")
+    request_payload = decode_request_body(structs.StopJobsRequest)
+    job_name = request_payload.job_name
+    experiment = request_payload.experiment
+    job_source = request_payload.job_source
+    job_id = request_payload.job_id
     if not any((job_name, experiment, job_source, job_id)):
         return abort_with(400, "No job filter specified")
 
@@ -1170,7 +1134,6 @@ def update_job(job_name: str) -> ResponseReturnValue:
       },
     }
     """
-    # body = request.get_json()
     abort_with(503, "Not implemented.")
 
 
@@ -1190,10 +1153,8 @@ def update_bioreactor_values(experiment: str) -> ResponseReturnValue:
         "cumulative_waste_removed_ml": "mL",
     }
 
-    body = request.get_json(silent=True) or {}
-    values = body.get("values", {})
-
-    if not isinstance(values, dict) or not values:
+    values = decode_request_body(structs.UpdateBioreactorValuesRequest).values
+    if not values:
         abort_with(
             400,
             "Missing bioreactor values.",
@@ -1373,7 +1334,7 @@ def install_plugin() -> DelayedResponseReturnValue:
     #        "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
     #    )
 
-    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
+    body = decode_request_body(structs.ArgsOptionsEnvs)
 
     if not body.args:
         abort_with(
@@ -1420,16 +1381,7 @@ def install_plugin_from_usb() -> DelayedResponseReturnValue:
             remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
         )
 
-    body = request.get_json(silent=True) or {}
-    filepath = body.get("filepath")
-    if not isinstance(filepath, str) or not filepath:
-        abort_with(
-            400,
-            "filepath is required",
-            cause="No USB plugin filepath provided.",
-            remediation="Provide filepath for a .whl file on a Pioreactor-managed USB mount.",
-        )
-
+    filepath = decode_request_body(structs.InstallPluginFromUsbRequest).filepath
     task = tasks.install_plugin_from_usb_task(filepath)
     return create_task_response(task)
 
@@ -1445,7 +1397,7 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
       "args": ["my_plugin_name"]
     }
     """
-    body = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvs)
+    body = decode_request_body(structs.ArgsOptionsEnvs)
 
     if len(body.args) != 1:
         abort_with(
@@ -1516,17 +1468,9 @@ def create_calibration(device: str) -> ResponseReturnValue:
     # if folder does not exist, users should make it with mkdir -p ... && chown -R pioreactor:www-data ...
 
     try:
-        payload = request.get_json() or {}
-        raw_yaml = payload["calibration_data"]
-        set_as_active = payload.get("set_as_active", False)
-
-        if not isinstance(set_as_active, bool):
-            abort_with(
-                400,
-                description="Invalid 'set_as_active' value.",
-                cause="'set_as_active' must be a boolean.",
-                remediation="Send set_as_active as true or false.",
-            )
+        payload = decode_request_body(structs.CreateCalibrationRequest)
+        raw_yaml = payload.calibration_data
+        set_as_active = payload.set_as_active
 
         calibration_data = yaml_decode(raw_yaml, type=AllCalibrations)
         calibration_name = calibration_data.calibration_name

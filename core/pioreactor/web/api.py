@@ -14,7 +14,6 @@ from io import BytesIO
 from pathlib import Path
 
 from flask import Blueprint
-from flask import current_app
 from flask import jsonify
 from flask import request
 from flask import Response
@@ -23,11 +22,10 @@ from flask.typing import ResponseReturnValue
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
 from msgspec import DecodeError
-from msgspec import Struct
 from msgspec import to_builtins
+from msgspec import UNSET
 from msgspec import ValidationError
 from msgspec.json import decode as json_decode
-from msgspec.structs import fields as struct_fields
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.config import build_config
@@ -72,6 +70,7 @@ from pioreactor.web.utils import abort_with
 from pioreactor.web.utils import abort_with_payload
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
+from pioreactor.web.utils import decode_request_body
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import load_automation_descriptors
@@ -89,7 +88,6 @@ from werkzeug.utils import secure_filename
 
 
 AllCalibrations = structs.subclass_union(CalibrationBase)
-RequestBody = t.TypeVar("RequestBody", bound=Struct)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -263,19 +261,6 @@ def _get_experiment_metadata(experiment: str) -> dict[str, t.Any] | None:
         return None
     assert isinstance(result, dict)
     return _serialize_experiment_row(result)
-
-
-def decode_request_body(payload_type: type[RequestBody]) -> RequestBody:
-    try:
-        return current_app.json.loads(request.data, type=payload_type)
-    except (DecodeError, ValidationError) as exc:
-        required_fields = ", ".join(field.name for field in struct_fields(payload_type) if field.required)
-        abort_with(
-            400,
-            "Invalid request body.",
-            cause=str(exc),
-            remediation=f"Send a JSON object with the required fields: {required_fields}.",
-        )
 
 
 def abort_with_worker_error(response: MureqResponse | None, fallback_error: str) -> t.NoReturn:
@@ -599,7 +584,7 @@ def run_job_on_unit_in_experiment(
       "config_overrides": []
     }
     """
-    request_payload = current_app.json.loads(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
+    request_payload = decode_request_body(structs.ArgsOptionsEnvsConfigOverrides)
 
     if experiment == UNIVERSAL_EXPERIMENT:
         # universal experiment, all workers
@@ -753,9 +738,10 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
          }'
     ```
     """
+    body = decode_request_body(structs.UpdateJobSettingsRequest)
     try:
         with create_client() as client:
-            for setting, value in request.get_json()["settings"].items():
+            for setting, value in body.settings.items():
                 # This request returns immediately after publishing, so wait for broker handoff per setting.
                 msg = client.publish(
                     f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/{setting}/set",
@@ -775,10 +761,8 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
     methods=["PATCH"],
 )
 def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedResponseReturnValue:
-    body = request.get_json(silent=True) or {}
-    values = body.get("values", {})
-
-    if not isinstance(values, dict) or not values:
+    body = decode_request_body(structs.UpdateBioreactorValuesRequest)
+    if not body.values:
         abort_with(
             400,
             "Missing bioreactor values.",
@@ -790,11 +774,13 @@ def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedR
         task = tasks.multicast_patch(
             f"/unit_api/bioreactor/experiments/{experiment}",
             get_all_workers_in_experiment(experiment),
-            json=body,
+            json={"values": body.values},
         )
     else:
         task = multicast_patch_to_worker(
-            pioreactor_unit, f"/unit_api/bioreactor/experiments/{experiment}", json=body
+            pioreactor_unit,
+            f"/unit_api/bioreactor/experiments/{experiment}",
+            json={"values": body.values},
         )
 
     return create_task_response(task)
@@ -848,9 +834,12 @@ def set_system_utc_clock() -> DelayedResponseReturnValue:
       "utc_clock_time": "2025-01-31T12:34:56Z"
     }
     """
+    body = decode_request_body(structs.SetClockTimeRequest)
     # first update the leader:
     task1 = tasks.multicast_post(
-        "/unit_api/system/utc_clock", [get_leader_hostname()], json=request.get_json()
+        "/unit_api/system/utc_clock",
+        [get_leader_hostname()],
+        json={"utc_clock_time": body.utc_clock_time},
     )
     task1.get(blocking=True, timeout=20)
 
@@ -1078,38 +1067,37 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
       "task": "manual-action"
     }
     """
-    body = request.get_json()
-    source_ = body.get("source_", "ui")
+    body = decode_request_body(structs.PublishExperimentLogRequest)
 
     with create_client() as client:
         if pioreactor_unit == UNIVERSAL_IDENTIFIER:
             assigned_units = get_all_workers_in_experiment(experiment)
             for assigned_pioreactor_unit in assigned_units:
-                topic = f"pioreactor/{assigned_pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
+                topic = f"pioreactor/{assigned_pioreactor_unit}/{experiment}/logs/{body.source_}/{body.level.lower()}"
                 # This endpoint is a short-lived bridge into the audit log stream, so use QoS 2 and wait.
                 msg = client.publish(
                     topic,
                     msg_to_JSON(
-                        msg=body["message"],
-                        source=body["source"],
-                        level=body["level"].upper(),
-                        timestamp=body["timestamp"],
-                        task=body["task"] or "",
+                        msg=body.message,
+                        source=body.source,
+                        level=body.level.upper(),
+                        timestamp=body.timestamp,
+                        task=body.task or "",
                     ),
                     qos=QOS.EXACTLY_ONCE,
                 )
                 msg.wait_for_publish(timeout=2.0)
         else:
-            topic = f"pioreactor/{pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
+            topic = f"pioreactor/{pioreactor_unit}/{experiment}/logs/{body.source_}/{body.level.lower()}"
             # This endpoint is a short-lived bridge into the audit log stream, so use QoS 2 and wait.
             msg = client.publish(
                 topic,
                 msg_to_JSON(
-                    msg=body["message"],
-                    source=body["source"],
-                    level=body["level"].upper(),
-                    timestamp=body["timestamp"],
-                    task=body["task"] or "",
+                    msg=body.message,
+                    source=body.source,
+                    level=body.level.upper(),
+                    timestamp=body.timestamp,
+                    task=body.task or "",
                 ),
                 qos=QOS.EXACTLY_ONCE,
             )
@@ -2137,28 +2125,10 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
       "set_as_active": true
     }
     """
-    payload = request.get_json() or {}
-    yaml_data = payload.get("calibration_data")
-    set_as_active = payload.get("set_as_active", False)
-
-    if not yaml_data:
-        abort_with(
-            400,
-            "YAML data is missing.",
-            cause="Request JSON missing calibration_data.",
-            remediation="Provide calibration_data with a valid YAML payload.",
-        )
-
-    if not isinstance(set_as_active, bool):
-        abort_with(
-            400,
-            "Invalid set_as_active value.",
-            cause="Request JSON must include set_as_active as a boolean when provided.",
-            remediation="Send set_as_active as true or false.",
-        )
+    body = decode_request_body(structs.CreateCalibrationRequest)
 
     try:
-        yaml_decode(yaml_data, type=AllCalibrations)
+        yaml_decode(body.calibration_data, type=AllCalibrations)
     except Exception as e:
         publish_to_error_log(str(e), "create_calibration")
         abort_with(
@@ -2168,7 +2138,10 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
             remediation="Fix the YAML structure and retry.",
         )
 
-    payload["set_as_active"] = set_as_active
+    payload = {
+        "calibration_data": body.calibration_data,
+        "set_as_active": body.set_as_active,
+    }
 
     cache.invalidate_calibrations_cache(pioreactor_unit)
 
@@ -2198,20 +2171,14 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    body = request.get_json()
-    if body is None:
-        abort_with(
-            400,
-            description="Missing JSON payload.",
-            cause="Request body is empty or not JSON.",
-            remediation="Send a JSON payload describing the calibration session.",
-        )
+    body = decode_request_body(structs.StartCalibrationSessionRequest)
+    payload = to_builtins(body)
 
     logger.debug(
         "Starting browser protocol session on %s: target_device=%s, protocol_name=%s",
         pioreactor_unit,
-        body.get("target_device"),
-        body.get("protocol_name"),
+        body.target_device,
+        body.protocol_name,
     )
 
     response: MureqResponse | None = None
@@ -2219,7 +2186,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             "/unit_api/calibrations/sessions",
-            json=body,
+            json=payload,
             timeout=30,
         )
         response.raise_for_status()
@@ -2281,21 +2248,14 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    body = request.get_json()
-    if body is None:
-        abort_with(
-            400,
-            description="Missing JSON payload.",
-            cause="Request body is empty or not JSON.",
-            remediation="Send a JSON payload with calibration inputs.",
-        )
+    body = decode_request_body(structs.AdvanceCalibrationSessionRequest)
 
     response: MureqResponse | None = None
     try:
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/inputs",
-            json=body,
+            json={"inputs": body.inputs},
             timeout=300,
         )
         response.raise_for_status()
@@ -2447,12 +2407,14 @@ def get_usb_status_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValu
 @api_bp.route("/units/<pioreactor_unit>/usb/mount", methods=["POST"])
 def mount_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     abort_if_usb_target_is_broadcast(pioreactor_unit)
+    body = decode_request_body(structs.UsbDeviceRequest) if request.data else structs.UsbDeviceRequest()
+    payload = {"device": body.device} if body.device is not None else {}
 
     return create_task_response(
         multicast_post_to_unit(
             pioreactor_unit,
             "/unit_api/usb/mount",
-            json=request.get_json(silent=True) or {},
+            json=payload,
         )
     )
 
@@ -2460,12 +2422,14 @@ def mount_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
 @api_bp.route("/units/<pioreactor_unit>/usb/eject", methods=["POST"])
 def eject_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     abort_if_usb_target_is_broadcast(pioreactor_unit)
+    body = decode_request_body(structs.UsbDeviceRequest) if request.data else structs.UsbDeviceRequest()
+    payload = {"device": body.device} if body.device is not None else {}
 
     return create_task_response(
         multicast_post_to_unit(
             pioreactor_unit,
             "/unit_api/usb/eject",
-            json=request.get_json(silent=True) or {},
+            json=payload,
         )
     )
 
@@ -2507,13 +2471,16 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
     cache.invalidate_plugins_installed_cache(pioreactor_unit)
     cache.invalidate_calibration_protocols_cache(pioreactor_unit)
 
+    body = decode_request_body(structs.ArgsOptionsEnvs)
+    payload = to_builtins(body)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(
-            fanout.broadcast_post_across_cluster("/unit_api/plugins/install", request.get_json())
+            fanout.broadcast_post_across_cluster("/unit_api/plugins/install", payload)
         )
     else:
         return create_task_response(
-            multicast_post_to_unit(pioreactor_unit, "/unit_api/plugins/install", json=request.get_json())
+            multicast_post_to_unit(pioreactor_unit, "/unit_api/plugins/install", json=payload)
         )
 
 
@@ -2530,15 +2497,7 @@ def install_plugin_from_leader_usb_on_machine(pioreactor_unit: str) -> DelayedRe
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "Not UI installed allowed.")
 
-    body = request.get_json(silent=True) or {}
-    filepath = body.get("filepath")
-    if not isinstance(filepath, str) or not filepath:
-        abort_with(
-            400,
-            "filepath is required",
-            cause="No leader USB plugin filepath provided.",
-            remediation="Provide filepath for a .whl file on the leader's Pioreactor-managed USB mount.",
-        )
+    filepath = decode_request_body(structs.InstallPluginFromUsbRequest).filepath
 
     units = (
         get_all_units()
@@ -2572,13 +2531,16 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
     cache.invalidate_plugins_installed_cache(pioreactor_unit)
     cache.invalidate_calibration_protocols_cache(pioreactor_unit)
 
+    body = decode_request_body(structs.ArgsOptionsEnvs)
+    payload = to_builtins(body)
+
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(
-            fanout.broadcast_post_across_cluster("/unit_api/plugins/uninstall", request.get_json())
+            fanout.broadcast_post_across_cluster("/unit_api/plugins/uninstall", payload)
         )
     else:
         return create_task_response(
-            multicast_post_to_unit(pioreactor_unit, "/unit_api/plugins/uninstall", json=request.get_json())
+            multicast_post_to_unit(pioreactor_unit, "/unit_api/plugins/uninstall", json=payload)
         )
 
 
@@ -2920,9 +2882,8 @@ def update_app() -> DelayedResponseReturnValue:
       "units": "$broadcast"
     }
     """
-    body = request.get_json(silent=True) or {}
-    units = body.get("units", "$broadcast")
-    task = tasks.update_app_across_cluster(units=units)
+    body = decode_request_body(structs.UpdateAppRequest) if request.data else structs.UpdateAppRequest()
+    task = tasks.update_app_across_cluster(units=body.units)
     return create_task_response(task)
 
 
@@ -2937,32 +2898,22 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
       "units": "$broadcast"
     }
     """
-    body = request.get_json(silent=True) or {}
-    if not isinstance(body, dict):
-        abort_with(
-            400,
-            "Invalid request body",
-            cause="Request body must be a JSON object.",
-            remediation="Send JSON with release_archive_location and units fields.",
-        )
-
-    release_archive_location = body.get("release_archive_location")
-    if not isinstance(release_archive_location, str) or not release_archive_location:
+    body = decode_request_body(structs.UpdateAppFromReleaseArchiveRequest)
+    if not body.release_archive_location:
         abort_with(
             400,
             "Missing release_archive_location",
             cause="Request JSON missing release_archive_location.",
             remediation="Provide the staged release archive path.",
         )
-    if not release_archive_location.endswith(".zip"):
+    if not body.release_archive_location.endswith(".zip"):
         abort_with(
             400,
             "release_archive_location must point to a .zip file",
             cause="Release archive path does not end in .zip.",
             remediation="Upload or choose a .zip release archive.",
         )
-    units = body.get("units")
-    if not isinstance(units, str) or not units:
+    if not body.units:
         abort_with(
             400,
             "Missing units",
@@ -2971,7 +2922,7 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
         )
 
     try:
-        release_manifest = verify_release_archive(release_archive_location)
+        release_manifest = verify_release_archive(body.release_archive_location)
     except ReleaseArchiveVerificationError as exc:
         abort_with(
             400,
@@ -2984,9 +2935,12 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
         Path(tempfile.gettempdir())
         / f"{STAGED_RELEASE_ARCHIVE_PREFIX}{uuid.uuid4().hex}_release_{release_manifest.version}.zip"
     )
-    shutil.copy2(release_archive_location, staged_release_archive_location)
+    shutil.copy2(body.release_archive_location, staged_release_archive_location)
 
-    task = tasks.update_app_from_release_archive_across_cluster(staged_release_archive_location, units=units)
+    task = tasks.update_app_from_release_archive_across_cluster(
+        staged_release_archive_location,
+        units=body.units,
+    )
     return create_task_response(task)
 
 
@@ -3149,9 +3103,9 @@ def create_experiment() -> ResponseReturnValue:
       "tags": ["optional-tag"]
     }
     """
-    body = request.get_json()
-    proposed_experiment_name = _validate_experiment_name(body.get("experiment"))
-    tags = _normalize_experiment_tags(body.get("tags")) if "tags" in body else []
+    body = decode_request_body(structs.CreateExperimentRequest)
+    proposed_experiment_name = _validate_experiment_name(body.experiment)
+    tags = _normalize_experiment_tags(body.tags)
 
     try:
         row_count = modify_app_db(
@@ -3159,9 +3113,9 @@ def create_experiment() -> ResponseReturnValue:
             (
                 current_utc_timestamp(),
                 proposed_experiment_name,
-                body.get("description"),
-                body.get("mediaUsed"),
-                body.get("organismUsed"),
+                body.description,
+                body.mediaUsed,
+                body.organismUsed,
             ),
         )
 
@@ -3175,7 +3129,7 @@ def create_experiment() -> ResponseReturnValue:
             )
 
         publish_to_experiment_log(
-            f"New experiment created: {body['experiment']}",
+            f"New experiment created: {body.experiment}",
             proposed_experiment_name,
             "create_experiment",
             level="INFO",
@@ -3280,10 +3234,9 @@ def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
 
     """
 
-    body = request.get_json()
-
-    unit = body["unit"]
-    label = body["label"]
+    body = decode_request_body(structs.UpsertUnitLabelRequest)
+    unit = body.unit
+    label = body.label
 
     try:
         if (
@@ -3336,25 +3289,23 @@ def get_historical_media_used() -> ResponseReturnValue:
 
 @api_bp.route("/experiments/<experiment>", methods=["PATCH"])
 def update_experiment(experiment: str) -> ResponseReturnValue:
-    body = request.get_json()
-    if not isinstance(body, dict):
-        abort_with(400, "Invalid request body")
+    body = decode_request_body(structs.UpdateExperimentRequest)
 
-    if ("description" not in body) and ("tags" not in body):
+    if (body.description is UNSET) and (body.tags is UNSET):
         abort_with(400, "Missing description or tags")
 
     existing_experiment = _get_experiment_metadata(experiment)
     if existing_experiment is None:
         abort_with(404, f"Experiment {experiment} not found")
 
-    if "description" in body:
+    if body.description is not UNSET:
         modify_app_db(
             "UPDATE experiments SET description = (?) WHERE experiment=(?)",
-            (body["description"], experiment),
+            (body.description, experiment),
         )
 
-    if "tags" in body:
-        tags = _normalize_experiment_tags(body["tags"])
+    if body.tags is not UNSET:
+        tags = _normalize_experiment_tags(body.tags)
         modify_app_db("DELETE FROM experiment_tags WHERE experiment = ?", (experiment,))
         for tag in tags:
             modify_app_db(
@@ -3556,8 +3507,8 @@ def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> Response
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    body = request.get_json()
-    code = _normalize_ini_text(body["code"])
+    body = decode_request_body(structs.CodePatch)
+    code = _normalize_ini_text(body.code)
 
     response: MureqResponse | None = None
     try:
@@ -3931,11 +3882,11 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
       "model": "pioreactor_40ml"
     }
     """
-    data = request.get_json()
-    new_name = data["name"]
-    version = data["version"]
-    model = data["model"]
-    ipv4_address = (data.get("ipv4_address") or "").strip()
+    data = decode_request_body(structs.SetupWorkerRequest)
+    new_name = data.name
+    version = data.version
+    model = data.model
+    ipv4_address = (data.ipv4_address or "").strip()
 
     if not isinstance(new_name, str) or not pioreactor_unit_name_can_be_persisted(new_name):
         abort_with(
@@ -3971,18 +3922,10 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
 
 @api_bp.route("/workers", methods=["PUT"])
 def add_worker() -> ResponseReturnValue:
-    data = request.get_json()
-    pioreactor_unit = data.get("pioreactor_unit")
-    model_name = data.get("model_name")  # optional
-    model_version = data.get("model_version")  # optional
-
-    if not pioreactor_unit:
-        abort_with(
-            400,
-            "Missing unit name",
-            cause="Request JSON missing 'pioreactor_unit'.",
-            remediation="Provide a pioreactor_unit in the JSON payload.",
-        )
+    data = decode_request_body(structs.AddWorkerRequest)
+    pioreactor_unit = data.pioreactor_unit
+    model_name = data.model_name
+    model_version = data.model_version
 
     if not isinstance(pioreactor_unit, str) or not pioreactor_unit_name_can_be_persisted(pioreactor_unit):
         abort_with(
@@ -4052,8 +3995,8 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
     registered_worker_or_abort(pioreactor_unit)
 
     # Get the new status from the request body
-    data = request.get_json()
-    new_status = data.get("is_active")
+    data = decode_request_body(structs.ChangeWorkerStatusRequest)
+    new_status = data.is_active
 
     if new_status not in [0, 1]:
         abort_with(
@@ -4092,16 +4035,8 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     registered_worker_or_abort(pioreactor_unit)
 
     # Get the new status from the request body
-    data = request.get_json()
-    model_version, model_name = data.get("model_version"), data.get("model_name")
-
-    if not model_version or not model_name:
-        abort_with(
-            400,
-            "Missing model_version or model_name",
-            cause="Request JSON missing model_version or model_name.",
-            remediation="Provide both model_name and model_version in the JSON payload.",
-        )
+    data = decode_request_body(structs.ChangeWorkerModelRequest)
+    model_version, model_name = data.model_version, data.model_name
 
     if (model_name, model_version) not in get_registered_models():
         abort_with(
@@ -4346,15 +4281,8 @@ def get_list_of_historical_workers_for_experiment(experiment: str) -> ResponseRe
 @api_bp.route("/experiments/<experiment>/workers", methods=["PUT"])
 def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
     # assign
-    data = request.get_json()
-    pioreactor_unit = data.get("pioreactor_unit")
-    if not pioreactor_unit:
-        abort_with(
-            400,
-            "Missing pioreactor_unit",
-            cause="Request JSON missing 'pioreactor_unit'.",
-            remediation="Provide a pioreactor_unit in the JSON payload.",
-        )
+    data = decode_request_body(structs.AddWorkerToExperimentRequest)
+    pioreactor_unit = data.pioreactor_unit
 
     registered_worker_or_abort(pioreactor_unit)
 

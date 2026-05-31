@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable
+from functools import cache
 from pathlib import Path
 from typing import Any
 from typing import NamedTuple
@@ -18,6 +19,7 @@ from typing import NamedTuple
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "scratch" / "generated_api_docs"
 DEFAULT_BASE_URL = "http://127.0.0.1:4999"
+STRUCTS_SOURCE = REPO_ROOT / "core/pioreactor/structs.py"
 HTTP_STATUS_TEXT = {
     200: "OK",
     201: "Created",
@@ -79,10 +81,13 @@ JSON_BODY_EXAMPLES: dict[str, dict[str, Any]] = {
     },
     "CodePatch": {"code": "[section]\nkey=value\n"},
 }
+COMPATIBILITY_ONLY_BODY_KEYS = {
+    "CreateExperimentRequest": {"created_at", "delta_hours", "worker_count"},
+}
 KNOWN_BODY_KEY_EXAMPLES = {
     "args": ["some-flag"],
     "body": "Profile YAML or text content.",
-    "calibration_data": {"calibration_name": "example_calibration"},
+    "calibration_data": "calibration_type: simple_peristaltic_pump\ncalibration_name: example_calibration\n",
     "code": "[section]\nkey=value\n",
     "config_overrides": [["stirring.config", "pwm_hz", "100"]],
     "datasets": ["od_readings"],
@@ -101,6 +106,7 @@ KNOWN_BODY_KEY_EXAMPLES = {
     "model_version": "1.5",
     "name": "testing_experiment",
     "new_name": "pio02",
+    "organismUsed": "E. coli",
     "options": {"target_rpm": "200"},
     "partition_by_experiment": True,
     "partition_by_unit": True,
@@ -114,7 +120,7 @@ KNOWN_BODY_KEY_EXAMPLES = {
     "tags": ["screening"],
     "task": "stirring",
     "timestamp": "2026-01-01T00:00:00Z",
-    "units": ["pio01"],
+    "units": "pio01",
     "utc_clock_time": "2026-01-01T00:00:00Z",
     "values": {"current_volume_ml": 12.5},
 }
@@ -131,6 +137,7 @@ class RouteInfo(NamedTuple):
     required_query_keys: tuple[str, ...]
     optional_query_keys: tuple[str, ...]
     body_type_names: tuple[str, ...]
+    body_key_types: tuple[tuple[str, str], ...]
     response_examples: tuple[dict[str, Any], ...]
 
 
@@ -240,6 +247,7 @@ def parse_routes(source_path: Path, blueprint_name: str, url_prefix: str) -> lis
                         required_query_keys=tuple(sorted(query_summary["required"])),
                         optional_query_keys=tuple(sorted(query_summary["optional"])),
                         body_type_names=tuple(sorted(body_summary["body_type_names"])),
+                        body_key_types=tuple(sorted(body_summary["body_key_types"].items())),
                         response_examples=tuple(response_examples),
                     )
                 )
@@ -275,12 +283,13 @@ def literal_string_list(node: ast.AST) -> list[str]:
     return []
 
 
-def inspect_request_body(node: ast.FunctionDef) -> dict[str, set[str]]:
+def inspect_request_body(node: ast.FunctionDef) -> dict[str, Any]:
     aliases = {"request"}
     json_aliases: set[str] = set()
     required: set[str] = set()
     optional: set[str] = set()
     body_type_names: set[str] = set()
+    body_key_types: dict[str, str] = {}
     variable_to_json_key: dict[str, str] = {}
 
     for child in ast.walk(node):
@@ -301,12 +310,24 @@ def inspect_request_body(node: ast.FunctionDef) -> dict[str, set[str]]:
             body_type_name = extract_msgspec_type_name(child.value)
             if body_type_name:
                 body_type_names.add(body_type_name)
+        elif (
+            isinstance(child, ast.Assign)
+            and isinstance(child.value, ast.Call)
+            and is_decode_request_body_call(child.value)
+        ):
+            body_type_name = extract_decode_request_body_type_name(child.value)
+            if body_type_name:
+                body_type_names.add(body_type_name)
         elif isinstance(child, ast.Assign):
             for target_name, assigned_key in extract_assigned_json_get_keys(child, aliases):
                 variable_to_json_key[target_name] = assigned_key
                 optional.add(assigned_key)
         elif isinstance(child, ast.Call) and is_current_app_json_loads_request_data(child):
             body_type_name = extract_msgspec_type_name(child)
+            if body_type_name:
+                body_type_names.add(body_type_name)
+        elif isinstance(child, ast.Call) and is_decode_request_body_call(child):
+            body_type_name = extract_decode_request_body_type_name(child)
             if body_type_name:
                 body_type_names.add(body_type_name)
 
@@ -331,8 +352,14 @@ def inspect_request_body(node: ast.FunctionDef) -> dict[str, set[str]]:
     for body_type_name in body_type_names:
         required.update(required_keys_for_body_type(body_type_name))
         optional.update(optional_keys_for_body_type(body_type_name))
+        body_key_types.update(key_types_for_body_type(body_type_name))
     optional -= required
-    return {"required": required, "optional": optional, "body_type_names": body_type_names}
+    return {
+        "required": required,
+        "optional": optional,
+        "body_type_names": body_type_names,
+        "body_key_types": body_key_types,
+    }
 
 
 def extract_assigned_json_get_keys(node: ast.Assign, aliases: set[str]) -> list[tuple[str, str]]:
@@ -463,6 +490,14 @@ def extract_msgspec_type_name(node: ast.Call) -> str | None:
     return None
 
 
+def is_decode_request_body_call(node: ast.Call) -> bool:
+    return function_name(node.func) == "decode_request_body" and bool(node.args)
+
+
+def extract_decode_request_body_type_name(node: ast.Call) -> str | None:
+    return dotted_name(node.args[0]) if node.args else None
+
+
 def dotted_name(node: ast.AST) -> str | None:
     if isinstance(node, ast.Name):
         return node.id
@@ -491,17 +526,92 @@ def is_json_alias(node: ast.AST, aliases: set[str]) -> bool:
 
 
 def required_keys_for_body_type(body_type_name: str) -> set[str]:
-    if body_type_name.endswith("CodePatch"):
-        return {"code"}
-    return set()
+    required, _ = struct_keys_for_body_type(body_type_name)
+    return required
 
 
 def optional_keys_for_body_type(body_type_name: str) -> set[str]:
-    if body_type_name.endswith("ArgsOptionsEnvsConfigOverrides"):
-        return {"options", "env", "args", "config_overrides"}
-    if body_type_name.endswith("ArgsOptionsEnvs"):
-        return {"options", "env", "args"}
-    return set()
+    _, optional = struct_keys_for_body_type(body_type_name)
+    return optional
+
+
+def key_types_for_body_type(body_type_name: str) -> dict[str, str]:
+    return struct_key_types_for_body_type(body_type_name)
+
+
+@cache
+def struct_keys_for_body_type(body_type_name: str) -> tuple[set[str], set[str]]:
+    module = ast.parse(STRUCTS_SOURCE.read_text(encoding="utf-8"))
+    classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
+    required, optional, _ = struct_fields_for_class(body_type_name.rsplit(".", maxsplit=1)[-1], classes)
+    return required, optional
+
+
+@cache
+def struct_key_types_for_body_type(body_type_name: str) -> dict[str, str]:
+    module = ast.parse(STRUCTS_SOURCE.read_text(encoding="utf-8"))
+    classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
+    _, _, key_types = struct_fields_for_class(body_type_name.rsplit(".", maxsplit=1)[-1], classes)
+    return key_types
+
+
+def struct_fields_for_class(
+    class_name: str,
+    classes: dict[str, ast.ClassDef],
+) -> tuple[set[str], set[str], dict[str, str]]:
+    class_node = classes.get(class_name)
+    if class_node is None:
+        return set(), set(), {}
+
+    required: set[str] = set()
+    optional: set[str] = set()
+    key_types: dict[str, str] = {}
+    for base in class_node.bases:
+        base_name = dotted_name(base)
+        if base_name:
+            base_required, base_optional, base_key_types = struct_fields_for_class(
+                base_name.rsplit(".", maxsplit=1)[-1],
+                classes,
+            )
+            required.update(base_required)
+            optional.update(base_optional)
+            key_types.update(base_key_types)
+
+    for child in class_node.body:
+        if not isinstance(child, ast.AnnAssign) or not isinstance(child.target, ast.Name):
+            continue
+        key_types[child.target.id] = json_type_name_from_annotation(child.annotation)
+        if child.value is None:
+            required.add(child.target.id)
+            optional.discard(child.target.id)
+        else:
+            optional.add(child.target.id)
+            required.discard(child.target.id)
+
+    return required, optional, key_types
+
+
+def json_type_name_from_annotation(node: ast.AST) -> str:
+    if isinstance(node, ast.Name):
+        return {
+            "bool": "boolean",
+            "float": "number",
+            "int": "integer",
+            "str": "string",
+        }.get(node.id, "object")
+    if isinstance(node, ast.Subscript):
+        container_name = dotted_name(node.value)
+        if container_name in {"dict", "t.Dict"}:
+            return "object"
+        if container_name in {"list", "t.List"}:
+            return "array"
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        left_type = json_type_name_from_annotation(node.left)
+        right_type = json_type_name_from_annotation(node.right)
+        return right_type if left_type == "null" else left_type
+    if isinstance(node, ast.Constant) and node.value is None:
+        return "null"
+    return "object"
 
 
 def infer_response_examples(node: ast.FunctionDef) -> list[dict[str, Any]]:
@@ -527,8 +637,10 @@ def examples_from_return(node: ast.AST | None) -> list[dict[str, Any]]:
             {
                 "status": 202,
                 "body": {
+                    "unit": "pio01",
                     "task_id": "abcd1234",
                     "result_url_path": "/unit_api/task_results/abcd1234",
+                    "status": "accepted",
                 },
             }
         ]
@@ -827,20 +939,23 @@ def render_request(route: RouteInfo) -> list[str]:
 
     body_example = request_body_example(route)
     if body_example is not None:
+        body_key_types = dict(route.body_key_types)
+        required_body_keys = documented_body_keys(route, route.required_body_keys)
+        optional_body_keys = documented_body_keys(route, route.optional_body_keys)
         if lines:
             lines.append("")
         lines.extend(["#### Request Body"])
-        if route.required_body_keys or route.optional_body_keys:
+        if required_body_keys or optional_body_keys:
             lines.extend(
                 ["", "| Name | Type | Required | Description |", "| ---- | ---- | -------- | ----------- |"]
             )
-            for key in route.required_body_keys:
+            for key in required_body_keys:
                 lines.append(
-                    f"| {key} | {json_type_name(body_example.get(key))} | Yes | {humanize_identifier(key)}. |"
+                    f"| {key} | {body_key_types.get(key, json_type_name(body_example.get(key)))} | Yes | {humanize_identifier(key)}. |"
                 )
-            for key in route.optional_body_keys:
+            for key in optional_body_keys:
                 lines.append(
-                    f"| {key} | {json_type_name(body_example.get(key))} | No | {humanize_identifier(key)}. |"
+                    f"| {key} | {body_key_types.get(key, json_type_name(body_example.get(key)))} | No | {humanize_identifier(key)}. |"
                 )
             lines.append("")
         lines.extend(["```json", json_dumps(body_example), "```"])
@@ -856,14 +971,39 @@ def request_body_example(route: RouteInfo) -> dict[str, Any] | None:
         if short_name in JSON_BODY_EXAMPLES:
             return JSON_BODY_EXAMPLES[short_name]
 
-    keys = list(route.required_body_keys) + list(route.optional_body_keys)
+    keys = list(documented_body_keys(route, route.required_body_keys)) + list(
+        documented_body_keys(route, route.optional_body_keys)
+    )
     if not keys:
         docstring_example = json_example_from_docstring(route.docstring)
         return docstring_example if isinstance(docstring_example, dict) else None
-    return {key: KNOWN_BODY_KEY_EXAMPLES.get(key, example_value_for_unknown_key(key)) for key in keys}
+    body_key_types = dict(route.body_key_types)
+    return {
+        key: KNOWN_BODY_KEY_EXAMPLES.get(key, example_value_for_unknown_key(key, body_key_types.get(key)))
+        for key in keys
+    }
 
 
-def example_value_for_unknown_key(key: str) -> Any:
+def documented_body_keys(route: RouteInfo, keys: tuple[str, ...]) -> tuple[str, ...]:
+    compatibility_only = set()
+    for body_type_name in route.body_type_names:
+        compatibility_only.update(
+            COMPATIBILITY_ONLY_BODY_KEYS.get(body_type_name.rsplit(".", maxsplit=1)[-1], set())
+        )
+    return tuple(key for key in keys if key not in compatibility_only)
+
+
+def example_value_for_unknown_key(key: str, json_type: str | None = None) -> Any:
+    if json_type == "boolean":
+        return True
+    if json_type == "integer":
+        return 1
+    if json_type == "number":
+        return 1.0
+    if json_type == "array":
+        return []
+    if json_type == "object":
+        return {}
     if key.endswith("_at") or key.endswith("_time"):
         return "2026-01-01T00:00:00Z"
     if key.startswith("is_") or key.startswith("has_") or key.startswith("should_"):

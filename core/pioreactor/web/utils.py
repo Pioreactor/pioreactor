@@ -8,7 +8,9 @@ from typing import NewType
 from typing import NoReturn
 
 from flask import abort
+from flask import current_app
 from flask import jsonify
+from flask import request
 from flask import Response
 from flask.typing import ResponseReturnValue
 from huey.exceptions import HueyException
@@ -17,6 +19,7 @@ from msgspec import DecodeError
 from msgspec import Struct
 from msgspec import to_builtins
 from msgspec import ValidationError
+from msgspec.structs import fields as struct_fields
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.bioreactor import get_bioreactor_variable_definitions
@@ -24,6 +27,9 @@ from pioreactor.bioreactor import get_default_bioreactor_value
 from pioreactor.experiment_profiles.validate import Diagnostic
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
+
+
+RequestBody = t.TypeVar("RequestBody", bound=Struct)
 
 
 class UnitApiErrorPayload(Struct, forbid_unknown_fields=True, omit_defaults=True):
@@ -57,6 +63,24 @@ def abort_with_payload(payload: UnitApiErrorPayload) -> NoReturn:
     response.status_code = payload.status
     abort(response)
     raise AssertionError("abort should not return")
+
+
+def decode_request_body(payload_type: type[RequestBody]) -> RequestBody:
+    try:
+        return current_app.json.loads(request.data, type=payload_type)
+    except (DecodeError, ValidationError) as exc:
+        required_fields = ", ".join(field.name for field in struct_fields(payload_type) if field.required)
+        remediation = (
+            f"Send a JSON object with the required fields: {required_fields}."
+            if required_fields
+            else "Send a valid JSON object."
+        )
+        abort_with(
+            400,
+            "Invalid request body.",
+            cause=str(exc),
+            remediation=remediation,
+        )
 
 
 def ensure_error_info(payload: dict[str, t.Any], status: int) -> UnitApiErrorPayload:

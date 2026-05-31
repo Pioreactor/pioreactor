@@ -640,9 +640,11 @@ def test_create_experiment(client) -> None:
             "experiment": "exp4",
             "created_at": "2023-10-04T12:00:00Z",
             "description": "Fourth experiment",
-            "media_used": "Special media",
-            "organism_used": "Algae",
+            "mediaUsed": "Special media",
+            "organismUsed": "Algae",
             "tags": ["seed", "project-x", "seed"],
+            "delta_hours": 0,
+            "worker_count": 0,
         },
     )
     assert response.status_code == 201  # Created
@@ -665,7 +667,6 @@ def test_create_duplicate_experiment(client) -> None:
         "/api/experiments",
         json={
             "experiment": "exp1",
-            "created_at": "2023-10-05T12:00:00Z",
             "description": "Duplicate experiment",
         },
     )
@@ -793,13 +794,29 @@ def test_update_experiment_with_invalid_tags_payload(client) -> None:
     assert response.status_code == 400
 
 
+def test_update_experiment_can_clear_description(client) -> None:
+    response = client.patch(
+        "/api/experiments/exp1",
+        json={"description": None},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["description"] is None
+
+
+def test_update_experiment_requires_a_supported_field(client) -> None:
+    response = client.patch("/api/experiments/exp1", json={})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Missing description or tags"
+
+
 def test_create_experiment_missing_fields(client) -> None:
     # Try to create an experiment without required fields
     response = client.post(
         "/api/experiments",
         json={
             # Missing 'experiment' name
-            "created_at": "2023-10-06T12:00:00Z",
             "description": "No name experiment",
         },
     )
@@ -812,7 +829,7 @@ def test_create_experiment_missing_fields(client) -> None:
         ("current", "Experiment name cannot be 'current'"),
         ("_testing_exp", "Experiment name cannot start with '_testing'"),
         ("bad/name", "Experiment name cannot contain special characters (#, $, %, +, /, \\)"),
-        (["exp4"], "Experiment name is required"),
+        (["exp4"], "Invalid request body."),
     ],
 )
 def test_create_experiment_rejects_invalid_names(
@@ -1084,6 +1101,22 @@ def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
         ("patch", "/api/config/shared", {}),
         ("post", "/api/datasets/exportable/export", {}),
         ("post", "/api/datasets/exportable/export-to-usb", {}),
+        ("patch", "/api/workers/unit1/jobs/update/job_name/stirring/experiments/exp1", {}),
+        ("patch", "/api/workers/unit1/bioreactor/update/experiments/exp1", {}),
+        ("post", "/api/system/utc_clock", {}),
+        ("post", "/api/workers/unit1/experiments/exp1/logs", {}),
+        ("post", "/api/workers/unit1/calibrations/media_pump", {}),
+        ("post", "/api/units/unit1/plugins/install-from-leader-usb", {}),
+        ("post", "/api/system/update_from_archive", {}),
+        ("post", "/api/workers/unit1/calibrations/sessions", {}),
+        ("patch", "/api/config/units/unit1/specific", {}),
+        ("post", "/api/experiments", {}),
+        ("put", "/api/experiments/exp1/unit_labels", {}),
+        ("post", "/api/workers/setup", {}),
+        ("put", "/api/workers", {}),
+        ("put", "/api/workers/unit1/is_active", {}),
+        ("put", "/api/workers/unit1/model", {}),
+        ("put", "/api/experiments/exp1/workers", {}),
     ],
 )
 def test_mutation_routes_reject_missing_required_json_fields(
@@ -1654,7 +1687,7 @@ def test_update_app_from_release_archive_requires_json_object(client: FlaskClien
     )
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Invalid request body"
+    assert response.get_json()["error"] == "Invalid request body."
 
 
 def test_update_app_from_release_archive_requires_zip_suffix(
@@ -1712,7 +1745,7 @@ def test_update_app_from_release_archive_requires_units(client: FlaskClient) -> 
     )
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Missing units"
+    assert response.get_json()["error"] == "Invalid request body."
 
 
 def test_update_app_from_release_archive_verifies_archive_before_queuing(

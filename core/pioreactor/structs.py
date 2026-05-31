@@ -9,6 +9,8 @@ from pathlib import Path
 
 from msgspec import Meta
 from msgspec import Struct
+from msgspec import UNSET
+from msgspec import UnsetType
 from msgspec.json import encode
 from msgspec.yaml import encode as yaml_encode
 from pioreactor import exc
@@ -660,6 +662,27 @@ class ExportDatasetsRequest(Struct, forbid_unknown_fields=True):
     end_time: str | None = None
 
 
+class CreateExperimentRequest(Struct, forbid_unknown_fields=True):
+    experiment: str
+    description: str | None = None
+    mediaUsed: str | None = None
+    organismUsed: str | None = None
+    tags: list[str] = []
+    created_at: str | None = None
+    delta_hours: int | float | None = None
+    worker_count: int | None = None
+
+
+class UpdateExperimentRequest(Struct, forbid_unknown_fields=True):
+    description: str | None | UnsetType = UNSET
+    tags: list[str] | UnsetType = UNSET
+
+
+class UpsertUnitLabelRequest(Struct, forbid_unknown_fields=True):
+    unit: str
+    label: str
+
+
 class CreateExperimentProfileRequest(Struct, forbid_unknown_fields=True):
     filename: str
     body: str
@@ -671,3 +694,97 @@ class UpdateExperimentProfileRequest(Struct, forbid_unknown_fields=True):
 
 class CodePatch(Struct, forbid_unknown_fields=True):
     code: str
+
+
+class UsbDeviceRequest(Struct, forbid_unknown_fields=True):
+    device: str | None = None
+
+
+class CheckHardwareForModelRequest(Struct, forbid_unknown_fields=True):
+    model_name: str
+    model_version: str
+
+
+class RemoveFileRequest(Struct, forbid_unknown_fields=True):
+    filepath: str
+
+
+class SetClockTimeRequest(Struct, forbid_unknown_fields=True):
+    utc_clock_time: str
+
+
+class StopJobsRequest(Struct, forbid_unknown_fields=True):
+    job_name: str | None = None
+    experiment: str | None = None
+    job_source: str | None = None
+    job_id: int | None = None
+
+
+class UpdateBioreactorValuesRequest(Struct, forbid_unknown_fields=True):
+    values: dict[str, t.Any]
+
+
+class InstallPluginFromUsbRequest(Struct, forbid_unknown_fields=True):
+    filepath: str
+
+
+class CreateCalibrationRequest(Struct, forbid_unknown_fields=True):
+    calibration_data: str
+    set_as_active: bool = False
+
+
+class StartCalibrationSessionRequest(Struct, forbid_unknown_fields=True):
+    target_device: str
+    protocol_name: str
+
+
+class AdvanceCalibrationSessionRequest(Struct, forbid_unknown_fields=True):
+    inputs: dict[str, t.Any] = {}
+
+
+class UpdateJobSettingsRequest(Struct, forbid_unknown_fields=True):
+    settings: dict[str, t.Any]
+
+
+class PublishExperimentLogRequest(Struct, forbid_unknown_fields=True):
+    message: str
+    source: str
+    level: str
+    timestamp: str
+    task: str | None = None
+    source_: str = "ui"
+
+
+class UpdateAppRequest(Struct, forbid_unknown_fields=True):
+    units: str = "$broadcast"
+
+
+class UpdateAppFromReleaseArchiveRequest(Struct, forbid_unknown_fields=True):
+    release_archive_location: str
+    units: str
+
+
+class SetupWorkerRequest(Struct, forbid_unknown_fields=True):
+    name: str
+    version: str
+    model: str
+    ipv4_address: str | None = None
+
+
+class AddWorkerRequest(Struct, forbid_unknown_fields=True):
+    pioreactor_unit: str
+    model_name: str | None = None
+    model_version: str | None = None
+
+
+class ChangeWorkerStatusRequest(Struct, forbid_unknown_fields=True):
+    is_active: int
+
+
+class ChangeWorkerModelRequest(Struct, forbid_unknown_fields=True):
+    model_name: str
+    model_version: str
+
+
+class AddWorkerToExperimentRequest(Struct, forbid_unknown_fields=True):
+    pioreactor_unit: str

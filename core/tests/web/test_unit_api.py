@@ -264,7 +264,28 @@ def test_install_plugin_from_usb_requires_filepath(client) -> None:
     resp = client.post("/unit_api/plugins/install-from-usb", json={})
 
     assert resp.status_code == 400
-    assert resp.get_json()["error"] == "filepath is required"
+    assert resp.get_json()["error"] == "Invalid request body."
+    assert resp.get_json()["remediation"] == "Send a JSON object with the required fields: filepath."
+
+
+@pytest.mark.parametrize(
+    ("method", "endpoint"),
+    [
+        ("post", "/unit_api/usb/mount"),
+        ("post", "/unit_api/hardware/check"),
+        ("post", "/unit_api/system/remove_file"),
+        ("post", "/unit_api/system/utc_clock"),
+        ("post", "/unit_api/jobs/stop"),
+        ("patch", "/unit_api/bioreactor/experiments/exp1"),
+        ("post", "/unit_api/plugins/install-from-usb"),
+        ("post", "/unit_api/calibrations/media_pump"),
+    ],
+)
+def test_typed_mutation_routes_reject_malformed_json(client, method: str, endpoint: str) -> None:
+    resp = client.open(endpoint, method=method, data=b"{", content_type="application/json")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Invalid request body."
 
 
 @pytest.mark.parametrize(
@@ -586,10 +607,11 @@ def test_hardware_check_requires_model_payload(client) -> None:
     resp = client.post("/unit_api/hardware/check", json={})
     assert resp.status_code == 400
     data = resp.get_json()
-    assert data["error"] == "Missing model_name or model_version"
+    assert data["error"] == "Invalid request body."
     assert data.get("status") == 400
-    assert "model_name or model_version" in (data.get("cause") or "")
-    assert isinstance(data.get("remediation"), str)
+    assert data.get("remediation") == (
+        "Send a JSON object with the required fields: model_name, model_version."
+    )
 
 
 def test_hardware_check_queues_task(client, monkeypatch) -> None:
