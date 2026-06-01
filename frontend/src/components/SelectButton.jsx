@@ -8,7 +8,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import Icon from '@mui/material/Icon';
 
 const SelectButton = React.forwardRef((props, _ref) => {
-  const { textPrefix, onChange = () => {}, onClick = () => {}, value: initialValue, children, buttonStyle, disabled, endIcon } = props;
+  const { textPrefix, onChange = () => {}, onClick = () => {}, value: initialValue, children, buttonStyle, disabled, endIcon, loading, loadingPosition } = props;
   const anchorRef = React.useRef(null);
   const [isOpen, setOpen] = React.useState(false);
   const valueRef = React.useRef(initialValue);
@@ -69,6 +69,8 @@ const SelectButton = React.forwardRef((props, _ref) => {
       <Button
         onClick={handleButtonClick}
         endIcon={endIcon}
+        loading={loading}
+        loadingPosition={loadingPosition}
         disabled={disabled}
         sx={{
           ...buttonStyle,

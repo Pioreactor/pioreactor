@@ -439,6 +439,10 @@ function ExportDataContainer() {
   const onSubmit =  async (event) => {
     event.preventDefault();
 
+    if (isRunning) {
+      return;
+    }
+
     if (state.selectedDatasets.length === 0) {
       setErrorMsg("At least one dataset must be selected.");
       return;
@@ -565,6 +569,8 @@ function ExportDataContainer() {
                 onChange={handleExportDestinationChange}
                 onClick={onSubmit}
                 endIcon={<DownloadIcon />}
+                loading={isRunning}
+                loadingPosition="end"
                 disabled={isRunning || (selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
               >
                 <MenuItem value="download">
