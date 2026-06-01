@@ -383,7 +383,8 @@ if am_I_leader() or is_testing_env():
                 contents = ""
         else:
             response = get_from(resolve_to_address(unit), "/unit_api/config/specific", timeout=15)
-            response.raise_for_status()
+            if not response.ok:
+                raise HTTPException(summarize_error_response(response))
             contents = response.content.decode("utf-8")
 
         if not persist:
@@ -509,11 +510,12 @@ if am_I_leader() or is_testing_env():
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/system/remove_file", json={"filepath": filepath}
                 )
-                r.raise_for_status()
+                if not r.ok:
+                    raise HTTPException(summarize_error_response(r))
                 return True
 
             except HTTPException as e:
-                logger.error(f"Unable to remove file on {unit} due to server error: {e}.")
+                logger.error(f"Unable to remove file on {unit} due to server error: {e}")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -611,11 +613,12 @@ if am_I_leader() or is_testing_env():
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/system/update/app", json={"options": options}
                 )
-                r.raise_for_status()
+                if not r.ok:
+                    raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
                 logger.warning(
-                    f"Unable to update on {unit} due to server error: {e}. Attempting SSH method to execute `pio update app {args}`..."
+                    f"Unable to update on {unit} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
                 )
                 try:
                     ssh(resolve_to_address(unit), f"pio update app {args}")
@@ -697,10 +700,11 @@ if am_I_leader() or is_testing_env():
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
                 )
-                r.raise_for_status()
+                if not r.ok:
+                    raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                logger.error(f"Unable to install plugin on {unit} due to server error: {e}.")
+                logger.error(f"Unable to install plugin on {unit} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -749,11 +753,12 @@ if am_I_leader() or is_testing_env():
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
                 )
-                r.raise_for_status()
+                if not r.ok:
+                    raise HTTPException(summarize_error_response(r))
                 return True, r.json()
 
             except HTTPException as e:
-                logger.error(f"Unable to uninstall plugin on {unit} due to server error: {e}.")
+                logger.error(f"Unable to uninstall plugin on {unit} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -969,10 +974,11 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 r = post_into(resolve_to_address(unit), f"/unit_api/jobs/run/job_name/{job}", json=data)
-                r.raise_for_status()
+                if not r.ok:
+                    raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                click.echo(f"Unable to execute run command on {unit} due to server error: {e}.")
+                click.echo(f"Unable to execute run command on {unit} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:

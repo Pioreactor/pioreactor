@@ -44,7 +44,7 @@ from pioreactor import whoami
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
-from pioreactor.http_response import UnitApiErrorPayload
+from pioreactor.http_response import decode_unit_api_error_payload
 from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
@@ -285,16 +285,6 @@ def fanout_result_failed(value: Any) -> bool:
     return isinstance(value, dict) and value.get("ok") is False and "error" in value
 
 
-def _decode_unit_api_error_payload(response: Response | None) -> UnitApiErrorPayload | None:
-    if response is None or not response.body:
-        return None
-
-    try:
-        return json_decode(response.body, type=UnitApiErrorPayload)
-    except DecodeError:
-        return None
-
-
 def _fanout_failure_from_response(
     unit: str,
     response: Response | None,
@@ -303,7 +293,7 @@ def _fanout_failure_from_response(
     fallback_message: str,
     retryable: bool,
 ) -> FanoutResult:
-    payload = _decode_unit_api_error_payload(response)
+    payload = decode_unit_api_error_payload(response)
     status_code = response.status_code if response is not None else None
 
     if payload is None:
@@ -1622,7 +1612,7 @@ def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[s
 
 
 def _summarize_unit_api_error(response: Response | None) -> str:
-    payload = _decode_unit_api_error_payload(response)
+    payload = decode_unit_api_error_payload(response)
     if payload is None:
         return ""
 

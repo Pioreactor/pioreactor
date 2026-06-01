@@ -22,6 +22,7 @@ from pioreactor.experiment_profiles.validate import (
     time_to_seconds as validate_time_to_seconds,
 )
 from pioreactor.experiment_profiles.validate import validate_profile
+from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
@@ -191,7 +192,8 @@ def _wait_for_unit_task_result(
 
     for _ in range(max_attempts):
         response = get_from(address, result_url_path, timeout=timeout)
-        response.raise_for_status()
+        if not response.ok:
+            raise HTTPException(summarize_error_response(response))
 
         payload = response.json()
         if payload.get("status") in {"pending", "running"}:
@@ -704,12 +706,11 @@ def log(
         }
         response = post_into_leader(f"/api/workers/{unit}/experiments/{experiment}/logs", json=body)
         if not response.ok:
-            payload = response.json()
-            raise HTTPException(
-                " ".join(filter(None, (payload["error"], payload.get("cause"), payload.get("remediation"))))
-            )
+            raise HTTPException(summarize_error_response(response))
 
-        getattr(logger, "debug")(f"{action_count}. {evaluate_log_message(options.message, env)}")
+        getattr(logger, "debug")(
+            f"{action_count}. Logging message `{evaluate_log_message(options.message, env)}`"
+        )
 
     return wrap_in_try_except(_callable, logger)
 
@@ -763,12 +764,15 @@ def start_job(
                         ],
                     },
                 )
-                response.raise_for_status()
-                task_result = _wait_for_unit_task_result(unit, response)
-                if task_result is not None and not task_result["ok"]:
-                    logger.error(f"Failed to start `{job_name}` on {unit}. {task_result.get('error')}")
             except HTTPException:
                 raise HTTPException(f"Unable to post to {unit}. Is it online?")
+
+            if not response.ok:
+                raise HTTPException(summarize_error_response(response))
+
+            task_result = _wait_for_unit_task_result(unit, response)
+            if task_result is not None and not task_result["ok"]:
+                logger.error(f"Failed to start `{job_name}` on {unit}. {task_result.get('error')}")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -802,10 +806,12 @@ def pause_job(
         else:
             logger.debug(f"{action_count}. Pausing {job_name} on {unit}.")
             if check_if_job_running(unit, job_name):
-                patch_into_leader(
+                response = patch_into_leader(
                     f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                     json={"settings": {"$state": "sleeping"}},
-                ).raise_for_status()
+                )
+                if not response.ok:
+                    raise HTTPException(summarize_error_response(response))
             else:
                 logger.debug(f"Job {job_name} not running on {unit}.")
 
@@ -841,10 +847,12 @@ def resume_job(
         else:
             logger.debug(f"{action_count}. Resuming {job_name} on {unit}.")
             if check_if_job_running(unit, job_name):
-                patch_into_leader(
+                response = patch_into_leader(
                     f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                     json={"settings": {"$state": "ready"}},
-                ).raise_for_status()
+                )
+                if not response.ok:
+                    raise HTTPException(summarize_error_response(response))
             else:
                 logger.debug(f"Job {job_name} not running on {unit}.")
 
@@ -879,9 +887,11 @@ def stop_job(
             logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
         else:
             logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
-            patch_into_leader(
+            response = patch_into_leader(
                 f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
-            ).raise_for_status()
+            )
+            if not response.ok:
+                raise HTTPException(summarize_error_response(response))
 
     return wrap_in_try_except(_callable, logger)
 
@@ -920,10 +930,12 @@ def update_job(
             for setting, value in evaluate_options(options, env).items():
                 logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
                 if check_if_job_running(unit, job_name):
-                    patch_into_leader(
+                    response = patch_into_leader(
                         f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                         json={"settings": {setting: value}},
-                    ).raise_for_status()
+                    )
+                    if not response.ok:
+                        raise HTTPException(summarize_error_response(response))
                 else:
                     logger.debug(f"Job {job_name} not running on {unit}.")
 
@@ -964,10 +976,12 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
 def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str]) -> None:
     try:
         for unit_name, label in labels_map.items():
-            patch_into_leader(
+            response = patch_into_leader(
                 f"/api/experiments/{experiment}/unit_labels",
                 json={"unit": unit_name, "label": label},
-            ).raise_for_status()
+            )
+            if not response.ok:
+                raise HTTPException(summarize_error_response(response))
     except Exception:
         pass
 

@@ -235,6 +235,48 @@ def test_execute_experiment_profile_start_failure_is_logged(
     assert "Command exited during startup grace window." in caplog.text
 
 
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_preserves_unit_api_error_details(
+    mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            return_value=Response(
+                "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                409,
+                {},
+                encode(
+                    {
+                        "status": 409,
+                        "error": "Unable to start job.",
+                        "cause": "A conflicting job is already running.",
+                        "remediation": "Stop the conflicting job and retry.",
+                    }
+                ),
+            ),
+        ),
+        caplog.at_level("ERROR"),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert "HTTP 409: Unable to start job." in caplog.text
+    assert "Cause: A conflicting job is already running." in caplog.text
+    assert "Remediation: Stop the conflicting job and retry." in caplog.text
+
+
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="flakey test in CI???")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_log_actions(mock__load_experiment_profile, active_workers_in_cluster) -> None:

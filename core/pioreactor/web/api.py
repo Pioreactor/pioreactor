@@ -25,7 +25,6 @@ from msgspec import DecodeError
 from msgspec import to_builtins
 from msgspec import UNSET
 from msgspec import ValidationError
-from msgspec.json import decode as json_decode
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.config import build_config
@@ -33,7 +32,7 @@ from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.validate import validate_profile
-from pioreactor.http_response import UnitApiErrorPayload
+from pioreactor.http_response import decode_unit_api_error_payload
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
@@ -264,16 +263,9 @@ def _get_experiment_metadata(experiment: str) -> dict[str, t.Any] | None:
 
 
 def abort_with_worker_error(response: MureqResponse | None, fallback_error: str) -> t.NoReturn:
-    if response is not None and response.content:
-        content_type = response.headers.get("Content-Type", "")
-        if "application/json" in content_type:
-            try:
-                payload = json_decode(response.content, type=UnitApiErrorPayload)
-            except (DecodeError, ValidationError):
-                pass
-            else:
-                if payload.status == response.status_code:
-                    abort_with_payload(payload)
+    payload = decode_unit_api_error_payload(response)
+    if payload is not None:
+        abort_with_payload(payload)
 
     if response is not None:
         abort_with(

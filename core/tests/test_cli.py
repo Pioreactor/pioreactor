@@ -1130,6 +1130,32 @@ def test_pios_run_requests_with_config_override() -> None:
     )
 
 
+def test_pios_run_surfaces_structured_unit_api_error(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.post_into",
+        lambda *_args, **_kwargs: Response(
+            "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring",
+            409,
+            {"Content-Type": "application/json"},
+            (
+                b'{"error":"Unable to start job.","status":409,'
+                b'"cause":"A conflicting job is already running.",'
+                b'"remediation":"Stop the conflicting job and retry."}'
+            ),
+        ),
+    )
+
+    with pytest.raises(click.Abort):
+        ctx = click.Context(run, allow_extra_args=True)
+        ctx.forward(run, job="stirring", yes=True, units=("unit1",))
+
+    assert capsys.readouterr().out == (
+        "Unable to execute run command on unit1 due to server error: "
+        "HTTP 409: Unable to start job. Cause: A conflicting job is already running. "
+        "Remediation: Stop the conflicting job and retry.\n"
+    )
+
+
 def test_pios_cp_copies_to_same_path_when_target_is_omitted(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
