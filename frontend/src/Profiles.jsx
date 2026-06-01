@@ -611,7 +611,7 @@ function Profiles(props) {
             <Card>
               <CardContent sx={{ p: 2 }}>
                 <Typography variant="h6" component="h2" gutterBottom>
-                  <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent runs</Box>
+                  <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent profile runs</Box>
                 </Typography>
                 {recentLoading && (
                   <Box sx={{ textAlign: "center", mt: 1 }}>

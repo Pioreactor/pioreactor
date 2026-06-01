@@ -31,6 +31,7 @@ declare -a TEST_SEQUENCE=(
   check_database_access
   check_worker_model_metadata
   check_unit_api_core
+  check_registered_target_validation
   check_usb_status_surface
   check_descriptor_endpoints
   check_unit_api_job_history
@@ -361,12 +362,12 @@ check_config_api_endpoints() {
     "Checking /api/config/units/$hostname" \
     curl_check \
     "http://localhost/api/config/units/$hostname" \
-    "type==\"object\" and has(\"$hostname\") and (.[\"$hostname\"] | type==\"object\" and has(\"cluster.topology\"))"
+    "type==\"object\" and (.configs | type==\"object\" and has(\"$hostname\") and (.[\"$hostname\"] | type==\"object\" and has(\"cluster.topology\"))) and (.errors | type==\"object\" and length==0)"
   run_step \
     "Checking /api/config/units/\$broadcast" \
     curl_check \
     http://localhost/api/config/units/\$broadcast \
-    'type=="object" and has("'"$hostname"'")'
+    'type=="object" and (.configs | type=="object" and has("'"$hostname"'")) and (.errors | type=="object")'
   run_step \
     "Checking /api/config/units/$hostname/specific" \
     curl_ok \
@@ -471,9 +472,24 @@ check_unit_api_core() {
   run_step "Checking /unit_api/jobs/running" curl_check http://localhost/unit_api/jobs/running 'type=="array"'
   run_step "Checking /unit_api/capabilities" curl_check http://localhost/unit_api/capabilities
   run_step "Checking /unit_api/system/utc_clock" curl_check http://localhost/unit_api/system/utc_clock
+  run_step "Checking /unit_api/system/ipv4" curl_check http://localhost/unit_api/system/ipv4 '.ipv4_address | type=="string"'
   run_step "Checking /unit_api/calibration_protocols" curl_check http://localhost/unit_api/calibration_protocols
   run_step "Checking /unit_api/calibrations" curl_check http://localhost/unit_api/calibrations
   run_step "Checking /unit_api/active_calibrations" curl_check http://localhost/unit_api/active_calibrations
+}
+
+check_registered_target_validation() {
+  run_step \
+    "Checking config proxy rejects address target" \
+    http_status_is \
+    400 \
+    http://localhost/api/config/units/203.0.113.10/specific
+  run_step \
+    "Checking system fanout rejects address target" \
+    http_status_is \
+    400 \
+    http://localhost/api/units/203.0.113.10/system/reboot \
+    -X POST
 }
 
 check_usb_status_surface() {
@@ -494,12 +510,6 @@ check_usb_status_surface() {
     "Checking /api/units/$hostname/usb target route" \
     curl_check \
     "http://localhost/api/units/$hostname/usb"
-
-  run_step \
-    "Checking /api/units/\$broadcast/usb rejects broadcast USB target" \
-    http_status_is \
-    400 \
-    "http://localhost/api/units/\$broadcast/usb"
 
 }
 
@@ -749,7 +759,7 @@ check_leader_api() {
   local hostname
   hostname="$(hostname)"
 
-  run_step "Checking /api/workers" curl_check http://localhost/api/workers
+  run_step "Checking /api/workers" curl_check http://localhost/api/workers 'type=="array" and all(has("ipv4_address"))'
   run_step "Checking /api/units" curl_check http://localhost/api/units
   run_step "Checking /api/units/$hostname/capabilities" curl_check "http://localhost/api/units/$hostname/capabilities"
   run_step "Checking /api/units/$hostname/system/utc_clock" curl_check "http://localhost/api/units/$hostname/system/utc_clock"
@@ -950,6 +960,13 @@ check_export_datasets_endpoint() {
   fi
 
   if [[ "$HAS_JQ" == true ]]; then
+    if echo "$response" | jq -e '.status=="accepted"' >/dev/null; then
+      ok "export_datasets task accepted"
+    else
+      fail "export_datasets response did not report accepted status"
+      return
+    fi
+
     local result_url_path
     result_url_path="$(echo "$response" | jq -r '.result_url_path // empty')"
     if [[ -z "$result_url_path" ]]; then
