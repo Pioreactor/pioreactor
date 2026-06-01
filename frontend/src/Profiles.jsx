@@ -60,7 +60,7 @@ function RunExperimentProfilesContent({
   const [startProfileError, setStartProfileError] = React.useState("");
 
   const onSubmit = async () => {
-    if (!selectedExperimentProfileRecord) {
+    if (startInFlight || !selectedExperimentProfileRecord) {
       return;
     }
     setStartInFlight(true);
@@ -225,6 +225,8 @@ function RunExperimentProfilesContent({
           value={dryRun ? "execute_dry_run" : "execute"}
           onClick={onSubmit}
           endIcon={dryRun ? <PlayDisabledIcon /> : <PlayArrowIcon />}
+          loading={startInFlight}
+          loadingPosition="end"
           disabled={startInFlight}
           onChange={({ target: { value } }) =>
             setDryRun(value === "execute_dry_run")
