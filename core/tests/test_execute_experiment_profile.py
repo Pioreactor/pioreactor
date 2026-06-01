@@ -101,7 +101,9 @@ def test_execute_experiment_profile_order(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_hack_for_led_intensity(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"A": 50})
     action2 = Update(hours_elapsed=1 / 60 / 60, options={"A": 40, "B": 22.5})
@@ -217,8 +219,14 @@ def test_execute_experiment_profile_start_failure_is_logged(
         )
 
     with (
-        patch("pioreactor.actions.leader.experiment_profile.patch_into", side_effect=fake_patch_into),
-        patch("pioreactor.actions.leader.experiment_profile.get_from", side_effect=fake_get_from),
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            side_effect=fake_patch_into,
+        ),
+        patch(
+            "pioreactor.actions.leader.experiment_profile.get_from",
+            side_effect=fake_get_from,
+        ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
     ):
         execute_experiment_profile("profile.yaml", experiment)
@@ -281,7 +289,9 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
 @pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_start_and_stop_automations(mock__load_experiment_profile) -> None:
+def test_execute_experiment_start_and_stop_automations(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
     action2 = Stop(hours_elapsed=1 / 60 / 60)
@@ -347,7 +357,9 @@ def test_execute_experiment_start_automation_succeeds(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_label_fires_a_relabel_to_leader_endpoint(mock__load_experiment_profile) -> None:
+def test_label_fires_a_relabel_to_leader_endpoint(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
 
     profile = Profile(
@@ -398,7 +410,9 @@ def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) ->
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_with_unit_function(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_with_unit_function(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
     action_true = Start(hours_elapsed=0, if_="${{ unit() == unit1 }}")
 
@@ -479,7 +493,9 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_pause_and_resume_actions(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_pause_and_resume_actions(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
     pause = Pause(hours_elapsed=0)
     resume = Resume(hours_elapsed=1 / 60 / 60)
@@ -510,7 +526,9 @@ def test_execute_experiment_profile_pause_and_resume_actions(mock__load_experime
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_dry_run_skips_job_mutations(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_dry_run_skips_job_mutations(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
 
     profile = Profile(
@@ -550,7 +568,8 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
     publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10, retain=True)
 
     action = Start(
-        hours_elapsed=0, options={"target": "${{unit1:jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"}
+        hours_elapsed=0,
+        options={"target": "${{unit1:jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"},
     )
 
     profile = Profile(
@@ -780,10 +799,16 @@ def test_execute_experiment_profile_expression_in_common(
     job_name = "jobbing"
 
     for worker in active_workers_in_cluster:
-        publish(f"pioreactor/{worker}/_testing_experiment/{job_name}/target", 10, retain=True)
+        publish(
+            f"pioreactor/{worker}/_testing_experiment/{job_name}/target",
+            10,
+            retain=True,
+        )
 
     action = Start(
-        hours_elapsed=0, options={"target": "${{::jobbing:target + 1}}"}, if_="::jobbing:target > 0"
+        hours_elapsed=0,
+        options={"target": "${{::jobbing:target + 1}}"},
+        if_="::jobbing:target > 0",
     )
 
     profile = Profile(
@@ -835,10 +860,16 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
     job_name = "jobbing"
 
     for worker in active_workers_in_cluster:
-        publish(f"pioreactor/{worker}/_testing_experiment/{job_name}/target", 10, retain=True)
+        publish(
+            f"pioreactor/{worker}/_testing_experiment/{job_name}/target",
+            10,
+            retain=True,
+        )
 
     action = Start(
-        hours_elapsed=0, options={"target": "${{unit():jobbing:target + 1}}"}, if_="unit():jobbing:target > 0"
+        hours_elapsed=0,
+        options={"target": "${{unit():jobbing:target + 1}}"},
+        if_="unit():jobbing:target > 0",
     )
 
     profile = Profile(
@@ -884,7 +915,9 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_when_action_simple(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_when_action_simple(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
     action = When(
         hours_elapsed=0.0005,
@@ -914,7 +947,11 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
         f"pioreactor/unit1/{experiment}/od_reading/od1",
         encode(
             RawODReading(
-                od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1", ir_led_intensity=80
+                od=2.5,
+                angle="90",
+                timestamp=current_utc_datetime(),
+                channel="1",
+                ir_led_intensity=80,
             )
         ),
         retain=True,
@@ -925,12 +962,62 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
 
     assert len(bucket) == 3
     assert bucket[0].path == f"/api/workers/unit1/experiments/{experiment}/logs"
+    assert bucket[0].json["source_"] == "app"
+    assert "_souce" not in bucket[0].json
     assert bucket[1].path == "/unit_api/jobs/run/job_name/stirring"
     assert bucket[2].path == f"/api/workers/unit1/jobs/update/job_name/stirring/experiments/{experiment}"
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_log_action_preserves_api_error_details(
+    mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"stirring": Job(actions=[Log(hours_elapsed=0, options=_LogOptions(message="hello"))])},
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    def fake_post_into_leader(endpoint: str, json: dict[str, object]) -> Response:
+        assert endpoint == f"/api/workers/unit1/experiments/{experiment}/logs"
+        return Response(
+            endpoint,
+            400,
+            {},
+            encode(
+                {
+                    "status": 400,
+                    "error": "Invalid request body.",
+                    "cause": "Object contains unknown field `unexpected`",
+                    "remediation": "Send a JSON object with the required fields.",
+                }
+            ),
+        )
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.post_into_leader",
+            side_effect=fake_post_into_leader,
+        ),
+        caplog.at_level("ERROR"),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert "Invalid request body." in caplog.text
+    assert "Object contains unknown field `unexpected`" in caplog.text
+    assert "Send a JSON object with the required fields." in caplog.text
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_when_action_with_if(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
     action = When(
         hours_elapsed=0.0005,
@@ -960,7 +1047,11 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
         f"pioreactor/unit1/{experiment}/od_reading/od1",
         encode(
             RawODReading(
-                od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1", ir_led_intensity=80
+                od=2.5,
+                angle="90",
+                timestamp=current_utc_datetime(),
+                channel="1",
+                ir_led_intensity=80,
             )
         ),
         retain=True,
@@ -1240,7 +1331,9 @@ def test_repeat_actions_can_fail_syntax(mock__load_experiment_profile) -> None:
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_with_config_overrides(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_with_config_overrides(
+    mock__load_experiment_profile,
+) -> None:
     experiment = "_testing_experiment"
     unit = "unit1"
     job_name = "jobbing"

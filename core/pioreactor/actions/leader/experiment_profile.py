@@ -18,7 +18,9 @@ from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.experiment_profiles.validate import (
     check_syntax_of_bool_expression as validate_check_syntax_of_bool_expression,
 )
-from pioreactor.experiment_profiles.validate import time_to_seconds as validate_time_to_seconds
+from pioreactor.experiment_profiles.validate import (
+    time_to_seconds as validate_time_to_seconds,
+)
 from pioreactor.experiment_profiles.validate import validate_profile
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
@@ -319,16 +321,42 @@ def wrapped_execute_action(
 
         case struct.Pause(_, _, if_):
             return pause_job(
-                unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics
+                unit,
+                experiment,
+                parent_job,
+                job_name,
+                dry_run,
+                if_,
+                env,
+                logger,
+                action_metrics,
             )
 
         case struct.Resume(_, _, if_):
             return resume_job(
-                unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics
+                unit,
+                experiment,
+                parent_job,
+                job_name,
+                dry_run,
+                if_,
+                env,
+                logger,
+                action_metrics,
             )
 
         case struct.Stop(_, _, if_):
-            return stop_job(unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics)
+            return stop_job(
+                unit,
+                experiment,
+                parent_job,
+                job_name,
+                dry_run,
+                if_,
+                env,
+                logger,
+                action_metrics,
+            )
 
         case struct.Update(_, _, if_, options):
             return update_job(
@@ -494,7 +522,10 @@ def when(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        env = env | {
+            "hours_elapsed": action_metrics.hours_elapsed(),
+            "action_count": action_metrics.count,
+        }
 
         if evaluate_bool_expression(if_, env):
             try:
@@ -577,7 +608,10 @@ def repeat(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
+        env = env | {
+            "hours_elapsed": action_metrics.hours_elapsed(),
+            "action_count": action_metrics.count,
+        }
 
         if evaluate_bool_expression(if_, env) and evaluate_bool_expression(while_, env):
             for action in actions:
@@ -666,9 +700,15 @@ def log(
             "level": options.level.upper(),
             "source": parent_job.job_key,
             "task": parent_job.job_key,
-            "_souce": "app",
+            "source_": "app",
         }
-        post_into_leader(f"/api/workers/{unit}/experiments/{experiment}/logs", json=body).raise_for_status()
+        response = post_into_leader(f"/api/workers/{unit}/experiments/{experiment}/logs", json=body)
+        if not response.ok:
+            payload = response.json()
+            raise HTTPException(
+                " ".join(filter(None, (payload["error"], payload.get("cause"), payload.get("remediation"))))
+            )
+
         getattr(logger, "debug")(f"{action_count}. {evaluate_log_message(options.message, env)}")
 
     return wrap_in_try_except(_callable, logger)
@@ -925,7 +965,8 @@ def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str]) -> 
     try:
         for unit_name, label in labels_map.items():
             patch_into_leader(
-                f"/api/experiments/{experiment}/unit_labels", json={"unit": unit_name, "label": label}
+                f"/api/experiments/{experiment}/unit_labels",
+                json={"unit": unit_name, "label": label},
             ).raise_for_status()
     except Exception:
         pass
