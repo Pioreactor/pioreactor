@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -13,7 +13,23 @@ jest.mock("../providers/MQTTContext", () => ({
   useMQTT: jest.fn(),
 }));
 
-jest.mock("../components/RecordEventLogDialog", () => () => null);
+jest.mock("../components/RecordEventLogDialog", () => ({ onSubmit }) => (
+  <button
+    onClick={() =>
+      onSubmit({
+        pioreactor_unit: "unit1",
+        experiment: "exp1",
+        message: "manual event",
+        source: "UI",
+        level: "INFO",
+        timestamp: "2026-06-01T12:00:00.000Z",
+        task: "operator",
+      })
+    }
+  >
+    Submit mock log
+  </button>
+));
 
 const { useMQTT } = require("../providers/MQTTContext");
 
@@ -82,6 +98,42 @@ describe("LogTableByUnit", () => {
     const subscribedTopics = subscribeToTopic.mock.calls.flatMap(([topics]) => topics);
 
     expect(subscribedTopics.some((topic) => topic.includes("/$experiment/"))).toBe(false);
+  });
+
+  test("omits URL routing fields from manually submitted log bodies", async () => {
+    useMQTT.mockReturnValue({
+      client: {},
+      subscribeToTopic: jest.fn(),
+      unsubscribeFromTopic: jest.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <LogTableByUnit experiment="exp1" unit="unit1" />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/workers/unit1/experiments/exp1/recent_logs?min_level=info"
+      )
+    );
+    global.fetch.mockResolvedValue({ ok: true });
+    fireEvent.click(screen.getByRole("button", { name: "Submit mock log" }));
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/workers/unit1/experiments/exp1/logs",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          message: "manual event",
+          source: "UI",
+          level: "INFO",
+          timestamp: "2026-06-01T12:00:00.000Z",
+          task: "operator",
+        }),
+      })
+    );
   });
 
   test("re-sorts MQTT log events by timestamp after out-of-order delivery", async () => {

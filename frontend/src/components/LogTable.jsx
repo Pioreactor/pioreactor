@@ -157,10 +157,11 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
 
 
   const handleSubmitDialog = async (newLog) => {
-    const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${experimentPathSegment(newLog.experiment)}/logs`, {
+    const { pioreactor_unit, experiment, ...eventLog } = newLog;
+    const response = await fetch(`/api/workers/${pioreactor_unit}/experiments/${experimentPathSegment(experiment)}/logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newLog),
+      body: JSON.stringify(eventLog),
     });
     if (!response.ok) {
       throw new Error('Failed to submit new log entry.');
