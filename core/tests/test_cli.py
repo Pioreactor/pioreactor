@@ -1411,6 +1411,10 @@ def test_pios_update_app_explicit_units_exclude_leader(monkeypatch: pytest.Monke
         def json(self) -> dict[str, str]:
             return {"unit": "worker1"}
 
+        @property
+        def ok(self):
+            return True
+
     def fake_post_into(address: str, endpoint: str, **_kwargs):
         requests.append(f"{address}{endpoint}")
         return DummyResponse()
