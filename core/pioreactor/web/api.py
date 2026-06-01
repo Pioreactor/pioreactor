@@ -33,6 +33,7 @@ from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.validate import validate_profile
+from pioreactor.http_response import UnitApiErrorPayload
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
@@ -77,7 +78,6 @@ from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import load_settings_collection_descriptors
 from pioreactor.web.utils import scrub_to_valid
-from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.web.utils import wait_for_bool_task_result
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT

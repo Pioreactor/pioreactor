@@ -338,7 +338,9 @@ def test_execute_experiment_start_automation_succeeds(
     mock__load_experiment_profile,
 ) -> None:
     experiment = "_testing_experiment"
-    start = Start(hours_elapsed=0 / 60 / 60, options={"target_temperature": 20})
+    start = Start(
+        hours_elapsed=0 / 60 / 60, options={"target_temperature": 20, "automation_name": "thermostat"}
+    )
     stop = Stop(hours_elapsed=2 / 60 / 60)
 
     profile = Profile(

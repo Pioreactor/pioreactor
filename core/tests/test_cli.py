@@ -27,6 +27,7 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.config import resolve_global_config_path
 from pioreactor.config import resolve_local_config_path
 from pioreactor.config import temporary_config_change
+from pioreactor.mureq import Response
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import is_pio_job_running
@@ -1818,3 +1819,49 @@ def test_pios_reboot_requests() -> None:
 
     assert len(bucket) == 1
     assert bucket[0].url == "http://unit1.local:4999/unit_api/system/reboot"
+
+
+def test_pio_blink_surfaces_structured_api_error(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.pubsub.post_into_leader",
+        lambda *_args, **_kwargs: Response(
+            "http://localhost:4999/api/workers/unit1/blink",
+            503,
+            {"Content-Type": "application/json"},
+            (
+                b'{"error":"Unable to blink.","status":503,'
+                b'"cause":"Monitor is unavailable.","remediation":"Start the monitor and retry."}'
+            ),
+        ),
+    )
+
+    result = CliRunner().invoke(pio, ["blink"])
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "Error: Unable to blink this Pioreactor. HTTP 503: Unable to blink. "
+        "Cause: Monitor is unavailable. Remediation: Start the monitor and retry.\n"
+    )
+
+
+def test_pios_reboot_surfaces_structured_unit_api_error(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.post_into",
+        lambda *_args, **_kwargs: Response(
+            "http://unit1.local:4999/unit_api/system/reboot",
+            409,
+            {"Content-Type": "application/json"},
+            (
+                b'{"error":"Unable to reboot.","status":409,'
+                b'"cause":"A job is still running.","remediation":"Stop the job and retry."}'
+            ),
+        ),
+    )
+
+    ctx = click.Context(reboot, allow_extra_args=True)
+    ctx.forward(reboot, yes=True, units=("unit1",))
+
+    assert capsys.readouterr().out == (
+        "Unable to reboot unit1. HTTP 409: Unable to reboot. "
+        "Cause: A job is still running. Remediation: Stop the job and retry.\n"
+    )

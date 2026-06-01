@@ -44,6 +44,7 @@ from pioreactor import whoami
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
+from pioreactor.http_response import UnitApiErrorPayload
 from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
@@ -65,7 +66,6 @@ from pioreactor.version import hardware_version_info
 from pioreactor.web.config import huey
 from pioreactor.web.db import get_database_space_stats
 from pioreactor.web.db import open_app_database_connection
-from pioreactor.web.utils import UnitApiErrorPayload
 from pioreactor.whoami import get_unit_name
 
 CalibrationActionHandler = tuple[

@@ -25,7 +25,9 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.exc import RoleError
 from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
+from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
+from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
@@ -1008,10 +1010,14 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
-                post_into(resolve_to_address(unit), "/unit_api/system/shutdown", timeout=60)
+                response = post_into(resolve_to_address(unit), "/unit_api/system/shutdown", timeout=60)
+                response.raise_for_status()
                 return True
+            except HTTPErrorStatus:
+                click.echo(f"Unable to shut down {unit}. {summarize_error_response(response)}")
+                return False
             except HTTPException as e:
-                click.echo(f"Unable to install plugin on {unit} due to server error: {e}.")
+                click.echo(f"Unable to shut down {unit} due to server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:
@@ -1021,7 +1027,13 @@ if am_I_leader() or is_testing_env():
         # we delay shutdown leader (if asked), since it would prevent
         # executing the shutdown cmd on other workers
         if also_shutdown_leader:
-            post_into(resolve_to_address(get_leader_hostname()), "/unit_api/shutdown", timeout=60)
+            response = post_into(resolve_to_address(get_leader_hostname()), "/unit_api/shutdown", timeout=60)
+            try:
+                response.raise_for_status()
+            except HTTPErrorStatus as error:
+                raise click.ClickException(
+                    f"Unable to shut down the leader. {summarize_error_response(response)}"
+                ) from error
 
     @pios.command(name="reboot", short_help="reboot Pioreactors")
     @which_units
@@ -1043,10 +1055,14 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
-                post_into(resolve_to_address(unit), "/unit_api/system/reboot", timeout=60)
+                response = post_into(resolve_to_address(unit), "/unit_api/system/reboot", timeout=60)
+                response.raise_for_status()
                 return True
+            except HTTPErrorStatus:
+                click.echo(f"Unable to reboot {unit}. {summarize_error_response(response)}")
+                return False
             except HTTPException as e:
-                click.echo(f"Unable to install plugin on {unit} due to server error: {e}.")
+                click.echo(f"Unable to reboot {unit} due to server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:
@@ -1056,7 +1072,13 @@ if am_I_leader() or is_testing_env():
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
         if also_reboot_leader:
-            post_into(resolve_to_address(get_leader_hostname()), "/unit_api/reboot", timeout=60)
+            response = post_into(resolve_to_address(get_leader_hostname()), "/unit_api/reboot", timeout=60)
+            try:
+                response.raise_for_status()
+            except HTTPErrorStatus as error:
+                raise click.ClickException(
+                    f"Unable to reboot the leader. {summarize_error_response(response)}"
+                ) from error
 
     @pios.command(
         name="update-settings",

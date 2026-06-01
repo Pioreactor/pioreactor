@@ -12,6 +12,7 @@ from pioreactor import whoami
 from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
 from pioreactor.exc import BashScriptError
+from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
@@ -372,7 +373,12 @@ def cluster_status() -> None:
 
         return f"{hostnamef} {is_leaderf} {ipf} {statef} {is_activef} {reachablef} {versionf} {experimentf}"
 
-    workers = get_from_leader("/api/workers").json()
+    response = get_from_leader("/api/workers")
+    try:
+        response.raise_for_status()
+    except HTTPErrorStatus as error:
+        raise click.ClickException(f"Unable to get workers. {summarize_error_response(response)}") from error
+    workers = response.json()
 
     n_workers = len(workers)
 

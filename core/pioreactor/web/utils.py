@@ -25,19 +25,12 @@ from pioreactor import structs
 from pioreactor.bioreactor import get_bioreactor_variable_definitions
 from pioreactor.bioreactor import get_default_bioreactor_value
 from pioreactor.experiment_profiles.validate import Diagnostic
+from pioreactor.http_response import UnitApiErrorPayload
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
 
 
 RequestBody = t.TypeVar("RequestBody", bound=Struct)
-
-
-class UnitApiErrorPayload(Struct, forbid_unknown_fields=True, omit_defaults=True):
-    error: str
-    status: int
-    cause: str | None = None
-    remediation: str | None = None
-    diagnostics: list[Diagnostic] | None = None
 
 
 def abort_with(

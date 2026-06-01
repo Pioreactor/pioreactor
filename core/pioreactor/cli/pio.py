@@ -19,7 +19,9 @@ import click
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
+from pioreactor.http_response import summarize_error_response
 from pioreactor.mureq import get
+from pioreactor.mureq import HTTPErrorStatus
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -927,7 +929,13 @@ def blink() -> None:
     """
     from pioreactor.pubsub import post_into_leader
 
-    post_into_leader(f"/api/workers/{whoami.get_unit_name()}/blink")
+    response = post_into_leader(f"/api/workers/{whoami.get_unit_name()}/blink")
+    try:
+        response.raise_for_status()
+    except HTTPErrorStatus as error:
+        raise click.ClickException(
+            f"Unable to blink this Pioreactor. {summarize_error_response(response)}"
+        ) from error
 
 
 @pio.command(name="kill", short_help="kill job(s)")
