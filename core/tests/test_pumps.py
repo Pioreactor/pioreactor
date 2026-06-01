@@ -10,6 +10,7 @@ from typing import cast
 import pytest
 from pioreactor import bioreactor
 from pioreactor import structs
+from pioreactor.actions.pump import _get_pin
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import circulate_media
@@ -41,6 +42,117 @@ def _poly_curve(coefficients: list[float]) -> structs.PolyFitCoefficients:
 
 def pause(n=1):
     time.sleep(n)
+
+
+class _RunInlineThreadPool:
+    def submit(self, fn, *args, **kwargs) -> None:
+        fn(*args, **kwargs)
+
+
+class _SequenceInterrupt:
+    def __init__(self, is_set_results: list[bool]) -> None:
+        self._is_set_results = is_set_results
+        self._is_set = False
+
+    def is_set(self) -> bool:
+        if self._is_set_results:
+            return self._is_set_results.pop(0)
+        return self._is_set
+
+    def set(self) -> None:
+        self._is_set = True
+
+    def wait(self) -> bool:
+        return self.is_set()
+
+
+class _SequenceExitEvent:
+    def __init__(self, wait_results: list[bool]) -> None:
+        self._wait_results = wait_results
+
+    def wait(self, timeout: float | None = None) -> bool:
+        if self._wait_results:
+            return self._wait_results.pop(0)
+        return False
+
+
+class _FakeManagedLifecycle:
+    def __init__(self, mqtt_client: FakeMQTTClient, exit_wait_results: list[bool]) -> None:
+        self.mqtt_client = mqtt_client
+        self.exit_event = _SequenceExitEvent(exit_wait_results)
+
+    def __enter__(self) -> "_FakeManagedLifecycle":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+def _linear_pump_calibration(slope: float = 1.0) -> structs.SimplePeristalticPumpCalibration:
+    return structs.SimplePeristalticPumpCalibration(
+        calibration_name="linear",
+        curve_data_=_poly_curve([slope, 0.0]),
+        recorded_data={"x": [], "y": []},
+        dc=60,
+        hz=100,
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        calibrated_on_pioreactor_unit=unit,
+    )
+
+
+def _fake_client_collecting_dosing_events(experiment: str) -> tuple[FakeMQTTClient, list[float]]:
+    dosing_events: list[float] = []
+
+    def collect_dosing_events(topic: str, payload: bytes, **kwargs: Any) -> None:
+        if topic == f"pioreactor/{unit}/{experiment}/dosing_events":
+            dosing_events.append(json.loads(payload.decode())["volume_change"])
+
+    return FakeMQTTClient(on_publish=collect_dosing_events), dosing_events
+
+
+def _set_up_deterministic_pump_action(
+    monkeypatch: pytest.MonkeyPatch,
+    mqtt_client: FakeMQTTClient,
+    *,
+    exit_wait_results: list[bool] | None = None,
+) -> None:
+    monkeypatch.setattr("pioreactor.actions.pump._thread_pool", cast(Any, _RunInlineThreadPool()))
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.utils.managed_lifecycle",
+        lambda *args, **kwargs: _FakeManagedLifecycle(mqtt_client, exit_wait_results or []),
+    )
+
+
+def _build_scheduled_pump_type(
+    interrupt_results: list[bool],
+    pump_actuations: list[tuple[float, bool]],
+    pump_exits: list[bool],
+) -> type:
+    class ScheduledPump:
+        def __init__(self, *args, **kwargs) -> None:
+            self.interrupt = _SequenceInterrupt(interrupt_results.copy())
+            self.calibration = kwargs["calibration"]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            pump_exits.append(True)
+
+        def by_duration(self, seconds: float, block: bool = True) -> None:
+            pump_actuations.append((seconds, block))
+
+        def continuously(self, block: bool = True) -> None:
+            raise AssertionError("continuous path is not under test")
+
+        def duration_to_ml(self, seconds: float) -> float:
+            return self.calibration.duration_to_ml(seconds)
+
+        def stop(self) -> None:
+            self.interrupt.set()
+
+    return ScheduledPump
 
 
 @pytest.fixture(autouse=True)
@@ -362,13 +474,12 @@ def test_add_media_publishes_single_empty_pwm_payload_on_shutdown() -> None:
     assert sum(payload == {} for payload in mqtt_items) == 1
 
 
-@pytest.mark.xfail(
-    reason="Known edge case: a pump run that completes before the first accounting tick can under-report as 0.0.",
-    strict=True,
-)
 def test_small_volume_reports_requested_amount_if_pump_finishes_immediately(monkeypatch) -> None:
     experiment = "test_small_volume_reports_requested_amount_if_pump_finishes_immediately"
     requested_ml = 0.01
+    dosing_events: list[float] = []
+    pump_actuations: list[tuple[float, bool]] = []
+    pump_exited = False
 
     calibration = structs.SimplePeristalticPumpCalibration(
         calibration_name="fast_finish",
@@ -390,9 +501,11 @@ def test_small_volume_reports_requested_amount_if_pump_finishes_immediately(monk
             return self
 
         def __exit__(self, *args: object) -> None:
-            return None
+            nonlocal pump_exited
+            pump_exited = True
 
         def by_duration(self, seconds: float, block: bool = True) -> None:
+            pump_actuations.append((seconds, block))
             self.interrupt.set()
 
         def continuously(self, block: bool = True) -> None:
@@ -404,11 +517,173 @@ def test_small_volume_reports_requested_amount_if_pump_finishes_immediately(monk
         def stop(self) -> None:
             self.interrupt.set()
 
+    class FakeThreadPool:
+        def submit(self, fn, *args, **kwargs) -> None:
+            fn(*args, **kwargs)
+
+    def collect_dosing_events(topic: str, payload: bytes, **kwargs: Any) -> None:
+        if topic == f"pioreactor/{unit}/{experiment}/dosing_events":
+            dosing_events.append(json.loads(payload.decode())["volume_change"])
+
+    client = FakeMQTTClient(on_publish=collect_dosing_events)
+    monkeypatch.setattr("pioreactor.actions.pump._thread_pool", cast(Any, FakeThreadPool()))
     monkeypatch.setattr("pioreactor.actions.pump.PWMPump", FastCompletingPump)
 
-    moved_ml = add_media(ml=requested_ml, unit=unit, experiment=experiment, calibration=calibration)
+    moved_ml = add_media(
+        ml=requested_ml,
+        unit=unit,
+        experiment=experiment,
+        calibration=calibration,
+        mqtt_client=cast(Any, client),
+    )
+
+    assert len(pump_actuations) == 1
+    assert pump_actuations[0][0] == pytest.approx(calibration.ml_to_duration(requested_ml))
+    assert pump_actuations[0][1] is False
+    assert pump_exited
+    assert moved_ml == pytest.approx(requested_ml)
+    assert dosing_events == [pytest.approx(requested_ml)]
+    assert sum(dosing_events) == pytest.approx(moved_ml)
+
+
+def test_finite_pump_reconciles_completion_between_accounting_ticks(monkeypatch) -> None:
+    experiment = "test_finite_pump_reconciles_completion_between_accounting_ticks"
+    requested_ml = 0.8
+    pump_actuations: list[tuple[float, bool]] = []
+    pump_exits: list[bool] = []
+    calibration = _linear_pump_calibration()
+    client, dosing_events = _fake_client_collecting_dosing_events(experiment)
+
+    _set_up_deterministic_pump_action(monkeypatch, client, exit_wait_results=[False])
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.PWMPump",
+        _build_scheduled_pump_type([False, True], pump_actuations, pump_exits),
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.time.monotonic", iter([0.0, 0.0]).__next__)
+
+    moved_ml = add_media(
+        ml=requested_ml,
+        unit=unit,
+        experiment=experiment,
+        calibration=calibration,
+        mqtt_client=cast(Any, client),
+    )
+
+    assert pump_actuations == [(requested_ml, False)]
+    assert pump_exits == [True]
+    assert dosing_events == pytest.approx([0.5, 0.3])
+    assert sum(dosing_events) == pytest.approx(moved_ml)
+    assert moved_ml == pytest.approx(requested_ml)
+
+
+def test_finite_pump_does_not_publish_terminal_event_at_exact_accounting_boundary(monkeypatch) -> None:
+    experiment = "test_finite_pump_does_not_publish_terminal_event_at_exact_accounting_boundary"
+    requested_ml = 1.0
+    pump_actuations: list[tuple[float, bool]] = []
+    pump_exits: list[bool] = []
+    calibration = _linear_pump_calibration()
+    client, dosing_events = _fake_client_collecting_dosing_events(experiment)
+
+    _set_up_deterministic_pump_action(monkeypatch, client, exit_wait_results=[False, False])
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.PWMPump",
+        _build_scheduled_pump_type([False, False, True], pump_actuations, pump_exits),
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.time.monotonic", iter([0.0, 0.0, 0.5]).__next__)
+
+    moved_ml = add_media(
+        ml=requested_ml,
+        unit=unit,
+        experiment=experiment,
+        calibration=calibration,
+        mqtt_client=cast(Any, client),
+    )
+
+    assert pump_actuations == [(requested_ml, False)]
+    assert pump_exits == [True]
+    assert dosing_events == pytest.approx([0.5, 0.5])
+    assert sum(dosing_events) == pytest.approx(moved_ml)
+    assert moved_ml == pytest.approx(requested_ml)
+
+
+def test_interrupted_finite_pump_published_total_matches_returned_volume(monkeypatch) -> None:
+    experiment = "test_interrupted_finite_pump_published_total_matches_returned_volume"
+    requested_ml = 1.0
+    pump_actuations: list[tuple[float, bool]] = []
+    pump_exits: list[bool] = []
+    calibration = _linear_pump_calibration()
+    client, dosing_events = _fake_client_collecting_dosing_events(experiment)
+
+    _set_up_deterministic_pump_action(monkeypatch, client, exit_wait_results=[True])
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.PWMPump", _build_scheduled_pump_type([False], pump_actuations, pump_exits)
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.time.monotonic", iter([0.0, 0.0, 0.25]).__next__)
+
+    moved_ml = add_media(
+        ml=requested_ml,
+        unit=unit,
+        experiment=experiment,
+        calibration=calibration,
+        mqtt_client=cast(Any, client),
+    )
+
+    assert pump_actuations == [(requested_ml, False)]
+    assert pump_exits == [True]
+    assert dosing_events == pytest.approx([0.5, -0.25])
+    assert sum(dosing_events) == pytest.approx(moved_ml)
+    assert moved_ml == pytest.approx(0.25)
+
+
+def test_zero_volume_request_keeps_pwm_off_and_emits_no_dosing_event(monkeypatch) -> None:
+    experiment = "test_zero_volume_request_keeps_pwm_off_and_emits_no_dosing_event"
+    pin = _get_pin("media_pump")
+    calibration = _linear_pump_calibration()
+    client, dosing_events = _fake_client_collecting_dosing_events(experiment)
+
+    _set_up_deterministic_pump_action(monkeypatch, client)
+
+    moved_ml = add_media(
+        ml=0.0,
+        unit=unit,
+        experiment=experiment,
+        calibration=calibration,
+        mqtt_client=cast(Any, client),
+    )
+
+    with local_intermittent_storage("pwm_dc") as pwm_dc:
+        assert pwm_dc.get(pin, 0) == 0
+    with local_intermittent_storage("pwm_locks") as pwm_locks:
+        assert pin not in pwm_locks
+
+    assert moved_ml == pytest.approx(0.0)
+    assert dosing_events == []
+
+
+def test_immediate_completion_cleans_up_pwm_state_and_lock(monkeypatch) -> None:
+    experiment = "test_immediate_completion_cleans_up_pwm_state_and_lock"
+    requested_ml = 0.01
+    pin = _get_pin("media_pump")
+    calibration = _linear_pump_calibration(slope=20.0)
+    client, dosing_events = _fake_client_collecting_dosing_events(experiment)
+
+    _set_up_deterministic_pump_action(monkeypatch, client)
+
+    moved_ml = add_media(
+        ml=requested_ml,
+        unit=unit,
+        experiment=experiment,
+        calibration=calibration,
+        mqtt_client=cast(Any, client),
+    )
+
+    with local_intermittent_storage("pwm_dc") as pwm_dc:
+        assert pwm_dc.get(pin, 0) == 0
+    with local_intermittent_storage("pwm_locks") as pwm_locks:
+        assert pin not in pwm_locks
 
     assert moved_ml == pytest.approx(requested_ml)
+    assert dosing_events == [pytest.approx(requested_ml)]
 
 
 def test_pumps_can_run_in_background() -> None:

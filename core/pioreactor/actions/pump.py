@@ -365,7 +365,24 @@ def _pump_action(
                         logger.info(f"Stopped {pump_device} early.")
                         return actual_volume_moved_ml
 
-                return volume_moved_ml
+                # Reconcile only after normal completion. The PWM worker can finish
+                # between accounting ticks, or before the first tick for a microdose.
+                # Early disconnects return above using their elapsed-time estimate.
+                remaining_volume_ml = ml - volume_moved_ml
+                if remaining_volume_ml > 0:
+                    dosing_event = replace(
+                        empty_dosing_event,
+                        timestamp=current_utc_datetime(),
+                        volume_change=remaining_volume_ml,
+                    )
+                    publish_async(
+                        mqtt_client,
+                        f"pioreactor/{unit}/{experiment}/dosing_events",
+                        encode(dosing_event),
+                        qos=QOS.EXACTLY_ONCE,
+                    )
+
+                return volume_moved_ml + remaining_volume_ml
 
             else:
                 pump.continuously(block=False)  # start pump
