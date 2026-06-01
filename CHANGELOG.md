@@ -16,6 +16,7 @@
  - Fixed UI requests and Export Data preselection for experiment names containing URL-sensitive characters such as `?`, `&`, or commas.
  - Fixed browser exports so completed zip files download without navigating away from Export Data, preserve the intended filename, and safely encode the download URL.
  - Restricted worker-name API inputs to valid local hostnames, preventing worker requests from targeting arbitrary external addresses.
+ - Better handling of burst-y snackbar messages in the UI.
 
 ### 26.5.2
 
