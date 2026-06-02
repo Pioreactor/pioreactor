@@ -1634,7 +1634,7 @@ function SettingsActionsDialog(props) {
             Add media
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the media pump for a set duration (s), moving a set volume (mL), or continuously add until stopped.
+            Run the media pump for a set duration (s), move a set volume (mL), or fill to the maximum safe volume.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
@@ -1672,7 +1672,7 @@ function SettingsActionsDialog(props) {
             Add alternative media
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the alt-media pump for a set duration (s), moving a set volume (mL), or continuously add until stopped.
+            Run the alt-media pump for a set duration (s), move a set volume (mL), or fill to the maximum safe volume.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:

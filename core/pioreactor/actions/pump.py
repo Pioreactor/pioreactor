@@ -10,6 +10,7 @@ from typing import cast
 import click
 from msgspec.json import encode
 from msgspec.structs import replace
+from pioreactor import bioreactor
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
@@ -28,6 +29,7 @@ from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -140,7 +142,7 @@ class PWMPump:
 def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
     return get_pwm_to_pin_map()[
         cast(pt.PwmChannel, config.get("PWM_reverse", pump_device.removesuffix("_pump")))
-    ]  # backwards compatibility
+    ]
 
 
 def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeristalticPumpCalibration:
@@ -148,8 +150,7 @@ def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeris
     cal = load_active_calibration(pump_device)
     if cal is None:
         return get_default_calibration()
-    else:
-        return cal
+    return cal
 
 
 def publish_async(client: Client, topic: str, payload: bytes, **kwargs: Any) -> None:
@@ -198,14 +199,14 @@ def _pump_action(
     job_source: str | None = None,
 ) -> pt.mL:
     """
-    Returns the mL cycled. However,
-    If calibration is not defined or available on disk, returns gibberish.
+    Run a pump action and return the estimated mL moved.
+
+    Continuous inflow is normalized to a finite dose up to the maximum safe vial volume.
+    Continuous waste is unmetered, runs until stopped, and returns 0.0.
     """
 
-    if not ((ml is not None) or (duration is not None) or continuously):
-        raise ValueError("either ml or duration must be set")
-    if (ml is not None) and (duration is not None):
-        raise ValueError("Only select ml or duration")
+    if sum((ml is not None, duration is not None, continuously)) != 1:
+        raise ValueError("Select exactly one of ml, duration, or continuously.")
 
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
@@ -214,6 +215,17 @@ def _pump_action(
 
     if logger is None:
         logger = create_logger(action_name, experiment=experiment, unit=unit)
+
+    if continuously and pump_device in ("media_pump", "alt_media_pump"):
+        ml = get_pioreactor_model().reactor_max_fill_volume_ml - bioreactor.get_bioreactor_value(
+            experiment, "current_volume_ml"
+        )
+        continuously = False
+        if ml <= 0.0:
+            logger.warning(
+                f"Skipping continuous {pump_device} because the vial is already at the maximum safe volume."
+            )
+            return 0.0
 
     if ml is not None:
         ml = float(ml)
@@ -236,13 +248,7 @@ def _pump_action(
         return 0.0
 
     if calibration is None:
-        try:
-            calibration = _get_calibration(pump_device)
-        except exc.CalibrationError as e:
-            logger.error(str(e))
-            raise
-
-    assert calibration is not None
+        calibration = _get_calibration(pump_device)
 
     with utils.managed_lifecycle(
         unit,
@@ -271,20 +277,7 @@ def _pump_action(
 
             logger.info(_to_human_readable_action(None, duration, pump_device))
         elif continuously:
-            duration = 1.0
-            ml = calibration.duration_to_ml(duration)  # can be wrong if calibration is not defined
-
             logger.info(f"Running {pump_device} continuously.")
-
-        assert duration is not None
-        assert ml is not None
-
-        empty_dosing_event = structs.DosingEvent(
-            volume_change=0.0,
-            event=action_name,
-            source_of_event=source_of_event,
-            timestamp=current_utc_datetime(),
-        )
 
         # first check if the pin is already in use. If so, exit early.
         with local_intermittent_storage("pwm_locks") as pwm_locks:
@@ -303,100 +296,74 @@ def _pump_action(
             return 0.0
 
         with pump_instance as pump:
+            if continuously:
+                pump.continuously(block=False)
+                state.exit_event.wait()
+                pump.stop()
+                logger.info(f"Stopped {pump_device}.")
+                return 0.0
+
+            assert duration is not None
+            assert ml is not None
+
+            empty_dosing_event = structs.DosingEvent(
+                volume_change=0.0,
+                event=action_name,
+                source_of_event=source_of_event,
+                timestamp=current_utc_datetime(),
+            )
+
             sub_duration = 0.5
             volume_moved_ml = 0.0
 
             pump_start_time = time.monotonic()
 
-            if not continuously:
-                pump.by_duration(duration, block=False)  # start pump
+            pump.by_duration(duration, block=False)  # start pump
 
-                while not pump.interrupt.is_set():
-                    sub_volume_moved_ml = 0.0
-                    time_left = duration - (time.monotonic() - pump_start_time)
-                    if time_left <= 0:
-                        # this is an edge case where the time has surpassed, but the interrupt isn't set yet.
-                        pump.interrupt.wait()
-                        break
+            while not pump.interrupt.is_set():
+                sub_volume_moved_ml = 0.0
+                time_left = duration - (time.monotonic() - pump_start_time)
+                if time_left <= 0:
+                    # this is an edge case where the time has surpassed, but the interrupt isn't set yet.
+                    pump.interrupt.wait()
+                    break
 
-                    elif time_left >= sub_duration:
-                        sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
-
-                    elif sub_duration > time_left:
-                        # last remaining bit.
-                        sub_volume_moved_ml = ml - volume_moved_ml
-
-                    dosing_event = replace(
-                        empty_dosing_event,
-                        timestamp=current_utc_datetime(),
-                        volume_change=sub_volume_moved_ml,
-                    )
-                    volume_moved_ml += sub_volume_moved_ml
-
-                    publish_async(
-                        mqtt_client,
-                        f"pioreactor/{unit}/{experiment}/dosing_events",
-                        encode(dosing_event),
-                        qos=QOS.EXACTLY_ONCE,
-                    )
-
-                    if state.exit_event.wait(min(sub_duration, time_left)):
-                        pump.interrupt.set()
-                        pump_stop_time = time.monotonic()
-
-                        # ended early. We should calculate how much _wasnt_ added, and update that.
-                        actual_volume_moved_ml = pump.duration_to_ml(pump_stop_time - pump_start_time)
-                        correction_factor = (
-                            actual_volume_moved_ml - volume_moved_ml
-                        )  # reported too much since we log first before dosing
-
-                        dosing_event = replace(
-                            empty_dosing_event,
-                            timestamp=current_utc_datetime(),
-                            volume_change=correction_factor,
-                        )
-                        publish_async(
-                            mqtt_client,
-                            f"pioreactor/{unit}/{experiment}/dosing_events",
-                            encode(dosing_event),
-                            qos=QOS.EXACTLY_ONCE,
-                        )
-
-                        logger.info(f"Stopped {pump_device} early.")
-                        return actual_volume_moved_ml
-
-                # Reconcile only after normal completion. The PWM worker can finish
-                # between accounting ticks, or before the first tick for a microdose.
-                # Early disconnects return above using their elapsed-time estimate.
-                remaining_volume_ml = ml - volume_moved_ml
-                if remaining_volume_ml > 0:
-                    dosing_event = replace(
-                        empty_dosing_event,
-                        timestamp=current_utc_datetime(),
-                        volume_change=remaining_volume_ml,
-                    )
-                    publish_async(
-                        mqtt_client,
-                        f"pioreactor/{unit}/{experiment}/dosing_events",
-                        encode(dosing_event),
-                        qos=QOS.EXACTLY_ONCE,
-                    )
-
-                return volume_moved_ml + remaining_volume_ml
-
-            else:
-                pump.continuously(block=False)  # start pump
-
-                while True:
+                elif time_left >= sub_duration:
                     sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
 
+                elif sub_duration > time_left:
+                    # last remaining bit.
+                    sub_volume_moved_ml = ml - volume_moved_ml
+
+                dosing_event = replace(
+                    empty_dosing_event,
+                    timestamp=current_utc_datetime(),
+                    volume_change=sub_volume_moved_ml,
+                )
+                volume_moved_ml += sub_volume_moved_ml
+
+                publish_async(
+                    mqtt_client,
+                    f"pioreactor/{unit}/{experiment}/dosing_events",
+                    encode(dosing_event),
+                    qos=QOS.EXACTLY_ONCE,
+                )
+
+                if state.exit_event.wait(min(sub_duration, time_left)):
+                    pump.interrupt.set()
+                    pump_stop_time = time.monotonic()
+
+                    # ended early. We should calculate how much _wasnt_ added, and update that.
+                    actual_volume_moved_ml = pump.duration_to_ml(pump_stop_time - pump_start_time)
+                    correction_factor = (
+                        actual_volume_moved_ml - volume_moved_ml
+                    )  # reported too much since we log first before dosing
+
                     dosing_event = replace(
                         empty_dosing_event,
                         timestamp=current_utc_datetime(),
-                        volume_change=sub_volume_moved_ml,
+                        volume_change=correction_factor,
                     )
-                    volume_moved_ml += sub_volume_moved_ml
-
                     publish_async(
                         mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
@@ -404,31 +371,27 @@ def _pump_action(
                         qos=QOS.EXACTLY_ONCE,
                     )
 
-                    if state.exit_event.wait(sub_duration):
-                        # this is the only way it stops?
-                        pump.interrupt.set()
-                        pump_stop_time = time.monotonic()
+                    logger.info(f"Stopped {pump_device} early.")
+                    return actual_volume_moved_ml
 
-                        actual_volume_moved_ml = pump.duration_to_ml(pump_stop_time - pump_start_time)
+            # Reconcile only after normal completion. The PWM worker can finish
+            # between accounting ticks, or before the first tick for a microdose.
+            # Early disconnects return above using their elapsed-time estimate.
+            remaining_volume_ml = ml - volume_moved_ml
+            if remaining_volume_ml > 0:
+                dosing_event = replace(
+                    empty_dosing_event,
+                    timestamp=current_utc_datetime(),
+                    volume_change=remaining_volume_ml,
+                )
+                publish_async(
+                    mqtt_client,
+                    f"pioreactor/{unit}/{experiment}/dosing_events",
+                    encode(dosing_event),
+                    qos=QOS.EXACTLY_ONCE,
+                )
 
-                        correction_factor = (
-                            actual_volume_moved_ml - volume_moved_ml
-                        )  # reported too much since we log first before dosing
-
-                        dosing_event = replace(
-                            empty_dosing_event,
-                            timestamp=current_utc_datetime(),
-                            volume_change=correction_factor,
-                        )
-                        publish_async(
-                            mqtt_client,
-                            f"pioreactor/{unit}/{experiment}/dosing_events",
-                            encode(dosing_event),
-                            qos=QOS.EXACTLY_ONCE,
-                        )
-
-                        logger.info(f"Stopped {pump_device}.")
-                        return actual_volume_moved_ml
+            return volume_moved_ml + remaining_volume_ml
 
 
 def _liquid_circulation(
@@ -446,13 +409,13 @@ def _liquid_circulation(
     `pump_device`. The function takes in the `pump_device`, `unit` and `experiment` as arguments, where `pump_device` specifies
     the type of pump to be used for the liquid circulation.
 
-    The `waste_pump` is run continuously first, followed by the `media_pump`, with each pump running for 2 seconds.
+    The `waste_pump` is run continuously first, followed by periodic pulses from the media pump.
 
     :param pump_device: A string that specifies the type of pump to be used for the liquid circulation.
     :param unit: (Optional) A string that specifies the unit name. If not provided, the unit name will be obtained.
     :param experiment: (Optional) A string that specifies the experiment name. If not provided, the latest experiment name
                        will be obtained.
-    :return: None
+    :return: The media and waste volumes moved, in mL.
     """
 
     def _get_pump_action(pump_device: PumpCalibrationDevices) -> str:
@@ -583,7 +546,7 @@ add_alt_media = partial(_pump_action, "alt_media_pump")
 @click.command(name="add_alt_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
-@click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--continuously", is_flag=True, help="add until the maximum safe volume is reached.")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -647,7 +610,7 @@ def click_remove_waste(
 @click.command(name="add_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
-@click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--continuously", is_flag=True, help="add until the maximum safe volume is reached.")
 @click.option(
     "--source-of-event",
     default="CLI",

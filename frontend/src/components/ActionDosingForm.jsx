@@ -46,10 +46,11 @@ export default function ActionPumpForm(props) {
   const hasSafetyThreshold = isAddAction && currentVolumeMl != null && thresholdMl != null;
   const hardRemainingMl = hasSafetyThreshold ? thresholdMl - currentVolumeMl : null;
   const exceedsSafetyThreshold = hasSafetyThreshold && isVolumeMode && parsedML != null && parsedML > hardRemainingMl;
+  const continuousWouldOverflow = dosingMethod === "continuously" && hardRemainingMl != null && hardRemainingMl <= 0;
 
   function onSubmit(e) {
     e.preventDefault();
-    if (exceedsSafetyThreshold) {
+    if (exceedsSafetyThreshold || continuousWouldOverflow) {
       setTextfieldError(true)
       return
     }
@@ -65,7 +66,7 @@ export default function ActionPumpForm(props) {
         msg = actionToAct[action] + (" for " +  duration + " seconds.")
       } else {
         params = {continuously: null, source_of_event: "UI"}
-        msg = actionToAct[action] + " continuously"
+        msg = isAddAction ? actionToAct[action] + " to the maximum safe volume." : actionToAct[action] + " continuously"
       }
 
       runPioreactorJob(unit, experiment, action, [], params)
@@ -156,14 +157,14 @@ export default function ActionPumpForm(props) {
               }}
               />
           </div>
-          <FormControlLabel value="continuously" control={<Radio />} label="Run continuously" />
+          <FormControlLabel value="continuously" control={<Radio />} label={isAddAction ? "Fill to safe limit" : "Run continuously"} />
         </RadioGroup>
       </FormControl>
 
 
       <div style={{display: "flex", marginTop: '5px'}}>
         <Button
-          disabled={(formErrorML && isVolumeMode) || (formErrorDuration && isDurationMode) || exceedsSafetyThreshold || (job?.state === "ready")}
+          disabled={(formErrorML && isVolumeMode) || (formErrorDuration && isDurationMode) || exceedsSafetyThreshold || continuousWouldOverflow || (job?.state === "ready")}
           type="submit"
           variant="contained"
           size="small"
@@ -186,6 +187,11 @@ export default function ActionPumpForm(props) {
       {isAddAction && exceedsSafetyThreshold && (
         <Alert severity="warning" sx={{ mt: 1 }}>
           Entered volume exceeds the estimated headroom.
+        </Alert>
+      )}
+      {continuousWouldOverflow && (
+        <Alert severity="warning" sx={{ mt: 1 }}>
+          Estimated vial volume is already at the maximum safe volume.
         </Alert>
       )}
       <Snackbar

@@ -1963,7 +1963,7 @@ function SettingsActionsDialog({
             Add media
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the media pump for a set duration (s), moving a set volume (mL), or continuously add until stopped.
+            Run the media pump for a set duration (s), move a set volume (mL), or fill to the maximum safe volume.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
@@ -2001,7 +2001,7 @@ function SettingsActionsDialog({
             Add alternative media
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the alt-media pump for a set duration (s), moving a set volume (mL), or continuously add until stopped.
+            Run the alt-media pump for a set duration (s), move a set volume (mL), or fill to the maximum safe volume.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:
@@ -2824,7 +2824,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
             Add media
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the media pumps for a set duration (seconds), moving a set volume (mL), or continuously add until stopped.
+            Run the media pumps for a set duration (seconds), move a set volume (mL), or fill to each vial's maximum safe volume.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
@@ -2835,7 +2835,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
             Remove waste
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the waste pumps for a set duration (seconds), moving a set volume (mL), or continuously add until stopped.
+            Run the waste pumps for a set duration (seconds), moving a set volume (mL), or continuously remove until stopped.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to remove media:
@@ -2847,7 +2847,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
             Run the alternative media pumps for a set duration (seconds), moving a set
-            volume (mL), or continuously add until stopped.
+            volume (mL), or fill to each vial's maximum safe volume.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:

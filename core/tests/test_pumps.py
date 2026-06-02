@@ -30,6 +30,7 @@ from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
+from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import get_unit_name
 from tests.utils import FakeMQTTClient
 
@@ -294,6 +295,14 @@ def test_pump_io_cant_set_both_duration_and_ml() -> None:
         remove_waste(ml=1, duration=1, unit=unit, experiment=exp)
 
 
+def test_pump_io_cant_combine_continuous_mode_with_duration_or_ml() -> None:
+    exp = "test_pump_io_cant_combine_continuous_mode_with_duration_or_ml"
+    with pytest.raises(ValueError):
+        add_media(ml=1, continuously=True, unit=unit, experiment=exp)
+    with pytest.raises(ValueError):
+        remove_waste(duration=1, continuously=True, unit=unit, experiment=exp)
+
+
 def test_pump_will_disconnect_via_mqtt() -> None:
     exp = "test_pump_will_disconnect_via_mqtt"
 
@@ -341,8 +350,9 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     assert -expected_ml < volume_updates[-1]["volume_change"] < 0  # fire off a negative volume change
 
 
-def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
-    exp = "test_continuously_running_pump_will_disconnect_via_mqtt"
+def test_continuously_running_waste_pump_will_disconnect_via_mqtt() -> None:
+    exp = "test_continuously_running_waste_pump_will_disconnect_via_mqtt"
+    volume_updates = []
 
     class ThreadWithReturnValue(threading.Thread):
         def __init__(self, *init_args, **init_kwargs) -> None:
@@ -356,21 +366,87 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
             threading.Thread.join(self)
             return self._return
 
-    t = ThreadWithReturnValue(target=add_media, args=(unit, exp), kwargs={"continuously": True}, daemon=True)
+    def collect_updates(msg):
+        volume_updates.append(json.loads(msg.payload.decode()))
+
+    subscribe_and_callback(collect_updates, f"pioreactor/{unit}/{exp}/dosing_events", allow_retained=False)
+
+    t = ThreadWithReturnValue(
+        target=remove_waste,
+        args=(unit, exp),
+        kwargs={"continuously": True},
+        daemon=True,
+    )
     t.start()
 
     pause()
     pause()
+    pin = _get_pin("waste_pump")
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache[pin] > 0
+
     with timing.catchtime() as elapsed_time:
         publish(
-            f"pioreactor/{unit}/{exp}/add_media/$state/set",
+            f"pioreactor/{unit}/{exp}/remove_waste/$state/set",
             b"disconnected",
             qos=QOS.AT_LEAST_ONCE,
         )
         assert elapsed_time() < 1.5
 
     resulting_ml = t.join()
-    assert resulting_ml > 0
+    assert resulting_ml == pytest.approx(0.0)
+    assert volume_updates == []
+
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache.get(pin, 0) == 0
+
+
+def test_continuous_media_does_not_start_when_vial_is_at_max_safe_fill(monkeypatch) -> None:
+    exp = "test_continuous_media_does_not_start_when_vial_is_at_max_safe_fill"
+    bioreactor.set_bioreactor_value(
+        exp, "current_volume_ml", get_pioreactor_model().reactor_max_fill_volume_ml
+    )
+
+    class FailIfConstructed:
+        def __init__(self, *args, **kwargs) -> None:
+            raise AssertionError("PWMPump should not be constructed when the vial is full")
+
+    monkeypatch.setattr("pioreactor.actions.pump.PWMPump", FailIfConstructed)
+
+    moved_ml = add_media(unit=unit, experiment=exp, continuously=True)
+
+    assert moved_ml == pytest.approx(0.0)
+
+
+def test_continuous_media_runs_as_finite_dose_to_max_safe_fill(monkeypatch) -> None:
+    exp = "test_continuous_media_runs_as_finite_dose_to_max_safe_fill"
+    max_fill_volume_ml = get_pioreactor_model().reactor_max_fill_volume_ml
+    bioreactor.set_bioreactor_value(exp, "current_volume_ml", max_fill_volume_ml - 0.75)
+
+    pump_actuations: list[tuple[float, bool]] = []
+    pump_exits: list[bool] = []
+    calibration = _linear_pump_calibration()
+    client, dosing_events = _fake_client_collecting_dosing_events(exp)
+
+    _set_up_deterministic_pump_action(monkeypatch, client, exit_wait_results=[False, False])
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.PWMPump",
+        _build_scheduled_pump_type([False, False, True], pump_actuations, pump_exits),
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.time.monotonic", iter([0.0, 0.0, 0.5]).__next__)
+
+    moved_ml = add_media(
+        unit=unit,
+        experiment=exp,
+        continuously=True,
+        calibration=calibration,
+        mqtt_client=cast(Any, client),
+    )
+
+    assert pump_actuations == [(0.75, False)]
+    assert pump_exits == [True]
+    assert dosing_events == pytest.approx([0.5, 0.25])
+    assert moved_ml == pytest.approx(0.75)
 
 
 def test_pump_publishes_to_state() -> None:
