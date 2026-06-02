@@ -201,7 +201,7 @@ def _pump_action(
     """
     Run a pump action and return the estimated mL moved.
 
-    Continuous inflow is normalized to a finite dose up to the maximum safe vial volume.
+    Continuous inflow runs while the vial has safe headroom.
     Continuous waste runs until stopped and returns its estimated volume.
     """
 
@@ -216,12 +216,11 @@ def _pump_action(
     if logger is None:
         logger = create_logger(action_name, experiment=experiment, unit=unit)
 
-    if continuously and pump_device in ("media_pump", "alt_media_pump"):
-        ml = get_pioreactor_model().reactor_max_fill_volume_ml - bioreactor.get_bioreactor_value(
-            experiment, "current_volume_ml"
-        )
-        continuously = False
-        if ml <= 0.0:
+    continuous_inflow = continuously and pump_device in ("media_pump", "alt_media_pump")
+    max_fill_volume_ml = None
+    if continuous_inflow:
+        max_fill_volume_ml = get_pioreactor_model().reactor_max_fill_volume_ml
+        if bioreactor.get_bioreactor_value(experiment, "current_volume_ml") >= max_fill_volume_ml:
             logger.warning(
                 f"Skipping continuous {pump_device} because the vial is already at the maximum safe volume."
             )
@@ -260,6 +259,14 @@ def _pump_action(
         job_source=job_source,
     ) as state:
         mqtt_client = state.mqtt_client
+
+        if continuous_inflow and is_default_calibration(calibration):
+            logger.error(
+                f"Active calibration not found. Run {pump_device} calibration first: `pio calibrations run --device {pump_device}` or set active with `pio calibrations set-active`"
+            )
+            raise exc.CalibrationError(
+                f"Active calibration not found. Run {pump_device} calibration: `pio calibrations run --device {pump_device}`, or set active with `pio calibrations set-active`"
+            )
 
         if ml is not None:
             if is_default_calibration(calibration):
@@ -310,7 +317,15 @@ def _pump_action(
                 volume_moved_ml = 0.0
                 pump_start_time = time.monotonic()
 
-                while not state.exit_event.wait(sub_duration):
+                while True:
+                    if max_fill_volume_ml is not None and (
+                        bioreactor.get_bioreactor_value(experiment, "current_volume_ml") >= max_fill_volume_ml
+                    ):
+                        break
+
+                    if state.exit_event.wait(sub_duration):
+                        break
+
                     sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
                     volume_moved_ml += sub_volume_moved_ml
                     publish_async(

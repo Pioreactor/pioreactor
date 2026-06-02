@@ -419,22 +419,52 @@ def test_continuous_media_does_not_start_when_vial_is_at_max_safe_fill(monkeypat
     assert moved_ml == pytest.approx(0.0)
 
 
-def test_continuous_media_runs_as_finite_dose_to_max_safe_fill(monkeypatch) -> None:
-    exp = "test_continuous_media_runs_as_finite_dose_to_max_safe_fill"
+def test_continuous_media_rechecks_safe_headroom_while_running(monkeypatch) -> None:
+    exp = "test_continuous_media_rechecks_safe_headroom_while_running"
     max_fill_volume_ml = get_pioreactor_model().reactor_max_fill_volume_ml
-    bioreactor.set_bioreactor_value(exp, "current_volume_ml", max_fill_volume_ml - 0.75)
 
-    pump_actuations: list[tuple[float, bool]] = []
-    pump_exits: list[bool] = []
+    pump_actuations: list[tuple[str, bool]] = []
     calibration = _linear_pump_calibration()
     client, dosing_events = _fake_client_collecting_dosing_events(exp)
 
-    _set_up_deterministic_pump_action(monkeypatch, client, exit_wait_results=[False, False])
+    class ContinuousPump:
+        def __init__(self, *args, **kwargs) -> None:
+            self.calibration = kwargs["calibration"]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def continuously(self, block: bool = True) -> None:
+            pump_actuations.append(("start", block))
+
+        def duration_to_ml(self, seconds: float) -> float:
+            return self.calibration.duration_to_ml(seconds)
+
+        def stop(self) -> None:
+            pump_actuations.append(("stop", True))
+
+    _set_up_deterministic_pump_action(monkeypatch, client, exit_wait_results=[False, False, False])
     monkeypatch.setattr(
         "pioreactor.actions.pump.PWMPump",
-        _build_scheduled_pump_type([False, False, True], pump_actuations, pump_exits),
+        ContinuousPump,
     )
-    monkeypatch.setattr("pioreactor.actions.pump.time.monotonic", iter([0.0, 0.0, 0.5]).__next__)
+    projected_volumes = iter(
+        [
+            max_fill_volume_ml - 0.25,
+            max_fill_volume_ml - 0.25,
+            max_fill_volume_ml - 0.1,
+            max_fill_volume_ml - 0.4,
+            max_fill_volume_ml,
+        ]
+    )
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.bioreactor.get_bioreactor_value",
+        lambda *args: next(projected_volumes),
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.time.monotonic", iter([0.0, 1.5]).__next__)
 
     moved_ml = add_media(
         unit=unit,
@@ -444,10 +474,9 @@ def test_continuous_media_runs_as_finite_dose_to_max_safe_fill(monkeypatch) -> N
         mqtt_client=cast(Any, client),
     )
 
-    assert pump_actuations == [(0.75, False)]
-    assert pump_exits == [True]
-    assert dosing_events == pytest.approx([0.5, 0.25])
-    assert moved_ml == pytest.approx(0.75)
+    assert pump_actuations == [("start", False), ("stop", True)]
+    assert dosing_events == pytest.approx([0.5, 0.5, 0.5, 0.0])
+    assert moved_ml == pytest.approx(1.5)
 
 
 def test_pump_publishes_to_state() -> None:

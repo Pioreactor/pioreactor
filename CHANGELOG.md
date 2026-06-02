@@ -4,7 +4,7 @@
 
  - Standardized async API lifecycle responses. Task-backed requests now return `202` with `status: accepted`, locked operations return `202` with `status: running`, `retry_after_s`, and remediation guidance, and task polling returns terminal `status: succeeded` or `status: failed` responses. MQTT-backed requests that have only been published to the broker now report `status: accepted` instead of claiming success.
  - Changed leader API fan-out results to preserve a structured result for every Pioreactor instead of returning `null` when a unit is offline, times out, or rejects a request. Successful units now return `{ "ok": true, "unit": "<unit>", "value": ... }`; failures return `{ "ok": false, "unit": "<unit>", "error": ..., "status_code": ..., "retryable": ... }`.
- - Changed `pio run add_media --continuously` and `pio run add_alt_media --continuously` to fill only to the bioreactor model's maximum safe vial volume. These commands previously ran until stopped.
+ - Changed `pio run add_media --continuously` and `pio run add_alt_media --continuously` to run only while the vial has headroom below the bioreactor model's maximum safe volume. These commands previously ran until stopped without checking vial volume.
 
 #### Enhancements
 
