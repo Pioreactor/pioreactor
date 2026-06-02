@@ -235,10 +235,10 @@ class ADCReader(LoggerMixin):
                     adcs[c] = curried()
                 except (OSError, exc.HardwareError) as e:
                     self.logger.error(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver} on i2c channel 0x{curried.i2c_address:02x}."
+                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver}."
                     )
                     raise exc.HardwareNotFoundError(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver} on i2c channel 0x{curried.i2c_address:02x}."
+                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver}."
                     ) from e
                 except Exception as e:
                     self.logger.error(f"Unexpected error initializing ADC for pd{c}.")

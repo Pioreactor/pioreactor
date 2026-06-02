@@ -97,6 +97,9 @@ class ADS1115_ADC:
     def read_from_channel(self) -> pt.AnalogValue:
         return self.analog_in.value
 
+    def __repr__(self) -> str:
+        return f"ADS1115_ADC(i2c_addr={hex(self.i2c_addr)}, adc_channel={self.adc_channel})"
+
 
 class Pico_ADC:
     gain: float = 1.0  # Pico ADC has fixed range; expose for interface
@@ -153,6 +156,9 @@ class Pico_ADC:
         # pico has no gain.
         if gain != 1.0:
             raise ValueError("Pico ADC does not support gain adjustment.")
+
+    def __repr__(self) -> str:
+        return f"Pico_ADC(i2c_addr={hex(self.i2c_addr)}, adc_channel={self.adc_channel})"
 
 
 class ADS1114_ADC:
@@ -318,6 +324,9 @@ class ADS1114_ADC:
     def _write_register(self, reg: int, value: int) -> None:
         data = [(value >> 8) & 0xFF, value & 0xFF]
         self._bus.write_i2c_block_data(self.i2c_addr, reg, data)
+
+    def __repr__(self) -> str:
+        return f"ADS1114_ADC(i2c_addr={hex(self.i2c_addr)}, adc_channel={self.adc_channel})"
 
     def __del__(self) -> None:
         try:

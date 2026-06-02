@@ -6,6 +6,7 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 jest.mock("../utils/tasks", () => ({
+  ...jest.requireActual("../utils/tasks"),
   fetchTaskResult: jest.fn(),
 }));
 
@@ -28,24 +29,27 @@ describe("Protocols", () => {
 
     fetchTaskResult.mockResolvedValue({
       result: {
-        "unit-1": [
-          {
-            id: "stirring_dc_based",
-            target_device: "stirring",
-            protocol_name: "dc_based",
-            title: "DC-based stirring calibration",
-            description: "Maps duty cycle to RPM.",
-            requirements: ["Vial"],
-          },
-          {
-            id: "od_standards",
-            target_device: "od",
-            protocol_name: "standards",
-            title: "OD standards calibration",
-            description: "Builds OD standards.",
-            requirements: ["Standards"],
-          },
-        ],
+        "unit-1": {
+          ok: true,
+          value: [
+            {
+              id: "stirring_dc_based",
+              target_device: "stirring",
+              protocol_name: "dc_based",
+              title: "DC-based stirring calibration",
+              description: "Maps duty cycle to RPM.",
+              requirements: ["Vial"],
+            },
+            {
+              id: "od_standards",
+              target_device: "od",
+              protocol_name: "standards",
+              title: "OD standards calibration",
+              description: "Builds OD standards.",
+              requirements: ["Standards"],
+            },
+          ],
+        },
       },
     });
 
@@ -115,26 +119,32 @@ describe("Protocols", () => {
   test("shows the stirring batch action for all pioreactors", async () => {
     fetchTaskResult.mockResolvedValue({
       result: {
-        "unit-1": [
-          {
-            id: "stirring_dc_based",
-            target_device: "stirring",
-            protocol_name: "dc_based",
-            title: "DC-based stirring calibration",
-            description: "Maps duty cycle to RPM.",
-            requirements: ["Vial"],
-          },
-        ],
-        "unit-2": [
-          {
-            id: "stirring_dc_based",
-            target_device: "stirring",
-            protocol_name: "dc_based",
-            title: "DC-based stirring calibration",
-            description: "Maps duty cycle to RPM.",
-            requirements: ["Vial"],
-          },
-        ],
+        "unit-1": {
+          ok: true,
+          value: [
+            {
+              id: "stirring_dc_based",
+              target_device: "stirring",
+              protocol_name: "dc_based",
+              title: "DC-based stirring calibration",
+              description: "Maps duty cycle to RPM.",
+              requirements: ["Vial"],
+            },
+          ],
+        },
+        "unit-2": {
+          ok: true,
+          value: [
+            {
+              id: "stirring_dc_based",
+              target_device: "stirring",
+              protocol_name: "dc_based",
+              title: "DC-based stirring calibration",
+              description: "Maps duty cycle to RPM.",
+              requirements: ["Vial"],
+            },
+          ],
+        },
       },
     });
 
@@ -158,7 +168,12 @@ describe("Protocols", () => {
   test("shows an offline-worker message when the selected worker is unreachable", async () => {
     fetchTaskResult.mockResolvedValue({
       result: {
-        "unit-1": null,
+        "unit-1": {
+          ok: false,
+          error: {
+            message: "Could not reach this worker.",
+          },
+        },
       },
     });
 

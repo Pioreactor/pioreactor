@@ -8,10 +8,15 @@
 #### Enhancements
 
  - Updated Inventory and Leader pages to source Pioreactor IPv4 addresses from backend HTTP data, so addresses remain visible when MQTT is unavailable.
+ - Improved the **Add a new Pioreactor worker** flow to try configured, discovered, and `.local` worker addresses, and to show clearer cause and remediation details when setup fails.
  - Improved config-loading failures in the UI with visible error messages and retry guidance.
 
 #### Bug fixes
 
+ - Reduced false failures in the REF-position self-test by allowing a modestly wider stirring response before warning that the reference photodiode is too responsive to mixing.
+ - Fixed Export Data zip files so CSV entries use current timestamps instead of defaulting to 1980-era zip metadata.
+ - Fixed near-zero volume dosing so completed microdoses are fully accounted for in dosing event totals.
+ - Gave automations more time to receive their first OD or growth-rate reading before treating the reading as unavailable.
  - Fixed per-Pioreactor live log tables so debug-level system logs appear live on the Leader page, and experiment-specific tables no longer show unrelated system logs.
  - Fixed UI requests and Export Data preselection for experiment names containing URL-sensitive characters such as `?`, `&`, or commas.
  - Fixed browser exports so completed zip files download without navigating away from Export Data, preserve the intended filename, and safely encode the download URL.

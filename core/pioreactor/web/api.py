@@ -3901,15 +3901,22 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
     except Exception as e:
         return abort_with(404, str(e))
 
+    setup_error: str | None = None
     try:
         status = result(blocking=True, timeout=60)
-    except (HueyException, TaskException):
+    except (HueyException, TaskException) as exc:
         status = False
+        setup_error = str(exc)
 
     if status:
         return {"msg": f"Worker {new_name} added successfully."}, 200
     else:
-        abort_with(404, f"Failed to add worker {new_name}.")
+        abort_with(
+            404,
+            f"Failed to add worker {new_name}.",
+            cause=setup_error or "The worker setup task did not complete successfully.",
+            remediation="Check the Pioreactor logs for the full worker setup command output.",
+        )
 
 
 @api_bp.route("/workers", methods=["PUT"])

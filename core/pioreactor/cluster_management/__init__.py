@@ -9,6 +9,7 @@ from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
 from pioreactor.exc import BashScriptError
@@ -47,6 +48,47 @@ def get_workers_in_experiment(experiment: pt.Experiment) -> tuple[pt.Unit, ...]:
     result = get_from_leader(f"/api/experiments/{experiment}/workers")
     result.raise_for_status()
     return tuple(worker["pioreactor_unit"] for worker in result.json())
+
+
+def _unique_worker_add_address_candidates(hostname: str, address: str | None) -> tuple[str, ...]:
+    if address:
+        return (address,)
+
+    candidates: list[str | None] = [config.get("cluster.addresses", hostname, fallback=None)]
+    try:
+        candidates.extend(
+            worker.ipv4_address
+            for worker in networking.discover_workers_on_network(terminate=True)
+            if worker.hostname == hostname
+        )
+    except OSError:
+        pass
+
+    candidates.append(networking.add_local(hostname))
+
+    unique_candidates: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in unique_candidates:
+            unique_candidates.append(candidate)
+
+    return tuple(unique_candidates)
+
+
+def _find_reachable_worker_add_address(hostname: str, candidates: tuple[str, ...]) -> str | None:
+    checks, max_checks = 0, 15
+    sleep_time = 3
+
+    while checks < max_checks:
+        for candidate in candidates:
+            if networking.is_address_on_network(candidate, timeout=2):
+                return candidate
+
+        checks += 1
+        click.echo(f"`{hostname}` not found on network - checking again.")
+        if checks < max_checks:
+            sleep(sleep_time)
+
+    return None
 
 
 @click.command(name="add", short_help="add a pioreactor worker")
@@ -99,23 +141,17 @@ def add_worker(
     )
     logger.info(f"Adding new pioreactor {hostname} to cluster.")
 
-    possible_address = address or networking.resolve_to_address(hostname)
-
-    # check to make sure <hostname>.local is on network
-    checks, max_checks = 0, 15
-    sleep_time = 3
+    address_candidates = _unique_worker_add_address_candidates(hostname, address)
 
     if not whoami.is_testing_env():
         with catchtime() as elapsed:
-            while not networking.is_address_on_network(possible_address):
-                checks += 1
-                click.echo(f"`{hostname}` not found on network - checking again.")
-                if checks >= max_checks:
-                    logger.error(
-                        f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
-                    )
-                    raise click.Abort()
-                sleep(sleep_time)
+            possible_address = _find_reachable_worker_add_address(hostname, address_candidates)
+        if possible_address is None:
+            logger.error(
+                f"`{hostname}` not found on network after {round(elapsed())} seconds. "
+                f"Checked: {', '.join(address_candidates)}. Check that i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
+            )
+            raise click.Abort()
 
         res = subprocess.run(
             [

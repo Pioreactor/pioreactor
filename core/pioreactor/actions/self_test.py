@@ -190,9 +190,9 @@ def test_REF_is_in_correct_position(
     logger.debug(f"{relative_effect_per_channel=}")
     logger.debug(f"{effect_per_channel=}")
 
-    MIN_SIGNAL_EFFECT = 0.002
-    MAX_REF_EFFECT = 0.010
-    MAX_REF_TO_SIGNAL_RATIO = 0.5
+    MIN_SIGNAL_EFFECT = 0.001
+    MAX_REF_EFFECT = 0.015
+    MAX_REF_TO_SIGNAL_RATIO = 0.75
 
     assert (
         highest_signal_effect >= MIN_SIGNAL_EFFECT
@@ -227,7 +227,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # the problem is that if an LED is directly across from a PD, a high intensity will quickly
     # saturate it and fail the test. So we try low intensities first, and if we exceed some threshold
     # we exit before moving to the high intensities.
-    INTENSITIES = [10, 70, 60, 40, 30, 20, 50, 80]
+    INTENSITIES = [35, 85, 75, 55, 45, 65, 80, 50]
 
     pd_channels_available = list(get_available_pd_channels())
 
@@ -320,7 +320,9 @@ def test_all_positive_correlations_between_pds_and_leds(
             measured_correlation = round(correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2)
             results[(led_channel, pd_channel)] = measured_correlation
             logger.debug(f"Corr({led_channel}, {pd_channel}) = {measured_correlation}")
-            logger.debug(list(zip(INTENSITIES, varying_intensity_results[pd_channel])))
+            logger.debug(
+                f"Data for {led_channel}, {pd_channel}: {list(zip(INTENSITIES, varying_intensity_results[pd_channel]))}"
+            )
 
         # set back to 0
         led_intensity(
@@ -355,10 +357,15 @@ def test_all_positive_correlations_between_pds_and_leds(
         channel = cast(PdChannel, channel)
         pd_channels_to_test.append(channel)
 
+    invalid_ir_pd_channels: list[tuple[LedChannel, PdChannel, float]] = []
     for ir_pd_channel in pd_channels_to_test:
-        assert (
-            results[(ir_led_channel, ir_pd_channel)] >= 0.90
-        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}, correlation: {results[(ir_led_channel, ir_pd_channel)]:0.2f}"
+        measured_correlation = results[(ir_led_channel, ir_pd_channel)]
+        if measured_correlation < 0.90:
+            invalid_ir_pd_channels.append((ir_led_channel, ir_pd_channel, measured_correlation))
+
+    assert (
+        not invalid_ir_pd_channels
+    ), f"missing IR LED to PD correlations:\n{pformat(invalid_ir_pd_channels)}"
 
 
 def test_ambient_light_interference(

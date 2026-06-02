@@ -474,8 +474,12 @@ def export_experiment_data(
                             )
                             filename = filename.replace(" ", "_")
                             zip_member = f"{dataset_name}/{filename}"
+                            zip_info = zipfile.ZipInfo(zip_member)
+                            zip_info.date_time = datetime.now().timetuple()[:6]
+                            zip_info.compress_type = zipfile.ZIP_DEFLATED
+                            zip_info.external_attr = 0o644 << 16
                             current_csv_file = io.TextIOWrapper(
-                                zf.open(zip_member, mode="w"),
+                                zf.open(zip_info, mode="w"),
                                 encoding="utf-8",
                                 newline="",
                             )

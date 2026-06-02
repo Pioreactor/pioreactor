@@ -143,6 +143,53 @@ describe("AddNewPioreactor", () => {
     expect(global.fetch.mock.calls.some(([url]) => url === "/api/workers/setup")).toBe(false);
   });
 
+  test("shows setup failure cause and remediation from backend", async () => {
+    global.fetch.mockImplementation((url) => {
+      if (url === "/api/models") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => modelsResponse,
+        });
+      }
+
+      if (url === "/api/workers/discover") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      }
+
+      if (url === "/api/workers/setup") {
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({
+            error: "Failed to add worker new-unit.",
+            cause: "ssh connection refused",
+            remediation: "Check the Pioreactor logs for the full worker setup command output.",
+          }),
+        });
+      }
+
+      if (url === "/api/jobs/descriptors") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    renderAddNewPioreactor();
+
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
+    fireEvent.change(await screen.findByRole("textbox", { name: /hostname/i }), { target: { value: "new-unit" } });
+    fireEvent.click(screen.getByRole("button", { name: /^add pioreactor$/i }));
+
+    await screen.findByText(
+      "Unable to complete connection. Failed to add worker new-unit. Cause: ssh connection refused Remediation: Check the Pioreactor logs for the full worker setup command output.",
+    );
+  });
+
 });
 
 describe("WorkerCard", () => {

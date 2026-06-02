@@ -176,6 +176,15 @@ function ipv4AddressIsValid(value) {
   });
 }
 
+function formatWorkerSetupErrorMessage({error, cause, remediation}) {
+  return [
+    "Unable to complete connection.",
+    error,
+    cause ? `Cause: ${cause}` : null,
+    remediation ? `Remediation: ${remediation}` : null,
+  ].filter(Boolean).join(" ");
+}
+
 function AddNewPioreactor({setWorkers}){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -262,7 +271,7 @@ function AddNewPioreactor({setWorkers}){
         setExpectedPathMsg("")
         if(!response.ok){
           setIsError(true)
-          response.json().then(data => setErrorMsg(`Unable to complete connection. The following error occurred: ${data.error}`))
+          response.json().then(data => setErrorMsg(formatWorkerSetupErrorMessage(data)))
         } else {
           setIsSuccess(true)
           setName("")

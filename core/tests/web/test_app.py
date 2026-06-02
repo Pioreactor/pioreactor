@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from flask.testing import FlaskClient
+from huey.exceptions import TaskException
 from pioreactor.web.config import huey
 from pytest import MonkeyPatch
 from tests.utils import FakeMQTTClient
@@ -290,6 +291,34 @@ def test_setup_worker_passes_optional_ipv4_address(client: FlaskClient, monkeypa
 
     assert response.status_code == 200
     assert captured["address"] == "192.168.1.22"
+
+
+def test_setup_worker_reports_task_failure_details(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    class FakeAddWorkerResult:
+        def __call__(self, blocking: bool, timeout: float) -> bool:
+            raise TaskException({"error": "ssh connection refused"})
+
+    def fake_add_new_pioreactor(
+        name: str, version: str, model: str, address: str | None = None
+    ) -> FakeAddWorkerResult:
+        return FakeAddWorkerResult()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fake_add_new_pioreactor)
+
+    response = client.post(
+        "/api/workers/setup",
+        json={
+            "name": "new-unit",
+            "version": "1.5",
+            "model": "pioreactor_40ml",
+        },
+    )
+    body = response.get_json()
+
+    assert response.status_code == 404
+    assert body["error"] == "Failed to add worker new-unit."
+    assert body["cause"] == "ssh connection refused"
+    assert body["remediation"] == "Check the Pioreactor logs for the full worker setup command output."
 
 
 @pytest.mark.parametrize("ipv4_address", ["999.1.1.1", "not-an-ip", "2001:db8::1"])
