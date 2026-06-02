@@ -394,8 +394,9 @@ def test_continuously_running_waste_pump_will_disconnect_via_mqtt() -> None:
         assert elapsed_time() < 1.5
 
     resulting_ml = t.join()
-    assert resulting_ml == pytest.approx(0.0)
-    assert volume_updates == []
+    assert resulting_ml > 0.0
+    assert volume_updates
+    assert sum(update["volume_change"] for update in volume_updates) > 0.0
 
     with local_intermittent_storage("pwm_dc") as cache:
         assert cache.get(pin, 0) == 0

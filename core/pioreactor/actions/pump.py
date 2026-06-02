@@ -202,7 +202,7 @@ def _pump_action(
     Run a pump action and return the estimated mL moved.
 
     Continuous inflow is normalized to a finite dose up to the maximum safe vial volume.
-    Continuous waste is unmetered, runs until stopped, and returns 0.0.
+    Continuous waste runs until stopped and returns its estimated volume.
     """
 
     if sum((ml is not None, duration is not None, continuously)) != 1:
@@ -296,16 +296,6 @@ def _pump_action(
             return 0.0
 
         with pump_instance as pump:
-            if continuously:
-                pump.continuously(block=False)
-                state.exit_event.wait()
-                pump.stop()
-                logger.info(f"Stopped {pump_device}.")
-                return 0.0
-
-            assert duration is not None
-            assert ml is not None
-
             empty_dosing_event = structs.DosingEvent(
                 volume_change=0.0,
                 event=action_name,
@@ -314,6 +304,48 @@ def _pump_action(
             )
 
             sub_duration = 0.5
+
+            if continuously:
+                pump.continuously(block=False)
+                volume_moved_ml = 0.0
+                pump_start_time = time.monotonic()
+
+                while not state.exit_event.wait(sub_duration):
+                    sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
+                    volume_moved_ml += sub_volume_moved_ml
+                    publish_async(
+                        mqtt_client,
+                        f"pioreactor/{unit}/{experiment}/dosing_events",
+                        encode(
+                            replace(
+                                empty_dosing_event,
+                                timestamp=current_utc_datetime(),
+                                volume_change=sub_volume_moved_ml,
+                            )
+                        ),
+                        qos=QOS.EXACTLY_ONCE,
+                    )
+
+                pump.stop()
+                actual_volume_moved_ml = pump.duration_to_ml(time.monotonic() - pump_start_time)
+                publish_async(
+                    mqtt_client,
+                    f"pioreactor/{unit}/{experiment}/dosing_events",
+                    encode(
+                        replace(
+                            empty_dosing_event,
+                            timestamp=current_utc_datetime(),
+                            volume_change=actual_volume_moved_ml - volume_moved_ml,
+                        )
+                    ),
+                    qos=QOS.EXACTLY_ONCE,
+                )
+                logger.info(f"Stopped {pump_device}.")
+                return actual_volume_moved_ml
+
+            assert duration is not None
+            assert ml is not None
+
             volume_moved_ml = 0.0
 
             pump_start_time = time.monotonic()

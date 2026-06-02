@@ -45,7 +45,7 @@ export default function ActionPumpForm(props) {
   const hasDurationInput = duration !== EMPTYSTATE;
   const hasSafetyThreshold = isAddAction && currentVolumeMl != null && thresholdMl != null;
   const hardRemainingMl = hasSafetyThreshold ? thresholdMl - currentVolumeMl : null;
-  const exceedsSafetyThreshold = hasSafetyThreshold && isVolumeMode && parsedML != null && parsedML > hardRemainingMl;
+  const exceedsSafetyThreshold = hasSafetyThreshold && isVolumeMode && parsedML != null && parsedML >= hardRemainingMl;
   const continuousWouldOverflow = dosingMethod === "continuously" && hardRemainingMl != null && hardRemainingMl <= 0;
 
   function onSubmit(e) {
@@ -60,13 +60,13 @@ export default function ActionPumpForm(props) {
       var msg = ""
       if (isVolumeMode){
         params = { ml: parseFloat(mL), source_of_event: "UI"};
-        msg = actionToAct[action] + (" until " + mL + "mL is reached.")
+        msg = `${actionToAct[action]} until ${mL}mL is ${isAddAction ? "added" : "removed"}.`
       } else if (isDurationMode) {
         params = { duration: parseFloat(duration), source_of_event: "UI"}
-        msg = actionToAct[action] + (" for " +  duration + " seconds.")
+        msg = `${actionToAct[action]} for ${duration} seconds.`
       } else {
         params = {continuously: null, source_of_event: "UI"}
-        msg = isAddAction ? actionToAct[action] + " to the maximum safe volume." : actionToAct[action] + " continuously"
+        msg = isAddAction ? `${actionToAct[action]} to the maximum safe volume.` : `${actionToAct[action]} continuously`
       }
 
       runPioreactorJob(unit, experiment, action, [], params)
@@ -184,7 +184,7 @@ export default function ActionPumpForm(props) {
           Stop
         </Button>
       </div>
-      {isAddAction && exceedsSafetyThreshold && (
+      {isAddAction && parsedML > 0 && exceedsSafetyThreshold && (
         <Alert severity="warning" sx={{ mt: 1 }}>
           Entered volume exceeds the estimated headroom.
         </Alert>
