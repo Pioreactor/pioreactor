@@ -34,7 +34,7 @@ PIOREACTOR_20ml__v1_0 = Model(
     model_version="1.0",
     display_name="Pioreactor 20ml, v1.0",
     reactor_capacity_ml=20.0,
-    reactor_max_fill_volume_ml=18.0,
+    reactor_max_fill_volume_ml=16.0,
     reactor_diameter_mm=27.0,
     max_temp_to_reduce_heating=63.0,
     max_temp_to_disable_heating=65.0,
@@ -60,7 +60,7 @@ PIOREACTOR_40ml__v1_0 = replace(
     display_name="Pioreactor 40ml, v1.0",
     model_name="pioreactor_40ml",
     reactor_capacity_ml=40.0,
-    reactor_max_fill_volume_ml=38.0,
+    reactor_max_fill_volume_ml=36.0,
     is_legacy=True,
 )
 
