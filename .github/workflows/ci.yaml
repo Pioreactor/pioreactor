@@ -20,8 +20,8 @@ jobs:
         run: |
           make frontend-test
 
-  test:
-    runs-on: ${{ matrix.os }}
+  backend-test:
+    runs-on: ubuntu-latest
     env:
       TESTING: 1
       DOT_PIOREACTOR: ${{ github.workspace }}/.pioreactor
@@ -41,13 +41,6 @@ jobs:
       MODEL_NAME: pioreactor_40ml
       MODEL_VERSION: 1.5
 
-
-    strategy:
-      fail-fast: true
-      matrix:
-        os: ["ubuntu-latest"]
-        python-version: ["3.13"]
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -55,7 +48,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13"
 
       - name: Install python libraries into env
         run: |

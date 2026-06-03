@@ -27,7 +27,6 @@ chrome-user-data
 /node_modules
 /.pnp
 .pnp.js
-package-lock.json
 /coverage
 npm-debug.log*
 
