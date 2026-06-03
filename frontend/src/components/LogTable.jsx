@@ -24,6 +24,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
 import { experimentPathSegment } from "../utils/url";
+import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -59,6 +60,10 @@ const LEVELS = ["NOTSET", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITIC
 const HIGHLIGHTABLE_CHIP_SX = {
   userSelect: "text",
   WebkitUserSelect: "text",
+  "& .MuiChip-icon": {
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
   "& .MuiChip-label": {
     userSelect: "text",
     WebkitUserSelect: "text",
@@ -174,7 +179,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         <Typography variant="h6" component="h2">
           <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent event logs</Box>
         </Typography>
-        <TableContainer sx={{ height: '660px', width: '100%', overflowY: 'auto' }}>
+        <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ height: '660px', width: '100%', overflowY: 'auto' }}>
           <Table stickyHeader size="small" aria-label="log table">
             <TableHead>
               <TableRow>
@@ -189,7 +194,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                 <React.Fragment key={log.key}>
                   <TableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
-                    <StyledTableCell level={log.level}>
+                    <StyledTableCell level={log.level} data-copy-value={relabelUnit(log.pioreactor_unit)}>
                       <Chip
                         size="small"
                         icon={<PioreactorIcon/>}
@@ -210,7 +215,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                       'hours',
                       true
                     ) >= 2 && (
-                      <TableRow key={`filler-${log.key}`}>
+                      <TableRow key={`filler-${log.key}`} data-copy-row="false">
                         <StyledTableCellFiller colSpan="4">
                           {toTimestampObject(log.timestamp).diff(
                             toTimestampObject(listOfLogs[i + 1].timestamp),

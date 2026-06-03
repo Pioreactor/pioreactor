@@ -42,6 +42,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml';
 import CheckIcon from '@mui/icons-material/Check';
 import ChecklistRtlOutlinedIcon from '@mui/icons-material/ChecklistRtlOutlined';
+import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
 
 export function sanitizeDeviceName(raw) {
   const cleaned = raw
@@ -569,7 +570,7 @@ function CalibrationData() {
 
       </Box>
 
-      <TableContainer sx={{px: 5, mt: 1, mb: 1,  width: "100%", overflowY: "auto", overflowX: 'auto',}}>
+      <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{px: 5, mt: 1, mb: 1,  width: "100%", overflowY: "auto", overflowX: 'auto',}}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -617,7 +618,7 @@ function CalibrationData() {
                   onClick={() => navigate(`/calibrations/${unitName}/${selectedDevice}/${calName}`)}
                   key={i}
                   >
-                  <TableCell sx={{padding: "6px 6px", display: "flex"}}>
+                  <TableCell data-copy-value={unitName} sx={{padding: "6px 6px", display: "flex"}}>
                     <div
                       className="indicator-dot-as-legend"
                       role="button"
@@ -642,7 +643,7 @@ function CalibrationData() {
                       />
                   </TableCell>
                   <TableCell align="left" sx={{padding: "6px 0px"}}>{selectedDevice}</TableCell>
-                  <TableCell align="left" sx={{padding: "6px 0px"}}>
+                  <TableCell align="left" data-copy-value={calName} sx={{padding: "6px 0px"}}>
 
                       <Chip
                         size="small"
@@ -651,7 +652,7 @@ function CalibrationData() {
                         data-calibration-name={calName}
                         />
                   </TableCell>
-                  <TableCell align="left" sx={{padding: "6px 0px"}}>
+                  <TableCell align="left" data-copy-value={cal.is_active ? "Active" : ""} sx={{padding: "6px 0px"}}>
                     {cal.is_active ? (
                       <Chip
                         size="small"

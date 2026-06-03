@@ -26,6 +26,7 @@ import PioreactorsIcon from './components/PioreactorsIcon';
 import EstimatorIcon from './components/EstimatorIcon';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import { readyGreen } from "./utils/color";
+import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
 
 
 const ActiveOrNotCheckBox = ({ onlyActive, setOnlyActive }) => {
@@ -264,7 +265,7 @@ function EstimatorData() {
         </Box>
       </Box>
 
-      <TableContainer sx={{ px: 5, mt: 1, mb: 1, width: "100%", overflowY: "auto", overflowX: 'auto' }}>
+      <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ px: 5, mt: 1, mb: 1, width: "100%", overflowY: "auto", overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -292,7 +293,7 @@ function EstimatorData() {
                   onClick={() => navigate(`/estimators/${unitName}/${deviceName}/${estimatorName}`)}
                   key={i}
                 >
-                  <TableCell sx={{ padding: "6px 6px", display: "flex" }}>
+                  <TableCell data-copy-value={unitName} sx={{ padding: "6px 6px", display: "flex" }}>
                     <Chip
                       size="small"
                       icon={<PioreactorIcon />}
@@ -301,7 +302,7 @@ function EstimatorData() {
                     />
                   </TableCell>
                   <TableCell align="left" sx={{ padding: "6px 0px" }}>{deviceName}</TableCell>
-                  <TableCell align="left" sx={{ padding: "6px 0px" }}>
+                  <TableCell align="left" data-copy-value={estimatorName} sx={{ padding: "6px 0px" }}>
                     <Chip
                       size="small"
                       icon={<EstimatorIcon />}
@@ -309,7 +310,7 @@ function EstimatorData() {
                       data-estimator-name={estimatorName}
                     />
                   </TableCell>
-                  <TableCell align="left" sx={{ padding: "6px 0px" }}>
+                  <TableCell align="left" data-copy-value={estimator.is_active ? "Active" : ""} sx={{ padding: "6px 0px" }}>
                     {estimator.is_active ? (
                       <Chip
                         size="small"

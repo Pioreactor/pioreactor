@@ -157,7 +157,7 @@ export default function ActionPumpForm(props) {
               }}
               />
           </div>
-          <FormControlLabel value="continuously" control={<Radio />} label={isAddAction ? "Fill to safe limit" : "Run continuously"} />
+          <FormControlLabel value="continuously" control={<Radio />} label={isAddAction ? `Fill to max` : "Run continuously"} />
         </RadioGroup>
       </FormControl>
 

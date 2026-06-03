@@ -23,6 +23,34 @@ import {
   COVERAGE_STATUS,
   deriveCalibrationCoverageMatrix,
 } from "./utils/calibration_coverage_matrix";
+import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
+
+function coverageCellCopyValue(cell) {
+  if (cell?.status === COVERAGE_STATUS.ACTIVE) {
+    return cell.calibrationName || "Active";
+  }
+  if (cell?.status === COVERAGE_STATUS.AVAILABLE_NOT_ACTIVE) {
+    return "Active calibration not set";
+  }
+  if (cell?.status === COVERAGE_STATUS.MISSING) {
+    return "Not calibrated";
+  }
+  return "";
+}
+
+const HIGHLIGHTABLE_CHIP_SX = {
+  userSelect: "text",
+  WebkitUserSelect: "text",
+  "& .MuiChip-icon": {
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
+  "& .MuiChip-label": {
+    fontWeight: 600,
+    userSelect: "text",
+    WebkitUserSelect: "text",
+  },
+};
 
 function CoverageCell({ cell, onNavigate }) {
   const hasLink = Boolean(cell?.detailPath);
@@ -30,7 +58,7 @@ function CoverageCell({ cell, onNavigate }) {
   const status = cell?.status;
 
   return (
-    <TableCell align="left" sx={{ minWidth: 180 }}>
+    <TableCell align="left" data-copy-value={coverageCellCopyValue(cell)} sx={{ minWidth: 180 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", minHeight: 32 }}>
         {status === COVERAGE_STATUS.ACTIVE && hasCalibrationLink && (
           <Chip
@@ -144,7 +172,7 @@ function CalibrationCoverage(props) {
 
       {!loading && !error && matrix.units.length > 0 && (
         <Paper sx={{ width: { xs: "100%", md: "100%" }, mx: "auto" }}>
-          <TableContainer sx={{ maxHeight: "68vh" }}>
+          <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ maxHeight: "68vh" }}>
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
@@ -169,6 +197,7 @@ function CalibrationCoverage(props) {
                     <TableCell
                       component="th"
                       scope="row"
+                      data-copy-value={unit}
                       sx={{
                         backgroundColor: (theme) => theme.palette.action.hover,
                       }}
@@ -181,7 +210,7 @@ function CalibrationCoverage(props) {
                         clickable
                         component={Link}
                         to={`/pioreactors/${unit}`}
-                        sx={{ "& .MuiChip-label": { fontWeight: 600 } }}
+                        sx={HIGHLIGHTABLE_CHIP_SX}
                       />
                     </TableCell>
                     {matrix.devices.map((device) => (

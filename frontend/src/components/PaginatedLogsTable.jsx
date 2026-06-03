@@ -20,6 +20,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
 import { experimentPathSegment } from "../utils/url";
+import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -70,6 +71,10 @@ const LEVELS = [
 const HIGHLIGHTABLE_CHIP_SX = {
   userSelect: "text",
   WebkitUserSelect: "text",
+  "& .MuiChip-icon": {
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
   "& .MuiChip-label": {
     userSelect: "text",
     WebkitUserSelect: "text",
@@ -224,7 +229,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
       <Card sx={{ width: "100%" }}>
         <CardContent sx={{ width: "100%" }}>
           {hasLogs ? (
-            <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
+            <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
               <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
                 <colgroup>
                   <col style={{width:'15%'}}/>
@@ -246,7 +251,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                       <StyledTimeTableCell level={log.level}>
                         {timestampCell(log.timestamp)}
                       </StyledTimeTableCell>
-                      <StyledTableCell level={log.level}>
+                      <StyledTableCell level={log.level} data-copy-value={relabelUnit(log.pioreactor_unit)}>
                         <Chip
                           size="small"
                           icon={<PioreactorIcon/>}
