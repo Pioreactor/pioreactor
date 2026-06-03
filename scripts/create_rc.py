@@ -123,13 +123,20 @@ def get_series_floor_version(version: str) -> str:
     return f"{yy}.{month}.0"
 
 
-def get_minimum_required_version_for_rc(version: str) -> str:
-    yy, month, _, suffix = parse_version(version)
-    if not suffix.startswith("rc"):
-        raise ValueError(f"Expected an RC version, got {version!r}")
+def get_previous_series_floor_version(version: str) -> str:
+    yy, month, _, _ = parse_version(version)
     if month == 1:
         return f"{yy - 1}.12.0"
     return f"{yy}.{month - 1}.0"
+
+
+def get_minimum_required_version_for_rc(version: str) -> str:
+    _, _, release, suffix = parse_version(version)
+    if not suffix.startswith("rc"):
+        raise ValueError(f"Expected an RC version, got {version!r}")
+    if release == 0:
+        return get_previous_series_floor_version(version)
+    return get_series_floor_version(version)
 
 
 def compute_series(series_override: str | None = None) -> str:

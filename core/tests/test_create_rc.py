@@ -35,6 +35,12 @@ def test_non_rc_versions_keep_same_series_floor() -> None:
     assert create_rc.get_series_floor_version("26.4.1") == "26.4.0"
 
 
+def test_patch_rc_uses_same_series_floor() -> None:
+    create_rc = load_create_rc_module()
+
+    assert create_rc.get_minimum_required_version_for_rc("26.5.3rc1") == "26.5.0"
+
+
 def test_ensure_pre_update_script_uses_previous_series_floor(tmp_path: Path) -> None:
     create_rc = load_create_rc_module()
     create_rc.UPDATE_SCRIPTS_DIR = tmp_path
@@ -44,3 +50,14 @@ def test_ensure_pre_update_script_uses_previous_series_floor(tmp_path: Path) -> 
     assert changed is True
     contents = (tmp_path / "upcoming" / "pre_update.sh").read_text(encoding="utf-8")
     assert 'min_version="26.3.0"' in contents
+
+
+def test_ensure_pre_update_script_uses_same_series_floor_for_patch_rc(tmp_path: Path) -> None:
+    create_rc = load_create_rc_module()
+    create_rc.UPDATE_SCRIPTS_DIR = tmp_path
+
+    changed = create_rc.ensure_pre_update_script("26.5.3rc1", dry_run=False)
+
+    assert changed is True
+    contents = (tmp_path / "upcoming" / "pre_update.sh").read_text(encoding="utf-8")
+    assert 'min_version="26.5.0"' in contents
