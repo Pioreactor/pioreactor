@@ -2122,6 +2122,58 @@ def test_chemostat_default_schedule_waits_before_first_immediate_run(
         cancel_run_thread(chemostat)
 
 
+def test_chemostat_seeds_explicit_current_volume_before_retained_volume_listener(
+    monkeypatch,
+    fast_dosing_timers,
+) -> None:
+    experiment = "test_chemostat_seeds_explicit_volume_before_listener"
+    stale_volume = Chemostat.MAX_VIAL_VOLUME_TO_STOP + 0.5
+    explicit_start_volume = 19.0
+    delivered_current_volume_payloads: list[float] = []
+
+    bioreactor.set_bioreactor_value(experiment, "current_volume_ml", stale_volume)
+
+    original_subscribe_and_callback = DosingAutomationJob.subscribe_and_callback
+
+    class Message:
+        def __init__(self, payload: bytes) -> None:
+            self.payload = payload
+
+    def subscribe_and_immediately_deliver_retained_value(
+        self: DosingAutomationJob,
+        callback: Callable[[Any], None],
+        subscriptions: list[str] | str,
+        allow_retained: bool = True,
+        qos: int = 2,
+    ) -> None:
+        original_subscribe_and_callback(self, callback, subscriptions, allow_retained, qos)
+
+        subscribed_topics = [subscriptions] if isinstance(subscriptions, str) else subscriptions
+        for topic in subscribed_topics:
+            if topic == bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"):
+                retained_value = bioreactor.get_bioreactor_value(experiment, "current_volume_ml")
+                delivered_current_volume_payloads.append(retained_value)
+                callback(Message(str(retained_value).encode()))
+
+    monkeypatch.setattr(
+        DosingAutomationJob,
+        "subscribe_and_callback",
+        subscribe_and_immediately_deliver_retained_value,
+    )
+
+    with Chemostat(
+        unit=unit,
+        experiment=experiment,
+        exchange_volume_ml=0.25,
+        duration=0.05,
+        current_volume_ml=explicit_start_volume,
+        skip_first_run=True,
+    ) as chemostat:
+        assert delivered_current_volume_payloads == [explicit_start_volume]
+        assert chemostat.current_volume_ml == pytest.approx(explicit_start_volume)
+        cancel_run_thread(chemostat)
+
+
 def test_chemostat_duration_change_before_first_run_reschedules_from_now(
     monkeypatch,
     fast_dosing_timers,

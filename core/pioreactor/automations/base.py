@@ -81,9 +81,10 @@ class AutomationJob(BackgroundJob):
         self._automation_strategy_start_callback: Callable[[], None] | None = None
         self._automation_timer: RepeatedTimer | None = None
 
-        self.start_passive_listeners()
-
     def __post__init__(self) -> None:
+        # Subclass listeners can act on constructor-provided state, so subscribe only after
+        # subclass __init__ has installed values like dosing's initial current_volume_ml.
+        self.start_passive_listeners()
         super().__post__init__()
         if self._automation_strategy_start_callback is not None:
             self._automation_strategy_start_callback()
