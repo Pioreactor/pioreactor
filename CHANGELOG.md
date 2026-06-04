@@ -2,6 +2,7 @@
 
 #### Enhancements
 
+ - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
  - Added a retained MQTT topic for each worker's current experiment assignment:
 
    ```text

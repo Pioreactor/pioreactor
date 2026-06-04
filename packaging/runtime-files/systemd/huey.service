@@ -13,7 +13,7 @@ User=pioreactor
 # Ensure files remain readable by lighttpd after pip reinstalls; keep group write
 UMask=0002
 # Use module path in merged web package
-ExecStart=/opt/pioreactor/venv/bin/huey_consumer pioreactor.web.tasks.huey -n -b 1.0 -w 10 -f -C -d 0.01
+ExecStart=/usr/local/bin/start_pioreactor_huey.sh
 ExecStartPost=/opt/pioreactor/venv/bin/pio  log -m "%n successful" -n systemd --local-only
 StandardOutput=null
 StandardError=null

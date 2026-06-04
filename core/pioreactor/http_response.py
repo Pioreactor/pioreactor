@@ -3,7 +3,7 @@ from msgspec import DecodeError
 from msgspec import Struct
 from msgspec import ValidationError
 from msgspec.json import decode as json_decode
-from pioreactor.experiment_profiles.validate import Diagnostic
+from pioreactor.experiment_profiles.diagnostics import Diagnostic
 from pioreactor.mureq import Response
 
 

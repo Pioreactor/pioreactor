@@ -10,9 +10,11 @@ This repository contains the **executable code for the Pioreactor project**. It 
    - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web APIs.
 3. `frontend/src` — React-based web UI
 4. `packaging/` - contains files used to build, install, and run Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR. Specific important files:
-  - `packaging/linux-leader/files/pioreactor.env`
+  - `packaging/runtime-files/pioreactor.env`
   - `packaging/shared-assets/sql/create_tables.sql`
   - `packaging/shared-assets/pioreactor/config.example.ini`
+
+Some files under `packaging/runtime-files/` are shared into both leader and worker Raspberry Pi images by CustoPiZer. Do not infer leader-only behavior from the generic Linux leader installer; check CustoPiZer sync paths and image-owned service files before deciding packaging scope.
 
 
 ---

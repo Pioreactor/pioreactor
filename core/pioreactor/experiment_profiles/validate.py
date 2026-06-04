@@ -1,23 +1,15 @@
 # -*- coding: utf-8 -*-
 import re
 from typing import Any
-from typing import Literal
 
 from msgspec import Struct
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.experiment_profiles.diagnostics import Diagnostic
 from pioreactor.experiment_profiles.parser import check_syntax
 
 
 STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
 FLEXIBLE_EXPRESSION_PATTERN = r"\${{(.*?)}}"
-
-
-class Diagnostic(Struct, forbid_unknown_fields=True, omit_defaults=True):
-    severity: Literal["error", "warning", "info"]
-    code: str
-    message: str
-    path: str
-    hint: str | None = None
 
 
 class ValidationResult(Struct, forbid_unknown_fields=True):

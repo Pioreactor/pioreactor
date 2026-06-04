@@ -24,7 +24,7 @@ from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.bioreactor import get_bioreactor_variable_definitions
 from pioreactor.bioreactor import get_default_bioreactor_value
-from pioreactor.experiment_profiles.validate import Diagnostic
+from pioreactor.experiment_profiles.diagnostics import Diagnostic
 from pioreactor.http_response import UnitApiErrorPayload
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name

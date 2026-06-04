@@ -8,6 +8,7 @@ DOT_PIOREACTOR="$PIO_HOME/.pioreactor"
 PIO_VENV=/opt/pioreactor/venv
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 SHARED_ASSETS_DIR=$(cd -- "$SCRIPT_DIR/../shared-assets" && pwd)
+RUNTIME_FILES_DIR=$(cd -- "$SCRIPT_DIR/../runtime-files" && pwd)
 INSTALLER_FILES_DIR="$SCRIPT_DIR/files"
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
 UI_PORT=80
@@ -228,7 +229,7 @@ install_python_package() {
 }
 
 install_environment_and_wrappers() {
-  install -D -o root -g root -m 0644 "$INSTALLER_FILES_DIR/pioreactor.env" /etc/pioreactor.env
+  install -D -o root -g root -m 0644 "$RUNTIME_FILES_DIR/pioreactor.env" /etc/pioreactor.env
 
   for executable_name in pio pios; do
     cat >"/usr/local/bin/$executable_name" <<EOF
@@ -244,9 +245,10 @@ EOF
 
 install_runtime_helper_scripts() {
   install -d -o root -g root -m 0755 /usr/local/bin
-  install -o root -g root -m 0755 "$INSTALLER_FILES_DIR/bash/install_pioreactor_plugin.sh" /usr/local/bin/install_pioreactor_plugin.sh
-  install -o root -g root -m 0755 "$INSTALLER_FILES_DIR/bash/uninstall_pioreactor_plugin.sh" /usr/local/bin/uninstall_pioreactor_plugin.sh
-  install -o root -g root -m 0755 "$INSTALLER_FILES_DIR/bash/add_new_pioreactor_worker_from_leader.sh" /usr/local/bin/add_new_pioreactor_worker_from_leader.sh
+  install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/start_pioreactor_huey.sh" /usr/local/bin/start_pioreactor_huey.sh
+  install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/install_pioreactor_plugin.sh" /usr/local/bin/install_pioreactor_plugin.sh
+  install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/uninstall_pioreactor_plugin.sh" /usr/local/bin/uninstall_pioreactor_plugin.sh
+  install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/add_new_pioreactor_worker_from_leader.sh" /usr/local/bin/add_new_pioreactor_worker_from_leader.sh
 }
 
 install_static_asset_link() {
@@ -258,15 +260,16 @@ install_static_asset_link() {
 
 install_system_files() {
   install -d -o root -g root -m 0755 /etc/systemd/system
+  install -m 0644 "$RUNTIME_FILES_DIR"/systemd/* /etc/systemd/system/
   install -m 0644 "$INSTALLER_FILES_DIR"/systemd/* /etc/systemd/system/
 
   install -d -o root -g root -m 0755 /etc/lighttpd
   install -d -o root -g root -m 0755 /etc/lighttpd/conf-available
-  install -m 0644 "$INSTALLER_FILES_DIR/lighttpd/lighttpd.conf" /etc/lighttpd/lighttpd.conf
+  install -m 0644 "$RUNTIME_FILES_DIR/lighttpd/lighttpd.conf" /etc/lighttpd/lighttpd.conf
   sed -i "s/server.port                 = 80/server.port                 = $UI_PORT/" /etc/lighttpd/lighttpd.conf
-  install -m 0644 "$INSTALLER_FILES_DIR/lighttpd"/10-expire.conf /etc/lighttpd/conf-available/
-  install -m 0644 "$INSTALLER_FILES_DIR/lighttpd"/50-pioreactorui.conf /etc/lighttpd/conf-available/
-  install -m 0644 "$INSTALLER_FILES_DIR/lighttpd"/51-cors.conf /etc/lighttpd/conf-available/
+  install -m 0644 "$RUNTIME_FILES_DIR/lighttpd"/10-expire.conf /etc/lighttpd/conf-available/
+  install -m 0644 "$RUNTIME_FILES_DIR/lighttpd"/50-pioreactorui.conf /etc/lighttpd/conf-available/
+  install -m 0644 "$RUNTIME_FILES_DIR/lighttpd"/51-cors.conf /etc/lighttpd/conf-available/
 
   lighttpd-enable-mod expire
   lighttpd-enable-mod fastcgi
@@ -274,8 +277,8 @@ install_system_files() {
   lighttpd-enable-mod pioreactorui
   lighttpd-enable-mod cors
 
-  install -D -o root -g root -m 0644 "$INSTALLER_FILES_DIR/tmpfiles.d/pioreactor.conf" /etc/tmpfiles.d/pioreactor.conf
-  install -D -o root -g root -m 0644 "$INSTALLER_FILES_DIR/logrotate/pioreactor" /etc/logrotate.d/pioreactor
+  install -D -o root -g root -m 0644 "$RUNTIME_FILES_DIR/tmpfiles.d/pioreactor.conf" /etc/tmpfiles.d/pioreactor.conf
+  install -D -o root -g root -m 0644 "$RUNTIME_FILES_DIR/logrotate/pioreactor" /etc/logrotate.d/pioreactor
   systemd-tmpfiles --create /etc/tmpfiles.d/pioreactor.conf
 }
 

@@ -16,7 +16,8 @@ The installer creates the same core runtime shape as the image path:
 The installer expects to be run from the repository checkout or release archive so it can read:
 
 - `packaging/shared-assets/` for one-time provisioning seed data.
-- `packaging/linux-leader/files/` for Linux leader service templates.
+- `packaging/runtime-files/` for shared Linux runtime files also consumed by CustoPiZer Raspberry Pi images, including the common web systemd units.
+- `packaging/linux-leader/files/` for Linux leader installer helpers and leader-only service templates.
 
 ## Usage
 
