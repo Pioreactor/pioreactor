@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import os
 import sqlite3
 import zipfile
@@ -22,6 +23,11 @@ from .test_unit_api import FakeTaskResult
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 huey.immediate = True
+
+
+@pytest.fixture(autouse=True)
+def noop_retained_assignment_publish(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("pioreactor.web.api.publish", lambda *_args, **_kwargs: None)
 
 
 def test_process_delayed_json_response_accepts_created_status() -> None:
@@ -381,6 +387,29 @@ def test_add_worker_to_experiment(client) -> None:
     assert "unit4" in units
 
 
+def test_add_worker_to_experiment_publishes_retained_assignment(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    published: list[tuple[str, dict[str, object], dict[str, object]]] = []
+
+    def capture_publish(topic: str, payload: bytes, **kwargs: object) -> None:
+        published.append((topic, json.loads(payload), kwargs))
+
+    monkeypatch.setattr("pioreactor.web.api.publish", capture_publish)
+
+    response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit4"})
+
+    assert response.status_code == 200
+    assert len(published) == 1
+    topic, payload, kwargs = published[0]
+    assert topic == "pioreactor/unit4/$experiment/assignment"
+    assert kwargs == {"retain": True}
+    assert payload["pioreactor_unit"] == "unit4"
+    assert payload["experiment"] == "exp1"
+    assert isinstance(payload["assigned_at"], str)
+    assert isinstance(payload["updated_at"], str)
+
+
 def test_reassign_worker_to_experiment_stops_jobs_from_previous_experiment(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:
@@ -422,6 +451,29 @@ def test_remove_worker_from_experiment(client) -> None:
     data = response.get_json()
     units = [worker["pioreactor_unit"] for worker in data]
     assert "unit2" not in units
+
+
+def test_remove_worker_from_experiment_publishes_retained_unassignment(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    published: list[tuple[str, dict[str, object], dict[str, object]]] = []
+
+    def capture_publish(topic: str, payload: bytes, **kwargs: object) -> None:
+        published.append((topic, json.loads(payload), kwargs))
+
+    monkeypatch.setattr("pioreactor.web.api.publish", capture_publish)
+
+    response = client.delete("/api/experiments/exp1/workers/unit2")
+
+    assert response.status_code == 200
+    assert len(published) == 1
+    topic, payload, kwargs = published[0]
+    assert topic == "pioreactor/unit2/$experiment/assignment"
+    assert kwargs == {"retain": True}
+    assert payload["pioreactor_unit"] == "unit2"
+    assert payload["experiment"] is None
+    assert payload["assigned_at"] is None
+    assert isinstance(payload["updated_at"], str)
 
 
 def test_remove_worker_from_experiment_it_doesnt_belong_to(client) -> None:

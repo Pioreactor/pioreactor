@@ -1,3 +1,15 @@
+### Upcoming
+
+#### Enhancements
+
+ - Added a retained MQTT topic for each worker's current experiment assignment:
+
+   ```text
+   pioreactor/<pioreactor_unit>/$experiment/assignment
+   ```
+
+   This gives UI, plugin, and monitoring consumers a lightweight MQTT-native way to observe assignment changes while the leader database remains authoritative.
+
 ### 26.5.3
 
 #### Breaking changes

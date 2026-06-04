@@ -44,6 +44,7 @@ DISALLOWED_JOB_NAMES = {
     "led_change_events",
     "unit_label",
     "pwm",
+    "assignment",
 }
 
 

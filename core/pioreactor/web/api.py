@@ -25,6 +25,7 @@ from msgspec import DecodeError
 from msgspec import to_builtins
 from msgspec import UNSET
 from msgspec import ValidationError
+from msgspec.json import encode
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor.config import build_config
@@ -40,6 +41,7 @@ from pioreactor.mureq import Response as MureqResponse
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
+from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.release_archive import ReleaseArchiveVerificationError
 from pioreactor.release_archive import verify_release_archive
@@ -4135,6 +4137,28 @@ def get_worker(pioreactor_unit: str) -> ResponseReturnValue:
 ### Experiment worker assignments
 
 
+def publish_worker_experiment_assignment(
+    pioreactor_unit: str,
+    experiment: str | None,
+    assigned_at: str | None,
+) -> None:
+    topic = f"pioreactor/{pioreactor_unit}/$experiment/assignment"
+    payload = {
+        "pioreactor_unit": pioreactor_unit,
+        "experiment": experiment,
+        "assigned_at": assigned_at,
+        "updated_at": current_utc_timestamp(),
+    }
+
+    try:
+        publish(topic, encode(payload), retain=True)
+    except Exception as error:
+        logger.error(
+            f"Unable to publish retained experiment assignment for {pioreactor_unit}: {error}",
+            exc_info=True,
+        )
+
+
 @api_bp.route("/workers/assignments", methods=["GET"])
 def get_workers_and_experiment_assignments() -> ResponseReturnValue:
     # Get the experiment that a worker is assigned to along with its status
@@ -4182,10 +4206,16 @@ def get_active_experiments() -> ResponseReturnValue:
 
 @api_bp.route("/workers/assignments", methods=["DELETE"])
 def remove_all_workers_from_all_experiments() -> DelayedResponseReturnValue:
+    workers = query_app_db("SELECT pioreactor_unit FROM experiment_worker_assignments")
+
     # unassign all
     modify_app_db(
         "DELETE FROM experiment_worker_assignments",
     )
+    if isinstance(workers, list):
+        for worker in workers:
+            publish_worker_experiment_assignment(worker["pioreactor_unit"], None, None)
+
     task = fanout.broadcast_post_across_workers("/unit_api/jobs/stop/all")
     publish_to_log(
         "Removed all worker assignments.",
@@ -4302,6 +4332,14 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
         (pioreactor_unit, experiment),
     )
     if row_counts > 0:
+        assignment = query_app_db(
+            "SELECT assigned_at FROM experiment_worker_assignments WHERE pioreactor_unit = ?",
+            (pioreactor_unit,),
+            one=True,
+        )
+        assigned_at = assignment["assigned_at"] if isinstance(assignment, dict) else None
+        publish_worker_experiment_assignment(pioreactor_unit, experiment, assigned_at)
+
         # The SQLite replace updates assignment history, but it does not stop any
         # still-running jobs from the previous experiment. That cleanup is an
         # application-level side effect, so we do it explicitly here on reassignment.
@@ -4340,6 +4378,7 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
         (pioreactor_unit, experiment),
     )
     if row_count > 0:
+        publish_worker_experiment_assignment(pioreactor_unit, None, None)
         multicast_post_to_worker(pioreactor_unit, "/unit_api/jobs/stop", json={"experiment": experiment})
         publish_to_experiment_log(
             f"Removed {pioreactor_unit} from {experiment}.",
@@ -4359,11 +4398,20 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
 
 @api_bp.route("/experiments/<experiment>/workers", methods=["DELETE"])
 def remove_workers_from_experiment(experiment: str) -> DelayedResponseReturnValue:
+    workers = query_app_db(
+        "SELECT pioreactor_unit FROM experiment_worker_assignments WHERE experiment = ?",
+        (experiment,),
+    )
+
     # unassign all from specific experiment
     modify_app_db(
         "DELETE FROM experiment_worker_assignments WHERE experiment = ?",
         (experiment,),
     )
+    if isinstance(workers, list):
+        for worker in workers:
+            publish_worker_experiment_assignment(worker["pioreactor_unit"], None, None)
+
     task = fanout.broadcast_post_across_workers("/unit_api/jobs/stop", json={"experiment": experiment})
     publish_to_experiment_log(
         f"Removed all workers from {experiment}.",
