@@ -420,7 +420,7 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
             ]
 
         def get(self, blocking: bool, timeout: float) -> dict[str, Any]:
-            raise tasks.ResultTimeout("timed out waiting for result")
+            raise tasks.ResultTimeout("timed out waiting for result.")
 
     monkeypatch.setattr(tasks, "_enqueue_multicast_chord", lambda *args, **kwargs: DummyResult())
 

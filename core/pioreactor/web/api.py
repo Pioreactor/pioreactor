@@ -3905,7 +3905,7 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
 
     setup_error: str | None = None
     try:
-        status = result(blocking=True, timeout=60)
+        status = result(blocking=True, timeout=90)
     except (HueyException, TaskException) as exc:
         status = False
         setup_error = str(exc)
