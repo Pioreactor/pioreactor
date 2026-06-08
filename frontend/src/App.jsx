@@ -99,12 +99,7 @@ function App() {
     <React.StrictMode>
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={theme}>
-          <Router
-            future={{
-              v7_relativeSplatPath: true,
-              v7_startTransition: true,
-            }}
-          >
+          <Router>
             <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline />
