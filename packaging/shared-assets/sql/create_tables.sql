@@ -181,9 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_level_timestamp_desc
 CREATE TABLE IF NOT EXISTS experiments (
     experiment TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
-    description TEXT,
-    media_used TEXT,
-    organism_used TEXT
+    description TEXT
 );
 
 -- since we are almost always calling this like "SELECT * FROM experiments ORDER BY created_at DESC LIMIT 1",
@@ -202,8 +200,6 @@ SELECT
     experiment,
     created_at,
     description,
-    media_used,
-    organism_used,
     round((strftime("%s", "now") - strftime("%s", created_at)) / 60 / 60, 0)
         AS delta_hours
 FROM experiments

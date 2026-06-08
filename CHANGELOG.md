@@ -1,8 +1,14 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Migrated legacy experiment `media_used` and `organism_used` values to namespaced experiment tags, then removed those columns from the `experiments` database table.
+
 #### Enhancements
 
  - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
+ - removed tty services from base images.
+ - added `git` to base images
  - Added a retained MQTT topic for each worker's current experiment assignment:
 
    ```text
@@ -10,6 +16,10 @@
    ```
 
    This gives UI, plugin, and monitoring consumers a lightweight MQTT-native way to observe assignment changes while the leader database remains authoritative.
+
+#### Bug fixes
+
+- Fixed network_info.txt lacking networkmanager logs
 
 ### 26.5.3
 

@@ -1,8 +1,8 @@
-INSERT INTO experiments (experiment, created_at, description, media_used, organism_used) VALUES
-('exp0', '2023-09-01T12:00:00Z', 'Demo experiment', '', ''),
-('exp1', '2023-10-01T12:00:00Z', 'First experiment', 'LB broth', 'E. coli'),
-('exp2', '2023-10-02T15:00:00Z', 'Second experiment', 'Minimal media', 'Yeast'),
-('exp3', '2023-10-03T09:00:00Z', 'Third experiment', 'Rich media', 'Bacteria');
+INSERT INTO experiments (experiment, created_at, description) VALUES
+('exp0', '2023-09-01T12:00:00Z', 'Demo experiment'),
+('exp1', '2023-10-01T12:00:00Z', 'First experiment'),
+('exp2', '2023-10-02T15:00:00Z', 'Second experiment'),
+('exp3', '2023-10-03T09:00:00Z', 'Third experiment');
 
 CREATE TABLE IF NOT EXISTS experiment_tags (
     experiment TEXT NOT NULL,
@@ -13,6 +13,14 @@ CREATE TABLE IF NOT EXISTS experiment_tags (
         experiment
     ) ON DELETE CASCADE
 );
+
+INSERT INTO experiment_tags (experiment, tag, created_at) VALUES
+('exp1', 'media: LB broth', '2023-10-01T12:00:00Z'),
+('exp1', 'organism: E. coli', '2023-10-01T12:00:00Z'),
+('exp2', 'media: Minimal media', '2023-10-02T15:00:00Z'),
+('exp2', 'organism: Yeast', '2023-10-02T15:00:00Z'),
+('exp3', 'media: Rich media', '2023-10-03T09:00:00Z'),
+('exp3', 'organism: Bacteria', '2023-10-03T09:00:00Z');
 
 INSERT INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version) VALUES
 ('unit1', '2023-10-01T10:00:00Z', 1, "pioreactor_20ml", "1.1"),

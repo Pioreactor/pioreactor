@@ -665,8 +665,6 @@ class ExportDatasetsRequest(Struct, forbid_unknown_fields=True):
 class CreateExperimentRequest(Struct, forbid_unknown_fields=True):
     experiment: str
     description: str | None = None
-    mediaUsed: str | None = None
-    organismUsed: str | None = None
     tags: list[str] = []
     created_at: str | None = None
     delta_hours: int | float | None = None

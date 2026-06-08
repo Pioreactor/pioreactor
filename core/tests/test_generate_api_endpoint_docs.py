@@ -90,8 +90,6 @@ def test_parse_routes_reads_app_owned_experiment_mutation_body_fields() -> None:
         "created_at",
         "delta_hours",
         "description",
-        "mediaUsed",
-        "organismUsed",
         "tags",
         "worker_count",
     )
@@ -105,8 +103,6 @@ def test_create_experiment_docs_hide_compatibility_only_fields() -> None:
     assert request_body_example(route) == {
         "experiment": "testing_experiment",
         "description": "Experiment notes.",
-        "mediaUsed": "LB",
-        "organismUsed": "E. coli",
         "tags": ["screening"],
     }
 

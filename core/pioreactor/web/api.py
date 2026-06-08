@@ -3092,8 +3092,6 @@ def create_experiment() -> ResponseReturnValue:
     {
       "experiment": "experiment-name",
       "description": "Optional description.",
-      "mediaUsed": "Optional media name.",
-      "organismUsed": "Optional organism name.",
       "tags": ["optional-tag"]
     }
     """
@@ -3103,13 +3101,11 @@ def create_experiment() -> ResponseReturnValue:
 
     try:
         row_count = modify_app_db(
-            "INSERT INTO experiments (created_at, experiment, description, media_used, organism_used) VALUES (?,?,?,?,?)",
+            "INSERT INTO experiments (created_at, experiment, description) VALUES (?, ?, ?)",
             (
                 current_utc_timestamp(),
                 proposed_experiment_name,
                 body.description,
-                body.mediaUsed,
-                body.organismUsed,
             ),
         )
 
@@ -3251,34 +3247,6 @@ def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
         abort_with(400, str(e))
 
     return {"status": "success"}, 201
-
-
-@api_bp.route("/historical_organisms", methods=["GET"])
-def get_historical_organisms_used() -> ResponseReturnValue:
-    try:
-        historical_organisms = query_app_db(
-            'SELECT DISTINCT organism_used as key FROM experiments WHERE NOT (organism_used IS NULL OR organism_used == "") ORDER BY created_at DESC;'
-        )
-
-    except Exception as e:
-        publish_to_error_log(str(e), "historical_organisms")
-        abort_with(500, str(e))
-
-    return jsonify(historical_organisms)
-
-
-@api_bp.route("/historical_media", methods=["GET"])
-def get_historical_media_used() -> ResponseReturnValue:
-    try:
-        historical_media = query_app_db(
-            'SELECT DISTINCT media_used as key FROM experiments WHERE NOT (media_used IS NULL OR media_used == "") ORDER BY created_at DESC;'
-        )
-
-    except Exception as e:
-        publish_to_error_log(str(e), "historical_media")
-        abort_with(500, str(e))
-
-    return jsonify(historical_media)
 
 
 @api_bp.route("/experiments/<experiment>", methods=["PATCH"])

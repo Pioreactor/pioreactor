@@ -6,7 +6,7 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 
 CORE_REQUIREMENTS = [
-    "click==8.3.2",
+    "click==8.4.1",
     "paho-mqtt==2.1.0",
     "colorlog==6.10.1",
     "msgspec==0.21.1",
@@ -15,13 +15,13 @@ CORE_REQUIREMENTS = [
     "blinker==1.9.0",
     "Flask==3.1.3",
     "flup6==1.1.1",
-    "huey==3.0.0",
+    "huey==3.0.1",
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
     "MarkupSafe==3.0.3",
     "python-dotenv==1.2.2",
     "Werkzeug==3.1.8",
-    "packaging==26.1",
+    "packaging==26.2",
     # preinstalled on base images
     # "pyyaml==6.0.2",
     # "rpi-lgpio==0.6"
@@ -45,12 +45,12 @@ WORKER_REQUIREMENTS = [
     "adafruit-circuitpython-connectionmanager==3.1.1",
     "adafruit-circuitpython-requests==4.1.3",
     "adafruit-circuitpython-typing==1.10.3",
-    "Adafruit-PlatformDetect==3.78.0",
+    "Adafruit-PlatformDetect==3.88.0",
     "Adafruit-PureIO==1.1.11",
     "plotext==5.2.8",
-    "pyftdi==0.55.4",
+    "pyftdi==0.57.2",
     "pyserial==3.5",
-    "pyusb==1.2.1",
+    "pyusb==1.3.1",
     "rpi_hardware_pwm==0.3.1",
     "smbus2==0.5.0",
     "DAC43608==0.2.7",

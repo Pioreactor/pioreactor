@@ -678,8 +678,6 @@ def test_create_experiment(client) -> None:
             "experiment": "exp4",
             "created_at": "2023-10-04T12:00:00Z",
             "description": "Fourth experiment",
-            "mediaUsed": "Special media",
-            "organismUsed": "Algae",
             "tags": ["seed", "project-x", "seed"],
             "delta_hours": 0,
             "worker_count": 0,
