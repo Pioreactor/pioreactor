@@ -1,6 +1,7 @@
 import Avatar from "boring-avatars";
 import React from "react";
 import Divider from "@mui/material/Divider";
+import UnderlineSpan from "./components/UnderlineSpan";
 
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -573,7 +574,7 @@ function ListUsbPlugins({
   return (
     <>
       <Typography variant="h6" component="h3">
-        Plugins found on USB {usbName}
+        Plugins found on USB device <UnderlineSpan title="Attached to leader">{usbName}</UnderlineSpan>
       </Typography>
 
       <Box sx={{ mb: "15px", width: "100%" }}>

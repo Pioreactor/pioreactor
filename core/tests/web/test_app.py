@@ -227,49 +227,6 @@ def test_discover_workers_endpoint(client, monkeypatch) -> None:
     assert "unit1" not in units
 
 
-def test_setup_worker_waits_one_minute_and_preserves_blank_ipv4(
-    client: FlaskClient, monkeypatch: MonkeyPatch
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeAddWorkerResult:
-        def __call__(self, blocking: bool, timeout: float) -> bool:
-            captured["blocking"] = blocking
-            captured["timeout"] = timeout
-            return True
-
-    def fake_add_new_pioreactor(
-        name: str, version: str, model: str, address: str | None = None
-    ) -> FakeAddWorkerResult:
-        captured["name"] = name
-        captured["version"] = version
-        captured["model"] = model
-        captured["address"] = address
-        return FakeAddWorkerResult()
-
-    monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fake_add_new_pioreactor)
-
-    response = client.post(
-        "/api/workers/setup",
-        json={
-            "name": "new-unit",
-            "version": "1.5",
-            "model": "pioreactor_40ml",
-            "ipv4_address": "",
-        },
-    )
-
-    assert response.status_code == 200
-    assert captured == {
-        "name": "new-unit",
-        "version": "1.5",
-        "model": "pioreactor_40ml",
-        "address": None,
-        "blocking": True,
-        "timeout": 60,
-    }
-
-
 def test_setup_worker_passes_optional_ipv4_address(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 

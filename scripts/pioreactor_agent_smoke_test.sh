@@ -20,6 +20,11 @@ FAILURE_COUNT=0
 VERIFIED_IDLE_BEFORE=false
 HAS_JQ=false
 HAS_SYSTEMCTL=false
+AVAILABLE_WORKER_NAME=""
+AVAILABLE_WORKER_ADDRESS=""
+AVAILABLE_WORKER_IS_ACTIVE=""
+AVAILABLE_WORKER_MODEL_NAME=""
+AVAILABLE_WORKER_MODEL_VERSION=""
 
 declare -a TEST_SEQUENCE=(
   check_versions
@@ -56,6 +61,7 @@ declare -a TEST_SEQUENCE=(
   check_pios_cli
   check_pios_cp_target_help
   check_pios_sync_configs
+  check_available_worker_cluster_branch
   check_numpy_installation
 )
 
@@ -285,6 +291,501 @@ read_pwm_duty_cycle() {
 is_positive_number() {
   local value="$1"
   awk -v n="$value" 'BEGIN {exit (n+0 > 0 ? 0 : 1)}'
+}
+
+python3_available() {
+  command -v python3 >/dev/null 2>&1
+}
+
+json_file_for_code_patch() {
+  # Usage: json_file_for_code_patch CODE_FILE JSON_FILE
+  local code_file="$1"
+  local json_file="$2"
+
+  python3 - "$code_file" > "$json_file" <<'PY'
+import json
+import pathlib
+import sys
+
+print(json.dumps({"code": pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")}))
+PY
+}
+
+worker_base_url() {
+  local address="$1"
+
+  case "$address" in
+    http://*|https://*)
+      printf '%s\n' "$address"
+      ;;
+    *)
+      printf 'http://%s\n' "$address"
+      ;;
+  esac
+}
+
+select_available_worker() {
+  if [[ -n "$AVAILABLE_WORKER_NAME" ]]; then
+    return 0
+  fi
+
+  if ! python3_available; then
+    warn "python3 not available; skipping worker-cluster branch"
+    return 1
+  fi
+
+  local workers_json hostname
+  hostname="$(hostname)"
+  if ! workers_json="$(curl -fsS http://localhost/api/workers)"; then
+    warn "Unable to fetch worker inventory; skipping worker-cluster branch"
+    return 1
+  fi
+
+  local candidates
+  if ! candidates="$(WORKERS_JSON="$workers_json" python3 - "$hostname" <<'PY'
+import json
+import os
+import sys
+
+hostname = sys.argv[1]
+workers = json.loads(os.environ["WORKERS_JSON"])
+
+for worker in workers:
+    unit = str(worker.get("pioreactor_unit") or "")
+    if not unit or unit == hostname:
+        continue
+    if not bool(worker.get("is_active")):
+        continue
+
+    address = str(worker.get("ipv4_address") or worker.get("address") or f"{unit}.local")
+    model_name = str(worker.get("model_name") or "")
+    model_version = str(worker.get("model_version") or "")
+    print("|".join([unit, address, "1", model_name, model_version]))
+PY
+)"; then
+    warn "Unable to parse worker inventory; skipping worker-cluster branch"
+    return 1
+  fi
+
+  local candidate unit address is_active model_name model_version base_url
+  while IFS= read -r candidate; do
+    [[ -n "$candidate" ]] || continue
+    IFS='|' read -r unit address is_active model_name model_version <<< "$candidate"
+    base_url="$(worker_base_url "$address")"
+    if curl -fsS --max-time 5 "$base_url/unit_api/system/utc_clock" >/dev/null; then
+      AVAILABLE_WORKER_NAME="$unit"
+      AVAILABLE_WORKER_ADDRESS="$address"
+      AVAILABLE_WORKER_IS_ACTIVE="$is_active"
+      AVAILABLE_WORKER_MODEL_NAME="$model_name"
+      AVAILABLE_WORKER_MODEL_VERSION="$model_version"
+      return 0
+    fi
+  done <<< "$candidates"
+
+  warn "No active non-leader worker responded to /unit_api/system/utc_clock; skipping worker-cluster branch"
+  return 1
+}
+
+worker_inventory_contains() {
+  local worker="$1"
+  local workers_json
+
+  if ! workers_json="$(curl -fsS http://localhost/api/workers)"; then
+    return 1
+  fi
+
+  WORKERS_JSON="$workers_json" python3 - "$worker" <<'PY'
+import json
+import os
+import sys
+
+target = sys.argv[1]
+workers = json.loads(os.environ["WORKERS_JSON"])
+sys.exit(0 if any(worker.get("pioreactor_unit") == target for worker in workers) else 1)
+PY
+}
+
+refresh_available_worker_address_from_inventory() {
+  local worker="$1"
+  local workers_json address
+
+  if ! workers_json="$(curl -fsS http://localhost/api/workers)"; then
+    return 1
+  fi
+
+  if ! address="$(WORKERS_JSON="$workers_json" python3 - "$worker" <<'PY'
+import json
+import os
+import sys
+
+target = sys.argv[1]
+workers = json.loads(os.environ["WORKERS_JSON"])
+for worker in workers:
+    if worker.get("pioreactor_unit") == target:
+        print(worker.get("ipv4_address") or worker.get("address") or "")
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+)"; then
+    return 1
+  fi
+
+  if [[ -n "$address" ]]; then
+    AVAILABLE_WORKER_ADDRESS="$address"
+  fi
+}
+
+wait_for_available_worker_api() {
+  local worker="$1"
+  local base_url
+
+  info "Waiting for worker $worker API to become available"
+  for _ in {1..60}; do
+    refresh_available_worker_address_from_inventory "$worker" >/dev/null || true
+    base_url="$(worker_base_url "${AVAILABLE_WORKER_ADDRESS:-$worker.local}")"
+    if curl -fs --max-time 5 "$base_url/unit_api/system/utc_clock" >/dev/null; then
+      ok "worker $worker API is available"
+      return 0
+    fi
+    sleep 2
+  done
+
+  fail "worker $worker API did not become available after add-back"
+  return 1
+}
+
+patch_unit_specific_config() {
+  local worker="$1"
+  local code_file="$2"
+  local payload_file
+  payload_file="$(mktemp)"
+
+  if ! json_file_for_code_patch "$code_file" "$payload_file"; then
+    rm -f "$payload_file"
+    return 1
+  fi
+
+  curl -fsS \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -d "@$payload_file" \
+    "http://localhost/api/config/units/$worker/specific" >/dev/null
+  local status=$?
+  rm -f "$payload_file"
+  return "$status"
+}
+
+append_config_smoke_section() {
+  # Usage: append_config_smoke_section INPUT_FILE OUTPUT_FILE SECTION_NAME WORKER_NAME
+  local input_file="$1"
+  local output_file="$2"
+  local section_name="$3"
+  local worker="$4"
+
+  python3 - "$input_file" "$output_file" "$section_name" "$worker" <<'PY'
+import pathlib
+import sys
+
+source = pathlib.Path(sys.argv[1])
+target = pathlib.Path(sys.argv[2])
+section_name = sys.argv[3]
+worker = sys.argv[4]
+
+text = source.read_text(encoding="utf-8")
+if text and not text.endswith("\n"):
+    text += "\n"
+text += f"\n[{section_name}]\nworker_target={worker}\n"
+target.write_text(text, encoding="utf-8")
+PY
+}
+
+worker_specific_config_has_section() {
+  local worker="$1"
+  local section_name="$2"
+  local config_json
+
+  if ! config_json="$(curl -fsS "http://localhost/api/config/units/$worker")"; then
+    return 1
+  fi
+
+  CONFIG_JSON="$config_json" python3 - "$worker" "$section_name" <<'PY'
+import json
+import os
+import sys
+
+worker = sys.argv[1]
+section = sys.argv[2]
+payload = json.loads(os.environ["CONFIG_JSON"])
+config = payload.get("configs", {}).get(worker, {})
+sys.exit(0 if section in config else 1)
+PY
+}
+
+worker_plugin_list_contains() {
+  local base_url="$1"
+  local plugin_name="$2"
+  local plugins_json
+
+  if ! plugins_json="$(curl -fs "$base_url/unit_api/plugins/installed")"; then
+    return 1
+  fi
+
+PLUGINS_JSON="$plugins_json" python3 - "$plugin_name" <<'PY'
+import json
+import os
+import sys
+
+plugin_name = sys.argv[1].replace("-", "_")
+plugins = json.loads(os.environ["PLUGINS_JSON"])
+sys.exit(0 if any(str(plugin.get("name") or "").replace("-", "_") == plugin_name for plugin in plugins) else 1)
+PY
+}
+
+wait_for_worker_plugin() {
+  local base_url="$1"
+  local plugin_name="$2"
+
+  for _ in {1..24}; do
+    if worker_plugin_list_contains "$base_url" "$plugin_name"; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  return 1
+}
+
+wait_for_worker_plugin_absent() {
+  local base_url="$1"
+  local plugin_name="$2"
+
+  for _ in {1..24}; do
+    if worker_plugin_list_contains "$base_url" "$plugin_name"; then
+      sleep 2
+    else
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+print_prefixed_file_excerpt() {
+  local prefix="$1"
+  local file="$2"
+  local max_bytes="${3:-4000}"
+
+  if [[ -s "$file" ]]; then
+    head -c "$max_bytes" "$file" | while IFS= read -r line || [[ -n "$line" ]]; do
+      warn "$prefix$line"
+    done
+  else
+    warn "$prefix<empty>"
+  fi
+}
+
+write_worker_plugin_install_diagnostics() {
+  local worker="$1"
+  local base_url="$2"
+  local plugin_name="$3"
+  local dispatch_response_file="$4"
+  local plugins_file logs_file system_logs_file
+
+  plugins_file="$(mktemp)"
+  logs_file="$(mktemp)"
+  system_logs_file="$(mktemp)"
+
+  warn "Diagnostics for $plugin_name install on $worker"
+  warn "Install dispatch response:"
+  print_prefixed_file_excerpt "  " "$dispatch_response_file" 2000
+
+  if curl -fsS "$base_url/unit_api/plugins/installed" > "$plugins_file"; then
+    warn "Worker /unit_api/plugins/installed response:"
+    print_prefixed_file_excerpt "  " "$plugins_file" 4000
+  else
+    warn "Unable to fetch worker /unit_api/plugins/installed"
+  fi
+
+  if curl -fsS "http://localhost/api/units/$worker/logs?min_level=DEBUG" > "$logs_file"; then
+    warn "Recent leader-captured unit logs for $worker:"
+    print_prefixed_file_excerpt "  " "$logs_file" 4000
+  else
+    warn "Unable to fetch /api/units/$worker/logs"
+  fi
+
+  if curl -fsS "http://localhost/api/units/$worker/system_logs?min_level=DEBUG" > "$system_logs_file"; then
+    warn "Recent leader-captured system logs for $worker:"
+    print_prefixed_file_excerpt "  " "$system_logs_file" 4000
+  else
+    warn "Unable to fetch /api/units/$worker/system_logs"
+  fi
+
+  rm -f "$plugins_file" "$logs_file" "$system_logs_file"
+}
+
+wait_for_worker_task_success() {
+  local base_url="$1"
+  local dispatch_response_file="$2"
+  local result_file="$3"
+  local description="$4"
+  local max_attempts="${5:-90}"
+  local sleep_seconds="${6:-2}"
+  local progress_every_attempts="${7:-15}"
+  local result_url_path task_state attempt elapsed_seconds
+
+  if ! result_url_path="$(python3 - "$dispatch_response_file" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(payload.get("result_url_path") or "")
+PY
+)"; then
+    fail "unable to parse $description task response"
+    return 1
+  fi
+
+  if [[ -z "$result_url_path" ]]; then
+    fail "$description task response missing result_url_path"
+    return 1
+  fi
+
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if ! curl -fs "$base_url$result_url_path" > "$result_file"; then
+      if (( attempt % progress_every_attempts == 0 )); then
+        elapsed_seconds=$((attempt * sleep_seconds))
+        warn "$description task result unavailable after ${elapsed_seconds}s"
+      fi
+      sleep "$sleep_seconds"
+      continue
+    fi
+
+    task_state="$(TASK_JSON="$(cat "$result_file")" python3 <<'PY'
+import json
+import os
+
+payload = json.loads(os.environ["TASK_JSON"])
+status = payload.get("status")
+if status in {"pending", "running"}:
+    print(status)
+elif status == "succeeded" and payload.get("result") is True:
+    print("succeeded_true")
+elif status == "succeeded":
+    print("succeeded_false")
+elif status == "failed":
+    print("failed")
+else:
+    print(status or "unknown")
+PY
+)"
+
+    case "$task_state" in
+      succeeded_true)
+        ok "$description task succeeded"
+        return 0
+        ;;
+      succeeded_false|failed)
+        fail "$description task completed with status $task_state"
+        return 1
+        ;;
+    esac
+
+    if (( attempt % progress_every_attempts == 0 )); then
+      elapsed_seconds=$((attempt * sleep_seconds))
+      warn "$description task still $task_state after ${elapsed_seconds}s"
+      print_prefixed_file_excerpt "  task result: " "$result_file" 1200
+    fi
+
+    sleep "$sleep_seconds"
+  done
+
+  fail "$description task did not complete"
+  return 1
+}
+
+worker_running_jobs_contain() {
+  local base_url="$1"
+  local job_name="$2"
+  local jobs_json
+
+  if ! jobs_json="$(curl -fs "$base_url/unit_api/jobs/running")"; then
+    return 1
+  fi
+
+  JOBS_JSON="$jobs_json" python3 - "$job_name" <<'PY'
+import json
+import os
+import sys
+
+job_name = sys.argv[1]
+jobs = json.loads(os.environ["JOBS_JSON"])
+sys.exit(0 if any(job.get("job_name") == job_name for job in jobs) else 1)
+PY
+}
+
+get_worker_experiment_assignment() {
+  local worker="$1"
+  local response_file status
+  response_file="$(mktemp)"
+
+  status="$(curl -sS -o "$response_file" -w "%{http_code}" "http://localhost/api/workers/$worker/experiment")"
+  case "$status" in
+    200)
+      python3 - "$response_file" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(payload.get("experiment") or "")
+PY
+      rm -f "$response_file"
+      return 0
+      ;;
+    404)
+      rm -f "$response_file"
+      return 0
+      ;;
+    *)
+      rm -f "$response_file"
+      return 1
+      ;;
+  esac
+}
+
+get_worker_dot_pioreactor_root() {
+  local base_url="$1"
+  local path_json
+
+  if ! path_json="$(curl -fsS "$base_url/unit_api/system/path/")"; then
+    return 1
+  fi
+
+  PATH_JSON="$path_json" python3 <<'PY'
+import json
+import os
+
+payload = json.loads(os.environ["PATH_JSON"])
+print(payload["current"])
+PY
+}
+
+restore_temporary_worker_experiment_assignment() {
+  local worker="$1"
+  local experiment="$2"
+
+  if pio workers unassign "$worker" "$experiment" >/dev/null; then
+    ok "unassigned $worker from temporary experiment $experiment"
+  else
+    fail "failed to unassign $worker from temporary experiment $experiment"
+  fi
+
+  if pio experiments delete "$experiment" --yes >/dev/null; then
+    ok "deleted temporary experiment $experiment"
+  else
+    fail "failed to delete temporary experiment $experiment"
+  fi
 }
 
 pause_for_job_sync() {
@@ -1165,7 +1666,7 @@ check_plugin_install_cycle() {
     fail "plugin install failed"
   fi
 
-  if pio plugins list | grep -q pioreactor-logs2slack; then
+  if pio plugins list | grep -Eq 'pioreactor[-_]logs2slack'; then
     ok "pioreactor-logs2slack listed"
   else
     fail "plugin not listed after install"
@@ -1211,6 +1712,357 @@ check_pios_sync_configs() {
   else
     fail "pios sync-configs failed"
   fi
+}
+
+restore_available_worker_inventory_via_api() {
+  local worker="$1"
+  local is_active="$2"
+  local model_name="$3"
+  local model_version="$4"
+  local payload_file active_payload_file
+  payload_file="$(mktemp)"
+  active_payload_file="$(mktemp)"
+
+  python3 - "$worker" "$model_name" "$model_version" > "$payload_file" <<'PY'
+import json
+import sys
+
+worker = sys.argv[1]
+model_name = sys.argv[2] or None
+model_version = sys.argv[3] or None
+print(json.dumps({"pioreactor_unit": worker, "model_name": model_name, "model_version": model_version}))
+PY
+
+  python3 - "$is_active" > "$active_payload_file" <<'PY'
+import json
+import sys
+
+print(json.dumps({"is_active": int(sys.argv[1])}))
+PY
+
+  curl -fsS -X PUT -H "Content-Type: application/json" -d "@$payload_file" http://localhost/api/workers >/dev/null && \
+    curl -fsS -X PUT -H "Content-Type: application/json" -d "@$active_payload_file" "http://localhost/api/workers/$worker/is_active" >/dev/null
+  local status=$?
+  rm -f "$payload_file" "$active_payload_file"
+  return "$status"
+}
+
+check_available_worker_remove_add() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local address="$AVAILABLE_WORKER_ADDRESS"
+  local model_name="$AVAILABLE_WORKER_MODEL_NAME"
+  local model_version="$AVAILABLE_WORKER_MODEL_VERSION"
+  local add_args=(pio workers add "$worker" --address "$address")
+
+  if [[ -n "$model_name" && -n "$model_version" ]]; then
+    add_args+=(--model-name "$model_name" --model-version "$model_version")
+  fi
+
+  info "Testing worker inventory remove/add cycle for $worker"
+  if pio workers remove "$worker" >/dev/null; then
+    ok "removed worker $worker from inventory"
+  else
+    fail "failed to remove worker $worker from inventory"
+    return
+  fi
+
+  if worker_inventory_contains "$worker"; then
+    fail "worker $worker still present after removal"
+  else
+    ok "worker $worker absent after removal"
+  fi
+
+  if "${add_args[@]}" >/dev/null; then
+    ok "added worker $worker back with pio workers add"
+  else
+    fail "pio workers add failed for $worker; attempting API inventory restore"
+    if restore_available_worker_inventory_via_api "$worker" "$AVAILABLE_WORKER_IS_ACTIVE" "$model_name" "$model_version"; then
+      ok "restored worker $worker inventory row via API"
+    else
+      fail "failed to restore worker $worker inventory row via API"
+    fi
+    return
+  fi
+
+  if [[ "$AVAILABLE_WORKER_IS_ACTIVE" != "1" ]]; then
+    if pio workers update-active "$worker" "$AVAILABLE_WORKER_IS_ACTIVE" >/dev/null; then
+      ok "restored worker $worker active state"
+    else
+      fail "failed to restore worker $worker active state"
+    fi
+  fi
+
+  if worker_inventory_contains "$worker"; then
+    ok "worker $worker present after add-back"
+  else
+    fail "worker $worker missing after add-back"
+  fi
+}
+
+check_available_worker_plugin_install() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local base_url="$1"
+  local plugin_name="pioreactor_air_bubbler"
+  local already_installed=false
+  local dispatch_response_file task_result_file uninstall_response_file uninstall_result_file
+  dispatch_response_file="$(mktemp)"
+  task_result_file="$(mktemp)"
+
+  info "Testing plugin install on worker $worker"
+  if worker_plugin_list_contains "$base_url" "$plugin_name"; then
+    already_installed=true
+    ok "$plugin_name already installed on $worker"
+  fi
+
+  if curl -fsS \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"args":["pioreactor_air_bubbler"],"options":{}}' \
+    "$base_url/unit_api/plugins/install" > "$dispatch_response_file"; then
+    ok "dispatched $plugin_name install to $worker"
+  else
+    fail "failed to dispatch $plugin_name install to $worker"
+    print_prefixed_file_excerpt "install response: " "$dispatch_response_file" 2000
+    rm -f "$dispatch_response_file" "$task_result_file"
+    return
+  fi
+
+  if ! wait_for_worker_task_success "$base_url" "$dispatch_response_file" "$task_result_file" "$plugin_name install" 300 2 15; then
+    warn "$plugin_name install task result:"
+    print_prefixed_file_excerpt "  " "$task_result_file" 4000
+    write_worker_plugin_install_diagnostics "$worker" "$base_url" "$plugin_name" "$dispatch_response_file"
+    rm -f "$dispatch_response_file" "$task_result_file"
+    return
+  fi
+
+  if wait_for_worker_plugin "$base_url" "$plugin_name"; then
+    ok "$plugin_name installed on $worker"
+  else
+    fail "$plugin_name did not appear in worker plugin list"
+    write_worker_plugin_install_diagnostics "$worker" "$base_url" "$plugin_name" "$dispatch_response_file"
+    rm -f "$dispatch_response_file" "$task_result_file"
+    return
+  fi
+
+  rm -f "$dispatch_response_file" "$task_result_file"
+
+  if [[ "$already_installed" == false ]]; then
+    uninstall_response_file="$(mktemp)"
+    uninstall_result_file="$(mktemp)"
+    if curl -fsS \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"args":["pioreactor_air_bubbler"],"options":{}}' \
+      "$base_url/unit_api/plugins/uninstall" > "$uninstall_response_file"; then
+      ok "dispatched $plugin_name uninstall from $worker"
+      if ! wait_for_worker_task_success "$base_url" "$uninstall_response_file" "$uninstall_result_file" "$plugin_name uninstall"; then
+        warn "$plugin_name uninstall task result:"
+        print_prefixed_file_excerpt "  " "$uninstall_result_file" 4000
+      fi
+      if wait_for_worker_plugin_absent "$base_url" "$plugin_name"; then
+        ok "$plugin_name uninstalled from $worker"
+      else
+        fail "$plugin_name still appears in worker plugin list after uninstall"
+      fi
+    else
+      fail "failed to dispatch $plugin_name uninstall from $worker"
+      print_prefixed_file_excerpt "uninstall response: " "$uninstall_response_file" 2000
+    fi
+    rm -f "$uninstall_response_file" "$uninstall_result_file"
+  else
+    warn "$plugin_name was already installed on $worker; leaving it installed"
+  fi
+}
+
+check_available_worker_pios_cp() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local base_url="$1"
+  local token="$2"
+  local local_file remote_file remote_path worker_dot_pioreactor
+
+  local_file="$(mktemp)"
+  remote_file="agent_smoke_cp_${token}.py"
+
+  if ! worker_dot_pioreactor="$(get_worker_dot_pioreactor_root "$base_url")"; then
+    fail "failed to resolve DOT_PIOREACTOR on $worker"
+    rm -f "$local_file"
+    return
+  fi
+  remote_path="$worker_dot_pioreactor/plugins/$remote_file"
+
+  cat > "$local_file" <<'PY'
+# agent smoke cluster copy probe
+AGENT_SMOKE_CLUSTER_COPY = True
+PY
+  chmod 0644 "$local_file"
+
+  info "Testing pios cp to worker $worker"
+  if pios cp "$local_file" "$remote_path" --units "$worker" -y >/dev/null; then
+    ok "pios cp copied probe file to $worker"
+  else
+    fail "pios cp failed for $worker"
+    rm -f "$local_file"
+    return
+  fi
+
+  if curl -fsS "$base_url/unit_api/system/path/plugins/$remote_file" | grep -q "AGENT_SMOKE_CLUSTER_COPY"; then
+    ok "copied probe file is readable on $worker"
+  else
+    fail "copied probe file not readable on $worker"
+  fi
+
+  if pios rm "$remote_path" --units "$worker" -y >/dev/null; then
+    ok "removed copied probe file from $worker"
+  else
+    fail "failed to remove copied probe file from $worker"
+  fi
+
+  rm -f "$local_file"
+}
+
+check_available_worker_config_edit() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local token="$1"
+  local original_config modified_config section_name
+  original_config="$(mktemp)"
+  modified_config="$(mktemp)"
+  section_name="agent.smoke_test_${token}"
+
+  info "Testing worker-specific config edit for $worker"
+  if ! curl -fsS "http://localhost/api/config/units/$worker/specific" > "$original_config"; then
+    fail "failed to fetch unit-specific config for $worker"
+    rm -f "$original_config" "$modified_config"
+    return
+  fi
+
+  if ! append_config_smoke_section "$original_config" "$modified_config" "$section_name" "$worker"; then
+    fail "failed to prepare config edit for $worker"
+    rm -f "$original_config" "$modified_config"
+    return
+  fi
+
+  if patch_unit_specific_config "$worker" "$modified_config"; then
+    ok "patched unit-specific config on $worker"
+  else
+    fail "failed to patch unit-specific config on $worker"
+    patch_unit_specific_config "$worker" "$original_config" >/dev/null || true
+    rm -f "$original_config" "$modified_config"
+    return
+  fi
+
+  if worker_specific_config_has_section "$worker" "$section_name"; then
+    ok "merged config includes smoke section for $worker"
+  else
+    fail "merged config missing smoke section for $worker"
+  fi
+
+  if patch_unit_specific_config "$worker" "$original_config"; then
+    ok "restored unit-specific config on $worker"
+  else
+    fail "failed to restore unit-specific config on $worker"
+  fi
+
+  if pios sync-configs --specific --skip-save --units "$worker" >/dev/null; then
+    ok "pios sync-configs --specific for $worker"
+  else
+    fail "pios sync-configs --specific failed for $worker"
+  fi
+
+  rm -f "$original_config" "$modified_config"
+}
+
+check_available_worker_job_cycle() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local base_url="$1"
+  local current_experiment smoke_experiment created_smoke_experiment=false
+
+  if ! current_experiment="$(get_worker_experiment_assignment "$worker")"; then
+    fail "failed to read experiment assignment for $worker"
+    return
+  fi
+
+  if [[ -z "$current_experiment" ]]; then
+    smoke_experiment="agent-smoke-$(date +%s)"
+    info "Assigning $worker to temporary experiment $smoke_experiment for stirring test"
+    if ! pio experiments create "$smoke_experiment" >/dev/null; then
+      fail "failed to create temporary experiment $smoke_experiment"
+      return
+    fi
+
+    if pio workers assign "$worker" "$smoke_experiment" >/dev/null; then
+      ok "assigned $worker to temporary experiment $smoke_experiment"
+      created_smoke_experiment=true
+    else
+      fail "failed to assign $worker to temporary experiment $smoke_experiment"
+      pio experiments delete "$smoke_experiment" --yes >/dev/null || true
+      return
+    fi
+  else
+    ok "$worker is assigned to experiment $current_experiment"
+  fi
+
+  info "Testing targeted pios job cycle on worker $worker"
+  if pios run stirring --units "$worker" -y >/dev/null; then
+    ok "pios run stirring on $worker"
+  else
+    fail "pios run stirring failed on $worker"
+    if [[ "$created_smoke_experiment" == true ]]; then
+      restore_temporary_worker_experiment_assignment "$worker" "$smoke_experiment"
+    fi
+    return
+  fi
+
+  pause_for_job_sync
+  if worker_running_jobs_contain "$base_url" stirring; then
+    ok "stirring running on $worker"
+  else
+    fail "stirring not reported as running on $worker"
+  fi
+
+  if pios jobs list running --units "$worker" >/dev/null; then
+    ok "pios jobs list running for $worker"
+  else
+    fail "pios jobs list running failed for $worker"
+  fi
+
+  if pios kill --job-name stirring --units "$worker" -y >/dev/null; then
+    ok "pios kill stirring on $worker"
+  else
+    fail "pios kill stirring failed on $worker"
+  fi
+
+  pause_for_job_sync
+  if worker_running_jobs_contain "$base_url" stirring; then
+    fail "stirring still reported as running on $worker after kill"
+  else
+    ok "stirring stopped on $worker"
+  fi
+
+  if [[ "$created_smoke_experiment" == true ]]; then
+    restore_temporary_worker_experiment_assignment "$worker" "$smoke_experiment"
+  fi
+}
+
+check_available_worker_cluster_branch() {
+  info "Checking for an available non-leader worker"
+  if ! select_available_worker; then
+    return
+  fi
+
+  local worker base_url token
+  worker="$AVAILABLE_WORKER_NAME"
+  base_url="$(worker_base_url "$AVAILABLE_WORKER_ADDRESS")"
+  token="$(date +%s)"
+
+  ok "Using available worker $worker at $AVAILABLE_WORKER_ADDRESS"
+  run_step "Checking targeted worker clock through leader API" curl_check "http://localhost/api/units/$worker/system/utc_clock"
+  run_step "Checking targeted worker plugins route through leader API" curl_check "http://localhost/api/units/$worker/plugins/installed"
+
+  check_available_worker_plugin_install "$base_url"
+  check_available_worker_pios_cp "$base_url" "$token"
+  check_available_worker_config_edit "$token"
+  check_available_worker_job_cycle "$base_url"
+  check_available_worker_remove_add
 }
 
 summarize() {
