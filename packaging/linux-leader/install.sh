@@ -246,8 +246,6 @@ EOF
 install_runtime_helper_scripts() {
   install -d -o root -g root -m 0755 /usr/local/bin
   install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/start_pioreactor_huey.sh" /usr/local/bin/start_pioreactor_huey.sh
-  install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/install_pioreactor_plugin.sh" /usr/local/bin/install_pioreactor_plugin.sh
-  install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/uninstall_pioreactor_plugin.sh" /usr/local/bin/uninstall_pioreactor_plugin.sh
   install -o root -g root -m 0755 "$RUNTIME_FILES_DIR/bash/add_new_pioreactor_worker_from_leader.sh" /usr/local/bin/add_new_pioreactor_worker_from_leader.sh
 }
 

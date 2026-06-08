@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-import subprocess
-from shlex import quote
-
 import click
 from pioreactor.exc import BashScriptError
+from pioreactor.plugin_management.package_operations import install_plugin_assets
+from pioreactor.plugin_management.package_operations import install_plugin_package
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
@@ -12,23 +11,19 @@ def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
 
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Installing plugin {name_of_plugin}.")
-    command = (
-        "bash",
-        "/usr/local/bin/install_pioreactor_plugin.sh",
-        quote(name_of_plugin),
-        source or "",
-    )
-    logger.debug(" ".join(command))
 
-    result = subprocess.run(command, capture_output=True, text=True)
+    try:
+        plugin_was_installed = install_plugin_package(name_of_plugin, source)
+        if not plugin_was_installed:
+            logger.notice(f"Skipping LEADER_ONLY plugin {name_of_plugin} on worker.")
+            return
 
-    if result.returncode == 0:
+        install_plugin_assets(name_of_plugin)
         logger.notice(f"Successfully installed plugin {name_of_plugin}.")
-    else:
+    except Exception as exc:
         logger.error(f"Failed to install plugin {name_of_plugin}. See logs.")
-        logger.debug(result.stdout)
-        logger.debug(result.stderr)
-        raise BashScriptError(f"Failed to install plugin {name_of_plugin}. See logs.")
+        logger.debug(str(exc))
+        raise BashScriptError(f"Failed to install plugin {name_of_plugin}. See logs.") from exc
 
 
 @click.command(name="install", short_help="install a plugin")

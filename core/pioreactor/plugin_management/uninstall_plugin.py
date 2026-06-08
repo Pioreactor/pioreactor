@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-import subprocess
-from shlex import quote
-
 import click
 from pioreactor.exc import BashScriptError
+from pioreactor.plugin_management.package_operations import uninstall_plugin_assets
+from pioreactor.plugin_management.package_operations import uninstall_plugin_package
 from pioreactor.plugin_management.utils import discover_plugins_in_local_folder
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -21,15 +20,14 @@ def uninstall_plugin(name_of_plugin: str) -> None:
             logger.notice(f"Successfully uninstalled plugin {name_of_plugin} from local plugins folder.")
             return
 
-    result = subprocess.run(
-        [
-            "bash",
-            "/usr/local/bin/uninstall_pioreactor_plugin.sh",
-            quote(name_of_plugin),
-        ],
-        capture_output=True,
-        text=True,
-    )
+    try:
+        uninstall_plugin_assets(name_of_plugin)
+        result = uninstall_plugin_package(name_of_plugin)
+    except Exception as exc:
+        logger.error(f"Failed to uninstall plugin {name_of_plugin}. See logs.")
+        logger.debug(str(exc))
+        raise BashScriptError(f"Failed to uninstall plugin {name_of_plugin}. See logs.") from exc
+
     if "as it is not installed" in result.stderr:
         logger.warning(f"Unable to uninstall: plugin {name_of_plugin} is not installed.")
     elif result.returncode == 0:

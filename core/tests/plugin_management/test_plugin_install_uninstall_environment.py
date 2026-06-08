@@ -1,0 +1,444 @@
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
+import os
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+from pioreactor.config import ConfigParserMod
+from pioreactor.plugin_management import install_plugin as install_plugin_module
+from pioreactor.plugin_management import package_operations
+from pioreactor.plugin_management import uninstall_plugin as uninstall_plugin_module
+
+
+class PluginPackageEnvironment:
+    def __init__(self, tmp_path: Path) -> None:
+        self.root = tmp_path
+        self.bin_dir = tmp_path / "bin"
+        self.dot_pioreactor = tmp_path / "dot_pioreactor"
+        self.site_packages = tmp_path / "site-packages"
+        self.database = tmp_path / "pioreactor.sqlite"
+        self.command_log = tmp_path / "commands.log"
+
+        self.plugin_name = "pioreactor-demo-plugin"
+        self.package_dir_name = "pioreactor_demo_plugin"
+        self.install_folder = self.site_packages / self.package_dir_name
+
+    def prepare(self, *, leader_hostname: str = "leader") -> None:
+        self.bin_dir.mkdir()
+        self.dot_pioreactor.mkdir()
+        self.site_packages.mkdir()
+        self.database.touch()
+        (self.dot_pioreactor / "plugins" / "ui").mkdir(parents=True)
+        (self.dot_pioreactor / "plugins" / "exportable_datasets").mkdir(parents=True)
+        (self.dot_pioreactor / "unit_config.ini").write_text("", encoding="utf-8")
+        self.install_folder.mkdir()
+
+        self.write_fake_command("python", self.fake_python_script())
+        self.write_fake_command("pip", self.fake_pip_script())
+        self.write_fake_command("pio", self.fake_pio_script(leader_hostname))
+        self.write_fake_command("crudini", self.fake_crudini_script())
+        self.write_fake_command("sudo", self.fake_sudo_script())
+        self.write_fake_command("rsync", self.fake_rsync_script())
+        self.write_fake_command("sqlite3", self.fake_sqlite3_script())
+        self.write_fake_command("systemctl", self.fake_systemctl_script())
+        self.write_fake_command("hostname", self.fake_hostname_script())
+        self.write_fake_command("rm", self.fake_rm_script())
+
+    def env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        env["PATH"] = f"{self.bin_dir}:{env['PATH']}"
+        env["PIO_VENV"] = str(self.root)
+        env["PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR"] = str(self.dot_pioreactor)
+        env["PLUGIN_INSTALL_HARNESS_SITE_PACKAGES"] = str(self.site_packages)
+        env["PLUGIN_INSTALL_HARNESS_DATABASE"] = str(self.database)
+        env["PLUGIN_INSTALL_HARNESS_COMMAND_LOG"] = str(self.command_log)
+        return env
+
+    def write_fake_command(self, name: str, content: str) -> None:
+        path = self.bin_dir / name
+        path.write_text(content, encoding="utf-8")
+        path.chmod(0o755)
+
+    def create_plugin_payload(self, *, use_legacy_ui_contrib: bool = True) -> None:
+        ui_root = self.install_folder / "ui"
+        if use_legacy_ui_contrib:
+            ui_root = ui_root / "contrib"
+
+        (ui_root / "cards").mkdir(parents=True)
+        (ui_root / "cards" / "demo.yaml").write_text("name: demo-card\n", encoding="utf-8")
+
+        (self.install_folder / "exportable_datasets").mkdir()
+        (self.install_folder / "exportable_datasets" / "demo.yaml").write_text(
+            "dataset: demo\n", encoding="utf-8"
+        )
+
+        (self.install_folder / "additional_config.ini").write_text(
+            "[demo]\nenabled=1\nCamelCaseKey=ok\n", encoding="utf-8"
+        )
+        (self.install_folder / "additional_sql.sql").write_text(
+            "CREATE TABLE demo_plugin_table (id INTEGER PRIMARY KEY);\n", encoding="utf-8"
+        )
+        (self.install_folder / "post_install.sh").write_text(
+            f"#!/bin/bash\nprintf post_install >> {self.root / 'post_install.log'}\n",
+            encoding="utf-8",
+        )
+        (self.install_folder / "post_install.sh").chmod(0o755)
+        (self.install_folder / "pre_uninstall.sh").write_text(
+            f"#!/bin/bash\nprintf pre_uninstall >> {self.root / 'pre_uninstall.log'}\n",
+            encoding="utf-8",
+        )
+        (self.install_folder / "pre_uninstall.sh").chmod(0o755)
+
+    def run_shell_install(self, source: str | None) -> subprocess.CompletedProcess[str]:
+        script = Path("packaging/runtime-files/bash/install_pioreactor_plugin.sh")
+
+        return subprocess.run(
+            ["bash", str(script), self.plugin_name, source or ""],
+            capture_output=True,
+            cwd=Path.cwd(),
+            env=self.env(),
+            text=True,
+        )
+
+    def run_shell_uninstall(self) -> subprocess.CompletedProcess[str]:
+        script = Path("packaging/runtime-files/bash/uninstall_pioreactor_plugin.sh")
+
+        return subprocess.run(
+            ["bash", str(script), self.plugin_name],
+            capture_output=True,
+            cwd=Path.cwd(),
+            env=self.env(),
+            text=True,
+        )
+
+    def run_python_install(
+        self, source: str | None, monkeypatch: pytest.MonkeyPatch
+    ) -> subprocess.CompletedProcess[str]:
+        self.patch_python_subprocess(monkeypatch)
+
+        try:
+            package_operations.install_plugin_package(self.plugin_name, source)
+            package_operations.install_plugin_assets(
+                self.plugin_name,
+                dot_pioreactor_dir=self.dot_pioreactor,
+                site_packages_dir=self.site_packages,
+                database_path=self.database,
+                is_leader=True,
+            )
+            return subprocess.CompletedProcess([self.plugin_name, source or ""], 0, "", "")
+        except Exception as exc:
+            return subprocess.CompletedProcess([self.plugin_name, source or ""], 1, "", str(exc))
+
+    def run_python_uninstall(self, monkeypatch: pytest.MonkeyPatch) -> subprocess.CompletedProcess[str]:
+        self.patch_python_subprocess(monkeypatch)
+
+        try:
+            package_operations.uninstall_plugin_assets(
+                self.plugin_name,
+                dot_pioreactor_dir=self.dot_pioreactor,
+                site_packages_dir=self.site_packages,
+                is_leader=True,
+            )
+            result = package_operations.uninstall_plugin_package(self.plugin_name)
+            return result
+        except Exception as exc:
+            return subprocess.CompletedProcess([self.plugin_name], 1, "", str(exc))
+
+    def patch_python_subprocess(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        real_subprocess_run = subprocess.run
+
+        def fake_subprocess_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            if args[:6] == ["sudo", "-u", "pioreactor", sys.executable, "-m", "pip"]:
+                self.append_command_log(f"pip {' '.join(args[6:])}\n")
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            if args == [
+                "sudo",
+                "systemctl",
+                "restart",
+                "pioreactor_startup_run@mqtt_to_db_streaming.service",
+            ]:
+                self.append_command_log(
+                    "systemctl restart pioreactor_startup_run@mqtt_to_db_streaming.service\n"
+                )
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            if len(args) == 3 and args[:2] == ["sudo", "bash"]:
+                return real_subprocess_run(["bash", args[2]], **kwargs)
+
+            if args and args[0] == "sudo":
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            if args and args[0] == "bash":
+                return real_subprocess_run(args, **kwargs)
+
+            raise AssertionError(f"Unexpected subprocess call: {args}")
+
+        monkeypatch.setattr(package_operations.subprocess, "run", fake_subprocess_run)
+
+    def append_command_log(self, content: str) -> None:
+        with self.command_log.open("a", encoding="utf-8") as file:
+            file.write(content)
+
+    def fake_python_script(self) -> str:
+        return f"""#!/bin/bash
+if [ "$1" = "-c" ]; then
+  printf '%s\\n' "{self.site_packages}"
+  exit 0
+fi
+exit 0
+"""
+
+    def fake_pip_script(self) -> str:
+        return f"""#!/bin/bash
+printf 'pip %s\\n' "$*" >> "{self.command_log}"
+exit 0
+"""
+
+    def fake_pio_script(self, leader_hostname: str) -> str:
+        return f"""#!/bin/bash
+if [ "$1" = "config" ] && [ "$2" = "get" ]; then
+  case "$3" in
+    cluster.topology) printf '%s\\n' "{leader_hostname}" ;;
+    storage) printf '%s\\n' "{self.database}" ;;
+  esac
+fi
+exit 0
+"""
+
+    def fake_crudini_script(self) -> str:
+        return """#!/bin/bash
+set -e
+target="$2"
+if [ "$target" = "/home/pioreactor/.pioreactor/unit_config.ini" ]; then
+  target="$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/unit_config.ini"
+fi
+cat >> "$target"
+"""
+
+    def fake_sudo_script(self) -> str:
+        return """#!/bin/bash
+if [ "$1" = "-u" ]; then
+  shift 2
+fi
+exec "$@"
+"""
+
+    def fake_rsync_script(self) -> str:
+        return """#!/bin/bash
+set -e
+src="$2"
+dest="$3"
+case "$dest" in
+  /home/pioreactor/.pioreactor/plugins/ui/)
+    dest="$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/plugins/ui/"
+    ;;
+  /home/pioreactor/.pioreactor/plugins/exportable_datasets/)
+    dest="$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/plugins/exportable_datasets/"
+    ;;
+esac
+mkdir -p "$dest"
+cp -R "$src". "$dest"
+"""
+
+    def fake_sqlite3_script(self) -> str:
+        return """#!/bin/bash
+set -e
+printf 'sqlite3 %s\\n' "$1" >> "$PLUGIN_INSTALL_HARNESS_COMMAND_LOG"
+cat > "$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/applied.sql"
+"""
+
+    def fake_systemctl_script(self) -> str:
+        return """#!/bin/bash
+printf 'systemctl %s\\n' "$*" >> "$PLUGIN_INSTALL_HARNESS_COMMAND_LOG"
+exit 0
+"""
+
+    def fake_hostname_script(self) -> str:
+        return """#!/bin/bash
+printf 'leader\\n'
+"""
+
+    def fake_rm_script(self) -> str:
+        return """#!/bin/bash
+for path in "$@"; do
+  mapped="${path/#\\/home\\/pioreactor\\/.pioreactor/$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR}"
+  /bin/rm -f "$mapped"
+done
+"""
+
+
+@pytest.fixture()
+def plugin_package_environment(tmp_path: Path) -> PluginPackageEnvironment:
+    environment = PluginPackageEnvironment(tmp_path)
+    environment.prepare()
+    return environment
+
+
+def test_shell_plugin_package_environment_exercises_full_leader_merge_contract(
+    plugin_package_environment: PluginPackageEnvironment,
+) -> None:
+    plugin_package_environment.create_plugin_payload()
+
+    result = plugin_package_environment.run_shell_install("file:///tmp/demo.whl")
+
+    assert result.returncode == 0, result.stderr
+    assert_plugin_install_contract(plugin_package_environment)
+    assert "CREATE TABLE demo_plugin_table" in (
+        plugin_package_environment.dot_pioreactor / "applied.sql"
+    ).read_text(encoding="utf-8")
+
+    command_log = plugin_package_environment.command_log.read_text(encoding="utf-8")
+    assert "sqlite3 " in command_log
+
+
+def test_python_plugin_package_environment_exercises_full_leader_merge_contract(
+    plugin_package_environment: PluginPackageEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_package_environment.create_plugin_payload()
+
+    result = plugin_package_environment.run_python_install("file:///tmp/demo.whl", monkeypatch)
+
+    assert result.returncode == 0, result.stderr
+    assert_plugin_install_contract(plugin_package_environment)
+
+    with sqlite3.connect(plugin_package_environment.database) as db:
+        table_exists = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'demo_plugin_table'"
+        ).fetchone()
+    assert table_exists == (1,)
+
+
+def test_shell_plugin_uninstall_environment_exercises_full_leader_cleanup_contract(
+    plugin_package_environment: PluginPackageEnvironment,
+) -> None:
+    plugin_package_environment.create_plugin_payload(use_legacy_ui_contrib=False)
+    install_result = plugin_package_environment.run_shell_install("file:///tmp/demo.whl")
+    assert install_result.returncode == 0, install_result.stderr
+
+    result = plugin_package_environment.run_shell_uninstall()
+
+    assert result.returncode == 0, result.stderr
+    assert_plugin_uninstall_contract(plugin_package_environment)
+
+
+def test_python_plugin_uninstall_environment_exercises_full_leader_cleanup_contract(
+    plugin_package_environment: PluginPackageEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_package_environment.create_plugin_payload(use_legacy_ui_contrib=False)
+    install_result = plugin_package_environment.run_python_install("file:///tmp/demo.whl", monkeypatch)
+    assert install_result.returncode == 0, install_result.stderr
+
+    result = plugin_package_environment.run_python_uninstall(monkeypatch)
+
+    assert result.returncode == 0, result.stderr
+    assert_plugin_uninstall_contract(plugin_package_environment)
+
+
+def test_python_plugin_uninstall_removes_legacy_ui_contrib_assets(
+    plugin_package_environment: PluginPackageEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_package_environment.create_plugin_payload(use_legacy_ui_contrib=True)
+    install_result = plugin_package_environment.run_python_install("file:///tmp/demo.whl", monkeypatch)
+    assert install_result.returncode == 0, install_result.stderr
+    assert (plugin_package_environment.dot_pioreactor / "plugins" / "ui" / "cards" / "demo.yaml").exists()
+
+    result = plugin_package_environment.run_python_uninstall(monkeypatch)
+
+    assert result.returncode == 0, result.stderr
+    assert not (plugin_package_environment.dot_pioreactor / "plugins" / "ui" / "cards" / "demo.yaml").exists()
+
+
+def test_python_plugin_uninstall_continues_when_pre_uninstall_hook_fails(
+    plugin_package_environment: PluginPackageEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_package_environment.create_plugin_payload(use_legacy_ui_contrib=False)
+    install_result = plugin_package_environment.run_python_install("file:///tmp/demo.whl", monkeypatch)
+    assert install_result.returncode == 0, install_result.stderr
+    (plugin_package_environment.install_folder / "pre_uninstall.sh").write_text(
+        "#!/bin/bash\nexit 42\n", encoding="utf-8"
+    )
+
+    result = plugin_package_environment.run_python_uninstall(monkeypatch)
+
+    assert result.returncode == 0, result.stderr
+    assert not (plugin_package_environment.dot_pioreactor / "plugins" / "ui" / "cards" / "demo.yaml").exists()
+    command_log = plugin_package_environment.command_log.read_text(encoding="utf-8")
+    assert "pip uninstall -y pioreactor-demo-plugin" in command_log
+
+
+def test_install_plugin_skips_assets_when_leader_only_package_is_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setattr(install_plugin_module, "install_plugin_package", lambda name, source: False)
+    monkeypatch.setattr(
+        install_plugin_module,
+        "install_plugin_assets",
+        lambda name: calls.append(f"assets:{name}"),
+    )
+
+    install_plugin_module.install_plugin("pioreactor-leader-only")
+
+    assert calls == []
+
+
+def test_uninstall_plugin_warns_when_package_is_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(uninstall_plugin_module, "discover_plugins_in_local_folder", lambda: [])
+    monkeypatch.setattr(uninstall_plugin_module, "uninstall_plugin_assets", lambda name: None)
+    monkeypatch.setattr(
+        uninstall_plugin_module,
+        "uninstall_plugin_package",
+        lambda name: subprocess.CompletedProcess(
+            [name],
+            1,
+            "",
+            "WARNING: Skipping pioreactor-demo-plugin as it is not installed.\n",
+        ),
+    )
+
+    uninstall_plugin_module.uninstall_plugin("pioreactor-demo-plugin")
+
+
+def assert_plugin_install_contract(plugin_package_environment: PluginPackageEnvironment) -> None:
+    assert (plugin_package_environment.dot_pioreactor / "plugins" / "ui" / "cards" / "demo.yaml").read_text(
+        encoding="utf-8"
+    ) == "name: demo-card\n"
+    assert (
+        plugin_package_environment.dot_pioreactor / "plugins" / "exportable_datasets" / "demo.yaml"
+    ).read_text(encoding="utf-8") == "dataset: demo\n"
+    unit_config = ConfigParserMod()
+    unit_config.read(plugin_package_environment.dot_pioreactor / "unit_config.ini")
+    assert unit_config.get("demo", "enabled") == "1"
+    assert unit_config.get("demo", "CamelCaseKey") == "ok"
+    assert (plugin_package_environment.root / "post_install.log").read_text(
+        encoding="utf-8"
+    ) == "post_install"
+
+    command_log = plugin_package_environment.command_log.read_text(encoding="utf-8")
+    assert "pip install --force-reinstall --no-deps file:///tmp/demo.whl" in command_log
+    assert "systemctl restart pioreactor_startup_run@mqtt_to_db_streaming.service" in command_log
+
+
+def assert_plugin_uninstall_contract(plugin_package_environment: PluginPackageEnvironment) -> None:
+    assert not (plugin_package_environment.dot_pioreactor / "plugins" / "ui" / "cards" / "demo.yaml").exists()
+    assert not (
+        plugin_package_environment.dot_pioreactor / "plugins" / "exportable_datasets" / "demo.yaml"
+    ).exists()
+    assert (plugin_package_environment.root / "pre_uninstall.log").read_text(
+        encoding="utf-8"
+    ) == "pre_uninstall"
+
+    command_log = plugin_package_environment.command_log.read_text(encoding="utf-8")
+    assert "pip uninstall -y pioreactor-demo-plugin" in command_log
