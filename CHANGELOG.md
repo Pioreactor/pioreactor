@@ -6,6 +6,7 @@
 
 #### Enhancements
 
+ - Improved plugin install and uninstall reliability by moving the lifecycle into the Pioreactor package instead of requiring `/usr/local/bin` helper scripts on the operating system.
  - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
  - removed tty services from base images.
  - added `git` to base images
@@ -19,6 +20,7 @@
 
 #### Bug fixes
 
+- Fixed plugin uninstall cleanup for legacy plugin UI assets installed from `ui/contrib/`.
 - Fixed network_info.txt lacking networkmanager logs
 
 ### 26.5.3
