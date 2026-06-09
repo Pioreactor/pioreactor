@@ -86,6 +86,18 @@ function getDedupeKey({ unit, experiment, task, level, message }) {
   return JSON.stringify([unit, experiment, task, level, message]);
 }
 
+function getLogsRoute(unit, experiment) {
+  if (experiment === "$experiment") {
+    return "/system-logs";
+  }
+
+  if (unit === "$broadcast") {
+    return "/logs";
+  }
+
+  return `/logs/${encodeURIComponent(unit)}`;
+}
+
 const LogAlertContent = React.forwardRef(function LogAlertContent({
   alertStore,
   dedupeKey,
@@ -196,7 +208,7 @@ function ErrorSnackbar() {
     const previousAlert = alertStore.get(dedupeKey);
     const count = (previousAlert?.count ?? 0) + 1;
     const showLogsHelper = ["ERROR", "WARNING"].includes(alertLevel);
-    const logsRoute = experiment === "$experiment" ? "/system-logs" : "/logs";
+    const logsRoute = getLogsRoute(unit, experiment);
     const logsLabel = experiment === "$experiment" ? "View System Logs" : "View Experiment Logs";
     const alertTitle = getAlertTitle(task, alertLevel, displayUnit);
 

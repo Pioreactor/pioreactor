@@ -140,7 +140,6 @@ def test_update_heater_ignores_pwm_cleanup_race() -> None:
 
     assert TemperatureAutomationJob._update_heater(temperature_job, 30.0) is False
     assert temperature_job.heater_duty_cycle == 30.0
-    assert temperature_job.logger.messages == ["Ignoring heater duty cycle update after PWM cleanup."]
 
 
 def test_setting_pid_control_after_startup_will_start_some_heating() -> None:

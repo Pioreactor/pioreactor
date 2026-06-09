@@ -242,7 +242,6 @@ class TemperatureAutomationJob(AutomationJob):
 
     def _update_heater(self, new_duty_cycle: float) -> bool:
         if self.pwm.is_cleaned_up:
-            self.logger.debug("Ignoring heater duty cycle update after PWM cleanup.")
             return False
 
         self.heater_duty_cycle = clamp(0.0, round(float(new_duty_cycle), 2), 100.0)
@@ -250,7 +249,6 @@ class TemperatureAutomationJob(AutomationJob):
             self.pwm.change_duty_cycle(self.heater_duty_cycle)
         except ValueError:
             if self.pwm.is_cleaned_up:
-                self.logger.debug("Ignoring heater duty cycle update after PWM cleanup.")
                 return False
             raise
 

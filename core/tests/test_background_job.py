@@ -89,6 +89,29 @@ def test_block_until_ready_returns_current_readiness() -> None:
     assert debug_messages == ["Timed out waiting for READY."]
 
 
+def test_general_passive_listeners_start_after_subclass_constructor_finishes() -> None:
+    values_seen_by_listener: list[str] = []
+
+    class ConstructorDependentJob(BackgroundJob):
+        job_name = "constructor_dependent_job"
+
+        def __init__(self, unit: str, experiment: str) -> None:
+            super().__init__(unit=unit, experiment=experiment)
+            self.constructor_value = "ready"
+
+        def _start_general_passive_listeners(self) -> None:
+            super()._start_general_passive_listeners()
+            values_seen_by_listener.append(self.constructor_value)
+
+    with ConstructorDependentJob(
+        unit=get_unit_name(),
+        experiment="test_general_passive_listeners_start_after_subclass_constructor_finishes",
+    ):
+        pass
+
+    assert values_seen_by_listener == ["ready"]
+
+
 def test_init_state_is_sent_to_mqtt() -> None:
     # regression test
     exp = "test_init_state_is_sent_to_mqtt"
@@ -140,10 +163,6 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
 def test_error_in_subscribe_and_callback_is_logged() -> None:
     class TestJob(BackgroundJob):
         job_name = "test_job"
-
-        def __init__(self, *args, **kwargs) -> None:
-            super(TestJob, self).__init__(*args, **kwargs)
-            self.start_passive_listeners()
 
         def start_passive_listeners(self) -> None:
             self.subscribe_and_callback(self.callback, "pioreactor/testing/subscription")

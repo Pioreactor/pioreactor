@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 from datetime import timedelta
+from typing import Any
 from typing import Callable
 
 import pytest
@@ -30,6 +31,32 @@ def wait_for(predicate: Callable[[], bool], timeout: float = 5.0, check_interval
             return True
         time.sleep(check_interval)
     return False
+
+
+def make_general_reading_payload(reading_kind: str) -> bytes:
+    if reading_kind == "growth_rate":
+        return encode(structs.GrowthRate(growth_rate=0.03, timestamp=current_utc_datetime()))
+    elif reading_kind == "normalized_od":
+        return encode(structs.ODFiltered(od_filtered=1.2, timestamp=current_utc_datetime()))
+    elif reading_kind == "raw_od":
+        return encode(
+            structs.ODReadings(
+                timestamp=current_utc_datetime(),
+                ods={
+                    "2": structs.RawODReading(
+                        ir_led_intensity=80.0,
+                        timestamp=current_utc_datetime(),
+                        angle="45",
+                        od=0.42,
+                        channel="2",
+                    )
+                },
+            )
+        )
+    elif reading_kind == "od_fused":
+        return encode(structs.ODFused(od_fused=0.47, timestamp=current_utc_datetime()))
+
+    raise ValueError(f"Unknown reading kind: {reading_kind}")
 
 
 def test_silent() -> None:
@@ -88,6 +115,70 @@ def test_light_dark_cycle_starts_on() -> None:
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 50
             assert c["C"] == 50
+
+
+@pytest.mark.parametrize(
+    ("topic_suffix", "reading_kind"),
+    [
+        ("growth_rate_calculating/growth_rate", "growth_rate"),
+        ("growth_rate_calculating/od_filtered", "normalized_od"),
+        ("od_reading/ods", "raw_od"),
+        ("od_reading/od_fused", "od_fused"),
+    ],
+)
+def test_light_dark_cycle_accepts_general_reading_messages_during_startup(
+    monkeypatch: pytest.MonkeyPatch,
+    topic_suffix: str,
+    reading_kind: str,
+) -> None:
+    experiment = f"test_light_dark_cycle_startup_{reading_kind}"
+    delivered_topics: list[str] = []
+    target_topic = f"pioreactor/{unit}/{experiment}/{topic_suffix}"
+    payload = make_general_reading_payload(reading_kind)
+    original_subscribe_and_callback = LightDarkCycle.subscribe_and_callback
+
+    class Message:
+        def __init__(self, payload: bytes) -> None:
+            self.payload = payload
+            self.retain = False
+
+    def subscribe_and_immediately_deliver_reading(
+        self: LightDarkCycle,
+        callback: Callable[[Any], None],
+        subscriptions: list[str] | str,
+        allow_retained: bool = True,
+        qos: int = 2,
+    ) -> None:
+        original_subscribe_and_callback(self, callback, subscriptions, allow_retained, qos)
+
+        subscribed_topics = [subscriptions] if isinstance(subscriptions, str) else subscriptions
+        for topic in subscribed_topics:
+            if topic == target_topic:
+                delivered_topics.append(topic)
+                callback(Message(payload))
+
+    monkeypatch.setattr(
+        LightDarkCycle,
+        "subscribe_and_callback",
+        subscribe_and_immediately_deliver_reading,
+    )
+
+    with LightDarkCycle(
+        light_intensity=50,
+        light_duration_minutes=60 * 16,
+        dark_duration_minutes=8 * 60,
+        unit=unit,
+        experiment=experiment,
+    ) as lc:
+        assert delivered_topics == [target_topic]
+        if reading_kind == "growth_rate":
+            assert lc.latest_growth_rate == pytest.approx(0.03)
+        elif reading_kind == "normalized_od":
+            assert lc.latest_normalized_od == pytest.approx(1.2)
+        elif reading_kind == "raw_od":
+            assert lc.latest_od["2"] == pytest.approx(0.42)
+        elif reading_kind == "od_fused":
+            assert lc.latest_od_fused == pytest.approx(0.47)
 
 
 def test_light_dark_cycle_turns_off_after_N_cycles() -> None:

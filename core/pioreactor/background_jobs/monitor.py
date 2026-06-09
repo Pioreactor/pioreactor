@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import subprocess
 from contextlib import suppress
 from pathlib import Path
@@ -45,6 +46,19 @@ from pioreactor.whoami import get_pioreactor_model
 if whoami.is_testing_env():
     from pioreactor.utils.mock import MockCallback
     from pioreactor.utils.mock import MockHandle
+
+
+def button_controls_enabled_from_config(config_value: str, cpu_count: int | None) -> bool:
+    value = config_value.strip().lower()
+
+    if value == "auto":
+        return cpu_count != 1
+    elif value in {"1", "true", "yes", "on"}:
+        return True
+    elif value in {"0", "false", "no", "off"}:
+        return False
+    else:
+        raise ValueError("[monitor.config] enable_button must be one of: auto, true, false.")
 
 
 class classproperty(property):
@@ -166,8 +180,6 @@ class Monitor(LongRunningBackgroundJob):
         self.add_pre_button_callback(self.led_on)
         self.add_post_button_callback(self.led_off)
 
-        self.start_passive_listeners()
-
     @classmethod
     def add_pre_button_callback(cls, function: Callable) -> None:
         cls._pre_button.append(function)
@@ -186,6 +198,10 @@ class Monitor(LongRunningBackgroundJob):
             lgpio.gpio_claim_output(self._handle, self._led_pin)
             lgpio.gpio_write(self._handle, self._led_pin, 0)
 
+            if not self.button_controls_enabled():
+                self.logger.debug("Button controls disabled by monitor.config.enable_button.")
+                return
+
             # Set BUTTON_PIN as input with no pull-up
             lgpio.gpio_claim_input(self._handle, self._button_pin, lgpio.SET_PULL_DOWN)
 
@@ -197,6 +213,14 @@ class Monitor(LongRunningBackgroundJob):
         else:
             self._button_callback = MockCallback()
             self._handle = MockHandle()
+
+    def button_controls_enabled(self) -> bool:
+        config_value = config.get("monitor.config", "enable_button", fallback="auto")
+        try:
+            return button_controls_enabled_from_config(config_value, os.cpu_count())
+        except ValueError as e:
+            self.logger.warning(f"{e} Defaulting to enabled.")
+            return True
 
     def check_for_network(self) -> None:
         if whoami.is_testing_env():

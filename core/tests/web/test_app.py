@@ -54,7 +54,7 @@ def test_latest_experiment_endpoint(client) -> None:
     assert data["description"] == "Third experiment"
     assert data["delta_hours"] > 0
     assert data["worker_count"] == 1
-    assert data["tags"] == ["archive", "fermentation", "priority"]
+    assert data["tags"] == ["media: Rich media", "organism: Bacteria", "archive", "fermentation", "priority"]
 
 
 def test_assignment_count(client) -> None:
@@ -789,7 +789,7 @@ def test_get_experiments_includes_tags_and_worker_count(client) -> None:
     exp3 = next(item for item in data if item["experiment"] == "exp3")
     exp0 = next(item for item in data if item["experiment"] == "exp0")
     assert exp3["worker_count"] == 1
-    assert exp3["tags"] == ["archive", "fermentation", "priority"]
+    assert exp3["tags"] == ["media: Rich media", "organism: Bacteria", "archive", "fermentation", "priority"]
     assert exp0["worker_count"] == 0
     assert exp0["tags"] == []
 

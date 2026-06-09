@@ -10,6 +10,7 @@ import zeroconf
 from msgspec.json import encode
 from pioreactor import bioreactor
 from pioreactor import structs
+from pioreactor.background_jobs.monitor import button_controls_enabled_from_config
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
@@ -23,6 +24,46 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 def pause(n=1):
     time.sleep(n * 0.5)
+
+
+@pytest.mark.parametrize(
+    ("config_value", "cpu_count", "expected"),
+    [
+        ("auto", 1, False),
+        ("auto", 2, True),
+        ("auto", None, True),
+        ("true", 1, True),
+        ("1", 1, True),
+        ("false", 2, False),
+        ("0", 2, False),
+    ],
+)
+def test_button_controls_enabled_from_config(
+    config_value: str, cpu_count: int | None, expected: bool
+) -> None:
+    assert button_controls_enabled_from_config(config_value, cpu_count) is expected
+
+
+def test_button_controls_enabled_from_config_rejects_unknown_value() -> None:
+    with pytest.raises(ValueError):
+        button_controls_enabled_from_config("maybe", 1)
+
+
+def test_monitor_button_controls_enabled_defaults_to_enabled_for_invalid_config(monkeypatch) -> None:
+    monitor = object.__new__(Monitor)
+    warning_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.monitor.config.get",
+        lambda *_args, **_kwargs: "maybe",
+    )
+    monkeypatch.setattr("pioreactor.background_jobs.monitor.os.cpu_count", lambda: 1)
+    monitor.logger = cast(Any, SimpleNamespace(warning=warning_messages.append))
+
+    assert monitor.button_controls_enabled() is True
+    assert warning_messages == [
+        "[monitor.config] enable_button must be one of: auto, true, false. Defaulting to enabled."
+    ]
 
 
 def test_monitor_set_versions_ignores_unknown_keys_without_mutating_input(monkeypatch) -> None:

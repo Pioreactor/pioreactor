@@ -8,6 +8,7 @@
 
  - Improved plugin install and uninstall reliability by moving the lifecycle into the Pioreactor package instead of requiring `/usr/local/bin` helper scripts on the operating system.
  - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
+ - Reduced idle CPU usage from the monitor job on single-core Raspberry Pis by disabling button controls by default. The new `[monitor.config] enable_button` option supports `auto`, `true`, and `false`.
  - removed tty services from base images.
  - added `git` to base images
  - Added a retained MQTT topic for each worker's current experiment assignment:

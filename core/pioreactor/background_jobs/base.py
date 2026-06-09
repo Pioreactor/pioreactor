@@ -346,10 +346,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._clean_up_resources()
             raise e
 
-        # this should happen _after_ pub clients are set up
-        self._start_general_passive_listeners()
-
-        # next thing that run is the subclasses __init__
+        # MQTT listeners are started in __post__init__, after subclass constructors finish.
+        # Callback code should never observe partially initialized subclass state.
 
     def __post__init__(self) -> None:
         """
@@ -367,6 +365,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         P.ready()
         C.on_ready() # default noop
         """
+        self._start_general_passive_listeners()
+        self.start_passive_listeners()
         self._reconnect_callbacks_ready = True
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
