@@ -12,6 +12,7 @@ import zipfile
 from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote
 
 from flask import Blueprint
 from flask import jsonify
@@ -549,6 +550,96 @@ def get_latest_camera_still_for_worker(pioreactor_unit: str) -> ResponseReturnVa
         response.content,
         status=response.status_code,
         content_type=response.headers.get("Content-Type", "image/jpeg"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills", methods=["GET"])
+def list_camera_stills_for_worker_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch camera stills with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit),
+            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills",
+            timeout=20,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Fetching camera stills failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route(
+    "/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills/<image_id>.jpg", methods=["GET"]
+)
+def get_camera_still_for_worker_experiment(
+    pioreactor_unit: str, experiment: str, image_id: str
+) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch camera stills with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit),
+            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills/{quote(image_id, safe='')}.jpg",
+            timeout=20,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Fetching camera still failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "image/jpeg"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills.zip", methods=["GET"])
+def get_zipped_camera_stills_for_worker_experiment(
+    pioreactor_unit: str, experiment: str
+) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot download camera stills with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit),
+            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills.zip",
+            timeout=60,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Downloading camera stills failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/zip"),
     )
 
 

@@ -32,6 +32,7 @@ from typing import Any
 from typing import cast
 from uuid import uuid4
 
+import huey.api as huey_api
 from huey import chord as huey_chord
 from huey.exceptions import ResultTimeout
 from msgspec import DecodeError
@@ -42,8 +43,11 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.camera import CameraCaptureError
+from pioreactor.camera import CameraUnavailableError
 from pioreactor.camera import capture_camera_still
 from pioreactor.camera import get_camera_status
+from pioreactor.camera import list_camera_still_metadata
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
@@ -64,6 +68,7 @@ from pioreactor.structs import subclass_union
 from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.version import hardware_version_info
 from pioreactor.web.config import huey
@@ -81,6 +86,8 @@ FanoutResult = dict[str, Any]
 # Registry of calibration action -> handler that returns a Huey task, label, and normalizer.
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
 MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
+periodic_task = getattr(huey, "periodic_task")
+crontab = getattr(huey_api, "crontab")
 
 
 def _format_usb_partition_for_log(partition: usb_utils.UsbPartition) -> str:
@@ -100,6 +107,50 @@ def capture_camera_still_task(
     capture_reason: str,
 ) -> dict[str, Any]:
     return to_builtins(capture_camera_still(unit, experiment=experiment, capture_reason=capture_reason))
+
+
+def camera_snapshot_interval_seconds() -> float:
+    return pioreactor_config.getfloat("camera", "snapshot_interval_seconds", fallback=60.0)
+
+
+def camera_snapshot_is_due(unit: str, experiment: str, interval_seconds: float) -> bool:
+    recent_stills = list_camera_still_metadata(unit, experiment=experiment, limit=1)
+    if not recent_stills:
+        return True
+
+    elapsed = current_utc_datetime() - recent_stills[0].captured_at
+    return elapsed.total_seconds() >= interval_seconds
+
+
+@periodic_task(crontab(minute="*"), priority=20)
+@huey.lock_task("camera-lock")
+def capture_camera_still_periodic_task() -> dict[str, Any]:
+    interval_seconds = camera_snapshot_interval_seconds()
+    if interval_seconds <= 0:
+        return {"captured": False, "reason": "disabled"}
+
+    unit = get_unit_name()
+    try:
+        experiment = whoami.get_assigned_experiment_name(unit)
+    except (exc.NotAssignedAnExperimentError, HTTPException):
+        return {"captured": False, "reason": "no_assigned_experiment"}
+
+    status = get_camera_status(unit)
+    if not status.get("capture_available"):
+        return {"captured": False, "reason": "camera_unavailable"}
+
+    if not camera_snapshot_is_due(unit, experiment, interval_seconds):
+        return {"captured": False, "reason": "not_due"}
+
+    try:
+        metadata = capture_camera_still(unit, experiment=experiment, capture_reason="scheduled")
+    except CameraUnavailableError:
+        return {"captured": False, "reason": "camera_unavailable"}
+    except CameraCaptureError as error:
+        logger.debug(f"Scheduled camera capture failed on {unit}: {error}")
+        return {"captured": False, "reason": "capture_failed", "error": str(error)}
+
+    return {"captured": True, "still": to_builtins(metadata)}
 
 
 def register_calibration_action(

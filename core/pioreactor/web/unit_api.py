@@ -38,6 +38,8 @@ from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.camera import camera_still_image_path
+from pioreactor.camera import list_camera_still_metadata
+from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
@@ -203,6 +205,79 @@ def get_latest_camera_still() -> ResponseReturnValue:
         camera_still_image_path(metadata),
         mimetype=metadata.content_type,
         download_name=metadata.filename,
+    )
+
+
+@unit_api_bp.route("/camera/experiments/<experiment>/stills", methods=["GET"])
+def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
+    metadata = list_camera_still_metadata(HOSTNAME, experiment=experiment, sort_order="asc")
+    return attach_cache_control(
+        jsonify(
+            {
+                "unit": HOSTNAME,
+                "experiment": experiment,
+                "stills": [to_builtins(still) for still in metadata],
+            }
+        ),
+        max_age=0,
+    )
+
+
+@unit_api_bp.route("/camera/experiments/<experiment>/stills/<image_id>.jpg", methods=["GET"])
+def get_camera_still_for_experiment(experiment: str, image_id: str) -> ResponseReturnValue:
+    try:
+        metadata = load_camera_still_metadata(HOSTNAME, experiment, image_id)
+    except ValueError:
+        abort_with(
+            404,
+            "Camera still image was not found.",
+            cause="The requested camera still image id is not valid.",
+            remediation="Choose an image from the experiment camera stills list.",
+        )
+
+    if metadata is None:
+        abort_with(
+            404,
+            "Camera still image was not found.",
+            cause="No stored camera still matches this unit, experiment, and image id.",
+            remediation="Choose an image from the experiment camera stills list.",
+        )
+
+    return send_file(
+        camera_still_image_path(metadata),
+        mimetype=metadata.content_type,
+        download_name=metadata.filename,
+    )
+
+
+@unit_api_bp.route("/camera/experiments/<experiment>/stills.zip", methods=["GET"])
+def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
+    metadata = list_camera_still_metadata(HOSTNAME, experiment=experiment, sort_order="asc")
+    buffer = BytesIO()
+
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr(
+            "camera_stills_manifest.json",
+            json.dumps(
+                {
+                    "unit": HOSTNAME,
+                    "experiment": experiment,
+                    "stills": [to_builtins(still) for still in metadata],
+                },
+                indent=2,
+            ),
+        )
+        for still in metadata:
+            image_path = camera_still_image_path(still)
+            if image_path.exists():
+                zip_file.write(image_path, arcname=still.filename)
+
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"{HOSTNAME}_{experiment}_camera_stills.zip",
     )
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import tempfile
 import uuid
@@ -11,6 +12,8 @@ from datetime import datetime
 from datetime import UTC
 from pathlib import Path
 from typing import Annotated
+from typing import cast
+from typing import Literal
 
 from msgspec import Meta
 from msgspec import Struct
@@ -18,13 +21,15 @@ from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import types as pt
+from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.sqlite_cache import cache as SqliteCache
 from pioreactor.whoami import is_testing_env
 
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
 CAMERA_STILL_CONTENT_TYPE = "image/jpeg"
 DEFAULT_CAMERA_STILL_RETENTION_COUNT = 200
-LATEST_CAMERA_STILL_METADATA_FILENAME = "latest.json"
+CAMERA_STILLS_CACHE_NAME = "camera_stills"
 CAMERA_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
 DEV_CAMERA_STILLS_DIRNAME = "DEV_CAMERA_STILLS"
 
@@ -68,13 +73,6 @@ def camera_stills_root_path(dot_pioreactor: Path | None = None) -> Path:
 
 def dev_camera_stills_path(dot_pioreactor: Path | None = None) -> Path:
     return camera_stills_root_path(dot_pioreactor) / DEV_CAMERA_STILLS_DIRNAME
-
-
-def camera_stills_unit_path(unit: pt.Unit, dot_pioreactor: Path | None = None) -> Path:
-    if not camera_storage_name_is_safe(unit):
-        raise ValueError(f"Unsafe camera unit name: {unit}")
-
-    return camera_stills_root_path(dot_pioreactor) / unit
 
 
 def camera_storage_name_is_safe(value: str) -> bool:
@@ -133,7 +131,7 @@ def store_next_dev_camera_still(
     if not source_paths:
         return None
 
-    index = len(list_camera_still_metadata(unit, dot_pioreactor)) % len(source_paths)
+    index = len(list_camera_still_metadata(unit, dot_pioreactor=dot_pioreactor)) % len(source_paths)
     return store_camera_still(
         source_paths[index],
         unit,
@@ -141,6 +139,65 @@ def store_next_dev_camera_still(
         capture_reason=capture_reason,
         dot_pioreactor=dot_pioreactor,
     )
+
+
+def initialize_camera_stills_metadata_storage(storage: SqliteCache) -> None:
+    storage.cursor.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_{storage.table_name}_unit_captured_at
+        ON {storage.table_name} (
+            json_extract(value, '$.unit'),
+            json_extract(value, '$.captured_at')
+        )
+        """
+    )
+    storage.cursor.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_{storage.table_name}_unit_experiment_captured_at
+        ON {storage.table_name} (
+            json_extract(value, '$.unit'),
+            json_extract(value, '$.experiment'),
+            json_extract(value, '$.captured_at')
+        )
+        """
+    )
+
+
+def query_camera_still_metadata(
+    unit: pt.Unit,
+    *,
+    experiment: pt.Experiment | None = None,
+    limit: int | None = None,
+    sort_order: Literal["asc", "desc"] = "desc",
+    dot_pioreactor: Path | None = None,
+) -> list[CameraStillMetadata]:
+    if not camera_storage_name_is_safe(unit):
+        raise ValueError(f"Unsafe camera unit name: {unit}")
+
+    query = f"""
+        SELECT value
+        FROM cache_{CAMERA_STILLS_CACHE_NAME}
+        WHERE json_extract(value, '$.unit') = ?
+    """
+    params: list[str | int] = [unit]
+
+    if experiment is not None:
+        query += " AND json_extract(value, '$.experiment') = ?"
+        params.append(experiment)
+
+    order_direction = "ASC" if sort_order == "asc" else "DESC"
+    query += f" ORDER BY json_extract(value, '$.captured_at') {order_direction}"
+
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        initialize_camera_stills_metadata_storage(storage)
+        metadata_rows = storage.cursor.execute(query, params).fetchall()
+
+    metadata = [json_decode(value, type=CameraStillMetadata) for (value,) in metadata_rows]
+    return [still for still in metadata if camera_still_image_path(still, dot_pioreactor).exists()]
 
 
 def camera_hardware_is_detected(capture_command: str, timeout: float = 3.0) -> bool:
@@ -263,15 +320,18 @@ def store_camera_still(
     if not camera_storage_name_is_safe(image_id):
         raise ValueError(f"Unsafe camera image id: {image_id}")
 
-    unit_dir = camera_stills_unit_path(unit, dot_pioreactor)
-    unit_dir.mkdir(parents=True, exist_ok=True)
+    if not camera_storage_name_is_safe(unit):
+        raise ValueError(f"Unsafe camera unit name: {unit}")
+
+    stills_root = camera_stills_root_path(dot_pioreactor)
+    stills_root.mkdir(parents=True, exist_ok=True)
 
     filename = f"{image_id}.jpg"
-    destination_image_path = unit_dir / filename
+    destination_image_path = stills_root / filename
     shutil.copyfile(source_image_path, destination_image_path)
 
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
-    source_path = str(CAMERA_STILLS_RELATIVE_DIR / unit / filename)
+    source_path = str(CAMERA_STILLS_RELATIVE_DIR / filename)
     metadata = CameraStillMetadata(
         unit=unit,
         experiment=experiment,
@@ -283,39 +343,51 @@ def store_camera_still(
         source_path=source_path,
     )
 
-    metadata_path = camera_still_metadata_path(unit, image_id, dot_pioreactor)
     metadata_bytes = json_encode(metadata)
-    metadata_path.write_bytes(metadata_bytes)
-    (unit_dir / LATEST_CAMERA_STILL_METADATA_FILENAME).write_bytes(metadata_bytes)
+    try:
+        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+            initialize_camera_stills_metadata_storage(storage)
+            storage[image_id] = metadata_bytes
+    except sqlite3.Error:
+        if destination_image_path.exists():
+            destination_image_path.unlink()
+        raise
 
     apply_camera_still_retention(unit, retention_count=retention_count, dot_pioreactor=root)
 
     return metadata
 
 
-def camera_still_metadata_path(unit: pt.Unit, image_id: str, dot_pioreactor: Path | None = None) -> Path:
-    if not camera_storage_name_is_safe(image_id):
-        raise ValueError(f"Unsafe camera image id: {image_id}")
-
-    return camera_stills_unit_path(unit, dot_pioreactor) / f"{image_id}.json"
-
-
-def latest_camera_still_metadata_path(unit: pt.Unit, dot_pioreactor: Path | None = None) -> Path:
-    return camera_stills_unit_path(unit, dot_pioreactor) / LATEST_CAMERA_STILL_METADATA_FILENAME
-
-
 def load_latest_camera_still_metadata(
     unit: pt.Unit, dot_pioreactor: Path | None = None
 ) -> CameraStillMetadata | None:
-    metadata_path = latest_camera_still_metadata_path(unit, dot_pioreactor)
+    metadata = query_camera_still_metadata(unit, limit=1, dot_pioreactor=dot_pioreactor)
+    return metadata[0] if metadata else None
 
-    if not metadata_path.exists():
+
+def load_camera_still_metadata(
+    unit: pt.Unit,
+    experiment: pt.Experiment,
+    image_id: str,
+    dot_pioreactor: Path | None = None,
+) -> CameraStillMetadata | None:
+    if not camera_storage_name_is_safe(unit):
+        raise ValueError(f"Unsafe camera unit name: {unit}")
+
+    if not camera_storage_name_is_safe(image_id):
+        raise ValueError(f"Unsafe camera image id: {image_id}")
+
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        raw_metadata = storage.get(image_id)
+
+    if raw_metadata is None:
         return None
 
-    metadata = json_decode(metadata_path.read_bytes(), type=CameraStillMetadata)
-    image_path = camera_still_image_path(metadata, dot_pioreactor)
+    metadata = json_decode(cast(str | bytes | bytearray, raw_metadata), type=CameraStillMetadata)
+    if metadata.unit != unit or metadata.experiment != experiment:
+        return None
 
-    if not image_path.exists():
+    if not camera_still_image_path(metadata, dot_pioreactor).exists():
         return None
 
     return metadata
@@ -327,21 +399,20 @@ def camera_still_image_path(metadata: CameraStillMetadata, dot_pioreactor: Path 
 
 
 def list_camera_still_metadata(
-    unit: pt.Unit, dot_pioreactor: Path | None = None
+    unit: pt.Unit,
+    *,
+    experiment: pt.Experiment | None = None,
+    limit: int | None = None,
+    sort_order: Literal["asc", "desc"] = "desc",
+    dot_pioreactor: Path | None = None,
 ) -> list[CameraStillMetadata]:
-    unit_dir = camera_stills_unit_path(unit, dot_pioreactor)
-
-    if not unit_dir.exists():
-        return []
-
-    metadata: list[CameraStillMetadata] = []
-    for metadata_path in unit_dir.glob("*.json"):
-        if metadata_path.name == LATEST_CAMERA_STILL_METADATA_FILENAME:
-            continue
-
-        metadata.append(json_decode(metadata_path.read_bytes(), type=CameraStillMetadata))
-
-    return sorted(metadata, key=lambda still: still.captured_at, reverse=True)
+    return query_camera_still_metadata(
+        unit,
+        experiment=experiment,
+        limit=limit,
+        sort_order=sort_order,
+        dot_pioreactor=dot_pioreactor,
+    )
 
 
 def apply_camera_still_retention(
@@ -353,10 +424,10 @@ def apply_camera_still_retention(
     if retention_count < 1:
         raise ValueError("Camera still retention count must be at least 1")
 
-    retained = list_camera_still_metadata(unit, dot_pioreactor)[:retention_count]
+    retained = list_camera_still_metadata(unit, dot_pioreactor=dot_pioreactor)[:retention_count]
     retained_ids = {still.image_id for still in retained}
 
-    for still in list_camera_still_metadata(unit, dot_pioreactor)[retention_count:]:
+    for still in list_camera_still_metadata(unit, dot_pioreactor=dot_pioreactor)[retention_count:]:
         if still.image_id in retained_ids:
             continue
 
@@ -364,6 +435,5 @@ def apply_camera_still_retention(
         if image_path.exists():
             image_path.unlink()
 
-        metadata_path = camera_still_metadata_path(unit, still.image_id, dot_pioreactor)
-        if metadata_path.exists():
-            metadata_path.unlink()
+        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+            storage.pop(still.image_id, None)

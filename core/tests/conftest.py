@@ -53,6 +53,10 @@ def _clear_test_artifacts(test_name: str) -> None:
         for key in list(cache.iterkeys()):
             del cache[key]
 
+    with local_persistent_storage("camera_stills") as cache:
+        for key in list(cache.iterkeys()):
+            del cache[key]
+
     prune_retained_messages("pioreactor/#")
 
     with JobManager() as job_manager:

@@ -2,10 +2,12 @@
 """
 Additional unit tests for unit_api endpoints.
 """
+import zipfile
 from collections import namedtuple
 from datetime import datetime
 from datetime import timezone
 from datetime import UTC
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -70,7 +72,7 @@ def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPa
             "capture_command": "rpicam-still",
             "latest_still": {
                 "image_id": "image-1",
-                "source_path": f"storage/camera_stills/{HOSTNAME}/image-1.jpg",
+                "source_path": "storage/camera_stills/image-1.jpg",
             },
         },
     )
@@ -82,7 +84,7 @@ def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPa
     assert payload["available"] is True
     assert payload["capture_command"] == "rpicam-still"
     assert payload["latest_still"]["image_id"] == "image-1"
-    assert payload["latest_still"]["source_path"] == f"storage/camera_stills/{HOSTNAME}/image-1.jpg"
+    assert payload["latest_still"]["source_path"] == "storage/camera_stills/image-1.jpg"
 
 
 def test_latest_camera_still_returns_stored_image(
@@ -105,6 +107,94 @@ def test_latest_camera_still_returns_stored_image(
     assert response.status_code == 200
     assert response.data == b"fake jpeg"
     assert response.content_type == "image/jpeg"
+
+
+def test_list_camera_stills_for_experiment_returns_matching_stills(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-a",
+        capture_reason="manual",
+        captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
+        image_id="image-a",
+    )
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-b",
+        capture_reason="manual",
+        captured_at=datetime(2026, 6, 10, 12, 1, tzinfo=UTC),
+        image_id="image-b",
+    )
+
+    response = client.get("/unit_api/camera/experiments/experiment-a/stills")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["unit"] == HOSTNAME
+    assert payload["experiment"] == "experiment-a"
+    assert [still["image_id"] for still in payload["stills"]] == ["image-a"]
+
+
+def test_camera_still_for_experiment_requires_matching_experiment(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-a",
+        capture_reason="manual",
+        image_id="image-a",
+    )
+
+    response = client.get("/unit_api/camera/experiments/experiment-a/stills/image-a.jpg")
+    wrong_experiment_response = client.get("/unit_api/camera/experiments/experiment-b/stills/image-a.jpg")
+
+    assert response.status_code == 200
+    assert response.data == b"fake jpeg"
+    assert response.content_type == "image/jpeg"
+    assert wrong_experiment_response.status_code == 404
+
+
+def test_zipped_camera_stills_for_experiment_includes_matching_stills(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-a",
+        capture_reason="manual",
+        image_id="image-a",
+    )
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-b",
+        capture_reason="manual",
+        image_id="image-b",
+    )
+
+    response = client.get("/unit_api/camera/experiments/experiment-a/stills.zip")
+
+    assert response.status_code == 200
+    assert response.content_type == "application/zip"
+    with zipfile.ZipFile(BytesIO(response.data), "r") as zip_file:
+        assert sorted(zip_file.namelist()) == ["camera_stills_manifest.json", "image-a.jpg"]
+        assert zip_file.read("image-a.jpg") == b"fake jpeg"
 
 
 def test_capture_camera_still_reports_unavailable_when_capture_command_is_absent(
@@ -143,7 +233,7 @@ def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.Monke
         filename="image-1.jpg",
         resolution=None,
         capture_reason="manual",
-        source_path=f"storage/camera_stills/{HOSTNAME}/image-1.jpg",
+        source_path="storage/camera_stills/image-1.jpg",
     )
     captured: dict[str, str | None] = {}
 

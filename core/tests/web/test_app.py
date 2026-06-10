@@ -1381,6 +1381,95 @@ def test_latest_camera_still_proxy_preserves_image_content_type(client, monkeypa
     assert response.content_type == "image/jpeg"
 
 
+def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    captured: dict[str, str] = {}
+
+    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "application/json"},
+            b'{"unit":"unit1","experiment":"experiment a","stills":[]}',
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"unit": "unit1", "experiment": "experiment a", "stills": []}
+    assert captured == {
+        "address": "unit1.local",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills",
+    }
+
+
+def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    captured: dict[str, str] = {}
+
+    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "image/jpeg"},
+            b"fake jpeg",
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    response = client.get("/api/workers/unit1/camera/experiments/experiment-a/stills/image-1.jpg")
+
+    assert response.status_code == 200
+    assert response.data == b"fake jpeg"
+    assert response.content_type == "image/jpeg"
+    assert captured == {
+        "address": "unit1.local",
+        "endpoint": "/unit_api/camera/experiments/experiment-a/stills/image-1.jpg",
+    }
+
+
+def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    captured: dict[str, str] = {}
+
+    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "application/zip"},
+            b"fake zip",
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    response = client.get("/api/workers/unit1/camera/experiments/experiment-a/stills.zip")
+
+    assert response.status_code == 200
+    assert response.data == b"fake zip"
+    assert response.content_type == "application/zip"
+    assert captured == {
+        "address": "unit1.local",
+        "endpoint": "/unit_api/camera/experiments/experiment-a/stills.zip",
+    }
+
+
 def test_capture_camera_still_proxy_posts_to_worker(client, monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.api as mod
     from pioreactor.mureq import Response as MureqResponse

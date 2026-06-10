@@ -8,7 +8,7 @@ import Grid from "@mui/material/Grid";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import CameraPanel, { cameraAutoCaptureIntervalMsFromConfig } from "./components/CameraPanel";
+import CameraPanel from "./components/CameraPanel";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
 
@@ -31,13 +31,12 @@ function normalizeCameraResults(payload) {
   });
 }
 
-export default function Cameras({ title, config = {} }) {
+export default function Cameras({ title }) {
   const { experimentMetadata } = useExperiment();
   const [cameraResults, setCameraResults] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const experiment = experimentMetadata?.experiment;
-  const autoCaptureIntervalMs = cameraAutoCaptureIntervalMsFromConfig(config);
 
   const loadCameraStatuses = React.useCallback(async ({ signal } = {}) => {
     if (!experiment) {
@@ -110,17 +109,6 @@ export default function Cameras({ title, config = {} }) {
         </Alert>
       ) : null}
 
-      {cameraResults.some((result) => result.error) && (
-        <Stack spacing={1}>
-          {cameraResults
-            .filter((result) => result.error)
-            .map((result) => (
-              <Alert key={result.unit} severity="warning">
-                {result.unit}: {result.error}
-              </Alert>
-            ))}
-        </Stack>
-      )}
 
       <Grid container spacing={2}>
         {cameraCapableResults.map((result, index) => (
@@ -128,10 +116,7 @@ export default function Cameras({ title, config = {} }) {
             <CameraPanel
               unit={result.unit}
               initialStatus={result.status}
-              autoCaptureIntervalMs={autoCaptureIntervalMs}
-              autoCaptureInitialDelayMs={Math.floor(
-                (index * autoCaptureIntervalMs) / Math.max(cameraCapableResults.length, 1)
-              )}
+              detailsHref={`/cameras/${encodeURIComponent(result.unit)}`}
             />
           </Grid>
         ))}

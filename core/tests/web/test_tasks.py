@@ -4,6 +4,8 @@ import os
 import sqlite3
 import subprocess
 import sys
+from datetime import datetime
+from datetime import UTC
 from http.client import HTTPMessage
 from pathlib import Path
 from subprocess import TimeoutExpired
@@ -11,6 +13,7 @@ from typing import Any
 
 import pytest
 from huey.exceptions import RateLimitExceeded
+from pioreactor.camera import CameraStillMetadata
 from pioreactor.mureq import Response
 from pioreactor.web import db as web_db
 from pioreactor.web import tasks
@@ -43,6 +46,62 @@ def test_importing_tasks_does_not_import_web_app() -> None:
     )
 
     assert result.stdout.strip() == "False"
+
+
+def test_periodic_camera_capture_noops_when_camera_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_seconds", lambda: 60.0)
+    monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
+    monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"capture_available": False})
+
+    result = tasks.capture_camera_still_periodic_task.call_local()
+
+    assert result == {"captured": False, "reason": "camera_unavailable"}
+
+
+def test_periodic_camera_capture_captures_when_snapshot_is_due(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_lock("camera-lock")
+    captured: dict[str, str | None] = {}
+    metadata = CameraStillMetadata(
+        unit="unit-a",
+        experiment="experiment-a",
+        captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
+        image_id="image-a",
+        filename="image-a.jpg",
+        resolution=None,
+        capture_reason="scheduled",
+        source_path="storage/camera_stills/image-a.jpg",
+    )
+
+    def fake_capture_camera_still(
+        unit: str, *, experiment: str | None, capture_reason: str
+    ) -> CameraStillMetadata:
+        captured["unit"] = unit
+        captured["experiment"] = experiment
+        captured["capture_reason"] = capture_reason
+        return metadata
+
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_seconds", lambda: 60.0)
+    monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
+    monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"capture_available": True})
+    monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
+    monkeypatch.setattr(tasks, "capture_camera_still", fake_capture_camera_still)
+
+    result = tasks.capture_camera_still_periodic_task.call_local()
+
+    assert result["captured"] is True
+    assert result["still"]["image_id"] == "image-a"
+    assert captured == {
+        "unit": "unit-a",
+        "experiment": "experiment-a",
+        "capture_reason": "scheduled",
+    }
 
 
 def test_delete_experiment_task_deletes_and_reports_reclaimable_space(

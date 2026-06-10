@@ -1,5 +1,6 @@
 import React from "react";
 import dayjs from "dayjs";
+import { Link } from "react-router";
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -18,20 +19,10 @@ import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupportedOutlined";
+import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
 import { fetchTaskResult } from "../utils/tasks";
-
-const MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS = 5;
-
-export function cameraAutoCaptureIntervalMsFromConfig(config = {}) {
-  const configuredSeconds = Number(config?.["ui.camera"]?.auto_capture_interval_seconds);
-  const intervalSeconds = Number.isFinite(configuredSeconds)
-    ? Math.max(MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS, configuredSeconds)
-    : MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS;
-
-  return intervalSeconds * 1000;
-}
 
 function workerCameraPath(unit, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/${suffix}`;
@@ -117,8 +108,7 @@ function CameraMedia({ unit, status, imageVersion, onOpenViewer }) {
 export default function CameraPanel({
   unit,
   initialStatus = null,
-  autoCaptureIntervalMs = MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS * 1000,
-  autoCaptureInitialDelayMs = 0,
+  detailsHref = null,
 }) {
   const [status, setStatus] = React.useState(initialStatus);
   const [loading, setLoading] = React.useState(!initialStatus);
@@ -207,33 +197,6 @@ export default function CameraPanel({
     }
   }, [unit]);
 
-  const canCapture = Boolean(status?.capture_available);
-  const safeAutoCaptureIntervalMs = Math.max(
-    MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS * 1000,
-    autoCaptureIntervalMs,
-  );
-
-  React.useEffect(() => {
-    if (!canCapture) {
-      return undefined;
-    }
-
-    let intervalId = null;
-    const timeoutId = window.setTimeout(() => {
-      void captureStill();
-      intervalId = window.setInterval(() => {
-        void captureStill();
-      }, safeAutoCaptureIntervalMs);
-    }, autoCaptureInitialDelayMs);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      if (intervalId !== null) {
-        window.clearInterval(intervalId);
-      }
-    };
-  }, [autoCaptureInitialDelayMs, canCapture, captureStill, safeAutoCaptureIntervalMs]);
-
   const hasLatestStill = Boolean(status?.latest_still);
   const staleStillIsVisible = hasLatestStill && !hasFreshStill;
   const openMediaUrl = latestStillUrl(unit, imageVersion);
@@ -301,6 +264,17 @@ export default function CameraPanel({
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between" }}>
               <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
+                {detailsHref && (
+                  <Tooltip title="View still history">
+                    <IconButton
+                      size="small"
+                      component={Link}
+                      to={detailsHref}
+                    >
+                      <PhotoLibraryOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Tooltip title="Open media">
                   <span>
                     <IconButton
