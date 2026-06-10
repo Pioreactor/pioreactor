@@ -2,20 +2,17 @@ import React from "react";
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import RefreshIcon from "@mui/icons-material/Refresh";
-
 import CameraPanel from "./components/CameraPanel";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
 
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
+const CAMERA_AUTO_CAPTURE_INTERVAL_MS = 5000;
 
 function normalizeCameraResults(payload) {
   const cameras = payload?.cameras;
@@ -98,17 +95,6 @@ export default function Cameras({ title }) {
               Cameras
             </Box>
           </Typography>
-          <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap" }}>
-            <Button
-              onClick={() => void loadCameraStatuses()}
-              disabled={loading}
-              sx={{ textTransform: "none", float: "right", marginRight: 0 }}
-              color="primary"
-            >
-              {loading ? <CircularProgress size={16} sx={textIcon} /> : <RefreshIcon fontSize="small" sx={textIcon} />}
-              Refresh
-            </Button>
-          </Box>
         </Box>
         <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
       </Box>
@@ -138,9 +124,16 @@ export default function Cameras({ title }) {
       )}
 
       <Grid container spacing={2}>
-        {cameraCapableResults.map((result) => (
+        {cameraCapableResults.map((result, index) => (
           <Grid key={result.unit} size={{ xs: 12, md: 6, xl: 4 }}>
-            <CameraPanel unit={result.unit} initialStatus={result.status} />
+            <CameraPanel
+              unit={result.unit}
+              initialStatus={result.status}
+              autoCaptureIntervalMs={CAMERA_AUTO_CAPTURE_INTERVAL_MS}
+              autoCaptureInitialDelayMs={Math.floor(
+                (index * CAMERA_AUTO_CAPTURE_INTERVAL_MS) / Math.max(cameraCapableResults.length, 1)
+              )}
+            />
           </Grid>
         ))}
       </Grid>

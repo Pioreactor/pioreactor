@@ -17,15 +17,12 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import CloseIcon from "@mui/icons-material/Close";
-import DownloadIcon from "@mui/icons-material/Download";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupportedOutlined";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
-import Snackbar from "./Snackbar";
 import { fetchTaskResult } from "../utils/tasks";
 
 function workerCameraPath(unit, suffix) {
@@ -133,15 +130,19 @@ function CameraMedia({ unit, status, mode, imageVersion, onOpenViewer }) {
   );
 }
 
-export default function CameraPanel({ unit, initialStatus = null }) {
+export default function CameraPanel({
+  unit,
+  initialStatus = null,
+  autoCaptureIntervalMs = null,
+  autoCaptureInitialDelayMs = 0,
+}) {
   const [status, setStatus] = React.useState(initialStatus);
   const [loading, setLoading] = React.useState(!initialStatus);
   const [mode, setMode] = React.useState("still");
   const [imageVersion, setImageVersion] = React.useState(Date.now());
   const [viewerOpen, setViewerOpen] = React.useState(false);
-  const [snackbar, setSnackbar] = React.useState({ open: false, message: "" });
   const [actionError, setActionError] = React.useState(null);
-  const [capturing, setCapturing] = React.useState(false);
+  const capturingRef = React.useRef(false);
 
   const refreshStatus = React.useCallback(async ({ signal } = {}) => {
     setLoading(true);
@@ -186,8 +187,12 @@ export default function CameraPanel({ unit, initialStatus = null }) {
     };
   }, [initialStatus, refreshStatus]);
 
-  const captureStill = async () => {
-    setCapturing(true);
+  const captureStill = React.useCallback(async () => {
+    if (capturingRef.current) {
+      return;
+    }
+
+    capturingRef.current = true;
     setActionError(null);
 
     try {
@@ -208,20 +213,37 @@ export default function CameraPanel({ unit, initialStatus = null }) {
         latest_still: metadata,
       }));
       setImageVersion(Date.now());
-      setSnackbar({ open: true, message: `Captured still image on ${unit}.` });
     } catch (error) {
       setActionError(error.message);
     } finally {
-      setCapturing(false);
+      capturingRef.current = false;
     }
-  };
+  }, [unit]);
 
-  const closeSnackbar = () => {
-    setSnackbar({ open: false, message: "" });
-  };
+  const canCapture = Boolean(status?.capture_available);
+
+  React.useEffect(() => {
+    if (!autoCaptureIntervalMs || !canCapture) {
+      return undefined;
+    }
+
+    let intervalId = null;
+    const timeoutId = window.setTimeout(() => {
+      void captureStill();
+      intervalId = window.setInterval(() => {
+        void captureStill();
+      }, autoCaptureIntervalMs);
+    }, autoCaptureInitialDelayMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [autoCaptureInitialDelayMs, autoCaptureIntervalMs, canCapture, captureStill]);
 
   const hasLatestStill = Boolean(status?.latest_still);
-  const canCapture = Boolean(status?.capture_available);
   const openMediaUrl = mode === "live" ? streamUrl(unit) : latestStillUrl(unit, imageVersion);
 
   return (
@@ -285,20 +307,6 @@ export default function CameraPanel({ unit, initialStatus = null }) {
               </ButtonGroup>
 
               <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
-                <Tooltip title="Refresh">
-                  <span>
-                    <IconButton size="small" onClick={() => void refreshStatus()} disabled={loading}>
-                      <RefreshIcon fontSize="small" />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                <Tooltip title="Capture still">
-                  <span>
-                    <IconButton size="small" onClick={captureStill} disabled={!canCapture || capturing}>
-                      {capturing ? <CircularProgress size={18} /> : <DownloadIcon fontSize="small" />}
-                    </IconButton>
-                  </span>
-                </Tooltip>
                 <Tooltip title="Open media">
                   <span>
                     <IconButton
@@ -343,7 +351,6 @@ export default function CameraPanel({ unit, initialStatus = null }) {
         </DialogContent>
       </Dialog>
 
-      <Snackbar open={snackbar.open} message={snackbar.message} onClose={closeSnackbar} />
     </>
   );
 }
