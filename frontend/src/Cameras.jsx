@@ -8,11 +8,9 @@ import Grid from "@mui/material/Grid";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import CameraPanel from "./components/CameraPanel";
+import CameraPanel, { CAMERA_AUTO_CAPTURE_INTERVAL_MS } from "./components/CameraPanel";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
-
-const CAMERA_AUTO_CAPTURE_INTERVAL_MS = 5000;
 
 function normalizeCameraResults(payload) {
   const cameras = payload?.cameras;
@@ -129,7 +127,6 @@ export default function Cameras({ title }) {
             <CameraPanel
               unit={result.unit}
               initialStatus={result.status}
-              autoCaptureIntervalMs={CAMERA_AUTO_CAPTURE_INTERVAL_MS}
               autoCaptureInitialDelayMs={Math.floor(
                 (index * CAMERA_AUTO_CAPTURE_INTERVAL_MS) / Math.max(cameraCapableResults.length, 1)
               )}

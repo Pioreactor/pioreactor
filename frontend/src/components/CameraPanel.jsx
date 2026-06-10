@@ -25,6 +25,8 @@ import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import PioreactorIcon from "./PioreactorIcon";
 import { fetchTaskResult } from "../utils/tasks";
 
+export const CAMERA_AUTO_CAPTURE_INTERVAL_MS = 5000;
+
 function workerCameraPath(unit, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/${suffix}`;
 }
@@ -133,7 +135,6 @@ function CameraMedia({ unit, status, mode, imageVersion, onOpenViewer }) {
 export default function CameraPanel({
   unit,
   initialStatus = null,
-  autoCaptureIntervalMs = null,
   autoCaptureInitialDelayMs = 0,
 }) {
   const [status, setStatus] = React.useState(initialStatus);
@@ -223,7 +224,7 @@ export default function CameraPanel({
   const canCapture = Boolean(status?.capture_available);
 
   React.useEffect(() => {
-    if (!autoCaptureIntervalMs || !canCapture) {
+    if (!canCapture) {
       return undefined;
     }
 
@@ -232,7 +233,7 @@ export default function CameraPanel({
       void captureStill();
       intervalId = window.setInterval(() => {
         void captureStill();
-      }, autoCaptureIntervalMs);
+      }, CAMERA_AUTO_CAPTURE_INTERVAL_MS);
     }, autoCaptureInitialDelayMs);
 
     return () => {
@@ -241,7 +242,7 @@ export default function CameraPanel({
         window.clearInterval(intervalId);
       }
     };
-  }, [autoCaptureInitialDelayMs, autoCaptureIntervalMs, canCapture, captureStill]);
+  }, [autoCaptureInitialDelayMs, canCapture, captureStill]);
 
   const hasLatestStill = Boolean(status?.latest_still);
   const openMediaUrl = mode === "live" ? streamUrl(unit) : latestStillUrl(unit, imageVersion);
