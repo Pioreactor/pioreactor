@@ -621,24 +621,6 @@ def get_task_result_for_worker(pioreactor_unit: str, task_id: str) -> ResponseRe
     )
 
 
-@api_bp.route("/workers/<pioreactor_unit>/camera/stream", methods=["GET"])
-def get_camera_stream_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(
-            400,
-            "Cannot fetch camera stream with $broadcast; choose a specific Pioreactor.",
-            cause="Camera media routes require a single target unit.",
-            remediation="Specify a concrete pioreactor_unit in the URL.",
-        )
-
-    abort_with(
-        503,
-        "Camera stream proxying is not supported.",
-        cause="Live camera streams are served directly from worker Pioreactors.",
-        remediation="Use the stream_url returned by the worker camera status payload.",
-    )
-
-
 @api_bp.route("/models", methods=["GET"])
 def get_models() -> ResponseReturnValue:
     """

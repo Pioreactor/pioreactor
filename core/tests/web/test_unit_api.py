@@ -107,39 +107,6 @@ def test_latest_camera_still_returns_stored_image(
     assert response.content_type == "image/jpeg"
 
 
-def test_camera_stream_returns_mjpeg_response(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pioreactor.web.unit_api as mod
-
-    monkeypatch.setattr(mod, "acquire_camera_operation_lock", lambda: object())
-    monkeypatch.setattr(
-        mod,
-        "create_camera_mjpeg_stream",
-        lambda _lock: iter([b"--frame\r\nContent-Type: image/jpeg\r\n\r\nfake jpeg\r\n"]),
-    )
-
-    response = client.get("/unit_api/camera/stream")
-
-    assert response.status_code == 200
-    assert response.content_type == "multipart/x-mixed-replace; boundary=frame"
-    assert response.data == b"--frame\r\nContent-Type: image/jpeg\r\n\r\nfake jpeg\r\n"
-    assert response.cache_control.no_store is True
-
-
-def test_camera_stream_reports_busy(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pioreactor.web.unit_api as mod
-    from pioreactor.camera import CameraBusyError
-
-    def busy_camera() -> None:
-        raise CameraBusyError("Another camera operation is already running.")
-
-    monkeypatch.setattr(mod, "acquire_camera_operation_lock", busy_camera)
-
-    response = client.get("/unit_api/camera/stream")
-
-    assert response.status_code == 409
-    assert response.get_json()["error"] == "Camera is already in use."
-
-
 def test_capture_camera_still_reports_unavailable_when_capture_command_is_absent(
     client, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -7,17 +7,10 @@ import shutil
 import subprocess
 import tempfile
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import datetime
 from datetime import UTC
-from fcntl import flock
-from fcntl import LOCK_EX
-from fcntl import LOCK_NB
-from fcntl import LOCK_UN
 from pathlib import Path
 from typing import Annotated
-from typing import BinaryIO
 
 from msgspec import Meta
 from msgspec import Struct
@@ -25,25 +18,15 @@ from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import types as pt
-from pioreactor.config import config
-from pioreactor.pubsub import create_webserver_path
-from pioreactor.utils.networking import resolve_to_address
 from pioreactor.whoami import is_testing_env
 
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
 CAMERA_STILL_CONTENT_TYPE = "image/jpeg"
-CAMERA_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace; boundary=frame"
 DEFAULT_CAMERA_STILL_RETENTION_COUNT = 200
 LATEST_CAMERA_STILL_METADATA_FILENAME = "latest.json"
 CAMERA_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
-CAMERA_STREAM_COMMANDS = ("rpicam-vid", "libcamera-vid")
 DEV_CAMERA_STILLS_DIRNAME = "DEV_CAMERA_STILLS"
-CAMERA_LOCK_FILENAME = "camera.lock"
-CAMERA_STREAM_BOUNDARY = b"frame"
-DEFAULT_CAMERA_STREAM_FPS = 5
-DEFAULT_CAMERA_STREAM_WIDTH = 640
-DEFAULT_CAMERA_STREAM_HEIGHT = 480
 
 SAFE_CAMERA_STORAGE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
@@ -68,10 +51,6 @@ class CameraCaptureError(RuntimeError):
     pass
 
 
-class CameraBusyError(RuntimeError):
-    pass
-
-
 def resolve_dot_pioreactor_path() -> Path:
     if "DOT_PIOREACTOR" in os.environ:
         return Path(os.environ["DOT_PIOREACTOR"])
@@ -85,11 +64,6 @@ def resolve_dot_pioreactor_path() -> Path:
 def camera_stills_root_path(dot_pioreactor: Path | None = None) -> Path:
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
     return root / CAMERA_STILLS_RELATIVE_DIR
-
-
-def camera_storage_root_path(dot_pioreactor: Path | None = None) -> Path:
-    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
-    return root / "storage"
 
 
 def dev_camera_stills_path(dot_pioreactor: Path | None = None) -> Path:
@@ -124,59 +98,6 @@ def find_camera_capture_command() -> str | None:
             return resolved
 
     return None
-
-
-def find_camera_stream_command() -> str | None:
-    for command in CAMERA_STREAM_COMMANDS:
-        resolved = shutil.which(command)
-        if resolved:
-            return resolved
-
-    return None
-
-
-def get_camera_stream_url(unit: pt.Unit) -> str:
-    return create_webserver_path(resolve_to_address(unit), "/unit_api/camera/stream")
-
-
-def get_camera_stream_fps() -> int:
-    return max(1, config.getint("ui.camera", "stream_fps", fallback=DEFAULT_CAMERA_STREAM_FPS))
-
-
-def get_camera_stream_width() -> int:
-    return max(1, config.getint("ui.camera", "stream_width", fallback=DEFAULT_CAMERA_STREAM_WIDTH))
-
-
-def get_camera_stream_height() -> int:
-    return max(1, config.getint("ui.camera", "stream_height", fallback=DEFAULT_CAMERA_STREAM_HEIGHT))
-
-
-def acquire_camera_operation_lock(dot_pioreactor: Path | None = None) -> BinaryIO:
-    lock_dir = camera_storage_root_path(dot_pioreactor)
-    lock_dir.mkdir(parents=True, exist_ok=True)
-    lock_file = (lock_dir / CAMERA_LOCK_FILENAME).open("a+b")
-
-    try:
-        flock(lock_file.fileno(), LOCK_EX | LOCK_NB)
-    except BlockingIOError:
-        lock_file.close()
-        raise CameraBusyError("Another camera operation is already running.")
-
-    return lock_file
-
-
-def release_camera_operation_lock(lock_file: BinaryIO) -> None:
-    flock(lock_file.fileno(), LOCK_UN)
-    lock_file.close()
-
-
-@contextmanager
-def camera_operation_lock(dot_pioreactor: Path | None = None) -> Iterator[None]:
-    lock_file = acquire_camera_operation_lock(dot_pioreactor)
-    try:
-        yield
-    finally:
-        release_camera_operation_lock(lock_file)
 
 
 def dev_camera_still_paths(dot_pioreactor: Path | None = None) -> tuple[Path, ...]:
@@ -244,11 +165,9 @@ def camera_hardware_is_detected(capture_command: str, timeout: float = 3.0) -> b
 
 def get_camera_status(unit: pt.Unit, dot_pioreactor: Path | None = None) -> dict[str, object]:
     capture_command = find_camera_capture_command()
-    stream_command = find_camera_stream_command()
     dev_stills_available = dev_camera_stills_are_available(dot_pioreactor)
-    detection_command = capture_command or stream_command
     camera_detected = (
-        camera_hardware_is_detected(detection_command) if detection_command is not None else False
+        camera_hardware_is_detected(capture_command) if capture_command is not None else False
     ) or dev_stills_available
     latest_metadata = load_latest_camera_still_metadata(unit, dot_pioreactor)
     if latest_metadata is None and dev_stills_available:
@@ -259,20 +178,12 @@ def get_camera_status(unit: pt.Unit, dot_pioreactor: Path | None = None) -> dict
             dot_pioreactor=dot_pioreactor,
         )
 
-    stream_url = get_camera_stream_url(unit)
-    stream_available = camera_detected and stream_command is not None
-
     return {
         "unit": unit,
         "available": camera_detected,
-        "runtime_available": (capture_command is not None)
-        or (stream_command is not None)
-        or dev_stills_available,
-        "capture_available": camera_detected and ((capture_command is not None) or dev_stills_available),
-        "stream_available": stream_available,
+        "runtime_available": (capture_command is not None) or dev_stills_available,
+        "capture_available": camera_detected,
         "capture_command": Path(capture_command).name if capture_command else None,
-        "stream_command": Path(stream_command).name if stream_command else None,
-        "stream_url": stream_url if stream_available else None,
         "mock": dev_stills_available and capture_command is None,
         "latest_still": to_builtins(latest_metadata) if latest_metadata is not None else None,
     }
@@ -288,124 +199,44 @@ def capture_camera_still(
 ) -> CameraStillMetadata:
     command = find_camera_capture_command()
 
-    with camera_operation_lock(dot_pioreactor):
-        if command is None:
-            dev_still = store_next_dev_camera_still(
-                unit,
-                experiment=experiment,
-                capture_reason=capture_reason,
-                dot_pioreactor=dot_pioreactor,
-            )
-            if dev_still is not None:
-                return dev_still
-
-            raise CameraUnavailableError("No Raspberry Pi camera capture command is installed.")
-
-        with tempfile.NamedTemporaryFile(prefix="pioreactor-camera-", suffix=".jpg", delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-
-        try:
-            result = subprocess.run(
-                [command, "-n", "--timeout", "1000", "-o", tmp_path.as_posix()],
-                capture_output=True,
-                timeout=timeout,
-                check=False,
-            )
-            if result.returncode != 0:
-                stderr = result.stderr.decode("utf-8", errors="replace").strip()
-                stdout = result.stdout.decode("utf-8", errors="replace").strip()
-                message = stderr or stdout or f"{Path(command).name} exited with code {result.returncode}"
-                raise CameraCaptureError(message)
-
-            return store_camera_still(
-                tmp_path,
-                unit,
-                experiment=experiment,
-                capture_reason=capture_reason,
-                dot_pioreactor=dot_pioreactor,
-            )
-        finally:
-            if tmp_path.exists():
-                tmp_path.unlink()
-
-
-def create_camera_mjpeg_stream(lock_file: BinaryIO) -> Iterator[bytes]:
-    command = find_camera_stream_command()
     if command is None:
-        release_camera_operation_lock(lock_file)
-        raise CameraUnavailableError("No Raspberry Pi camera stream command is installed.")
+        dev_still = store_next_dev_camera_still(
+            unit,
+            experiment=experiment,
+            capture_reason=capture_reason,
+            dot_pioreactor=dot_pioreactor,
+        )
+        if dev_still is not None:
+            return dev_still
+
+        raise CameraUnavailableError("No Raspberry Pi camera capture command is installed.")
+
+    with tempfile.NamedTemporaryFile(prefix="pioreactor-camera-", suffix=".jpg", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
 
     try:
-        process = subprocess.Popen(
-            [
-                command,
-                "-n",
-                "--timeout",
-                "0",
-                "--codec",
-                "mjpeg",
-                "--inline",
-                "--framerate",
-                str(get_camera_stream_fps()),
-                "--width",
-                str(get_camera_stream_width()),
-                "--height",
-                str(get_camera_stream_height()),
-                "-o",
-                "-",
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+        result = subprocess.run(
+            [command, "-n", "--timeout", "1000", "-o", tmp_path.as_posix()],
+            capture_output=True,
+            timeout=timeout,
+            check=False,
         )
-    except OSError as e:
-        release_camera_operation_lock(lock_file)
-        raise CameraUnavailableError(str(e)) from e
+        if result.returncode != 0:
+            stderr = result.stderr.decode("utf-8", errors="replace").strip()
+            stdout = result.stdout.decode("utf-8", errors="replace").strip()
+            message = stderr or stdout or f"{Path(command).name} exited with code {result.returncode}"
+            raise CameraCaptureError(message)
 
-    def stream() -> Iterator[bytes]:
-        buffer = b""
-        try:
-            if process.stdout is None:
-                raise CameraCaptureError("Camera stream did not provide stdout.")
-
-            while True:
-                chunk = process.stdout.read(65536)
-                if not chunk:
-                    break
-
-                buffer += chunk
-                while True:
-                    start = buffer.find(b"\xff\xd8")
-                    if start == -1:
-                        buffer = buffer[-1:]
-                        break
-
-                    end = buffer.find(b"\xff\xd9", start + 2)
-                    if end == -1:
-                        buffer = buffer[start:]
-                        break
-
-                    frame = buffer[start : end + 2]
-                    buffer = buffer[end + 2 :]
-                    yield (
-                        b"--"
-                        + CAMERA_STREAM_BOUNDARY
-                        + b"\r\nContent-Type: image/jpeg\r\nContent-Length: "
-                        + str(len(frame)).encode("ascii")
-                        + b"\r\n\r\n"
-                        + frame
-                        + b"\r\n"
-                    )
-        finally:
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=2)
-            release_camera_operation_lock(lock_file)
-
-    return stream()
+        return store_camera_still(
+            tmp_path,
+            unit,
+            experiment=experiment,
+            capture_reason=capture_reason,
+            dot_pioreactor=dot_pioreactor,
+        )
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
 
 def store_camera_still(

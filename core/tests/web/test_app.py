@@ -1415,13 +1415,6 @@ def test_capture_camera_still_proxy_posts_to_worker(client, monkeypatch: MonkeyP
     }
 
 
-def test_camera_stream_proxy_is_not_supported(client) -> None:
-    response = client.get("/api/workers/unit1/camera/stream")
-
-    assert response.status_code == 503
-    assert response.get_json()["error"] == "Camera stream proxying is not supported."
-
-
 def test_task_result_proxy_fetches_worker_task_result(client, monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.api as mod
     from pioreactor.mureq import Response as MureqResponse
