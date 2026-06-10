@@ -19,6 +19,8 @@ from pioreactor.camera import latest_camera_still_metadata_path
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.camera import store_camera_still
+from pioreactor.config import config as pioreactor_config
+from pioreactor.config import temporary_config_changes
 
 
 def write_source_image(path: Path, contents: bytes = b"fake jpeg") -> None:
@@ -196,6 +198,58 @@ def test_camera_status_seeds_latest_still_from_dev_camera_stills(
     assert status["mock"] is True
     assert status["latest_still"]["capture_reason"] == "dev_mock"
     assert load_latest_camera_still_metadata("unit-a").image_id == status["latest_still"]["image_id"]
+
+
+def test_camera_status_reports_stream_url_from_configured_cluster_address(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(command: str) -> str | None:
+        return {
+            "rpicam-still": "/usr/bin/rpicam-still",
+            "rpicam-vid": "/usr/bin/rpicam-vid",
+        }.get(command)
+
+    monkeypatch.setattr("pioreactor.camera.shutil.which", fake_which)
+    monkeypatch.setattr("pioreactor.camera.camera_hardware_is_detected", lambda command: True)
+
+    with temporary_config_changes(
+        pioreactor_config,
+        [
+            ("cluster.addresses", "unit-a", "unit-a.local"),
+            ("ui", "port", "4999"),
+            ("ui", "proto", "http"),
+        ],
+    ):
+        status = get_camera_status("unit-a")
+
+    assert status["stream_available"] is True
+    assert status["stream_command"] == "rpicam-vid"
+    assert status["stream_url"] == "http://unit-a.local:4999/unit_api/camera/stream"
+
+
+def test_camera_status_uses_resolved_address_for_stream_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_which(command: str) -> str | None:
+        return {
+            "rpicam-still": "/usr/bin/rpicam-still",
+            "rpicam-vid": "/usr/bin/rpicam-vid",
+        }.get(command)
+
+    monkeypatch.setattr("pioreactor.camera.shutil.which", fake_which)
+    monkeypatch.setattr("pioreactor.camera.camera_hardware_is_detected", lambda command: True)
+
+    with temporary_config_changes(
+        pioreactor_config,
+        [
+            ("ui", "port", "4999"),
+            ("ui", "proto", "http"),
+        ],
+    ):
+        status = get_camera_status("unit-a")
+
+    assert status["stream_available"] is True
+    assert status["stream_url"] == "http://unit-a.local:4999/unit_api/camera/stream"
 
 
 def test_capture_camera_still_uses_dev_camera_stills_when_command_is_absent(

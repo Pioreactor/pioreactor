@@ -58,21 +58,21 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
 
 
-def test_camera_status_reports_latest_still(client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    dot_pioreactor = tmp_path / ".pioreactor"
-    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: "/usr/bin/rpicam-still")
-    monkeypatch.setattr("pioreactor.camera.camera_hardware_is_detected", lambda command: True)
-    source_image_path = tmp_path / "capture.jpg"
-    source_image_path.write_bytes(b"fake jpeg")
-    store_camera_still(
-        source_image_path,
-        HOSTNAME,
-        experiment="experiment-a",
-        capture_reason="manual",
-        captured_at=datetime(2026, 6, 10, 12, 30, tzinfo=UTC),
-        image_id="image-1",
-        resolution=(640, 480),
+def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.huey, "immediate", True)
+    monkeypatch.setattr(
+        "pioreactor.web.tasks.get_camera_status",
+        lambda unit: {
+            "unit": unit,
+            "available": True,
+            "capture_command": "rpicam-still",
+            "latest_still": {
+                "image_id": "image-1",
+                "source_path": f"storage/camera_stills/{HOSTNAME}/image-1.jpg",
+            },
+        },
     )
 
     response = client.get("/unit_api/camera/status")
@@ -105,6 +105,39 @@ def test_latest_camera_still_returns_stored_image(
     assert response.status_code == 200
     assert response.data == b"fake jpeg"
     assert response.content_type == "image/jpeg"
+
+
+def test_camera_stream_returns_mjpeg_response(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod, "acquire_camera_operation_lock", lambda: object())
+    monkeypatch.setattr(
+        mod,
+        "create_camera_mjpeg_stream",
+        lambda _lock: iter([b"--frame\r\nContent-Type: image/jpeg\r\n\r\nfake jpeg\r\n"]),
+    )
+
+    response = client.get("/unit_api/camera/stream")
+
+    assert response.status_code == 200
+    assert response.content_type == "multipart/x-mixed-replace; boundary=frame"
+    assert response.data == b"--frame\r\nContent-Type: image/jpeg\r\n\r\nfake jpeg\r\n"
+    assert response.cache_control.no_store is True
+
+
+def test_camera_stream_reports_busy(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+    from pioreactor.camera import CameraBusyError
+
+    def busy_camera() -> None:
+        raise CameraBusyError("Another camera operation is already running.")
+
+    monkeypatch.setattr(mod, "acquire_camera_operation_lock", busy_camera)
+
+    response = client.get("/unit_api/camera/stream")
+
+    assert response.status_code == 409
+    assert response.get_json()["error"] == "Camera is already in use."
 
 
 def test_capture_camera_still_reports_unavailable_when_capture_command_is_absent(

@@ -8,7 +8,7 @@ import Grid from "@mui/material/Grid";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
-import CameraPanel, { CAMERA_AUTO_CAPTURE_INTERVAL_MS } from "./components/CameraPanel";
+import CameraPanel, { cameraAutoCaptureIntervalMsFromConfig } from "./components/CameraPanel";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
 
@@ -31,12 +31,13 @@ function normalizeCameraResults(payload) {
   });
 }
 
-export default function Cameras({ title }) {
+export default function Cameras({ title, config = {} }) {
   const { experimentMetadata } = useExperiment();
   const [cameraResults, setCameraResults] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const experiment = experimentMetadata?.experiment;
+  const autoCaptureIntervalMs = cameraAutoCaptureIntervalMsFromConfig(config);
 
   const loadCameraStatuses = React.useCallback(async ({ signal } = {}) => {
     if (!experiment) {
@@ -127,8 +128,9 @@ export default function Cameras({ title }) {
             <CameraPanel
               unit={result.unit}
               initialStatus={result.status}
+              autoCaptureIntervalMs={autoCaptureIntervalMs}
               autoCaptureInitialDelayMs={Math.floor(
-                (index * CAMERA_AUTO_CAPTURE_INTERVAL_MS) / Math.max(cameraCapableResults.length, 1)
+                (index * autoCaptureIntervalMs) / Math.max(cameraCapableResults.length, 1)
               )}
             />
           </Grid>

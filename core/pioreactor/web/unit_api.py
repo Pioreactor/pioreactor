@@ -37,7 +37,12 @@ from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
+from pioreactor.camera import acquire_camera_operation_lock
 from pioreactor.camera import camera_still_image_path
+from pioreactor.camera import CAMERA_STREAM_CONTENT_TYPE
+from pioreactor.camera import CameraBusyError
+from pioreactor.camera import CameraUnavailableError
+from pioreactor.camera import create_camera_mjpeg_stream
 from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
@@ -225,12 +230,31 @@ def capture_camera_still_from_unit() -> ResponseReturnValue:
 
 @unit_api_bp.route("/camera/stream", methods=["GET"])
 def get_camera_stream() -> ResponseReturnValue:
-    abort_with(
-        503,
-        "Camera stream is not available on this unit.",
-        cause="The v1 camera stream command is not configured yet.",
-        remediation="Use latest still images or capture a still image while stream support is being configured.",
+    try:
+        lock_file = acquire_camera_operation_lock()
+        stream = create_camera_mjpeg_stream(lock_file)
+    except CameraBusyError:
+        abort_with(
+            409,
+            "Camera is already in use.",
+            cause="Only one camera operation can run on a Pioreactor at a time.",
+            remediation="Stop the live stream or wait for the current capture to finish, then retry.",
+        )
+    except CameraUnavailableError:
+        abort_with(
+            503,
+            "Camera stream is not available on this unit.",
+            cause="The Raspberry Pi camera stream command is not installed or configured.",
+            remediation="Use latest still images or capture a still image while stream support is being configured.",
+        )
+
+    response = Response(
+        stream,
+        content_type=CAMERA_STREAM_CONTENT_TYPE,
+        direct_passthrough=True,
     )
+    response.cache_control.no_store = True
+    return response
 
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)

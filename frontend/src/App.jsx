@@ -159,7 +159,7 @@ function MainSite() {
                     <Route path="/protocols/:pioreactorUnit/:device" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                     <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
                     <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
-                    <Route path="/cameras" element={<Cameras title="Pioreactor ~ Cameras"/>}/>
+                    <Route path="/cameras" element={<Cameras title="Pioreactor ~ Cameras" config={config}/>}/>
                     <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                     <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                     <Route path="/logs" element={<Logs title="Pioreactor ~ Logs"/>}/>

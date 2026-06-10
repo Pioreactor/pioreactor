@@ -13,6 +13,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
+import { alpha } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
@@ -25,7 +26,16 @@ import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import PioreactorIcon from "./PioreactorIcon";
 import { fetchTaskResult } from "../utils/tasks";
 
-export const CAMERA_AUTO_CAPTURE_INTERVAL_MS = 5000;
+const MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS = 5;
+
+export function cameraAutoCaptureIntervalMsFromConfig(config = {}) {
+  const configuredSeconds = Number(config?.["ui.camera"]?.auto_capture_interval_seconds);
+  const intervalSeconds = Number.isFinite(configuredSeconds)
+    ? Math.max(MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS, configuredSeconds)
+    : MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS;
+
+  return intervalSeconds * 1000;
+}
 
 function workerCameraPath(unit, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/${suffix}`;
@@ -35,8 +45,8 @@ function latestStillUrl(unit, imageVersion) {
   return `${workerCameraPath(unit, "latest.jpg")}?v=${imageVersion}`;
 }
 
-function streamUrl(unit) {
-  return workerCameraPath(unit, "stream");
+function streamUrl(status) {
+  return status?.stream_url || "";
 }
 
 function formatCaptureTime(metadata) {
@@ -80,11 +90,11 @@ function CameraMedia({ unit, status, mode, imageVersion, onOpenViewer }) {
   }
 
   if (mode === "live") {
-    if (!status.stream_available) {
+    if (!status.stream_available || !status.stream_url) {
       return (
         <CameraEmptyState
           title="Live stream unavailable"
-          detail="Use still captures until stream support is configured on this Pioreactor."
+          detail="Use still captures unless this Pioreactor is reachable directly from this browser."
         />
       );
     }
@@ -93,7 +103,7 @@ function CameraMedia({ unit, status, mode, imageVersion, onOpenViewer }) {
       <Box
         component="img"
         alt={`Live camera stream for ${unit}`}
-        src={streamUrl(unit)}
+        src={streamUrl(status)}
         sx={{ display: "block", width: "100%", aspectRatio: "4 / 3", objectFit: "contain" }}
       />
     );
@@ -135,6 +145,7 @@ function CameraMedia({ unit, status, mode, imageVersion, onOpenViewer }) {
 export default function CameraPanel({
   unit,
   initialStatus = null,
+  autoCaptureIntervalMs = MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS * 1000,
   autoCaptureInitialDelayMs = 0,
 }) {
   const [status, setStatus] = React.useState(initialStatus);
@@ -143,6 +154,7 @@ export default function CameraPanel({
   const [imageVersion, setImageVersion] = React.useState(Date.now());
   const [viewerOpen, setViewerOpen] = React.useState(false);
   const [actionError, setActionError] = React.useState(null);
+  const [hasFreshStill, setHasFreshStill] = React.useState(false);
   const capturingRef = React.useRef(false);
 
   const refreshStatus = React.useCallback(async ({ signal } = {}) => {
@@ -159,6 +171,7 @@ export default function CameraPanel({
       const data = await response.json();
       setStatus(data);
       setImageVersion(Date.now());
+      setHasFreshStill(false);
     } catch (error) {
       if (error.name !== "AbortError") {
         setActionError(error.message);
@@ -173,6 +186,7 @@ export default function CameraPanel({
   React.useEffect(() => {
     setStatus(initialStatus);
     setLoading(!initialStatus);
+    setHasFreshStill(false);
   }, [initialStatus, unit]);
 
   React.useEffect(() => {
@@ -214,6 +228,7 @@ export default function CameraPanel({
         latest_still: metadata,
       }));
       setImageVersion(Date.now());
+      setHasFreshStill(true);
     } catch (error) {
       setActionError(error.message);
     } finally {
@@ -222,9 +237,14 @@ export default function CameraPanel({
   }, [unit]);
 
   const canCapture = Boolean(status?.capture_available);
+  const safeAutoCaptureIntervalMs = Math.max(
+    MIN_CAMERA_AUTO_CAPTURE_INTERVAL_SECONDS * 1000,
+    autoCaptureIntervalMs,
+  );
+  const canStream = Boolean(status?.stream_available && status?.stream_url);
 
   React.useEffect(() => {
-    if (!canCapture) {
+    if (!canCapture || mode === "live") {
       return undefined;
     }
 
@@ -233,7 +253,7 @@ export default function CameraPanel({
       void captureStill();
       intervalId = window.setInterval(() => {
         void captureStill();
-      }, CAMERA_AUTO_CAPTURE_INTERVAL_MS);
+      }, safeAutoCaptureIntervalMs);
     }, autoCaptureInitialDelayMs);
 
     return () => {
@@ -242,10 +262,12 @@ export default function CameraPanel({
         window.clearInterval(intervalId);
       }
     };
-  }, [autoCaptureInitialDelayMs, canCapture, captureStill]);
+  }, [autoCaptureInitialDelayMs, canCapture, captureStill, mode, safeAutoCaptureIntervalMs]);
 
   const hasLatestStill = Boolean(status?.latest_still);
-  const openMediaUrl = mode === "live" ? streamUrl(unit) : latestStillUrl(unit, imageVersion);
+  const staleStillIsVisible = mode === "still" && hasLatestStill && !hasFreshStill;
+  const openMediaUrl = mode === "live" ? streamUrl(status) : latestStillUrl(unit, imageVersion);
+  const openMediaIsDisabled = mode === "live" ? !status?.stream_url : !hasLatestStill;
 
   return (
     <>
@@ -264,6 +286,7 @@ export default function CameraPanel({
 
             <Box
               sx={{
+                position: "relative",
                 borderRadius: 1,
                 overflow: "hidden",
                 bgcolor: "action.hover",
@@ -283,6 +306,27 @@ export default function CameraPanel({
                   onOpenViewer={() => setViewerOpen(true)}
                 />
               )}
+              {staleStillIsVisible && (
+                <Stack
+                  spacing={1}
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: (theme) => alpha(theme.palette.background.paper, 0.9),
+                    color: "text.primary",
+                    textAlign: "center",
+                    px: 3,
+                    zIndex: 1,
+                  }}
+                >
+                  <CircularProgress size={30} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: "fontWeightBold" }}>
+                    Updating camera image
+                  </Typography>
+                </Stack>
+              )}
             </Box>
 
             {actionError && <Alert severity="error">{actionError}</Alert>}
@@ -300,6 +344,7 @@ export default function CameraPanel({
                 <Button
                   onClick={() => setMode("live")}
                   variant={mode === "live" ? "contained" : "outlined"}
+                  disabled={!canStream}
                   sx={{ textTransform: "none" }}
                   startIcon={<VideocamOutlinedIcon />}
                 >
@@ -316,7 +361,7 @@ export default function CameraPanel({
                       href={openMediaUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      disabled={mode === "still" && !hasLatestStill}
+                      disabled={openMediaIsDisabled}
                     >
                       <FullscreenIcon fontSize="small" />
                     </IconButton>

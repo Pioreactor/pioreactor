@@ -631,19 +631,11 @@ def get_camera_stream_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    response: MureqResponse | None = None
-    try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit), "/unit_api/camera/stream", timeout=30
-        )
-        response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException):
-        abort_with_worker_error(response, f"Fetching camera stream failed on {pioreactor_unit}.")
-
-    return Response(
-        response.content,
-        status=response.status_code,
-        content_type=response.headers.get("Content-Type", "multipart/x-mixed-replace"),
+    abort_with(
+        503,
+        "Camera stream proxying is not supported.",
+        cause="Live camera streams are served directly from worker Pioreactors.",
+        remediation="Use the stream_url returned by the worker camera status payload.",
     )
 
 
