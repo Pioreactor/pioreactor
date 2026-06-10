@@ -479,6 +479,138 @@ def _broadcast_or_multicast_post(pioreactor_unit: str, endpoint: str) -> Delayed
     return create_task_response(task)
 
 
+@api_bp.route("/experiments/<experiment>/cameras", methods=["GET"])
+def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
+    task = fanout.broadcast_get_across_workers_in_experiment(
+        "/unit_api/camera/status", experiment=experiment, timeout=5
+    )
+
+    try:
+        results = task.get(blocking=True, timeout=10) if hasattr(task, "get") else task
+    except (HueyException, TaskException):
+        abort_with(
+            500,
+            "Timed out fetching camera statuses.",
+            cause="Timed out waiting for worker responses.",
+            remediation="Retry the request and check worker connectivity.",
+        )
+
+    return attach_cache_control(jsonify({"cameras": results}), max_age=0)
+
+
+@api_bp.route("/workers/<pioreactor_unit>/camera/status", methods=["GET"])
+def get_camera_status_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch camera status with $broadcast; choose a specific Pioreactor.",
+            cause="Camera status media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit), "/unit_api/camera/status", timeout=10
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Fetching camera status failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/camera/latest.jpg", methods=["GET"])
+def get_latest_camera_still_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch latest camera still with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit),
+            "/unit_api/camera/latest.jpg",
+            timeout=20,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Fetching latest camera still failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "image/jpeg"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/camera/capture", methods=["POST"])
+def capture_camera_still_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot capture camera still with $broadcast; choose a specific Pioreactor.",
+            cause="Camera capture routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    body = (
+        decode_request_body(structs.CameraCaptureRequest) if request.data else structs.CameraCaptureRequest()
+    )
+
+    response: MureqResponse | None = None
+    try:
+        response = post_into(
+            resolve_registered_worker_address(pioreactor_unit),
+            "/unit_api/camera/capture",
+            json=to_builtins(body),
+            timeout=30,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Capturing camera still failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/camera/stream", methods=["GET"])
+def get_camera_stream_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch camera stream with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit), "/unit_api/camera/stream", timeout=30
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Fetching camera stream failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "multipart/x-mixed-replace"),
+    )
+
+
 @api_bp.route("/models", methods=["GET"])
 def get_models() -> ResponseReturnValue:
     """

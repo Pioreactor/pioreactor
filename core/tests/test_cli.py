@@ -1150,7 +1150,7 @@ def test_pios_run_surfaces_structured_unit_api_error(monkeypatch, capsys) -> Non
         ctx.forward(run, job="stirring", yes=True, units=("unit1",))
 
     assert capsys.readouterr().out == (
-        "Unable to execute run command on unit1 due to server error: "
+        "Unable to execute run command on unit1 at unit1.local due to server error: "
         "HTTP 409: Unable to start job. Cause: A conflicting job is already running. "
         "Remediation: Stop the conflicting job and retry.\n"
     )
@@ -1892,6 +1892,6 @@ def test_pios_reboot_surfaces_structured_unit_api_error(monkeypatch, capsys) -> 
     ctx.forward(reboot, yes=True, units=("unit1",))
 
     assert capsys.readouterr().out == (
-        "Unable to reboot unit1. HTTP 409: Unable to reboot. "
+        "Unable to reboot unit1 at unit1.local. HTTP 409: Unable to reboot. "
         "Cause: A job is still running. Remediation: Stop the job and retry.\n"
     )

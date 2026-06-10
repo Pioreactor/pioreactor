@@ -5,14 +5,18 @@ Additional unit tests for unit_api endpoints.
 from collections import namedtuple
 from datetime import datetime
 from datetime import timezone
+from datetime import UTC
 from pathlib import Path
 
 import pytest
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
+from pioreactor.camera import CameraStillMetadata
+from pioreactor.camera import store_camera_still
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
+from pioreactor.web.app import HOSTNAME
 
 
 class FakeTaskResult:
@@ -52,6 +56,100 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
 
     assert resp.status_code == 200
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
+
+
+def test_camera_status_reports_latest_still(client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: "/usr/bin/rpicam-still")
+    monkeypatch.setattr("pioreactor.camera.camera_hardware_is_detected", lambda command: True)
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-a",
+        capture_reason="manual",
+        captured_at=datetime(2026, 6, 10, 12, 30, tzinfo=UTC),
+        image_id="image-1",
+        resolution=(640, 480),
+    )
+
+    response = client.get("/unit_api/camera/status")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["available"] is True
+    assert payload["capture_command"] == "rpicam-still"
+    assert payload["latest_still"]["image_id"] == "image-1"
+    assert payload["latest_still"]["source_path"] == f"storage/camera_stills/{HOSTNAME}/image-1.jpg"
+
+
+def test_latest_camera_still_returns_stored_image(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment=None,
+        capture_reason="diagnostic",
+        image_id="image-1",
+    )
+
+    response = client.get("/unit_api/camera/latest.jpg")
+
+    assert response.status_code == 200
+    assert response.data == b"fake jpeg"
+    assert response.content_type == "image/jpeg"
+
+
+def test_capture_camera_still_reports_unavailable_when_capture_command_is_absent(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: None)
+    monkeypatch.setenv("PIOREACTOR_DEV_CAMERA_STILLS_DIR", str(tmp_path / "missing-dev-camera-stills"))
+
+    response = client.post("/unit_api/camera/capture", json={"capture_reason": "manual"})
+
+    assert response.status_code == 503
+    assert response.get_json()["error"] == "Camera capture is not available on this unit."
+
+
+def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    metadata = CameraStillMetadata(
+        unit=HOSTNAME,
+        experiment="experiment-a",
+        captured_at=datetime(2026, 6, 10, 12, 30, tzinfo=UTC),
+        image_id="image-1",
+        filename="image-1.jpg",
+        resolution=None,
+        capture_reason="manual",
+        source_path=f"storage/camera_stills/{HOSTNAME}/image-1.jpg",
+    )
+    captured: dict[str, str | None] = {}
+
+    def fake_capture_camera_still(
+        unit: str, *, experiment: str | None, capture_reason: str
+    ) -> CameraStillMetadata:
+        captured["unit"] = unit
+        captured["experiment"] = experiment
+        captured["capture_reason"] = capture_reason
+        return metadata
+
+    monkeypatch.setattr("pioreactor.web.unit_api.capture_camera_still", fake_capture_camera_still)
+
+    response = client.post(
+        "/unit_api/camera/capture",
+        json={"experiment": "experiment-a", "capture_reason": "manual"},
+    )
+
+    assert response.status_code == 201
+    assert response.get_json()["image_id"] == "image-1"
+    assert captured == {"unit": HOSTNAME, "experiment": "experiment-a", "capture_reason": "manual"}
 
 
 def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:

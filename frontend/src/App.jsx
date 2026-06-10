@@ -28,6 +28,7 @@ const ExperimentOverview = React.lazy(() => import("./ExperimentOverview"));
 const ExportData = React.lazy(() => import("./ExportData"));
 const Pioreactors = React.lazy(() => import("./Pioreactors"));
 const Pioreactor = React.lazy(() => import("./Pioreactor"));
+const Cameras = React.lazy(() => import("./Cameras"));
 const StartNewExperiment = React.lazy(() => import("./StartNewExperiment"));
 const SingleCalibrationPage = React.lazy(() => import("./SingleCalibrationPage"));
 const SingleEstimatorPage = React.lazy(() => import("./SingleEstimatorPage"));
@@ -158,6 +159,7 @@ function MainSite() {
                     <Route path="/protocols/:pioreactorUnit/:device" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                     <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
                     <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
+                    <Route path="/cameras" element={<Cameras title="Pioreactor ~ Cameras"/>}/>
                     <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                     <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                     <Route path="/logs" element={<Logs title="Pioreactor ~ Logs"/>}/>

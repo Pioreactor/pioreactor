@@ -1308,6 +1308,93 @@ def test_broadcast_in_manage_all(client) -> None:
     assert len(bucket) == 1
 
 
+def test_get_camera_statuses_for_experiment_uses_experiment_assignments(
+    client, monkeypatch: MonkeyPatch
+) -> None:
+    class FakeTaskResult:
+        def get(self, blocking: bool, timeout: float) -> dict[str, dict]:
+            return {
+                "unit1": {
+                    "ok": True,
+                    "unit": "unit1",
+                    "value": {"available": True, "latest_still": None},
+                },
+                "unit2": {
+                    "ok": True,
+                    "unit": "unit2",
+                    "value": {"available": False, "latest_still": None},
+                },
+            }
+
+    captured: dict[str, object] = {}
+
+    def fake_broadcast_get_across_workers_in_experiment(
+        endpoint: str, experiment: str, timeout: float
+    ) -> FakeTaskResult:
+        captured["endpoint"] = endpoint
+        captured["experiment"] = experiment
+        captured["timeout"] = timeout
+        return FakeTaskResult()
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.fanout.broadcast_get_across_workers_in_experiment",
+        fake_broadcast_get_across_workers_in_experiment,
+    )
+
+    response = client.get("/api/experiments/exp1/cameras")
+
+    assert response.status_code == 200
+    assert captured == {"endpoint": "/unit_api/camera/status", "experiment": "exp1", "timeout": 5}
+    assert set(response.get_json()["cameras"]) == {"unit1", "unit2"}
+
+
+def test_camera_status_proxy_rejects_broadcast(client) -> None:
+    response = client.get("/api/workers/$broadcast/camera/status")
+
+    assert response.status_code == 400
+    assert (
+        response.get_json()["error"]
+        == "Cannot fetch camera status with $broadcast; choose a specific Pioreactor."
+    )
+
+
+def test_latest_camera_still_proxy_preserves_image_content_type(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(
+        mod,
+        "get_from",
+        lambda *_args, **_kwargs: MureqResponse(
+            "http://unit1.local:4999/unit_api/camera/latest.jpg",
+            200,
+            {"Content-Type": "image/jpeg"},
+            b"fake jpeg",
+        ),
+    )
+
+    response = client.get("/api/workers/unit1/camera/latest.jpg")
+
+    assert response.status_code == 200
+    assert response.data == b"fake jpeg"
+    assert response.content_type == "image/jpeg"
+
+
+def test_capture_camera_still_proxy_posts_to_worker(client, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("pioreactor.web.api.resolve_to_address", lambda unit: f"{unit}.local")
+
+    with capture_requests() as bucket:
+        response = client.post(
+            "/api/workers/unit1/camera/capture",
+            json={"experiment": "experiment-a", "capture_reason": "manual"},
+        )
+
+    assert response.status_code == 200
+    assert bucket[0].path == "/unit_api/camera/capture"
+    assert bucket[0].json == {"experiment": "experiment-a", "capture_reason": "manual"}
+
+
 def test_run_job(client) -> None:
     # regression test
     with capture_requests() as bucket:

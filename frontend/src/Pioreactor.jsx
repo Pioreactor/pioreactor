@@ -70,6 +70,7 @@ import UnderlineSpan from "./components/UnderlineSpan";
 import BioreactorDiagram from "./components/BioreactorDiagram";
 import Chart from "./components/Chart";
 import LogTableByUnit from "./components/LogTableByUnit";
+import CameraPanel from "./components/CameraPanel";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
@@ -3099,6 +3100,12 @@ function Pioreactor({title}) {
               xs: 12,
               md: 5
             }}>
+            <Grid size={12}>
+              <Box sx={{ mt: 1, mb: 1 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>Camera</Typography>
+                <CameraPanel unit={unit} />
+              </Box>
+            </Grid>
             <Grid
               size={{
                 xs: 7,

@@ -31,6 +31,7 @@ import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
+import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 import { Link, useLocation } from 'react-router';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
@@ -403,6 +404,14 @@ export default function SideNavAndHeader() {
                 active={isSelected("/pioreactors")}
                 >
                 Pioreactors
+              </MenuItem>
+
+              <MenuItem
+                icon={<CameraAltOutlinedIcon sx={{fontSize: "23px"}}/>}
+                component={<Link to="/cameras" className="link" />}
+                active={isSelected("/cameras")}
+                >
+                Cameras
               </MenuItem>
 
               <MenuItem

@@ -37,6 +37,12 @@ from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
+from pioreactor.camera import camera_still_image_path
+from pioreactor.camera import CameraCaptureError
+from pioreactor.camera import CameraUnavailableError
+from pioreactor.camera import capture_camera_still
+from pioreactor.camera import get_camera_status as get_local_camera_status
+from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
 from pioreactor.cli.pio import validate_github_repo
@@ -160,6 +166,83 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 
     task = tasks.check_model_hardware(model_name, model_version)
     return create_task_response(task)
+
+
+def get_assigned_experiment_name_if_available() -> str | None:
+    try:
+        return whoami.get_assigned_experiment_name(HOSTNAME)
+    except Exception:
+        return None
+
+
+@unit_api_bp.route("/camera/status", methods=["GET"])
+def get_camera_status() -> ResponseReturnValue:
+    return attach_cache_control(jsonify(get_local_camera_status(HOSTNAME)), max_age=0)
+
+
+@unit_api_bp.route("/camera/latest.jpg", methods=["GET"])
+def get_latest_camera_still() -> ResponseReturnValue:
+    metadata = load_latest_camera_still_metadata(HOSTNAME)
+    if metadata is None:
+        abort_with(
+            404,
+            "No camera still image is available.",
+            cause="This unit does not have a stored camera still image.",
+            remediation="Capture a still image and retry.",
+        )
+
+    return send_file(
+        camera_still_image_path(metadata),
+        mimetype=metadata.content_type,
+        download_name=metadata.filename,
+    )
+
+
+@unit_api_bp.route("/camera/capture", methods=["POST"])
+def capture_camera_still_from_unit() -> ResponseReturnValue:
+    body = (
+        decode_request_body(structs.CameraCaptureRequest) if request.data else structs.CameraCaptureRequest()
+    )
+
+    if not body.capture_reason.strip():
+        abort_with(400, "Capture reason is required.")
+
+    experiment = (
+        body.experiment if body.experiment is not None else get_assigned_experiment_name_if_available()
+    )
+
+    try:
+        metadata = capture_camera_still(
+            HOSTNAME,
+            experiment=experiment,
+            capture_reason=body.capture_reason,
+        )
+    except CameraUnavailableError as exc:
+        abort_with(
+            503,
+            "Camera capture is not available on this unit.",
+            cause=str(exc),
+            remediation="Install the Raspberry Pi camera runtime packages and confirm camera hardware is attached.",
+        )
+    except CameraCaptureError as exc:
+        abort_with(
+            500,
+            "Camera capture failed.",
+            cause=str(exc),
+            remediation="Check the camera hardware connection and worker logs, then retry.",
+        )
+
+    return jsonify(to_builtins(metadata)), 201
+
+
+@unit_api_bp.route("/camera/stream", methods=["GET"])
+def get_camera_stream() -> ResponseReturnValue:
+    abort_with(
+        503,
+        "Camera stream is not available on this unit.",
+        cause="The v1 camera stream command is not configured yet.",
+        remediation="Use latest still images or capture a still image while stream support is being configured.",
+    )
 
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
