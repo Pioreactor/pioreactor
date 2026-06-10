@@ -68,22 +68,14 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     _clear_lock("camera-lock")
     captured: dict[str, str | None] = {}
     metadata = CameraStillMetadata(
-        unit="unit-a",
         experiment="experiment-a",
         captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
         image_id="image-a",
-        filename="image-a.jpg",
-        resolution=None,
-        capture_reason="scheduled",
-        source_path="storage/camera_stills/image-a.jpg",
     )
 
-    def fake_capture_camera_still(
-        unit: str, *, experiment: str | None, capture_reason: str
-    ) -> CameraStillMetadata:
+    def fake_capture_camera_still(unit: str, *, experiment: str | None) -> CameraStillMetadata:
         captured["unit"] = unit
         captured["experiment"] = experiment
-        captured["capture_reason"] = capture_reason
         return metadata
 
     monkeypatch.setattr(tasks, "camera_snapshot_interval_seconds", lambda: 60.0)
@@ -100,7 +92,6 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     assert captured == {
         "unit": "unit-a",
         "experiment": "experiment-a",
-        "capture_reason": "scheduled",
     }
 
 

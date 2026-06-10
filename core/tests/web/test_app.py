@@ -1492,7 +1492,7 @@ def test_capture_camera_still_proxy_posts_to_worker(client, monkeypatch: MonkeyP
 
     response = client.post(
         "/api/workers/unit1/camera/capture",
-        json={"experiment": "experiment-a", "capture_reason": "manual"},
+        json={"experiment": "experiment-a"},
     )
 
     assert response.status_code == 202
@@ -1500,7 +1500,7 @@ def test_capture_camera_still_proxy_posts_to_worker(client, monkeypatch: MonkeyP
     assert captured == {
         "address": "unit1.local",
         "endpoint": "/unit_api/camera/capture",
-        "json": {"experiment": "experiment-a", "capture_reason": "manual"},
+        "json": {"experiment": "experiment-a"},
     }
 
 

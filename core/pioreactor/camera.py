@@ -37,15 +37,9 @@ SAFE_CAMERA_STORAGE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
 class CameraStillMetadata(Struct, frozen=True):
-    unit: pt.Unit
     experiment: pt.Experiment | None
     captured_at: Annotated[datetime, Meta(tz=True)]
     image_id: str
-    filename: str
-    resolution: tuple[int, int] | None
-    capture_reason: str
-    source_path: str
-    content_type: str = CAMERA_STILL_CONTENT_TYPE
 
 
 class CameraUnavailableError(RuntimeError):
@@ -124,7 +118,6 @@ def store_next_dev_camera_still(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
-    capture_reason: str,
     dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata | None:
     source_paths = dev_camera_still_paths(dot_pioreactor)
@@ -136,7 +129,6 @@ def store_next_dev_camera_still(
         source_paths[index],
         unit,
         experiment=experiment,
-        capture_reason=capture_reason,
         dot_pioreactor=dot_pioreactor,
     )
 
@@ -144,18 +136,16 @@ def store_next_dev_camera_still(
 def initialize_camera_stills_metadata_storage(storage: SqliteCache) -> None:
     storage.cursor.execute(
         f"""
-        CREATE INDEX IF NOT EXISTS idx_{storage.table_name}_unit_captured_at
+        CREATE INDEX IF NOT EXISTS idx_{storage.table_name}_captured_at
         ON {storage.table_name} (
-            json_extract(value, '$.unit'),
             json_extract(value, '$.captured_at')
         )
         """
     )
     storage.cursor.execute(
         f"""
-        CREATE INDEX IF NOT EXISTS idx_{storage.table_name}_unit_experiment_captured_at
+        CREATE INDEX IF NOT EXISTS idx_{storage.table_name}_experiment_captured_at
         ON {storage.table_name} (
-            json_extract(value, '$.unit'),
             json_extract(value, '$.experiment'),
             json_extract(value, '$.captured_at')
         )
@@ -177,12 +167,11 @@ def query_camera_still_metadata(
     query = f"""
         SELECT value
         FROM cache_{CAMERA_STILLS_CACHE_NAME}
-        WHERE json_extract(value, '$.unit') = ?
     """
-    params: list[str | int] = [unit]
+    params: list[str | int] = []
 
     if experiment is not None:
-        query += " AND json_extract(value, '$.experiment') = ?"
+        query += " WHERE json_extract(value, '$.experiment') = ?"
         params.append(experiment)
 
     order_direction = "ASC" if sort_order == "asc" else "DESC"
@@ -231,7 +220,6 @@ def get_camera_status(unit: pt.Unit, dot_pioreactor: Path | None = None) -> dict
         latest_metadata = store_next_dev_camera_still(
             unit,
             experiment=None,
-            capture_reason="dev_mock",
             dot_pioreactor=dot_pioreactor,
         )
 
@@ -250,7 +238,6 @@ def capture_camera_still(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
-    capture_reason: str,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata:
@@ -260,7 +247,6 @@ def capture_camera_still(
         dev_still = store_next_dev_camera_still(
             unit,
             experiment=experiment,
-            capture_reason=capture_reason,
             dot_pioreactor=dot_pioreactor,
         )
         if dev_still is not None:
@@ -288,7 +274,6 @@ def capture_camera_still(
             tmp_path,
             unit,
             experiment=experiment,
-            capture_reason=capture_reason,
             dot_pioreactor=dot_pioreactor,
         )
     finally:
@@ -301,10 +286,8 @@ def store_camera_still(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
-    capture_reason: str,
     captured_at: datetime | None = None,
     image_id: str | None = None,
-    resolution: tuple[int, int] | None = None,
     retention_count: int = DEFAULT_CAMERA_STILL_RETENTION_COUNT,
     dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata:
@@ -326,21 +309,15 @@ def store_camera_still(
     stills_root = camera_stills_root_path(dot_pioreactor)
     stills_root.mkdir(parents=True, exist_ok=True)
 
-    filename = f"{image_id}.jpg"
+    filename = camera_still_filename(image_id)
     destination_image_path = stills_root / filename
     shutil.copyfile(source_image_path, destination_image_path)
 
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
-    source_path = str(CAMERA_STILLS_RELATIVE_DIR / filename)
     metadata = CameraStillMetadata(
-        unit=unit,
         experiment=experiment,
         captured_at=captured_at,
         image_id=image_id,
-        filename=filename,
-        resolution=resolution,
-        capture_reason=capture_reason,
-        source_path=source_path,
     )
 
     metadata_bytes = json_encode(metadata)
@@ -384,7 +361,7 @@ def load_camera_still_metadata(
         return None
 
     metadata = json_decode(cast(str | bytes | bytearray, raw_metadata), type=CameraStillMetadata)
-    if metadata.unit != unit or metadata.experiment != experiment:
+    if metadata.experiment != experiment:
         return None
 
     if not camera_still_image_path(metadata, dot_pioreactor).exists():
@@ -395,7 +372,11 @@ def load_camera_still_metadata(
 
 def camera_still_image_path(metadata: CameraStillMetadata, dot_pioreactor: Path | None = None) -> Path:
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
-    return root / metadata.source_path
+    return root / CAMERA_STILLS_RELATIVE_DIR / camera_still_filename(metadata.image_id)
+
+
+def camera_still_filename(image_id: str) -> str:
+    return f"{image_id}.jpg"
 
 
 def list_camera_still_metadata(

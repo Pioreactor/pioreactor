@@ -51,21 +51,14 @@ def test_store_camera_still_writes_canonical_image_and_metadata(
         source_image_path,
         "unit-a",
         experiment="experiment-a",
-        capture_reason="manual",
         captured_at=captured_at,
         image_id="image-1",
-        resolution=(640, 480),
     )
 
     assert metadata == CameraStillMetadata(
-        unit="unit-a",
         experiment="experiment-a",
         captured_at=captured_at,
         image_id="image-1",
-        filename="image-1.jpg",
-        resolution=(640, 480),
-        capture_reason="manual",
-        source_path="storage/camera_stills/image-1.jpg",
     )
     assert camera_still_image_path(metadata).read_bytes() == b"fake jpeg"
 
@@ -87,7 +80,6 @@ def test_load_latest_camera_still_metadata_returns_none_without_an_image(
         source_image_path,
         "unit-a",
         experiment=None,
-        capture_reason="diagnostic",
         image_id="image-1",
     )
     camera_still_image_path(metadata).unlink()
@@ -109,7 +101,6 @@ def test_store_camera_still_applies_retention_to_old_stills(
             source_image_path,
             "unit-a",
             experiment="experiment-a",
-            capture_reason="manual",
             captured_at=datetime(2026, 6, 10, 12, i, tzinfo=UTC),
             image_id=f"image-{i}",
             retention_count=2,
@@ -134,7 +125,6 @@ def test_list_camera_still_metadata_filters_by_experiment(
         source_image_path,
         "unit-a",
         experiment="experiment-a",
-        capture_reason="manual",
         captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
         image_id="image-a",
     )
@@ -142,7 +132,6 @@ def test_list_camera_still_metadata_filters_by_experiment(
         source_image_path,
         "unit-a",
         experiment="experiment-b",
-        capture_reason="manual",
         captured_at=datetime(2026, 6, 10, 12, 1, tzinfo=UTC),
         image_id="image-b",
     )
@@ -152,7 +141,7 @@ def test_list_camera_still_metadata_filters_by_experiment(
     ] == ["image-a"]
 
 
-def test_load_camera_still_metadata_requires_matching_unit_and_experiment(
+def test_load_camera_still_metadata_requires_matching_experiment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
@@ -164,12 +153,10 @@ def test_load_camera_still_metadata_requires_matching_unit_and_experiment(
         source_image_path,
         "unit-a",
         experiment="experiment-a",
-        capture_reason="manual",
         image_id="image-a",
     )
 
     assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") == metadata
-    assert load_camera_still_metadata("unit-b", "experiment-a", "image-a") is None
     assert load_camera_still_metadata("unit-a", "experiment-b", "image-a") is None
 
 
@@ -186,7 +173,6 @@ def test_store_camera_still_rejects_unsafe_storage_names(
             source_image_path,
             "../unit-a",
             experiment=None,
-            capture_reason="manual",
             image_id="image-1",
         )
 
@@ -195,7 +181,6 @@ def test_store_camera_still_rejects_unsafe_storage_names(
             source_image_path,
             "unit-a",
             experiment=None,
-            capture_reason="manual",
             image_id="../image-1",
         )
 
@@ -256,7 +241,6 @@ def test_camera_status_seeds_latest_still_from_dev_camera_stills(
     assert status["capture_available"] is True
     assert status["runtime_available"] is True
     assert status["mock"] is True
-    assert status["latest_still"]["capture_reason"] == "dev_mock"
     assert load_latest_camera_still_metadata("unit-a").image_id == status["latest_still"]["image_id"]
 
 
@@ -272,8 +256,8 @@ def test_capture_camera_still_uses_dev_camera_stills_when_command_is_absent(
     (source_dir / "still-1.jpg").write_bytes(b"first")
     (source_dir / "still-2.jpg").write_bytes(b"second")
 
-    first = capture_camera_still("unit-a", experiment="experiment-a", capture_reason="manual")
-    second = capture_camera_still("unit-a", experiment="experiment-a", capture_reason="manual")
+    first = capture_camera_still("unit-a", experiment="experiment-a")
+    second = capture_camera_still("unit-a", experiment="experiment-a")
 
     assert camera_still_image_path(first).read_bytes() == b"first"
     assert camera_still_image_path(second).read_bytes() == b"second"

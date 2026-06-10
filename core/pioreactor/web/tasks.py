@@ -104,9 +104,8 @@ def get_camera_status_task(unit: str) -> dict[str, Any]:
 def capture_camera_still_task(
     unit: str,
     experiment: str | None,
-    capture_reason: str,
 ) -> dict[str, Any]:
-    return to_builtins(capture_camera_still(unit, experiment=experiment, capture_reason=capture_reason))
+    return to_builtins(capture_camera_still(unit, experiment=experiment))
 
 
 def camera_snapshot_interval_seconds() -> float:
@@ -143,7 +142,7 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
         return {"captured": False, "reason": "not_due"}
 
     try:
-        metadata = capture_camera_still(unit, experiment=experiment, capture_reason="scheduled")
+        metadata = capture_camera_still(unit, experiment=experiment)
     except CameraUnavailableError:
         return {"captured": False, "reason": "camera_unavailable"}
     except CameraCaptureError as error:

@@ -705,7 +705,6 @@ class CheckHardwareForModelRequest(Struct, forbid_unknown_fields=True):
 
 class CameraCaptureRequest(Struct, forbid_unknown_fields=True):
     experiment: str | None = None
-    capture_reason: str = "manual"
 
 
 class RemoveFileRequest(Struct, forbid_unknown_fields=True):

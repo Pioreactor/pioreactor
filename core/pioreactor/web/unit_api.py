@@ -37,6 +37,8 @@ from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
+from pioreactor.camera import CAMERA_STILL_CONTENT_TYPE
+from pioreactor.camera import camera_still_filename
 from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
@@ -203,8 +205,8 @@ def get_latest_camera_still() -> ResponseReturnValue:
 
     return send_file(
         camera_still_image_path(metadata),
-        mimetype=metadata.content_type,
-        download_name=metadata.filename,
+        mimetype=CAMERA_STILL_CONTENT_TYPE,
+        download_name=camera_still_filename(metadata.image_id),
     )
 
 
@@ -245,8 +247,8 @@ def get_camera_still_for_experiment(experiment: str, image_id: str) -> ResponseR
 
     return send_file(
         camera_still_image_path(metadata),
-        mimetype=metadata.content_type,
-        download_name=metadata.filename,
+        mimetype=CAMERA_STILL_CONTENT_TYPE,
+        download_name=camera_still_filename(metadata.image_id),
     )
 
 
@@ -270,7 +272,7 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
         for still in metadata:
             image_path = camera_still_image_path(still)
             if image_path.exists():
-                zip_file.write(image_path, arcname=still.filename)
+                zip_file.write(image_path, arcname=camera_still_filename(still.image_id))
 
     buffer.seek(0)
     return send_file(
@@ -287,14 +289,11 @@ def capture_camera_still_from_unit() -> ResponseReturnValue:
         decode_request_body(structs.CameraCaptureRequest) if request.data else structs.CameraCaptureRequest()
     )
 
-    if not body.capture_reason.strip():
-        abort_with(400, "Capture reason is required.")
-
     experiment = (
         body.experiment if body.experiment is not None else get_assigned_experiment_name_if_available()
     )
 
-    task = tasks.capture_camera_still_task(HOSTNAME, experiment, body.capture_reason)
+    task = tasks.capture_camera_still_task(HOSTNAME, experiment)
     return create_task_response(task)
 
 

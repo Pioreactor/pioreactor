@@ -176,7 +176,7 @@ export default function CameraPanel({
         fetchOptions: {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ capture_reason: "manual" }),
+          body: JSON.stringify({}),
         },
         delayMs: 250,
       });

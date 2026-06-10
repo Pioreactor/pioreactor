@@ -72,7 +72,6 @@ def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPa
             "capture_command": "rpicam-still",
             "latest_still": {
                 "image_id": "image-1",
-                "source_path": "storage/camera_stills/image-1.jpg",
             },
         },
     )
@@ -84,7 +83,6 @@ def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPa
     assert payload["available"] is True
     assert payload["capture_command"] == "rpicam-still"
     assert payload["latest_still"]["image_id"] == "image-1"
-    assert payload["latest_still"]["source_path"] == "storage/camera_stills/image-1.jpg"
 
 
 def test_latest_camera_still_returns_stored_image(
@@ -98,7 +96,6 @@ def test_latest_camera_still_returns_stored_image(
         source_image_path,
         HOSTNAME,
         experiment=None,
-        capture_reason="diagnostic",
         image_id="image-1",
     )
 
@@ -120,7 +117,6 @@ def test_list_camera_stills_for_experiment_returns_matching_stills(
         source_image_path,
         HOSTNAME,
         experiment="experiment-a",
-        capture_reason="manual",
         captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
         image_id="image-a",
     )
@@ -128,7 +124,6 @@ def test_list_camera_stills_for_experiment_returns_matching_stills(
         source_image_path,
         HOSTNAME,
         experiment="experiment-b",
-        capture_reason="manual",
         captured_at=datetime(2026, 6, 10, 12, 1, tzinfo=UTC),
         image_id="image-b",
     )
@@ -153,7 +148,6 @@ def test_camera_still_for_experiment_requires_matching_experiment(
         source_image_path,
         HOSTNAME,
         experiment="experiment-a",
-        capture_reason="manual",
         image_id="image-a",
     )
 
@@ -177,14 +171,12 @@ def test_zipped_camera_stills_for_experiment_includes_matching_stills(
         source_image_path,
         HOSTNAME,
         experiment="experiment-a",
-        capture_reason="manual",
         image_id="image-a",
     )
     store_camera_still(
         source_image_path,
         HOSTNAME,
         experiment="experiment-b",
-        capture_reason="manual",
         image_id="image-b",
     )
 
@@ -210,7 +202,7 @@ def test_capture_camera_still_reports_unavailable_when_capture_command_is_absent
 
     monkeypatch.setattr("pioreactor.web.tasks.capture_camera_still", unavailable_camera)
 
-    response = client.post("/unit_api/camera/capture", json={"capture_reason": "manual"})
+    response = client.post("/unit_api/camera/capture", json={})
 
     assert response.status_code == 202
 
@@ -226,30 +218,22 @@ def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.Monke
 
     monkeypatch.setattr(mod.huey, "immediate", True)
     metadata = CameraStillMetadata(
-        unit=HOSTNAME,
         experiment="experiment-a",
         captured_at=datetime(2026, 6, 10, 12, 30, tzinfo=UTC),
         image_id="image-1",
-        filename="image-1.jpg",
-        resolution=None,
-        capture_reason="manual",
-        source_path="storage/camera_stills/image-1.jpg",
     )
     captured: dict[str, str | None] = {}
 
-    def fake_capture_camera_still(
-        unit: str, *, experiment: str | None, capture_reason: str
-    ) -> CameraStillMetadata:
+    def fake_capture_camera_still(unit: str, *, experiment: str | None) -> CameraStillMetadata:
         captured["unit"] = unit
         captured["experiment"] = experiment
-        captured["capture_reason"] = capture_reason
         return metadata
 
     monkeypatch.setattr("pioreactor.web.tasks.capture_camera_still", fake_capture_camera_still)
 
     response = client.post(
         "/unit_api/camera/capture",
-        json={"experiment": "experiment-a", "capture_reason": "manual"},
+        json={"experiment": "experiment-a"},
     )
 
     assert response.status_code == 202
@@ -259,7 +243,7 @@ def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.Monke
     assert result_response.status_code == 200
     assert result_response.get_json()["status"] == "succeeded"
     assert result_response.get_json()["result"]["image_id"] == "image-1"
-    assert captured == {"unit": HOSTNAME, "experiment": "experiment-a", "capture_reason": "manual"}
+    assert captured == {"unit": HOSTNAME, "experiment": "experiment-a"}
 
 
 def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:
