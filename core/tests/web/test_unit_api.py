@@ -108,18 +108,33 @@ def test_latest_camera_still_returns_stored_image(
 
 
 def test_capture_camera_still_reports_unavailable_when_capture_command_is_absent(
-    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: None)
-    monkeypatch.setenv("PIOREACTOR_DEV_CAMERA_STILLS_DIR", str(tmp_path / "missing-dev-camera-stills"))
+    import pioreactor.web.unit_api as mod
+    from pioreactor.camera import CameraUnavailableError
+
+    monkeypatch.setattr(mod.huey, "immediate", True)
+
+    def unavailable_camera(*_args: object, **_kwargs: object) -> None:
+        raise CameraUnavailableError("No Raspberry Pi camera capture command is installed.")
+
+    monkeypatch.setattr("pioreactor.web.tasks.capture_camera_still", unavailable_camera)
 
     response = client.post("/unit_api/camera/capture", json={"capture_reason": "manual"})
 
-    assert response.status_code == 503
-    assert response.get_json()["error"] == "Camera capture is not available on this unit."
+    assert response.status_code == 202
+
+    result_response = client.get(response.get_json()["result_url_path"])
+
+    assert result_response.status_code == 200
+    assert result_response.get_json()["status"] == "failed"
+    assert "No Raspberry Pi camera capture command is installed" in result_response.get_json()["error"]
 
 
 def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.huey, "immediate", True)
     metadata = CameraStillMetadata(
         unit=HOSTNAME,
         experiment="experiment-a",
@@ -140,15 +155,20 @@ def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.Monke
         captured["capture_reason"] = capture_reason
         return metadata
 
-    monkeypatch.setattr("pioreactor.web.unit_api.capture_camera_still", fake_capture_camera_still)
+    monkeypatch.setattr("pioreactor.web.tasks.capture_camera_still", fake_capture_camera_still)
 
     response = client.post(
         "/unit_api/camera/capture",
         json={"experiment": "experiment-a", "capture_reason": "manual"},
     )
 
-    assert response.status_code == 201
-    assert response.get_json()["image_id"] == "image-1"
+    assert response.status_code == 202
+
+    result_response = client.get(response.get_json()["result_url_path"])
+
+    assert result_response.status_code == 200
+    assert result_response.get_json()["status"] == "succeeded"
+    assert result_response.get_json()["result"]["image_id"] == "image-1"
     assert captured == {"unit": HOSTNAME, "experiment": "experiment-a", "capture_reason": "manual"}
 
 

@@ -26,6 +26,7 @@ import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
 import Snackbar from "./Snackbar";
+import { fetchTaskResult } from "../utils/tasks";
 
 function workerCameraPath(unit, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/${suffix}`;
@@ -190,21 +191,21 @@ export default function CameraPanel({ unit, initialStatus = null }) {
     setActionError(null);
 
     try {
-      const response = await fetch(workerCameraPath(unit, "capture"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ capture_reason: "manual" }),
+      const taskPayload = await fetchTaskResult(workerCameraPath(unit, "capture"), {
+        fetchOptions: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ capture_reason: "manual" }),
+        },
+        delayMs: 250,
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error || "Camera capture failed.");
-      }
+      const metadata = taskPayload.result;
 
       setStatus((previous) => ({
         ...(previous || {}),
         available: true,
         capture_available: true,
-        latest_still: payload,
+        latest_still: metadata,
       }));
       setImageVersion(Date.now());
       setSnackbar({ open: true, message: `Captured still image on ${unit}.` });

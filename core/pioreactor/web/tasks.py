@@ -35,12 +35,15 @@ from uuid import uuid4
 from huey import chord as huey_chord
 from huey.exceptions import ResultTimeout
 from msgspec import DecodeError
+from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.camera import capture_camera_still
+from pioreactor.camera import get_camera_status
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
@@ -82,6 +85,21 @@ MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
 
 def _format_usb_partition_for_log(partition: usb_utils.UsbPartition) -> str:
     return f"{partition.display_name} ({partition.device})"
+
+
+@huey.task(priority=20)
+def get_camera_status_task(unit: str) -> dict[str, Any]:
+    return get_camera_status(unit)
+
+
+@huey.task(priority=20)
+@huey.lock_task("camera-lock")
+def capture_camera_still_task(
+    unit: str,
+    experiment: str | None,
+    capture_reason: str,
+) -> dict[str, Any]:
+    return to_builtins(capture_camera_still(unit, experiment=experiment, capture_reason=capture_reason))
 
 
 def register_calibration_action(

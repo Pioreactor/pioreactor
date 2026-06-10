@@ -113,8 +113,6 @@ export default function Cameras({ title }) {
         <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
       </Box>
 
-      {error && <Alert severity="error">{error}</Alert>}
-
       {loading && cameraResults.length === 0 ? (
         <Stack sx={{ alignItems: "center", py: 8 }}>
           <CircularProgress />

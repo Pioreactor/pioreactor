@@ -1382,17 +1382,63 @@ def test_latest_camera_still_proxy_preserves_image_content_type(client, monkeypa
 
 
 def test_capture_camera_still_proxy_posts_to_worker(client, monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr("pioreactor.web.api.resolve_to_address", lambda unit: f"{unit}.local")
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
 
-    with capture_requests() as bucket:
-        response = client.post(
-            "/api/workers/unit1/camera/capture",
-            json={"experiment": "experiment-a", "capture_reason": "manual"},
+    captured: dict[str, object] = {}
+
+    def fake_post_into(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        captured["json"] = kwargs.get("json")
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            202,
+            {"Content-Type": "application/json"},
+            b'{"unit":"unit1","task_id":"task-1","result_url_path":"/unit_api/task_results/task-1","status":"accepted"}',
         )
 
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "post_into", fake_post_into)
+
+    response = client.post(
+        "/api/workers/unit1/camera/capture",
+        json={"experiment": "experiment-a", "capture_reason": "manual"},
+    )
+
+    assert response.status_code == 202
+    assert response.get_json()["result_url_path"] == "/api/workers/unit1/task_results/task-1"
+    assert captured == {
+        "address": "unit1.local",
+        "endpoint": "/unit_api/camera/capture",
+        "json": {"experiment": "experiment-a", "capture_reason": "manual"},
+    }
+
+
+def test_task_result_proxy_fetches_worker_task_result(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    captured: dict[str, str] = {}
+
+    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "application/json"},
+            b'{"status":"succeeded","result":{"image_id":"image-1"}}',
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    response = client.get("/api/workers/unit1/task_results/task-1")
+
     assert response.status_code == 200
-    assert bucket[0].path == "/unit_api/camera/capture"
-    assert bucket[0].json == {"experiment": "experiment-a", "capture_reason": "manual"}
+    assert response.get_json()["result"]["image_id"] == "image-1"
+    assert captured == {"address": "unit1.local", "endpoint": "/unit_api/task_results/task-1"}
 
 
 def test_run_job(client) -> None:

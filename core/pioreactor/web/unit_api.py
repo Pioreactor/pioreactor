@@ -38,10 +38,6 @@ from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.camera import camera_still_image_path
-from pioreactor.camera import CameraCaptureError
-from pioreactor.camera import CameraUnavailableError
-from pioreactor.camera import capture_camera_still
-from pioreactor.camera import get_camera_status as get_local_camera_status
 from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
@@ -177,7 +173,19 @@ def get_assigned_experiment_name_if_available() -> str | None:
 
 @unit_api_bp.route("/camera/status", methods=["GET"])
 def get_camera_status() -> ResponseReturnValue:
-    return attach_cache_control(jsonify(get_local_camera_status(HOSTNAME)), max_age=0)
+    task = tasks.get_camera_status_task(HOSTNAME)
+
+    try:
+        status = task.get(blocking=True, timeout=10) if hasattr(task, "get") else task
+    except (HueyException, TaskException):
+        abort_with(
+            500,
+            "Timed out fetching camera status.",
+            cause="Timed out waiting for the local camera status task.",
+            remediation="Retry the request and check the Huey service.",
+        )
+
+    return attach_cache_control(jsonify(status), max_age=0)
 
 
 @unit_api_bp.route("/camera/latest.jpg", methods=["GET"])
@@ -211,28 +219,8 @@ def capture_camera_still_from_unit() -> ResponseReturnValue:
         body.experiment if body.experiment is not None else get_assigned_experiment_name_if_available()
     )
 
-    try:
-        metadata = capture_camera_still(
-            HOSTNAME,
-            experiment=experiment,
-            capture_reason=body.capture_reason,
-        )
-    except CameraUnavailableError as exc:
-        abort_with(
-            503,
-            "Camera capture is not available on this unit.",
-            cause=str(exc),
-            remediation="Install the Raspberry Pi camera runtime packages and confirm camera hardware is attached.",
-        )
-    except CameraCaptureError as exc:
-        abort_with(
-            500,
-            "Camera capture failed.",
-            cause=str(exc),
-            remediation="Check the camera hardware connection and worker logs, then retry.",
-        )
-
-    return jsonify(to_builtins(metadata)), 201
+    task = tasks.capture_camera_still_task(HOSTNAME, experiment, body.capture_reason)
+    return create_task_response(task)
 
 
 @unit_api_bp.route("/camera/stream", methods=["GET"])

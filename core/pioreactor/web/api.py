@@ -578,6 +578,42 @@ def capture_camera_still_for_worker(pioreactor_unit: str) -> ResponseReturnValue
     except (HTTPErrorStatus, HTTPException):
         abort_with_worker_error(response, f"Capturing camera still failed on {pioreactor_unit}.")
 
+    if response.status_code == 202:
+        payload = response.json()
+        result_url_path = payload.get("result_url_path")
+        if isinstance(result_url_path, str) and result_url_path.startswith("/unit_api/task_results/"):
+            task_id = result_url_path.rsplit("/", 1)[-1]
+            payload["result_url_path"] = f"/api/workers/{pioreactor_unit}/task_results/{task_id}"
+        return jsonify(payload), 202
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/task_results/<task_id>", methods=["GET"])
+def get_task_result_for_worker(pioreactor_unit: str, task_id: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch task result with $broadcast; choose a specific Pioreactor.",
+            cause="Task result routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit),
+            f"/unit_api/task_results/{task_id}",
+            timeout=10,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Fetching task result failed on {pioreactor_unit}.")
+
     return Response(
         response.content,
         status=response.status_code,
