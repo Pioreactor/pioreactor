@@ -1874,20 +1874,22 @@ def multicast_patch(
 @huey.task(priority=10)
 def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
     r: Response | None = None
+    address: str | None = None
     try:
-        r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=2.0)
+        address = resolve_to_address(unit)
+        r = delete_from(address, endpoint, json=json, timeout=2.0)
         r.raise_for_status()
         return unit, fanout_success(unit, r.json() if r.content else None)
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not DELETE {unit}'s {endpoint=}, sent {json=} and returned {e}. Check connection?"
+            f"Could not DELETE {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection?"
             f"{_summarize_unit_api_error(r)}"
         )
         return unit, _fanout_failure_from_response(
             unit,
             r,
             fallback_kind="http_error" if r is not None else "connection_error",
-            fallback_message=f"Could not DELETE {unit}'s {endpoint}.",
+            fallback_message=f"Could not DELETE {unit}'s {endpoint} at {address}.",
             retryable=r is None or r.status_code >= 500,
         )
     except DecodeError:

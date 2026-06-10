@@ -27,6 +27,7 @@ from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
 from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.mureq import HTTPErrorStatus
+from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
@@ -277,6 +278,115 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
     assert "Remediation: Stop the conflicting job and retry." in caplog.text
 
 
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_logs_resolved_address_on_http_exception(
+    mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            side_effect=HTTPException("[Errno 101] Network is unreachable"),
+        ),
+        patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
+        caplog.at_level("ERROR"),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert (
+        "Unable to submit start command for `circulate_alt_media` to unit1 at unit1.local after 3 attempts. Is it online?"
+        in caplog.text
+    )
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_retries_initial_submit_failure(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            side_effect=[
+                HTTPException("[Errno 111] Connection refused"),
+                Response(
+                    "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                    200,
+                    {},
+                    encode({"result": {"ok": True}}),
+                ),
+            ],
+        ) as mock_patch_into,
+        patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert mock_patch_into.call_count == 2
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_reports_result_poll_failure_without_retrying_start(
+    mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            return_value=Response(
+                "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                202,
+                {},
+                encode({"result_url_path": "/unit_api/task_results/task-1"}),
+            ),
+        ) as mock_patch_into,
+        patch(
+            "pioreactor.actions.leader.experiment_profile.get_from",
+            side_effect=HTTPException("timed out"),
+        ),
+        caplog.at_level("ERROR"),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert mock_patch_into.call_count == 1
+    assert (
+        "Submitted start command for `circulate_alt_media` to unit1 at unit1.local, but couldn't read the task result. The job may still have started."
+        in caplog.text
+    )
+
+
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="flakey test in CI???")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_log_actions(mock__load_experiment_profile, active_workers_in_cluster) -> None:
@@ -315,9 +425,11 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
     mock__load_experiment_profile.return_value = profile
 
-    with collect_all_logs_of_level("NOTICE", "unit1", experiment) as notice_bucket, collect_all_logs_of_level(
-        "INFO", "unit1", experiment
-    ) as info_bucket, collect_all_logs_of_level("DEBUG", "unit1", experiment) as debug_bucket:
+    with (
+        collect_all_logs_of_level("NOTICE", "unit1", experiment) as notice_bucket,
+        collect_all_logs_of_level("INFO", "unit1", experiment) as info_bucket,
+        collect_all_logs_of_level("DEBUG", "unit1", experiment) as debug_bucket,
+    ):
         execute_experiment_profile("profile.yaml", experiment)
         assert notice_bucket[0]["message"] == "test unit1"
         assert [log["message"] for log in info_bucket[:1]] == [

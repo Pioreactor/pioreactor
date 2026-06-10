@@ -296,14 +296,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, str, list[dict[str, Any]]]:
             try:
-                response = get_from(resolve_to_address(unit), endpoint)
+                address = resolve_to_address(unit)
+                response = get_from(address, endpoint)
                 response.raise_for_status()
                 payload = response.json()
                 if not isinstance(payload, list):
                     raise ValueError("Expected list payload")
                 return True, unit, payload
             except (HTTPException, ValueError) as e:
-                click.echo(f"Unable to list jobs on {unit}: {e}", err=True)
+                click.echo(f"Unable to list jobs on {unit} at {address}: {e}", err=True)
                 return False, unit, []
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -506,16 +507,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
+                address = resolve_to_address(unit)
                 logger.debug(f"deleting {unit}:{filepath}...")
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/system/remove_file", json={"filepath": filepath}
-                )
+                r = post_into(address, "/unit_api/system/remove_file", json={"filepath": filepath})
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True
 
             except HTTPException as e:
-                logger.error(f"Unable to remove file on {unit} due to server error: {e}")
+                logger.error(f"Unable to remove file on {unit} at {address} due to server error: {e}")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -610,22 +610,21 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/system/update/app", json={"options": options}
-                )
+                address = resolve_to_address(unit)
+                r = post_into(address, "/unit_api/system/update/app", json={"options": options})
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
                 logger.warning(
-                    f"Unable to update on {unit} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
+                    f"Unable to update on {unit} at {address} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
                 )
                 try:
-                    ssh(resolve_to_address(unit), f"pio update app {args}")
+                    ssh(address, f"pio update app {args}")
                     return True, {"unit": unit}
                 except SSHError as e:
-                    logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
-                return False, {"unit": unit}
+                    logger.error(f"Unable to update on {unit} at {address} due to SSH error: {e}.")
+                    return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
@@ -697,14 +696,13 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
-                )
+                address = resolve_to_address(unit)
+                r = post_into(address, "/unit_api/plugins/install", json=commands, timeout=60)
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                logger.error(f"Unable to install plugin on {unit} due to server error: {e}")
+                logger.error(f"Unable to install plugin on {unit} at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -750,15 +748,14 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
-                )
+                address = resolve_to_address(unit)
+                r = post_into(address, "/unit_api/plugins/uninstall", json=commands, timeout=60)
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
 
             except HTTPException as e:
-                logger.error(f"Unable to uninstall plugin on {unit} due to server error: {e}")
+                logger.error(f"Unable to uninstall plugin on {unit} at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -973,12 +970,13 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(resolve_to_address(unit), f"/unit_api/jobs/run/job_name/{job}", json=data)
+                address = resolve_to_address(unit)
+                r = post_into(address, f"/unit_api/jobs/run/job_name/{job}", json=data)
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                click.echo(f"Unable to execute run command on {unit} due to server error: {e}")
+                click.echo(f"Unable to execute run command on {unit} at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -1016,14 +1014,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
-                response = post_into(resolve_to_address(unit), "/unit_api/system/shutdown", timeout=60)
+                address = resolve_to_address(unit)
+                response = post_into(address, "/unit_api/system/shutdown", timeout=60)
                 response.raise_for_status()
                 return True
             except HTTPErrorStatus:
-                click.echo(f"Unable to shut down {unit}. {summarize_error_response(response)}")
+                click.echo(f"Unable to shut down {unit} at {address}. {summarize_error_response(response)}")
                 return False
             except HTTPException as e:
-                click.echo(f"Unable to shut down {unit} due to server error: {e}.")
+                click.echo(f"Unable to shut down {unit} at {address} due to server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:
@@ -1061,14 +1060,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
-                response = post_into(resolve_to_address(unit), "/unit_api/system/reboot", timeout=60)
+                address = resolve_to_address(unit)
+                response = post_into(address, "/unit_api/system/reboot", timeout=60)
                 response.raise_for_status()
                 return True
             except HTTPErrorStatus:
-                click.echo(f"Unable to reboot {unit}. {summarize_error_response(response)}")
+                click.echo(f"Unable to reboot {unit} at {address}. {summarize_error_response(response)}")
                 return False
             except HTTPException as e:
-                click.echo(f"Unable to reboot {unit} due to server error: {e}.")
+                click.echo(f"Unable to reboot {unit} at {address} due to server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:

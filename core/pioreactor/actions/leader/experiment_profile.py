@@ -43,6 +43,8 @@ Env = dict[str, Any]
 
 STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
 FLEXIBLE_EXPRESSION_PATTERN = r"\${{(.*?)}}"
+START_JOB_SUBMIT_MAX_ATTEMPTS = 3
+START_JOB_SUBMIT_RETRY_SLEEP_SECONDS = 0.5
 
 
 def coalesce(*args: Any) -> Any:
@@ -751,26 +753,42 @@ def start_job(
             logger.debug(
                 f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {config_overrides}."
             )
-            try:
-                response = patch_into(
-                    resolve_to_address(unit),
-                    f"/unit_api/jobs/run/job_name/{job_name}",
-                    json={
-                        "options": evaluated_options,
-                        "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
-                        "args": args,
-                        "config_overrides": [
-                            [f"{job_name}.config", key, value] for (key, value) in config_overrides.items()
-                        ],
-                    },
-                )
-            except HTTPException:
-                raise HTTPException(f"Unable to post to {unit}. Is it online?")
+            address = resolve_to_address(unit)
+            for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
+                try:
+                    response = patch_into(
+                        address,
+                        f"/unit_api/jobs/run/job_name/{job_name}",
+                        json={
+                            "options": evaluated_options,
+                            "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
+                            "args": args,
+                            "config_overrides": [
+                                [f"{job_name}.config", key, value]
+                                for (key, value) in config_overrides.items()
+                            ],
+                        },
+                    )
+                    break
+                except HTTPException as exc:
+                    if attempt == START_JOB_SUBMIT_MAX_ATTEMPTS:
+                        raise HTTPException(
+                            f"Unable to submit start command for `{job_name}` to {unit} at {address} after {attempt} attempts. Is it online?"
+                        ) from exc
+                    logger.debug(
+                        f"Unable to submit start command for `{job_name}` to {unit} at {address}. Retrying ({attempt + 1}/{START_JOB_SUBMIT_MAX_ATTEMPTS})."
+                    )
+                    time.sleep(START_JOB_SUBMIT_RETRY_SLEEP_SECONDS)
 
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-            task_result = _wait_for_unit_task_result(unit, response)
+            try:
+                task_result = _wait_for_unit_task_result(unit, response)
+            except HTTPException as exc:
+                raise HTTPException(
+                    f"Submitted start command for `{job_name}` to {unit} at {address}, but couldn't read the task result. The job may still have started."
+                ) from exc
             if task_result is not None and not task_result["ok"]:
                 logger.error(f"Failed to start `{job_name}` on {unit}. {task_result.get('error')}")
 
