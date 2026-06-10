@@ -88,7 +88,6 @@ export default function Cameras({ title }) {
 
   const onlineCameraResults = cameraResults.filter((result) => result.status);
   const cameraCapableResults = onlineCameraResults.filter((result) => result.status?.available);
-  const noCameraResults = onlineCameraResults.filter((result) => !result.status?.available);
 
   return (
     <Stack spacing={2}>
