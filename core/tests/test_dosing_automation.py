@@ -1339,7 +1339,8 @@ def test_execute_io_action_preserves_requested_waste_despite_float_rounding() ->
         assert result["waste_ml"] == waste
 
 
-def test_execute_io_action_preserves_requested_waste_when_subdosing(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_execute_io_action_preserves_requested_waste_when_subdosing() -> None:
     experiment = "test_execute_io_action_preserves_requested_waste_when_subdosing"
 
     class StubAutomation(DosingAutomationJob):
@@ -1365,7 +1366,8 @@ def test_execute_io_action_preserves_requested_waste_when_subdosing(fast_dosing_
     assert result["waste_ml"] == pytest.approx(3.0)
 
 
-def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_execute_io_action_uses_cumulative_volume_for_overflow_check() -> None:
     experiment = "test_execute_io_action_uses_cumulative_volume_for_overflow_check"
     calls: list[tuple[str, float]] = []
     stop_messages: list[tuple[str, bytes, int]] = []
@@ -1421,7 +1423,8 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check(fast_dosing
     assert result["waste_ml"] == pytest.approx(0.0)
 
 
-def test_execute_io_action_validates_all_pumps_before_any_dosing(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_execute_io_action_validates_all_pumps_before_any_dosing() -> None:
     experiment = "test_execute_io_action_validates_all_pumps_before_any_dosing"
     calls: list[tuple[str, float]] = []
 
@@ -1646,9 +1649,8 @@ def test_execute_io_action_returns_zero_volumes_when_disconnected() -> None:
     assert result["waste_ml"] == 0.0
 
 
-def test_pid_morbidostat_run_updates_latest_event_from_growth_rate_and_od(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_pid_morbidostat_run_updates_latest_event_from_growth_rate_and_od() -> None:
     experiment = "test_PIDMorbidostat"
     algo = PIDMorbidostat(
         target_normalized_od=1.0,
@@ -1687,9 +1689,8 @@ def test_pid_morbidostat_run_updates_latest_event_from_growth_rate_and_od(
     algo.clean_up()
 
 
-def test_pid_morbidostat_updates_duration_and_timer_interval_over_mqtt(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_pid_morbidostat_updates_duration_and_timer_interval_over_mqtt() -> None:
     experiment = "test_changing_duration_over_mqtt"
     with PIDMorbidostat(
         target_normalized_od=1.0,
@@ -1721,9 +1722,8 @@ def test_pid_morbidostat_updates_duration_and_timer_interval_over_mqtt(
         assert wait_for(lambda: close(algo.run_thread.interval, 60.0), timeout=10.0)  # in seconds
 
 
-def test_pid_morbidostat_duration_change_reschedules_next_run_from_now(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_pid_morbidostat_duration_change_reschedules_next_run_from_now() -> None:
     experiment = "test_changing_duration_over_mqtt_will_start_next_run_earlier"
     with PIDMorbidostat(
         target_normalized_od=1.0,
@@ -1756,7 +1756,8 @@ def test_pid_morbidostat_duration_change_reschedules_next_run_from_now(
         assert wait_for(lambda: algo.run_thread.run_after > 0, timeout=5.0)
 
 
-def test_turbidostat_transitions_to_disconnected_state_over_mqtt(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_turbidostat_transitions_to_disconnected_state_over_mqtt() -> None:
     experiment = "test_disconnect_cleanly"
     algo = Turbidostat(
         unit=unit,
@@ -1772,9 +1773,8 @@ def test_turbidostat_transitions_to_disconnected_state_over_mqtt(fast_dosing_tim
     algo.clean_up()
 
 
-def test_chemostat_transitions_to_disconnected_state_over_mqtt(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_chemostat_transitions_to_disconnected_state_over_mqtt() -> None:
     experiment = "test_disconnect_cleanly_during_pumping_execution"
     algo = Chemostat(
         unit=unit,
@@ -1837,7 +1837,8 @@ def test_turbidostat_returns_error_event_when_required_readings_are_missing() ->
         assert isinstance(event, events.ErrorOccurred)
 
 
-def test_run_publishes_latest_event_to_mqtt(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_run_publishes_latest_event_to_mqtt() -> None:
     experiment = "test_latest_event_goes_to_mqtt"
 
     class FakeAutomation(DosingAutomationJob):
@@ -1877,7 +1878,8 @@ def test_run_publishes_latest_event_to_mqtt(fast_dosing_timers) -> None:
         assert latest_event_from_mqtt["data"]["s"] == "test"
 
 
-def test_dosing_start_and_stop_events_publish_to_mqtt(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_dosing_start_and_stop_events_publish_to_mqtt() -> None:
     experiment = "test_dosing_start_and_stop_events_publish_to_mqtt"
     received_events: list[dict] = []
 
@@ -1916,7 +1918,8 @@ def test_dosing_start_and_stop_events_publish_to_mqtt(fast_dosing_timers) -> Non
     assert received_events[1]["data"]["media_ml"] == pytest.approx(0.1)
 
 
-def test_subdosing_only_emits_top_level_dosing_events(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_subdosing_only_emits_top_level_dosing_events() -> None:
     experiment = "test_subdosing_only_emits_top_level_dosing_events"
     received_events: list[dict] = []
 
@@ -1966,7 +1969,8 @@ def test_subdosing_only_emits_top_level_dosing_events(fast_dosing_timers) -> Non
     assert received_events[1]["data"]["media_ml"] == pytest.approx(2.0)
 
 
-def test_execute_io_action_does_not_report_extra_waste_in_result(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_execute_io_action_does_not_report_extra_waste_in_result() -> None:
     experiment = "test_execute_io_action_does_not_report_extra_waste_in_result"
 
     class FakeAutomation(DosingAutomationJob):
@@ -1997,9 +2001,8 @@ def test_execute_io_action_does_not_report_extra_waste_in_result(fast_dosing_tim
             assert automation.latest_event.data["waste_ml"] == pytest.approx(0.5)
 
 
-def test_start_dosing_automation_coerces_string_inputs_for_chemostat(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_start_dosing_automation_coerces_string_inputs_for_chemostat() -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
@@ -2016,9 +2019,9 @@ def test_start_dosing_automation_coerces_string_inputs_for_chemostat(
         assert isinstance(chemostat.run(), events.DilutionEvent)
 
 
+@pytest.mark.usefixtures("fast_dosing_timers")
 def test_chemostat_duration_starts_periodic_timer_without_immediate_dose_when_skipped(
     monkeypatch,
-    fast_dosing_timers,
 ) -> None:
     experiment = "test_chemostat_duration_starts_periodic_timer_without_immediate_dose_when_skipped"
     doses: list[dict[str, float]] = []
@@ -2049,7 +2052,8 @@ def test_chemostat_duration_starts_periodic_timer_without_immediate_dose_when_sk
 
 
 @pytest.mark.parametrize("duration", [0, -1, "0", "-0.1"])
-def test_chemostat_rejects_non_positive_duration(duration: float | str, fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_chemostat_rejects_non_positive_duration(duration: float | str) -> None:
     with pytest.raises(ValueError, match="duration must be greater than 0"):
         Chemostat(
             unit=unit,
@@ -2060,7 +2064,8 @@ def test_chemostat_rejects_non_positive_duration(duration: float | str, fast_dos
 
 
 @pytest.mark.parametrize("duration", [0, -1, "0", "-0.1"])
-def test_changing_duration_rejects_non_positive_values(duration: float | str, fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_changing_duration_rejects_non_positive_values(duration: float | str) -> None:
     experiment = f"test_changing_duration_rejects_non_positive_values_{duration}"
 
     with Chemostat(
@@ -2082,7 +2087,8 @@ def test_changing_duration_rejects_non_positive_values(duration: float | str, fa
         cancel_run_thread(chemostat)
 
 
-def test_changing_duration_over_mqtt_rejects_non_positive_values(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_changing_duration_over_mqtt_rejects_non_positive_values() -> None:
     experiment = "test_changing_duration_over_mqtt_rejects_non_positive_values"
 
     with Chemostat(
@@ -2104,9 +2110,8 @@ def test_changing_duration_over_mqtt_rejects_non_positive_values(fast_dosing_tim
         cancel_run_thread(chemostat)
 
 
-def test_chemostat_default_schedule_waits_before_first_immediate_run(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_chemostat_default_schedule_waits_before_first_immediate_run() -> None:
     experiment = "test_chemostat_default_schedule_waits_before_first_immediate_run"
 
     with Chemostat(
@@ -2122,9 +2127,9 @@ def test_chemostat_default_schedule_waits_before_first_immediate_run(
         cancel_run_thread(chemostat)
 
 
+@pytest.mark.usefixtures("fast_dosing_timers")
 def test_chemostat_seeds_explicit_current_volume_before_retained_volume_listener(
     monkeypatch,
-    fast_dosing_timers,
 ) -> None:
     experiment = "test_chemostat_seeds_explicit_volume_before_listener"
     stale_volume = Chemostat.MAX_VIAL_VOLUME_TO_STOP + 0.5
@@ -2174,9 +2179,9 @@ def test_chemostat_seeds_explicit_current_volume_before_retained_volume_listener
         cancel_run_thread(chemostat)
 
 
+@pytest.mark.usefixtures("fast_dosing_timers")
 def test_chemostat_duration_change_before_first_run_reschedules_from_now(
     monkeypatch,
-    fast_dosing_timers,
 ) -> None:
     experiment = "test_chemostat_duration_change_before_first_run_reschedules_from_now"
     run_once_calls: list[object] = []
@@ -2229,9 +2234,8 @@ def test_chemostat_from_cli() -> None:
 
 @pytest.mark.slow
 @pytest.mark.skip()
-def test_chemostat_reuses_persisted_alt_media_fraction_between_runs(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_chemostat_reuses_persisted_alt_media_fraction_between_runs() -> None:
     experiment = "test_pass_in_alt_media_fraction"
     unit = get_unit_name()
 
@@ -2269,9 +2273,8 @@ def test_chemostat_reuses_persisted_alt_media_fraction_between_runs(
             assert wait_for(lambda: close(chemostat.alt_media_fraction, target), timeout=5.0)
 
 
-def test_chemostat_from_zero_volume_accumulates_current_volume_from_doses(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_chemostat_from_zero_volume_accumulates_current_volume_from_doses() -> None:
     experiment = "test_chemostat_from_0_volume"
     unit = get_unit_name()
 
@@ -2307,9 +2310,8 @@ def test_chemostat_from_zero_volume_accumulates_current_volume_from_doses(
 
 
 @pytest.mark.slow
-def test_execute_io_preserves_alt_media_fraction_across_mixed_media_dilutions(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_execute_io_preserves_alt_media_fraction_across_mixed_media_dilutions() -> None:
     # https://forum.pioreactor.com/t/inconsistent-dosing-behavior-with-multiple-media/37/3
 
     unit = get_unit_name()
@@ -2373,9 +2375,8 @@ def test_execute_io_preserves_alt_media_fraction_across_mixed_media_dilutions(
 
 @pytest.mark.slow
 @pytest.mark.skip()
-def test_public_add_media_does_not_double_count_with_running_dosing_automation(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_public_add_media_does_not_double_count_with_running_dosing_automation() -> None:
     experiment = "test_public_add_media_does_not_double_count_with_running_dosing_automation"
 
     with dosing_events_to_bioreactor_projector(unit, experiment):
@@ -2478,7 +2479,8 @@ def test_execute_io_action_rejects_invalid_pump_arguments() -> None:
 
 
 @pytest.mark.flakey
-def test_run_logs_timeout_when_called_while_sleeping(fast_dosing_timers) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_run_logs_timeout_when_called_while_sleeping() -> None:
     unit = get_unit_name()
     experiment = "test_timeout_in_run"
 
@@ -2522,9 +2524,8 @@ def test_chemostat_pauses_when_current_volume_crosses_safety_threshold() -> None
 
 
 @pytest.mark.flakey
-def test_warning_is_logged_when_less_waste_is_removed_than_requested(
-    fast_dosing_timers,
-) -> None:
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_warning_is_logged_when_less_waste_is_removed_than_requested() -> None:
     unit = get_unit_name()
     experiment = "test_warning_is_logged_if_under_remove_waste"
 

@@ -44,9 +44,9 @@ def test_clears_temporary_ir_led_reference_normalization_cache(monkeypatch: pyte
 
         def __exit__(
             self,
-            exc_type: type[BaseException] | None,
+            _exc_type: type[BaseException] | None,
             exc: BaseException | None,
-            traceback: TracebackType | None,
+            _traceback: TracebackType | None,
         ) -> None:
             return None
 

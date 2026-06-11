@@ -80,7 +80,8 @@ def temp_zipfile(tmpdir):
     return tmpdir.join("test.zip")
 
 
-def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
@@ -126,8 +127,9 @@ def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> 
             assert "12.858" in values[4]
 
 
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
 def test_export_experiment_data_writes_tmp_zip_then_renames(
-    temp_zipfile, mock_load_exportable_datasets
+    temp_zipfile,
 ) -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
@@ -152,8 +154,9 @@ def test_export_experiment_data_writes_tmp_zip_then_renames(
     assert not temp_zipfile.dirpath().listdir("*.csv")
 
 
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
 def test_export_experiment_data_removes_partial_artifacts_on_failure(
-    temp_zipfile, mock_load_exportable_datasets
+    temp_zipfile,
 ) -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
@@ -177,8 +180,9 @@ def test_export_experiment_data_removes_partial_artifacts_on_failure(
     assert not temp_zipfile.dirpath().listdir("*.csv")
 
 
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
 def test_export_experiment_data_removes_partial_artifacts_on_resource_limit(
-    temp_zipfile, mock_load_exportable_datasets
+    temp_zipfile,
 ) -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
@@ -254,7 +258,8 @@ def test_cleanup_stale_export_artifacts_removes_partial_files(tmp_path) -> None:
     assert completed_zip.exists()
 
 
-def test_zip_directory_timestamp_not_1980(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_zip_directory_timestamp_not_1980(temp_zipfile) -> None:
     # Minimal export to produce a zip with a dataset directory entry
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
@@ -278,7 +283,8 @@ def test_zip_directory_timestamp_not_1980(temp_zipfile, mock_load_exportable_dat
         assert info.date_time[0] != 1980
 
 
-def test_zip_csv_timestamp_not_1980(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_zip_csv_timestamp_not_1980(temp_zipfile) -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
     conn.execute(
@@ -305,7 +311,8 @@ def test_zip_csv_timestamp_not_1980(temp_zipfile, mock_load_exportable_datasets)
         assert info.date_time[0] != 1980
 
 
-def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_with_base64_data(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_base64 (id INTEGER, data BLOB)")
@@ -346,7 +353,8 @@ def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exporta
             assert values[1] == '"{""volume"":0.5,""duration"":20.0,""state"":""init""}"'
 
 
-def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_with_experiment(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp TEXT)")
@@ -399,7 +407,8 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
             assert values[4] == "24.0"
 
 
-def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_with_partition_by_unit(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
     conn.execute(
@@ -445,8 +454,9 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_e
         assert "od_readings/od_readings-exp1-pio02" in sorted(zf.namelist())[2]
 
 
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
 def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_doesnt_exist(
-    temp_zipfile, mock_load_exportable_datasets
+    temp_zipfile,
 ) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
@@ -490,7 +500,8 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     assert zf.namelist()[1].startswith("od_readings/od_readings-exp1-all_units")
 
 
-def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_with_start_time(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data spanning two timestamps
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
@@ -525,7 +536,8 @@ def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportab
             assert values[0] == "2"
 
 
-def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_with_end_time(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data spanning two timestamps
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
@@ -560,7 +572,8 @@ def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable
             assert values[0] == "1"
 
 
-def test_export_experiment_data_with_start_and_end_time(temp_zipfile, mock_load_exportable_datasets) -> None:
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_with_start_and_end_time(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data spanning two timestamps
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")

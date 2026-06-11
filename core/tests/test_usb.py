@@ -151,7 +151,7 @@ def test_verify_writable_uses_mount_read_write_options(tmp_path: Path, monkeypat
         f"2 1 8:2 / {mountpoint.as_posix()} ro,nosuid,nodev - vfat /dev/sda1 rw\n"
     )
 
-    monkeypatch.setattr(Path, "read_text", lambda _path, encoding=None: mountinfo)
+    monkeypatch.setattr(Path, "read_text", lambda _path, **_kwargs: mountinfo)
 
     assert usb_utils._verify_writable(mountpoint) is False
 
