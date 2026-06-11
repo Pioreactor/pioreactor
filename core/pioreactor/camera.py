@@ -209,17 +209,24 @@ def camera_hardware_is_detected(capture_command: str, timeout: float = 3.0) -> b
     return bool(re.search(r"(?m)^\s*\d+\s*:", output))
 
 
-def get_camera_status(unit: pt.Unit, dot_pioreactor: Path | None = None) -> dict[str, object]:
+def get_camera_status(
+    unit: pt.Unit,
+    *,
+    experiment: pt.Experiment | None = None,
+    dot_pioreactor: Path | None = None,
+) -> dict[str, object]:
     capture_command = find_camera_capture_command()
     dev_stills_available = dev_camera_stills_are_available(dot_pioreactor)
     camera_detected = (
         camera_hardware_is_detected(capture_command) if capture_command is not None else False
     ) or dev_stills_available
-    latest_metadata = load_latest_camera_still_metadata(unit, dot_pioreactor)
+    latest_metadata = load_latest_camera_still_metadata(
+        unit, experiment=experiment, dot_pioreactor=dot_pioreactor
+    )
     if latest_metadata is None and dev_stills_available:
         latest_metadata = store_next_dev_camera_still(
             unit,
-            experiment=None,
+            experiment=experiment,
             dot_pioreactor=dot_pioreactor,
         )
 
@@ -336,9 +343,17 @@ def store_camera_still(
 
 
 def load_latest_camera_still_metadata(
-    unit: pt.Unit, dot_pioreactor: Path | None = None
+    unit: pt.Unit,
+    *,
+    experiment: pt.Experiment | None = None,
+    dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata | None:
-    metadata = query_camera_still_metadata(unit, limit=1, dot_pioreactor=dot_pioreactor)
+    metadata = query_camera_still_metadata(
+        unit,
+        experiment=experiment,
+        limit=1,
+        dot_pioreactor=dot_pioreactor,
+    )
     return metadata[0] if metadata else None
 
 

@@ -482,8 +482,10 @@ def _broadcast_or_multicast_post(pioreactor_unit: str, endpoint: str) -> Delayed
 
 @api_bp.route("/experiments/<experiment>/cameras", methods=["GET"])
 def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
-    task = fanout.broadcast_get_across_workers_in_experiment(
-        "/unit_api/camera/status", experiment=experiment, timeout=5
+    task = fanout.broadcast_get_across_workers_ever_assigned_to_experiment(
+        f"/unit_api/camera/experiments/{quote(experiment, safe='')}/status",
+        experiment=experiment,
+        timeout=5,
     )
 
     try:

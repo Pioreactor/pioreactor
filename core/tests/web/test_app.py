@@ -410,6 +410,27 @@ def test_remove_worker_from_experiment(client) -> None:
     assert "unit2" not in units
 
 
+def test_all_workers_ever_assigned_to_experiment_includes_unassigned_workers(client) -> None:
+    from pioreactor.web.app import get_all_workers_ever_assigned_to_experiment
+    from pioreactor.web.app import modify_app_db
+
+    assert set(get_all_workers_ever_assigned_to_experiment("exp1")) == {"unit1", "unit2"}
+
+    response = client.delete("/api/experiments/exp1/workers/unit2")
+
+    assert response.status_code == 200
+    modify_app_db(
+        """
+        INSERT OR IGNORE INTO experiment_worker_assignments_history
+            (pioreactor_unit, experiment, assigned_at, unassigned_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        ("unit2", "exp1", "2026-06-01T00:00:00Z", "2026-06-01T01:00:00Z"),
+    )
+    assert set(get_all_workers_ever_assigned_to_experiment("exp1")) == {"unit1", "unit2"}
+    assert set(get_all_workers_ever_assigned_to_experiment("$experiment")) >= {"unit1", "unit2"}
+
+
 def test_remove_worker_from_experiment_publishes_retained_unassignment(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:
@@ -1308,7 +1329,7 @@ def test_broadcast_in_manage_all(client) -> None:
     assert len(bucket) == 1
 
 
-def test_get_camera_statuses_for_experiment_uses_experiment_assignments(
+def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignments(
     client, monkeypatch: MonkeyPatch
 ) -> None:
     class FakeTaskResult:
@@ -1328,7 +1349,7 @@ def test_get_camera_statuses_for_experiment_uses_experiment_assignments(
 
     captured: dict[str, object] = {}
 
-    def fake_broadcast_get_across_workers_in_experiment(
+    def fake_broadcast_get_across_workers_ever_assigned_to_experiment(
         endpoint: str, experiment: str, timeout: float
     ) -> FakeTaskResult:
         captured["endpoint"] = endpoint
@@ -1337,14 +1358,18 @@ def test_get_camera_statuses_for_experiment_uses_experiment_assignments(
         return FakeTaskResult()
 
     monkeypatch.setattr(
-        "pioreactor.web.api.fanout.broadcast_get_across_workers_in_experiment",
-        fake_broadcast_get_across_workers_in_experiment,
+        "pioreactor.web.api.fanout.broadcast_get_across_workers_ever_assigned_to_experiment",
+        fake_broadcast_get_across_workers_ever_assigned_to_experiment,
     )
 
     response = client.get("/api/experiments/exp1/cameras")
 
     assert response.status_code == 200
-    assert captured == {"endpoint": "/unit_api/camera/status", "experiment": "exp1", "timeout": 5}
+    assert captured == {
+        "endpoint": "/unit_api/camera/experiments/exp1/status",
+        "experiment": "exp1",
+        "timeout": 5,
+    }
     assert set(response.get_json()["cameras"]) == {"unit1", "unit2"}
 
 

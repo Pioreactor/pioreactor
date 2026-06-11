@@ -152,6 +152,7 @@ export default function Cameras({ title }) {
               unit={result.unit}
               initialStatus={result.status}
               detailsHref={`/cameras/${encodeURIComponent(result.unit)}`}
+              experiment={experiment}
             />
           </Grid>
         ))}

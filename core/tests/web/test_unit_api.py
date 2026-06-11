@@ -66,7 +66,7 @@ def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(mod.huey, "immediate", True)
     monkeypatch.setattr(
         "pioreactor.web.tasks.get_camera_status",
-        lambda unit: {
+        lambda unit, experiment=None: {
             "unit": unit,
             "available": True,
             "capture_command": "rpicam-still",
@@ -83,6 +83,47 @@ def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPa
     assert payload["available"] is True
     assert payload["capture_command"] == "rpicam-still"
     assert payload["latest_still"]["image_id"] == "image-1"
+
+
+def test_experiment_camera_status_filters_latest_still_by_experiment(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.huey, "immediate", True)
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="old-experiment",
+        captured_at=datetime(2026, 6, 10, 12, 10, tzinfo=UTC),
+        image_id="old-image",
+    )
+
+    empty_response = client.get("/unit_api/camera/experiments/new-experiment/status")
+
+    assert empty_response.status_code == 200
+    assert empty_response.get_json()["latest_still"] is None
+
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="new-experiment",
+        captured_at=datetime(2026, 6, 10, 12, 5, tzinfo=UTC),
+        image_id="new-image",
+    )
+
+    scoped_response = client.get("/unit_api/camera/experiments/new-experiment/status")
+    unscoped_response = client.get("/unit_api/camera/status")
+
+    assert scoped_response.status_code == 200
+    assert scoped_response.get_json()["latest_still"]["image_id"] == "new-image"
+    assert unscoped_response.status_code == 200
+    assert unscoped_response.get_json()["latest_still"]["image_id"] == "old-image"
 
 
 def test_latest_camera_still_returns_stored_image(

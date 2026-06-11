@@ -177,7 +177,11 @@ def get_assigned_experiment_name_if_available() -> str | None:
 
 @unit_api_bp.route("/camera/status", methods=["GET"])
 def get_camera_status() -> ResponseReturnValue:
-    task = tasks.get_camera_status_task(HOSTNAME)
+    return get_camera_status_response()
+
+
+def get_camera_status_response(experiment: str | None = None) -> ResponseReturnValue:
+    task = tasks.get_camera_status_task(HOSTNAME, experiment)
 
     try:
         status = task.get(blocking=True, timeout=10) if hasattr(task, "get") else task
@@ -190,6 +194,11 @@ def get_camera_status() -> ResponseReturnValue:
         )
 
     return attach_cache_control(jsonify(status), max_age=0)
+
+
+@unit_api_bp.route("/camera/experiments/<experiment>/status", methods=["GET"])
+def get_camera_status_for_experiment(experiment: str) -> ResponseReturnValue:
+    return get_camera_status_response(experiment)
 
 
 @unit_api_bp.route("/camera/latest.jpg", methods=["GET"])

@@ -307,6 +307,26 @@ def get_all_workers_in_experiment(experiment: str) -> list[str]:
     return [unit["pioreactor_unit"] for unit in r]
 
 
+def get_all_workers_ever_assigned_to_experiment(experiment: str) -> list[str]:
+    if experiment == UNIVERSAL_EXPERIMENT:
+        r = query_app_db("SELECT pioreactor_unit FROM workers")
+    else:
+        r = query_app_db(
+            """
+            SELECT pioreactor_unit
+            FROM experiment_worker_assignments
+            WHERE experiment = ?
+            UNION
+            SELECT pioreactor_unit
+            FROM experiment_worker_assignments_history
+            WHERE experiment = ?
+            """,
+            (experiment, experiment),
+        )
+    assert isinstance(r, list)
+    return [unit["pioreactor_unit"] for unit in r]
+
+
 def get_all_workers() -> list[str]:
     result = query_app_db(
         """

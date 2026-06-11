@@ -21,6 +21,7 @@ import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupported
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
+import { experimentPathSegment } from "../utils/url";
 
 function workerCameraPath(unit, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/${suffix}`;
@@ -28,6 +29,10 @@ function workerCameraPath(unit, suffix) {
 
 function latestStillUrl(unit, imageVersion) {
   return `${workerCameraPath(unit, "latest.jpg")}?v=${imageVersion}`;
+}
+
+function experimentStillUrl(unit, experiment, imageId) {
+  return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/stills/${encodeURIComponent(imageId)}.jpg`;
 }
 
 function formatCaptureTime(metadata) {
@@ -58,7 +63,7 @@ function CameraEmptyState({ title, detail }) {
   );
 }
 
-function CameraMedia({ unit, status, imageVersion, onOpenViewer, onMissingImage }) {
+function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
   const latestStill = status?.latest_still;
 
   if (!status?.available) {
@@ -96,7 +101,7 @@ function CameraMedia({ unit, status, imageVersion, onOpenViewer, onMissingImage 
       <Box
         component="img"
         alt={`Latest camera still for ${unit}`}
-        src={latestStillUrl(unit, imageVersion)}
+        src={imageUrl}
         onError={onMissingImage}
         sx={{ display: "block", width: "100%", aspectRatio: "4 / 3", objectFit: "contain" }}
       />
@@ -108,6 +113,7 @@ export default function CameraPanel({
   unit,
   initialStatus = null,
   detailsHref = null,
+  experiment = null,
 }) {
   const [status, setStatus] = React.useState(initialStatus);
   const [loading, setLoading] = React.useState(!initialStatus);
@@ -162,7 +168,9 @@ export default function CameraPanel({
   }, [initialStatus, refreshStatus]);
 
   const hasLatestStill = Boolean(status?.latest_still);
-  const openMediaUrl = latestStillUrl(unit, imageVersion);
+  const openMediaUrl = status?.latest_still && experiment
+    ? experimentStillUrl(unit, experiment, status.latest_still.image_id)
+    : latestStillUrl(unit, imageVersion);
   const handleMissingImage = React.useCallback(() => {
     setStatus((previous) => (
       previous
@@ -206,7 +214,7 @@ export default function CameraPanel({
                 <CameraMedia
                   unit={unit}
                   status={status}
-                  imageVersion={imageVersion}
+                  imageUrl={openMediaUrl}
                   onOpenViewer={() => setViewerOpen(true)}
                   onMissingImage={handleMissingImage}
                 />
@@ -264,7 +272,7 @@ export default function CameraPanel({
             <CameraMedia
               unit={unit}
               status={status}
-              imageVersion={imageVersion}
+              imageUrl={openMediaUrl}
               onOpenViewer={() => {}}
               onMissingImage={handleMissingImage}
             />
