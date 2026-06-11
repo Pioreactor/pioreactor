@@ -12,6 +12,8 @@ import CameraPanel from "./components/CameraPanel";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
 
+const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
+
 function normalizeCameraResults(payload) {
   const cameras = payload?.cameras;
   if (!cameras || typeof cameras !== "object" || Array.isArray(cameras)) {
@@ -31,6 +33,18 @@ function normalizeCameraResults(payload) {
   });
 }
 
+function cameraRefreshIntervalMs(cameraResults) {
+  const intervalSeconds = cameraResults
+    .map((result) => result.status?.snapshot_interval_seconds)
+    .filter((value) => typeof value === "number" && value > 0);
+
+  if (intervalSeconds.length === 0) {
+    return null;
+  }
+
+  return Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, Math.min(...intervalSeconds) * 1000);
+}
+
 export default function Cameras({ title }) {
   const { experimentMetadata } = useExperiment();
   const [cameraResults, setCameraResults] = React.useState([]);
@@ -38,14 +52,16 @@ export default function Cameras({ title }) {
   const [error, setError] = React.useState(null);
   const experiment = experimentMetadata?.experiment;
 
-  const loadCameraStatuses = React.useCallback(async ({ signal } = {}) => {
+  const loadCameraStatuses = React.useCallback(async ({ signal, showLoading = true } = {}) => {
     if (!experiment) {
       setCameraResults([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (showLoading) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -80,6 +96,25 @@ export default function Cameras({ title }) {
       controller.abort();
     };
   }, [loadCameraStatuses]);
+
+  const refreshIntervalMs = React.useMemo(
+    () => cameraRefreshIntervalMs(cameraResults),
+    [cameraResults],
+  );
+
+  React.useEffect(() => {
+    if (!refreshIntervalMs) {
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => {
+      void loadCameraStatuses({ showLoading: false });
+    }, refreshIntervalMs);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [loadCameraStatuses, refreshIntervalMs]);
 
   const onlineCameraResults = cameraResults.filter((result) => result.status);
   const cameraCapableResults = onlineCameraResults.filter((result) => result.status?.available);

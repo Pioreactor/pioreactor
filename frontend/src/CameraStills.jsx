@@ -21,6 +21,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
 
+const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
+
 function workerExperimentCameraPath(unit, experiment, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
 }
@@ -45,15 +47,19 @@ export default function CameraStills({ title }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [downloading, setDownloading] = React.useState(false);
+  const [refreshIntervalMs, setRefreshIntervalMs] = React.useState(null);
 
-  const loadStills = React.useCallback(async ({ signal } = {}) => {
+  const loadStills = React.useCallback(async ({ signal, showLoading = true } = {}) => {
     if (!pioreactorUnit || !experiment) {
       setStills([]);
+      setRefreshIntervalMs(null);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (showLoading) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -67,6 +73,12 @@ export default function CameraStills({ title }) {
 
       const payload = await response.json();
       setStills(Array.isArray(payload?.stills) ? payload.stills : []);
+      const intervalSeconds = payload?.snapshot_interval_seconds;
+      setRefreshIntervalMs(
+        typeof intervalSeconds === "number" && intervalSeconds > 0
+          ? Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, intervalSeconds * 1000)
+          : null,
+      );
     } catch (error) {
       if (error.name !== "AbortError") {
         setError(error.message);
@@ -90,6 +102,20 @@ export default function CameraStills({ title }) {
       controller.abort();
     };
   }, [loadStills]);
+
+  React.useEffect(() => {
+    if (!refreshIntervalMs) {
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => {
+      void loadStills({ showLoading: false });
+    }, refreshIntervalMs);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [loadStills, refreshIntervalMs]);
 
   const latestStill = stills.length > 0 ? stills[stills.length - 1] : null;
   const downloadHref = pioreactorUnit && experiment

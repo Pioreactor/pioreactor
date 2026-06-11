@@ -96,7 +96,9 @@ def _format_usb_partition_for_log(partition: usb_utils.UsbPartition) -> str:
 
 @huey.task(priority=20)
 def get_camera_status_task(unit: str) -> dict[str, Any]:
-    return get_camera_status(unit)
+    status = get_camera_status(unit)
+    status["snapshot_interval_seconds"] = camera_snapshot_interval_seconds()
+    return status
 
 
 @huey.task(priority=20)

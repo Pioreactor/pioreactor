@@ -218,6 +218,7 @@ def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
             {
                 "unit": HOSTNAME,
                 "experiment": experiment,
+                "snapshot_interval_seconds": tasks.camera_snapshot_interval_seconds(),
                 "stills": [to_builtins(still) for still in metadata],
             }
         ),

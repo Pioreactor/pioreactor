@@ -12,7 +12,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
-import { alpha } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
@@ -22,7 +21,6 @@ import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupported
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
-import { fetchTaskResult } from "../utils/tasks";
 
 function workerCameraPath(unit, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/${suffix}`;
@@ -34,7 +32,7 @@ function latestStillUrl(unit, imageVersion) {
 
 function formatCaptureTime(metadata) {
   if (!metadata?.captured_at) {
-    return "No capture";
+    return "";
   }
 
   return dayjs(metadata.captured_at).format("YYYY-MM-DD HH:mm:ss");
@@ -60,7 +58,7 @@ function CameraEmptyState({ title, detail }) {
   );
 }
 
-function CameraMedia({ unit, status, imageVersion, onOpenViewer }) {
+function CameraMedia({ unit, status, imageVersion, onOpenViewer, onMissingImage }) {
   const latestStill = status?.latest_still;
 
   if (!status?.available) {
@@ -76,7 +74,7 @@ function CameraMedia({ unit, status, imageVersion, onOpenViewer }) {
     return (
       <CameraEmptyState
         title="No still image"
-        detail="Capture a still image to create the latest view."
+        detail="Waiting on image to become available."
       />
     );
   }
@@ -99,6 +97,7 @@ function CameraMedia({ unit, status, imageVersion, onOpenViewer }) {
         component="img"
         alt={`Latest camera still for ${unit}`}
         src={latestStillUrl(unit, imageVersion)}
+        onError={onMissingImage}
         sx={{ display: "block", width: "100%", aspectRatio: "4 / 3", objectFit: "contain" }}
       />
     </Box>
@@ -115,8 +114,6 @@ export default function CameraPanel({
   const [imageVersion, setImageVersion] = React.useState(Date.now());
   const [viewerOpen, setViewerOpen] = React.useState(false);
   const [actionError, setActionError] = React.useState(null);
-  const [hasFreshStill, setHasFreshStill] = React.useState(false);
-  const capturingRef = React.useRef(false);
 
   const refreshStatus = React.useCallback(async ({ signal } = {}) => {
     setLoading(true);
@@ -132,7 +129,6 @@ export default function CameraPanel({
       const data = await response.json();
       setStatus(data);
       setImageVersion(Date.now());
-      setHasFreshStill(false);
     } catch (error) {
       if (error.name !== "AbortError") {
         setActionError(error.message);
@@ -147,7 +143,9 @@ export default function CameraPanel({
   React.useEffect(() => {
     setStatus(initialStatus);
     setLoading(!initialStatus);
-    setHasFreshStill(false);
+    if (initialStatus) {
+      setImageVersion(Date.now());
+    }
   }, [initialStatus, unit]);
 
   React.useEffect(() => {
@@ -163,43 +161,18 @@ export default function CameraPanel({
     };
   }, [initialStatus, refreshStatus]);
 
-  const captureStill = React.useCallback(async () => {
-    if (capturingRef.current) {
-      return;
-    }
-
-    capturingRef.current = true;
-    setActionError(null);
-
-    try {
-      const taskPayload = await fetchTaskResult(workerCameraPath(unit, "capture"), {
-        fetchOptions: {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        },
-        delayMs: 250,
-      });
-      const metadata = taskPayload.result;
-
-      setStatus((previous) => ({
-        ...(previous || {}),
-        available: true,
-        capture_available: true,
-        latest_still: metadata,
-      }));
-      setImageVersion(Date.now());
-      setHasFreshStill(true);
-    } catch (error) {
-      setActionError(error.message);
-    } finally {
-      capturingRef.current = false;
-    }
-  }, [unit]);
-
   const hasLatestStill = Boolean(status?.latest_still);
-  const staleStillIsVisible = hasLatestStill && !hasFreshStill;
   const openMediaUrl = latestStillUrl(unit, imageVersion);
+  const handleMissingImage = React.useCallback(() => {
+    setStatus((previous) => (
+      previous
+        ? {
+            ...previous,
+            latest_still: null,
+          }
+        : previous
+    ));
+  }, []);
 
   return (
     <>
@@ -211,7 +184,7 @@ export default function CameraPanel({
                 <PioreactorIcon fontSize="small" />
                 <Typography variant="h6" noWrap>{unit}</Typography>
               </Stack>
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "right", whiteSpace: "nowrap" }}>
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "right", whiteSpace: "nowrap"}}>
                 {formatCaptureTime(status?.latest_still)}
               </Typography>
             </Stack>
@@ -235,28 +208,8 @@ export default function CameraPanel({
                   status={status}
                   imageVersion={imageVersion}
                   onOpenViewer={() => setViewerOpen(true)}
+                  onMissingImage={handleMissingImage}
                 />
-              )}
-              {staleStillIsVisible && (
-                <Stack
-                  spacing={1}
-                  sx={{
-                    position: "absolute",
-                    inset: 0,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: (theme) => alpha(theme.palette.background.paper, 0.9),
-                    color: "text.primary",
-                    textAlign: "center",
-                    px: 3,
-                    zIndex: 1,
-                  }}
-                >
-                  <CircularProgress size={30} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: "fontWeightBold" }}>
-                    Updating camera image
-                  </Typography>
-                </Stack>
               )}
             </Box>
 
@@ -313,6 +266,7 @@ export default function CameraPanel({
               status={status}
               imageVersion={imageVersion}
               onOpenViewer={() => {}}
+              onMissingImage={handleMissingImage}
             />
           </Box>
         </DialogContent>
