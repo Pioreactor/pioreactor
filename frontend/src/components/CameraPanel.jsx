@@ -189,7 +189,7 @@ export default function CameraPanel({
           <Stack spacing={2}>
             <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
-                <PioreactorIcon fontSize="small" />
+                <PioreactorIcon />
                 <Typography variant="h6" noWrap>{unit}</Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "right", whiteSpace: "nowrap"}}>

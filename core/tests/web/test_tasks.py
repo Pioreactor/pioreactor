@@ -52,7 +52,7 @@ def test_periodic_camera_capture_noops_when_camera_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
-    monkeypatch.setattr(tasks, "camera_snapshot_interval_seconds", lambda: 60.0)
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
     monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"capture_available": False})
@@ -78,7 +78,7 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
         captured["experiment"] = experiment
         return metadata
 
-    monkeypatch.setattr(tasks, "camera_snapshot_interval_seconds", lambda: 60.0)
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
     monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"capture_available": True})
@@ -93,6 +93,47 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
         "unit": "unit-a",
         "experiment": "experiment-a",
     }
+
+
+@pytest.mark.parametrize(
+    ("elapsed_seconds", "expected"),
+    [
+        (119, False),
+        (120, True),
+    ],
+)
+def test_camera_snapshot_is_due_uses_whole_minute_intervals(
+    elapsed_seconds: int,
+    expected: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 6, 10, 12, 2, tzinfo=UTC)
+    metadata = CameraStillMetadata(
+        experiment="experiment-a",
+        captured_at=datetime.fromtimestamp(now.timestamp() - elapsed_seconds, tz=UTC),
+        image_id="image-a",
+    )
+    monkeypatch.setattr(tasks, "current_utc_datetime", lambda: now)
+    monkeypatch.setattr(
+        tasks,
+        "list_camera_still_metadata",
+        lambda unit, *, experiment, limit: [metadata],
+    )
+
+    assert tasks.camera_snapshot_is_due("unit-a", "experiment-a", 2) is expected
+
+
+def test_camera_snapshot_interval_minutes_rejects_negative_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        tasks.pioreactor_config,
+        "getint",
+        lambda section, option, *, fallback: -1,
+    )
+
+    with pytest.raises(ValueError, match="must be 0 or a positive integer"):
+        tasks.camera_snapshot_interval_minutes()
 
 
 def test_delete_experiment_task_deletes_and_reports_reclaimable_space(

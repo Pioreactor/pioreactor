@@ -34,15 +34,15 @@ function normalizeCameraResults(payload) {
 }
 
 function cameraRefreshIntervalMs(cameraResults) {
-  const intervalSeconds = cameraResults
-    .map((result) => result.status?.snapshot_interval_seconds)
+  const intervalMinutes = cameraResults
+    .map((result) => result.status?.snapshot_interval_minutes)
     .filter((value) => typeof value === "number" && value > 0);
 
-  if (intervalSeconds.length === 0) {
+  if (intervalMinutes.length === 0) {
     return null;
   }
 
-  return Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, Math.min(...intervalSeconds) * 1000);
+  return Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, Math.min(...intervalMinutes) * 60 * 1000);
 }
 
 export default function Cameras({ title }) {

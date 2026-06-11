@@ -97,7 +97,7 @@ def _format_usb_partition_for_log(partition: usb_utils.UsbPartition) -> str:
 @huey.task(priority=20)
 def get_camera_status_task(unit: str, experiment: str | None = None) -> dict[str, Any]:
     status = get_camera_status(unit, experiment=experiment)
-    status["snapshot_interval_seconds"] = camera_snapshot_interval_seconds()
+    status["snapshot_interval_minutes"] = camera_snapshot_interval_minutes()
     return status
 
 
@@ -110,24 +110,27 @@ def capture_camera_still_task(
     return to_builtins(capture_camera_still(unit, experiment=experiment))
 
 
-def camera_snapshot_interval_seconds() -> float:
-    return pioreactor_config.getfloat("camera", "snapshot_interval_seconds", fallback=60.0)
+def camera_snapshot_interval_minutes() -> int:
+    interval_minutes = pioreactor_config.getint("camera", "snapshot_interval_minutes", fallback=1)
+    if interval_minutes < 0:
+        raise ValueError("camera.snapshot_interval_minutes must be 0 or a positive integer")
+    return interval_minutes
 
 
-def camera_snapshot_is_due(unit: str, experiment: str, interval_seconds: float) -> bool:
+def camera_snapshot_is_due(unit: str, experiment: str, interval_minutes: int) -> bool:
     recent_stills = list_camera_still_metadata(unit, experiment=experiment, limit=1)
     if not recent_stills:
         return True
 
     elapsed = current_utc_datetime() - recent_stills[0].captured_at
-    return elapsed.total_seconds() >= interval_seconds
+    return elapsed.total_seconds() >= interval_minutes * 60
 
 
 @periodic_task(crontab(minute="*"), priority=20)
 @huey.lock_task("camera-lock")
 def capture_camera_still_periodic_task() -> dict[str, Any]:
-    interval_seconds = camera_snapshot_interval_seconds()
-    if interval_seconds <= 0:
+    interval_minutes = camera_snapshot_interval_minutes()
+    if interval_minutes == 0:
         return {"captured": False, "reason": "disabled"}
 
     unit = get_unit_name()
@@ -140,7 +143,7 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
     if not status.get("capture_available"):
         return {"captured": False, "reason": "camera_unavailable"}
 
-    if not camera_snapshot_is_due(unit, experiment, interval_seconds):
+    if not camera_snapshot_is_due(unit, experiment, interval_minutes):
         return {"captured": False, "reason": "not_due"}
 
     try:

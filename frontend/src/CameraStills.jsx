@@ -73,10 +73,10 @@ export default function CameraStills({ title }) {
 
       const payload = await response.json();
       setStills(Array.isArray(payload?.stills) ? payload.stills : []);
-      const intervalSeconds = payload?.snapshot_interval_seconds;
+      const intervalMinutes = payload?.snapshot_interval_minutes;
       setRefreshIntervalMs(
-        typeof intervalSeconds === "number" && intervalSeconds > 0
-          ? Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, intervalSeconds * 1000)
+        typeof intervalMinutes === "number" && intervalMinutes > 0
+          ? Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, intervalMinutes * 60 * 1000)
           : null,
       );
     } catch (error) {
