@@ -40,6 +40,7 @@ from pioreactor.calibrations.registry import get_calibration_protocols as get_ca
 from pioreactor.camera import CAMERA_STILL_CONTENT_TYPE
 from pioreactor.camera import camera_still_filename
 from pioreactor.camera import camera_still_image_path
+from pioreactor.camera import delete_camera_still
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
@@ -262,35 +263,72 @@ def get_camera_still_for_experiment(experiment: str, image_id: str) -> ResponseR
     )
 
 
+@unit_api_bp.route("/camera/experiments/<experiment>/stills/<image_id>.jpg", methods=["DELETE"])
+def delete_camera_still_for_experiment(experiment: str, image_id: str) -> ResponseReturnValue:
+    try:
+        metadata = delete_camera_still(HOSTNAME, experiment, image_id)
+    except ValueError:
+        abort_with(
+            404,
+            "Camera still image was not found.",
+            cause="The requested camera still image id is not valid.",
+            remediation="Choose an image from the experiment camera stills list.",
+        )
+
+    if metadata is None:
+        abort_with(
+            404,
+            "Camera still image was not found.",
+            cause="No stored camera still matches this unit, experiment, and image id.",
+            remediation="Refresh the experiment camera stills list.",
+        )
+
+    return jsonify(to_builtins(metadata))
+
+
 @unit_api_bp.route("/camera/experiments/<experiment>/stills.zip", methods=["GET"])
 def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
     metadata = list_camera_still_metadata(HOSTNAME, experiment=experiment, sort_order="asc")
-    buffer = BytesIO()
-
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr(
-            "camera_stills_manifest.json",
-            json.dumps(
-                {
-                    "unit": HOSTNAME,
-                    "experiment": experiment,
-                    "stills": [to_builtins(still) for still in metadata],
-                },
-                indent=2,
-            ),
-        )
-        for still in metadata:
-            image_path = camera_still_image_path(still)
-            if image_path.exists():
-                zip_file.write(image_path, arcname=camera_still_filename(still.image_id))
-
-    buffer.seek(0)
-    return send_file(
-        buffer,
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=f"{HOSTNAME}_{experiment}_camera_stills.zip",
+    archive_file = NamedTemporaryFile(
+        prefix=f"{HOSTNAME}_camera_stills_",
+        suffix=".zip",
+        delete=False,
     )
+    archive_path = Path(archive_file.name)
+    archive_file.close()
+
+    try:
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.writestr(
+                "camera_stills_manifest.json",
+                json.dumps(
+                    {
+                        "unit": HOSTNAME,
+                        "experiment": experiment,
+                        "stills": [to_builtins(still) for still in metadata],
+                    },
+                    indent=2,
+                ),
+            )
+            for still in metadata:
+                image_path = camera_still_image_path(still)
+                if image_path.exists():
+                    zip_file.write(image_path, arcname=camera_still_filename(still.image_id))
+
+        @after_this_request
+        def cleanup_camera_stills_archive(response: Response) -> Response:
+            archive_path.unlink(missing_ok=True)
+            return response
+
+        return send_file(
+            archive_path,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{HOSTNAME}_{experiment}_camera_stills.zip",
+        )
+    except Exception:
+        archive_path.unlink(missing_ok=True)
+        raise
 
 
 @unit_api_bp.route("/camera/capture", methods=["POST"])

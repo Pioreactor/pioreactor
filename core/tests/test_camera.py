@@ -14,6 +14,7 @@ from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import capture_camera_still
 from pioreactor.camera import clear_camera_hardware_detection_cache
+from pioreactor.camera import delete_camera_still
 from pioreactor.camera import dev_camera_still_paths
 from pioreactor.camera import dev_camera_stills_path
 from pioreactor.camera import get_camera_status
@@ -161,6 +162,46 @@ def test_load_camera_still_metadata_requires_matching_experiment(
 
     assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") == metadata
     assert load_camera_still_metadata("unit-a", "experiment-b", "image-a") is None
+
+
+def test_delete_camera_still_removes_image_and_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+    metadata = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-a",
+    )
+
+    assert delete_camera_still("unit-a", "experiment-a", "image-a") == metadata
+    assert not camera_still_image_path(metadata).exists()
+    assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") is None
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        assert "image-a" not in storage
+
+
+def test_delete_camera_still_requires_matching_experiment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+    metadata = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-a",
+    )
+
+    assert delete_camera_still("unit-a", "experiment-b", "image-a") is None
+    assert camera_still_image_path(metadata).exists()
+    assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") == metadata
 
 
 def test_store_camera_still_rejects_unsafe_storage_names(

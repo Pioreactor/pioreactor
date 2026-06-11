@@ -395,6 +395,26 @@ def load_camera_still_metadata(
     return metadata
 
 
+def delete_camera_still(
+    unit: pt.Unit,
+    experiment: pt.Experiment,
+    image_id: str,
+    dot_pioreactor: Path | None = None,
+) -> CameraStillMetadata | None:
+    metadata = load_camera_still_metadata(unit, experiment, image_id, dot_pioreactor)
+    if metadata is None:
+        return None
+
+    image_path = camera_still_image_path(metadata, dot_pioreactor)
+    if image_path.exists():
+        image_path.unlink()
+
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        storage.pop(image_id, None)
+
+    return metadata
+
+
 def camera_still_image_path(metadata: CameraStillMetadata, dot_pioreactor: Path | None = None) -> Path:
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
     return root / CAMERA_STILLS_RELATIVE_DIR / camera_still_filename(metadata.image_id)

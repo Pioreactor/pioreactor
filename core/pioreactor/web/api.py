@@ -14,6 +14,7 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote
 
+from flask import after_this_request
 from flask import Blueprint
 from flask import jsonify
 from flask import request
@@ -39,7 +40,10 @@ from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response as MureqResponse
+from pioreactor.mureq import yield_response
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import create_webserver_path
+from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import publish
@@ -615,6 +619,39 @@ def get_camera_still_for_worker_experiment(
     )
 
 
+@api_bp.route(
+    "/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills/<image_id>.jpg",
+    methods=["DELETE"],
+)
+def delete_camera_still_for_worker_experiment(
+    pioreactor_unit: str, experiment: str, image_id: str
+) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot delete camera stills with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    response: MureqResponse | None = None
+    try:
+        response = delete_from(
+            resolve_registered_worker_address(pioreactor_unit),
+            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills/{quote(image_id, safe='')}.jpg",
+            timeout=20,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Deleting camera still failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
 @api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills.zip", methods=["GET"])
 def get_zipped_camera_stills_for_worker_experiment(
     pioreactor_unit: str, experiment: str
@@ -627,22 +664,61 @@ def get_zipped_camera_stills_for_worker_experiment(
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    response: MureqResponse | None = None
-    try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
-            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills.zip",
-            timeout=60,
-        )
-        response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException):
-        abort_with_worker_error(response, f"Downloading camera stills failed on {pioreactor_unit}.")
-
-    return Response(
-        response.content,
-        status=response.status_code,
-        content_type=response.headers.get("Content-Type", "application/zip"),
+    archive_file = tempfile.NamedTemporaryFile(
+        prefix=f"{pioreactor_unit}_camera_stills_",
+        suffix=".zip",
+        delete=False,
     )
+    archive_path = Path(archive_file.name)
+    error_response: MureqResponse | None = None
+
+    try:
+        worker_address = resolve_registered_worker_address(pioreactor_unit)
+        worker_endpoint = f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills.zip"
+        with yield_response(
+            "GET",
+            create_webserver_path(worker_address, worker_endpoint),
+            timeout=60,
+        ) as response:
+            if 400 <= response.status < 600:
+                error_response = MureqResponse(
+                    response.url,
+                    response.status,
+                    response.headers,
+                    response.read(1_048_576),
+                )
+                raise HTTPErrorStatus(response.status)
+
+            shutil.copyfileobj(response, archive_file, length=64 * 1024)
+    except (HTTPErrorStatus, HTTPException):
+        archive_file.close()
+        archive_path.unlink(missing_ok=True)
+        abort_with_worker_error(
+            error_response,
+            f"Downloading camera stills failed on {pioreactor_unit}.",
+        )
+    except Exception:
+        archive_file.close()
+        archive_path.unlink(missing_ok=True)
+        raise
+
+    archive_file.close()
+
+    @after_this_request
+    def cleanup_camera_stills_archive(response: Response) -> Response:
+        archive_path.unlink(missing_ok=True)
+        return response
+
+    try:
+        return send_file(
+            archive_path,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{pioreactor_unit}_{experiment}_camera_stills.zip",
+        )
+    except Exception:
+        archive_path.unlink(missing_ok=True)
+        raise
 
 
 @api_bp.route("/workers/<pioreactor_unit>/camera/capture", methods=["POST"])

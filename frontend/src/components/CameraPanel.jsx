@@ -21,6 +21,7 @@ import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupported
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
+import UnderlineSpan from "./UnderlineSpan";
 import { experimentPathSegment } from "../utils/url";
 
 function workerCameraPath(unit, suffix) {
@@ -41,6 +42,17 @@ function formatCaptureTime(metadata) {
   }
 
   return dayjs(metadata.captured_at).format("YYYY-MM-DD HH:mm:ss");
+}
+
+function formatCaptureDelta(metadata, experimentStartTime) {
+  if (!metadata?.captured_at || !experimentStartTime) {
+    return "";
+  }
+
+  const deltaHours = Math.round(
+    dayjs(metadata.captured_at).diff(dayjs(experimentStartTime), "hours", true) * 1e2,
+  ) / 1e2;
+  return `${deltaHours} h`;
 }
 
 function CameraEmptyState({ title, detail }) {
@@ -114,6 +126,7 @@ export default function CameraPanel({
   initialStatus = null,
   detailsHref = null,
   experiment = null,
+  experimentStartTime = null,
 }) {
   const [status, setStatus] = React.useState(initialStatus);
   const [loading, setLoading] = React.useState(!initialStatus);
@@ -193,7 +206,13 @@ export default function CameraPanel({
                 <Typography variant="h6" noWrap>{unit}</Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "right", whiteSpace: "nowrap"}}>
-                {formatCaptureTime(status?.latest_still)}
+                {experimentStartTime ? (
+                  <UnderlineSpan title={formatCaptureTime(status?.latest_still)}>
+                    {formatCaptureDelta(status?.latest_still, experimentStartTime)}
+                  </UnderlineSpan>
+                ) : (
+                  formatCaptureTime(status?.latest_still)
+                )}
               </Typography>
             </Stack>
 

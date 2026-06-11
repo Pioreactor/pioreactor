@@ -1332,6 +1332,9 @@ def test_broadcast_in_manage_all(client) -> None:
 def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignments(
     client, monkeypatch: MonkeyPatch
 ) -> None:
+    from pioreactor.mureq import _prepare_request
+    from pioreactor.pubsub import create_webserver_path
+
     class FakeTaskResult:
         def get(self, blocking: bool, timeout: float) -> dict[str, dict]:
             return {
@@ -1352,8 +1355,11 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
     def fake_broadcast_get_across_workers_ever_assigned_to_experiment(
         endpoint: str, experiment: str, timeout: float
     ) -> FakeTaskResult:
+        _, connection, path = _prepare_request("GET", create_webserver_path("unit1.local", endpoint))
+        connection.close()
         captured["endpoint"] = endpoint
         captured["experiment"] = experiment
+        captured["path"] = path
         captured["timeout"] = timeout
         return FakeTaskResult()
 
@@ -1362,12 +1368,13 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
         fake_broadcast_get_across_workers_ever_assigned_to_experiment,
     )
 
-    response = client.get("/api/experiments/exp1/cameras")
+    response = client.get("/api/experiments/experiment%20a%3F/cameras")
 
     assert response.status_code == 200
     assert captured == {
-        "endpoint": "/unit_api/camera/experiments/exp1/status",
-        "experiment": "exp1",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/status",
+        "experiment": "experiment a?",
+        "path": "/unit_api/camera/experiments/experiment%20a%3F/status",
         "timeout": 5,
     }
     assert set(response.get_json()["cameras"]) == {"unit1", "unit2"}
@@ -1408,13 +1415,18 @@ def test_latest_camera_still_proxy_preserves_image_content_type(client, monkeypa
 
 def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.api as mod
+    from pioreactor.mureq import _prepare_request
     from pioreactor.mureq import Response as MureqResponse
+    from pioreactor.pubsub import create_webserver_path
 
     captured: dict[str, str] = {}
 
     def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        _, connection, path = _prepare_request("GET", create_webserver_path(address, endpoint))
+        connection.close()
         captured["address"] = address
         captured["endpoint"] = endpoint
+        captured["path"] = path
         return MureqResponse(
             f"http://{address}{endpoint}",
             200,
@@ -1425,25 +1437,31 @@ def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatc
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "get_from", fake_get_from)
 
-    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills")
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a%3F/stills")
 
     assert response.status_code == 200
     assert response.get_json() == {"unit": "unit1", "experiment": "experiment a", "stills": []}
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/stills",
+        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills",
     }
 
 
 def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.api as mod
+    from pioreactor.mureq import _prepare_request
     from pioreactor.mureq import Response as MureqResponse
+    from pioreactor.pubsub import create_webserver_path
 
     captured: dict[str, str] = {}
 
     def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        _, connection, path = _prepare_request("GET", create_webserver_path(address, endpoint))
+        connection.close()
         captured["address"] = address
         captured["endpoint"] = endpoint
+        captured["path"] = path
         return MureqResponse(
             f"http://{address}{endpoint}",
             200,
@@ -1454,44 +1472,143 @@ def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: Mo
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "get_from", fake_get_from)
 
-    response = client.get("/api/workers/unit1/camera/experiments/experiment-a/stills/image-1.jpg")
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg")
 
     assert response.status_code == 200
     assert response.data == b"fake jpeg"
     assert response.content_type == "image/jpeg"
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment-a/stills/image-1.jpg",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
+        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
+    }
+
+
+def test_delete_camera_still_proxy_forwards_to_worker(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import _prepare_request
+    from pioreactor.mureq import Response as MureqResponse
+    from pioreactor.pubsub import create_webserver_path
+
+    captured: dict[str, str] = {}
+
+    def fake_delete_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        _, connection, path = _prepare_request("DELETE", create_webserver_path(address, endpoint))
+        connection.close()
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        captured["path"] = path
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "application/json"},
+            b'{"image_id":"image-1"}',
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "delete_from", fake_delete_from)
+
+    response = client.delete(
+        "/api/workers/unit1/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"image_id": "image-1"}
+    assert captured == {
+        "address": "unit1.local",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
+        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
     }
 
 
 def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.api as mod
-    from pioreactor.mureq import Response as MureqResponse
+    from http.client import HTTPMessage
+    from pioreactor.mureq import _prepare_request
 
-    captured: dict[str, str] = {}
+    captured: dict[str, object] = {"read_sizes": []}
 
-    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
-        captured["address"] = address
-        captured["endpoint"] = endpoint
-        return MureqResponse(
-            f"http://{address}{endpoint}",
-            200,
-            {"Content-Type": "application/zip"},
-            b"fake zip",
-        )
+    class FakeStreamingResponse:
+        url = "http://unit1.local/unit_api/camera/experiments/experiment%20a%3F/stills.zip"
+        status = 200
+        headers = HTTPMessage()
+        chunks = iter((b"fake ", b"zip", b""))
+
+        def read(self, size: int) -> bytes:
+            captured["read_sizes"].append(size)
+            return next(self.chunks)
+
+    class FakeStreamingResponseContext:
+        def __enter__(self) -> FakeStreamingResponse:
+            return FakeStreamingResponse()
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    FakeStreamingResponse.headers["Content-Type"] = "application/zip"
+
+    def fake_yield_response(method: str, url: str, **kwargs: object) -> FakeStreamingResponseContext:
+        _, connection, path = _prepare_request(method, url)
+        connection.close()
+        captured["path"] = path
+        captured["timeout"] = kwargs["timeout"]
+        return FakeStreamingResponseContext()
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr(mod, "yield_response", fake_yield_response)
 
-    response = client.get("/api/workers/unit1/camera/experiments/experiment-a/stills.zip")
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a%3F/stills.zip")
 
     assert response.status_code == 200
     assert response.data == b"fake zip"
     assert response.content_type == "application/zip"
+    assert response.headers["Content-Disposition"].startswith("attachment;")
     assert captured == {
-        "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment-a/stills.zip",
+        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills.zip",
+        "read_sizes": [64 * 1024, 64 * 1024, 64 * 1024],
+        "timeout": 60,
+    }
+
+
+def test_zipped_camera_stills_proxy_preserves_worker_error_details(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from http.client import HTTPMessage
+
+    class FakeErrorResponse:
+        url = "http://unit1.local/unit_api/camera/experiments/experiment-a/stills.zip"
+        status = 503
+        headers = HTTPMessage()
+
+        def read(self, size: int) -> bytes:
+            assert size == 1_048_576
+            return (
+                b'{"error":"Camera archive unavailable.","status":503,'
+                b'"cause":"The worker ran out of temporary storage.",'
+                b'"remediation":"Free storage on the worker and retry."}'
+            )
+
+    class FakeErrorResponseContext:
+        def __enter__(self) -> FakeErrorResponse:
+            return FakeErrorResponse()
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(
+        mod,
+        "yield_response",
+        lambda *_args, **_kwargs: FakeErrorResponseContext(),
+    )
+
+    response = client.get("/api/workers/unit1/camera/experiments/experiment-a/stills.zip")
+
+    assert response.status_code == 503
+    assert response.get_json() == {
+        "error": "Camera archive unavailable.",
+        "status": 503,
+        "cause": "The worker ran out of temporary storage.",
+        "remediation": "Free storage on the worker and retry.",
     }
 
 

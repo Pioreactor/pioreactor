@@ -147,6 +147,7 @@ export default function Cameras({ title }) {
               initialStatus={result.status}
               detailsHref={`/cameras/${encodeURIComponent(result.unit)}`}
               experiment={experiment}
+              experimentStartTime={experimentMetadata?.created_at}
             />
           </Grid>
         ))}
