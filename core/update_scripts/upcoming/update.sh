@@ -4,11 +4,29 @@ set -xeu
 
 export LC_ALL=C
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTNAME=$(hostname)
 LEADER_HOSTNAME=$(sudo -u pioreactor -i pio config get cluster.topology leader_hostname)
 
 if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
   exit 0
+fi
+
+LIGHTTPD_CONFIG_SOURCE="$SCRIPT_DIR/50-pioreactorui.conf"
+LIGHTTPD_CONFIG_DESTINATION="/etc/lighttpd/conf-available/50-pioreactorui.conf"
+
+if [ ! -s "$LIGHTTPD_CONFIG_SOURCE" ]; then
+  sudo -u pioreactor -i pio log -l ERROR -m "Missing or empty Lighttpd update asset: $LIGHTTPD_CONFIG_SOURCE"
+  exit 1
+fi
+
+LIGHTTPD_CONFIG_TEMP=$(mktemp /etc/lighttpd/conf-available/50-pioreactorui.conf.XXXXXX)
+install -o root -g root -m 0644 "$LIGHTTPD_CONFIG_SOURCE" "$LIGHTTPD_CONFIG_TEMP"
+mv "$LIGHTTPD_CONFIG_TEMP" "$LIGHTTPD_CONFIG_DESTINATION"
+
+if ! cmp -s "$LIGHTTPD_CONFIG_SOURCE" "$LIGHTTPD_CONFIG_DESTINATION"; then
+  sudo -u pioreactor -i pio log -l ERROR -m "Failed to install $LIGHTTPD_CONFIG_DESTINATION"
+  exit 1
 fi
 
 DATABASE=$(sudo -u pioreactor -i pio config get storage database)
