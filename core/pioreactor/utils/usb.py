@@ -126,7 +126,6 @@ def discover_usb_partitions() -> list[UsbPartition]:
             text=True,
         )
     except (OSError, subprocess.SubprocessError):
-        return []
         if fake_usb_partition is not None:
             return [fake_usb_partition]
         raise

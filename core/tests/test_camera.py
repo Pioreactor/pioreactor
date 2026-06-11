@@ -13,6 +13,7 @@ from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import capture_camera_still
+from pioreactor.camera import clear_camera_hardware_detection_cache
 from pioreactor.camera import dev_camera_still_paths
 from pioreactor.camera import dev_camera_stills_path
 from pioreactor.camera import get_camera_status
@@ -29,11 +30,13 @@ def write_source_image(path: Path, contents: bytes = b"fake jpeg") -> None:
 
 @pytest.fixture(autouse=True)
 def clear_camera_stills_metadata() -> Generator[None, None, None]:
+    clear_camera_hardware_detection_cache()
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
         storage.empty()
 
     yield
 
+    clear_camera_hardware_detection_cache()
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
         storage.empty()
 
@@ -205,6 +208,25 @@ def test_camera_hardware_detection_returns_false_without_indexed_camera(
     monkeypatch.setattr("pioreactor.camera.subprocess.run", lambda *_args, **_kwargs: Completed())
 
     assert camera_hardware_is_detected("/usr/bin/rpicam-still") is False
+
+
+def test_camera_status_reuses_cached_hardware_detection(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def detect_camera(_capture_command: str) -> bool:
+        nonlocal calls
+        calls += 1
+        return True
+
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: f"/usr/bin/{command}")
+    monkeypatch.setattr("pioreactor.camera.camera_hardware_is_detected", detect_camera)
+
+    first_status = get_camera_status("unit-a")
+    second_status = get_camera_status("unit-a")
+
+    assert first_status["available"] is True
+    assert second_status["available"] is True
+    assert calls == 1
 
 
 def test_dev_camera_stills_are_discovered_only_when_testing_is_enabled(

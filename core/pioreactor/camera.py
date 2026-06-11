@@ -10,6 +10,7 @@ import tempfile
 import uuid
 from datetime import datetime
 from datetime import UTC
+from functools import cache
 from pathlib import Path
 from typing import Annotated
 from typing import cast
@@ -209,6 +210,15 @@ def camera_hardware_is_detected(capture_command: str, timeout: float = 3.0) -> b
     return bool(re.search(r"(?m)^\s*\d+\s*:", output))
 
 
+@cache
+def camera_hardware_is_detected_cached(capture_command: str) -> bool:
+    return camera_hardware_is_detected(capture_command)
+
+
+def clear_camera_hardware_detection_cache() -> None:
+    camera_hardware_is_detected_cached.cache_clear()
+
+
 def get_camera_status(
     unit: pt.Unit,
     *,
@@ -218,7 +228,7 @@ def get_camera_status(
     capture_command = find_camera_capture_command()
     dev_stills_available = dev_camera_stills_are_available(dot_pioreactor)
     camera_detected = (
-        camera_hardware_is_detected(capture_command) if capture_command is not None else False
+        camera_hardware_is_detected_cached(capture_command) if capture_command is not None else False
     ) or dev_stills_available
     latest_metadata = load_latest_camera_still_metadata(
         unit, experiment=experiment, dot_pioreactor=dot_pioreactor

@@ -49,7 +49,6 @@ export default function Cameras({ title }) {
   const { experimentMetadata } = useExperiment();
   const [cameraResults, setCameraResults] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
   const experiment = experimentMetadata?.experiment;
 
   const loadCameraStatuses = React.useCallback(async ({ signal, showLoading = true } = {}) => {
@@ -62,7 +61,6 @@ export default function Cameras({ title }) {
     if (showLoading) {
       setLoading(true);
     }
-    setError(null);
 
     try {
       const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/cameras`, { signal });
@@ -73,11 +71,7 @@ export default function Cameras({ title }) {
 
       const payload = await response.json();
       setCameraResults(normalizeCameraResults(payload));
-    } catch (error) {
-      if (error.name !== "AbortError") {
-        setError(error.message);
-      }
-    } finally {
+    } catch (error) {} finally {
       if (!signal?.aborted) {
         setLoading(false);
       }
@@ -146,7 +140,7 @@ export default function Cameras({ title }) {
 
 
       <Grid container spacing={2}>
-        {cameraCapableResults.map((result, index) => (
+        {cameraCapableResults.map((result, _) => (
           <Grid key={result.unit} size={{ xs: 12, md: 6, xl: 4 }}>
             <CameraPanel
               unit={result.unit}

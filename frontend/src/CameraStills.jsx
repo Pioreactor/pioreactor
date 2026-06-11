@@ -117,7 +117,6 @@ export default function CameraStills({ title }) {
     };
   }, [loadStills, refreshIntervalMs]);
 
-  const latestStill = stills.length > 0 ? stills[stills.length - 1] : null;
   const downloadHref = pioreactorUnit && experiment
     ? workerExperimentCameraPath(pioreactorUnit, experiment, "stills.zip")
     : "";
@@ -170,7 +169,7 @@ export default function CameraStills({ title }) {
             </Box>
           </Stack>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <Button onClick={() => loadStills()} disabled={loading || !experiment} sx={{ textTransform: "none", whiteSpace: "nowrap" }} startIcon=<RefreshIcon/> >
+            <Button onClick={() => loadStills()} disabled={loading || !experiment} sx={{ textTransform: "none", whiteSpace: "nowrap" }} startIcon={<RefreshIcon/>}>
               Refresh
             </Button>
 
