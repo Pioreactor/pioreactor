@@ -2,9 +2,11 @@
 """
 Additional unit tests for unit_api endpoints.
 """
+import zipfile
 from collections import namedtuple
 from datetime import datetime
 from datetime import timezone
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -52,6 +54,40 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
 
     assert resp.status_code == 200
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
+
+
+def test_system_path_rejects_symlink_outside_dot_pioreactor(
+    client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    outside_file = tmp_path / "outside.txt"
+    outside_file.write_text("secret", encoding="utf-8")
+    (dot_pioreactor / "outside-link").symlink_to(outside_file)
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    response = client.get("/unit_api/system/path/outside-link")
+
+    assert response.status_code == 403
+
+
+def test_zipped_dot_pioreactor_skips_symlink_outside_root(
+    client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text("[section]\n", encoding="utf-8")
+    outside_file = tmp_path / "outside.txt"
+    outside_file.write_text("secret", encoding="utf-8")
+    (dot_pioreactor / "outside-link").symlink_to(outside_file)
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    response = client.get("/unit_api/zipped_dot_pioreactor")
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(BytesIO(response.data)) as archive:
+        assert archive.read("config.ini") == b"[section]\n"
+        assert "outside-link" not in archive.namelist()
 
 
 def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:

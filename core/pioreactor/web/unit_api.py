@@ -75,7 +75,6 @@ from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import load_settings_collection_descriptors
 from pioreactor.web.utils import wait_for_bool_task_result
 from werkzeug.exceptions import HTTPException
-from werkzeug.security import safe_join
 
 AllCalibrations = subclass_union(CalibrationBase)
 AllEstimators = subclass_union(structs.EstimatorBase)
@@ -842,20 +841,11 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or browse locally via SSH.",
         )
 
-    BASE_DIR = os.environ["DOT_PIOREACTOR"]
-
-    # Safely join to prevent directory traversal
-    safe_path = safe_join(BASE_DIR, req_path)
-    if not safe_path:
-        abort_with(
-            403,
-            "Invalid path.",
-            cause="Requested path could not be safely resolved.",
-            remediation="Provide a path within the .pioreactor directory.",
-        )
+    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    requested_path = base_dir / req_path
 
     # Check if the path actually exists
-    if not os.path.exists(safe_path):
+    if not requested_path.exists():
         abort_with(
             404,
             "Path not found.",
@@ -863,9 +853,18 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
             remediation="Check the path and try again.",
         )
 
+    requested_path = requested_path.resolve()
+    if not requested_path.is_relative_to(base_dir):
+        abort_with(
+            403,
+            "Access to this path is not allowed",
+            cause="Requested path is outside the .pioreactor directory.",
+            remediation="Provide a path within the .pioreactor directory.",
+        )
+
     # If it's a file, serve the file
-    if os.path.isfile(safe_path):
-        if safe_path.endswith((".sqlite", ".sqlite.backup", ".sqlite-shm", ".sqlite-wal")):
+    if requested_path.is_file():
+        if requested_path.name.endswith((".sqlite", ".sqlite.backup", ".sqlite-shm", ".sqlite-wal")):
             abort_with(
                 403,
                 "Access to downloading sqlite files is restricted.",
@@ -873,26 +872,10 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
                 remediation="Access the database directly on the device.",
             )
 
-        return send_file(safe_path, mimetype="text/plain")
-
-    # Joining the base and the requested path
-    abs_path = os.path.join(BASE_DIR, req_path)
-
-    # Return 404 if path doesn't exist
-    if not os.path.exists(abs_path):
-        abort_with(
-            404,
-            "Path not found.",
-            cause=f"Path does not exist: {req_path}",
-            remediation="Check the path and try again.",
-        )
-
-    # Check if path is a file and serve
-    if os.path.isfile(abs_path):
-        return send_file(abs_path)
+        return send_file(requested_path, mimetype="text/plain")
 
     # Show directory contents
-    current, dirs, files = next(os.walk(abs_path))
+    current, dirs, files = next(os.walk(requested_path))
 
     return attach_cache_control(
         jsonify(
@@ -1754,6 +1737,8 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
             skip_backup = base_dir / "storage" / "pioreactor.sqlite.backup"
             for path in sorted(base_dir.rglob("*")):
                 if not path.exists():
+                    continue
+                if not path.resolve().is_relative_to(base_dir):
                     continue
                 if path == skip_backup:
                     continue
