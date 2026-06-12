@@ -15,6 +15,7 @@ from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.experiment_profiles.plugin_versions import parse_plugin_version_constraint
 from pioreactor.experiment_profiles.validate import (
     check_syntax_of_bool_expression as validate_check_syntax_of_bool_expression,
 )
@@ -1018,32 +1019,15 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
         # this can be slow, so skip it if no plugins are needed
         return
 
-    from packaging.version import Version
-
     installed_plugins = get_installed_plugins_and_versions()
     not_installed = []
 
     for required_plugin in required_plugins:
         required_name = required_plugin.name
-        required_version = required_plugin.version
         if required_name in installed_plugins:
-            installed_version = Version(installed_plugins[required_name])
-            if required_version.startswith(">="):
-                # Version constraint is '>='
-                if not (installed_version >= Version(required_version[2:])):
-                    not_installed.append(required_plugin)
-            elif required_version.startswith("<="):
-                # Version constraint is '<='
-                if not (installed_version <= Version(required_version[2:])):
-                    not_installed.append(required_plugin)
-            elif required_version.startswith("=="):
-                # specific version constraint, exact version match required
-                if installed_version != Version(required_version):
-                    not_installed.append(required_plugin)
-            else:
-                # No version constraint, exact version match required
-                if installed_version != Version(required_version):
-                    not_installed.append(required_plugin)
+            required_versions = parse_plugin_version_constraint(required_plugin.version)
+            if installed_plugins[required_name] not in required_versions:
+                not_installed.append(required_plugin)
         else:
             not_installed.append(required_plugin)
 

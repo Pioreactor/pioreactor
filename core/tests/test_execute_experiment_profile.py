@@ -6,6 +6,7 @@ import pytest
 from msgspec.json import encode
 from msgspec.yaml import decode
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
+from pioreactor.actions.leader.experiment_profile import check_plugins
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.actions.leader.experiment_profile import seconds_to_hours
@@ -1452,6 +1453,40 @@ def test_plugin_version_checks(
     )
     mock__load_experiment_profile.return_value = profile_with_nontrivial_version
     execute_experiment_profile("profile.yaml", experiment)
+
+
+@pytest.mark.parametrize(
+    ("constraint", "installed_version"),
+    [
+        ("0.2.0", "0.2.0"),
+        ("==0.2.0", "0.2.0"),
+        (">=0.1.0", "0.2.0"),
+        ("<=0.2.0", "0.2.0"),
+    ],
+)
+@patch(
+    "pioreactor.actions.leader.experiment_profile.get_installed_plugins_and_versions",
+    return_value={"example": "0.2.0"},
+)
+def test_check_plugins_accepts_supported_version_constraints(
+    mock_get_installed_plugins_and_versions,
+    constraint: str,
+    installed_version: str,
+) -> None:
+    mock_get_installed_plugins_and_versions.return_value = {"example": installed_version}
+
+    check_plugins([Plugin(name="example", version=constraint)])
+
+
+@patch(
+    "pioreactor.actions.leader.experiment_profile.get_installed_plugins_and_versions",
+    return_value={"example": "0.2.0"},
+)
+def test_check_plugins_rejects_unmatched_version_constraint(
+    mock_get_installed_plugins_and_versions,
+) -> None:
+    with pytest.raises(ImportError):
+        check_plugins([Plugin(name="example", version="==0.1.0")])
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

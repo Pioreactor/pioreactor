@@ -6,6 +6,9 @@ from msgspec import Struct
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.experiment_profiles.diagnostics import Diagnostic
 from pioreactor.experiment_profiles.parser import check_syntax
+from pioreactor.experiment_profiles.plugin_versions import parse_plugin_version_constraint
+
+from packaging.specifiers import InvalidSpecifier
 
 
 STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
@@ -395,8 +398,23 @@ def _validate_execution_order_for_job(
             has_started = False
 
 
+def _validate_plugin_versions(diagnostics: list[Diagnostic], plugins: list[struct.Plugin]) -> None:
+    for index, plugin in enumerate(plugins):
+        try:
+            parse_plugin_version_constraint(plugin.version)
+        except InvalidSpecifier:
+            _append_error(
+                diagnostics,
+                "plugin.version.invalid",
+                "Expected a version or one of `==`, `>=`, or `<=` followed by a valid version.",
+                f"plugins[{index}].version",
+            )
+
+
 def validate_profile(profile: struct.Profile) -> ValidationResult:
     diagnostics: list[Diagnostic] = []
+
+    _validate_plugin_versions(diagnostics, profile.plugins)
 
     for path, action in _iter_profile_actions(profile):
         _validate_action_structure(diagnostics, path=path, action=action)

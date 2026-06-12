@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 
+import pytest
 from msgspec.yaml import decode as yaml_decode
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Job
 from pioreactor.experiment_profiles.profile_struct import Metadata
+from pioreactor.experiment_profiles.profile_struct import Plugin
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.profile_struct import Repeat
 from pioreactor.experiment_profiles.profile_struct import Start
@@ -46,6 +48,39 @@ def test_validate_profile_returns_error_diagnostic_for_invalid_expression() -> N
     assert result.diagnostics[0].severity == "error"
     assert result.diagnostics[0].code == "expression.syntax"
     assert result.diagnostics[0].path == "common.jobs.stirring.actions[0].if"
+
+
+def test_validate_profile_accepts_supported_plugin_version_constraints() -> None:
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[
+            Plugin(name="bare", version="1.2.3"),
+            Plugin(name="exact", version="==1.2.3"),
+            Plugin(name="minimum", version=">=1.2.3"),
+            Plugin(name="maximum", version="<=1.2.3"),
+        ],
+    )
+
+    result = validate_profile(profile)
+
+    assert result.ok is True
+    assert result.diagnostics == []
+
+
+@pytest.mark.parametrize("constraint", ["", ">1.2.3", "~=1.2", ">=1,<2", "not-a-version"])
+def test_validate_profile_rejects_unsupported_or_malformed_plugin_version_constraints(
+    constraint: str,
+) -> None:
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[Plugin(name="example", version=constraint)],
+    )
+
+    result = validate_profile(profile)
+
+    assert result.ok is False
+    assert result.diagnostics[0].code == "plugin.version.invalid"
+    assert result.diagnostics[0].path == "plugins[0].version"
 
 
 def test_validate_profile_checks_all_expression_fields_with_full_parser() -> None:
