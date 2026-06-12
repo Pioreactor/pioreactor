@@ -1224,6 +1224,44 @@ common:
     assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0]"
 
 
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("post", "/api/experiment_profiles"),
+        ("patch", "/api/experiment_profiles/validator_expression_error_test.yaml"),
+    ],
+)
+def test_experiment_profile_mutations_reject_incomplete_expressions(
+    client: FlaskClient, method: str, path: str
+) -> None:
+    payload = {
+        "body": """
+experiment_profile_name: demo
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          t: 0s
+          if: 1 +
+"""
+    }
+    if method == "post":
+        payload["filename"] = "validator_expression_error_test.yaml"
+
+    response = client.open(
+        path,
+        method=method,
+        json=payload,
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["error"] == "Validation error."
+    assert payload["diagnostics"][0]["code"] == "expression.syntax"
+    assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0].if"
+
+
 def test_create_experiment_profile_reports_save_failure(client, monkeypatch) -> None:
     monkeypatch.setattr("pioreactor.web.api.tasks.save_file", lambda *_args, **_kwargs: FakeTaskResult(False))
 

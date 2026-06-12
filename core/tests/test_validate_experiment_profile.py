@@ -33,7 +33,7 @@ def test_validate_profile_returns_error_diagnostic_for_invalid_expression() -> N
             jobs={
                 "stirring": Job(
                     actions=[
-                        Start(hours_elapsed=0.0, if_="1 % 1 and "),
+                        Start(hours_elapsed=0.0, if_="1 +"),
                     ]
                 )
             }
@@ -46,6 +46,63 @@ def test_validate_profile_returns_error_diagnostic_for_invalid_expression() -> N
     assert result.diagnostics[0].severity == "error"
     assert result.diagnostics[0].code == "expression.syntax"
     assert result.diagnostics[0].path == "common.jobs.stirring.actions[0].if"
+
+
+def test_validate_profile_checks_all_expression_fields_with_full_parser() -> None:
+    profile = yaml_decode(
+        b"""
+experiment_profile_name: test_profile
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          t: 0s
+          if: 1 +
+        - type: repeat
+          t: 0s
+          every: 1h
+          while: 1 +
+          actions:
+            - type: start
+              t: 0s
+        - type: when
+          t: 0s
+          condition: 1 +
+          actions:
+            - type: start
+              t: 0s
+        - type: when
+          t: 0s
+          wait_until: 1 +
+          actions:
+            - type: start
+              t: 0s
+        - type: start
+          t: 0s
+          options:
+            target_rpm: "${{ 1 + }}"
+        - type: log
+          t: 0s
+          options:
+            message: "value ${{ 1 + }}"
+""",
+        type=Profile,
+    )
+
+    result = validate_profile(profile)
+
+    assert result.ok is False
+    assert {
+        diagnostic.path for diagnostic in result.diagnostics if diagnostic.code == "expression.syntax"
+    } == {
+        "common.jobs.stirring.actions[0].if",
+        "common.jobs.stirring.actions[1].while",
+        "common.jobs.stirring.actions[2].condition",
+        "common.jobs.stirring.actions[3].wait_until",
+        "common.jobs.stirring.actions[4].options.target_rpm",
+        "common.jobs.stirring.actions[5].options.message",
+    }
 
 
 def test_validate_profile_warns_when_repeat_action_exceeds_cycle_time() -> None:

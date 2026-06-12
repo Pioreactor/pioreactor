@@ -6,6 +6,7 @@ from math import sqrt
 import pytest
 from msgspec.json import encode
 from pioreactor import structs
+from pioreactor.experiment_profiles.parser import check_syntax
 from pioreactor.experiment_profiles.parser import parse_profile_expression
 from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 from pioreactor.experiment_profiles.sly.lex import LexError
@@ -43,6 +44,14 @@ def test_syntax_errors_and_typos() -> None:
 
     with pytest.raises(LexError):
         assert parse_profile_expression_to_bool("test.test > 1")  # test.test is too few for mqtt fetches
+
+
+def test_check_syntax_parses_without_evaluating_expression() -> None:
+    assert check_syntax("1 + 2")
+    assert check_syntax(f"{unit}:od_reading:od1.od > 1")
+    assert check_syntax("1 / 0")
+    assert not check_syntax("1 +")
+    assert not check_syntax("(1 + 2")
 
 
 def test_simple_float_comparison() -> None:
