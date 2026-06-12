@@ -603,6 +603,36 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
     assert response.status_code == 202
 
 
+def test_run_job_rejects_manual_add_media_for_unknown_model(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
+    monkeypatch.setattr(
+        mod.tasks,
+        "pio_run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    response = client.patch(
+        "/unit_api/jobs/run/job_name/add_media",
+        json={
+            "args": [],
+            "options": {"ml": 1.0},
+            "env": {
+                "EXPERIMENT": "exp1",
+                "MODEL_NAME": "unknown_model",
+                "MODEL_VERSION": "1.0",
+            },
+            "config_overrides": [],
+        },
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data["error"] == "Unknown Pioreactor model."
+    assert data["cause"] == "Unknown model 'unknown_model' with version '1.0'."
+
+
 def test_hardware_check_requires_model_payload(client) -> None:
     resp = client.post("/unit_api/hardware/check", json={})
     assert resp.status_code == 400
@@ -839,6 +869,47 @@ def test_create_calibration_returns_error_if_save_fails(client, monkeypatch) -> 
     assert response.status_code == 500
     with local_persistent_storage("active_calibrations") as cache:
         assert cache.get("media_pump") is None
+
+
+@pytest.mark.parametrize(
+    ("method", "endpoint", "invalid_field"),
+    [
+        ("get", "/unit_api/calibrations/%2E%2E", "device"),
+        ("get", "/unit_api/calibrations/media_pump/%2E%2E", "calibration_name"),
+        ("delete", "/unit_api/calibrations/%2E%2E/reference", "device"),
+        ("patch", "/unit_api/active_calibrations/media_pump/%2E%2E", "calibration_name"),
+        ("delete", "/unit_api/active_calibrations/%2E%2E", "device"),
+        ("get", "/unit_api/estimators/%2E%2E", "device"),
+        ("get", "/unit_api/estimators/od_fused/%2E%2E", "estimator_name"),
+        ("delete", "/unit_api/estimators/%2E%2E/reference", "device"),
+        ("patch", "/unit_api/active_estimators/od_fused/%2E%2E", "estimator_name"),
+        ("delete", "/unit_api/active_estimators/%2E%2E", "device"),
+    ],
+)
+def test_calibration_and_estimator_routes_reject_invalid_path_components(
+    client, method: str, endpoint: str, invalid_field: str
+) -> None:
+    response = client.open(endpoint, method=method)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == f"Missing or invalid '{invalid_field}'."
+    assert response.get_json()["cause"] == (
+        f"{invalid_field.replace('_', ' ').capitalize()} is missing or contains invalid characters."
+    )
+    assert response.get_json()["remediation"] is not None
+
+
+def test_create_calibration_accepts_valid_filename_characters(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: FakeTaskResult(True))
+
+    response = client.post(
+        "/unit_api/calibrations/media-pump_2.1",
+        json={"calibration_data": _build_valid_calibration_yaml("reference 2.1")},
+    )
+
+    assert response.status_code == 201
 
 
 def test_set_active_calibration_rejects_missing_file(client, monkeypatch, tmp_path) -> None:

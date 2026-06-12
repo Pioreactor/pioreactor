@@ -108,7 +108,8 @@ class ProfileParser(Parser):
     tokens = ProfileLexer.tokens
 
     precedence = (
-        ("left", AND, OR),
+        ("left", OR),
+        ("left", AND),
         ("right", NOT),
         ("nonassoc", LESS_THAN, EQUAL, GREATER_THAN),
         ("right", UMINUS),

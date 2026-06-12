@@ -87,6 +87,19 @@ unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 register_calibration_session_routes(unit_api_bp)
 
 
+def _validate_storage_path_component(value: str, field: str) -> None:
+    if not value or not is_valid_unix_filename(value):
+        readable_field = field.replace("_", " ")
+        abort_with(
+            400,
+            description=f"Missing or invalid '{field}'.",
+            cause=f"{readable_field.capitalize()} is missing or contains invalid characters.",
+            remediation=(
+                f"Provide a valid {field} using letters, digits, spaces, dots, dashes, or underscores."
+            ),
+        )
+
+
 @unit_api_bp.route("/usb", methods=["GET"])
 def get_usb_status() -> ResponseReturnValue:
     return jsonify(usb_utils.get_usb_status().as_dict())
@@ -977,7 +990,12 @@ def is_manual_dosing_volume_unsafe(
                 (model_name, model_version)
             ].reactor_max_fill_volume_ml
         except KeyError:
-            return False
+            abort_with(
+                400,
+                "Unknown Pioreactor model.",
+                cause=f"Unknown model '{model_name}' with version '{model_version}'.",
+                remediation="Assign a model available on this worker before dosing.",
+            )
     else:
         safety_threshold_ml = whoami.get_pioreactor_model(whoami.get_unit_name()).reactor_max_fill_volume_ml
 
@@ -1475,20 +1493,8 @@ def create_calibration(device: str) -> ResponseReturnValue:
         calibration_data = yaml_decode(raw_yaml, type=AllCalibrations)
         calibration_name = calibration_data.calibration_name
 
-        if not calibration_name or not is_valid_unix_filename(calibration_name):
-            abort_with(
-                400,
-                description="Missing or invalid 'calibration_name'.",
-                cause="Calibration name missing or contains invalid characters.",
-                remediation="Provide a valid calibration_name using letters, digits, dashes, or underscores.",
-            )
-        elif not device or not is_valid_unix_filename(device):
-            abort_with(
-                400,
-                description="Missing or invalid 'device'.",
-                cause="Device name missing or contains invalid characters.",
-                remediation="Provide a valid device name (letters, digits, dashes, or underscores).",
-            )
+        _validate_storage_path_component(device, "device")
+        _validate_storage_path_component(calibration_name, "calibration_name")
 
         path = calibration_data.path_on_disk_for_device(device)
         save_result = tasks.save_file(str(path), raw_yaml)
@@ -1527,6 +1533,8 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
     """
     Delete a specific calibration for a given device.
     """
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not calibration_path.exists():
@@ -1905,6 +1913,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
 
 @unit_api_bp.route("/calibrations/<device>", methods=["GET"])
 def get_calibrations_by_device(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     calibration_dir = CALIBRATION_PATH / device
 
     if not calibration_dir.exists():
@@ -1932,6 +1941,8 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["GET"])
 def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not calibration_path.exists():
@@ -1960,6 +1971,7 @@ def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/estimators/<device>", methods=["GET"])
 def get_estimators_by_device(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     estimator_dir = ESTIMATOR_PATH / device
 
     if not estimator_dir.exists():
@@ -1982,6 +1994,8 @@ def get_estimators_by_device(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/estimators/<device>/<estimator_name>", methods=["GET"])
 def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(estimator_name, "estimator_name")
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
 
     if not estimator_path.exists():
@@ -2011,6 +2025,8 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/active_calibrations/<device>/<calibration_name>", methods=["PATCH"])
 def set_active_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
     if not calibration_path.is_file():
         abort_with(
@@ -2028,6 +2044,7 @@ def set_active_calibration(device: str, calibration_name: str) -> ResponseReturn
 
 @unit_api_bp.route("/active_calibrations/<device>", methods=["DELETE"])
 def remove_active_status_calibration(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     with local_persistent_storage("active_calibrations") as c:
         if device in c:
             c.pop(device)
@@ -2037,6 +2054,8 @@ def remove_active_status_calibration(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/active_estimators/<device>/<estimator_name>", methods=["PATCH"])
 def set_active_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(estimator_name, "estimator_name")
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
     if not estimator_path.is_file():
         abort_with(
@@ -2054,6 +2073,7 @@ def set_active_estimator(device: str, estimator_name: str) -> ResponseReturnValu
 
 @unit_api_bp.route("/active_estimators/<device>", methods=["DELETE"])
 def remove_active_status_estimator(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     with local_persistent_storage("active_estimators") as c:
         if device in c:
             c.pop(device)
@@ -2063,6 +2083,8 @@ def remove_active_status_estimator(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/estimators/<device>/<estimator_name>", methods=["DELETE"])
 def delete_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(estimator_name, "estimator_name")
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
 
     if not estimator_path.exists():

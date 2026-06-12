@@ -29,6 +29,8 @@ def test_simple_bool() -> None:
     assert parse_profile_expression_to_bool("True and True")
     assert not parse_profile_expression_to_bool("True and False")
     assert parse_profile_expression_to_bool("True or False")
+    assert parse_profile_expression_to_bool("True or False and False")
+    assert not parse_profile_expression_to_bool("False or True and False")
     assert parse_profile_expression_to_bool("True and (True or False)")
     assert parse_profile_expression_to_bool("(False or True) or False")
     assert parse_profile_expression_to_bool("not False")

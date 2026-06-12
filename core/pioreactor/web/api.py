@@ -661,12 +661,18 @@ def run_job_on_unit_in_experiment(
                 "env": request_payload.env
                 | {
                     "EXPERIMENT": experiment,
-                    "MODEL_NAME": worker["model_name"],
-                    "MODEL_VERSION": worker["model_version"],
                     "HOSTNAME": worker["pioreactor_unit"],
                     "ACTIVE": str(int(worker["is_active"])),
                     "TESTING": str(int(is_testing_env())),
-                },
+                }
+                | (
+                    {
+                        "MODEL_NAME": worker["model_name"],
+                        "MODEL_VERSION": worker["model_version"],
+                    }
+                    if worker["model_name"] is not None and worker["model_version"] is not None
+                    else {}
+                ),
             }
             for worker in assigned_workers
         ],
