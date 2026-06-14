@@ -91,7 +91,7 @@ function RunExperimentProfilesContent({
       cancellationButtonProps: { color: "secondary" },
     })
       .then(() => {
-        fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
+        fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
           method: "DELETE",
         }).then(res => {
           if (res.ok) {
@@ -509,7 +509,7 @@ function Profiles(props) {
       error: "",
     });
 
-    fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
+    fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
       method: "GET",
       signal: controller.signal,
     })

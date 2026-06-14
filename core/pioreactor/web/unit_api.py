@@ -87,6 +87,8 @@ register_calibration_session_routes(unit_api_bp)
 
 
 def _validate_storage_path_component(value: str, field: str) -> None:
+    # Current invariant: calibration and estimator path values are valid single
+    # filename components before any filesystem path is constructed.
     if not value or not is_valid_unix_filename(value):
         readable_field = field.replace("_", " ")
         abort_with(
@@ -854,6 +856,8 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
         )
 
     requested_path = requested_path.resolve()
+    # Current invariant: every filesystem path served by this endpoint resolves
+    # inside the resolved DOT_PIOREACTOR root.
     if not requested_path.is_relative_to(base_dir):
         abort_with(
             403,
@@ -973,6 +977,8 @@ def is_manual_dosing_volume_unsafe(
                 (model_name, model_version)
             ].reactor_max_fill_volume_ml
         except KeyError:
+            # Current invariant: manual dosing fails closed when this worker
+            # cannot resolve the supplied model metadata locally.
             abort_with(
                 400,
                 "Unknown Pioreactor model.",
@@ -1738,6 +1744,8 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
             for path in sorted(base_dir.rglob("*")):
                 if not path.exists():
                     continue
+                # Current invariant: exports never include content reached
+                # through a symlink that escapes DOT_PIOREACTOR.
                 if not path.resolve().is_relative_to(base_dir):
                     continue
                 if path == skip_backup:
@@ -2013,6 +2021,7 @@ def set_active_calibration(device: str, calibration_name: str) -> ResponseReturn
     _validate_storage_path_component(device, "device")
     _validate_storage_path_component(calibration_name, "calibration_name")
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+    # Current invariant: an active calibration pointer always references a file on disk.
     if not calibration_path.is_file():
         abort_with(
             404,
@@ -2042,6 +2051,7 @@ def set_active_estimator(device: str, estimator_name: str) -> ResponseReturnValu
     _validate_storage_path_component(device, "device")
     _validate_storage_path_component(estimator_name, "estimator_name")
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
+    # Current invariant: an active estimator pointer always references a file on disk.
     if not estimator_path.is_file():
         abort_with(
             404,

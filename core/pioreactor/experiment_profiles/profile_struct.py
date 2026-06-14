@@ -87,7 +87,6 @@ class Repeat(_ContainerAction):
     max_hours: float | None = None
     max_time: float | str | None = None
     actions: list["BasicAction"] = []
-    _completed_loops: int = 0
 
 
 BasicAction = Log | Start | Pause | Stop | Update | Resume

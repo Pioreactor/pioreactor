@@ -230,8 +230,8 @@ def filter_to_allowed_env(env: Mapping[str, str | None]) -> dict[str, str]:
 def fanout_success(unit: str, value: Any) -> FanoutResult:
     """Wrap a successful per-unit fanout value.
 
-    Fanout aggregation never unwraps these envelopes. Edge consumers that need
-    domain data should read ``value`` after checking ``ok``.
+    Current invariant: fanout aggregation never unwraps these envelopes. Edge
+    consumers that need domain data read ``value`` after checking ``ok``.
     """
     return {
         "ok": True,

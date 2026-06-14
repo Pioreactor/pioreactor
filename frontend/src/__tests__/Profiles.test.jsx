@@ -62,6 +62,10 @@ metadata:
 metadata:
   author: Bob
 `,
+  "profile with space.yaml": `experiment_profile_name: Profile With Space
+metadata:
+  author: Carol
+`,
 };
 
 const profilesResponse = [
@@ -74,6 +78,11 @@ const profilesResponse = [
     file: "profile-b.yaml",
     fullpath: "/tmp/profile-b.yaml",
     experimentProfile: { experiment_profile_name: "Profile B" },
+  },
+  {
+    file: "profile with space.yaml",
+    fullpath: "/tmp/profile with space.yaml",
+    experimentProfile: { experiment_profile_name: "Profile With Space" },
   },
 ];
 
@@ -103,7 +112,7 @@ describe("Profiles", () => {
   beforeEach(() => {
     mockStartProfile.mockReset();
     recentRunsResponse = [];
-    global.fetch = jest.fn((url) => {
+    global.fetch = jest.fn((url, options = {}) => {
       if (url === "/api/experiment_profiles") {
         return Promise.resolve({
           ok: true,
@@ -125,11 +134,19 @@ describe("Profiles", () => {
         });
       }
 
+      if (
+        url === "/api/experiment_profiles/profile%20with%20space.yaml"
+        && options.method === "DELETE"
+      ) {
+        return Promise.resolve({ ok: false });
+      }
+
       if (url in {
         "/api/experiment_profiles/profile-a.yaml": true,
         "/api/experiment_profiles/profile-b.yaml": true,
+        "/api/experiment_profiles/profile%20with%20space.yaml": true,
       }) {
-        const filename = url.split("/").pop();
+        const filename = decodeURIComponent(url.split("/").pop());
         return Promise.resolve({
           ok: true,
           text: async () => profileSources[filename],
@@ -175,6 +192,39 @@ describe("Profiles", () => {
 
     expect(countFetches("/api/experiment_profiles")).toBe(1);
     expect(countFetches("/api/experiment_profiles/profile-a.yaml")).toBe(1);
+  });
+
+  test("encodes profile filenames when viewing and duplicating profiles", async () => {
+    renderProfiles("/experiment-profiles/profile%20with%20space.yaml");
+
+    await screen.findByText("Preview: Profile With Space");
+    expect(countFetches("/api/experiment_profiles/profile%20with%20space.yaml")).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /view source/i }));
+    await screen.findByText(/experiment_profile_name: Profile With Space/);
+
+    fireEvent.click(screen.getByRole("button", { name: /duplicate/i }));
+
+    const duplicatedState = JSON.parse((await screen.findByTestId("new-profile-state")).textContent);
+    expect(duplicatedState).toEqual({
+      initialCode: profileSources["profile with space.yaml"],
+      initialFilename: "profile with space_copy",
+    });
+    expect(countFetches("/api/experiment_profiles/profile%20with%20space.yaml")).toBe(1);
+  });
+
+  test("encodes profile filenames in delete requests", async () => {
+    renderProfiles("/experiment-profiles/profile%20with%20space.yaml");
+
+    await screen.findByText("Preview: Profile With Space");
+    fireEvent.click(screen.getByRole("button", { name: /delete profile/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/experiment_profiles/profile%20with%20space.yaml",
+        { method: "DELETE" },
+      );
+    });
   });
 
   test("re-enables the run button when profile start fails", async () => {

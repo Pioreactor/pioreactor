@@ -19,6 +19,7 @@ from typing import NamedTuple
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "scratch" / "generated_api_docs"
 DEFAULT_BASE_URL = "http://127.0.0.1:4999"
+GITHUB_SOURCE_BASE_URL = "https://github.com/Pioreactor/pioreactor/blob/master"
 STRUCTS_SOURCE = REPO_ROOT / "core/pioreactor/structs.py"
 HTTP_STATUS_TEXT = {
     200: "OK",
@@ -718,12 +719,13 @@ def render_markdown(
     sampler: LiveSampler | None,
     url_prefix: str,
 ) -> str:
+    relative_source_path = source_path.relative_to(REPO_ROOT).as_posix()
     lines = frontmatter_and_conventions(url_prefix)
     lines.extend(
         [
             f"# {title}",
             "",
-            f"Generated from `{source_path.relative_to(REPO_ROOT)}`.",
+            f"Generated from `{relative_source_path}`.",
             "",
             "> This file is generated. Edit the API source or generator instead of editing this file by hand.",
             "",
@@ -736,8 +738,10 @@ def render_markdown(
         ]
     )
     for route in routes:
+        source_url = f"{GITHUB_SOURCE_BASE_URL}/{relative_source_path}#L{route.lineno}"
         lines.append(
-            f"| `{route.method}` | `{flask_route_to_docs_route(route.route)}` | `{route.function_name}` |"
+            f"| `{route.method}` | `{flask_route_to_docs_route(route.route)}` "
+            f"| [`{route.function_name}`]({source_url}) |"
         )
     lines.append("")
 

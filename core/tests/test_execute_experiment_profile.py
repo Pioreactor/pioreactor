@@ -867,6 +867,41 @@ def test_repeat_respects_every_and_time_literals(mock__load_experiment_profile) 
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_common_repeat_tracks_completed_loops_independently_per_worker(
+    mock__load_experiment_profile, active_workers_in_cluster
+) -> None:
+    experiment = "_testing_experiment"
+    job_name = "jobbing"
+    repeat = Repeat(
+        t="0s",
+        every="0.01s",
+        max_time="0.03s",
+        actions=[Update(t="0s", options={"setting": "1"})],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        common=CommonBlock(jobs={job_name: Job(actions=[repeat])}),
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    for worker in active_workers_in_cluster:
+        updates = [
+            request
+            for request in bucket
+            if request.path
+            == f"/api/workers/{worker}/jobs/update/job_name/{job_name}/experiments/{experiment}"
+        ]
+        assert len(updates) == 3
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_repeat_warns_and_skips_actions_beyond_every(mock__load_experiment_profile, caplog) -> None:
     experiment = "_testing_experiment"
 

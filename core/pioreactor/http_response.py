@@ -6,6 +6,9 @@ from msgspec.json import decode as json_decode
 from pioreactor.experiment_profiles.diagnostics import Diagnostic
 from pioreactor.mureq import Response
 
+# Current invariant: lightweight HTTP response helpers do not import leader-only
+# profile validation, parser, pubsub, or MQTT modules.
+
 
 class UnitApiErrorPayload(Struct, forbid_unknown_fields=True, omit_defaults=True):
     error: str
@@ -18,6 +21,8 @@ class UnitApiErrorPayload(Struct, forbid_unknown_fields=True, omit_defaults=True
 def decode_unit_api_error_payload(
     response: Response | None,
 ) -> UnitApiErrorPayload | None:
+    # Current invariant: worker errors are trusted only when schema-valid and
+    # status-consistent with the HTTP response.
     if response is None or not response.body:
         return None
 

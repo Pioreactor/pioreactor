@@ -84,6 +84,7 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import safe_join
 from werkzeug.utils import secure_filename
 
@@ -98,6 +99,7 @@ EXPORTABLE_DATASET_PREVIEW_MAX_ROWS = 100
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
 DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
+MAX_SYSTEM_UPLOAD_REQUEST_BYTES = 60_000_000
 PIOREACTOR_UNIT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
@@ -665,6 +667,8 @@ def run_job_on_unit_in_experiment(
                     "ACTIVE": str(int(worker["is_active"])),
                     "TESTING": str(int(is_testing_env())),
                 }
+                # Current invariant: model metadata is forwarded only as a
+                # complete, non-null pair.
                 | (
                     {
                         "MODEL_NAME": worker["model_name"],
@@ -996,6 +1000,8 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
             FROM logs AS l
             JOIN experiment_worker_assignments_history h
+               -- Current invariant: assignment identity includes experiment;
+               -- unit and timestamp alone are not unique near reassignment.
                on h.pioreactor_unit = l.pioreactor_unit
                and h.experiment = l.experiment
                and h.assigned_at <= l.timestamp
@@ -2617,12 +2623,25 @@ def upload_system_file() -> ResponseReturnValue:
     Stage a release archive or other system file on the leader.
 
     Multipart form-data body:
-    - `file`: file to upload. The upload must be smaller than 30 MB.
+    - `file`: file to upload. The complete request must be smaller than 60 MB.
     """
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS").is_file():
         abort_with(403, "No UI uploads allowed")
 
-    if "file" not in request.files:
+    # Current invariant: the server enforces the complete request limit while
+    # Werkzeug reads multipart data, before an oversized upload can be staged.
+    request.max_content_length = MAX_SYSTEM_UPLOAD_REQUEST_BYTES
+    try:
+        files = request.files
+    except RequestEntityTooLarge:
+        abort_with(
+            413,
+            "Upload too large",
+            cause="The multipart upload exceeds the 60 MB request limit.",
+            remediation="Upload a smaller release archive.",
+        )
+
+    if "file" not in files:
         abort_with(
             400,
             "No file part",
@@ -2630,7 +2649,7 @@ def upload_system_file() -> ResponseReturnValue:
             remediation="Send a multipart form-data request with a 'file' field.",
         )
 
-    file = request.files["file"]
+    file = files["file"]
 
     # If the user does not select a file, the browser submits an
     # empty file without a filename.
@@ -2640,13 +2659,6 @@ def upload_system_file() -> ResponseReturnValue:
             "No selected file",
             cause="Uploaded file field has an empty filename.",
             remediation="Select a file before submitting the form.",
-        )
-    if file.content_length >= 60_000_000:  # 30mb?
-        abort_with(
-            400,
-            "Too large",
-            cause="Uploaded file exceeds 60 MB limit.",
-            remediation="Upload a smaller file (under 60 MB).",
         )
 
     filename = secure_filename(file.filename)

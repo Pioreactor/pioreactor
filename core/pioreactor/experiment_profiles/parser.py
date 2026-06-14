@@ -328,6 +328,8 @@ def parse_profile_expression(profile_string: str, env=None):
 def check_syntax(profile_string: str) -> bool:
     try:
         lexer = ProfileLexer()
+        # Current invariant: validation and execution use the same expression
+        # grammar, but syntax validation never evaluates values or live state.
         parser = ProfileParser(syntax_only=True)
         result = parser.parse(lexer.tokenize(profile_string))
         if result is None:

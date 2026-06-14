@@ -205,6 +205,7 @@ def _pump_action(
     Continuous waste runs until stopped and returns its estimated volume.
     """
 
+    # Current invariant: every pump action selects exactly one execution mode.
     if sum((ml is not None, duration is not None, continuously)) != 1:
         raise ValueError("Select exactly one of ml, duration, or continuously.")
 
@@ -318,6 +319,8 @@ def _pump_action(
                 pump_start_time = time.monotonic()
 
                 while True:
+                    # Current invariant: continuous inflow stops when live projected
+                    # volume reaches the model's safe-fill threshold.
                     if max_fill_volume_ml is not None and (
                         bioreactor.get_bioreactor_value(experiment, "current_volume_ml") >= max_fill_volume_ml
                     ):
@@ -421,6 +424,7 @@ def _pump_action(
                     logger.info(f"Stopped {pump_device} early.")
                     return actual_volume_moved_ml
 
+            # Current invariant: returned volume equals the total volume emitted in dosing events.
             # Reconcile only after normal completion. The PWM worker can finish
             # between accounting ticks, or before the first tick for a microdose.
             # Early disconnects return above using their elapsed-time estimate.
@@ -525,9 +529,8 @@ def _liquid_circulation(
         ) as media_pump:
             logger.info("Running waste continuously.")
 
-            # The shared bioreactor volume model clamps `remove_waste` at the
-            # efflux-tube level. This synthetic event is intentionally modeling
-            # "drain until the efflux height is reached", not "drain below it".
+            # Current invariant: circulation waste drains to the efflux-tube
+            # level, not below it.
             dosing_event = structs.DosingEvent(
                 volume_change=20,
                 event="remove_waste",

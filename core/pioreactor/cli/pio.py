@@ -389,6 +389,8 @@ def get_update_app_commands(
     ) -> list[UpdateCommand]:
         tmp_dir = tempfile.gettempdir()
         tmp_rls_dir = f"{tmp_dir}/release_{release_version}"
+        # Current invariant: release updates require the configured storage
+        # database; a missing [storage].database entry is invalid configuration.
         database_path = config.get("storage", "database")
 
         release_commands: list[UpdateCommand] = [

@@ -190,6 +190,7 @@ def test_REF_is_in_correct_position(
     logger.debug(f"{relative_effect_per_channel=}")
     logger.debug(f"{effect_per_channel=}")
 
+    # Current invariant: REF is materially less responsive to stirring than the strongest SIGNAL.
     MIN_SIGNAL_EFFECT = 0.001
     MAX_REF_EFFECT = 0.015
     MAX_REF_TO_SIGNAL_RATIO = 0.75

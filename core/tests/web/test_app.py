@@ -2161,6 +2161,26 @@ def test_system_upload_uses_unique_staged_temp_archive_name(
     assert save_path.read_bytes() == b"archive-bytes"
 
 
+def test_system_upload_rejects_oversized_request_before_staging_file(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("pioreactor.web.api.tempfile.gettempdir", lambda: str(tmp_path))
+    archive = tmp_path / "oversized-release.zip"
+    with archive.open("wb") as archive_file:
+        archive_file.truncate(60_000_001)
+
+    with archive.open("rb") as archive_file:
+        response = client.post(
+            "/api/system/upload",
+            data={"file": (archive_file, "release.zip")},
+            content_type="multipart/form-data",
+        )
+
+    assert response.status_code == 413
+    assert response.get_json()["error"] == "Upload too large"
+    assert list(tmp_path.glob("pioreactor_update_archive_*")) == []
+
+
 def test_zipped_calibrations_unwraps_raw_fanout_envelopes(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:

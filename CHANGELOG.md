@@ -21,6 +21,7 @@
 
 #### Bug fixes
 
+- Fixed `repeat` actions in common experiment-profile jobs so each Pioreactor runs the expected number of loops independently.
 - Fixed the MCP endpoint to accept both `/mcp` and `/mcp/` without redirecting, and ensured Lighttpd forwards the roots of the `/api`, `/unit_api`, and `/mcp` namespaces to the web application.
 - Fixed plugin uninstall cleanup for legacy plugin UI assets installed from `ui/contrib/`.
 - Fixed network_info.txt lacking networkmanager logs

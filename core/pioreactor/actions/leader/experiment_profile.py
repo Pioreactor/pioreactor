@@ -604,6 +604,11 @@ def repeat(
     actions: list[struct.BasicAction],
     schedule: scheduler,
 ) -> Callable[..., None]:
+    # Current invariant: parsed profile structs are immutable definitions;
+    # repeat progress belongs to each unit-specific execution callback.
+    completed_loops = 0
+    is_first_loop = True
+
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
@@ -612,13 +617,15 @@ def repeat(
             )
             return
 
-        nonlocal env
+        nonlocal completed_loops, env, is_first_loop
         env = env | {
             "hours_elapsed": action_metrics.hours_elapsed(),
             "action_count": action_metrics.count,
         }
 
-        if evaluate_bool_expression(if_, env) and evaluate_bool_expression(while_, env):
+        if (not is_first_loop or evaluate_bool_expression(if_, env)) and evaluate_bool_expression(
+            while_, env
+        ):
             for action in actions:
                 if time_to_seconds(coalesce(action.t, action.hours_elapsed)) > time_to_seconds(every):
                     logger.warning(
@@ -644,26 +651,13 @@ def repeat(
                     ),
                 )
 
-            repeat_action.if_ = True  # not eval'd after the first loop
-            repeat_action._completed_loops += 1
-            if (max_time is None) or (
-                repeat_action._completed_loops * time_to_seconds(every) < time_to_seconds(max_time)
-            ):
+            is_first_loop = False
+            completed_loops += 1
+            if (max_time is None) or (completed_loops * time_to_seconds(every) < time_to_seconds(max_time)):
                 schedule.enter(
                     delay=time_to_seconds(every),
                     priority=get_simple_priority(repeat_action),
-                    action=wrapped_execute_action(
-                        unit,
-                        experiment,
-                        env,
-                        job_name,
-                        logger,
-                        schedule,
-                        action_metrics,
-                        parent_job,
-                        repeat_action,
-                        dry_run,
-                    ),
+                    action=repeat_callback,
                 )
             else:
                 logger.debug(f"Exiting {repeat_action} loop as max time exceeded.")
@@ -673,7 +667,8 @@ def repeat(
                 f"Action's `if` or `while` condition, `{if_=}` or `{while_=}`, evaluated False. Skipping."
             )
 
-    return wrap_in_try_except(_callable, logger)
+    repeat_callback = wrap_in_try_except(_callable, logger)
+    return repeat_callback
 
 
 def log(

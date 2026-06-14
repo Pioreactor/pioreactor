@@ -13,6 +13,7 @@ generate_api_endpoint_docs = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(generate_api_endpoint_docs)
 parse_routes = generate_api_endpoint_docs.parse_routes
 request_body_example = generate_api_endpoint_docs.request_body_example
+render_markdown = generate_api_endpoint_docs.render_markdown
 
 
 def get_route(method: str, route: str) -> Any:
@@ -145,3 +146,22 @@ def test_parse_routes_reads_command_envelope_body_fields() -> None:
     assert route.required_body_keys == ()
     assert route.optional_body_keys == ("args", "env", "options")
     assert route.body_type_names == ("structs.ArgsOptionsEnvs",)
+
+
+def test_endpoint_index_links_handler_to_github_source_line() -> None:
+    source_path = REPO_ROOT / "core/pioreactor/web/api.py"
+    route = get_leader_route("GET", "/api/automations/descriptors/<automation_type>")
+
+    markdown = render_markdown(
+        "Pioreactor Leader API",
+        source_path,
+        [route],
+        None,
+        "/api",
+    )
+
+    assert (
+        f"[`{route.function_name}`]"
+        f"(https://github.com/Pioreactor/pioreactor/blob/master/"
+        f"core/pioreactor/web/api.py#L{route.lineno})"
+    ) in markdown

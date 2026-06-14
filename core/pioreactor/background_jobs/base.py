@@ -280,6 +280,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         setattr(cls, "__init__", t.cast(FunctionType, wrapped_init))
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment, source: str = "app") -> None:
+        # Current invariant: cleanup state exists before any constructor step that can fail.
         self._is_cleaned_up = False
         self._blocking_event = threading.Event()
 
@@ -346,8 +347,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._clean_up_resources()
             raise e
 
-        # MQTT listeners are started in __post__init__, after subclass constructors finish.
-        # Callback code should never observe partially initialized subclass state.
+        # Current invariant: MQTT callbacks cannot observe partially initialized subclass state.
+        # Listeners therefore start in __post__init__, after subclass constructors finish.
 
     def __post__init__(self) -> None:
         """
@@ -1076,6 +1077,7 @@ class BackgroundJob(_BackgroundJob):
     """
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
+        # Current invariant: worker jobs cannot start on an inactive unit.
         if not is_active(unit):
             raise NotActiveWorkerError(
                 f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
@@ -1199,6 +1201,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         source: str = "app",
         enable_dodging_od: bool = False,
     ) -> None:
+        # Current invariant: OD-dodging worker jobs cannot start on an inactive unit.
         if not is_active(unit):
             raise NotActiveWorkerError(
                 f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
