@@ -26,5 +26,5 @@ Rules
 -------
 
 1. Keep imports at the top of the file
-2. Reference (the incomplete) DESIGN.md for style design
+2. Reference DESIGN.md for visual and interaction design rules
 3. Keep React and ESLint warnings green. Before wrapping up frontend work, run the relevant lint command or `make frontend-build` and fix simple warnings instead of leaving them behind.

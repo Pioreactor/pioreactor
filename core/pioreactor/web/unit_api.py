@@ -1404,6 +1404,14 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
       "args": ["my_plugin_name"]
     }
     """
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+        abort_with(
+            403,
+            "DISALLOW_UI_INSTALLS is present",
+            cause="Plugin installs are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
+        )
+
     body = decode_request_body(structs.ArgsOptionsEnvs)
 
     if len(body.args) != 1:

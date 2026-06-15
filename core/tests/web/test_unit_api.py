@@ -763,6 +763,57 @@ def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     assert captured["args"] == ("install", "pioreactor-air-bubbler")
 
 
+def test_uninstall_plugin_rejects_when_ui_installs_are_disabled(
+    client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    (tmp_path / "DISALLOW_UI_INSTALLS").touch()
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setattr(
+        mod.tasks,
+        "uninstall_plugin_task",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    response = client.post(
+        "/unit_api/plugins/uninstall",
+        json={"args": ["example-plugin"], "options": {}, "env": {}},
+    )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "DISALLOW_UI_INSTALLS is present",
+        "status": 403,
+        "cause": "Plugin installs are disabled on this unit.",
+        "remediation": "Remove DISALLOW_UI_INSTALLS or install via SSH.",
+    }
+
+
+def test_uninstall_plugin_queues_task(client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class DummyTask:
+        id = "task-123"
+
+    captured: list[str] = []
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setattr(
+        mod.tasks,
+        "uninstall_plugin_task",
+        lambda plugin_name: captured.append(plugin_name) or DummyTask(),
+    )
+
+    response = client.post(
+        "/unit_api/plugins/uninstall",
+        json={"args": ["example-plugin"], "options": {}, "env": {}},
+    )
+
+    assert response.status_code == 202
+    assert response.get_json()["task_id"] == "task-123"
+    assert captured == ["example-plugin"]
+
+
 def test_get_jobs_returns_history(client) -> None:
     from time import sleep
 
