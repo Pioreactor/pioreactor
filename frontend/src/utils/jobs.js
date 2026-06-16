@@ -5,7 +5,7 @@ let workerJobDescriptorsRequestCache = new Map();
 let jobDescriptorsRequestCache = null;
 let settingsDescriptorsRequestCache = null;
 let workerSettingsDescriptorsRequestCache = new Map();
-let workerAutomationDescriptorsRequestCache = new Map();
+let automationDescriptorsRequestCache = new Map();
 
 function getAutomationCacheKey(unit, automationType) {
   return `${unit || ""}:${automationType}`;
@@ -83,7 +83,7 @@ export function resetDescriptorCaches() {
   jobDescriptorsRequestCache = null;
   settingsDescriptorsRequestCache = null;
   workerSettingsDescriptorsRequestCache = new Map();
-  workerAutomationDescriptorsRequestCache = new Map();
+  automationDescriptorsRequestCache = new Map();
 }
 
 export function createMonitorJobState() {
@@ -308,13 +308,7 @@ export async function getWorkerSettingsDescriptors(unit) {
 
 export async function getSettingsDescriptors() {
   if (!settingsDescriptorsRequestCache) {
-    settingsDescriptorsRequestCache = fetch("/api/settings/descriptors")
-      .then(async (response) => {
-        if (!response.ok) {
-          throw await createApiErrorFromResponse(response);
-        }
-        return response.json();
-      })
+    settingsDescriptorsRequestCache = requestJson("/api/settings/descriptors")
       .catch((error) => {
         settingsDescriptorsRequestCache = null;
         throw error;
@@ -336,7 +330,7 @@ export async function getAutomationDescriptors(unit, automationType) {
     ? `/api/workers/${unit}/automations/descriptors/${automationType}`
     : `/api/automations/descriptors/${automationType}`;
 
-  return getCachedJson(workerAutomationDescriptorsRequestCache, cacheKey, endpoint, {
+  return getCachedJson(automationDescriptorsRequestCache, cacheKey, endpoint, {
     createError: (response) => new Error(`Error ${response.status}.`),
   });
 }

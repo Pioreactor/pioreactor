@@ -6,6 +6,7 @@ import {
   getJobDescriptors,
   getPublishedSettingsSignature,
   getPublishedSettingsTopicsFromSignature,
+  getSettingsDescriptors,
   getWorkerJobDescriptors,
   getWorkerSettingsDescriptors,
   resetDescriptorCaches,
@@ -308,6 +309,61 @@ describe("jobs utils", () => {
     expect(descriptors).toEqual([{ key: "leds", published_settings: [] }]);
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit1/settings/descriptors");
+  });
+
+  test("getSettingsDescriptors caches the leader settings descriptor list", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([{ key: "bioreactor", published_settings: [] }]),
+    });
+
+    const first = await getSettingsDescriptors();
+    const second = await getSettingsDescriptors();
+
+    expect(first).toEqual([{ key: "bioreactor", published_settings: [] }]);
+    expect(second).toEqual(first);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith("/api/settings/descriptors");
+  });
+
+  test("getSettingsDescriptors retries after a failed request", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: "No settings descriptors." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ key: "bioreactor", published_settings: [] }]),
+      });
+
+    await expect(getSettingsDescriptors()).rejects.toThrow("No settings descriptors.");
+    await expect(getSettingsDescriptors()).resolves.toEqual([
+      { key: "bioreactor", published_settings: [] },
+    ]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("resetDescriptorCaches clears the leader settings descriptor cache", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ key: "first", published_settings: [] }]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ key: "second", published_settings: [] }]),
+      });
+
+    await expect(getSettingsDescriptors()).resolves.toEqual([
+      { key: "first", published_settings: [] },
+    ]);
+    resetDescriptorCaches();
+    await expect(getSettingsDescriptors()).resolves.toEqual([
+      { key: "second", published_settings: [] },
+    ]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
   test("getWorkerJobDescriptors surfaces API cause on failure", async () => {
