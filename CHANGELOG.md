@@ -6,6 +6,7 @@
 
 #### Enhancements
 
+ - Added boot-partition Wi-Fi setup for _new_ Pioreactor images. Users can place a `wifi.ini` file with `ssid` and `passphrase` values on the boot partition, and the image will try those credentials before starting local access point mode.
  - Improved plugin install and uninstall reliability by moving the lifecycle into the Pioreactor package instead of requiring `/usr/local/bin` helper scripts on the operating system.
  - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
  - Reduced idle CPU usage from the monitor job on single-core Raspberry Pis by disabling button controls by default. The new `[monitor.config] enable_button` option supports `auto`, `true`, and `false`.
@@ -21,6 +22,7 @@
 
 #### Bug fixes
 
+- Fixed _new_ Pioreactor images so devices without internet or an RTC restore the last saved system time on offline boots, including local access point mode, instead of reverting to the image build date.
 - Fixed `repeat` actions in common experiment-profile jobs so each Pioreactor runs the expected number of loops independently.
 - Fixed the MCP endpoint to accept both `/mcp` and `/mcp/` without redirecting, and ensured Lighttpd forwards the roots of the `/api`, `/unit_api`, and `/mcp` namespaces to the web application.
 - Fixed plugin uninstall cleanup for legacy plugin UI assets installed from `ui/contrib/`.

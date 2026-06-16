@@ -48,6 +48,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import SelfTestDialog from "./components/SelfTestDialog";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { experimentPathSegment } from "./utils/url";
+import { getJobDescriptor } from "./utils/jobs";
 
 
 
@@ -64,49 +65,12 @@ const useAvailableModels = () => {
   return models;
 };
 
-let cachedSelfTestJobDefinition = null;
-let selfTestJobDefinitionPromise = null;
-
-function requestSelfTestJobDefinition() {
-  if (cachedSelfTestJobDefinition) {
-    return Promise.resolve(cachedSelfTestJobDefinition);
-  }
-  if (!selfTestJobDefinitionPromise) {
-    const pendingRequest = fetch("/api/jobs/descriptors")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch contrib jobs");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        const selfTestJob = data.find((job) => job.job_name === "self_test") || null;
-        cachedSelfTestJobDefinition = selfTestJob;
-        return selfTestJob;
-      });
-    selfTestJobDefinitionPromise = pendingRequest
-      .catch((error) => {
-        selfTestJobDefinitionPromise = null;
-        throw error;
-      })
-      .then((job) => {
-        selfTestJobDefinitionPromise = null;
-        return job;
-      });
-  }
-  return selfTestJobDefinitionPromise;
-}
-
 function useSelfTestJobDefinition() {
-  const [definition, setDefinition] = useState(cachedSelfTestJobDefinition);
+  const [definition, setDefinition] = useState(null);
 
   useEffect(() => {
-    if (cachedSelfTestJobDefinition) {
-      return;
-    }
-
     let isActive = true;
-    requestSelfTestJobDefinition()
+    getJobDescriptor("self_test")
       .then((job) => {
         if (!isActive) {
           return;

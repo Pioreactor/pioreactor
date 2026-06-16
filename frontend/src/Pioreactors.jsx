@@ -93,6 +93,7 @@ import {
   buildJobsStateFromDescriptors,
   buildSettingsCollectionsFromDescriptors,
   createMonitorJobState,
+  getJobDescriptors,
   getPublishedSettingsSignature,
   getPublishedSettingsTopicsFromSignature,
   getSettingsDescriptors,
@@ -212,48 +213,12 @@ const RowOfUnitSettingDisplayBox  = styled(Box)(() => ({
     alignContent: "stretch",
 }));
 
-let cachedContribJobsList = null;
-let contribJobsListPromise = null;
-
-function requestContribJobsList() {
-  if (cachedContribJobsList) {
-    return Promise.resolve(cachedContribJobsList);
-  }
-  if (!contribJobsListPromise) {
-    const pendingRequest = fetch("/api/jobs/descriptors")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch contrib jobs");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        cachedContribJobsList = data;
-        return data;
-      });
-    contribJobsListPromise = pendingRequest
-      .catch((error) => {
-        contribJobsListPromise = null;
-        throw error;
-      })
-      .then((data) => {
-        contribJobsListPromise = null;
-        return data;
-      });
-  }
-  return contribJobsListPromise;
-}
-
 function useContribJobsList() {
-  const [jobs, setJobs] = useState(cachedContribJobsList);
+  const [jobs, setJobs] = useState(null);
 
   useEffect(() => {
-    if (cachedContribJobsList) {
-      return;
-    }
-
     let isActive = true;
-    requestContribJobsList()
+    getJobDescriptors()
       .then((data) => {
         if (!isActive) {
           return;

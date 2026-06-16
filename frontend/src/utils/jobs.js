@@ -2,6 +2,7 @@ import { fetchTaskResult } from "./tasks";
 import { experimentPathSegment } from "./url";
 
 let workerJobDescriptorsRequestCache = new Map();
+let jobDescriptorsRequestCache = null;
 let settingsDescriptorsRequestCache = null;
 let workerSettingsDescriptorsRequestCache = new Map();
 let workerAutomationDescriptorsRequestCache = new Map();
@@ -77,8 +78,9 @@ function runJobPatch(endpoint, body) {
     });
 }
 
-export function resetWorkerJobDescriptorsCache() {
+export function resetDescriptorCaches() {
   workerJobDescriptorsRequestCache = new Map();
+  jobDescriptorsRequestCache = null;
   settingsDescriptorsRequestCache = null;
   workerSettingsDescriptorsRequestCache = new Map();
   workerAutomationDescriptorsRequestCache = new Map();
@@ -269,6 +271,27 @@ export async function getWorkerJobDescriptors(unit) {
     unit,
     `/api/workers/${unit}/jobs/descriptors`,
   );
+}
+
+export async function getJobDescriptors() {
+  if (!jobDescriptorsRequestCache) {
+    jobDescriptorsRequestCache = requestJson("/api/jobs/descriptors")
+      .catch((error) => {
+        jobDescriptorsRequestCache = null;
+        throw error;
+      });
+  }
+
+  return jobDescriptorsRequestCache;
+}
+
+export async function getJobDescriptor(jobName) {
+  if (!jobName) {
+    return null;
+  }
+
+  const descriptors = await getJobDescriptors();
+  return descriptors.find((job) => job.job_name === jobName) || null;
 }
 
 export async function getWorkerSettingsDescriptors(unit) {
