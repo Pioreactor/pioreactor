@@ -21,7 +21,9 @@ def discover_plugins_in_local_folder() -> list[Path]:
     # later elements are where stdlib are found, third party libs are found, etc.
     # we inject our plugins in between local and stdlib. This solves issue #447.
     # however, users can break things if the name the file something stupid like os.py
-    sys.path.insert(1, str(MODULE_DIR))
+    module_dir = str(MODULE_DIR)
+    if module_dir not in sys.path:
+        sys.path.insert(1, module_dir)
 
     # Get the stem names (file name, without directory and '.py') of any
     # python files in your directory, load each module by name and run

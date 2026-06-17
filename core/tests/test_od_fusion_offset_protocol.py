@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from pioreactor import structs
 from pioreactor.calibrations.protocols import od_fusion_offset
+from pioreactor.calibrations.protocols import od_fusion_standards
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.structured_session import CalibrationSession
@@ -119,3 +120,28 @@ def test_get_default_estimator_name_uses_source_name_and_persists_on_context() -
 
     assert default_name.startswith("base-estimator-offset-")
     assert ctx.data["default_name"] == default_name
+
+
+def test_record_observation_uses_shared_stir_loading_images() -> None:
+    session = CalibrationSession(
+        session_id="session-1",
+        protocol_name="od_fusion_offset",
+        target_device="od_fused",
+        status="in_progress",
+        step_id="record_observation",
+        data={"standard_index": 2},
+        created_at=utc_iso_timestamp(),
+        updated_at=utc_iso_timestamp(),
+    )
+    ctx = SessionContext(
+        session=session,
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+    )
+
+    step = od_fusion_offset.RecordObservation().render(ctx)
+
+    assert step.metadata == {
+        "loading_images": od_fusion_standards._od_fusion_stir_loading_images(),
+    }
