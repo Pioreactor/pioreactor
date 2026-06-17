@@ -623,7 +623,7 @@ if am_I_leader() or is_testing_env():
                     ssh(address, f"pio update app {args}")
                     return True, {"unit": unit}
                 except SSHError as e:
-                    logger.error(f"Unable to update on {unit} at {address} due to SSH error: {e}.")
+                    logger.error(f"Unable to update on {unit} at {address} due to error: {e}.")
                     return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:

@@ -39,7 +39,6 @@ from pioreactor.whoami import get_unit_name
 
 STANDARDS_REQUIRED = 2
 SAMPLES_PER_STANDARD = 4
-logger = create_logger("calibrations.od_fusion_offset", experiment="$experiment")
 
 
 def _default_estimator_name(source_name: str | None) -> str:
@@ -410,6 +409,7 @@ class RecordObservation(SessionStep):
         if set(base_estimator.angles) != set(FUSION_ANGLES):
             raise ValueError("Selected estimator angles do not match fusion angles.")
 
+        logger = create_logger("calibrations.od_fusion_offset", experiment="$experiment")
         logger.debug(
             "Taking fusion offset observation: source_unit=%s estimator=%s standard_od=%s rpm=%s",
             source_unit,

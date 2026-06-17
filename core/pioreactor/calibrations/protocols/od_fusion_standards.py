@@ -37,7 +37,6 @@ from pioreactor.whoami import is_testing_env
 
 
 SAMPLES_PER_STANDARD = 4
-logger = create_logger("calibrations.od_fusion_standards", experiment="$experiment")
 
 
 def _ensure_xr_model() -> None:
@@ -134,6 +133,7 @@ def _measure_fusion_standard_for_session(
     repeats: int = 1,
 ) -> list[dict[pt.PdAngle, float]]:
     if ctx.executor and ctx.mode == "ui":
+        logger = create_logger("calibrations.od_fusion_standards", experiment="$experiment")
         logger.debug(
             "Requesting fusion standard observation via executor: od_value=%s rpm=%s",
             od_value,
