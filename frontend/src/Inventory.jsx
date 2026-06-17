@@ -735,7 +735,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
-            <PioreactorIconWithModel badgeContent={modelBadgeContent}/>
+            <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isActive() ? "inherit" : inactiveGrey} />
             <Typography sx={{
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",
@@ -771,9 +771,9 @@ function WorkerCard({worker, config, leaderVersion}) {
         <Box sx={{display: "flex", justifyContent: "left", ml: .5}}>
           {experimentAssigned ? (
             <>
-            <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Assigned to <Chip icon=<PlayCircleOutlinedIcon/> disabled={!isActive()} size="small" label={experimentAssigned} component={Link} clickable onClick={onExperimentClick} data-experiment-name={experimentAssigned} /> </Typography>
+            <Typography variant="subtitle2" sx={{color: isActive() ? "inherit" : inactiveGrey}}> Assigned to <Chip icon=<PlayCircleOutlinedIcon/> disabled={!isActive()} size="small" label={experimentAssigned} component={Link} clickable onClick={onExperimentClick} data-experiment-name={experimentAssigned} /> </Typography>
             </>)
-          : <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Unassigned </Typography>
+          : <Typography variant="subtitle2" sx={{color: isActive() ? "inherit" : inactiveGrey}}> Unassigned </Typography>
         }
         </Box>
 

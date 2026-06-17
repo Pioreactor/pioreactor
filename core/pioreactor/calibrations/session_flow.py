@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Any
 from typing import Callable
-from typing import cast
 from typing import Iterable
 from typing import Literal
 
@@ -289,12 +288,18 @@ class SessionContext:
     ) -> dict[Str, str | None]:
         self.collected_calibrations.append(calibration)
         if self.mode == "ui":
-            assert self.executor is not None
+            if not self.executor:
+                raise ValueError("Calibration saver is only available in UI sessions.")
             payload = self.executor(
                 "save_calibration",
                 {"device": device, "calibration": to_builtins(calibration)},
             )
-            path = cast(str | None, payload.get("path"))
+            if not isinstance(payload, dict):
+                raise ValueError("Invalid calibration save payload.")
+            saved_path = payload.get("path")
+            if not isinstance(saved_path, str):
+                raise ValueError("Invalid calibration save payload.")
+            path = saved_path
         else:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}
