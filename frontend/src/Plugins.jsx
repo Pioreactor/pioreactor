@@ -120,22 +120,6 @@ function assertPluginTaskResultSucceeded(taskPayload, failureMessage) {
   }
 }
 
-function getTaskStatusLabel(task) {
-  if (!task) {
-    return "";
-  }
-
-  if (task.status === "failed") {
-    return "Failed";
-  }
-
-  if (task.status === "succeeded") {
-    return task.action === "uninstall" ? "Removed" : "Installed";
-  }
-
-  return task.action === "uninstall" ? "Uninstalling" : "Installing";
-}
-
 function PluginAvatar({ name, source = "community" }) {
   const colors =
     source === "installed"
@@ -143,27 +127,6 @@ function PluginAvatar({ name, source = "community" }) {
       : ["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"];
 
   return <Avatar name={`${name}${source}`} size={40} colors={colors} variant="bauhaus" />;
-}
-
-function TaskStatusText({ task }) {
-  if (!task) {
-    return null;
-  }
-
-  const label = getTaskStatusLabel(task);
-  const color = task.status === "failed" ? "error" : "text.secondary";
-
-  return (
-    <Typography
-      variant="caption"
-      component="span"
-      color={color}
-      sx={{ display: "block", mt: 0.5 }}
-    >
-      {label} on {getTargetLabel(task.target)}
-      {task.status === "failed" && task.message ? `: ${task.message}` : ""}
-    </Typography>
-  );
 }
 
 function InstallButton({
@@ -311,15 +274,14 @@ function ListSuggestedPlugins({
                     secondary={
                       <>
                         <Typography
-                          sx={{ display: "block", fontStyle: "italic" }}
+                          sx={{ display: "block", fontStyle: "italic", my: 0.5 }}
                           component="span"
                           variant="body2"
                           color="text.primary"
                         >
-                          {plugin.author}
+                          By {plugin.author}
                         </Typography>
                         <span>{plugin.description}</span>
-                        <TaskStatusText task={task} />
                       </>
                     }
                     style={{ maxWidth: "525px" }}
@@ -416,19 +378,18 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                 secondary={
                   <>
                     <Typography
-                      sx={{ display: "block", fontStyle: "italic" }}
+                      sx={{ display: "block", fontStyle: "italic",  my: 0.5 }}
                       component="span"
                       variant="body2"
                       color="text.primary"
                     >
-                      {plugin.author || "unknown author"}
+                      By {plugin.author || "unknown author"}
                     </Typography>
                     <span>
                       {plugin.description === "Unknown"
                         ? "No description provided."
                         : plugin.description}
                     </span>
-                    <TaskStatusText task={task} />
                   </>
                 }
                 style={{ maxWidth: "525px" }}
@@ -606,7 +567,6 @@ function ListUsbPlugins({
                   secondary={
                     <>
                       <span>{plugin.path}</span>
-                      <TaskStatusText task={task} />
                     </>
                   }
                   style={{ maxWidth: "525px" }}

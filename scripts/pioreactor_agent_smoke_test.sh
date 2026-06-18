@@ -990,6 +990,7 @@ check_registered_target_validation() {
     http_status_is \
     400 \
     http://localhost/api/units/203.0.113.10/system/reboot \
+    -H "Content-Length: 0" \
     -X POST
 }
 
