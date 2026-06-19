@@ -7,6 +7,8 @@ export LC_ALL=C
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIGHTTPD_CONFIG_SOURCE="$SCRIPT_DIR/50-pioreactorui.conf"
 LIGHTTPD_CONFIG_DESTINATION="/etc/lighttpd/conf-available/50-pioreactorui.conf"
+PIOREACTOR_CONFIG="/home/pioreactor/.pioreactor/config.ini"
+CRUDINI="/opt/pioreactor/venv/bin/crudini"
 
 if [ ! -s "$LIGHTTPD_CONFIG_SOURCE" ]; then
   sudo -u pioreactor -i pio log -l ERROR -m "Missing or empty Lighttpd update asset: $LIGHTTPD_CONFIG_SOURCE"
@@ -21,6 +23,20 @@ if ! cmp -s "$LIGHTTPD_CONFIG_SOURCE" "$LIGHTTPD_CONFIG_DESTINATION"; then
   sudo -u pioreactor -i pio log -l ERROR -m "Failed to install $LIGHTTPD_CONFIG_DESTINATION"
   exit 1
 fi
+
+set_config_if_missing() {
+  local section="$1"
+  local key="$2"
+  local value="$3"
+
+  if ! sudo -u pioreactor "$CRUDINI" --get "$PIOREACTOR_CONFIG" "$section" "$key" >/dev/null 2>&1; then
+    sudo -u pioreactor "$CRUDINI" --ini-options=nospace --set "$PIOREACTOR_CONFIG" "$section" "$key" "$value"
+  fi
+}
+
+set_config_if_missing monitor.config enable_button auto
+set_config_if_missing monitor.config self_check_interval_hours 12
+chown pioreactor:www-data "$PIOREACTOR_CONFIG"
 
 HOSTNAME=$(hostname)
 LEADER_HOSTNAME=$(sudo -u pioreactor -i pio config get cluster.topology leader_hostname)
