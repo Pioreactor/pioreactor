@@ -12,6 +12,7 @@
  - Reduced idle CPU usage from the monitor job on single-core Raspberry Pis by disabling button controls by default. The new `[monitor.config] enable_button` option supports `auto`, `true`, and `false`.
  - removed tty services from base images.
  - added `git` to base images
+ - Plugins installation and uninstallation are now part of core `pioreactor` instead of shelling-out to a bash script.
  - Added a retained MQTT topic for each worker's current experiment assignment:
 
    ```text
