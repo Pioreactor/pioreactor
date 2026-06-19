@@ -184,6 +184,26 @@ if am_I_leader() or is_testing_env():
             raise click.BadParameter("No target workers matched the selection. Check --units/--experiments.")
         return tuple(sorted(selected_units))
 
+    def resolve_explicit_units_including_leader(
+        units_opt: tuple[str, ...],
+        experiments_opt: tuple[str, ...] | None,
+    ) -> tuple[str, ...]:
+        experiments_opt = experiments_opt or tuple()
+        if experiments_opt:
+            raise click.BadParameter(
+                "Use either --units or --experiments, not both. The combined selector is ambiguous."
+            )
+
+        explicit_units = _get_explicit_units(units_opt)
+        inventory_or_leader = _get_inventory_units(active_only=False) | {get_leader_hostname()}
+        unknown_units = explicit_units - inventory_or_leader
+        if unknown_units:
+            raise click.BadParameter(
+                f"Unknown unit(s): {', '.join(sorted(unknown_units))}. Check the inventory and retry."
+            )
+
+        return tuple(sorted(explicit_units))
+
     def which_units(f: t.Callable[..., t.Any]) -> t.Callable[..., t.Any]:
         """Add common targeting options to a `pios` command.
 
@@ -565,12 +585,15 @@ if am_I_leader() or is_testing_env():
         """
         Pulls and installs a Pioreactor software version.
 
-        With no selector, this targets the leader and all workers. If `--units`
-        or `--experiments` is provided, only the selected workers are updated.
+        With no selector, this targets the leader and all workers. With `--units`,
+        this targets exactly the selected known units. With `--experiments`, this
+        targets active workers assigned to the selected experiment(s).
         """
 
-        if units or experiments:
-            units = resolve_all_worker_units(units, experiments)
+        if units:
+            units = resolve_explicit_units_including_leader(units, experiments)
+        elif experiments:
+            units = resolve_active_job_units(units, experiments)
         else:
             units = resolve_cluster_units_including_leader(units, experiments)
 

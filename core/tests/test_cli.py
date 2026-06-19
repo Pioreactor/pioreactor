@@ -1400,7 +1400,9 @@ def test_pios_update_app_options_are_not_accepted_on_update_group() -> None:
     assert "No such option: --version" in result.output
 
 
-def test_pios_update_app_explicit_units_exclude_leader(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pios_update_app_explicit_units_include_leader_when_named(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner = CliRunner()
     requests: list[str] = []
 
@@ -1409,7 +1411,7 @@ def test_pios_update_app_explicit_units_exclude_leader(monkeypatch: pytest.Monke
             return
 
         def json(self) -> dict[str, str]:
-            return {"unit": "worker1"}
+            return {"unit": "ok"}
 
         @property
         def ok(self):
@@ -1419,18 +1421,62 @@ def test_pios_update_app_explicit_units_exclude_leader(monkeypatch: pytest.Monke
         requests.append(f"{address}{endpoint}")
         return DummyResponse()
 
-    monkeypatch.setattr("pioreactor.cli.pios.get_workers_in_inventory", lambda: ("leader", "worker1"))
+    monkeypatch.setattr("pioreactor.cli.pios.get_workers_in_inventory", lambda: ("worker1",))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"http://{unit}.local")
     monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
 
     result = runner.invoke(
         pios,
-        ["update", "app", "--units", "worker1", "-y"],
+        ["update", "app", "--units", "leader", "--units", "worker1", "-y"],
     )
 
     assert result.exit_code == 0
-    assert requests == ["http://worker1.local/unit_api/system/update/app"]
+    assert requests == [
+        "http://leader.local/unit_api/system/update/app",
+        "http://worker1.local/unit_api/system/update/app",
+    ]
+
+
+def test_pios_update_app_experiments_include_leader_when_assigned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    requests: list[str] = []
+
+    class DummyResponse:
+        def raise_for_status(self) -> None:
+            return
+
+        def json(self) -> dict[str, str]:
+            return {"unit": "ok"}
+
+        @property
+        def ok(self):
+            return True
+
+    def fake_post_into(address: str, endpoint: str, **_kwargs):
+        requests.append(f"{address}{endpoint}")
+        return DummyResponse()
+
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.get_active_workers_in_experiment", lambda _exp: ("leader", "worker1")
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.get_active_workers_in_inventory", lambda: ("leader", "worker1"))
+    monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"http://{unit}.local")
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+
+    result = runner.invoke(
+        pios,
+        ["update", "app", "--experiments", "demo", "-y"],
+    )
+
+    assert result.exit_code == 0
+    assert requests == [
+        "http://leader.local/unit_api/system/update/app",
+        "http://worker1.local/unit_api/system/update/app",
+    ]
 
 
 def test_pios_kill_requests() -> None:
