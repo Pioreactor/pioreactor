@@ -31,6 +31,9 @@ published_settings:
   - key: test_positive_correlation_between_rpm_and_stirring
     display: false
     type: boolean
+  - key: test_dark_offset_correction_is_effective
+    display: false
+    type: boolean
   - key: test_REF_is_in_correct_position
     display: false
     type: boolean
