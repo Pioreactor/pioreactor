@@ -122,7 +122,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
 
         if self._database_write_errors_in_last_60s == 1:
             self.logger.error(f"Unable to persist MQTT data to SQLite: {error}. Data may not be saved.")
-            self.logger.debug(f"SQL that failed: `{query}`")
+            self.logger.debug(f"SQL that failed: `{query}` with values `{values}`")
 
     def on_disconnected(self) -> None:
         self.timer.cancel()
