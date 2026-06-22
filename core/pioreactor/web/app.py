@@ -202,12 +202,16 @@ def _get_app_db_connection() -> sqlite3.Connection:
         db.row_factory = _make_dicts
         db.executescript(
             """
-            PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
-            PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
+            PRAGMA journal_mode=WAL;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA temp_store = MEMORY;
             PRAGMA busy_timeout = 15000;
             PRAGMA foreign_keys = ON;
             PRAGMA recursive_triggers = ON;
             PRAGMA cache_size = -4000;
+
+            PRAGMA wal_autocheckpoint = 4000;
+            PRAGMA mmap_size = 268435456;
         """
         )
 

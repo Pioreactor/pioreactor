@@ -2,7 +2,6 @@
 import datetime
 import sqlite3
 from json import dumps
-from json import loads
 from typing import Callable
 from typing import cast
 
@@ -257,7 +256,7 @@ def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRo
 def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
 
-    payload_dict = loads(payload)
+    payload_dict = msgspec_loads(payload)
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
@@ -343,7 +342,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> Parsed
 
 def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    payload = loads(payload)
+    payload = msgspec_loads(payload)
 
     return {
         "experiment": metadata.experiment,
@@ -355,7 +354,7 @@ def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> Pars
 
 def parse_liquid_volume(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    payload = loads(payload)
+    payload = msgspec_loads(payload)
 
     return {
         "experiment": metadata.experiment,
@@ -381,7 +380,7 @@ def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
 
 
 def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
-    return cast(ParsedSqliteRow, loads(payload))
+    return cast(ParsedSqliteRow, msgspec_loads(payload))
 
 
 def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
@@ -398,7 +397,7 @@ def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSq
 
 def parse_pwm_dcs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    pin_to_dc = loads(payload)
+    pin_to_dc = msgspec_loads(payload)
 
     try:
         # this is a all gross. What's going on?
