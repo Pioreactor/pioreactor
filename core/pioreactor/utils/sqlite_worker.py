@@ -21,8 +21,9 @@
 """Thread safe sqlite3 interface."""
 import sqlite3
 import threading
-import uuid
+from queue import Empty
 from queue import Queue
+from time import monotonic
 from typing import Any
 from typing import Callable
 
@@ -42,7 +43,6 @@ class Sqlite3Worker(threading.Thread):
             "INSERT into tester values (?, ?)", ("2010-01-01 13:00:00", "bow"))
         sql_worker.execute(
             "INSERT into tester values (?, ?)", ("2011-02-02 14:14:14", "dog"))
-        sql_worker.execute("SELECT * from tester")
         sql_worker.close()
     """
 
@@ -50,6 +50,7 @@ class Sqlite3Worker(threading.Thread):
         self,
         file_name: str,
         max_queue_size: int = 100,
+        max_batch_delay_s: float | None = None,
         raise_on_error: bool = True,
         on_error: SqliteErrorCallback | None = None,
     ) -> None:
@@ -58,6 +59,7 @@ class Sqlite3Worker(threading.Thread):
         Args:
             file_name: The name of the file.
             max_queue_size: The max queries that will be queued.
+            max_batch_delay_s: The max time to wait before committing queued writes.
             raise_on_error: raise the exception on commit error
             on_error: Called when a queued write or commit fails.
         """
@@ -81,13 +83,11 @@ class Sqlite3Worker(threading.Thread):
             PRAGMA mmap_size = 268435456;
         """
         )
-        self._sql_queue: Queue[tuple[str, str, SqliteValues]] = Queue(maxsize=max_queue_size)
-        self._results: dict[str, list[Any] | str] = {}
+        self._sql_queue: Queue[tuple[str, SqliteValues]] = Queue(maxsize=max_queue_size)
         self._max_queue_size = max_queue_size
+        self._max_batch_delay_s = max_batch_delay_s
         self._raise_on_error = raise_on_error
         self._on_error = on_error
-        # Event that is triggered once the run_query has been executed.
-        self._select_events: dict[str, Any] = {}
         # Event to start the close process.
         self._close_event = threading.Event()
         # Event that closes out the threads.
@@ -107,70 +107,73 @@ class Sqlite3Worker(threading.Thread):
         """
 
         execute_count = 0
-        for token, query, values in iter(self._sql_queue.get, None):
+        batch_deadline: float | None = None
+
+        while True:
+            if self._max_batch_delay_s is not None and batch_deadline is not None:
+                timeout = max(0, batch_deadline - monotonic())
+            else:
+                timeout = None
+
+            try:
+                query, values = self._sql_queue.get(timeout=timeout)
+            except Empty:
+                if execute_count:
+                    self.commit_pending_writes()
+                    execute_count = 0
+                batch_deadline = None
+                continue
+
             if query:
-                self._run_query(token, query, values)
+                self.run_query(query, values)
                 execute_count += 1
-                # Let the executes build up a little before committing to disk
-                # to speed things up and reduce the number of writes to disk.
-                if self._sql_queue.empty() or execute_count == self._max_queue_size:
-                    try:
-                        self._sqlite3_conn.commit()
-                        execute_count = 0
-                    except Exception as e:
-                        self.report_error(e, "COMMIT", tuple())
-                        if self._raise_on_error:
-                            raise e
-            # Only close if the queue is empty.  Otherwise keep getting
-            # through the queue until it's empty.
+                if batch_deadline is None and self._max_batch_delay_s is not None:
+                    batch_deadline = monotonic() + self._max_batch_delay_s
+
+                if self._max_batch_delay_s is None and self._sql_queue.empty():
+                    self.commit_pending_writes()
+                    execute_count = 0
+                    batch_deadline = None
+                elif execute_count == self._max_queue_size:
+                    self.commit_pending_writes()
+                    execute_count = 0
+                    batch_deadline = None
+                elif batch_deadline is not None and monotonic() >= batch_deadline:
+                    self.commit_pending_writes()
+                    execute_count = 0
+                    batch_deadline = None
+
             if self._close_event.is_set() and self._sql_queue.empty():
-                try:
-                    self._sqlite3_conn.commit()
-                except Exception as e:
-                    self.report_error(e, "COMMIT", tuple())
-                    if self._raise_on_error:
-                        raise e
-                finally:
-                    self._sqlite3_conn.close()
+                if execute_count:
+                    self.commit_pending_writes()
+                self._sqlite3_conn.close()
                 return
 
     def report_error(self, error: Exception, query: str, values: SqliteValues) -> None:
         if self._on_error is not None:
             self._on_error(error, query, values)
 
-    def _run_query(self, token: str, query: str, values: SqliteValues) -> None:
+    def commit_pending_writes(self) -> None:
+        try:
+            self._sqlite3_conn.commit()
+        except Exception as e:
+            self.report_error(e, "COMMIT", tuple())
+            if self._raise_on_error:
+                raise e
+
+    def run_query(self, query: str, values: SqliteValues) -> None:
         """Run a query.
 
         Args:
-            token: A uuid object of the query you want returned.
             query: A sql query with ? placeholders for values.
             values: A tuple of values to replace "?" in query.
         """
-        if query.lower().strip().startswith("select"):
-            try:
-                self._sqlite3_cursor.execute(query, values)
-                self._results[token] = self._sqlite3_cursor.fetchall()
-            except sqlite3.Error as err:
-                # Put the error into the output queue since a response
-                # is required.
-                self._results[token] = "Query returned error: %s: %s: %s" % (
-                    query,
-                    values,
-                    err,
-                )
-
-            finally:
-                # Wake up the thread waiting on the execution of the select
-                # query.
-                self._select_events.setdefault(token, threading.Event())
-                self._select_events[token].set()
-        else:
-            try:
-                self._sqlite3_cursor.execute(query, values)
-            except sqlite3.Error as e:
-                self.report_error(e, query, values)
-                if self._raise_on_error:
-                    raise e
+        try:
+            self._sqlite3_cursor.execute(query, values)
+        except sqlite3.Error as e:
+            self.report_error(e, query, values)
+            if self._raise_on_error:
+                raise e
 
     def close(self) -> None:
         """Close down the thread."""
@@ -180,48 +183,25 @@ class Sqlite3Worker(threading.Thread):
             self._close_event.set()
             # Put a value in the queue to push through the block waiting for
             # items in the queue.
-            self._sql_queue.put(("", "", ("",)), timeout=5)
+            self._sql_queue.put(("", ("",)), timeout=5)
             # Check that the thread is done before returning.
             self.join()
 
-    def _query_results(self, token: str) -> list[Any] | str:
-        """Get the query results for a specific token.
-
-        Args:
-            token: A uuid object of the query you want returned.
-
-        Returns:
-            Return the results of the query when it's executed by the thread.
-        """
-        try:
-            # Wait until the select query has executed
-            self._select_events.setdefault(token, threading.Event())
-            self._select_events[token].wait()
-            return self._results[token]
-        finally:
-            self._select_events[token].clear()
-            del self._results[token]
-            del self._select_events[token]
-
-    def execute(self, query: str, values: SqliteValues | None = None) -> list[Any] | str | None:
+    def execute(self, query: str, values: SqliteValues | None = None) -> str | None:
         """Execute a query.
 
         Args:
             query: The sql string using ? for placeholders of dynamic values.
             values: A tuple of values to be replaced into the ? of the query.
-
-        Returns:
-            If it's a select query it will return the results of the query.
         """
         if self._close_event.is_set():
             return "Close Called"
 
-        values = values or tuple()
-        # A token to track this query with.
-        token = str(uuid.uuid4())
-        self._sql_queue.put((token, query, values), timeout=5)
-        # If it's a select we queue it up with a token to mark the results
-        # into the output queue so we know what results are ours.
         if query.lower().strip().startswith("select"):
-            return self._query_results(token)
+            raise ValueError(
+                "Sqlite3Worker is write-only. Use a SQLite connection directly for SELECT queries."
+            )
+
+        values = values or tuple()
+        self._sql_queue.put((query, values), timeout=5)
         return None

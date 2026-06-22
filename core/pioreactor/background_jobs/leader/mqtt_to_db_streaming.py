@@ -79,6 +79,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["database"],
             max_queue_size=250,
+            max_batch_delay_s=0.1,
             raise_on_error=False,
             on_error=self.on_database_write_error,
         )
