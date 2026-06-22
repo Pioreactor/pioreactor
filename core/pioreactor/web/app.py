@@ -200,20 +200,6 @@ def _get_app_db_connection() -> sqlite3.Connection:
         )  # TODO: until next OS release which implements a native sqlite3 base64 function
 
         db.row_factory = _make_dicts
-        db.executescript(
-            """
-            PRAGMA journal_mode=WAL;
-            PRAGMA synchronous = NORMAL;
-            PRAGMA temp_store = MEMORY;
-            PRAGMA busy_timeout = 15000;
-            PRAGMA foreign_keys = ON;
-            PRAGMA recursive_triggers = ON;
-            PRAGMA cache_size = -4000;
-
-            PRAGMA wal_autocheckpoint = 4000;
-            PRAGMA mmap_size = 268435456;
-        """
-        )
 
     return db
 

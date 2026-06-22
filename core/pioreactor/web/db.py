@@ -13,12 +13,16 @@ def open_app_database_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(get_app_database_path())
     conn.executescript(
         """
-        PRAGMA synchronous = 1;
-        PRAGMA temp_store = 2;
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA temp_store = MEMORY;
         PRAGMA busy_timeout = 15000;
         PRAGMA foreign_keys = ON;
         PRAGMA recursive_triggers = ON;
         PRAGMA cache_size = -4000;
+
+        PRAGMA wal_autocheckpoint = 4000;
+        PRAGMA mmap_size = 268435456;
     """
     )
     return conn
