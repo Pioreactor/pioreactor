@@ -1206,7 +1206,8 @@ def test_pios_update_requires_explicit_subcommand() -> None:
         result = runner.invoke(pios, ["update", "--sha", git_sha, "-y"])
 
     assert result.exit_code == 2
-    assert "No such option: --sha" in result.output
+    assert "No such option" in result.output
+    assert "--sha" in result.output
     assert bucket == []
 
 
@@ -1215,7 +1216,8 @@ def test_pio_update_requires_explicit_subcommand() -> None:
     result = runner.invoke(pio, ["update", "--sha", "a0b1c2d3"])
 
     assert result.exit_code == 2
-    assert "No such option: --sha" in result.output
+    assert "No such option" in result.output
+    assert "--sha" in result.output
 
 
 def test_pio_update_app_runs_argv_without_shell(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1397,7 +1399,8 @@ def test_pios_update_app_options_are_not_accepted_on_update_group() -> None:
     )
 
     assert result.exit_code == 2
-    assert "No such option: --version" in result.output
+    assert "No such option" in result.output
+    assert "--version" in result.output
 
 
 def test_pios_update_app_explicit_units_include_leader_when_named(

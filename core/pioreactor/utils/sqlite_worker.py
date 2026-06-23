@@ -44,6 +44,8 @@ class Sqlite3Worker(threading.Thread):
         sql_worker.execute(
             "INSERT into tester values (?, ?)", ("2011-02-02 14:14:14", "dog"))
         sql_worker.close()
+
+    Accepted write/DDL statements are committed no later than max_batch_delay_s, max_queue_size, or close()
     """
 
     def __init__(
@@ -75,8 +77,6 @@ class Sqlite3Worker(threading.Thread):
             PRAGMA synchronous = NORMAL;
             PRAGMA temp_store = MEMORY;
             PRAGMA busy_timeout = 15000;
-            PRAGMA foreign_keys = ON;
-            PRAGMA recursive_triggers = ON;
             PRAGMA cache_size = -4000;
 
             PRAGMA wal_autocheckpoint = 4000;
