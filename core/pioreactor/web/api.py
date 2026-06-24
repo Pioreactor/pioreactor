@@ -2493,7 +2493,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 @api_bp.route("/units/<pioreactor_unit>/plugins/install-from-leader-usb", methods=["POST", "PATCH"])
 def install_plugin_from_leader_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """
-    Install one wheel plugin from the leader's Pioreactor-managed USB mount onto selected unit(s).
+    Install one plugin artifact from the leader's Pioreactor-managed USB mount onto selected unit(s).
 
     JSON body:
     {

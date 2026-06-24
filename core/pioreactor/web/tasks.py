@@ -1130,11 +1130,15 @@ def install_plugin_from_usb_task(filepath: str) -> bool:
 def _install_plugin_from_usb(filepath: str) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
-    plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
-    plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+    plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
     logger.debug(f"Installing plugin from USB {plugin_path}.")
     try:
-        install_plugin(plugin_name, source=plugin_path.as_posix())
+        if plugin_path.suffix == ".whl":
+            plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+            install_plugin(plugin_name, source=plugin_path.as_posix())
+        else:
+            plugin_name = install_python_plugin_file(plugin_path)
+        clear_plugin_cache()
         return True
     except Exception as exc:
         logger.debug(f"Installing plugin from USB {plugin_path} failed: {exc}")
@@ -1142,16 +1146,23 @@ def _install_plugin_from_usb(filepath: str) -> bool:
 
 
 def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> dict[str, Any]:
-    plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
-    plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+    plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
     remote_source = f"/tmp/{plugin_path.name}"
 
     logger.debug(f"Copying USB plugin {plugin_path} to {unit}:{remote_source}.")
     cp_file_across_cluster(unit, plugin_path.as_posix(), remote_source, timeout=60)
 
-    payload = {"args": [plugin_name], "options": {"source": remote_source}}
+    if plugin_path.suffix == ".whl":
+        plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+        payload = {"args": [plugin_name], "options": {"source": remote_source}}
+        install_endpoint = "/unit_api/plugins/install"
+    else:
+        plugin_name = plugin_path.stem
+        payload = {"filename": plugin_path.name}
+        install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
+
     logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
-    response = post_into(resolve_to_address(unit), "/unit_api/plugins/install", json=payload, timeout=60)
+    response = post_into(resolve_to_address(unit), install_endpoint, json=payload, timeout=60)
     response.raise_for_status()
 
     return {
@@ -1190,6 +1201,40 @@ def install_plugin_from_leader_usb_across_units_task(
 
 def install_plugin_from_leader_usb_across_units(units: list[str], filepath: str, leader: str) -> Any:
     return install_plugin_from_leader_usb_across_units_task(units, filepath, leader)
+
+
+@huey.task()
+@huey.lock_task("plugins-lock")
+def install_python_plugin_file_from_leader_copy_task(filename: str) -> bool:
+    filename = Path(filename).name
+    if not usb_utils.is_valid_python_plugin_filename(filename):
+        return False
+
+    plugin_path = Path("/tmp") / filename
+    if not plugin_path.exists() or not plugin_path.is_file():
+        return False
+
+    try:
+        install_python_plugin_file(plugin_path)
+        clear_plugin_cache()
+        return True
+    except Exception as exc:
+        logger.debug(f"Installing copied Python plugin {plugin_path} failed: {exc}")
+        return False
+
+
+def install_python_plugin_file(source: Path) -> str:
+    plugin_dir = Path(os.environ["DOT_PIOREACTOR"]) / "plugins"
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    target = plugin_dir / source.name
+    shutil.copy2(source, target)
+    return source.stem
+
+
+def clear_plugin_cache() -> None:
+    cache_clear = getattr(get_plugins, "cache_clear", None)
+    if cache_clear is not None:
+        cache_clear()
 
 
 @huey.task()

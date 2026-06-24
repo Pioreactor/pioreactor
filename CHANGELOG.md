@@ -8,6 +8,7 @@
 
  - Added boot-partition Wi-Fi setup for _new_ Pioreactor images. Users can place a `wifi.ini` file with `ssid` and `passphrase` values on the boot partition, and the image will try those credentials before starting local access point mode.
  - Improved plugin install and uninstall reliability by moving the lifecycle into the Pioreactor package instead of requiring `/usr/local/bin` helper scripts on the operating system.
+ - Added support for installing `.py` drop-in plugins from Pioreactor-managed USB drives on the Plugins page, alongside existing `.whl` plugin installs.
  - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
  - Reduced idle CPU usage from the monitor job on single-core Raspberry Pis by disabling button controls by default. The new `[monitor.config] enable_button` option supports `auto`, `true`, and `false`.
  - removed tty services from base images.

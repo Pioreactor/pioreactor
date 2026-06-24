@@ -9,17 +9,20 @@ from os import environ
 from time import sleep
 from typing import Any
 from typing import Callable
+from typing import TYPE_CHECKING
 
 from msgspec import Struct
 from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
 from paho.mqtt.enums import CallbackAPIVersion
 from paho.mqtt.enums import MQTTErrorCode
-from pioreactor import mureq
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import mqtt_address
+
+if TYPE_CHECKING:
+    from pioreactor import mureq
 
 
 def add_hash_suffix(s: str) -> str:
@@ -428,12 +431,14 @@ def create_webserver_path(address: str, endpoint: str) -> str:
     return f"{proto}://{address}:{port}/{endpoint}"
 
 
-def get_from(address: str, endpoint: str, **kwargs: Any) -> mureq.Response:
+def get_from(address: str, endpoint: str, **kwargs: Any) -> "mureq.Response":
     # pioreactor cluster specific
+    from pioreactor import mureq
+
     return mureq.get(create_webserver_path(address, endpoint), **kwargs)
 
 
-def get_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> mureq.Response:
+def get_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> "mureq.Response":
     return get_from(leader_address, endpoint, timeout=timeout, **kwargs)
 
 
@@ -443,8 +448,10 @@ def put_into(
     body: bytes | None = None,
     json: dict[str, Any] | Struct | None = None,
     **kwargs: Any,
-) -> mureq.Response:
+) -> "mureq.Response":
     # pioreactor cluster specific
+    from pioreactor import mureq
+
     return mureq.put(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -454,7 +461,7 @@ def put_into_leader(
     json: dict[str, Any] | Struct | None = None,
     timeout: int = 5,
     **kwargs: Any,
-) -> mureq.Response:
+) -> "mureq.Response":
     return put_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
@@ -464,8 +471,10 @@ def patch_into(
     body: bytes | None = None,
     json: dict[str, Any] | Struct | None = None,
     **kwargs: Any,
-) -> mureq.Response:
+) -> "mureq.Response":
     # pioreactor cluster specific
+    from pioreactor import mureq
+
     return mureq.patch(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -475,7 +484,7 @@ def patch_into_leader(
     json: dict[str, Any] | Struct | None = None,
     timeout: int = 5,
     **kwargs: Any,
-) -> mureq.Response:
+) -> "mureq.Response":
     return patch_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
@@ -485,8 +494,10 @@ def post_into(
     body: bytes | None = None,
     json: dict[str, Any] | Struct | None = None,
     **kwargs: Any,
-) -> mureq.Response:
+) -> "mureq.Response":
     # pioreactor cluster specific
+    from pioreactor import mureq
+
     return mureq.post(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -496,14 +507,16 @@ def post_into_leader(
     json: dict[str, Any] | Struct | None = None,
     timeout: int = 5,
     **kwargs: Any,
-) -> mureq.Response:
+) -> "mureq.Response":
     return post_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
-def delete_from(address: str, endpoint: str, **kwargs: Any) -> mureq.Response:
+def delete_from(address: str, endpoint: str, **kwargs: Any) -> "mureq.Response":
     # pioreactor cluster specific
+    from pioreactor import mureq
+
     return mureq.delete(create_webserver_path(address, endpoint), **kwargs)
 
 
-def delete_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> mureq.Response:
+def delete_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> "mureq.Response":
     return delete_from(leader_address, endpoint, timeout=timeout, **kwargs)

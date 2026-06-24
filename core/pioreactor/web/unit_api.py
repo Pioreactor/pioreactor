@@ -1373,7 +1373,7 @@ def install_plugin() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/plugins/install-from-usb", methods=["POST", "PATCH"])
 def install_plugin_from_usb() -> DelayedResponseReturnValue:
     """
-    Install one wheel plugin from a Pioreactor-managed USB mount.
+    Install one plugin artifact from a Pioreactor-managed USB mount.
 
     JSON body:
     {
@@ -1390,6 +1390,37 @@ def install_plugin_from_usb() -> DelayedResponseReturnValue:
 
     filepath = decode_request_body(structs.InstallPluginFromUsbRequest).filepath
     task = tasks.install_plugin_from_usb_task(filepath)
+    return create_task_response(task)
+
+
+@unit_api_bp.route("/plugins/install-python-file-from-leader-copy", methods=["POST", "PATCH"])
+def install_python_plugin_file_from_leader_copy() -> DelayedResponseReturnValue:
+    """
+    Install one Python file plugin copied by the leader to /tmp.
+
+    JSON body:
+    {
+      "filename": "my_plugin.py"
+    }
+    """
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+        abort_with(
+            403,
+            "DISALLOW_UI_INSTALLS is present",
+            cause="Plugin installs are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
+        )
+
+    filename = Path(decode_request_body(structs.InstallPluginFromLeaderCopyRequest).filename).name
+    if not usb_utils.is_valid_python_plugin_filename(filename):
+        abort_with(
+            400,
+            "Invalid Python plugin filename",
+            cause="The copied plugin filename is not a valid Python module file.",
+            remediation="Use a .py filename with a valid Python module name, for example my_plugin.py.",
+        )
+
+    task = tasks.install_python_plugin_file_from_leader_copy_task(filename)
     return create_task_response(task)
 
 

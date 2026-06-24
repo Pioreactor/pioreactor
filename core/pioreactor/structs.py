@@ -726,6 +726,10 @@ class InstallPluginFromUsbRequest(Struct, forbid_unknown_fields=True):
     filepath: str
 
 
+class InstallPluginFromLeaderCopyRequest(Struct, forbid_unknown_fields=True):
+    filename: str
+
+
 class CreateCalibrationRequest(Struct, forbid_unknown_fields=True):
     calibration_data: str
     set_as_active: bool = False

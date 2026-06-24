@@ -552,7 +552,12 @@ function ListUsbPlugins({
       <Box sx={{ mb: "15px", width: "100%" }}>
         <List>
           {usbPlugins.map((plugin) => {
-            const label = `${plugin.name}${plugin.version ? " (" + plugin.version + ")" : ""}`;
+            const pluginDetail = plugin.version
+              ? ` (${plugin.version})`
+              : plugin.kind === "python_file"
+                ? " (Python file)"
+                : "";
+            const label = `${plugin.name}${pluginDetail}`;
             const isInstalled = installedPlugins.includes(plugin.name);
             const task = getTask("install", "usb", plugin.name);
 

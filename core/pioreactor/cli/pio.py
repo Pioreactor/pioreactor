@@ -19,9 +19,6 @@ import click
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
-from pioreactor.http_response import summarize_error_response
-from pioreactor.mureq import get
-from pioreactor.mureq import HTTPErrorStatus
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -929,6 +926,8 @@ def blink() -> None:
     """
     monitor job is required to be running.
     """
+    from pioreactor.http_response import summarize_error_response
+    from pioreactor.mureq import HTTPErrorStatus
     from pioreactor.pubsub import post_into_leader
 
     response = post_into_leader(f"/api/workers/{whoami.get_unit_name()}/blink")
@@ -1753,6 +1752,7 @@ def get_non_prerelease_tags_of_pioreactor(repo: str) -> list[str]:
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
     from packaging.version import Version
+    from pioreactor.mureq import get
 
     url = f"https://api.github.com/repos/{repo}/releases"
     headers = {"Accept": "application/vnd.github.v3+json"}

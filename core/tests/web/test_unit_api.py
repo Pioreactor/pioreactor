@@ -304,6 +304,36 @@ def test_install_plugin_from_usb_requires_filepath(client) -> None:
     assert resp.get_json()["remediation"] == "Send a JSON object with the required fields: filepath."
 
 
+def test_install_python_plugin_file_from_leader_copy_schedules_task(
+    client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class DummyTask:
+        id = "install-python-plugin-task"
+
+    captured: dict[str, str] = {}
+
+    def fake_install_python_plugin_file_from_leader_copy_task(filename: str) -> DummyTask:
+        captured["filename"] = filename
+        return DummyTask()
+
+    monkeypatch.setattr(
+        mod.tasks,
+        "install_python_plugin_file_from_leader_copy_task",
+        fake_install_python_plugin_file_from_leader_copy_task,
+    )
+
+    resp = client.post(
+        "/unit_api/plugins/install-python-file-from-leader-copy",
+        json={"filename": "../dropin_plugin.py"},
+    )
+
+    assert resp.status_code == 202
+    assert resp.get_json()["task_id"] == "install-python-plugin-task"
+    assert captured == {"filename": "dropin_plugin.py"}
+
+
 @pytest.mark.parametrize(
     ("method", "endpoint"),
     [
@@ -314,6 +344,7 @@ def test_install_plugin_from_usb_requires_filepath(client) -> None:
         ("post", "/unit_api/jobs/stop"),
         ("patch", "/unit_api/bioreactor/experiments/exp1"),
         ("post", "/unit_api/plugins/install-from-usb"),
+        ("post", "/unit_api/plugins/install-python-file-from-leader-copy"),
         ("post", "/unit_api/calibrations/media_pump"),
     ],
 )

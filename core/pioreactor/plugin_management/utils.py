@@ -33,5 +33,4 @@ def discover_plugins_in_local_folder() -> list[Path]:
 
 
 def discover_plugins_in_entry_points() -> list[entry_point.EntryPoint]:
-    eps = entry_point.entry_points()
-    return list(eps.select(group="pioreactor.plugins"))
+    return list(entry_point.entry_points(group="pioreactor.plugins"))

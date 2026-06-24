@@ -119,6 +119,7 @@ class MQTTHandler(logging.Handler):
         self,
         topic_prefix: str,
         client: "Client",
+        owns_client: bool,
         qos: int = 0,
         retain: bool = False,
         **mqtt_kwargs: Any,
@@ -129,6 +130,7 @@ class MQTTHandler(logging.Handler):
         self.retain = retain
         self.mqtt_kwargs = mqtt_kwargs
         self.client = client
+        self.owns_client = owns_client
 
     def emit(self, record: logging.LogRecord) -> None:
         payload = self.format(record)
@@ -152,7 +154,8 @@ class MQTTHandler(logging.Handler):
         mqtt_msg.wait_for_publish(timeout=2)
 
     def close(self) -> None:
-        self.client.shutdown()
+        if self.owns_client:
+            self.client.shutdown()
         super().close()
 
 
@@ -230,6 +233,7 @@ def create_logger(
     logger.addHandler(console_handler)
 
     if to_mqtt:
+        mqtt_handler_owns_client = pub_client is None
         if pub_client is None:
             pub_client = create_client(
                 client_id=f"{name}-logging-{unit}-{experiment}",
@@ -242,7 +246,7 @@ def create_logger(
         topic_prefix = (
             f"pioreactor/{unit}/{experiment}/logs/{source}"  # NOTE: we later append the log-level, ex: /debug
         )
-        mqtt_to_db_handler = MQTTHandler(topic_prefix, pub_client)
+        mqtt_to_db_handler = MQTTHandler(topic_prefix, pub_client, owns_client=mqtt_handler_owns_client)
         mqtt_to_db_handler.setLevel(logging.DEBUG)
         mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())
 
