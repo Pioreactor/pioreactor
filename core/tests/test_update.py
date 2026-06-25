@@ -24,7 +24,7 @@ def test_get_non_prerelease_tags_of_pioreactor(monkeypatch) -> None:
     def mock_get_request(url, headers):
         return mock_get(200, dumps(fake_releases))
 
-    monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get_request)
 
     result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
     assert [str(r) for r in result] == [
@@ -37,7 +37,7 @@ def test_get_non_prerelease_tags_of_pioreactor(monkeypatch) -> None:
     def mock_get_bad_request(url, headers):
         return mock_get(404, "")
 
-    monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_bad_request)
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get_bad_request)
 
     with pytest.raises(Exception):
         get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
@@ -54,7 +54,7 @@ def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatc
     def mock_get_request(url, headers):
         return mock_get(200, dumps(fake_releases))
 
-    monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get_request)
 
     result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
     assert [str(r) for r in result] == [
@@ -102,7 +102,7 @@ def test_get_non_prerelease_tags_of_pioreactor_with_no_releases(monkeypatch) -> 
     def mock_get_request(url, headers):
         return mock_get(200, dumps(fake_releases))
 
-    monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
+    monkeypatch.setattr("pioreactor.mureq.get", mock_get_request)
 
     result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
     assert result == []
