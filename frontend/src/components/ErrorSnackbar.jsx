@@ -87,15 +87,13 @@ function getDedupeKey({ unit, experiment, task, level, message }) {
 }
 
 function getLogsRoute(unit, experiment) {
-  if (experiment === "$experiment") {
-    return "/system-logs";
-  }
+  const logsRoute = experiment === "$experiment" ? "/system-logs" : "/logs";
 
   if (unit === "$broadcast") {
-    return "/logs";
+    return logsRoute;
   }
 
-  return `/logs/${encodeURIComponent(unit)}`;
+  return `${logsRoute}/${encodeURIComponent(unit)}`;
 }
 
 const LogAlertContent = React.forwardRef(function LogAlertContent({
