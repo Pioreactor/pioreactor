@@ -634,6 +634,7 @@ class ChartDescriptor(Struct, forbid_unknown_fields=True):
         "cardinal",
         "catmullRom",
         "linear",
+        "none",
         "monotoneX",
         "monotoneY",
         "natural",

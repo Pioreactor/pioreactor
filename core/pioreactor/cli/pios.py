@@ -193,6 +193,11 @@ if am_I_leader() or is_testing_env():
             raise click.BadParameter(
                 "Use either --units or --experiments, not both. The combined selector is ambiguous."
             )
+        if UNIVERSAL_IDENTIFIER in units_opt:
+            raise click.BadParameter(
+                f"{UNIVERSAL_IDENTIFIER} is not valid with --units here. "
+                "Omit --units and --experiments to target the whole cluster."
+            )
 
         explicit_units = _get_explicit_units(units_opt)
         inventory_or_leader = _get_inventory_units(active_only=False) | {get_leader_hostname()}

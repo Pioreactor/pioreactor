@@ -335,7 +335,7 @@ function Chart(props) {
 
       const seriesColor = applyAngleAlpha(name, series?.color);
       let marker = null;
-      if (series.data?.length === 1) {
+      if (interpolation === "none" || series.data?.length === 1) {
         marker = (
           <VictoryScatter
             size={4}

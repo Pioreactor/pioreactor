@@ -1441,6 +1441,21 @@ def test_pios_update_app_explicit_units_include_leader_when_named(
     ]
 
 
+def test_pios_update_app_rejects_broadcast_as_explicit_unit() -> None:
+    runner = CliRunner()
+
+    with capture_requests() as bucket:
+        result = runner.invoke(
+            pios,
+            ["update", "app", "--units", "$broadcast", "-y"],
+        )
+
+    assert result.exit_code != 0
+    assert "$broadcast is not valid with --units here" in result.output
+    assert "Omit --units and --experiments to target the whole cluster" in result.output
+    assert bucket == []
+
+
 def test_pios_update_app_experiments_include_leader_when_assigned(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
