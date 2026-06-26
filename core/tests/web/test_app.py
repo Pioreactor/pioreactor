@@ -39,7 +39,9 @@ def test_process_delayed_json_response_accepts_created_status() -> None:
         def json(self) -> dict[str, str]:
             return {"msg": "Calibration created successfully."}
 
-    assert mod._process_delayed_json_response("unit1", DummyResponse()) == (
+    assert mod._process_delayed_json_response(
+        "unit1", "http://unit.local", DummyResponse(), max_attempts=1, timeout=5.0
+    ) == (
         "unit1",
         {"ok": True, "unit": "unit1", "value": {"msg": "Calibration created successfully."}},
     )

@@ -316,30 +316,11 @@ def _fanout_failure_from_response(
     )
 
 
-def _process_delayed_json_response(
+def _process_json_response(
     unit: str,
     response: Response,
-    *,
-    max_attempts: int = 300,
-    retry_sleep_s: float = 0.1,
+    data: dict[str, Any],
 ) -> tuple[str, Any]:
-    """
-    Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
-    Returns the unit and the appropriate JSON data or result value.
-    """
-    data = response.json()
-    if response.status_code == 202 and "result_url_path" in data:
-        # Follow up shortly on async responses where the unit returns a result URL.
-        if max_attempts <= 0:
-            return unit, fanout_failure(
-                unit,
-                "task_timeout",
-                "Timed out waiting for unit task result.",
-                retryable=True,
-                status_code=response.status_code,
-            )
-        sleep(retry_sleep_s)
-        return _get_from_unit(unit, data["result_url_path"], max_attempts=max_attempts - 1)
     if 200 <= response.status_code < 300:
         if "task_id" in data:
             if data.get("status") == "succeeded":
@@ -369,6 +350,69 @@ def _process_delayed_json_response(
         retryable=response.status_code >= 500,
         status_code=response.status_code,
     )
+
+
+def _process_delayed_json_response(
+    unit: str,
+    address: str,
+    response: Response,
+    *,
+    max_attempts: int,
+    timeout: float,
+    retry_sleep_s: float = 0.1,
+) -> tuple[str, Any]:
+    """
+    Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
+    Returns the unit and the appropriate JSON data or result value.
+    """
+    data = response.json()
+    remaining_attempts = max_attempts
+
+    while response.status_code == 202 and "result_url_path" in data:
+        if remaining_attempts <= 0:
+            return unit, fanout_failure(
+                unit,
+                "task_timeout",
+                "Timed out waiting for unit task result.",
+                retryable=True,
+                status_code=response.status_code,
+            )
+
+        endpoint = data["result_url_path"]
+        remaining_attempts -= 1
+        sleep(retry_sleep_s)
+
+        delayed_response: Response | None = None
+        try:
+            delayed_response = get_from(address, endpoint, timeout=timeout)
+            delayed_response.raise_for_status()
+            response = delayed_response
+            data = response.json()
+        except (HTTPErrorStatus, HTTPException) as e:
+            logger.debug(
+                f"Could not get from {unit}'s {address=}, {endpoint=}, sent json=None and returned {e}."
+                f"{_summarize_unit_api_error(delayed_response)}"
+            )
+            return unit, _fanout_failure_from_response(
+                unit,
+                delayed_response,
+                fallback_kind="http_error" if delayed_response is not None else "connection_error",
+                fallback_message=f"Could not GET from {unit}'s {endpoint}.",
+                retryable=delayed_response is None or delayed_response.status_code >= 500,
+            )
+        except DecodeError:
+            logger.debug(
+                f"Could not decode response from {unit}'s {endpoint=}, sent json=None and returned {_response_body_for_logging(delayed_response)}."
+            )
+            return unit, fanout_failure(
+                unit,
+                "decode_error",
+                f"Could not decode response from {unit}'s {endpoint}.",
+                retryable=False,
+                status_code=delayed_response.status_code if delayed_response is not None else None,
+            )
+
+    return _process_json_response(unit, response, data)
 
 
 def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.1) -> int:
@@ -1559,7 +1603,13 @@ def post_into_unit(
             return unit, fanout_success(unit, None)
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
+        return _process_delayed_json_response(
+            unit,
+            address,
+            r,
+            max_attempts=_delayed_result_max_attempts(timeout),
+            timeout=timeout,
+        )
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1750,8 +1800,10 @@ def _get_from_unit(
         # delayed or immediate JSON response
         return _process_delayed_json_response(
             unit,
+            address,
             r,
             max_attempts=max_attempts if max_attempts is not None else _delayed_result_max_attempts(timeout),
+            timeout=timeout,
         )
 
     except (HTTPErrorStatus, HTTPException) as e:
@@ -1874,7 +1926,13 @@ def patch_into_unit(
             return unit, fanout_success(unit, None)
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
+        return _process_delayed_json_response(
+            unit,
+            address,
+            r,
+            max_attempts=_delayed_result_max_attempts(timeout),
+            timeout=timeout,
+        )
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(

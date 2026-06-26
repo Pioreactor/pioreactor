@@ -68,7 +68,7 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
 fi
 
 
-sudo -u pioreactor pio log -m "Running some database optimizations during update process, this make take a few minutes, please be patient" -l notice
+sudo -u pioreactor -i pio log -m "Running some database optimizations during update process, this make take a few minutes, please be patient" -l notice
 
 DATABASE=$(sudo -u pioreactor -i pio config get storage database)
 
