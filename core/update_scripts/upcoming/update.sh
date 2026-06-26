@@ -67,6 +67,9 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
   exit 0
 fi
 
+
+sudo -u pioreactor pio log -m "Running some database optimizations during update process, this make take a few minutes, please be patient" -l notice
+
 DATABASE=$(sudo -u pioreactor -i pio config get storage database)
 
 has_legacy_experiment_metadata_columns=$(sudo sqlite3 "$DATABASE" <<'SQL'
