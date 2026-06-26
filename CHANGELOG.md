@@ -7,12 +7,10 @@
 #### Enhancements
 
  - Added boot-partition Wi-Fi setup for _new_ Pioreactor images. Users can place a `wifi.ini` file with `ssid` and `passphrase` values on the boot partition, and the image will try those credentials before starting local access point mode.
- - Improved plugin install and uninstall reliability by moving the lifecycle into the Pioreactor package instead of requiring `/usr/local/bin` helper scripts on the operating system.
  - Added support for installing `.py` drop-in plugins from Pioreactor-managed USB drives on the Plugins page, alongside existing `.whl` plugin installs.
  - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
  - Reduced idle CPU usage from the monitor job on single-core Raspberry Pis by disabling button controls by default. The new `[monitor.config] enable_button` option supports `auto`, `true`, and `false`.
- - removed tty services from base images.
- - added `git` to base images
+ - added `git` to _new_ Pioreactor images
  - Plugins installation and uninstallation are now part of core `pioreactor` instead of shelling-out to a bash script.
  - Added a retained MQTT topic for each worker's current experiment assignment:
 
@@ -29,7 +27,7 @@
 - Fixed the MCP endpoint to accept both `/mcp` and `/mcp/` without redirecting, and ensured Lighttpd forwards the roots of the `/api`, `/unit_api`, and `/mcp` namespaces to the web application.
 - Fixed plugin uninstall cleanup for legacy plugin UI assets installed from `ui/contrib/`.
 - Fixed network_info.txt lacking networkmanager logs
-- Fixed test_dark_offset_correction_is_effective update missing from self-test dialog for _new_ images.
+- Fixed test_dark_offset_correction_is_effective update missing from self-test dialog.
 
 ### 26.5.3
 

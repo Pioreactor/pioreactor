@@ -7,11 +7,23 @@ export LC_ALL=C
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIGHTTPD_CONFIG_SOURCE="$SCRIPT_DIR/50-pioreactorui.conf"
 LIGHTTPD_CONFIG_DESTINATION="/etc/lighttpd/conf-available/50-pioreactorui.conf"
+SELF_TEST_DESCRIPTOR_SOURCE="$SCRIPT_DIR/50_self_test.yaml"
+SELF_TEST_DESCRIPTOR_DESTINATION="/home/pioreactor/.pioreactor/ui/jobs/50_self_test.yaml"
 PIOREACTOR_CONFIG="/home/pioreactor/.pioreactor/config.ini"
 CRUDINI="/opt/pioreactor/venv/bin/crudini"
 
 if [ ! -s "$LIGHTTPD_CONFIG_SOURCE" ]; then
   sudo -u pioreactor -i pio log -l ERROR -m "Missing or empty Lighttpd update asset: $LIGHTTPD_CONFIG_SOURCE"
+  exit 1
+fi
+
+if [ ! -s "$SELF_TEST_DESCRIPTOR_SOURCE" ]; then
+  sudo -u pioreactor -i pio log -l ERROR -m "Missing or empty self-test descriptor update asset: $SELF_TEST_DESCRIPTOR_SOURCE"
+  exit 1
+fi
+
+if ! grep -q "test_dark_offset_correction_is_effective" "$SELF_TEST_DESCRIPTOR_SOURCE"; then
+  sudo -u pioreactor -i pio log -l ERROR -m "Self-test descriptor update asset is missing test_dark_offset_correction_is_effective"
   exit 1
 fi
 
@@ -21,6 +33,16 @@ mv "$LIGHTTPD_CONFIG_TEMP" "$LIGHTTPD_CONFIG_DESTINATION"
 
 if ! cmp -s "$LIGHTTPD_CONFIG_SOURCE" "$LIGHTTPD_CONFIG_DESTINATION"; then
   sudo -u pioreactor -i pio log -l ERROR -m "Failed to install $LIGHTTPD_CONFIG_DESTINATION"
+  exit 1
+fi
+
+install -d -o pioreactor -g www-data -m 2775 "$(dirname "$SELF_TEST_DESCRIPTOR_DESTINATION")"
+SELF_TEST_DESCRIPTOR_TEMP=$(mktemp "$(dirname "$SELF_TEST_DESCRIPTOR_DESTINATION")/50_self_test.yaml.XXXXXX")
+install -o pioreactor -g www-data -m 0644 "$SELF_TEST_DESCRIPTOR_SOURCE" "$SELF_TEST_DESCRIPTOR_TEMP"
+mv "$SELF_TEST_DESCRIPTOR_TEMP" "$SELF_TEST_DESCRIPTOR_DESTINATION"
+
+if ! cmp -s "$SELF_TEST_DESCRIPTOR_SOURCE" "$SELF_TEST_DESCRIPTOR_DESTINATION"; then
+  sudo -u pioreactor -i pio log -l ERROR -m "Failed to install $SELF_TEST_DESCRIPTOR_DESTINATION"
   exit 1
 fi
 
