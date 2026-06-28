@@ -79,12 +79,12 @@ class cache:
         # sqlite3.register_converter("_key_BLOB", self.convert_key)
 
         self.conn = sqlite3.connect(
-            self.db_path, detect_types=sqlite3.PARSE_DECLTYPES, isolation_level=None, timeout=10
+            self.db_path, detect_types=sqlite3.PARSE_DECLTYPES, isolation_level=None, timeout=15
         )
         self.cursor = self.conn.cursor()
         self.cursor.executescript(
             """
-            PRAGMA busy_timeout = 5000;
+            PRAGMA busy_timeout = 15000;
             PRAGMA temp_store = 2;
             PRAGMA cache_size = -4000;
         """

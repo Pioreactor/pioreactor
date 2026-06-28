@@ -55,10 +55,10 @@ class JobManager:
     def __init__(self) -> None:
         db_path = config.get("storage", "temporary_cache")
         try:
-            self.conn = sqlite3.connect(db_path, isolation_level=None)
+            self.conn = sqlite3.connect(db_path, isolation_level=None, timeout=15)
             self.conn.executescript(
                 """
-                PRAGMA busy_timeout = 5000;
+                PRAGMA busy_timeout = 15000;
                 PRAGMA temp_store = 2;
                 PRAGMA foreign_keys = ON;
                 PRAGMA cache_size = -4000;
