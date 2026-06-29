@@ -576,6 +576,23 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        "pioreactor.cli.pio.collect_dot_pioreactor_repair_changes",
+        lambda _root: {
+            "ownership": [dot_pioreactor / "config.ini"],
+            "group_writable": [dot_pioreactor, dot_pioreactor / "storage"],
+            "setgid": [dot_pioreactor / "storage"],
+        },
+    )
+    monkeypatch.setattr(
+        "pioreactor.cli.pio.collect_runtime_repair_changes",
+        lambda: {
+            "directories": [Path("/run/pioreactor/cache")],
+            "stale_exports": [Path("/run/pioreactor/exports/export_old.zip")],
+            "cache_databases": [Path("/run/pioreactor/cache/huey.db")],
+            "cache_sidecars": [Path("/run/pioreactor/cache/huey.db-wal")],
+        },
+    )
 
     class DummyResult:
         def __init__(self, returncode: int = 0) -> None:
@@ -746,16 +763,62 @@ def test_pio_repair_runs_dot_pioreactor_and_runtime_permission_commands(
         "restart",
         "pioreactor_startup_run@mqtt_to_db_streaming.service",
     ]
-    assert f"Repaired ownership and group permissions for {dot_pioreactor}." in result.output
-    assert "Repaired runtime directories under /run/pioreactor." in result.output
-    assert "Cleared stale runtime export artifacts from /run/pioreactor/exports." in result.output
-    assert "Repaired runtime cache files under /run/pioreactor/cache." in result.output
+    assert f"Ownership and group permissions for {dot_pioreactor}:" in result.output
+    assert f"fixed owner/group: 1 path(s): {dot_pioreactor / 'config.ini'}" in result.output
+    assert (
+        f"added group-write permission: 2 path(s): {dot_pioreactor}, {dot_pioreactor / 'storage'}"
+        in result.output
+    )
+    assert f"added setgid permission: 1 path(s): {dot_pioreactor / 'storage'}" in result.output
+    assert "Runtime files under /run/pioreactor:" in result.output
+    assert "created or repaired runtime directories: 1 path(s): /run/pioreactor/cache" in result.output
+    assert (
+        "removed stale export artifacts: 1 path(s): /run/pioreactor/exports/export_old.zip" in result.output
+    )
+    assert "created or repaired cache databases: 1 path(s): /run/pioreactor/cache/huey.db" in result.output
+    assert "repaired cache sidecar files: 1 path(s): /run/pioreactor/cache/huey.db-wal" in result.output
     assert "Restarted inactive pioreactor-web.target services: huey.service." in result.output
     assert (
         "Restarted inactive pioreactor startup services: "
         "pioreactor_startup_run@mqtt_to_db_streaming.service."
     ) in result.output
     assert "Repair complete." in result.output
+
+
+def test_pio_repair_reports_no_changes_when_preflight_is_clean(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        "pioreactor.cli.pio.collect_dot_pioreactor_repair_changes",
+        lambda _root: {"ownership": [], "group_writable": [], "setgid": []},
+    )
+    monkeypatch.setattr(
+        "pioreactor.cli.pio.collect_runtime_repair_changes",
+        lambda: {"directories": [], "stale_exports": [], "cache_databases": [], "cache_sidecars": []},
+    )
+
+    class DummyResult:
+        def __init__(self, returncode: int = 0) -> None:
+            self.returncode = returncode
+
+    def record_run(command: list[str], check: bool) -> DummyResult:
+        assert check is True or command[:3] == ["/usr/bin/systemctl", "is-active", "--quiet"]
+        return DummyResult()
+
+    monkeypatch.setattr("subprocess.run", record_run)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: True)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["repair"])
+
+    assert result.exit_code == 0
+    assert f"Ownership and group permissions for {dot_pioreactor}: no changes needed." in result.output
+    assert "Runtime files under /run/pioreactor: no changes needed." in result.output
 
 
 def test_pio_repair_does_not_check_mqtt_to_db_streaming_on_workers(
