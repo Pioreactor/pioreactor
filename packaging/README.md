@@ -15,3 +15,9 @@ This directory contains files used to build or install Pioreactor outside the no
 ## Ownership Boundary
 
 The Pioreactor repo owns these files because they describe the Pioreactor application runtime contract. CustoPiZer consumes selected files from here when building Raspberry Pi images, but CustoPiZer still owns Raspberry Pi image-specific boot, hardware, networking, service ordering, and firstboot behavior.
+
+## WIP Local HTTPS Support
+
+The runtime lighttpd assets include early, disabled support for serving the browser UI over local HTTPS. `runtime-files/lighttpd/10-pioreactor-https.conf` is copied into image and installer inputs, but it is not enabled by default. It expects a generated local certificate bundle at `/etc/pioreactor/tls/local-ui.lighttpd.pem` and proxies `/mqtt` to the existing Mosquitto websocket listener on `127.0.0.1:9001` so an HTTPS-loaded browser can use same-origin WSS.
+
+This is infrastructure for a future opt-in setup flow, not production HTTPS-by-default. Do not change `config.example.ini` to `wss` / `443`, enable the lighttpd HTTPS config, add HTTP-to-HTTPS redirects, or add HSTS until the local CA generation, browser trust onboarding, certificate regeneration, and rollback behavior are productized.
