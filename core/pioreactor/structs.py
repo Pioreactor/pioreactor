@@ -16,6 +16,7 @@ from msgspec.yaml import encode as yaml_encode
 from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.logging import create_logger
+from pioreactor.utils.files import is_valid_unix_filename
 
 
 T = t.TypeVar("T")
@@ -71,6 +72,18 @@ class AkimaFitData(Struct, tag="akima"):
 
 
 type CalibrationCurveData = PolyFitCoefficients | SplineFitData | AkimaFitData
+
+
+def artifact_path_component(value: str, field: str) -> str:
+    """
+    Calibration and estimator identities are filesystem path components.
+
+    Keep this invariant at the artifact layer so CLI, API, and Huey writers
+    cannot construct paths from malformed names.
+    """
+    if not is_valid_unix_filename(value):
+        raise ValueError(f"{field} must be a valid filename component.")
+    return value
 
 
 class AutomationSettings(JSONPrintedStruct):
@@ -226,8 +239,10 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     def path_on_disk_for_device(self, device: str) -> Path:
         from pioreactor.calibrations import CALIBRATION_PATH
 
-        calibration_dir = CALIBRATION_PATH / device
-        out_file = calibration_dir / f"{self.calibration_name}.yaml"
+        calibration_dir = CALIBRATION_PATH / artifact_path_component(device, "device")
+        out_file = (
+            calibration_dir / f"{artifact_path_component(self.calibration_name, 'calibration_name')}.yaml"
+        )
         return out_file
 
     def save_to_disk_for_device(self, device: str) -> str:
@@ -248,12 +263,14 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         from pioreactor.utils import local_persistent_storage
 
         logger = create_logger("calibrations", experiment="$experiment")
+        device = artifact_path_component(device, "device")
+        calibration_name = artifact_path_component(self.calibration_name, "calibration_name")
 
         if not self.exists_on_disk_for_device(device):
             self.save_to_disk_for_device(device)
 
         with local_persistent_storage("active_calibrations") as c:
-            c[device] = self.calibration_name
+            c[device] = calibration_name
 
         logger.info(f"Set {self.calibration_name} as active calibration for {device}")
 
@@ -261,16 +278,22 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         from pioreactor.utils import local_persistent_storage
 
         logger = create_logger("calibrations", experiment="$experiment")
+        device = artifact_path_component(device, "device")
+        calibration_name = artifact_path_component(self.calibration_name, "calibration_name")
 
         with local_persistent_storage("active_calibrations") as c:
-            if c.get(device) == self.calibration_name:
+            if c.get(device) == calibration_name:
                 del c[device]
                 logger.info(f"Removed {self.calibration_name} as active calibration for {device}")
 
     def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.calibrations import CALIBRATION_PATH
 
-        target_file = CALIBRATION_PATH / device / f"{self.calibration_name}.yaml"
+        target_file = (
+            CALIBRATION_PATH
+            / artifact_path_component(device, "device")
+            / f"{artifact_path_component(self.calibration_name, 'calibration_name')}.yaml"
+        )
 
         return target_file.is_file()
 
@@ -377,7 +400,9 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         from pioreactor.utils import local_persistent_storage
 
         with local_persistent_storage("active_calibrations") as c:
-            return c.get(device) == self.calibration_name
+            return c.get(artifact_path_component(device, "device")) == artifact_path_component(
+                self.calibration_name, "calibration_name"
+            )
 
 
 class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
@@ -392,8 +417,8 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
     def path_on_disk_for_device(self, device: str) -> Path:
         from pioreactor.estimators import ESTIMATOR_PATH
 
-        estimator_dir = ESTIMATOR_PATH / device
-        out_file = estimator_dir / f"{self.estimator_name}.yaml"
+        estimator_dir = ESTIMATOR_PATH / artifact_path_component(device, "device")
+        out_file = estimator_dir / f"{artifact_path_component(self.estimator_name, 'estimator_name')}.yaml"
         return out_file
 
     def save_to_disk_for_device(self, device: str) -> str:
@@ -414,12 +439,14 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         from pioreactor.utils import local_persistent_storage
 
         logger = create_logger("estimators", experiment="$experiment")
+        device = artifact_path_component(device, "device")
+        estimator_name = artifact_path_component(self.estimator_name, "estimator_name")
 
         if not self.exists_on_disk_for_device(device):
             self.save_to_disk_for_device(device)
 
         with local_persistent_storage("active_estimators") as c:
-            c[device] = self.estimator_name
+            c[device] = estimator_name
 
         logger.info(f"Set {self.estimator_name} as active estimator for {device}")
 
@@ -427,16 +454,22 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         from pioreactor.utils import local_persistent_storage
 
         logger = create_logger("estimators", experiment="$experiment")
+        device = artifact_path_component(device, "device")
+        estimator_name = artifact_path_component(self.estimator_name, "estimator_name")
 
         with local_persistent_storage("active_estimators") as c:
-            if c.get(device) == self.estimator_name:
+            if c.get(device) == estimator_name:
                 del c[device]
                 logger.info(f"Removed {self.estimator_name} as active estimator for {device}")
 
     def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.estimators import ESTIMATOR_PATH
 
-        target_file = ESTIMATOR_PATH / device / f"{self.estimator_name}.yaml"
+        target_file = (
+            ESTIMATOR_PATH
+            / artifact_path_component(device, "device")
+            / f"{artifact_path_component(self.estimator_name, 'estimator_name')}.yaml"
+        )
 
         return target_file.is_file()
 
@@ -444,7 +477,9 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         from pioreactor.utils import local_persistent_storage
 
         with local_persistent_storage("active_estimators") as c:
-            return c.get(device) == self.estimator_name
+            return c.get(artifact_path_component(device, "device")) == artifact_path_component(
+                self.estimator_name, "estimator_name"
+            )
 
 
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):

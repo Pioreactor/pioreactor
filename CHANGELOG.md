@@ -19,6 +19,7 @@
    ```
 
    This gives UI, plugin, and monitoring consumers a lightweight MQTT-native way to observe assignment changes while the leader database remains authoritative.
+ - Bumps the base RPi OS image to 18 Jun 2026 which includes Linux kernel 6.18 (_new_ images only).
 
 #### Bug fixes
 

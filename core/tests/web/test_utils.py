@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+from pathlib import Path
+
 import pytest
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.web import utils as web_utils
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import load_automation_descriptors
+from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import load_settings_collection_descriptors
 from pioreactor.web.utils import scrub_to_valid
 
@@ -109,6 +113,138 @@ published_settings:
     assert bioreactor_settings["efflux_tube_volume_ml"].max is None
     assert bioreactor_settings["cumulative_media_added_ml"].default == 0.0
     assert descriptors[1].published_settings[0].editable is False
+
+
+def test_load_background_job_descriptors_rejects_duplicate_published_settings(
+    tmp_path: Path,
+) -> None:
+    ui_dir = tmp_path / "ui" / "jobs"
+    ui_dir.mkdir(parents=True)
+    (ui_dir / "duplicate.yaml").write_text(
+        """\
+display_name: Duplicate
+job_name: duplicate
+display: true
+published_settings:
+  - key: repeated
+    label: First
+    type: numeric
+    display: true
+  - key: repeated
+    label: Second
+    type: numeric
+    display: true
+""",
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+
+    descriptors = load_background_job_descriptors(tmp_path, report_error=errors.append)
+
+    assert descriptors == []
+    assert any("Duplicate published setting key: repeated" in error for error in errors)
+
+
+def test_load_background_job_descriptors_rejects_displayed_setting_without_label(
+    tmp_path: Path,
+) -> None:
+    ui_dir = tmp_path / "ui" / "jobs"
+    ui_dir.mkdir(parents=True)
+    (ui_dir / "missing-label.yaml").write_text(
+        """\
+display_name: Missing label
+job_name: missing_label
+display: true
+published_settings:
+  - key: target
+    type: numeric
+    display: true
+""",
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+
+    descriptors = load_background_job_descriptors(tmp_path, report_error=errors.append)
+
+    assert descriptors == []
+    assert any("requires a label" in error for error in errors)
+
+
+def test_load_background_job_descriptors_rejects_invalid_min_max(
+    tmp_path: Path,
+) -> None:
+    ui_dir = tmp_path / "ui" / "jobs"
+    ui_dir.mkdir(parents=True)
+    (ui_dir / "min-max.yaml").write_text(
+        """\
+display_name: Min max
+job_name: min_max
+display: true
+published_settings:
+  - key: target
+    label: Target
+    type: numeric
+    display: true
+    min: 10
+    max: 1
+""",
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+
+    descriptors = load_background_job_descriptors(tmp_path, report_error=errors.append)
+
+    assert descriptors == []
+    assert any("min greater than max" in error for error in errors)
+
+
+def test_load_background_job_descriptors_reports_overrides(tmp_path: Path) -> None:
+    builtin_dir = tmp_path / "ui" / "jobs"
+    plugin_dir = tmp_path / "plugins" / "ui" / "jobs"
+    builtin_dir.mkdir(parents=True)
+    plugin_dir.mkdir(parents=True)
+    descriptor = """\
+display_name: Job
+job_name: shared_job
+display: false
+published_settings: []
+"""
+    (builtin_dir / "00_builtin.yaml").write_text(descriptor, encoding="utf-8")
+    (plugin_dir / "00_plugin.yaml").write_text(
+        descriptor.replace("display_name: Job", "display_name: Plugin job"),
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+
+    descriptors = load_background_job_descriptors(tmp_path, report_error=errors.append)
+
+    assert len(descriptors) == 1
+    assert descriptors[0].display_name == "Plugin job"
+    assert any("overrides job shared_job" in error for error in errors)
+
+
+def test_load_automation_descriptors_rejects_select_field_without_options(tmp_path: Path) -> None:
+    automation_dir = tmp_path / "ui" / "automations" / "dosing"
+    automation_dir.mkdir(parents=True)
+    (automation_dir / "bad-select.yaml").write_text(
+        """\
+display_name: Bad select
+automation_name: bad_select
+description: Bad select
+fields:
+  - key: mode
+    label: Mode
+    default: ""
+    type: select
+""",
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+
+    descriptors = load_automation_descriptors(tmp_path, "dosing", report_error=errors.append)
+
+    assert descriptors == []
+    assert any("requires options" in error for error in errors)
 
 
 def test_load_settings_collection_descriptors_does_not_require_local_model_for_bioreactor_defaults(

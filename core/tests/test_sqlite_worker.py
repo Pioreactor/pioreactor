@@ -79,6 +79,34 @@ def test_sqlite_worker_reports_async_write_errors(tmp_path: Path) -> None:
         assert conn.execute("SELECT id FROM test_table").fetchall() == [(2,)]
 
 
+def test_sqlite_worker_allows_pseudo_experiment_writes(tmp_path: Path) -> None:
+    errors: list[Exception] = []
+    db_path = tmp_path / "worker.sqlite"
+
+    worker = Sqlite3Worker(
+        db_path.as_posix(),
+        raise_on_error=False,
+        on_error=lambda error, query, values: errors.append(error),
+    )
+    try:
+        worker.execute("CREATE TABLE experiments (experiment TEXT PRIMARY KEY)")
+        worker.execute(
+            """
+            CREATE TABLE logs (
+                experiment TEXT NOT NULL REFERENCES experiments(experiment),
+                message TEXT NOT NULL
+            )
+            """
+        )
+        worker.execute("INSERT INTO logs (experiment, message) VALUES (?, ?)", ("$experiment", "ok"))
+    finally:
+        worker.close()
+
+    assert errors == []
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute("SELECT experiment, message FROM logs").fetchall() == [("$experiment", "ok")]
+
+
 def test_sqlite_worker_rejects_select_queries(tmp_path: Path) -> None:
     worker = Sqlite3Worker((tmp_path / "worker.sqlite").as_posix())
     try:

@@ -12,6 +12,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.calibrations.registry import CalibrationProtocol  # re-export
 from pioreactor.calibrations.registry import get_calibration_protocols  # re-export
+from pioreactor.structs import artifact_path_component
 from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
 
@@ -62,11 +63,13 @@ def load_active_calibration(device: Device) -> structs.AnyCalibration | None:
 
 
 def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibration:
-    target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+    valid_device = artifact_path_component(device, "device")
+    valid_calibration_name = artifact_path_component(calibration_name, "calibration_name")
+    target_file = CALIBRATION_PATH / valid_device / f"{valid_calibration_name}.yaml"
 
     if not target_file.is_file():
         raise FileNotFoundError(
-            f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / device}"
+            f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / valid_device}"
         )
     elif target_file.stat().st_size == 0:
         raise FileNotFoundError(f"Calibration {calibration_name} is empty")
@@ -79,7 +82,8 @@ def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibr
 
 
 def list_of_calibrations_by_device(device: Device) -> list[str]:
-    device_dir = CALIBRATION_PATH / device
+    valid_device = artifact_path_component(device, "device")
+    device_dir = CALIBRATION_PATH / valid_device
     if not device_dir.is_dir():
         return []
     return [file.stem for file in device_dir.glob("*.yaml")]

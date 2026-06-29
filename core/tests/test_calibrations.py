@@ -71,6 +71,53 @@ def test_load_calibration_missing_file(temp_calibration_dir) -> None:
         load_calibration("od90", "non_existent_cal")
 
 
+@pytest.mark.parametrize(
+    ("device", "calibration_name"),
+    [
+        ("../od90", "cal"),
+        ("od90", "../cal"),
+        ("od90", ".hidden"),
+    ],
+)
+def test_calibration_paths_require_filename_components(
+    temp_calibration_dir, device: str, calibration_name: str
+) -> None:
+    cal = OD600Calibration(
+        calibration_name=calibration_name,
+        calibrated_on_pioreactor_unit="unitA",
+        created_at=datetime.now(timezone.utc),
+        curve_data_=_poly_curve([1.0, 2.0, 3.0]),
+        recorded_data={"x": [0.1, 0.2], "y": [0.3, 0.4]},
+        ir_led_intensity=1.23,
+        angle="90",
+        pd_channel="2",
+    )
+
+    with pytest.raises(ValueError, match="valid filename component"):
+        cal.save_to_disk_for_device(device)
+
+
+def test_load_calibration_requires_filename_components(temp_calibration_dir) -> None:
+    with pytest.raises(ValueError, match="valid filename component"):
+        load_calibration("od90", "../cal")
+
+
+def test_active_calibration_requires_filename_components(temp_calibration_dir) -> None:
+    cal = OD600Calibration(
+        calibration_name="../bad",
+        calibrated_on_pioreactor_unit="unitA",
+        created_at=datetime.now(timezone.utc),
+        curve_data_=_poly_curve([1.0, 2.0, 3.0]),
+        recorded_data={"x": [0.1, 0.2], "y": [0.3, 0.4]},
+        ir_led_intensity=1.23,
+        angle="90",
+        pd_channel="2",
+    )
+
+    with pytest.raises(ValueError, match="valid filename component"):
+        cal.set_as_active_calibration_for_device("od90")
+
+
 def test_load_active_calibration_none(temp_calibration_dir) -> None:
     # Make sure 'od90' key is not set in local_persistent_storage("active_calibrations")
     with local_persistent_storage("active_calibrations") as store:

@@ -1437,6 +1437,12 @@ def pio_update_app(*args: str, env: dict[str, str] | None = None) -> bool:
 
 @huey.task()
 def rm(path: str) -> bool:
+    """
+    Delete a validated path.
+
+    This is a low-level sink. Callers must first constrain the path to the
+    intended root; this task deliberately does not infer containment.
+    """
     logger.debug(f"Deleting {path}.")
     if whoami.is_testing_env():
         return True
@@ -1543,6 +1549,12 @@ def pios(*args: str, env: dict[str, str] | None = None) -> bool:
 
 @huey.task()
 def save_file(path: str, content: str) -> bool:
+    """
+    Write to a validated path.
+
+    This is a low-level sink. Callers must first constrain the path to the
+    intended root and validate filename components where user input is involved.
+    """
     try:
         with open(path, "w") as f:
             f.write(content)

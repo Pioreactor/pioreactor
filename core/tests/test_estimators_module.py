@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 from pioreactor import estimators as estimators_module
+from pioreactor import structs
+from pioreactor.utils.timing import current_utc_datetime
 
 
 def _patch_estimator_path(tmp_path, monkeypatch) -> None:
@@ -20,6 +22,37 @@ def test_load_estimator_missing_file_raises(tmp_path, monkeypatch) -> None:
 
     with pytest.raises(FileNotFoundError, match="was not found"):
         estimators_module.load_estimator("od_fused", "missing")
+
+
+def test_load_estimator_requires_filename_components(tmp_path, monkeypatch) -> None:
+    _patch_estimator_path(tmp_path, monkeypatch)
+
+    with pytest.raises(ValueError, match="valid filename component"):
+        estimators_module.load_estimator("od_fused", "../missing")
+
+
+def test_save_estimator_requires_filename_components(tmp_path, monkeypatch) -> None:
+    _patch_estimator_path(tmp_path, monkeypatch)
+    estimator = structs.EstimatorBase(
+        estimator_name="../bad",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=current_utc_datetime(),
+    )
+
+    with pytest.raises(ValueError, match="valid filename component"):
+        estimator.save_to_disk_for_device("od_fused")
+
+
+def test_active_estimator_requires_filename_components(tmp_path, monkeypatch) -> None:
+    _patch_estimator_path(tmp_path, monkeypatch)
+    estimator = structs.EstimatorBase(
+        estimator_name="../bad",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=current_utc_datetime(),
+    )
+
+    with pytest.raises(ValueError, match="valid filename component"):
+        estimator.set_as_active_calibration_for_device("od_fused")
 
 
 def test_load_estimator_empty_file_raises(tmp_path, monkeypatch) -> None:
