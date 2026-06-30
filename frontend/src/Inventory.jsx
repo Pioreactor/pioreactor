@@ -724,9 +724,15 @@ function WorkerCard({worker, config, leaderVersion}) {
   const contrib = availableModels.filter(m => (m.is_contrib));
   const legacy = availableModels.filter(m => (m.is_legacy));
   const modelValue = `${model[0]},${model[1]}`;
-  const selectValue = availableModels.some(
+  const hasSelectedModel = Boolean(model[0] && model[1]);
+  const hasAvailableModel = availableModels.some(
     ({model_name, model_version}) => model_name === model[0] && String(model_version) === String(model[1])
-  ) ? modelValue : "";
+  );
+  const selectValue = hasAvailableModel ? modelValue : "";
+  const showModelError = !hasSelectedModel || (availableModels.length > 0 && !hasAvailableModel);
+  const selectedModelDisplayName = availableModels.find(
+    ({model_name, model_version}) => `${model_name},${model_version}` === selectValue
+  )?.display_name;
   return (
     <>
     <Card sx={{ minWidth: 275 }}>
@@ -786,40 +792,49 @@ function WorkerCard({worker, config, leaderVersion}) {
                 Model
             </td>
             <td >
-              <Select
-                labelId="modelSelect"
-                variant="standard"
-                value={selectValue}
-                onChange={handleModelChange}
-                label="Model"
-                disableUnderline={true}
-                sx={{
-                  "& .MuiSelect-standard": {
-                    color: isActive() ? "inherit" : inactiveGrey
-                  }
-                }}
-              >
+              <FormControl variant="standard" error={showModelError}>
+                <Select
+                  labelId="modelSelect"
+                  variant="standard"
+                  value={selectValue}
+                  onChange={handleModelChange}
+                  label="Model"
+                  displayEmpty
+                  renderValue={() => selectedModelDisplayName || (
+                    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: lostRed }}>
+                      <ErrorOutlineOutlinedIcon fontSize="small" />
+                      No model selected
+                    </Box>
+                  )}
+                  disableUnderline={true}
+                  sx={{
+                    "& .MuiSelect-standard": {
+                      color: isActive() ? "inherit" : inactiveGrey
+                    }
+                  }}
+                >
 
-                {standard.length > 0 && <ListSubheader disableSticky>Latest</ListSubheader>}
-                {standard.map(({ model_name, model_version, display_name }) => (
-                  <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
-                    {display_name}
-                  </MenuItem>
-                ))}
-                {contrib.length > 0 && <ListSubheader disableSticky>Custom</ListSubheader>}
-                {contrib.map(({ model_name, model_version, display_name }) => (
-                  <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
-                    {display_name}
-                  </MenuItem>
-                ))}
-                {legacy.length > 0 && <ListSubheader disableSticky>Legacy</ListSubheader>}
-                {legacy.map(({ model_name, model_version, display_name }) => (
-                  <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
-                    {display_name}
-                  </MenuItem>
-                ))}
+                  {standard.length > 0 && <ListSubheader disableSticky>Latest</ListSubheader>}
+                  {standard.map(({ model_name, model_version, display_name }) => (
+                    <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+                      {display_name}
+                    </MenuItem>
+                  ))}
+                  {contrib.length > 0 && <ListSubheader disableSticky>Custom</ListSubheader>}
+                  {contrib.map(({ model_name, model_version, display_name }) => (
+                    <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+                      {display_name}
+                    </MenuItem>
+                  ))}
+                  {legacy.length > 0 && <ListSubheader disableSticky>Legacy</ListSubheader>}
+                  {legacy.map(({ model_name, model_version, display_name }) => (
+                    <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+                      {display_name}
+                    </MenuItem>
+                  ))}
 
-              </Select>
+                </Select>
+              </FormControl>
             </td>
           </tr>
           <tr>

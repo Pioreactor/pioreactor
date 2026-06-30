@@ -7,7 +7,6 @@ import shutil
 import stat
 import subprocess
 import tempfile
-import time
 import typing as t
 from os import geteuid
 from pathlib import Path
@@ -200,135 +199,6 @@ def get_runtime_cache_database_paths(run_pioreactor_cache: Path) -> list[Path]:
         run_pioreactor_cache / "local_intermittent_pioreactor_metadata.sqlite",
         run_pioreactor_cache / "huey.db",
     ]
-
-
-def format_repair_sample(paths: list[Path], limit: int = 5) -> str:
-    sample = ", ".join(str(path) for path in paths[:limit])
-    remaining_count = len(paths) - limit
-    if remaining_count > 0:
-        return f"{sample}, and {remaining_count} more"
-    return sample
-
-
-def collect_dot_pioreactor_repair_changes(dot_pioreactor_root: Path) -> dict[str, list[Path]]:
-    expected_uid, expected_gid, _expected_owner = get_expected_dot_pioreactor_uid_gid()
-    changes: dict[str, list[Path]] = {
-        "ownership": [],
-        "group_writable": [],
-        "setgid": [],
-    }
-
-    for path in [dot_pioreactor_root, *dot_pioreactor_root.rglob("*")]:
-        path_stat = path.lstat()
-        mode = path_stat.st_mode
-
-        if expected_uid is not None and expected_gid is not None:
-            if path_stat.st_uid != expected_uid or path_stat.st_gid != expected_gid:
-                changes["ownership"].append(path)
-
-        if path == dot_pioreactor_root or stat.S_ISDIR(mode) or stat.S_ISREG(mode):
-            if not mode & stat.S_IWGRP:
-                changes["group_writable"].append(path)
-
-        if stat.S_ISDIR(mode) and not mode & stat.S_ISGID:
-            changes["setgid"].append(path)
-
-    return changes
-
-
-def collect_runtime_repair_changes() -> dict[str, list[Path]]:
-    expected_uid, expected_gid, _expected_owner = get_expected_dot_pioreactor_uid_gid()
-    run_pioreactor_root = Path("/run/pioreactor")
-    run_pioreactor_exports = run_pioreactor_root / "exports"
-    run_pioreactor_cache = run_pioreactor_root / "cache"
-    runtime_cache_databases = get_runtime_cache_database_paths(run_pioreactor_cache)
-    now = time.time()
-
-    changes: dict[str, list[Path]] = {
-        "directories": [],
-        "stale_exports": [],
-        "cache_databases": [],
-        "cache_sidecars": [],
-    }
-
-    for path, expected_mode in (
-        (run_pioreactor_root, 0o2775),
-        (run_pioreactor_exports, 0o2775),
-        (run_pioreactor_cache, 0o2770),
-    ):
-        if not path.exists():
-            changes["directories"].append(path)
-            continue
-
-        path_stat = path.lstat()
-        current_mode = stat.S_IMODE(path_stat.st_mode)
-        owner_or_group_differs = (
-            expected_uid is not None
-            and expected_gid is not None
-            and (path_stat.st_uid != expected_uid or path_stat.st_gid != expected_gid)
-        )
-        if current_mode != expected_mode or owner_or_group_differs:
-            changes["directories"].append(path)
-
-    if run_pioreactor_exports.exists():
-        for path in run_pioreactor_exports.iterdir():
-            path_stat = path.lstat()
-            if not stat.S_ISREG(path_stat.st_mode):
-                continue
-
-            age_minutes = (now - path_stat.st_mtime) / 60
-            if (path.name.endswith((".tmp", ".csv")) and age_minutes > 30) or (
-                path.name.startswith("export_") and path.name.endswith(".zip") and age_minutes > 360
-            ):
-                changes["stale_exports"].append(path)
-
-    for path in runtime_cache_databases:
-        if not path.exists():
-            changes["cache_databases"].append(path)
-            continue
-
-        path_stat = path.lstat()
-        current_mode = stat.S_IMODE(path_stat.st_mode)
-        owner_or_group_differs = (
-            expected_uid is not None
-            and expected_gid is not None
-            and (path_stat.st_uid != expected_uid or path_stat.st_gid != expected_gid)
-        )
-        if current_mode != 0o660 or owner_or_group_differs:
-            changes["cache_databases"].append(path)
-
-    if run_pioreactor_cache.exists():
-        for path in run_pioreactor_cache.iterdir():
-            path_stat = path.lstat()
-            if not stat.S_ISREG(path_stat.st_mode) or not path.name.endswith(("-wal", "-shm")):
-                continue
-
-            current_mode = stat.S_IMODE(path_stat.st_mode)
-            owner_or_group_differs = (
-                expected_uid is not None
-                and expected_gid is not None
-                and (path_stat.st_uid != expected_uid or path_stat.st_gid != expected_gid)
-            )
-            if current_mode != 0o660 or owner_or_group_differs:
-                changes["cache_sidecars"].append(path)
-
-    return changes
-
-
-def echo_repair_changes(title: str, changes: dict[str, list[Path]], labels: dict[str, str]) -> None:
-    changed_anything = False
-    for key, label in labels.items():
-        paths = changes[key]
-        if not paths:
-            continue
-
-        if not changed_anything:
-            click.echo(f"{title}:")
-            changed_anything = True
-        click.echo(f"  - {label}: {len(paths)} path(s): {format_repair_sample(paths)}")
-
-    if not changed_anything:
-        click.echo(f"{title}: no changes needed.")
 
 
 def build_runtime_repair_commands(tools: dict[str, str]) -> list[list[str]]:
@@ -1694,40 +1564,19 @@ def repair() -> None:
         raise click.ClickException(f"{dot_pioreactor_root} does not exist.")
 
     tools = require_repair_command_paths("sudo", "find", "chown", "chmod", "install", "touch", "systemctl")
-    dot_pioreactor_changes = collect_dot_pioreactor_repair_changes(dot_pioreactor_root)
-    runtime_changes = collect_runtime_repair_changes()
     dot_pioreactor_commands = build_dot_pioreactor_repair_commands(dot_pioreactor_root, tools)
     runtime_commands = build_runtime_repair_commands(tools)
     command_groups = [
-        dot_pioreactor_commands,
-        runtime_commands[:2],
-        runtime_commands[2:3],
-        runtime_commands[3:],
+        (dot_pioreactor_commands, f"Repaired ownership and group permissions for {dot_pioreactor_root}."),
+        (runtime_commands[:2], "Repaired runtime directories under /run/pioreactor."),
+        (runtime_commands[2:3], "Cleared stale runtime export artifacts from /run/pioreactor/exports."),
+        (runtime_commands[3:], "Repaired runtime cache files under /run/pioreactor/cache."),
     ]
 
-    for commands in command_groups:
+    for commands, message in command_groups:
         for command in commands:
             subprocess.run(command, check=True)
-
-    echo_repair_changes(
-        f"Ownership and group permissions for {dot_pioreactor_root}",
-        dot_pioreactor_changes,
-        {
-            "ownership": "fixed owner/group",
-            "group_writable": "added group-write permission",
-            "setgid": "added setgid permission",
-        },
-    )
-    echo_repair_changes(
-        "Runtime files under /run/pioreactor",
-        runtime_changes,
-        {
-            "directories": "created or repaired runtime directories",
-            "stale_exports": "removed stale export artifacts",
-            "cache_databases": "created or repaired cache databases",
-            "cache_sidecars": "repaired cache sidecar files",
-        },
-    )
+        click.echo(message)
 
     restarted_services = restart_inactive_pioreactor_web_services(tools)
     if restarted_services:

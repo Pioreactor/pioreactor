@@ -4073,16 +4073,22 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
         one=True,
     )
     if result is None:
-        # If the worker is not found, return an error
         return abort_with(
             404,
             "Worker not found",
             cause="Worker name not found in database.",
             remediation="Check the unit name or add the worker to the inventory.",
         )
+
+    assert isinstance(result, dict)
+    if result["model_version"] or not result["model_name"]:
+        return abort_with(
+            404,
+            f"Model not set for worker {pioreactor_unit}.",
+            cause="Model not set in database.",
+            remediation="Set the model of this worker.",
+        )
     else:
-        assert isinstance(result, dict)
-        # If the worker is found, return the model and metadata
         return attach_cache_control(
             jsonify(
                 {

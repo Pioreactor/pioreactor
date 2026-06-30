@@ -214,4 +214,23 @@ describe("WorkerCard", () => {
 
     await screen.findByText("192.168.1.10");
   });
+
+  test("shows an inline error when no model is selected", async () => {
+    render(
+      <WorkerCard
+        worker={{
+          pioreactor_unit: "unit1",
+          is_active: true,
+          model_name: null,
+          model_version: null,
+          ipv4_address: "192.168.1.10",
+        }}
+        config={{ "cluster.topology": { leader_hostname: "leader" } }}
+        leaderVersion={null}
+      />,
+    );
+
+    await screen.findByText("No model selected");
+    expect(screen.queryByText("Select a Pioreactor model.")).not.toBeInTheDocument();
+  });
 });
