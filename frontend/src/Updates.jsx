@@ -298,11 +298,9 @@ function UploadArchiveAndConfirm(props) {
 }
 
 
-function UpdateFromInternetAndConfirm(props) {
-  const [errorMsg, setErrorMsg] = React.useState(null);
+export function UpdateFromInternetAndConfirm(props) {
   const [units, setUnits] = React.useState([]);
   const [selectedUnits, setSelectedUnits] = React.useState("$broadcast");
-  const [isUpdating, setIsUpdating] = React.useState(false);
   const handleClose = props.onClose
 
 
@@ -327,14 +325,11 @@ function UpdateFromInternetAndConfirm(props) {
     setSelectedUnits(event.target.value);
   }
 
-  const handleUpdate = async () => {
-    setIsUpdating(true)
-    setErrorMsg(null)
-
+  const [updateState, runUpdate, isUpdating] = React.useActionState(async (_previousState, unitsToUpdate) => {
     try {
       const response = await fetch("/api/system/update_next_version", {
         method: "POST",
-        body: JSON.stringify({ units: selectedUnits }),
+        body: JSON.stringify({ units: unitsToUpdate }),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -348,12 +343,17 @@ function UpdateFromInternetAndConfirm(props) {
 
       handleClose();
       props.onSuccess()
+      return { error: null, units: unitsToUpdate };
     } catch (error) {
-      setErrorMsg(error.message)
-      setIsUpdating(false)
       console.error(error);
+      return {
+        error: error.message,
+        units: unitsToUpdate,
+      };
     }
-  };
+  }, { error: null, units: selectedUnits });
+
+  const errorMsg = updateState.units === selectedUnits ? updateState.error : null;
 
   return (
     <React.Fragment>
@@ -406,7 +406,18 @@ function UpdateFromInternetAndConfirm(props) {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
-          <Button variant="contained" loading={isUpdating} onClick={handleUpdate} sx={{textTransform: "None"}}>Update</Button>
+          <Button
+            variant="contained"
+            loading={isUpdating}
+            onClick={() => {
+              React.startTransition(() => {
+                runUpdate(selectedUnits);
+              });
+            }}
+            sx={{textTransform: "None"}}
+          >
+            Update
+          </Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>

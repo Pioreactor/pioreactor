@@ -35,6 +35,12 @@ metadata:
   description:
 `;
 
+const INITIAL_PROFILE_SAVE_STATE = {
+  error: "",
+  filename: "",
+  code: "",
+};
+
 export function formatProfileSaveError(payload) {
   if (typeof payload === "string" && payload.trim()) {
     return payload.trim();
@@ -127,52 +133,60 @@ export function ExperimentProfileEditorContent({
   const [openSnackbar, setOpenSnackbar] = React.useState(false);
   const [snackbarMsg, setSnackbarMsg] = React.useState("");
   const [isChanged, setIsChanged] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-  const [errorMsg, setErrorMsg] = React.useState("");
 
   const parsedCode = React.useMemo(() => convertYamlToProfilePreview(code), [code]);
 
   const onTextChange = (newCode) => {
     setCode(newCode);
     setIsChanged(true);
-    setErrorMsg("");
   };
 
   const onFilenameChange = (event) => {
     setFilename(event.target.value.replace(/ |\/|\.|\\/g, "_"));
     setIsChanged(true);
-    setErrorMsg("");
   };
 
   const handleSnackbarClose = () => {
     setOpenSnackbar(false);
   };
 
-  const saveCurrentCode = async () => {
-    if (filenameEditable && filename === "") {
-      setErrorMsg("Filename can't be blank.");
-      return;
+  const [saveState, saveCurrentCode, saving] = React.useActionState(async (_previousState, payload) => {
+    if (filenameEditable && payload.filename === "") {
+      return {
+        error: "Filename can't be blank.",
+        filename: payload.filename,
+        code: payload.code,
+      };
     }
 
-    setSaving(true);
-    setErrorMsg("");
-
     try {
-      await onSave({ code, filename });
+      await onSave(payload);
       setIsChanged(false);
       setOpenSnackbar(true);
       setSnackbarMsg(
         filenameEditable
-          ? `Experiment profile ${filename}.yaml saved.`
+          ? `Experiment profile ${payload.filename}.yaml saved.`
           : `Experiment profile ${initialFilename} saved.`,
       );
+      return {
+        error: "",
+        filename: payload.filename,
+        code: payload.code,
+      };
     } catch (error) {
-      setErrorMsg(error.message || "Network error: failed to save profile");
       setIsChanged(true);
-    } finally {
-      setSaving(false);
+      return {
+        error: error.message || "Network error: failed to save profile",
+        filename: payload.filename,
+        code: payload.code,
+      };
     }
-  };
+  }, INITIAL_PROFILE_SAVE_STATE);
+
+  const visibleSaveError =
+    saveState.error && saveState.filename === filename && saveState.code === code
+      ? saveState.error
+      : "";
 
   return (
     <>
@@ -250,13 +264,17 @@ export function ExperimentProfileEditorContent({
                 variant="contained"
                 color="primary"
                 style={{ marginLeft: "5px", textTransform: "none" }}
-                onClick={saveCurrentCode}
+                onClick={() => {
+                  React.startTransition(() => {
+                    saveCurrentCode({ code, filename });
+                  });
+                }}
                 endIcon={<SaveIcon />}
                 disabled={!isChanged || saving}
               >
                 {saving ? "Saving..." : "Save"}
               </Button>
-              <Box sx={{ ml: 0.7, mt: 1 }}>{errorMsg ? <Alert severity="error">{errorMsg}</Alert> : ""}</Box>
+              <Box sx={{ ml: 0.7, mt: 1 }}>{visibleSaveError ? <Alert severity="error">{visibleSaveError}</Alert> : ""}</Box>
             </div>
           </div>
         </Grid>

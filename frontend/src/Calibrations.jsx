@@ -86,45 +86,32 @@ export function UploadCalibrationDialog({
   const [selectedDevice, setSelectedDevice] = useState(device || '');
   const [calibrationYaml, setCalibrationYaml] = useState('');
   const [markAsActive, setMarkAsActive] = useState(true);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-
-  const clearUploadMessages = () => {
-    setError(null);
-    setSuccess(null);
-  };
 
   const handleWorkerChange = (event) => {
-    clearUploadMessages();
     setSelectedWorker(event.target.value);
   };
 
   const handleDeviceChange = (event) => {
-    clearUploadMessages();
     setSelectedDevice(sanitizeDeviceName(event.target.value));
   };
 
   const handleMarkAsActiveChange = (event) => {
-    clearUploadMessages();
     setMarkAsActive(event.target.checked);
   };
 
   const handleCalibrationYamlChange = (value) => {
-    clearUploadMessages();
     setCalibrationYaml(value);
   };
 
-  const handleUploadCalibration = async () => {
-    setError(null);
-    setSuccess(null);
+  const [uploadState, uploadCalibration, uploadPending] = React.useActionState(async (_previousState, payload) => {
     try {
       const requestBody = {
-        calibration_data: calibrationYaml,
-        set_as_active: markAsActive,
+        calibration_data: payload.calibrationYaml,
+        set_as_active: payload.markAsActive,
       };
 
       const taskPayload = await fetchTaskResult(
-        `/api/workers/${selectedWorker}/calibrations/${selectedDevice}`,
+        `/api/workers/${payload.selectedWorker}/calibrations/${payload.selectedDevice}`,
         {
           fetchOptions: {
             method: 'POST',
@@ -138,36 +125,44 @@ export function UploadCalibrationDialog({
 
       const failedUnits = getFailedCalibrationUploadUnits(taskPayload);
       if (failedUnits.length > 0) {
-        setError(buildCalibrationUploadFailureMessage(failedUnits));
-        return;
+        return {
+          ...payload,
+          error: buildCalibrationUploadFailureMessage(failedUnits),
+          success: false,
+        };
       }
 
       // Optionally clear fields so user can enter another calibration easily:
       setCalibrationYaml('');
-      setSuccess(
-        <span>
-          Calibration sent to Pioreactor(s). Add another calibration, or{' '}
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              color: 'inherit',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-            }}
-          >
-            refresh
-          </button>{' '}
-          the page to see updates.
-        </span>
-      );
+      return {
+        ...payload,
+        calibrationYaml: '',
+        error: null,
+        success: true,
+      };
     } catch (err) {
-      setError(err.message);
+      return {
+        ...payload,
+        error: err.message,
+        success: false,
+      };
     }
-  };
+  }, {
+    selectedWorker,
+    selectedDevice,
+    calibrationYaml,
+    markAsActive,
+    error: null,
+    success: false,
+  });
+
+  const submittedValuesStillVisible =
+    uploadState.selectedWorker === selectedWorker
+    && uploadState.selectedDevice === selectedDevice
+    && uploadState.calibrationYaml === calibrationYaml
+    && uploadState.markAsActive === markAsActive;
+  const error = submittedValuesStillVisible ? uploadState.error : null;
+  const success = submittedValuesStillVisible && uploadState.success;
 
   useEffect(() => {
     const fetchWorkers = async () => {
@@ -293,11 +288,41 @@ export function UploadCalibrationDialog({
             <Alert severity="error">{error}</Alert>
           )}
           {success && <Box>
-          <CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/> {success}
+          <CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/> Calibration sent to Pioreactor(s). Add another calibration, or{' '}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'inherit',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+            }}
+          >
+            refresh
+          </button>{' '}
+          the page to see updates.
           </Box>
           }
           </Box>
-          <Button onClick={handleUploadCalibration} variant="contained" sx={{marginTop: "10px", textTransform: 'none'}} disabled={!selectedDevice || !calibrationYaml || !selectedWorker}>
+          <Button
+            onClick={() => {
+              React.startTransition(() => {
+                uploadCalibration({
+                  selectedWorker,
+                  selectedDevice,
+                  calibrationYaml,
+                  markAsActive,
+                });
+              });
+            }}
+            variant="contained"
+            loading={uploadPending}
+            sx={{marginTop: "10px", textTransform: 'none'}}
+            disabled={!selectedDevice || !calibrationYaml || !selectedWorker}
+          >
             Upload
           </Button>
         </Box>

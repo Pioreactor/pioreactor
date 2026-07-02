@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -48,6 +48,51 @@ describe("ExperimentProfileEditorContent", () => {
     });
 
     expect(filenameInput).toHaveValue("new_profile_yaml");
+  });
+
+  test("shows save failures and re-enables the save button", async () => {
+    const onSave = jest.fn(() => Promise.reject(new Error("YAML is invalid")));
+    renderEditor(
+      {
+        initialCode: "name: first\n",
+        initialFilename: "draft_profile",
+        filenameEditable: true,
+        onSave,
+      },
+    );
+
+    fireEvent.change(getEditorTextarea(), {
+      target: { value: "name: changed\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
+
+    await screen.findByText("YAML is invalid");
+    await waitFor(() => expect(screen.getByRole("button", { name: /save/i })).not.toBeDisabled());
+  });
+
+  test("saves changes and disables the save button after success", async () => {
+    const onSave = jest.fn(() => Promise.resolve());
+    renderEditor(
+      {
+        initialCode: "name: first\n",
+        initialFilename: "draft_profile",
+        filenameEditable: true,
+        onSave,
+      },
+    );
+
+    fireEvent.change(getEditorTextarea(), {
+      target: { value: "name: changed\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /save/i })).toBeDisabled());
+    expect(onSave).toHaveBeenCalledWith({
+      code: "name: changed\n",
+      filename: "draft_profile",
+    });
   });
 
   test("keeps the filename fixed in edit mode", () => {

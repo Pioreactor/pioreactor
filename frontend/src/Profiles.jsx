@@ -37,6 +37,12 @@ import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
 dayjs.extend(utc);
 
+const INITIAL_START_PROFILE_STATE = {
+  error: "",
+  profileFilename: "",
+  dryRun: false,
+};
+
 /**
  * 1) Child component that displays the experiment profile dropdown,
  *    the “Run profile” button, etc.
@@ -46,8 +52,6 @@ function RunExperimentProfilesContent({
   experimentProfilesAvailable,
   selectedExperimentProfile,
   selectedExperimentProfileRecord,
-  startInFlight,
-  setStartInFlight,
   viewSource,
   setViewSource,
   selectedProfileDetail,
@@ -57,27 +61,40 @@ function RunExperimentProfilesContent({
   const confirm = useConfirm();
   const navigate = useNavigate();
   const { startProfile } = useRunningProfiles();
-  const [startProfileError, setStartProfileError] = React.useState("");
 
-  const onSubmit = async () => {
-    if (startInFlight || !selectedExperimentProfileRecord) {
-      return;
+  const [startProfileState, startProfileAction, startInFlight] = React.useActionState(async () => {
+    if (!selectedExperimentProfileRecord) {
+      return {
+        error: "",
+        profileFilename: selectedExperimentProfile,
+        dryRun,
+      };
     }
-    setStartInFlight(true);
-    setStartProfileError("");
-    // The “selectedExperimentProfile” is the file key we pass to start
+
     try {
       await startProfile(selectedExperimentProfileRecord.fullpath, experiment, dryRun);
+      return {
+        error: "",
+        profileFilename: selectedExperimentProfile,
+        dryRun,
+      };
     } catch (error) {
-      setStartProfileError(error?.message || "Unable to start experiment profile.");
-    } finally {
-      setStartInFlight(false);
+      return {
+        error: error?.message || "Unable to start experiment profile.",
+        profileFilename: selectedExperimentProfile,
+        dryRun,
+      };
     }
-  };
+  }, INITIAL_START_PROFILE_STATE);
+
+  const visibleStartProfileError =
+    startProfileState.error
+    && startProfileState.profileFilename === selectedExperimentProfile
+    && startProfileState.dryRun === dryRun
+      ? startProfileState.error
+      : "";
 
   const onSelectExperimentProfileChange = (e) => {
-    setStartProfileError("");
-
     navigate(`/experiment-profiles/${e.target.value}`)
 
   };
@@ -213,9 +230,9 @@ function RunExperimentProfilesContent({
           />
         }
       </Grid>
-      {startProfileError && (
+      {visibleStartProfileError && (
         <Grid size={12}>
-          <Alert severity="error">{startProfileError}</Alert>
+          <Alert severity="error">{visibleStartProfileError}</Alert>
         </Grid>
       )}
       <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 0 }}>
@@ -223,7 +240,15 @@ function RunExperimentProfilesContent({
           variant="contained"
           color="primary"
           value={dryRun ? "execute_dry_run" : "execute"}
-          onClick={onSubmit}
+          onClick={() => {
+            if (startInFlight) {
+              return;
+            }
+
+            React.startTransition(() => {
+              startProfileAction();
+            });
+          }}
           endIcon={dryRun ? <PlayDisabledIcon /> : <PlayArrowIcon />}
           loading={startInFlight}
           loadingPosition="end"
@@ -344,7 +369,6 @@ function Profiles(props) {
   const { profileFilename } = useParams();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
-  const [startInFlight, setStartInFlight] = React.useState(false);
   const [viewSource, setViewSource] = React.useState(false);
   const [selectedProfileDetail, setSelectedProfileDetail] = React.useState({
     filename: "",
@@ -486,8 +510,6 @@ function Profiles(props) {
   }, [fetchRecentRuns]);
 
   React.useEffect(() => {
-    setStartInFlight(false);
-
     if (!selectedExperimentProfile) {
       setSelectedProfileDetail({
         filename: "",
@@ -592,8 +614,6 @@ function Profiles(props) {
             experimentProfilesAvailable={experimentProfilesAvailable}
             selectedExperimentProfile={selectedExperimentProfile}
             selectedExperimentProfileRecord={selectedExperimentProfileRecord}
-            startInFlight={startInFlight}
-            setStartInFlight={setStartInFlight}
             viewSource={viewSource}
             setViewSource={setViewSource}
             selectedProfileDetail={selectedProfileDetail}

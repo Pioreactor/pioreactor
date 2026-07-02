@@ -4081,7 +4081,7 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
         )
 
     assert isinstance(result, dict)
-    if result["model_version"] or not result["model_name"]:
+    if not result["model_version"] or not result["model_name"]:
         return abort_with(
             404,
             f"Model not set for worker {pioreactor_unit}.",

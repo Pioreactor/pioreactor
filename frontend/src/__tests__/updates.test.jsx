@@ -30,6 +30,7 @@ jest.mock("react-showdown", () => ({
 }));
 
 const Updates = require("../Updates").default;
+const { UpdateFromInternetAndConfirm } = require("../Updates");
 
 describe("Updates page", () => {
   beforeEach(() => {
@@ -210,5 +211,134 @@ describe("Updates page", () => {
     expect(await screen.findByText(/not a valid release archive file/i)).toBeInTheDocument();
     expect(screen.queryByText("release_26.4.0.zip (1)")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update" })).toBeDisabled();
+  });
+
+  test("queues an internet update and reports success", async () => {
+    const user = userEvent.setup();
+    const onClose = jest.fn();
+    const onSuccess = jest.fn();
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/units") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ pioreactor_unit: "leader1" }]),
+        });
+      }
+
+      if (url === "/api/system/update_next_version") {
+        return Promise.resolve({ ok: true });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    });
+
+    render(
+      <UpdateFromInternetAndConfirm
+        title="Update to next release?"
+        description="Update from the internet."
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/units"));
+    await user.click(screen.getByRole("button", { name: "Update" }));
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/system/update_next_version",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ units: "$broadcast" }),
+        }),
+      ),
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  test("shows internet update failures and re-enables the update button", async () => {
+    const user = userEvent.setup();
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/units") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ pioreactor_unit: "leader1" }]),
+        });
+      }
+
+      if (url === "/api/system/update_next_version") {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          json: () => Promise.resolve({ error: "Leader cannot reach workers." }),
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    });
+
+    render(
+      <UpdateFromInternetAndConfirm
+        title="Update to next release?"
+        description="Update from the internet."
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/units"));
+    const updateButton = screen.getByRole("button", { name: "Update" });
+    await user.click(updateButton);
+
+    expect(await screen.findByText("Leader cannot reach workers.")).toBeInTheDocument();
+    await waitFor(() => expect(updateButton).toBeEnabled());
+  });
+
+  test("keeps internet update pending until the request resolves", async () => {
+    const user = userEvent.setup();
+    let resolveUpdate;
+    const updatePromise = new Promise((resolve) => {
+      resolveUpdate = resolve;
+    });
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/units") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ pioreactor_unit: "leader1" }]),
+        });
+      }
+
+      if (url === "/api/system/update_next_version") {
+        return updatePromise;
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    });
+
+    render(
+      <UpdateFromInternetAndConfirm
+        title="Update to next release?"
+        description="Update from the internet."
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/units"));
+    const updateButton = screen.getByRole("button", { name: "Update" });
+    await user.click(updateButton);
+
+    await waitFor(() => expect(updateButton).toBeDisabled());
+
+    await act(async () => {
+      resolveUpdate({ ok: true });
+      await updatePromise;
+    });
+
+    await waitFor(() => expect(updateButton).toBeEnabled());
   });
 });

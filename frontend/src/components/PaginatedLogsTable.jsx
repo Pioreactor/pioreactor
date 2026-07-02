@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useEffectEvent } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -168,43 +168,43 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
 
 
 
+  const onLiveLogMessage = useEffectEvent((topic, message, _packet) => {
+    if (!message || !topic) return;
+
+    const unit = topic.toString().split('/')[1];
+    const payload = JSON.parse(message.toString());
+    const levelOfMessage = payload.level.toUpperCase();
+
+    if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
+      return
+    }
+
+    setListOfLogs((currentLogs) =>
+      [
+        {
+          timestamp: toTimestampObject(payload.timestamp),
+          pioreactor_unit: unit,
+          message: String(payload.message),
+          task: payload.task,
+          level: payload.level.toUpperCase(),
+          key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
+        },
+        ...currentLogs,
+      ]);
+  });
+
   useEffect(() => {
-    const onMessage = (topic, message, _packet) => {
-      if (!message || !topic) return;
-
-      const unit = topic.toString().split('/')[1];
-      const payload = JSON.parse(message.toString());
-      const levelOfMessage = payload.level.toUpperCase();
-
-      if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
-        return
-      }
-
-      setListOfLogs((currentLogs) =>
-        [
-          {
-            timestamp: toTimestampObject(payload.timestamp),
-            pioreactor_unit: unit,
-            message: String(payload.message),
-            task: payload.task,
-            level: payload.level.toUpperCase(),
-            key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
-          },
-          ...currentLogs,
-        ]);
-    };
-
     if (experiment && client) {
       subscribeToTopic(
         LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
-        onMessage,
+        onLiveLogMessage,
         'PagLogTable'
       );
     }
     return () => {
       LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
     };
-  }, [client, experiment, logLevel, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
+  }, [client, experiment, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSwitchChange = (event) => {
