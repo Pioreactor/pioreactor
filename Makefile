@@ -68,7 +68,7 @@ install: venv  ## Install *all* python dependencies
 	@$(ACTIVATE) && pip install -r requirements/requirements_dev.txt -r requirements/requirements.txt  -e core/ $(PIP_FLAGS)
 
 $(NODE_DIR)/node_modules/.installed: $(NODE_DIR)/package.json  ## Install Node deps
-	@if [ -x "$(NODE_DIR)/node_modules/.bin/react-scripts" ]; then \
+	@if [ -x "$(NODE_DIR)/node_modules/.bin/vite" ]; then \
 		echo ">> Reusing existing frontend node_modules"; \
 	elif [ -d "$(NODE_DIR)/node_modules" ]; then \
 		echo ">> Repairing partial frontend node_modules"; \

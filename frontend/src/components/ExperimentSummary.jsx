@@ -20,7 +20,7 @@ class EditableDescription extends React.Component {
     super(props);
     this.contentEditable = React.createRef();
     this.state = {
-      desc: this.props.experimentMetadata.description,
+      desc: this.props.experimentMetadata.description ?? "",
       recentChange: false,
       savingLoopActive: false,
     };
@@ -28,7 +28,7 @@ class EditableDescription extends React.Component {
 
   componentDidUpdate(prevProps) {
     if (this.props.experimentMetadata !== prevProps.experimentMetadata) {
-      this.setState({ desc: this.props.experimentMetadata.description });
+      this.setState({ desc: this.props.experimentMetadata.description ?? "" });
     }
   }
 

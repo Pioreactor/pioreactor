@@ -20,6 +20,7 @@ import {
   VictoryGroup,
   VictoryLegend,
   VictoryTooltip,
+  VictoryVoronoiContainer,
   createContainer
 } from "victory";
 import dayjs from 'dayjs';
@@ -102,7 +103,7 @@ function Chart(props) {
   const names = useMemo(() => Object.keys(seriesMap), [seriesMap]);
 
   const ChartContainer = useMemo(
-    () => (allowZoom ? createContainer("zoom", "voronoi") : createContainer("voronoi")),
+    () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
     [allowZoom]
   );
 
@@ -831,6 +832,7 @@ function Chart(props) {
         <VictoryLegend
           x={70}
           y={chartHeight - legendBottomPadding + 40}
+          titleComponent={<VictoryLabel />}
           symbolSpacer={6}
           itemsPerRow={legendItemsPerRow}
           name="legend"
