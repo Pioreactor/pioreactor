@@ -4,7 +4,7 @@
 
 *   **Development Workflow**: The README describes how to run the project in development (`npm run start`) or build for production (`npm run build`).
 
-*   **Build Configuration**: `package.json` lists dependencies such as React 18, Material-UI, mqtt.js, js-yaml, etc., along with scripts for starting, building, linting, and testing the app.
+*   **Build Configuration**: `package.json` lists dependencies such as React 19, Material-UI, mqtt.js, js-yaml, etc., along with scripts for starting, building, linting, and testing the app.
 
 *   **Main Application**: `App.jsx` sets up Material-UI theming and React Router routes for pages like `/overview`, `/pioreactors`, `/export-data`, `/plugins`, and more.
 

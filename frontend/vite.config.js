@@ -6,11 +6,12 @@ function transformJsFilesWithJsx() {
     name: "transform-js-files-with-jsx",
     enforce: "pre",
     async transform(code, id) {
-      if (!/src\/.*\.js$/.test(id)) {
+      const filePath = id.split("?")[0];
+      if (!/src\/.*\.js$/.test(filePath)) {
         return null;
       }
 
-      return transformWithEsbuild(code, id, {
+      return transformWithEsbuild(code, filePath, {
         loader: "jsx",
         jsx: "automatic",
       });

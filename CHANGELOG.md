@@ -1,3 +1,10 @@
+### Upcoming
+
+#### Enhancements
+
+ - Bump to React 19.x, and new vite build system.
+
+
 ### 26.6.0
 
 #### Breaking changes
