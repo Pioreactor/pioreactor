@@ -206,4 +206,28 @@ pioreactors:
 
     expect(screen.getAllByText("??").length).toBeGreaterThan(0);
   });
+
+  test("shows invalid config overrides syntax when config overrides are written as a list", () => {
+    renderEditor({
+      initialCode: `experiment_profile_name: preview
+
+pioreactors:
+  xr1:
+    jobs:
+      stirring:
+        actions:
+          - type: update
+            t: 0s
+            options:
+              target_rpm: 500
+            config_overrides:
+              - target_rpm: 500
+`,
+      initialFilename: "draft_profile",
+      filenameEditable: true,
+      onSave: async () => {},
+    });
+
+    expect(screen.getByText("invalid config overrides syntax!")).toBeInTheDocument();
+  });
 });

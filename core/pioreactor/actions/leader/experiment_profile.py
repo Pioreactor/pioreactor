@@ -725,7 +725,7 @@ def start_job(
     action_metrics: ActionMetrics,
     options: dict[str, Any],
     args: list[str],
-    config_overrides: dict[str, str],
+    config_overrides: dict[str, Any],
 ) -> Callable[..., None]:
     def _callable() -> None:
         nonlocal env
@@ -741,13 +741,15 @@ def start_job(
             return
 
         if dry_run:
+            evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.info(
-                f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}."
+                f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}, and overrides {evaluated_config_overrides}."
             )
         else:
             evaluated_options = evaluate_options(options, env)
+            evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.debug(
-                f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {config_overrides}."
+                f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {evaluated_config_overrides}."
             )
             address = resolve_to_address(unit)
             for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
@@ -760,8 +762,8 @@ def start_job(
                             "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
                             "args": args,
                             "config_overrides": [
-                                [f"{job_name}.config", key, value]
-                                for (key, value) in config_overrides.items()
+                                [f"{job_name}.config", key, str(value)]
+                                for (key, value) in evaluated_config_overrides.items()
                             ],
                         },
                     )

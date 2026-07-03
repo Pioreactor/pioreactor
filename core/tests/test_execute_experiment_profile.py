@@ -174,6 +174,40 @@ def test_execute_experiment_profile_hack_for_led_intensity(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_evaluates_config_overrides(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        inputs={"dc": 100},
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "air_bubbler": Job(
+                        actions=[
+                            Start(
+                                t="0s",
+                                config_overrides={"duty_cycle": "${{dc}}"},
+                            )
+                        ]
+                    )
+                }
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/air_bubbler"
+    assert bucket[0].json["config_overrides"] == [["air_bubbler.config", "duty_cycle", "100"]]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_start_failure_is_logged(
     mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -1568,7 +1602,7 @@ def test_execute_experiment_profile_with_config_overrides(
     action = Start(
         hours_elapsed=0,
         options={"target": "${{unit1:jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"},
-        config_overrides={"option1": "value1", "option2": "value2"},
+        config_overrides={"option1": "value1", "option2": "value2", "option3": 100},
     )
 
     profile = Profile(
@@ -1604,5 +1638,6 @@ def test_execute_experiment_profile_with_config_overrides(
         "config_overrides": [
             ["jobbing.config", "option1", "value1"],
             ["jobbing.config", "option2", "value2"],
+            ["jobbing.config", "option3", "100"],
         ],
     }

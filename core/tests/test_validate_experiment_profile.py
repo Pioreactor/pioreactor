@@ -117,6 +117,10 @@ common:
           t: 0s
           options:
             target_rpm: "${{ 1 + }}"
+        - type: start
+          t: 0s
+          config_overrides:
+            target_rpm: "${{ 1 + }}"
         - type: log
           t: 0s
           options:
@@ -136,7 +140,8 @@ common:
         "common.jobs.stirring.actions[2].condition",
         "common.jobs.stirring.actions[3].wait_until",
         "common.jobs.stirring.actions[4].options.target_rpm",
-        "common.jobs.stirring.actions[5].options.message",
+        "common.jobs.stirring.actions[5].config_overrides.target_rpm",
+        "common.jobs.stirring.actions[6].options.message",
     }
 
 

@@ -385,6 +385,17 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
     return null;
   };
 
+  const renderInvalidConfigOverridesMessage = () => {
+    if (Array.isArray(action.config_overrides)) {
+      return (
+        <Typography variant="body2" component="div" sx={level3}>
+          <UnderlineSpan title="`config_overrides` field doesn't use `-` in front. Remove it.">invalid config overrides syntax!</UnderlineSpan>
+        </Typography>
+      );
+    }
+    return null;
+  };
+
   switch (action?.type) {
     case 'start':
     case 'update':
@@ -396,6 +407,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
           {renderOptions(action?.type)}
           {renderInvalidOptionsMessage()}
           {renderConfigOverrides()}
+          {renderInvalidConfigOverridesMessage()}
         </>
       );
     case 'log':
