@@ -1265,47 +1265,33 @@ class BackgroundJobWithDodging(_BackgroundJob):
             return
 
         self._dodging_init_called_once = True
+        self.currently_dodging_od = value
 
         if value:
-            self._enter_dodging_mode()
+            self.logger.debug("Dodging enabled.")
         else:
-            self._enter_continuous_mode()
+            self.logger.debug("Dodging disabled; running continuously.")
+            self._event_is_dodging_od.set()
 
-    def _enter_dodging_mode(self) -> None:
-        self.currently_dodging_od = True
-        self.logger.debug("Dodging enabled.")
+            if self.sneak_in_timer is not None:
+                self.sneak_in_timer.cancel()
+                self.sneak_in_timer = None
 
+        self._start_current_dodging_mode_or_defer_until_ready()
+
+    def _start_current_dodging_mode_or_defer_until_ready(self) -> None:
         if self.state == self.SLEEPING:
             self._event_is_dodging_od.set()
             self._dodging_mode_startup_pending = True
             return
 
-        self._start_dodging_operation()
-
-    def _start_dodging_operation(self) -> None:
         self._dodging_mode_startup_pending = False
-        self._event_is_dodging_od.clear()
-        self.initialize_dodging_operation()  # user defined
-        self._setup_timer()
-
-    def _enter_continuous_mode(self) -> None:
-        self.currently_dodging_od = False
-        self.logger.debug("Dodging disabled; running continuously.")
-        self._event_is_dodging_od.set()
-
-        if self.sneak_in_timer is not None:
-            self.sneak_in_timer.cancel()
-            self.sneak_in_timer = None
-
-        if self.state == self.SLEEPING:
-            self._dodging_mode_startup_pending = True
-            return
-
-        self._start_continuous_operation()
-
-    def _start_continuous_operation(self) -> None:
-        self._dodging_mode_startup_pending = False
-        self.initialize_continuous_operation()  # user defined
+        if self.currently_dodging_od:
+            self._event_is_dodging_od.clear()
+            self.initialize_dodging_operation()  # user defined
+            self._setup_timer()
+        else:
+            self.initialize_continuous_operation()  # user defined
 
     def set_enable_dodging_od(self, value: bool) -> None:
         """Turn dodging on/off based on user intent, then align mode with current OD state."""
@@ -1450,10 +1436,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         if not self._dodging_mode_startup_pending:
             return
 
-        if self.currently_dodging_od:
-            self._start_dodging_operation()
-        else:
-            self._start_continuous_operation()
+        self._start_current_dodging_mode_or_defer_until_ready()
 
 
 class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):

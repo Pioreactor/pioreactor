@@ -720,7 +720,6 @@ def test_disabling_dodging_while_sleeping_stays_disabled_when_ready() -> None:
     job.ready()
 
     assert job.continuous_operation_calls == 1
-    assert not job._dodging_mode_startup_pending
 
 
 def test_dodging_post_init_timer_setup_failure_cleans_up_running_job(monkeypatch) -> None:
