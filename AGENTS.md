@@ -1,21 +1,31 @@
 # Agent Guidelines for the Pioreactor Mono-Repo
 
-This repository contains the **executable code for the Pioreactor project**. It has primary sub-directories:
+This repository contains the **executable code for the Pioreactor project**. Its primary sub-directories are:
 
-1. `core/pioreactor` — backend / worker code that runs jobs. Important files:
-   - `core/pioreactor/background_jobs/base.py` is the super class for background jobs (like stirring, od_reading, automations, etc)
-2. `core/pioreactor/web/` — Flask-based web API. Important files:
-   - `core/pioreactor/web/api.py` handles the leader-only (and frontend) API. This is the main entry point most often. It sends requests to `unit_api.py` too.
-   - `core/pioreactor/web/unit_api.py` is the pioreactor-specific API for controlling individual actions on a Pioreactor.
-   - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web APIs.
-3. `frontend/src` — React-based web UI
-4. `packaging/` - contains files used to build, install, and run Pioreactor outside the normal Python package runtime. Most files here are provisioning inputs: they seed databases, config directories, system services, and $DOT_PIOREACTOR. Specific important files:
-  - `packaging/runtime-files/pioreactor.env`
-  - `packaging/shared-assets/sql/create_tables.sql`
-  - `packaging/shared-assets/pioreactor/config.example.ini`
+1. `core/pioreactor` — backend job runtime, hardware helpers, CLI, automations, calibrations, estimators, and web API package.
+2. `frontend/src` — React-based web UI.
+3. `packaging/` — install, provisioning, and runtime assets used outside the normal Python package runtime.
 
-Some files under `packaging/runtime-files/` are shared into both leader and worker Raspberry Pi images by CustoPiZer. Do not infer leader-only behavior from the generic Linux leader installer; check CustoPiZer sync paths and image-owned service files before deciding packaging scope.
 
+---
+
+## Local README and AGENTS files
+
+Read the nearest `AGENTS.md` or `README.md` when working in a subtree. This is the index; keep detailed subsystem rules in the local file to avoid drift.
+
+- `AGENTS.md`: repo-wide agent guidance, architecture notes, testing expectations, and search restrictions.
+- `README.md`: public project overview, product positioning, purchase link, and docs link.
+- `core/README.md`: currently empty placeholder for core package notes.
+- `core/pioreactor/estimators/README.md`: estimator terminology, storage, lifecycle, and OD fusion notes.
+- `core/pioreactor/calibrations/protocols/README.md`: protocol terminology and calibration-vs-estimator artifact behavior.
+- `core/pioreactor/web/AGENTS.md`: Flask API, unit API, Huey, fanout, cache, and request-struct guidance.
+- `core/update_scripts/README.md`: update-script sequence, idempotency rules, root context, and SQL tips.
+- `frontend/AGENTS.md`: React frontend architecture, MQTT context, and frontend-specific rules.
+- `frontend/README.md`: frontend dev-server and production build commands.
+- `packaging/README.md`: packaging ownership, shared assets, runtime files, Linux leader installer scope, and HTTPS caveats.
+- `packaging/linux-leader/README.md`: experimental generic Linux leader installer usage and limits.
+- `packaging/shared-assets/pioreactor/exportable_datasets/README.md`: built-in export dataset descriptor seed files.
+- `packaging/shared-assets/pioreactor/ui/README.md`: built-in UI descriptor seed assets.
 
 ---
 
@@ -46,7 +56,11 @@ Some files under `packaging/runtime-files/` are shared into both leader and work
   Additional functionality can be loaded via Python entry points or drop-in `.py` files under `~/.pioreactor/plugins`. Plugins are discovered and registered in `core/pioreactor/plugin_management/__init__.py`.
 
 * **Web API and UI**
-  The `core/pioreactor/web/` directory includes our APIs and generated static frontend output.
+  `core/pioreactor/web/` contains the Flask APIs and generated static frontend output. See `core/pioreactor/web/AGENTS.md` for local guidance and the "Web architecture" section below for ownership boundaries.
+
+* **Packaging**
+  `packaging/` contains provisioning inputs that seed databases, config directories, system services, and `$DOT_PIOREACTOR`. Some `packaging/runtime-files/` assets are shared into both leader and worker Raspberry Pi images by CustoPiZer; check CustoPiZer sync paths before deciding packaging scope.
+
 
 ---
 
@@ -127,16 +141,16 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
 
 ## Testing
 
- - Use **pytest** for Python tests. All tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
+ - Use **pytest** for Python tests. Running all tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options, with minimal output (when acceptable) `-q --no-header --no-summary`.
 
   ```bash
   .venv/bin/pytest core/tests/test_cli.py
   ```
  - Don't run tests in parallel.
- - Do not disable or skip tests as a fix. If a test is genuinely invalid, flaky, or external-service-bound, ask Cameron before changing the test contract:
+ - Do not disable or skip tests as a fix. If a test is genuinely invalid, flaky, or external-service-bound, ask the User before changing the test contract:
     - it is incredibly flakey and unreliable.
     - relies on an unresponsive external service.
- - Do not delete tests unless Cameron explicitly asks after reviewing the reason. Reasons to discuss include:
+ - Do not delete tests unless the User explicitly asks after reviewing the reason. Reasons to discuss include:
     - its conclusion is orthogonal to the logic being written.
     - its preventing a better refactor or feature.
     - its an incredibly trivial feature that is unlikely to be used.
@@ -188,7 +202,7 @@ We run GitHub Actions for CI, located in `.github/workflows/ci.yaml`.
 
 ---
 
-## Important filesystem locations
+## Important local filesystem locations
 
 - `.pioreactor/config.ini` contains development configuration parameters.
 - `.pioreactor/plugins/` is where Python plugin files (`*.py`) can be added.
@@ -201,7 +215,7 @@ Many of the paths above are resolved in practice from `DOT_PIOREACTOR`, not from
 
 ---
 
-## Web architecture: where fixes usually belong
+## Web architecture:
 
 For web and cluster-control changes, decide which ownership boundary is correct before editing:
 

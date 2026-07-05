@@ -10,7 +10,7 @@
 
 *   **MQTT Integration**: `MQTTContext.js` establishes an MQTT client with a fallback strategy for multiple brokers, using a trie structure to manage topic handlers. It exposes `subscribeToTopic` and `unsubscribeFromTopic` through a React context and displays a Snackbar on connection errors.
 
-*   **Utilities**: `utilities.js` provides helper functions such as `getConfig`, `runPioreactorJob`, and a retryable `checkTaskCallback`. It also defines color constants and a `ColorCycler` class.
+*   **Utilities**: `src/utils/` contains focused helper modules such as `config.js` for `getConfig`, `jobs.js` for `runPioreactorJob`, `tasks.js` for retryable task-result polling, and `color.js` for color constants and `ColorCycler`.
 
 *   **Feature Example**: `CreateExperimentProfile.jsx` allows users to author experiment profiles in YAML using a code editor, save them via an API call, and preview parsed results in real time.
     `ExportData.jsx` lets users pick datasets and experiments, preview samples, and download results via `/api/export_datasets`.

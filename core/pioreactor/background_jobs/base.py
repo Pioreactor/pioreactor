@@ -111,7 +111,17 @@ class LoggerMixin:
 class PostInitCaller(type):
     def __call__(cls, *args: t.Any, **kwargs: t.Any) -> t.Any:
         obj = type.__call__(cls, *args, **kwargs)
-        obj.__post__init__()
+        try:
+            obj.__post__init__()
+        except Exception:
+            if hasattr(obj, "_is_cleaned_up"):
+                try:
+                    obj.clean_up()
+                except Exception as cleanup_error:
+                    if hasattr(obj, "logger"):
+                        obj.logger.debug("Error while cleaning up after post-init failure:")
+                        obj.logger.debug(cleanup_error, exc_info=True)
+            raise
         return obj
 
 
@@ -1099,10 +1109,6 @@ class BackgroundJobContrib(_BackgroundJob):
         super().__init__(unit, experiment, source=plugin_name)
 
 
-def _noop() -> None:
-    pass
-
-
 def compute_od_timing(
     *,
     interval: float,
@@ -1118,25 +1124,23 @@ def compute_od_timing(
 
     The OD job runs every `interval` seconds, taking `od_duration` seconds of that window. We also
     reserve `pre_delay` seconds before the next OD and `post_delay` seconds after the previous OD.
-    Whatever time is left, minus the runtime of the post-OD action (`after_action`), is the
-    "wait window" where the main activity can run normally.
-
-    wait_window = interval - od_duration - (pre_delay + post_delay) - after_action
-
-    If the wait window is non-positive, dodging is impossible with the current timings.
+    The full-cycle budget verifies that the configured delays and action runtime can fit between
+    OD readings. The returned "wait window" is additionally capped by the actual next OD boundary,
+    so a late timer callback does not sleep past the next pre-read action time.
 
     time_to_next_od aligns the next timer fire with the OD schedule based on the first observation
     timestamp and the current clock.
     """
 
-    wait_window = interval - od_duration - (pre_delay + post_delay) - after_action
+    full_cycle_wait_window = interval - od_duration - (pre_delay + post_delay) - after_action
 
-    if wait_window <= 0:
+    if full_cycle_wait_window <= 0:
         raise DodgingTimingError(
             f"Insufficient time budget: interval={interval}, od_duration={od_duration}, pre_delay={pre_delay}, post_delay={post_delay}, after_action={after_action}"
         )
 
     time_to_next_od = interval - ((now - first_od_obs_time) % interval)
+    wait_window = min(full_cycle_wait_window, max(0.0, time_to_next_od - pre_delay))
 
     return {"wait_window": wait_window, "time_to_next_od": time_to_next_od}
 
@@ -1190,7 +1194,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     OD_READING_DURATION = (
         1.0  # WARNING: this may change slightly in the future, don't depend on this too much.
     )
-    sneak_in_timer: RepeatedTimer
+    sneak_in_timer: RepeatedTimer | None
     currently_dodging_od = False
 
     def __init__(
@@ -1217,13 +1221,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 f"Required section '{self.job_name}.config' does not exist in the configuration."
             )
 
-        self.sneak_in_timer = RepeatedTimer(
-            5, _noop, job_name=self.job_name, logger=self.logger
-        )  # placeholder?
+        self.sneak_in_timer = None
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.add_to_published_settings("currently_dodging_od", {"datatype": "boolean", "settable": False})
         self._event_is_dodging_od = threading.Event()
         self._dodging_init_called_once = False
+        self._dodging_mode_startup_pending = False
         self.enable_dodging_od = enable_dodging_od
 
     def __post__init__(self) -> None:
@@ -1254,32 +1257,55 @@ class BackgroundJobWithDodging(_BackgroundJob):
         """
         Recall: currently_dodging_od is read-only. This function is called when other settings & variables are satisfied (it's "computed").
         """
-        if self.state not in (self.READY, self.INIT):
+        if self.state in (self.DISCONNECTED, self.LOST):
             return
 
         if self._dodging_init_called_once and self.currently_dodging_od == value:
             # noop
             return
 
-        self.currently_dodging_od = value
         self._dodging_init_called_once = True
-        if self.currently_dodging_od:
-            self.logger.debug("Dodging enabled.")
-            self._event_is_dodging_od.clear()
-            self.initialize_dodging_operation()  # user defined
-            self._action_to_do_before_od_reading = self.action_to_do_before_od_reading
-            self._action_to_do_after_od_reading = self.action_to_do_after_od_reading
-            self._setup_timer()
+
+        if value:
+            self._enter_dodging_mode()
         else:
-            self.logger.debug("Dodging disabled; running continuously.")
+            self._enter_continuous_mode()
+
+    def _enter_dodging_mode(self) -> None:
+        self.currently_dodging_od = True
+        self.logger.debug("Dodging enabled.")
+
+        if self.state == self.SLEEPING:
             self._event_is_dodging_od.set()
-            try:
-                self.sneak_in_timer.cancel()
-            except AttributeError:
-                pass
-            self.initialize_continuous_operation()  # user defined
-            self._action_to_do_before_od_reading = _noop
-            self._action_to_do_after_od_reading = _noop
+            self._dodging_mode_startup_pending = True
+            return
+
+        self._start_dodging_operation()
+
+    def _start_dodging_operation(self) -> None:
+        self._dodging_mode_startup_pending = False
+        self._event_is_dodging_od.clear()
+        self.initialize_dodging_operation()  # user defined
+        self._setup_timer()
+
+    def _enter_continuous_mode(self) -> None:
+        self.currently_dodging_od = False
+        self.logger.debug("Dodging disabled; running continuously.")
+        self._event_is_dodging_od.set()
+
+        if self.sneak_in_timer is not None:
+            self.sneak_in_timer.cancel()
+            self.sneak_in_timer = None
+
+        if self.state == self.SLEEPING:
+            self._dodging_mode_startup_pending = True
+            return
+
+        self._start_continuous_operation()
+
+    def _start_continuous_operation(self) -> None:
+        self._dodging_mode_startup_pending = False
+        self.initialize_continuous_operation()  # user defined
 
     def set_enable_dodging_od(self, value: bool) -> None:
         """Turn dodging on/off based on user intent, then align mode with current OD state."""
@@ -1314,7 +1340,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
         pass
 
     def _setup_timer(self) -> None:
-        self.sneak_in_timer.cancel()
+        if self.sneak_in_timer is not None:
+            self.sneak_in_timer.cancel()
+            self.sneak_in_timer = None
 
         post_delay = config.getfloat(f"{self.job_name}.config", "post_delay_duration", fallback=0.5)
         pre_delay = config.getfloat(f"{self.job_name}.config", "pre_delay_duration", fallback=1.5)
@@ -1333,7 +1361,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 return
 
             with catchtime() as timer:
-                self._action_to_do_after_od_reading()
+                self.action_to_do_after_od_reading()
 
             action_after_duration = timer()
 
@@ -1366,7 +1394,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if not is_pio_job_running("od_reading"):
                 return
 
-            self._action_to_do_before_od_reading()
+            self.action_to_do_before_od_reading()
 
         # this could fail in the following way:
         # in the same experiment, the od_reading fails catastrophically so that the settings are never
@@ -1394,29 +1422,38 @@ class BackgroundJobWithDodging(_BackgroundJob):
             run_immediately=True,
             run_after=time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION),
             logger=self.logger,
-        )
-        self.sneak_in_timer.start()
+        ).start()
 
     def on_sleeping(self) -> None:
-        try:
+        if hasattr(self, "_event_is_dodging_od"):
             self._event_is_dodging_od.set()
-            self.sneak_in_timer.pause()
-        except AttributeError:
-            pass
+
+        if (sneak_in_timer := getattr(self, "sneak_in_timer", None)) is not None:
+            sneak_in_timer.pause()
 
     def on_disconnected(self) -> None:
-        try:
+        if hasattr(self, "_event_is_dodging_od"):
             self._event_is_dodging_od.set()
-            self.sneak_in_timer.cancel()
-        except AttributeError:
-            pass
+
+        if (sneak_in_timer := getattr(self, "sneak_in_timer", None)) is not None:
+            sneak_in_timer.cancel()
+            self.sneak_in_timer = None
 
     def on_sleeping_to_ready(self) -> None:
-        try:
+        if self.currently_dodging_od and self.sneak_in_timer is not None:
             self._event_is_dodging_od.clear()
             self.sneak_in_timer.unpause()
-        except AttributeError:
-            pass
+
+    def ready(self) -> None:
+        super().ready()
+
+        if not self._dodging_mode_startup_pending:
+            return
+
+        if self.currently_dodging_od:
+            self._start_dodging_operation()
+        else:
+            self._start_continuous_operation()
 
 
 class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
