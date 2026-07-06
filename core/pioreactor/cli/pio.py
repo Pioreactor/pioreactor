@@ -422,38 +422,43 @@ def get_update_app_commands(
 
         install_extra = get_install_extra_for_this_unit()
 
+        release_commands.append(
+            update_command(
+                [
+                    "/opt/pioreactor/venv/bin/pip",
+                    "install",
+                    "--no-index",
+                    f"--find-links={tmp_rls_dir}/wheels/",
+                    f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
+                ],
+                3,
+            )
+        )
+
+        release_commands.append(
+            update_command(
+                [
+                    "/opt/pioreactor/venv/bin/pio",
+                    "repair",
+                ],
+                99,
+            )
+        )
+
         if whoami.am_I_leader():
             release_commands.extend(
                 [
-                    update_command(
-                        [
-                            "/opt/pioreactor/venv/bin/pip",
-                            "install",
-                            "--no-index",
-                            f"--find-links={tmp_rls_dir}/wheels/",
-                            f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
-                        ],
-                        3,
-                    ),
                     update_command(
                         ["sudo", "sqlite3", database_path, f".read {tmp_rls_dir}/update.sql"],
                         10,
                         allow_failure=True,
                     ),
+                    update_command(
+                        ["sudo", "sqlite3", database_path, "PRAGMA optimize = 0x10002"],
+                        11,
+                        allow_failure=True,
+                    ),
                 ]
-            )
-        else:
-            release_commands.append(
-                update_command(
-                    [
-                        "/opt/pioreactor/venv/bin/pip",
-                        "install",
-                        "--no-index",
-                        f"--find-links={tmp_rls_dir}/wheels/",
-                        f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
-                    ],
-                    3,
-                )
             )
 
         return release_commands

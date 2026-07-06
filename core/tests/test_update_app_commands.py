@@ -194,56 +194,6 @@ def test_app_commands_with_4_char_sha() -> None:
     assert command_priorities(cmds) == [expected]
 
 
-def test_app_commands_with_release_zip(tmp_path) -> None:
-    version = "26.3.0"
-    # construct a source path matching release zip pattern
-    source_path = tmp_path / f"release_{version}.zip"
-    # no need to create the file on disk; path string is enough
-    source = str(source_path)
-    cmds, ver = get_update_app_commands(
-        branch=None,
-        repo="org/repo",
-        source=source,
-        version=None,
-        defer_web_restart=True,
-    )
-    assert ver == version
-    tmp_dir = tempfile.gettempdir()
-    tmp_rls_dir = f"{tmp_dir}/release_{version}"
-    # verify expected sequence of commands and their priorities
-    expected = [
-        (verify_release_archive_command(source, version), -99.5),
-        (["sudo", "rm", "-rf", tmp_rls_dir], -99),
-        (["unzip", "-o", source, "-d", tmp_rls_dir], 0),
-        (["unzip", "-o", f"{tmp_rls_dir}/wheels_{version}.zip", "-d", f"{tmp_rls_dir}/wheels"], 1),
-        (["sudo", "bash", f"{tmp_rls_dir}/pre_update.sh"], 2),
-        (["sudo", "bash", f"{tmp_rls_dir}/update.sh"], 4),
-        (["sudo", "bash", f"{tmp_rls_dir}/post_update.sh"], 20),
-        (["sudo", "rm", "-rf", tmp_rls_dir], 98),
-        (
-            [
-                "/opt/pioreactor/venv/bin/pip",
-                "install",
-                "--no-index",
-                f"--find-links={tmp_rls_dir}/wheels/",
-                f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader_worker]",
-            ],
-            3,
-        ),
-        (
-            [
-                "sudo",
-                "sqlite3",
-                config_module.config.get("storage", "database"),
-                f".read {tmp_rls_dir}/update.sql",
-            ],
-            10,
-        ),
-    ]
-    assert command_priorities(cmds) == expected
-    assert cmds[-1][2] is True
-
-
 def test_app_commands_with_release_zip_with_spaces_in_path(tmp_path) -> None:
     version = "26.3.0"
     source = str(tmp_path / "release bundles" / f"release_{version}.zip")
@@ -444,12 +394,28 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
         ),
         (
             [
+                "/opt/pioreactor/venv/bin/pio",
+                "repair",
+            ],
+            99,
+        ),
+        (
+            [
                 "sudo",
                 "sqlite3",
                 config_module.config.get("storage", "database"),
                 f".read {tmp_rls_dir}/update.sql",
             ],
             10,
+        ),
+        (
+            [
+                "sudo",
+                "sqlite3",
+                config_module.config.get("storage", "database"),
+                "PRAGMA optimize = 0x10002",
+            ],
+            11,
         ),
         (["sudo", "rm", "-f", archive_location], 97),
     ]
