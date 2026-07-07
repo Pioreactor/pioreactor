@@ -110,7 +110,7 @@ export PIO_EXECUTABLE="$PWD/.venv/bin/pio"
 export PIOS_EXECUTABLE="$PWD/.venv/bin/pios"
 PATH_add "$PWD/.venv/bin"
 
-export HARDWARE=1.1
+export HARDWARE=1.2
 export FIRMWARE=1.1
 export MODEL_NAME=pioreactor_40ml
 export MODEL_VERSION=1.5

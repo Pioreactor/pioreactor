@@ -1134,6 +1134,47 @@ def test_start_od_reading_rejects_blank_with_calibration() -> None:
         )
 
 
+def test_start_od_reading_logs_blank_with_calibration_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    experiment = "test_start_od_reading_logs_blank_with_calibration_error"
+    logged_errors: list[str] = []
+
+    class FakeLogger:
+        def error(self, message: str) -> None:
+            logged_errors.append(message)
+
+    calibration = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_data_=_poly_curve([2.0, 0.0]),
+        calibration_name="linear",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 2], "y": [0, 4]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+
+    with local_persistent_storage("od_blank") as cache:
+        cache[experiment] = '{"2": 0.15}'
+
+    monkeypatch.setattr(od_reading_module, "create_logger", lambda *args, **kwargs: FakeLogger())
+
+    with pytest.raises(ValueError, match="incompatible with OD calibrations and fused estimators"):
+        start_od_reading(
+            make_channels("REF", "90"),
+            interval=None,
+            fake_data=True,
+            experiment=experiment,
+            unit=get_unit_name(),
+            calibration=calibration,
+            estimator=False,
+            ir_led_intensity=90.0,
+        )
+
+    assert logged_errors == [
+        f"Per-experiment OD blank correction exists for experiment {experiment!r} and is incompatible with OD calibrations and fused estimators."
+    ]
+
+
 def test_start_od_reading_rejects_blank_with_estimator() -> None:
     experiment = "test_start_od_reading_rejects_blank_with_estimator"
 

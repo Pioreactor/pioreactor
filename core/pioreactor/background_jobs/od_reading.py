@@ -1905,9 +1905,9 @@ def start_od_reading(
     # Current invariant: per-experiment OD blank correction is a raw-signal
     # mode and is never combined with calibrations or fused estimators.
     if blank_transformer.od_blank is not None and (calibration_is_active or estimator_is_active):
-        raise ValueError(
-            f"Per-experiment OD blank correction exists for experiment {experiment!r} and is incompatible with OD calibrations and fused estimators."
-        )
+        message = f"Per-experiment OD blank correction exists for experiment {experiment!r} and is incompatible with OD calibrations and fused estimators."
+        create_logger("od_reading", unit=unit, experiment=experiment).error(message)
+        raise ValueError(message)
 
     if interval is None:
         penalizer = 0.0

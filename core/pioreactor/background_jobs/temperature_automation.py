@@ -133,6 +133,10 @@ class TemperatureAutomationJob(AutomationJob):
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.get_temp_address())
 
+        self.latest_temperture_at = current_utc_datetime()
+
+    def __post__init__(self) -> None:
+        # Timers can trigger execute(), so start them only after subclass __init__ has finished.
         self.read_external_temperature_timer = RepeatedTimer(
             53,
             self.read_external_temperature,
@@ -150,7 +154,7 @@ class TemperatureAutomationJob(AutomationJob):
             run_immediately=True,
         ).start()
 
-        self.latest_temperture_at = current_utc_datetime()
+        super().__post__init__()
 
     def on_init_to_ready(self) -> None:
         if whoami.is_testing_env() or self.seconds_since_last_active_heating() >= 10:

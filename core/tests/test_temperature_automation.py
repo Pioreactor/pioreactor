@@ -142,6 +142,75 @@ def test_update_heater_ignores_pwm_cleanup_race() -> None:
     assert temperature_job.heater_duty_cycle == 30.0
 
 
+def test_temperature_timer_execution_waits_until_subclass_init_finishes(monkeypatch) -> None:
+    from pioreactor.utils.timing import current_utc_datetime
+
+    execution_observed_subclass_state = []
+
+    class ImmediatelyRunningTimer:
+        def __init__(
+            self,
+            interval: float,
+            function,
+            job_name: str | None = None,
+            run_immediately: bool = False,
+            run_after: float | None = None,
+            logger=None,
+            args=(),
+            kwargs=None,
+        ) -> None:
+            self.interval = interval
+            self.function = function
+            self.run_immediately = run_immediately
+            self.args = args
+            self.kwargs = kwargs or {}
+
+        def start(self):
+            if self.run_immediately:
+                self.function(*self.args, **self.kwargs)
+            return self
+
+        def pause(self) -> None:
+            pass
+
+        def unpause(self) -> None:
+            pass
+
+        def cancel(self, timeout: float | None = None) -> None:
+            pass
+
+        def is_alive(self) -> bool:
+            return False
+
+    def infer_temperature(self: TemperatureAutomationJob) -> None:
+        self._set_latest_temperature(structs.Temperature(temperature=30, timestamp=current_utc_datetime()))
+
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.temperature_automation.RepeatedTimer",
+        ImmediatelyRunningTimer,
+    )
+    monkeypatch.setattr(TemperatureAutomationJob, "infer_temperature", infer_temperature)
+
+    class StartupProbe(TemperatureAutomationJob):
+        automation_name = "_test_temperature_timer_startup_probe"
+
+        def __init__(self, **kwargs) -> None:
+            super().__init__(**kwargs)
+            self.subclass_field = True
+
+        def execute(self):
+            execution_observed_subclass_state.append(hasattr(self, "subclass_field"))
+            return None
+
+    with StartupProbe(
+        unit=unit, experiment="test_temperature_timer_execution_waits_until_subclass_init_finishes"
+    ):
+        pass
+
+    assert execution_observed_subclass_state
+    assert all(execution_observed_subclass_state)
+
+
 def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
     experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
