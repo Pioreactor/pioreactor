@@ -1,5 +1,14 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Replaced `pio update-settings` and `pios update-settings` with the clearer job-setting commands:
+
+   ```bash
+   pio jobs set <job> <setting> <value>
+   pios jobs set <job> <setting> <value>
+   ```
+
 #### Enhancements
 
  - Bump to React 19.x, and new vite build system.

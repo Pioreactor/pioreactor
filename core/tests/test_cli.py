@@ -1021,15 +1021,15 @@ def test_pio_log() -> None:
     assert bucket[0]["task"] == "job1"
 
 
-def test_pio_update_settings_requires_key_value_pairs() -> None:
+def test_pio_jobs_set_requires_value() -> None:
     runner = CliRunner()
-    result = runner.invoke(pio, ["update-settings", "stirring", "--target-rpm"])
+    result = runner.invoke(pio, ["jobs", "set", "stirring", "target-rpm"])
 
-    assert result.exit_code != 0
-    assert "Settings must be provided as --key value pairs." in result.output
+    assert result.exit_code == 2
+    assert "Missing argument 'VALUE'." in result.output
 
 
-def test_pios_update_settings() -> None:
+def test_pios_jobs_set() -> None:
     job_name = "test_job"
     published_setting_name = "attr"
 
@@ -1043,7 +1043,7 @@ def test_pios_update_settings() -> None:
     )
 
     runner = CliRunner()
-    runner.invoke(pios, ["update-settings", job_name, f"--{published_setting_name}", "1", "-y"])
+    runner.invoke(pios, ["jobs", "set", job_name, published_setting_name, "1", "-y"])
     pause()
     pause()
     pause()

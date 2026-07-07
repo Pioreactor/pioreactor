@@ -1116,6 +1116,30 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
         )
 
 
+@jobs.command(name="set", short_help="set a running job setting")
+@click.argument("job", type=click.STRING)
+@click.argument("setting", type=click.STRING)
+@click.argument("value", type=click.STRING)
+def job_set(job: str, setting: str, value: str) -> None:
+    """
+    Set a published setting on a running job.
+
+    \b
+    Examples:
+      pio jobs set stirring target_rpm 500
+      pio jobs set stirring target-rpm 500
+    """
+    from pioreactor.pubsub import publish
+    from pioreactor.pubsub import QOS
+
+    unit = whoami.get_unit_name()
+    exp = whoami.get_assigned_experiment_name(unit)
+    setting = setting.replace("-", "_")
+
+    # Job setting updates are command messages, not telemetry. Keep delivery above MQTT's QoS 0 default.
+    publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=QOS.AT_LEAST_ONCE)
+
+
 @jobs.command(name="purge", short_help="remove a job record")
 @click.option("--job-id", type=click.INT)
 @click.option("--job-name", type=click.STRING)
@@ -1686,50 +1710,6 @@ def purge_cache(cache: str, key: str, as_int: bool) -> None:
         click.echo(f"Removed key {removed_key} from cache '{cache}'.")
     else:
         click.echo(f"No entry for key {key_candidates[0]} found in cache '{cache}'.")
-
-
-@pio.command(
-    name="update-settings",
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
-    short_help="update settings on a running job",
-)
-@click.argument("job", type=click.STRING)
-@click.pass_context
-def update_settings(ctx: click.Context, job: str) -> None:
-    """
-    Examples
-    ----------
-
-    > pio update-settings stirring --target_rpm 500
-    > pio update-settings stirring --target-rpm 500
-
-    """
-    from pioreactor.pubsub import publish
-    from pioreactor.pubsub import QOS
-
-    unit = whoami.get_unit_name()
-    exp = whoami.get_assigned_experiment_name(unit)
-
-    if len(ctx.args) == 0:
-        raise click.UsageError("Provide at least one setting as --key value.")
-
-    if len(ctx.args) % 2 != 0:
-        raise click.UsageError("Settings must be provided as --key value pairs.")
-
-    extra_args: dict[str, str] = {}
-    for index in range(0, len(ctx.args), 2):
-        option_name = ctx.args[index]
-        option_value = ctx.args[index + 1]
-
-        if not option_name.startswith("--") or option_name == "--":
-            raise click.UsageError("Settings must be provided as --key value pairs.")
-
-        extra_args[option_name[2:]] = option_value
-
-    for setting, value in extra_args.items():
-        setting = setting.replace("-", "_")
-        # Job setting updates are command messages, not telemetry. Keep delivery above MQTT's QoS 0 default.
-        publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=QOS.AT_LEAST_ONCE)
 
 
 @pio.group()

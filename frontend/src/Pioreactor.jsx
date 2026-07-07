@@ -2046,6 +2046,7 @@ function Charts(props) {
   const [charts, setCharts] = useState({})
   const config = props.config
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const experiment = props.experimentMetadata.experiment;
 
   useEffect(() => {
     fetch('/api/charts/descriptors')
@@ -2066,7 +2067,7 @@ function Charts(props) {
               <Card sx={{ maxHeight: "100%"}}>
                 <Chart
                   unit={props.unit}
-                  key={`chart-${chart_key}`}
+                  key={`chart-${chart_key}-${experiment}-${props.unit || "all"}-${props.timeWindow}-${props.timeScale}`}
                   chartKey={chart_key}
                   config={config}
                   dataSource={chart.data_source}
@@ -2074,7 +2075,7 @@ function Charts(props) {
                   topic={chart.mqtt_topic}
                   payloadKey={chart.payload_key}
                   yAxisLabel={chart.y_axis_label}
-                  experiment={props.experimentMetadata.experiment}
+                  experiment={experiment}
                   deltaHours={props.experimentMetadata.delta_hours}
                   experimentStartTime={props.experimentMetadata.created_at}
                   downSample={chart.down_sample}

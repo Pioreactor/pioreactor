@@ -887,6 +887,46 @@ if am_I_leader() or is_testing_env():
     def list_running_jobs(units: tuple[str, ...], experiments: tuple[str, ...]) -> None:
         _show_cluster_job_history(units, experiments, running_only=True)
 
+    @jobs.command(name="set", short_help="set a running job setting on workers")
+    @click.argument("job", type=click.STRING)
+    @click.argument("setting", type=click.STRING)
+    @click.argument("value", type=click.STRING)
+    @which_units
+    @confirmation
+    def set_job_setting(
+        job: str, setting: str, value: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
+    ) -> None:
+        """
+        Set a published setting on a running job across workers.
+
+        \b
+        Examples:
+          pios jobs set stirring target_rpm 500 --units worker1
+          pios jobs set stirring interval 10 --experiments testing2
+        """
+        from pioreactor.pubsub import create_client
+        from pioreactor.pubsub import QOS
+
+        setting = setting.replace("-", "_")
+
+        if not yes:
+            confirm = input(f"Confirm setting {job}'s {setting} to {value} on {units}? Y/n: ").strip().upper()
+            if confirm != "Y":
+                raise click.Abort()
+
+        units = resolve_active_job_units(units, experiments)
+
+        with create_client() as client:
+            for unit in units:
+                experiment = get_assigned_experiment_name(unit)
+                # This CLI path is short-lived, so wait before teardown after sending a settings command.
+                msg = client.publish(
+                    f"pioreactor/{unit}/{experiment}/{job}/{setting}/set",
+                    value,
+                    qos=QOS.AT_LEAST_ONCE,
+                )
+                msg.wait_for_publish(timeout=2.0)
+
     @pios.command("kill", short_help="kill a job(s) on workers")
     @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
     @click.option("--experiment", type=click.STRING)
@@ -1113,53 +1153,6 @@ if am_I_leader() or is_testing_env():
                 raise click.ClickException(
                     f"Unable to reboot the leader. {summarize_error_response(response)}"
                 ) from error
-
-    @pios.command(
-        name="update-settings",
-        context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
-        short_help="update settings on a job on workers",
-    )
-    @click.argument("job", type=click.STRING)
-    @which_units
-    @confirmation
-    @click.pass_context
-    def update_settings(
-        ctx: click.Context, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
-    ) -> None:
-        """
-        Update settings on a running job across workers.
-
-        \b
-        Examples:
-          pios update-settings stirring --target_rpm 500 --units worker1
-          pios update-settings od_reading --interval 10 --experiments testing2
-        """
-        from pioreactor.pubsub import create_client
-        from pioreactor.pubsub import QOS
-
-        extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
-
-        assert len(extra_args) > 0
-
-        if not yes:
-            confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip().upper()
-            if confirm != "Y":
-                raise click.Abort()
-
-        units = resolve_active_job_units(units, experiments)
-
-        with create_client() as client:
-            for unit in units:
-                experiment = get_assigned_experiment_name(unit)
-                for setting, value in extra_args.items():
-                    setting = setting.replace("-", "_")
-                    # This CLI path is short-lived, so wait before teardown after sending a settings command.
-                    msg = client.publish(
-                        f"pioreactor/{unit}/{experiment}/{job}/{setting}/set",
-                        value,
-                        qos=QOS.AT_LEAST_ONCE,
-                    )
-                    msg.wait_for_publish(timeout=2.0)
 
 
 if __name__ == "__main__":
