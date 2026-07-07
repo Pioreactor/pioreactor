@@ -491,11 +491,7 @@ def update_software_target(target: str) -> DelayedResponseReturnValue:
 
     commands = build_pio_update_app_args(body)
 
-    if target == "app":
-        task = tasks.pio_update_app(*commands)
-    else:
-        raise ValueError()
-
+    task = tasks.pio_update_app(*commands)
     return create_task_response(task)
 
 

@@ -15,21 +15,24 @@ from .sly import Lexer
 from .sly import Parser
 
 
-def convert_string(input_str: str) -> int | bool | float | str:
+def convert_string(input_value: object) -> object:
+    if not isinstance(input_value, str):
+        return input_value
+
     # Try to convert to float
     try:
-        return float(input_str)
+        return float(input_value)
     except ValueError:
         pass
 
     # Try to convert to boolean
-    if input_str.lower() == "true":
+    if input_value.lower() == "true":
         return True
-    elif input_str.lower() == "false":
+    elif input_value.lower() == "false":
         return False
 
     # Return string if other conversions fail
-    return input_str
+    return input_value
 
 
 class ProfileLexer(Lexer):

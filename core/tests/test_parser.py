@@ -119,6 +119,25 @@ def test_mqtt_fetches() -> None:
     assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_false or {unit}:test_job:bool_true")
 
 
+def test_mqtt_fetches_preserve_decoded_json_scalar_types() -> None:
+    experiment = "_testing_experiment"
+
+    publish(f"pioreactor/{unit}/{experiment}/test_job/json_true", encode(True), retain=True)
+    publish(f"pioreactor/{unit}/{experiment}/test_job/json_int", encode(101), retain=True)
+    publish(
+        f"pioreactor/{unit}/{experiment}/test_job/json_nested",
+        encode({"enabled": True, "count": 101}),
+        retain=True,
+    )
+
+    assert parse_profile_expression(f"{unit}:test_job:json_true") is True
+    assert parse_profile_expression(f"{unit}:test_job:json_int") == 101
+    assert type(parse_profile_expression(f"{unit}:test_job:json_int")) is int
+    assert parse_profile_expression(f"{unit}:test_job:json_nested.enabled") is True
+    assert parse_profile_expression(f"{unit}:test_job:json_nested.count") == 101
+    assert type(parse_profile_expression(f"{unit}:test_job:json_nested.count")) is int
+
+
 def test_mqtt_fetches_with_env() -> None:
     experiment = "_testing_experiment"
 
