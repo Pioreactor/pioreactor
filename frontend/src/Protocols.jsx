@@ -427,7 +427,7 @@ function Protocols(props) {
         </Typography>
 
       </Box>
-      <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+      <Divider sx={{ mt: "0px", mb: "15px" }} />
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
@@ -454,7 +454,7 @@ function Protocols(props) {
                 >
                   {hasMultipleWorkers && (
                     <MenuItem value={ALL_PIOREACTORS}>
-                      <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 4px" }} />
+                      <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 4px" }} />
                       All Pioreactors
                     </MenuItem>
                   )}

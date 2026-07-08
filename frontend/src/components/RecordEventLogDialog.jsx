@@ -80,11 +80,11 @@ function RecordEventLogDialog({
   return (
     <>
     <Button
-      style={{textTransform: 'none', marginRight: "0px", float: "right"}}
+      sx={{textTransform: 'none', mr: "0px", float: "right"}}
       color="primary"
       onClick={handleOpenDialog}
     >
-      <AddIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}} /> Record new event
+      <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}} /> Record new event
     </Button>
     <Dialog open={openDialog} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle sx={{ mb: 2 }}>
@@ -125,7 +125,7 @@ function RecordEventLogDialog({
               {availableUnits.map((unit) => (
                 <MenuItem key={unit} value={unit}>{unit}</MenuItem>
               ))}
-              <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All assigned Pioreactors </MenuItem>
+              <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} /> All assigned Pioreactors </MenuItem>
             </Select>
           </FormControl>
           <FormControl required size="small" variant="outlined" sx={{ flex: 1 }}>
@@ -179,7 +179,7 @@ function RecordEventLogDialog({
         <Button
           variant="contained"
           onClick={handleSubmit}
-          style={{ textTransform: "none" }}
+          sx={{ textTransform: "none" }}
           disabled={isSubmitting || message === "" || selectedExperiment === "" || selectedPioreactor === ""}
         >
           {isSubmitting ? "Submitting..." : "Submit"}

@@ -295,14 +295,14 @@ function ExperimentSummaryForm(props) {
               xs: 12,
               md: 8
             }}>
-            <Box style={{display: "flex", justifyContent: "flex-end"}}>
-              <Button style={{marginRight: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
+            <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+              <Button sx={{mr: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
               <Button
                 color="primary"
                 variant="contained"
                 onClick={onSubmit}
                 endIcon={<SaveIcon />}
-                style={{textTransform: 'none'}}
+                sx={{textTransform: 'none'}}
                 disabled={hasBlockingValidationError}
                 loading={loading}
                 loadingPosition="end"

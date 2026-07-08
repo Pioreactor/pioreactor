@@ -6,6 +6,7 @@ import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utils/jobs"
 import { experimentPathSegment } from "../utils/url";
+import { Box } from "@mui/material";
 
 
 const StyledTextField = {
@@ -77,9 +78,9 @@ export default function ActionCirculatingForm(props) {
     }
   }
   return (
-    <div id={props.action} style={{padding: "10px 0px 0px 0px"}}>
+    <Box id={props.action} sx={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
-        <div style={{marginBottom: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
+        <Box sx={{mb: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
           <TextField
             name="duration"
             autoComplete={"off"}
@@ -97,12 +98,12 @@ export default function ActionCirculatingForm(props) {
               },
             }}
           />
-        </div>
+        </Box>
       </FormControl>
 
 
       <br />
-      <div style={{display: "flex"}}>
+      <Box sx={{display: "flex"}}>
         <Button
           loading={clicked && (props?.job?.state === "disconnected")}
           disabled={formErrorDuration || (props?.job?.state === "ready")}
@@ -111,7 +112,7 @@ export default function ActionCirculatingForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
-          sx={{marginRight: '10px'}}
+          sx={{mr: '10px'}}
         >
           Start
         </Button>
@@ -124,7 +125,7 @@ export default function ActionCirculatingForm(props) {
         >
           Stop
         </Button>
-      </div>
+      </Box>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
@@ -133,6 +134,6 @@ export default function ActionCirculatingForm(props) {
         autoHideDuration={7000}
         key={"snackbar" + props.unit + props.action}
       />
-    </div>
+    </Box>
   );
 }

@@ -182,7 +182,7 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
   };
 
   return (
-    <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="secondary" onClick={deleteCalibration}>
+    <Button sx={{textTransform: 'none', mr: "0px", float: "right"}} color="secondary" onClick={deleteCalibration}>
        <DeleteOutlineIcon fontSize="small"/> Delete
     </Button>
 )}
@@ -207,11 +207,11 @@ function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled
   return (
     <>
       <Button
-        style={{ textTransform: 'none', float: 'right' }}
+        sx={{ textTransform: 'none', float: 'right' }}
         disabled={disabled}
         onClick={openAndLoad}
       >
-        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
         View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
@@ -263,11 +263,11 @@ function DownloadCalibrationYaml({ pioreactorUnit, calibrationName, calibration,
 
   return (
     <Button
-      style={{ textTransform: "none", float: "right" }}
+      sx={{ textTransform: "none", float: "right" }}
       disabled={disabled}
       onClick={downloadCalibration}
     >
-      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
       Download calibration
     </Button>
   );
@@ -608,7 +608,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
       </Card>
     </Grid>
     <Grid size={12}>
-      <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</p>
+      <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</Box>
     </Grid>
   </Grid>
   );

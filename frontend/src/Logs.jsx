@@ -119,7 +119,7 @@ function Logs(props) {
                   <MenuItem value="INFO" >= Standard </MenuItem>
                   <MenuItem value="DEBUG">≡ Detailed </MenuItem>
                 </Select>
-                <span style={{marginRight: "4px"}}> event logs for</span>
+                <Box component="span" sx={{mr: "4px"}}> event logs for</Box>
                 <Select
                   labelId="configSelect"
                   variant="standard"
@@ -138,7 +138,7 @@ function Logs(props) {
                   {assignedUnits.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All assigned Pioreactors</MenuItem>
                 </Select>
               </Typography>
             </Box>
@@ -151,8 +151,8 @@ function Logs(props) {
                 availableUnits={assignedUnits}
                 onSubmit={handleSubmitDialog}
               />
-              <Button to={exportLogsHref} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export logs
+              <Button to={exportLogsHref} component={Link} sx={{textTransform: 'none', mr: "0px", float: "right"}} color="primary">
+                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Export logs
               </Button>
               <Divider orientation="vertical" flexItem variant="middle"/>
               <ManageExperimentMenu experiment={experimentMetadata.experiment}/>

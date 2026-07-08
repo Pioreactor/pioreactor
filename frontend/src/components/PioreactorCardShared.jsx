@@ -230,13 +230,13 @@ export function CalibrateDialog({
 
   return (
     <React.Fragment>
-      <Button style={{ textTransform: "none", float: "right" }} color="primary" disabled={disabled} onClick={handleClickOpen}>
+      <Button sx={{ textTransform: "none", float: "right" }} color="primary" disabled={disabled} onClick={handleClickOpen}>
         <TuneIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon} /> Calibrate
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
           <Typography sx={{ fontSize: "13px", color: "rgba(0, 0, 0, 0.60)" }}>
-            <PioreactorIcon style={{ verticalAlign: "middle", fontSize: "1.2em" }} /> {label ? `${label} / ${unit}` : `${unit}`}
+            <PioreactorIcon sx={{ verticalAlign: "middle", fontSize: "1.2em" }} /> {label ? `${label} / ${unit}` : `${unit}`}
           </Typography>
           <Tabs
             value={tabValue}
@@ -271,11 +271,11 @@ export function CalibrateDialog({
               For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
               media&apos;s <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>. If your Pioreactor has an active OD calibration, this isn&apos;t required.
             </Typography>
-            <Typography variant="body2" component="p" style={{ margin: "20px 0px" }}>
+            <Typography variant="body2" component="p" sx={{ m: "20px 0px" }}>
               Recorded optical densities of blank vial: <code>{odBlankReading ? Object.entries(JSON.parse(odBlankReading)).map(([k, v]) => `${k}:${v.toFixed(5)}`).join(", ") : "—"}</code>
             </Typography>
 
-            <div style={{ display: "flex" }}>
+            <Box sx={{ display: "flex" }}>
               {hasActiveODCalibration ? (
                 <UnderlineSpan title="If an active OD calibration is present, this isn't used.">
                   {blankODButton}
@@ -296,7 +296,7 @@ export function CalibrateDialog({
                   Clear
                 </Button>
               </div>
-            </div>
+            </Box>
             <ControlDivider />
           </TabPanel>
           <TabPanel value={tabValue} index={1}>
@@ -308,7 +308,7 @@ export function CalibrateDialog({
               <a href="https://docs.pioreactor.com/user-guide/estimators">estimators</a>.
             </Typography>
             {loadingEstimators ? (
-              <Box sx={{ textAlign: "center", marginTop: "2rem" }}>
+              <Box sx={{ textAlign: "center", mt: "2rem" }}>
                 <CircularProgress />
               </Box>
             ) : activeEstimatorEntries.length === 0 ? (
@@ -364,7 +364,7 @@ export function CalibrateDialog({
               <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
             </Typography>
             {loadingCalibrations ? (
-              <Box sx={{ textAlign: "center", marginTop: "2rem" }}>
+              <Box sx={{ textAlign: "center", mt: "2rem" }}>
                 <CircularProgress />
               </Box>
             ) : Object.entries(activeCalibrations || {}).length === 0 ? (
@@ -659,7 +659,7 @@ export function UnitSettingDisplay(props) {
 
   if (props.displayKind === "led_intensity") {
     if (!props.isUnitActive || value === "—" || value === "") {
-      return <div style={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </div>;
+      return <Box sx={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </Box>;
     }
 
     const ledIntensities = JSON.parse(value);
@@ -671,7 +671,7 @@ export function UnitSettingDisplay(props) {
 
     return (
       <React.Fragment>
-        <div style={{ fontSize: "13px" }}>
+        <Box sx={{ fontSize: "13px" }}>
           <div>
             <DisplaySettingsTable>
               <UnderlineSpan title={renamedA ? renamedA : null}>A</UnderlineSpan>: {prettyPrint(ledIntensities["A"])}%
@@ -688,7 +688,7 @@ export function UnitSettingDisplay(props) {
               <UnderlineSpan title={renamedD ? renamedD : null}>D</UnderlineSpan>: {prettyPrint(ledIntensities["D"])}%
             </DisplaySettingsTable>
           </div>
-        </div>
+        </Box>
         <UnitSettingDisplaySubtext subtext={props.subtext} emptyMinHeight={props.subtextMinHeight} />
       </React.Fragment>
     );
@@ -696,7 +696,7 @@ export function UnitSettingDisplay(props) {
 
   if (props.displayKind === "pwm_dc") {
     if (!props.isUnitActive || value === "—" || value === "") {
-      return <div style={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </div>;
+      return <Box sx={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </Box>;
     }
 
     const pwmDcs = JSON.parse(value);
@@ -709,7 +709,7 @@ export function UnitSettingDisplay(props) {
 
     return (
       <React.Fragment>
-        <div style={{ fontSize: "13px" }}>
+        <Box sx={{ fontSize: "13px" }}>
           <div>
             <DisplaySettingsTable>
               <UnderlineSpan title={renamed1 ? renamed1 : null}>1</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[1]] || 0)}%
@@ -726,7 +726,7 @@ export function UnitSettingDisplay(props) {
               <UnderlineSpan title={renamed4 ? renamed4 : null}>4</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[4]] || 0)}%
             </DisplaySettingsTable>
           </div>
-        </div>
+        </Box>
         <UnitSettingDisplaySubtext subtext={props.subtext} emptyMinHeight={props.subtextMinHeight} />
       </React.Fragment>
     );
@@ -735,7 +735,7 @@ export function UnitSettingDisplay(props) {
   if (!props.isUnitActive || value === "—" || value === "") {
     return (
       <React.Fragment>
-        <div style={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </div>
+        <Box sx={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </Box>
         <UnitSettingDisplaySubtext subtext={props.subtext} emptyMinHeight={props.subtextMinHeight} />
       </React.Fragment>
     );
@@ -813,7 +813,7 @@ export function SettingTextField({
   };
 
   return (
-    <div style={{ display: "flex" }}>
+    <Box sx={{ display: "flex" }}>
       <TextField
         id={id}
         size="small"
@@ -836,11 +836,11 @@ export function SettingTextField({
         color="primary"
         disabled={!activeSubmit}
         onClick={onSubmit}
-        style={{ textTransform: "none", marginTop: "15px", marginLeft: "7px", display: disabled ? "none" : undefined }}
+        sx={{ textTransform: "none", mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
       >
         Update
       </Button>
-    </div>
+    </Box>
   );
 }
 
@@ -966,7 +966,7 @@ export function SettingNumericField({
   };
 
   return (
-    <div style={{ display: "flex" }}>
+    <Box sx={{ display: "flex" }}>
       <TextField
         id={id}
         type="number"
@@ -996,10 +996,10 @@ export function SettingNumericField({
         color="primary"
         disabled={!activeSubmit || error}
         onClick={onSubmit}
-        style={{ textTransform: "none", marginTop: "15px", marginLeft: "7px", display: disabled ? "none" : undefined }}
+        sx={{ textTransform: "none", mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
       >
         Update
       </Button>
-    </div>
+    </Box>
   );
 }

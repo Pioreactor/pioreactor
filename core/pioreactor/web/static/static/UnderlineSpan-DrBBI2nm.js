@@ -1,1 +1,0 @@
-import{j as e,$ as i}from"./index-VR5kc-b8.js";function s(n){const t=n.title;return e.jsx(i,{title:t,placement:"top-start",children:e.jsx("span",{className:t?"underlineSpan":"",children:n.children})})}export{s as U};

@@ -154,7 +154,7 @@ function DosingAutomationForm(props) {
       </Typography>
       {props.name === "chemostat" && dilutionRate !== null &&
         <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 0, mb: 1, padding: "6px 6px" }}>
-          The current computed <UnderlineSpan title="Exchange volume * (60 / Time between dosing) / (Steady state volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{dilutionRate.toFixed(2)} h⁻¹</code>.
+          The current computed <UnderlineSpan title="Exchange volume * (60 / Time between dosing) / (Steady state volume)">dilution rate</UnderlineSpan> is <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{dilutionRate.toFixed(2)} h⁻¹</Box>.
         </Typography>
       }
 

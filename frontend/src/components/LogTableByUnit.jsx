@@ -235,9 +235,9 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
             to={(experiment === "$experiment") ? `/system-logs/${unit}` :  `/logs/${unit}`}
             component={Link}
             color="primary"
-            style={{ textTransform: 'none', verticalAlign: 'middle', margin: '0px 3px' }}
+            sx={{ textTransform: 'none', verticalAlign: 'middle', m: '0px 3px' }}
           >
-            <ListAltOutlinedIcon style={{ fontSize: 17, margin: '0px 3px' }} color="primary" /> {experiment === "$experiment" ? "View system logs" : "View experiment logs"}
+            <ListAltOutlinedIcon sx={{ fontSize: 17, m: '0px 3px' }} color="primary" /> {experiment === "$experiment" ? "View system logs" : "View experiment logs"}
           </Button>
         </CardActions>
       </CardContent>

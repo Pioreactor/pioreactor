@@ -6,6 +6,7 @@ import { useSnackbar } from "notistack";
 import { Link as RouterLink } from 'react-router';
 import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
+import { Box } from "@mui/material";
 
 const HEAD_LINE_COUNT = 2;
 const TAIL_LINE_COUNT = 5;
@@ -118,15 +119,15 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
   const count = activeAlert?.count ?? 1;
 
   return (
-    <div ref={ref} style={{maxWidth: "500px"}}>
+    <Box ref={ref} sx={{maxWidth: "500px"}}>
       <Alert
         variant="standard"
         severity={alertLevel.toLowerCase()}
         onClose={() => closeSnackbar(snackbarKey)}
       >
-        <AlertTitle style={{fontSize: 15}}>{alertTitle}</AlertTitle>
-        <span
-          style={{
+        <AlertTitle sx={{fontSize: 15}}>{alertTitle}</AlertTitle>
+        <Box component="span"
+          sx={{
             whiteSpace: "pre-wrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -137,9 +138,9 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
           }}
         >
           {formattedMessage}
-        </span>
+        </Box>
         {showLogsHelper && (
-          <div style={{ marginTop: 8 }}>
+          <Box sx={{ mt: 8 }}>
             <Link
               component={RouterLink}
               to={logsRoute}
@@ -150,23 +151,23 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
             >
               {logsLabel}
             </Link>
-          </div>
+          </Box>
         )}
         {count > 1 && (
-          <div
-            style={{
+          <Box
+            sx={{
               color: "rgba(0, 0, 0, 0.6)",
               fontSize: 12,
               lineHeight: 1.4,
-              marginTop: "10px",
+              mt: "10px",
               textAlign: "left",
             }}
           >
             Repeated {count}x
-          </div>
+          </Box>
         )}
       </Alert>
-    </div>
+    </Box>
   );
 });
 

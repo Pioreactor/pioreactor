@@ -4,6 +4,7 @@ import Button from "@mui/material/Button";
 import Snackbar from './Snackbar';
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utils/jobs"
+import { Box } from "@mui/material";
 
 
 const actionTextField = {
@@ -75,8 +76,8 @@ export default function ActionLEDForm(props) {
   }
 
   return (
-    <form id={props.action} style={{padding: "10px 0px 0px 0px"}}>
-      <div style={{display: "flex"}}>
+    <Box component="form" id={props.action} sx={{padding: "10px 0px 0px 0px"}}>
+      <Box sx={{display: "flex"}}>
         <TextField
           size="small"
           error={errorForm}
@@ -100,11 +101,11 @@ export default function ActionLEDForm(props) {
           color="primary"
           onClick={onSubmit}
           disabled={(!validInput(intensity) || isSubmitted)}
-          style={{marginLeft: "7px", textTransform: "none"}}
+          sx={{ml: "7px", textTransform: "none"}}
         >
           Update
         </Button>
-      </div>
+      </Box>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
@@ -113,6 +114,6 @@ export default function ActionLEDForm(props) {
         autoHideDuration={7000}
         key={"snackbar" + props.unit + props.channel}
       />
-    </form>
+    </Box>
   );
 }

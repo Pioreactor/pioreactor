@@ -176,8 +176,7 @@ function Overview(props) {
         <Grid
           container
           spacing={2}
-          sx={{ justifyContent: "flex-start" }}
-          style={{height: "100%"}}
+          sx={{height: "100%",  justifyContent: "flex-start" }}
           size={{
             xs: 12,
             md: 7
@@ -188,8 +187,7 @@ function Overview(props) {
         <Grid
           container
           spacing={2}
-          sx={{ justifyContent: "flex-end" }}
-          style={{height: "100%"}}
+          sx={{height: "100%",  justifyContent: "flex-end" }}
           size={{
             xs: 12,
             md: 5

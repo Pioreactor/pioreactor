@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import Box from '@mui/material/Box';
 import { useMQTT } from '../providers/MQTTContext';
 
 function roundTo1(x) {
@@ -453,8 +454,9 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
 
   return (
     <div>
-      <canvas
-        style={{ display: 'block', margin: '0 auto' }}
+      <Box
+        component="canvas"
+        sx={{ display: 'block', m: '0 auto' }}
         ref={canvasRef}
         width={canvasDim.width}
         height={canvasDim.height}

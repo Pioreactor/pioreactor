@@ -232,10 +232,10 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
             <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
               <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
                 <colgroup>
-                  <col style={{width:'15%'}}/>
-                  <col style={{width:'10%'}}/>
-                  <col style={{width:'10%'}}/>
-                  <col style={{width:'55%'}}/>
+                  <Box component="col" sx={{width:'15%'}}/>
+                  <Box component="col" sx={{width:'10%'}}/>
+                  <Box component="col" sx={{width:'10%'}}/>
+                  <Box component="col" sx={{width:'55%'}}/>
                 </colgroup>
                 <TableHead>
                   <TableRow >
@@ -282,7 +282,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           )}
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
             <Box sx={{width: 300}}/>
-            <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } style={{textTransform: 'none'}}>
+            <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } sx={{textTransform: 'none'}}>
               {loading ? "Loading..." : "More"}
             </Button>
             <FormControlLabel

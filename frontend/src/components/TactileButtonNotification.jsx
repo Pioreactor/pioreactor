@@ -49,7 +49,7 @@ function TactileButtonNotification() {
       transitionDuration={{enter: 10}}
     >
     <Alert severity="info" variant="filled" icon={false} onClose={handleClose}>
-      <AlertTitle style={{fontSize: 30}}>{unit}</AlertTitle>
+      <AlertTitle sx={{fontSize: 30}}>{unit}</AlertTitle>
       Holding <b>{unit}</b>'s button down
     </Alert>
     </Snackbar>

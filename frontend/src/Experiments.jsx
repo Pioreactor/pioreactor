@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import Alert from "@mui/material/Alert";
 import Autocomplete from "@mui/material/Autocomplete";
 import Backdrop from "@mui/material/Backdrop";
+import Divider from "@mui/material/Divider";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -315,7 +316,7 @@ function ExperimentsContainer(props) {
 
   return (
     <React.Fragment>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, gap: 2, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, gap: 2, flexWrap: "wrap" }}>
         <Typography variant="h5" component="h1">
           <Box sx={{ fontWeight: "fontWeightBold" }}>Experiments</Box>
         </Typography>
@@ -325,9 +326,11 @@ function ExperimentsContainer(props) {
           to="/start-new-experiment"
           sx={{ textTransform: "none" }}
         >
-          <AddIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> New experiment
+          <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> New experiment
         </Button>
       </Box>
+      <Divider sx={{mt: 0, mb: "15px"}} />
+
 
       <Card sx={{ mb: 2 }}>
         <Box sx={{ p: 2 }}>

@@ -331,7 +331,7 @@ export const MQTTProvider = ({ name, config, children }) => {
   return (
     <MQTTContext.Provider value={contextValue}>
       {children}
-      <Snackbar anchorOrigin={{ vertical: "bottom", horizontal: "right" }} style={{ maxWidth: "500px" }} open={!!error} message={error ?? ""} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+      <Snackbar anchorOrigin={{ vertical: "bottom", horizontal: "right" }} sx={{ maxWidth: "500px" }} open={!!error} message={error ?? ""} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity="error" variant="filled">
           Failed to connect to MQTT. Is configuration for mqtt.broker_address correct? Currently set to {config?.mqtt?.broker_address}
         </Alert>

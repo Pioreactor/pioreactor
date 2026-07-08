@@ -110,10 +110,10 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
   function Icon(){
     if (selfTestTests == null){
-      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
+      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/>
     }
     else {
-      return selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
+      return selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/>
     }
   }
 
@@ -121,13 +121,13 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
   return (
     <React.Fragment>
-      <Button style={{textTransform: 'none'}} color="primary" disabled={disabled} onClick={handleClickOpen}>
+      <Button sx={{textTransform: 'none'}} color="primary" disabled={disabled} onClick={handleClickOpen}>
         {Icon()} Self test
       </Button>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} gutterBottom>
-            <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/> {label ? `${label} / ${unit}` : `${unit}`}
+            <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> {label ? `${label} / ${unit}` : `${unit}`}
           </Typography>
            Self test
           <IconButton
@@ -178,7 +178,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
             <List component="nav"
               subheader={
-                <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
+                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
                   LEDs & photodiodes
                 </ListSubheader>
               }
@@ -239,7 +239,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
             <List component="nav"
               subheader={
-                <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
+                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
                   Heating & temperature
                 </ListSubheader>
               }
@@ -262,7 +262,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
             <List component="nav"
               subheader={
-                <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
+                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
                   Stirring
                 </ListSubheader>
               }

@@ -7,6 +7,7 @@ import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import FormLabel from '@mui/material/FormLabel';
 import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
 import Snackbar from './components/Snackbar';
@@ -292,7 +293,7 @@ function EditableCodeDiv() {
 
   return (
     <React.Fragment>
-      <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
+      <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
         <FormControl>
           <div>
             <FormLabel component="legend">Config target</FormLabel>
@@ -308,7 +309,7 @@ function EditableCodeDiv() {
             </Select>
           </div>
         </FormControl>
-        <FormControl style={{ marginRight: "20px" }}>
+        <FormControl sx={{ mr: "20px" }}>
           <div>
             <FormLabel component="legend">Versions</FormLabel>
             <Select
@@ -324,12 +325,12 @@ function EditableCodeDiv() {
             </Select>
           </div>
         </FormControl>
-      </div>
+      </Box>
 
-      <div style={{
+      <Box sx={{
         tabSize: "4ch",
         border: "1px solid #ccc",
-        margin: "10px auto 10px auto",
+        m: "10px auto 10px auto",
         position: "relative",
         width: "98%",
         borderRadius: "4px",
@@ -353,11 +354,11 @@ function EditableCodeDiv() {
             }}
           />
         }
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+      </Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
         <div>
           <Button
-            sx={{ margin: "5px 12px 5px 12px", textTransform: 'none' }}
+            sx={{ m: "5px 12px 5px 12px", textTransform: 'none' }}
             color="primary"
             variant="contained"
             onClick={saveCurrentCode}
@@ -370,7 +371,7 @@ function EditableCodeDiv() {
           </Button>
           <Box sx={{ ml: 1, my: 1 }}>{state.isError ? <Alert severity="error">{state.errorMsg}</Alert> : ""}</Box>
         </div>
-      </div>
+      </Box>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={state.openSnackbar}
@@ -396,7 +397,9 @@ function EditConfigContainer(){
             </Box>
           </Typography>
         </Box>
+
       </Box>
+      <Divider sx={{mt: "12px", mb: "15px"}} />
 
       <Card >
         <CardContent sx={{p: 1}}>
@@ -404,7 +407,7 @@ function EditConfigContainer(){
 
         </CardContent>
       </Card>
-      <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor  <a href="https://docs.pioreactor.com/user-guide/configuration" target="_blank" rel="noopener noreferrer">configuration</a>.</p>
+      <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about Pioreactor  <a href="https://docs.pioreactor.com/user-guide/configuration" target="_blank" rel="noopener noreferrer">configuration</a>.</Box>
     </React.Fragment>
 )}
 

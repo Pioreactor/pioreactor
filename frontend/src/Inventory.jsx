@@ -119,7 +119,7 @@ function Header(props) {
           <ManageInventoryMenu showSyncClocks leaderHostname={leaderHostname}/>
         </Box>
       </Box>
-      <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+      <Divider sx={{mt: "0px", mb: "15px"}} />
     </Box>
   )
 }
@@ -267,7 +267,7 @@ function AddNewPioreactor({setWorkers}){
     <Button
       id="add-new-pioreactor-button"
       onClick={handleClickOpen}
-      sx={{ textTransform: 'none', float: 'right', marginRight: 0 }}
+      sx={{ textTransform: 'none', float: 'right', mr: 0 }}
       color="primary"
     >
       <AddIcon fontSize="small" sx={textIcon}/> Add new Pioreactor
@@ -394,14 +394,14 @@ function AddNewPioreactor({setWorkers}){
         <Box sx={{minHeight: "60px", alignItems: "center", display: "flex"}}>
           {isError   ? <Alert severity="error">{errorMsg}</Alert> : <React.Fragment/>}
           {isRunning ? <p>{expectedPathMsg}</p> : <React.Fragment/>}
-          {isSuccess ? <p><CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/>{successMsg}</p>      : <React.Fragment/>}
+          {isSuccess ? <p><CheckIcon sx={{verticalAlign: "middle", m: "0px 3px", color: readyGreen}}/>{successMsg}</p>      : <React.Fragment/>}
         </Box>
 
         <Box sx={{display: "flex", justifyContent: "flex-end"}}>
           <Button
             variant="contained"
             color="primary"
-            sx={{marginTop: "10px", textTransform: 'none'}}
+            sx={{mt: "10px", textTransform: 'none'}}
             onClick={onSubmit}
             type="submit"
             loading={isRunning}
@@ -712,7 +712,7 @@ function WorkerCard({worker, config, leaderVersion}) {
     if (leaderVersion && workerVersion !== leaderVersion) {
       return (
         <UnderlineSpan title={`Not aligned with leader's version, ${leaderVersion}`}>
-          {workerVersion} <ErrorOutlineOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", marginLeft: "-5px", marginBottom: "3px", color: lostRed }} />
+          {workerVersion} <ErrorOutlineOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", ml: "-5px", mb: "3px", color: lostRed }} />
         </UnderlineSpan>
       );
     }
@@ -738,9 +738,9 @@ function WorkerCard({worker, config, leaderVersion}) {
     <Card sx={{ minWidth: 275 }}>
       <CardContent>
 
-        <div style={{display: "flex", justifyContent: "space-between"}}>
+        <Box sx={{display: "flex", justifyContent: "space-between"}}>
 
-          <div style={{display: "flex", justifyContent: "left"}}>
+          <Box sx={{display: "flex", justifyContent: "left"}}>
             <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isActive() ? "inherit" : inactiveGrey} />
             <Typography sx={{
                 fontSize: 20,
@@ -758,7 +758,7 @@ function WorkerCard({worker, config, leaderVersion}) {
                 <div className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </div>
             </Tooltip>
-          </div>
+          </Box>
 
           <div>
           <FormControl component="fieldset">
@@ -772,7 +772,7 @@ function WorkerCard({worker, config, leaderVersion}) {
           </div>
 
 
-        </div>
+        </Box>
 
         <Box sx={{display: "flex", justifyContent: "left", ml: .5}}>
           {experimentAssigned ? (
@@ -783,14 +783,14 @@ function WorkerCard({worker, config, leaderVersion}) {
         }
         </Box>
 
-        <Divider sx={{margin: "5px 0px"}}/>
+        <Divider sx={{m: "5px 0px"}}/>
 
-        <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
-          <tbody style={{color: isActive() ? "inherit" : inactiveGrey}}>
+        <Box component="table" sx={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
+          <Box component="tbody" sx={{color: isActive() ? "inherit" : inactiveGrey}}>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Model
-            </td>
+            </Box>
             <td >
               <FormControl variant="standard" error={showModelError}>
                 <Select
@@ -838,48 +838,48 @@ function WorkerCard({worker, config, leaderVersion}) {
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Software version
-            </td>
+            </Box>
             <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 IPv4
-            </td>
+            </Box>
             <td>
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Raspberry Pi
-            </td>
+            </Box>
             <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 WLAN MAC
-            </td>
+            </Box>
             <td>
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Ethernet MAC
-            </td>
+            </Box>
             <td>
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
             </td>
           </tr>
-          </tbody>
-        </table>
-        <Divider sx={{margin: "5px 0px"}}/>
+          </Box>
+        </Box>
+        <Divider sx={{m: "5px 0px"}}/>
       </CardContent>
       <CardActions sx={{display: "flex", justifyContent: "space-between"}}>
         <Box>
@@ -923,7 +923,7 @@ function Blink({unit}){
   }
 
   return (
-    <Button style={{textTransform: 'none'}} className={flashing ? 'blinkled' : ''}  onClick={onClick} color="primary">
+    <Button sx={{textTransform: 'none'}} className={flashing ? 'blinkled' : ''}  onClick={onClick} color="primary">
       <FlareIcon color="primary" fontSize="small" sx={textIcon}/> Identify
     </Button>
 )}
@@ -941,7 +941,7 @@ function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
   };
 
   return (
-      <Button disabled={!experimentAssigned} style={{textTransform: "none"}} size="small" onClick={unassignWorker}>
+      <Button disabled={!experimentAssigned} sx={{textTransform: "none"}} size="small" onClick={unassignWorker}>
         <RemoveCircleOutlineRoundedIcon fontSize="small" sx={textIcon} />Unassign
       </Button>
 )}
@@ -981,7 +981,7 @@ function InventoryDisplay({isLoading, workers, config}){
   return (
     <Grid container spacing={2}>
       {isLoading
-        ? <div style={{textAlign: "center", margin: 'auto', marginTop: "50px"}}><CircularProgress /> </div>
+        ? <Box sx={{textAlign: "center", m: 'auto', mt: "50px"}}><CircularProgress /> </Box>
         : (
           <>
             {workers.map(worker =>
@@ -1061,7 +1061,7 @@ function Inventory({title}) {
           <Header setWorkers={setWorkers} config={config}/>
           <InventoryDisplay isLoading={isLoading} workers={workers} config={config} />
           <Grid size={12}>
-            <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</p>
+            <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</Box>
           </Grid>
         </Grid>
       </Grid>
@@ -1282,7 +1282,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        style={{textTransform: "none"}}
+        sx={{textTransform: "none"}}
       >
         Manage Pioreactor <ArrowDropDownIcon/>
       </Button>
@@ -1318,11 +1318,12 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
           <ListItemText>Remove</ListItemText>
         </MenuItem>
       </Menu>
-      <input
+      <Box
+        component="input"
         id={`import-dot-pioreactor-${unit}`}
         type="file"
         accept="application/zip"
-        style={{display: 'none'}}
+        sx={{display: 'none'}}
         onChange={handleImport}
       />
       <Backdrop

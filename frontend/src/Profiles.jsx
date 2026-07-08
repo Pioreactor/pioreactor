@@ -140,8 +140,8 @@ function RunExperimentProfilesContent({
   return (
     <Grid container spacing={1}>
       <Grid size={4}>
-        <Box sx={{ width: "100%", marginTop: 2,  display: "flex", justifyContent: "space-between" }}>
-          <FormControl style={{ minWidth: "300px" }}>
+        <Box sx={{ width: "100%", mt: 2,  display: "flex", justifyContent: "space-between" }}>
+          <FormControl sx={{ minWidth: "300px" }}>
             <FormLabel component="legend">Experiment profile</FormLabel>
             <Select
               labelId="profileSelect"
@@ -172,9 +172,9 @@ function RunExperimentProfilesContent({
             aria-label="view source code"
             disabled={selectedExperimentProfile === ""}
             onClick={getSourceAndView}
-            style={{ textTransform: "none" }}
+            sx={{ textTransform: "none" }}
           >
-            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             {viewSource ? "View preview" : "View source"}
           </Button>
           <Button
@@ -182,12 +182,12 @@ function RunExperimentProfilesContent({
             size="small"
             color="primary"
             aria-label="edit source code"
-            style={{ textTransform: "none" }}
+            sx={{ textTransform: "none" }}
             to={`/experiment-profiles/${(selectedExperimentProfile || "")}/edit`}
             component={Link}
             disabled={ selectedExperimentProfile === ''}
           >
-            <EditIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <EditIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             Edit
           </Button>
           <Button
@@ -196,10 +196,10 @@ function RunExperimentProfilesContent({
             color="primary"
             aria-label="duplicate profile"
             onClick={duplicate}
-            style={{ marginRight: "5px", textTransform: "none" }}
+            sx={{ mr: "5px", textTransform: "none" }}
             disabled={selectedExperimentProfile === '' || selectedProfileDetail.loading || !!selectedProfileDetail.error}
           >
-            <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             Duplicate
           </Button>
           <Button
@@ -208,10 +208,10 @@ function RunExperimentProfilesContent({
             color="secondary"
             aria-label="delete profile"
             onClick={deleteProfile}
-            style={{ marginRight: "5px", textTransform: "none" }}
+            sx={{ mr: "5px", textTransform: "none" }}
             disabled={selectedExperimentProfile === ''}
           >
-            <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             Delete
           </Button>
         </Box>
@@ -235,7 +235,7 @@ function RunExperimentProfilesContent({
           <Alert severity="error">{visibleStartProfileError}</Alert>
         </Grid>
       )}
-      <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 0 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", ml: 0 }}>
         <SelectButton
           variant="contained"
           color="primary"
@@ -588,10 +588,10 @@ function Profiles(props) {
                 <Button
                   to={`/experiment-profiles/new`}
                   component={Link}
-                  style={{ textTransform: 'none', marginRight: "0px", float: "right" }}
+                  sx={{ textTransform: 'none', mr: "0px", float: "right" }}
                   color="primary"
                 >
-                  <AddIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+                  <AddIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
                   Create new profile
                 </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />
@@ -697,12 +697,12 @@ function Profiles(props) {
         </Grid>
 
         <Grid size={12}>
-          <p style={{ textAlign: "center", marginTop: "20px" }}>
+          <Box component="p" sx={{ textAlign: "center", mt: "20px" }}>
             Learn more about{" "}
             <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">
               experiment profiles
             </a>.
-          </p>
+          </Box>
         </Grid>
 
       </Grid>

@@ -122,11 +122,11 @@ function MainSite() {
   }, [])
 
   return (
-    <div style={{display: 'flex'}}>
+    <Box sx={{display: 'flex'}}>
       <ErrorBoundary>
         <ExperimentProvider>
           <SideNavAndHeader />
-          <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+          <Box component="main" sx={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
             <div className="pageContainer">
               <MQTTProvider name="global" config={config}>
                 <React.Suspense fallback={<RouteFallback />}>
@@ -173,10 +173,10 @@ function MainSite() {
                 <TactileButtonNotification />
               </MQTTProvider>
             </div>
-          </main>
+          </Box>
         </ExperimentProvider>
       </ErrorBoundary>
-    </div>
+    </Box>
 )}
 
 export default App;

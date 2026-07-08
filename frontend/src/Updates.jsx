@@ -243,7 +243,7 @@ function UploadArchiveAndConfirm(props) {
                   {units.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All Pioreactors</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -394,7 +394,7 @@ export function UpdateFromInternetAndConfirm(props) {
                   {units.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All Pioreactors</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -541,7 +541,7 @@ function UpdateFromUsbAndConfirm(props) {
                   {units.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All Pioreactors</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -816,37 +816,37 @@ function PageHeader() {
 
   return (
     <Box>
-      <Box sx={{display: "flex", justifyContent: "space-between", marginBottom: "5px"}}>
+      <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
         <Typography variant="h5" component="h1">
           <Box sx={{ fontWeight: "fontWeightBold" }}>
             Updates
           </Box>
         </Typography>
         <Box>
-          <Box sx={{float: "right", marginRight: "0px", marginLeft: "10px"}}>
+          <Box sx={{float: "right", mr: "0px", ml: "10px"}}>
             <UpdateSoftwareConfirmDialog />
           </Box>
           <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
-            <Button sx={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
-              <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/> View latest release
+            <Button sx={{textTransform: 'none', float: "right", mr: "0px"}} color="primary">
+              <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> View latest release
             </Button>
           </Link>
         </Box>
       </Box>
-      <Divider/>
+      <Divider sx={{mt: 0, mb: "15px"}} />
       <Typography variant="subtitle2">
 
-        <Box sx={{ fontWeight: "fontWeightBold", margin: "10px 2px 10px 2px", display:"inline-block" }}>
-          <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Version installed on leader:
+        <Box sx={{ fontWeight: "fontWeightBold", m: "10px 2px 10px 2px", display:"inline-block" }}>
+          <SystemUpdateAltIcon sx={{ fontSize: 14, verticalAlign: "-1px" }}/> Version installed on leader:
         </Box>
-        <Box sx={{ fontWeight: "fontWeightRegular", marginRight: "20px", display:"inline-block" }}>
+        <Box sx={{ fontWeight: "fontWeightRegular", mr: "20px", display:"inline-block" }}>
           {version}
         </Box>
 
-        <Box sx={{ fontWeight: "fontWeightBold", margin: "10px 2px 10px 2px", display:"inline-block" }}>
-          <UpdateIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Latest version available:
+        <Box sx={{ fontWeight: "fontWeightBold", m: "10px 2px 10px 2px", display:"inline-block" }}>
+          <UpdateIcon sx={{ fontSize: 14, verticalAlign: "-1px" }}/> Latest version available:
         </Box>
-        <Box sx={{ fontWeight: "fontWeightRegular", marginRight: "20px", display:"inline-block" }}>
+        <Box sx={{ fontWeight: "fontWeightRegular", mr: "20px", display:"inline-block" }}>
           {latestVersion}
         </Box>
 

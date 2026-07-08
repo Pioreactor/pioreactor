@@ -2,6 +2,7 @@ import React from "react";
 import CircularProgress from '@mui/material/CircularProgress';
 import Button from "@mui/material/Button";
 import { lostRed } from "../utils/color";
+import { Box } from "@mui/material";
 
 export default function PatientButton({buttonText, onClick, color, variant, disabled}) {
   const [error, setError] = React.useState(null)
@@ -34,7 +35,7 @@ export default function PatientButton({buttonText, onClick, color, variant, disa
 
   return (
     <>
-    {error && <p style={{color: lostRed}}>{error}</p>}
+    {error && <Box component="p" sx={{color: lostRed}}>{error}</Box>}
     <Button
       disableElevation
       sx={{width: "70px", mt: "5px", height: "31px",}}

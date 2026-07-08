@@ -192,7 +192,7 @@ export function ExperimentProfileEditorContent({
     <>
       <Grid container spacing={0}>
         <Grid size={12}>
-          <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
+          <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
             {filenameEditable ? (
               <FormControl>
                 <TextField
@@ -200,7 +200,7 @@ export function ExperimentProfileEditorContent({
                   onChange={onFilenameChange}
                   required
                   value={filename}
-                  style={{ width: "320px" }}
+                  sx={{ width: "320px" }}
                   slotProps={{
                     input: {
                       endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
@@ -213,18 +213,18 @@ export function ExperimentProfileEditorContent({
                 label="Filename"
                 value={initialFilename}
                 disabled={true}
-                style={{ width: "350px" }}
+                sx={{ width: "350px" }}
               />
             )}
-          </div>
+          </Box>
         </Grid>
 
         <Grid size={6}>
-          <div
-            style={{
+          <Box
+            sx={{
               tabSize: "4ch",
               border: "1px solid #ccc",
-              margin: "10px auto 10px auto",
+              m: "10px auto 10px auto",
               position: "relative",
               width: "98%",
               height: "350px",
@@ -246,7 +246,7 @@ export function ExperimentProfileEditorContent({
                 minHeight: "100%",
               }}
             />
-          </div>
+          </Box>
         </Grid>
 
         <Grid size={6}>
@@ -258,12 +258,12 @@ export function ExperimentProfileEditorContent({
         </Grid>
 
         <Grid size={12}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <Button
                 variant="contained"
                 color="primary"
-                style={{ marginLeft: "5px", textTransform: "none" }}
+                sx={{ ml: "5px", textTransform: "none" }}
                 onClick={() => {
                   React.startTransition(() => {
                     saveCurrentCode({ code, filename });
@@ -276,7 +276,7 @@ export function ExperimentProfileEditorContent({
               </Button>
               <Box sx={{ ml: 0.7, mt: 1 }}>{visibleSaveError ? <Alert severity="error">{visibleSaveError}</Alert> : ""}</Box>
             </div>
-          </div>
+          </Box>
         </Grid>
       </Grid>
       <Snackbar
@@ -417,13 +417,13 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
           </CardContent>
         </Card>
 
-        <p style={{ textAlign: "center", marginTop: "30px" }}>
+        <Box component="p" sx={{ textAlign: "center", mt: "30px" }}>
           {pageCopy.docsSentence}{" "}
           <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">
             experiment profile schemas
           </a>
           .
-        </p>
+        </Box>
 
         <Dialog
           open={openCapabilities}

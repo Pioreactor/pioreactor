@@ -230,7 +230,7 @@ export function UploadCalibrationDialog({
               ))}
               {workers.length > 1 &&
               <MenuItem  value={"$broadcast"}>
-                <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
+                <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} /> All Pioreactors
               </MenuItem>
               }
             </Select>
@@ -258,7 +258,7 @@ export function UploadCalibrationDialog({
         <Box sx={{
             tabSize: "4ch",
             border: "1px solid #ccc",
-            margin: "5px 0px 10px 0px",
+            m: "5px 0px 10px 0px",
             position: "relative",
             width: "100%",
             height: "350px",
@@ -288,7 +288,7 @@ export function UploadCalibrationDialog({
             <Alert severity="error">{error}</Alert>
           )}
           {success && <Box>
-          <CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/> Calibration sent to Pioreactor(s). Add another calibration, or{' '}
+          <CheckIcon sx={{verticalAlign: "middle", m: "0px 3px", color: readyGreen}}/> Calibration sent to Pioreactor(s). Add another calibration, or{' '}
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -320,7 +320,7 @@ export function UploadCalibrationDialog({
             }}
             variant="contained"
             loading={uploadPending}
-            sx={{marginTop: "10px", textTransform: 'none'}}
+            sx={{mt: "10px", textTransform: 'none'}}
             disabled={!selectedDevice || !calibrationYaml || !selectedWorker}
           >
             Upload
@@ -517,7 +517,7 @@ function CalibrationData() {
 
   if (loading) {
     return (
-      <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
+      <Box sx={{ textAlign: 'center', mt: '2rem' }}>
         <CircularProgress />
       </Box>
     );
@@ -540,7 +540,7 @@ function CalibrationData() {
       <Box >
         <Box sx={{display: "flex", justifyContent: "space-between" }}>
           <Box>
-            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
+            <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
               <FormLabel component="legend">Pioreactor</FormLabel>
               <Select
                 labelId="pioreactor-select-label"
@@ -557,12 +557,12 @@ function CalibrationData() {
                 ))}
                 {hasMultipleWorkers && (
                   <MenuItem  value={"$broadcast"}>
-                    <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
+                    <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} /> All Pioreactors
                   </MenuItem>
                 )}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
+            <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
               <FormLabel component="legend">Device</FormLabel>
               <Select
                 labelId="device-select-label"
@@ -644,7 +644,7 @@ function CalibrationData() {
                   key={i}
                   >
                   <TableCell data-copy-value={unitName} sx={{padding: "6px 6px", display: "flex"}}>
-                    <div
+                    <Box
                       className="indicator-dot-as-legend"
                       role="button"
                       onClick={handleDotClick}
@@ -652,7 +652,7 @@ function CalibrationData() {
                       aria-pressed={!isHidden}
                       aria-label={isHidden ? `Show ${unitName} calibration ${calName}` : `Hide ${unitName} calibration ${calName}`}
                       onKeyDown={handleDotKeyDown}
-                      style={{
+                      sx={{
                         backgroundColor: isHidden ? 'transparent' : dotColor,
                         cursor: 'pointer',
                       }}
@@ -747,26 +747,26 @@ function CalibrationsContainer() {
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <Button
-              style={{textTransform: 'none', marginRight: "0px", float: "right"}}
+              sx={{textTransform: 'none', mr: "0px", float: "right"}}
               color="primary"
               component={Link}
               to="/calibration-coverage"
             >
-              <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+              <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
               Status
             </Button>
-            <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}}
+            <Button sx={{textTransform: 'none', mr: "0px", float: "right"}}
                     color="primary"
                     onClick={() => setOpenUploadDialog(true)}
             >
-              <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/> Upload calibration
+              <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Upload calibration
             </Button>
-            <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleDownloadCalibrations}>
-              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/> Download all calibrations
+            <Button sx={{textTransform: 'none', mr: "0px", float: "right"}} color="primary" onClick={handleDownloadCalibrations}>
+              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all calibrations
             </Button>
           </Box>
         </Box>
-        <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+        <Divider sx={{mt: "0px", mb: "15px"}} />
 
       </Box>
       <UploadCalibrationDialog
@@ -783,7 +783,7 @@ function CalibrationsContainer() {
         </Grid>
       </Grid>
       <Grid size={12}>
-        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</p>
+        <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</Box>
       </Grid>
     </React.Fragment>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Box } from "@mui/material";
 
 
 class ErrorBoundary extends React.Component {
@@ -26,7 +27,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
       <React.Fragment>
-        <div style={{maxWidth: 700, margin: "auto"}}>
+        <Box sx={{maxWidth: 700, m: "auto"}}>
           <div>
             <h1>Something went wrong with the PioreactorUI!</h1>
             <h3>Don't worry. It's our fault. Here's what you can do:</h3>
@@ -43,7 +44,7 @@ class ErrorBoundary extends React.Component {
             </code>
             <br/>
           </div>
-        </div>
+        </Box>
       </React.Fragment>
       )
     }

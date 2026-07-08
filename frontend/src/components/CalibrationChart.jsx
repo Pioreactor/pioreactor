@@ -178,7 +178,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
   const width = 1050
   return (
-    <div ref={chartContainerRef} style={{ position: "relative" }}>
+    <Box ref={chartContainerRef} sx={{ position: "relative" }}>
       <VictoryChart
         domainPadding={10}
         height={325}
@@ -389,7 +389,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
           <ListItemText primary="Log y-axis" />
         </MenuItem>
       </Menu>
-    </div>
+    </Box>
   );
 }
 

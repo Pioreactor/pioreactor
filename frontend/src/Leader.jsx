@@ -211,7 +211,7 @@ function ManageLeaderMenu({unit}) {
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        style={{textTransform: "none"}}
+        sx={{textTransform: "none"}}
       >
         Manage leader <ArrowDropDownIcon/>
       </Button>
@@ -509,7 +509,7 @@ function DirectoryNavigatorCard({leaderHostname}) {
           </List>
         )}
         </Box>
-      <Divider sx={{margin: "5px 0px"}}/>
+      <Divider sx={{m: "5px 0px"}}/>
       </CardContent>
       <CardActions sx={{ display: 'flex', justifyContent: 'flex-end', mr: 2}}>
         <Button
@@ -529,11 +529,12 @@ function DirectoryNavigatorCard({leaderHostname}) {
           <UploadIcon fontSize="small" sx={textIcon} /> Import system archive
         </Button>
       </CardActions>
-      <input
+      <Box
+        component="input"
         type="file"
         accept="application/zip"
         ref={fileInputRef}
-        style={{display: 'none'}}
+        sx={{display: 'none'}}
         onChange={handleImport}
       />
       <Backdrop
@@ -672,9 +673,9 @@ function LeaderCard({leaderHostname}) {
     <Card sx={{ minWidth: 275 }}>
       <CardContent>
 
-        <div style={{display: "flex", justifyContent: "space-between"}}>
+        <Box sx={{display: "flex", justifyContent: "space-between"}}>
 
-          <div style={{display: "flex", justifyContent: "left"}}>
+          <Box sx={{display: "flex", justifyContent: "left"}}>
             <Typography sx={{
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",
@@ -689,59 +690,59 @@ function LeaderCard({leaderHostname}) {
                 <div className="indicator-dot"  style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </div>
             </Tooltip>
-          </div>
+          </Box>
 
 
-        </div>
+        </Box>
 
 
-        <Divider sx={{margin: "5px 0px"}}/>
+        <Divider sx={{m: "5px 0px"}}/>
 
-        <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
-          <tbody style={{color: "inherit"}}>
+        <Box component="table" sx={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
+          <Box component="tbody" sx={{color: "inherit"}}>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Software version
-            </td>
+            </Box>
             <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 IPv4
-            </td>
+            </Box>
             <td>
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Raspberry Pi
-            </td>
+            </Box>
             <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 WLAN MAC
-            </td>
+            </Box>
             <td>
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
             </td>
           </tr>
           <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+            <Box component="td" sx={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Ethernet MAC
-            </td>
+            </Box>
             <td>
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</code>
+              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
             </td>
           </tr>
-          </tbody>
-        </table>
-        <Divider sx={{margin: "5px 0px"}}/>
+          </Box>
+        </Box>
+        <Divider sx={{m: "5px 0px"}}/>
       </CardContent>
       <CardActions sx={{display: "flex", justifyContent: "flex-end"}}>
         <ManageLeaderMenu unit={unit} />
@@ -1089,7 +1090,7 @@ function LeaderContainer({config}) {
             <ManageInventoryMenu/>
           </Box>
         </Box>
-        <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+        <Divider sx={{mt: "0px", mb: "15px"}} />
 
       </Box>
       <Grid container spacing={2} sx={{ justifyContent: "flex-start", alignItems: "flex-start" }}>

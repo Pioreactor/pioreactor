@@ -341,10 +341,10 @@ export function AssignPioreactors({ experiment, variant="text" }) {
   const assignmentDeltaLabel = getAssignmentDeltaLabel(assignmentDelta);
   return (
     <React.Fragment>
-      <Button variant={variant} style={{ textTransform: "none" }} onClick={handleClickOpen}>
+      <Button variant={variant} sx={{ textTransform: "none" }} onClick={handleClickOpen}>
         <LibraryAddCheckOutlinedIcon
           fontSize="small"
-          sx={{ verticalAlign: "middle", margin: "0px 3px" }}
+          sx={{ verticalAlign: "middle", m: "0px 3px" }}
         />
         Assign Pioreactors
       </Button>
@@ -476,7 +476,7 @@ export function AssignPioreactors({ experiment, variant="text" }) {
             variant="contained"
             onClick={updateAssignments}
             disabled={assignmentDeltaCount === 0 || isSubmittingAssignments}
-            style={{ textTransform: "none" }}
+            sx={{ textTransform: "none" }}
             startIcon={isSubmittingAssignments ? <CircularProgress color="inherit" size={16} /> : null}
           >
             {isSubmittingAssignments ? "Updating" : assignmentDeltaLabel}
@@ -504,7 +504,7 @@ function PioreactorHeader({experiment, config, units}) {
           <ManageExperimentMenu experiment={experiment}/>
         </Box>
       </Box>
-      <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+      <Divider sx={{mt: "0px", mb: "15px"}} />
     </Box>
   )
 }
@@ -919,7 +919,7 @@ function SettingsActionsDialog({
 
   return (
     <div>
-    <Button style={{textTransform: 'none', float: "right" }} disabled={disabled} onClick={handleClickOpen} color="primary">
+    <Button sx={{textTransform: 'none', float: "right" }} disabled={disabled} onClick={handleClickOpen} color="primary">
       <SettingsIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} slotProps={{
@@ -931,7 +931,7 @@ function SettingsActionsDialog({
     }}>
       <DialogTitle>
         <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
-          <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/>
+          <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
           <span> {label ? `${label} / ${unit}` : `${unit}`} </span>
         </Typography>
         <IconButton
@@ -970,7 +970,7 @@ function SettingsActionsDialog({
             .filter(([job_key]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key)) // added later
             .map(([job_key, job]) =>
             <div key={job_key}>
-              <div style={{justifyContent: "space-between", display: "flex"}}>
+              <Box sx={{justifyContent: "space-between", display: "flex"}}>
                 <Typography sx={{ display: "block" }}>
                   {job.metadata.display_name}
                   {(job.metadata.display_name === "Optical density" && isXrModel) ? (
@@ -983,7 +983,7 @@ function SettingsActionsDialog({
                   ) : null}
                 </Typography>
                 <StateTypography state={job.state}/>
-              </div>
+              </Box>
               <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
                 {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
               </Typography>
@@ -1003,12 +1003,12 @@ function SettingsActionsDialog({
           {/* Unit Specific Automations */}
           {temperatureControlJob &&
           <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
+            <Box sx={{justifyContent: "space-between", display: "flex"}}>
               <Typography sx={{ display: "block" }}>
                 Temperature automation
               </Typography>
               <StateTypography state={temperatureControlJob.state}/>
-            </div>
+            </Box>
 
             <div key={temperatureControlJob.metadata.key}>
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
@@ -1070,12 +1070,12 @@ function SettingsActionsDialog({
 
           {dosingControlJob &&
           <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
+            <Box sx={{justifyContent: "space-between", display: "flex"}}>
               <Typography sx={{ display: "block" }}>
                 Dosing automation
               </Typography>
               <StateTypography state={dosingControlJob.state}/>
-            </div>
+            </Box>
             <div key={dosingControlJob.metadata.key}>
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (dosingControlJob.state === "init")
               ?<React.Fragment>
@@ -1145,12 +1145,12 @@ function SettingsActionsDialog({
 
           {ledControlJob &&
           <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
+            <Box sx={{justifyContent: "space-between", display: "flex"}}>
               <Typography sx={{ display: "block" }}>
                 LED automation
               </Typography>
               <StateTypography state={ledControlJob.state}/>
-            </div>
+            </Box>
 
             <div key={ledControlJob.metadata.key}>
               {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (ledControlJob.state === "init")
@@ -1274,7 +1274,7 @@ function SettingsActionsDialog({
 
           <ControlDivider/>
 
-          <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
+          <Alert severity="warning" sx={{mb: '10px', mt: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
           <Typography  gutterBottom>
             Add media
@@ -1337,7 +1337,7 @@ function SettingsActionsDialog({
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['A']) ? (LEDMap['A'].replace("_", " ").replace("led", "LED")) : "Channel A" }
           </Typography>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
@@ -1346,7 +1346,7 @@ function SettingsActionsDialog({
           <ActionLEDForm experiment={experiment} channel="A" unit={unit} />
           <ControlDivider/>
 
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['B']) ? (LEDMap['B'].replace("_", " ").replace("led", "LED")) : "Channel B" }
           </Typography>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
@@ -1355,7 +1355,7 @@ function SettingsActionsDialog({
           <ActionLEDForm experiment={experiment} channel="B" unit={unit} />
           <ControlDivider/>
 
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['C']) ? (LEDMap['C'].replace("_", " ").replace("led", "LED")) : "Channel C" }
           </Typography>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
@@ -1365,7 +1365,7 @@ function SettingsActionsDialog({
           <ActionLEDForm experiment={experiment} channel="C" unit={unit} />
           <ControlDivider/>
 
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['D']) ? (LEDMap['D'].replace("_", " ").replace("led", "LED")) : "Channel D" }
           </Typography>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
@@ -1433,7 +1433,7 @@ function SettingsActionsDialog({
                         dense
                         disablePadding
                         subheader={
-                          <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
+                          <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
                             {group.title}
                           </ListSubheader>
                         }
@@ -1937,7 +1937,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
   return (
     <React.Fragment>
-    <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
+    <Button sx={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
       <SettingsIcon fontSize="small" sx={textIcon}/> Control all Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{
@@ -1947,9 +1947,9 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         }
       }
     }}>
-      <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
+      <DialogTitle sx={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
         <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
-          <PioreactorsIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/> <b>All assigned & active Pioreactors</b>
+          <PioreactorsIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> <b>All assigned & active Pioreactors</b>
         </Typography>
         <IconButton
           aria-label="close"
@@ -2003,11 +2003,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
           {temperatureControlJob &&
           <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
+            <Box sx={{justifyContent: "space-between", display: "flex"}}>
                 <Typography sx={{ display: "block" }}>
                 Temperature automation
               </Typography>
-            </div>
+            </Box>
             <div>
               <Typography variant="body2" component="p" gutterBottom>
                 <span dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
@@ -2032,11 +2032,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
           {dosingControlJob &&
           <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
+            <Box sx={{justifyContent: "space-between", display: "flex"}}>
               <Typography sx={{ display: "block" }}>
                 Dosing automation
               </Typography>
-            </div>
+            </Box>
             <div>
               <Typography variant="body2" component="p" gutterBottom>
                 <span dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
@@ -2063,11 +2063,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
           {ledControlJob &&
           <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
+            <Box sx={{justifyContent: "space-between", display: "flex"}}>
               <Typography sx={{ display: "block" }}>
                 LED automation
               </Typography>
-            </div>
+            </Box>
             <div>
               <Typography variant="body2" component="p" gutterBottom>
                 <span dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
@@ -2135,7 +2135,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
           <ControlDivider/>
 
-          <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
+          <Alert severity="warning" sx={{mb: '10px', mt: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
           <Typography  gutterBottom>
             Add media
@@ -2174,25 +2174,25 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             Channel A
           </Typography>
           <ActionLEDForm experiment={experiment} channel="A" unit={broadcastUnit} />
           <ControlDivider/>
 
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             Channel B
           </Typography>
           <ActionLEDForm experiment={experiment} channel="B" unit={broadcastUnit} />
           <ControlDivider/>
 
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             Channel C
           </Typography>
           <ActionLEDForm experiment={experiment} channel="C" unit={broadcastUnit} />
 
           <ControlDivider/>
-          <Typography style={{textTransform: "capitalize"}}>
+          <Typography sx={{textTransform: "capitalize"}}>
             Channel D
           </Typography>
           <ActionLEDForm experiment={experiment} channel="D" unit={broadcastUnit} />
@@ -2285,7 +2285,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
                               dense
                               disablePadding
                               subheader={
-                                <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
+                                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
                                   {group.title}
                                 </ListSubheader>
                               }
@@ -2349,13 +2349,13 @@ function ActiveUnits({experiment, sharedConfig, unitConfigs, units, availableMod
 
   return (
     <React.Fragment>
-      <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
+      <Box sx={{display: "flex", justifyContent: "space-between", mb: "10px", mt: "15px"}}>
         <Typography variant="h5" component="h2">
           <Box sx={{ fontWeight: "fontWeightRegular" }}>
             Active Pioreactors
           </Box>
         </Typography>
-      </div>
+      </Box>
       {renderCards()}
 
     </React.Fragment>
@@ -2372,7 +2372,7 @@ function FlashLEDButton({ unit, disabled }){
   }
   return (
     <Button
-      style={{textTransform: 'none', float: "right"}}
+      sx={{textTransform: 'none', float: "right"}}
       className={flashing ? 'blinkled' : ''}
       disabled={disabled}
       onClick={onClick}
@@ -2861,7 +2861,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
               flexDirection: "column",
             }
           })}>
-            <div style={{display: "flex", justifyContent: "left", marginTop: "3px"}}>
+            <Box sx={{display: "flex", justifyContent: "left", mt: "3px"}}>
               <Tooltip title={indicatorLabel} placement="left">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
@@ -2875,10 +2875,10 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
                 gutterBottom>
                 {(label ) ? label : unit }
               </Typography>
-              <Button disabled={!isUnitActive} component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", marginBottom: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>
+              <Button disabled={!isUnitActive} component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", mb: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>
                 View details <ArrowForwardIcon sx={{ verticalAlign: "middle", ml: 0.5 }} fontSize="small"/>
               </Button>
-            </div>
+            </Box>
             <Box sx={{
               display: "flex",
               justifyContent: "flex-end",
@@ -2953,7 +2953,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
               const showStateActionMenu = isUnitActive && allStateActions.length > 0 && !isPendingStateAction
               return (
                 <Box sx={{width: "132px", ml: "2px", mt: "10px", mr: "2px", p: "0px 3px"}} key={job.metadata.key}>
-                  <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
+                  <Typography variant="body2"  sx={{fontSize: "0.84rem",  color: !isUnitActive ? disabledColor : 'inherit' }}>
                     {job.metadata.display_name}
                     {(job.metadata.display_name === "Optical density" && isXrModel) ? (
                       <Chip
@@ -3005,7 +3005,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
 
       <Divider/>
 
-      <Box style={{
+      <Box sx={{
           display: "flex",
           m: "15px 20px 20px 0px",
           flexDirection: "row",
@@ -3027,7 +3027,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
                   const displayKind = getCardSettingDisplayKind(job_key, setting_key)
                   return (
                     <Box sx={{width: "132px", ml: "2px", mt: "10px", mr: "2px", p: "0px 3px"}} key={job_key + setting_key}>
-                      <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
+                      <Typography variant="body2"  sx={{fontSize: "0.84rem",  color: !isUnitActive ? disabledColor : 'inherit' }}>
                         {setting.label}
                         {(setting.label === "Optical density" && isXrModel) ? (
                           <Chip
@@ -3169,13 +3169,13 @@ function InactiveUnits({ units, sharedConfig, unitConfigs, experiment, available
 
   return (
   <React.Fragment>
-    <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
+    <Box sx={{display: "flex", justifyContent: "space-between", mb: "10px", mt: "15px"}}>
       <Typography variant="h5" component="h2">
         <Box sx={{ fontWeight: "fontWeightRegular" }}>
           Inactive Pioreactors
         </Box>
       </Typography>
-    </div>
+    </Box>
     {(units || []).map((unit) => {
       const modelDetails = (availableModels || []).find(
         ({ model_name, model_version }) => model_name === unit.model_name && model_version === unit.model_version
@@ -3324,10 +3324,10 @@ function Pioreactors({title}) {
     <Box sx={{textAlign: "center"}}>
       {isLoading ? <CircularProgress /> : (
       <>
-      <img
+      <Box component="img"
         alt="filler illustration for no pioreactor assigned"
         src={emptyStateIllustration}
-        style={{width: "420px", opacity: 0.8, marginBottom: "8px"}}
+        sx={{width: "420px", opacity: 0.8, mb: "8px"}}
       />
       <Typography component='div' variant='h6' sx={{mb: 2}}>
         No Pioreactors assigned to this experiment

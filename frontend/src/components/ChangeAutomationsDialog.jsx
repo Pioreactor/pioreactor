@@ -17,6 +17,7 @@ import {getAutomationDescriptors, runPioreactorJob} from "../utils/jobs"
 
 import PioreactorIcon from "./PioreactorIcon"
 import AutomationForm, { hasAutomationFormErrors } from "./AutomationForm"
+import { Box } from "@mui/material";
 
 
 const defaultAutomations = {
@@ -123,7 +124,7 @@ function ChangeAutomationsDialog(props) {
     <Dialog open={props.open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{ paper: { sx: { height: "100%" } } }}>
       <DialogTitle>
         <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)"}}>
-          <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/>
+          <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
             {(props.unit === "$broadcast")
               ? <b>All active and assigned Pioreactors</b>
               :((props.title || props.label)
@@ -150,7 +151,7 @@ function ChangeAutomationsDialog(props) {
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" component="span" gutterBottom>
-          <span style={{textTransform: "capitalize"}}>{automationTypeForDisplay}</span> automations control the {automationTypeForDisplay} in the Pioreactor's vial. Learn more about <a target="_blank" rel="noopener noreferrer" href={"https://docs.pioreactor.com/user-guide/" + automationTypeForDisplay + "-automations"}>{automationTypeForDisplay} automations</a>.
+          <Box component="span" sx={{textTransform: "capitalize"}}>{automationTypeForDisplay}</Box> automations control the {automationTypeForDisplay} in the Pioreactor's vial. Learn more about <a target="_blank" rel="noopener noreferrer" href={"https://docs.pioreactor.com/user-guide/" + automationTypeForDisplay + "-automations"}>{automationTypeForDisplay} automations</a>.
         </Typography>
 
         {!isLoading && <form>
@@ -160,7 +161,7 @@ function ChangeAutomationsDialog(props) {
               variant="standard"
               value={automationName}
               onChange={handleAlgoSelectionChange}
-              style={{maxWidth: "270px"}}
+              sx={{maxWidth: "270px"}}
             >
               {Object.keys(automations).map((key) => <MenuItem id={key} value={key} key={"change-io" + key}>{automations[key].display_name}</MenuItem>)}
 

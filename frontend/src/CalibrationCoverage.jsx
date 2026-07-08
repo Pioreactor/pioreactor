@@ -149,11 +149,11 @@ function CalibrationCoverage(props) {
             Back to calibrations
           </Button>
         </Box>
-        <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+        <Divider sx={{ mt: "0px", mb: "15px" }} />
       </Box>
 
       {loading && (
-        <Box sx={{ textAlign: "center", marginTop: "2rem" }}>
+        <Box sx={{ textAlign: "center", mt: "2rem" }}>
           <CircularProgress />
         </Box>
       )}

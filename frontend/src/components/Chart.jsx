@@ -27,6 +27,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { shiftHue } from "../utils/color";
 import { experimentPathSegment } from "../utils/url";
+import { Box } from "@mui/material";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -739,7 +740,7 @@ function Chart(props) {
   const chartHeight = 285 + legendRows * legendRowHeight;
 
   return (
-    <div ref={chartContainerRef} style={{ position: "relative" }}>
+    <Box ref={chartContainerRef} sx={{ position: "relative" }}>
       <VictoryChart
         key={chartStateKey}
         style={{ parent: { width: "100%" } }}
@@ -878,7 +879,7 @@ function Chart(props) {
           Download SVG
         </MenuItem>
       </Menu>
-    </div>
+    </Box>
   );
 }
 

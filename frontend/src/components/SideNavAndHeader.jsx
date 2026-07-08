@@ -21,7 +21,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import MuiLink from '@mui/material/Link';
-import {AppBar, Typography, Button} from '@mui/material';
+import {Box, AppBar, Typography, Button} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
@@ -208,7 +208,7 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
           }}
         >
           <MenuItemMUI value={null} component={Link} to="/start-new-experiment">
-            <AddIcon sx={{ verticalAlign: 'middle', margin: '0px 3px 0px 0px', fontSize: "21px"}} />
+            <AddIcon sx={{ verticalAlign: 'middle', m: '0px 3px 0px 0px', fontSize: "21px"}} />
             New experiment
           </MenuItemMUI>
           <Divider />
@@ -348,8 +348,8 @@ export default function SideNavAndHeader() {
 
   const list = () => (
     <Sidebar rootStyles={{height: "100%"}} width="230px" backgroundColor="white">
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1}}>
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1}}>
 
           <Menu
               transitionDuration={0}
@@ -425,9 +425,9 @@ export default function SideNavAndHeader() {
               </MenuItem>
 
 
-            <Divider sx={{marginTop: "15px", marginBottom: "15px"}} />
+            <Divider sx={{mt: "15px", mb: "15px"}} />
           </Menu>
-        </div>
+        </Box>
         <div>
           <Menu
               transitionDuration={0}
@@ -563,7 +563,7 @@ export default function SideNavAndHeader() {
                 </MenuItem>
            </Menu>
         </div>
-      </div>
+      </Box>
     </Sidebar>
   );
   return (
@@ -575,14 +575,14 @@ export default function SideNavAndHeader() {
                 aria-label="open drawer"
                 edge="start"
                 onClick={handleDrawerToggle}
-                sx={{mr: 2, display: { md: 'none', sm: 'block', xs: "block" }, root: {marginRight: (theme) => theme.spacing(2)}}}
+                sx={{mr: 2, display: { md: 'none', sm: 'block', xs: "block" }, root: {mr: (theme) => theme.spacing(2)}}}
                 size="large">
                 <MenuIcon />
               </IconButton>
 
               <Typography variant="h6"  sx={{ flexGrow: 1 }}>
                 <Link color="inherit" underline="none" to="/" >
-                  <img alt="pioreactor logo" src={whiteLogo} style={{width: "120px", height: "29px"}}/>
+                  <Box component="img" alt="pioreactor logo" src={whiteLogo} sx={{width: "120px", height: "29px"}}/>
                 </Link>
               </Typography>
 
@@ -617,8 +617,8 @@ export default function SideNavAndHeader() {
                     {getUsbNavLabel(usbStatus)}
                   </Button>
                 }
-                <Button onClick={openHelpDialog} color="inherit" style={{textTransform: "none"}}>
-                  <HelpOutlineIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>Help
+                <Button onClick={openHelpDialog} color="inherit" sx={{textTransform: "none"}}>
+                  <HelpOutlineIcon sx={{ fontSize: 18, verticalAlign: "middle", mr: 3 }}/>Help
                 </Button>
               </div>
           </Toolbar>
@@ -690,7 +690,7 @@ export default function SideNavAndHeader() {
         }}
         sx={{ display: { xs: 'block', sm: 'block' , md: "none"} }}
       >
-        <div style={{minHeight: "60px"}}/>
+        <Box sx={{minHeight: "60px"}}/>
         {list()}
       </DrawerStyled>
       <DrawerStyled

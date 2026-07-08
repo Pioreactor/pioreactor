@@ -72,13 +72,14 @@ function VialVolumePreview({
 
   return (
     <Box sx={{ mt: 1, mb: 1, textAlign: "center" }}>
-      <svg
+      <Box
+        component="svg"
         xmlns="http://www.w3.org/2000/svg"
         viewBox={`-0.46 ${VIEWBOX_TOP_Y} ${SVG_WIDTH} ${viewBoxHeight}`}
         width="80"
         height={svgHeight}
         aria-label="Dynamic vial volume preview"
-        style={{ color: "#464646" }}
+        sx={{ color: "#464646" }}
       >
         <defs>
           <clipPath id={clipPathId}>
@@ -150,7 +151,7 @@ function VialVolumePreview({
         <line x1="7.14" y1="0.00" x2="7.14" y2={tubeBottomY} stroke="currentColor" strokeWidth={STROKEWIDTH} />
         <line x1="4" y1="0.00" x2="4" y2="7" stroke="currentColor" strokeWidth={STROKEWIDTH} />
 
-      </svg>
+      </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
         Initial vial preview
       </Typography>

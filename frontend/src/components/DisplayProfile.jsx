@@ -71,13 +71,13 @@ function displayExpression(string){
   return  <Chip
             size="small"
             sx={{
-                marginTop: "0px",
-                marginBottom: "3px",
+                mt: "0px",
+                mb: "3px",
                 maxWidth: 'none'
             }}
             icon={<CalculateOutlinedIcon />}
             label={
-                <span style={expression}>{String(string).trim()}</span>
+                <Box component="span" sx={expression}>{String(string).trim()}</Box>
             }
           />
 }
@@ -87,8 +87,8 @@ function displayPioreactor(pioreactorName){
   return  <Chip
             size="small"
             sx={{
-                marginTop: "0px",
-                marginBottom: "3px",
+                mt: "0px",
+                mb: "3px",
                 maxWidth: 'none'
             }}
             icon={<PioreactorIcon />}
@@ -99,7 +99,7 @@ function displayPioreactor(pioreactorName){
 
 
 function displayVariable(string){
-  return  <Chip size="small" sx={{marginTop: "0px", marginBottom: "3px"}}  label={<span style={expression}>{String(string).trim()}</span>} />
+  return  <Chip size="small" sx={{mt: "0px", mb: "3px"}}  label={<Box component="span" sx={expression}>{String(string).trim()}</Box>} />
 }
 
 function findQuotedString(expressionString){
@@ -402,7 +402,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
       return (
         <>
           <Typography variant="body2" component="div" sx={level2}>
-            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> <InlineComment comment={actionComment} />
+            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <Box component="span" sx={highlightedActionType}>{action.type}</Box> <Box component="span" sx={{ fontWeight: 500 }}>{jobName}</Box> <InlineComment comment={actionComment} />
           </Typography>
           {renderOptions(action?.type)}
           {renderInvalidOptionsMessage()}
@@ -414,11 +414,11 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
       return (
         <>
           <Typography variant="body2" component="div" sx={level2}>
-            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>log</span> the message: <InlineComment comment={actionComment} />
+            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <Box component="span" sx={highlightedActionType}>log</Box> the message: <InlineComment comment={actionComment} />
           </Typography>
             {action.options && Object.prototype.hasOwnProperty.call(action.options, "message") &&
             <Typography variant="body2" component="div" sx={level3}>
-              <span style={highlightedLogMessage}>{extractAndApply(action.options.message, processBracketedExpression)}</span>
+              <Box component="span" sx={highlightedLogMessage}>{extractAndApply(action.options.message, processBracketedExpression)}</Box>
             </Typography>
             }
         </>
@@ -429,7 +429,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
       return (
         <>
           <Typography variant="body2" component="div" sx={level2}>
-            {index + 1}. {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)} <InlineComment comment={actionComment} />
+            {index + 1}. {if_} <Box component="span" sx={highlightedActionType}>{action.type}</Box> <Box component="span" sx={{ fontWeight: 500 }}>{jobName}</Box> {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)} <InlineComment comment={actionComment} />
           </Typography>
         </>
       );
@@ -437,7 +437,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
       return (
         <>
           <Typography variant="body2" component="div" sx={level2}>
-            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, wait until <span style={highlightedIf}>{processOptionalBracketedExpression(action?.wait_until || action?.condition, "missing `wait_until`")}</span>, then do: <InlineComment comment={actionComment} />
+            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, wait until <Box component="span" sx={highlightedIf}>{processOptionalBracketedExpression(action?.wait_until || action?.condition, "missing `wait_until`")}</Box>, then do: <InlineComment comment={actionComment} />
           </Typography>
           <Box sx={level1}>
           {Array.isArray(action.actions) && action.actions
@@ -465,7 +465,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
             {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, <span> </span>
           {action.while && action.while !== true && (
             <>
-               while <span style={highlightedIf}>{processOptionalBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""},<span> </span>
+               while <Box component="span" sx={highlightedIf}>{processOptionalBracketedExpression(action.while)}</Box> {action.max_hours ? "or" : ""},<span> </span>
             </>
           )}
           {repeatMax && (
@@ -474,7 +474,7 @@ const ActionDetails = ({ action, jobName, index, actionPath, comments }) => {
             </>
           )}
 
-            <span style={highlightedActionType}>repeat</span> the following every {humanReadableLiteral(repeatEvery, 'every')}, <InlineComment comment={actionComment} />
+            <Box component="span" sx={highlightedActionType}>repeat</Box> the following every {humanReadableLiteral(repeatEvery, 'every')}, <InlineComment comment={actionComment} />
           </Typography>
           <Box sx={level1}>
             {Array.isArray(action.actions) && action.actions
@@ -684,7 +684,7 @@ export const DisplayProfile = ({ data, comments = {} }) => {
   return (
     <Card sx={DisplayProfileCard}>
       <CardContent sx={{ padding: '10px' }}>
-        <Typography variant="h6"><ViewTimelineOutlinedIcon sx={{verticalAlign: "middle", margin:"0px 3px"}}/>{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
+        <Typography variant="h6"><ViewTimelineOutlinedIcon sx={{verticalAlign: "middle", m:"0px 3px"}}/>{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
         <AuthorSection author={data?.metadata?.author} comment={getInlineCommentForPath(comments, "metadata.author")} />
         <DescriptionSection description={data?.metadata?.description} comment={getInlineCommentForPath(comments, "metadata.description")} />
         <br/>
@@ -692,7 +692,7 @@ export const DisplayProfile = ({ data, comments = {} }) => {
         <ParametersSection parameters={data?.inputs} comments={comments} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
-          <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 2px 0px 0px"}} /> do:</Typography>
+          <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 2px 0px 0px"}} /> do:</Typography>
           <JobSection jobs={data?.common?.jobs} comments={comments} jobsPath="common.jobs" />
           </>
         }

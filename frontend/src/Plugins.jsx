@@ -51,7 +51,7 @@ function PageHeader() {
           <Box sx={{ fontWeight: "fontWeightBold" }}>Plugins</Box>
         </Typography>
       </Box>
-      <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+      <Divider sx={{mt: "12px", mb: "15px"}} />
     </Box>
   );
 }
@@ -232,13 +232,13 @@ function ListSuggestedPlugins({
   return (
     <Box sx={{ mb: "15px", width: "100%" }}>
       {isSuggestedPluginsLoading && (
-        <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "24px" }}>
+        <Box sx={{ textAlign: "center", mb: "24px", mt: "24px" }}>
           <CircularProgress size={24} />
         </Box>
       )}
 
       {!isSuggestedPluginsLoading && suggestedPluginsFetchError && (
-        <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "24px" }}>
+        <Box sx={{ textAlign: "center", mb: "24px", mt: "24px" }}>
           <Typography variant="body2" component="p" color="error">
             {suggestedPluginsFetchError}
           </Typography>
@@ -248,7 +248,7 @@ function ListSuggestedPlugins({
       {!isSuggestedPluginsLoading &&
         !suggestedPluginsFetchError &&
         availablePlugins.length === 0 && (
-          <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "24px" }}>
+          <Box sx={{ textAlign: "center", mb: "24px", mt: "24px" }}>
             <Typography variant="body2" component="p" color="text.secondary">
               No suggested plugins available right now.
             </Typography>
@@ -284,7 +284,7 @@ function ListSuggestedPlugins({
                         <span>{plugin.description}</span>
                       </>
                     }
-                    style={{ maxWidth: "525px" }}
+                    sx={{ maxWidth: "525px" }}
                   />
                   <ListItemSecondaryAction sx={PLUGIN_ROW_ACTION_SX}>
                     <InstallButton
@@ -325,7 +325,7 @@ function ListSuggestedPlugins({
 function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUninstall }) {
   if (selectedTarget === BROADCAST_TARGET) {
     return (
-      <Box sx={{ textAlign: "center", marginBottom: "50px", marginTop: "30px" }}>
+      <Box sx={{ textAlign: "center", mb: "50px", mt: "30px" }}>
         <Typography variant="body2" component="p" color="text.secondary">
           Choose a Pioreactor to view installed plugins.
         </Typography>
@@ -335,7 +335,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
 
   if (installedPlugins.length === 0) {
     return (
-      <Box sx={{ textAlign: "center", marginBottom: "50px", marginTop: "50px" }}>
+      <Box sx={{ textAlign: "center", mb: "50px", mt: "50px" }}>
         <Typography variant="body2" component="p" color="text.secondary">
           No installed plugins. Try installing one below, or read more about{" "}
           <a
@@ -392,7 +392,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                     </span>
                   </>
                 }
-                style={{ maxWidth: "525px" }}
+                sx={{ maxWidth: "525px" }}
               />
               <ListItemSecondaryAction sx={PLUGIN_ROW_ACTION_SX}>
                 <Button
@@ -574,7 +574,7 @@ function ListUsbPlugins({
                       <span>{plugin.path}</span>
                     </>
                   }
-                  style={{ maxWidth: "525px" }}
+                  sx={{ maxWidth: "525px" }}
                 />
                 <ListItemSecondaryAction sx={PLUGIN_ROW_ACTION_SX}>
                   <InstallButton
@@ -957,7 +957,7 @@ function PluginContainer() {
                 letterSpacing: "0.15px",
                 fontFamily: "inherit",
                 lineHeight: "34.5px",
-                marginLeft: "5px",
+                ml: "5px",
               }}
             >
               {units.map((unit) => (
@@ -980,13 +980,13 @@ function PluginContainer() {
           </Typography>
 
           {!isFetchComplete && targetIsRealUnit && (
-            <Box sx={{ textAlign: "center", marginBottom: "50px", marginTop: "50px" }}>
+            <Box sx={{ textAlign: "center", mb: "50px", mt: "50px" }}>
               <CircularProgress size={33} />
             </Box>
           )}
 
           {unitsFetchError && (
-            <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "16px" }}>
+            <Box sx={{ textAlign: "center", mb: "24px", mt: "16px" }}>
               <Typography variant="body2" component="p" color="text.secondary">
                 {unitsFetchError}
               </Typography>
@@ -994,7 +994,7 @@ function PluginContainer() {
           )}
 
           {!unitsFetchError && isFetchComplete && installedPluginsFetchError && (
-            <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "16px" }}>
+            <Box sx={{ textAlign: "center", mb: "24px", mt: "16px" }}>
               <Typography variant="body2" component="p" color="error">
                 {installedPluginsFetchError}
               </Typography>
@@ -1031,7 +1031,7 @@ function PluginContainer() {
           />
         </CardContent>
       </Card>
-      <p style={{ textAlign: "center", marginTop: "30px" }}>
+      <Box component="p" sx={{ textAlign: "center", mt: "30px" }}>
         Learn more about Pioreactor{" "}
         <a
           href="https://docs.pioreactor.com/user-guide/using-community-plugins"
@@ -1041,7 +1041,7 @@ function PluginContainer() {
           plugins
         </a>
         .
-      </p>
+      </Box>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
