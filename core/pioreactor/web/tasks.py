@@ -37,7 +37,6 @@ from huey.exceptions import ResultTimeout
 from msgspec import DecodeError
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
-from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
@@ -46,7 +45,6 @@ from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.http_response import decode_unit_api_error_payload
 from pioreactor.logging import create_logger
-from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
@@ -62,7 +60,6 @@ from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.version import hardware_version_info
 from pioreactor.web.config import huey
 from pioreactor.web.db import get_database_space_stats
 from pioreactor.web.db import open_app_database_connection
@@ -499,53 +496,20 @@ def add_new_pioreactor(
     return True
 
 
-def _get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int]:
-    adc_cfg = hardware.get_layered_mod_config_for_model("adc", model_name, model_version)
-    addresses: set[int] = set()
-    for adc_data in adc_cfg.values():
-        address = adc_data.get("address")
-        addresses.add(int(address))
-    return addresses
-
-
-def _is_hat_v1_x() -> bool:
-    return hardware_version_info is not None and hardware_version_info[0] == 1
-
-
 @huey.task(priority=10)
 def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
-    if not _is_hat_v1_x():
-        return {"status": "skipped", "reason": "hardware check only applies to HAT v1.x"}
+    result = hardware.check_model_hardware_compatibility(model_name, model_version)
+    result_status = result["status"]
 
-    registered_models = get_registered_models()
-    if (model_name, model_version) in registered_models:
-        display_name = registered_models[(model_name, model_version)].display_name
-    else:
-        display_name = f"{model_name} {model_version}"
+    if result_status == "skipped":
+        logger.debug(f"Hardware check skipped on {get_unit_name()}: {result['reason']}")
+    elif result_status == "warning":
+        logger.warning(f"Hardware check failed on {get_unit_name()}: {result['reason']}")
+        result = {**result, "reason": result["reason"].split(": ", 1)[-1]}
+    elif result_status == "ok":
+        logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
 
-    try:
-        addresses = _get_adc_addresses_for_model(model_name, model_version)
-    except exc.HardwareNotFoundError as err:
-        logger.warning(
-            f"Hardware check skipped on {get_unit_name()}: {err}",
-        )
-        return {"status": "skipped", "reason": str(err)}
-
-    if not addresses:
-        logger.debug(f"Hardware check found no ADC addresses for {display_name} on {get_unit_name()}.")
-        return {"status": "skipped", "reason": "model has no configured ADC addresses"}
-
-    missing = sorted(addr for addr in addresses if not hardware.is_i2c_device_present(addr))
-    if missing:
-        missing_hex = ", ".join(hex(addr) for addr in missing)
-        logger.warning(
-            f"Hardware check failed for {display_name} on {get_unit_name()}: "
-            f"missing I2C devices at {missing_hex}."
-        )
-        return {"status": "warning", "reason": f"missing I2C devices at {missing_hex}"}
-
-    logger.notice(f"Correct hardware found for {display_name} on {get_unit_name()}.")
-    return {"status": "ok"}
+    return result
 
 
 @huey.task()

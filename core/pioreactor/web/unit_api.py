@@ -11,7 +11,6 @@ from io import BytesIO
 from pathlib import Path
 from subprocess import run
 from tempfile import NamedTemporaryFile
-from time import sleep
 from typing import Any
 from typing import Callable
 from typing import cast
@@ -529,10 +528,9 @@ def reboot_system() -> DelayedResponseReturnValue:
     if _task_is_locked("power-lock"):
         return _locked_task_response("power-lock")
 
-    # don't reboot the leader right away, give time for any other posts/gets to occur.
-    if HOSTNAME == get_leader_hostname():
-        sleep(5)
-    task = tasks.reboot()
+    # Don't reboot the leader right away; keep the HTTP handler responsive so
+    # cluster fan-out callers can receive the queued task response.
+    task = tasks.reboot(wait=5 if HOSTNAME == get_leader_hostname() else 0)
     return create_task_response(task)
 
 

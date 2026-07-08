@@ -13,7 +13,7 @@ import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
 import {useNavigate } from 'react-router';
 import SaveIcon from '@mui/icons-material/Save';
-
+import RestoreIcon from '@mui/icons-material/Restore';
 import { useExperiment } from './providers/ExperimentContext';
 
 // Activate the UTC plugin
@@ -59,6 +59,8 @@ function ExperimentSummaryForm(props) {
   const [tagOptions, setTagOptions] = React.useState([]);
   const [tagInputValue, setTagInputValue] = React.useState("");
   const [historicalExperiments, setHistoricalExperiments] = React.useState({});
+  const [historicalExperimentList, setHistoricalExperimentList] = React.useState([]);
+  const [lastPopulatedExperimentIndex, setLastPopulatedExperimentIndex] = React.useState(-1);
   const [loading, setLoading] = React.useState(false);
   const trimmedExpName = expName.trim();
   const hasInvalidCharacters = trimmedExpName.includes("#") || trimmedExpName.includes("+") || trimmedExpName.includes("/") || trimmedExpName.includes("$") || trimmedExpName.includes("%") || trimmedExpName.includes("\\");
@@ -74,6 +76,7 @@ function ExperimentSummaryForm(props) {
         }
 
         const experiments = await response.json();
+        setHistoricalExperimentList(experiments);
         setHistoricalExperiments(
           experiments.reduce((acc, {experiment}) => {
             acc[experiment] = 1;
@@ -94,17 +97,23 @@ function ExperimentSummaryForm(props) {
   }, [])
 
 
-  async function populateFields(){
-    try {
-      const response = await fetch("/api/experiments/latest");
-      const data = await response.json();
-      setExpName(data.experiment)
-      setDescription(data.description)
-      setTags(Array.isArray(data.tags) ? data.tags : [])
-      setTagInputValue("")
-    } catch (error) {
-      console.error("Failed to populate from latest experiment:", error);
+  function populateFields(){
+    if (historicalExperimentList.length === 0) {
+      return;
     }
+
+    const currentExperimentIndex = historicalExperimentList.findIndex(({experiment}) => experiment === expName);
+    const proposedExperimentIndex = currentExperimentIndex === -1
+      ? lastPopulatedExperimentIndex + 1
+      : currentExperimentIndex + 1;
+    const nextExperimentIndex = Math.min(proposedExperimentIndex, historicalExperimentList.length - 1);
+    const experimentToPopulate = historicalExperimentList[nextExperimentIndex];
+
+    setExpName(experimentToPopulate.experiment)
+    setDescription(experimentToPopulate.description ?? "")
+    setTags(Array.isArray(experimentToPopulate.tags) ? experimentToPopulate.tags : [])
+    setTagInputValue("")
+    setLastPopulatedExperimentIndex(historicalExperimentList.indexOf(experimentToPopulate))
   }
 
 
@@ -296,7 +305,7 @@ function ExperimentSummaryForm(props) {
               md: 8
             }}>
             <Box sx={{display: "flex", justifyContent: "flex-end"}}>
-              <Button sx={{mr: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
+              <Button sx={{mr: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}> <RestoreIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> Populate from previous experiment</Button>
               <Button
                 color="primary"
                 variant="contained"

@@ -231,10 +231,10 @@ def test_fanout_success_strips_generic_success_status() -> None:
 
 
 def test_check_model_hardware_skips_non_v1_hat(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tasks, "hardware_version_info", (2, 0))
+    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (2, 0))
     monkeypatch.setattr(
-        tasks,
-        "_get_adc_addresses_for_model",
+        tasks.hardware,
+        "get_adc_addresses_for_model",
         lambda *_args: (_ for _ in ()).throw(AssertionError("should not inspect ADCs")),
     )
 
@@ -313,8 +313,8 @@ def test_repair_system_logs_failed_repair_command(monkeypatch: pytest.MonkeyPatc
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(tasks, "hardware_version_info", (1, 2))
-    monkeypatch.setattr(tasks, "_get_adc_addresses_for_model", lambda *_args: {0x48})
+    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (1, 2))
+    monkeypatch.setattr(tasks.hardware, "get_adc_addresses_for_model", lambda *_args: {0x48})
     monkeypatch.setattr(tasks.hardware, "is_i2c_device_present", lambda address: address == 0x48)
 
     assert tasks.check_model_hardware.call_local("pioreactor_20ml", "1.1") == {"status": "ok"}

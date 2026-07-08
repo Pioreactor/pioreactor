@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import exc
 from pioreactor import types as pt
+from pioreactor.models import get_registered_models
 from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
 from pioreactor.version import tuple_to_text
@@ -132,6 +133,44 @@ def get_layered_mod_config_for_model(mod: str, model_name: str, model_version: s
     data = _deep_merge(data, _load_yaml_if_exists(hat_dir / f"{mod}.yaml"))
     data = _deep_merge(data, _load_yaml_if_exists(model_dir / f"{mod}.yaml"))
     return data
+
+
+def get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int]:
+    adc_cfg = get_layered_mod_config_for_model("adc", model_name, model_version)
+    addresses: set[int] = set()
+    for adc_data in adc_cfg.values():
+        address = adc_data.get("address")
+        addresses.add(int(address))
+    return addresses
+
+
+def check_model_hardware_compatibility(model_name: str, model_version: str) -> dict[str, str]:
+    if hardware_version_info is None or hardware_version_info[0] != 1:
+        return {"status": "skipped", "reason": "hardware check only applies to HAT v1.x"}
+
+    registered_models = get_registered_models()
+    if (model_name, model_version) in registered_models:
+        display_name = registered_models[(model_name, model_version)].display_name
+    else:
+        display_name = f"{model_name} {model_version}"
+
+    try:
+        addresses = get_adc_addresses_for_model(model_name, model_version)
+    except exc.HardwareNotFoundError as err:
+        return {"status": "skipped", "reason": str(err)}
+
+    if not addresses:
+        return {"status": "skipped", "reason": "model has no configured ADC addresses"}
+
+    missing = sorted(addr for addr in addresses if not is_i2c_device_present(addr))
+    if missing:
+        missing_hex = ", ".join(hex(addr) for addr in missing)
+        return {
+            "status": "warning",
+            "reason": f"{display_name}: missing I2C devices at {missing_hex}",
+        }
+
+    return {"status": "ok"}
 
 
 @cache

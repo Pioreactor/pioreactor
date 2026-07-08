@@ -699,6 +699,20 @@ def test_create_experiment(client) -> None:
     assert data["worker_count"] == 0
 
 
+@pytest.mark.parametrize("description_payload", [None, "omitted"])
+def test_create_experiment_normalizes_missing_description_to_empty_string(
+    client, description_payload: str | None
+) -> None:
+    payload: dict[str, object] = {"experiment": f"exp-with-{description_payload}-description"}
+    if description_payload != "omitted":
+        payload["description"] = description_payload
+
+    response = client.post("/api/experiments", json=payload)
+
+    assert response.status_code == 201
+    assert response.get_json()["description"] == ""
+
+
 def test_create_duplicate_experiment(client) -> None:
     # Try to create an experiment with a duplicate name 'exp1'
     response = client.post(
@@ -839,7 +853,7 @@ def test_update_experiment_can_clear_description(client) -> None:
     )
 
     assert response.status_code == 200
-    assert response.get_json()["description"] is None
+    assert response.get_json()["description"] == ""
 
 
 def test_update_experiment_requires_a_supported_field(client) -> None:

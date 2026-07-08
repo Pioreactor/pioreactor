@@ -361,7 +361,7 @@ export function CalibrateDialog({
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
               Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about{" "}
-              <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
+              <a href="https://docs.pioreactor.com/user-guide/calibrations">calibrations</a>.
             </Typography>
             {loadingCalibrations ? (
               <Box sx={{ textAlign: "center", mt: "2rem" }}>

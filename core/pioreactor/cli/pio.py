@@ -1413,6 +1413,42 @@ def status(json_output: bool) -> None:
         identity_summary = f"{identity_summary} ({'; '.join(identity_details)})"
     add_check("identity", identity_status, identity_summary)
 
+    model_status = "OK"
+    model = None
+    try:
+        model = whoami.get_pioreactor_model()
+        model_details = model.display_name
+    except exc.NoWorkerFoundError:
+        model_details = "N/A"
+    except (exc.NoModelAssignedError, exc.UnknownModelAssignedError) as error:
+        model_status = "WARN"
+        model_details = f"Unknown ({error})"
+    except Exception as error:
+        model_status = "WARN"
+        model_details = f"lookup failed ({error})"
+    add_check("model", model_status, model_details)
+
+    if model is None:
+        add_check("hardware:model", "OK", "skipped: model unavailable")
+    else:
+        try:
+            from pioreactor import hardware
+
+            compatibility_result = hardware.check_model_hardware_compatibility(
+                model.model_name,
+                model.model_version,
+            )
+        except Exception as error:
+            add_check("hardware:model", "WARN", f"lookup failed ({error})")
+        else:
+            compatibility_status = compatibility_result["status"]
+            if compatibility_status == "warning":
+                add_check("hardware:model", "WARN", compatibility_result["reason"])
+            elif compatibility_status == "skipped":
+                add_check("hardware:model", "OK", f"skipped: {compatibility_result['reason']}")
+            else:
+                add_check("hardware:model", "OK", "compatible")
+
     version_details = f"app={tuple_to_text(software_version_info)}"
     version_status = "OK"
     try:

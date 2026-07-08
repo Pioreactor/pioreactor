@@ -3123,7 +3123,7 @@ def create_experiment() -> ResponseReturnValue:
             (
                 current_utc_timestamp(),
                 proposed_experiment_name,
-                body.description,
+                body.description or "",
             ),
         )
 
@@ -3281,7 +3281,7 @@ def update_experiment(experiment: str) -> ResponseReturnValue:
     if body.description is not UNSET:
         modify_app_db(
             "UPDATE experiments SET description = (?) WHERE experiment=(?)",
-            (body.description, experiment),
+            (body.description or "", experiment),
         )
 
     if body.tags is not UNSET:

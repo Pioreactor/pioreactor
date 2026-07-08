@@ -520,6 +520,36 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
     assert identity_check["status"] in {"OK", "WARN", "FAIL"}
     assert "unit=" in identity_check["details"]
 
+    model_check = next(check for check in checks if check["name"] == "model")
+    assert model_check["status"] == "OK"
+    assert model_check["details"].startswith("Pioreactor 40ml, v1.5")
+
+    hardware_model_check = next(check for check in checks if check["name"] == "hardware:model")
+    assert hardware_model_check["status"] == "OK"
+    assert hardware_model_check["details"] in {
+        "compatible",
+        "skipped: hardware check only applies to HAT v1.x",
+    }
+
+
+def test_pio_status_warns_on_model_hardware_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.hardware.check_model_hardware_compatibility",
+        lambda *_args: {"status": "warning", "reason": "missing I2C devices at 0x48"},
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    hardware_model_check = next(check for check in payload["checks"] if check["name"] == "hardware:model")
+    assert hardware_model_check == {
+        "name": "hardware:model",
+        "status": "WARN",
+        "details": "missing I2C devices at 0x48",
+    }
+
 
 def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> None:
 
@@ -547,6 +577,8 @@ def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> Non
 
     assert result.exit_code == 0
     assert "identity" in result.output
+    assert "model" in result.output
+    assert "hardware:model" in result.output
     assert "services:web" in result.output
     assert "jobs:running" in result.output
     assert "job manager unavailable" in result.output

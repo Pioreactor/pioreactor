@@ -618,7 +618,7 @@ export default function SideNavAndHeader() {
                   </Button>
                 }
                 <Button onClick={openHelpDialog} color="inherit" sx={{textTransform: "none"}}>
-                  <HelpOutlineIcon sx={{ fontSize: 18, verticalAlign: "middle", mr: 3 }}/>Help
+                  <HelpOutlineIcon sx={{ fontSize: 18, verticalAlign: "middle", mr: "3px" }}/>Help
                 </Button>
               </div>
           </Toolbar>

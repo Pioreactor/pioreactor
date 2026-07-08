@@ -367,6 +367,33 @@ def test_system_action_endpoints_schedule_task(client, endpoint) -> None:
     assert "task_id" in data and "result_url_path" in data
 
 
+def test_reboot_leader_delays_inside_task_not_http_handler(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class FakeTask:
+        id = "reboot-task"
+
+    captured: dict[str, int] = {}
+
+    def fake_reboot(*, wait: int = 0) -> FakeTask:
+        captured["wait"] = wait
+        return FakeTask()
+
+    def fail_sleep(_seconds: float) -> None:
+        raise AssertionError("reboot handler should not sleep before returning task response")
+
+    monkeypatch.setattr(mod, "HOSTNAME", "leader", raising=False)
+    monkeypatch.setattr(mod, "get_leader_hostname", lambda: "leader", raising=False)
+    monkeypatch.setattr(mod.tasks, "reboot", fake_reboot)
+    monkeypatch.setattr(mod, "sleep", fail_sleep)
+
+    resp = client.post("/unit_api/system/reboot")
+
+    assert resp.status_code == 202
+    assert resp.get_json()["task_id"] == "reboot-task"
+    assert captured == {"wait": 5}
+
+
 def test_get_clock_time_success(client) -> None:
     """GET clock time returns success and a timestamp."""
     resp = client.get("/unit_api/system/utc_clock")
