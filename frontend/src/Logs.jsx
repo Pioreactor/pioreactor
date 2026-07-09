@@ -91,6 +91,7 @@ function Logs(props) {
   exportLogsQueryParams.append("datasets", "logs");
   exportLogsQueryParams.set("partition_by_unit", pioreactorUnit ? "true" : "false");
   const exportLogsHref = `/export-data?${exportLogsQueryParams.toString()}`;
+  const eventLogTargetKey = JSON.stringify([pioreactorUnit || "", experimentMetadata.experiment || ""]);
 
   return (
     <Fragment>
@@ -146,6 +147,7 @@ function Logs(props) {
           <Grid size={{ md: 12, lg: 5}}>
             <Box sx={{display: "flex", justifyContent: "flex-end", flexFlow: "wrap"}}>
               <RecordEventLogDialog
+                key={eventLogTargetKey}
                 defaultPioreactor={pioreactorUnit || ''}
                 defaultExperiment={experimentMetadata.experiment}
                 availableUnits={assignedUnits}

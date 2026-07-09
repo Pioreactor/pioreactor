@@ -186,6 +186,51 @@ describe("jobs utils", () => {
 
     expect(updated.leds.publishedSettings.intensity.value).toBe("{\"A\": 20}");
     expect(updatePublishedSettingValue(collections, "leds", "missing", 1)).toBe(collections);
+    expect(updatePublishedSettingValue(updated, "leds", "intensity", "{\"A\": 20}")).toBe(updated);
+  });
+
+  test("updatePublishedSettingValue marks changed visible settings for a flash", () => {
+    const collections = buildSettingsCollectionsFromDescriptors([
+      {
+        key: "stirring",
+        display_name: "Stirring settings",
+        display: true,
+        published_settings: [
+          {
+            key: "target_rpm",
+            type: "numeric",
+            display: true,
+            default: 400,
+            label: "Target RPM",
+          },
+          {
+            key: "internal_value",
+            type: "numeric",
+            display: false,
+            default: 1,
+            label: "Internal value",
+          },
+        ],
+      },
+    ]);
+
+    const flashed = updatePublishedSettingValue(
+      collections,
+      "stirring",
+      "target_rpm",
+      500,
+      { flash: true },
+    );
+    const hidden = updatePublishedSettingValue(
+      collections,
+      "stirring",
+      "internal_value",
+      2,
+      { flash: true },
+    );
+
+    expect(flashed.stirring.publishedSettings.target_rpm.updateFlashToken).toBe(1);
+    expect(hidden.stirring.publishedSettings.internal_value.updateFlashToken).toBeUndefined();
   });
 
   test("published settings signature builds stable MQTT topics", () => {

@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from "react-router";
+import { useParams, useNavigate, useLocation, Link } from "react-router";
 import {
   CircularProgress,
   FormControl,
@@ -43,10 +43,12 @@ const ActiveOrNotCheckBox = ({ onlyActive, setOnlyActive }) => {
 
 
 function EstimatorCard() {
+  const { pathname } = useLocation();
+
   return (
     <Card>
       <CardContent sx={{ p: 2 }}>
-        <EstimatorData />
+        <EstimatorData key={pathname} />
       </CardContent>
     </Card>
   );

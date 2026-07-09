@@ -20,7 +20,7 @@ import Typography from "@mui/material/Typography";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CloseIcon from "@mui/icons-material/Close";
 import TuneIcon from "@mui/icons-material/Tune";
-import { styled } from "@mui/material/styles";
+import { alpha, keyframes, styled } from "@mui/material/styles";
 import { useConfirm } from "material-ui-confirm";
 import { Link } from "react-router";
 
@@ -443,9 +443,9 @@ export const getFauxChipHoverSx = (isInteractive) => ({
   ...(isInteractive ? {
     "&:hover": {
       backgroundColor: (theme) =>
-        theme.alpha(
+        alpha(
           theme.palette.action.selected,
-          `${theme.palette.action.selectedOpacity} + ${theme.palette.action.hoverOpacity}`,
+          theme.palette.action.selectedOpacity + theme.palette.action.hoverOpacity,
         ),
     },
     "&:active": {
@@ -454,25 +454,97 @@ export const getFauxChipHoverSx = (isInteractive) => ({
   } : {}),
 });
 
-export function StateTypography({ state, isDisabled = false, isInteractive = false }) {
+const pillUpdateFlash = keyframes`
+  0% {
+    box-shadow: 0 0 0 0 var(--pill-update-color);
+  }
+  12% {
+    box-shadow:
+      0 0 0 2px var(--pill-update-color),
+      0 0 3px 0 var(--pill-update-glow-color);
+  }
+  62% {
+    box-shadow:
+      0 0 0 2px var(--pill-update-color),
+      0 0 3px 0 var(--pill-update-glow-color);
+  }
+  100% {
+    box-shadow: 0 0 0 0 var(--pill-update-color);
+  }
+`;
+
+function getRecentlyUpdatedPillSx(updateFlashToken) {
+  if (!updateFlashToken) {
+    return {};
+  }
+
+  return {
+    "--pill-update-color": (theme) => alpha(theme.palette.primary.main, 0.22),
+    "--pill-update-glow-color": (theme) => alpha(theme.palette.primary.main, 0.08),
+    animation: `${pillUpdateFlash} 220ms ease-out`,
+    "@media (prefers-reduced-motion: reduce)": {
+      animation: "none",
+    },
+  };
+}
+
+function useFlashTokenOnLiveVisibleValueChange(visibleValue, liveUpdateToken) {
+  const previous = React.useRef({ visibleValue, liveUpdateToken });
+  const [flashToken, setFlashToken] = React.useState(liveUpdateToken ? 1 : 0);
+
+  React.useEffect(() => {
+    const last = previous.current;
+    previous.current = { visibleValue, liveUpdateToken };
+
+    if (
+      liveUpdateToken === last.liveUpdateToken
+      || visibleValue === null
+      || Object.is(visibleValue, last.visibleValue)
+    ) {
+      return;
+    }
+
+    setFlashToken((token) => token + 1);
+  }, [liveUpdateToken, visibleValue]);
+
+  return flashToken;
+}
+
+export function StateTypography({
+  state,
+  isDisabled = false,
+  isInteractive = false,
+  updateFlashToken = 0,
+}) {
   const stateInfo = stateDisplay[state] || {
     display: state || "Unknown",
     color: disconnectedGrey,
     backgroundColor: defaultStateDisplayBackground,
   };
+  const flashToken = useFlashTokenOnLiveVisibleValueChange(
+    stateInfo.display,
+    updateFlashToken,
+  );
 
   const style = {
     color: isDisabled ? disabledColor : stateInfo.color,
     padding: "1px 9px",
     borderRadius: "16px",
     backgroundColor: stateInfo.backgroundColor,
-    display: "inline-block",
+    display: "inline-flex",
+    alignItems: "center",
     fontWeight: 500,
     ...getFauxChipHoverSx(isInteractive),
+    ...getRecentlyUpdatedPillSx(flashToken),
   };
 
   return (
-    <Typography gutterBottom sx={{ ...style, display: "block" }}>
+    <Typography
+      component="span"
+      key={flashToken}
+      gutterBottom
+      sx={style}
+    >
       {stateInfo.display}
     </Typography>
   );
@@ -637,20 +709,22 @@ export function UnitSettingDisplay(props) {
     return (x).toFixed(1).replace(/[.,]0$/, "");
   }
 
-  function formatForDisplay(displayValue) {
-    if (typeof displayValue === "string") {
-      return displayValue;
-    }
-    if (typeof displayValue === "boolean") {
-      return displayValue ? "On" : "Off";
-    }
-    return +displayValue.toFixed(props.precision);
-  }
+  const displayedValue = (!props.isUnitActive || value === "—" || value === "")
+    ? null
+    : formatUnitSettingValueForDisplay(value, props.precision, props.measurementUnit);
+  const usesStandardValuePill = !props.isStateSetting
+    && !["led_intensity", "pwm_dc"].includes(props.displayKind);
+  const liveUpdateToken = usesStandardValuePill ? props.updateFlashToken : 0;
+  const flashToken = useFlashTokenOnLiveVisibleValueChange(displayedValue, liveUpdateToken);
 
   if (props.isStateSetting) {
     return (
       <React.Fragment>
-        <StateTypography state={value} isDisabled={!props.isUnitActive} />
+        <StateTypography
+          state={value}
+          isDisabled={!props.isUnitActive}
+          updateFlashToken={props.updateFlashToken}
+        />
         <br />
         <UnitSettingDisplaySubtext subtext={props.subtext} emptyMinHeight={props.subtextMinHeight} />
       </React.Fragment>
@@ -745,6 +819,7 @@ export function UnitSettingDisplay(props) {
     <React.Fragment>
       <Typography
         display="block"
+        key={flashToken}
         gutterBottom
         sx={{
           color: "rgba(0, 0, 0, 0.87)",
@@ -755,13 +830,31 @@ export function UnitSettingDisplay(props) {
           fontWeight: 400,
           fontSize: "14px",
           ...getFauxChipHoverSx(props.isInteractive),
+          ...getRecentlyUpdatedPillSx(flashToken),
         }}
       >
-        {formatForDisplay(value)} {props.measurementUnit ? props.measurementUnit : ""}
+        {displayedValue}
       </Typography>
       <UnitSettingDisplaySubtext subtext={props.subtext} emptyMinHeight={props.subtextMinHeight} />
     </React.Fragment>
   );
+}
+
+function formatUnitSettingValueForDisplay(value, precision, measurementUnit) {
+  if (value === null || value === "" || value === "—") {
+    return null;
+  }
+
+  let formattedValue;
+  if (typeof value === "string") {
+    formattedValue = value;
+  } else if (typeof value === "boolean") {
+    formattedValue = value ? "On" : "Off";
+  } else {
+    formattedValue = +value.toFixed(precision);
+  }
+
+  return `${formattedValue} ${measurementUnit || ""}`.trim();
 }
 
 export function SettingTextField({

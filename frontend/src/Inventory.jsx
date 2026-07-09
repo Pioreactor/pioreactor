@@ -918,12 +918,13 @@ function Blink({unit}){
 
 
   const onClick = () => {
-    setFlashing(true)
+    setFlashing(false)
+    requestAnimationFrame(() => setFlashing(true))
     fetch(`/api/workers/${unit}/blink`, {method: "POST"})
   }
 
   return (
-    <Button sx={{textTransform: 'none'}} className={flashing ? 'blinkled' : ''}  onClick={onClick} color="primary">
+    <Button sx={{textTransform: 'none'}} className={flashing ? 'blinkled' : ''} onClick={onClick} onAnimationEnd={() => setFlashing(false)} color="primary">
       <FlareIcon color="primary" fontSize="small" sx={textIcon}/> Identify
     </Button>
 )}
@@ -1336,5 +1337,5 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
   );
 }
 
-export { AddNewPioreactor, WorkerCard };
+export { AddNewPioreactor, Blink, WorkerCard };
 export default Inventory;

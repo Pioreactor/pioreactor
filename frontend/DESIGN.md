@@ -468,6 +468,12 @@ Rules:
 - Error copy should say what failed and what the user can do next.
 - Use the shared Snackbar wrapper for transient success or local action
   feedback. Snackbars must use the bottom-center position.
+- A Pioreactor card may flash a subtle, brief primary-color halo around a pill
+  when a live update changes the pill's visible value: state changes flash
+  the activity status pill, and displayed setting changes flash that setting's
+  value pill. Initial hydration, repeated values, and telemetry without a
+  visible activity remain quiet; reduced-motion mode shows the
+  updated text without the extra flash.
 - Use `CircularProgress` when an operation takes seconds.
 - Use a `Backdrop` only when the user truly must not interact with the page
   until the operation completes. Backdrops should be used very rarely.

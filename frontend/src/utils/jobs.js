@@ -182,10 +182,20 @@ export function buildSettingsCollectionsFromDescriptors(
   return collections;
 }
 
-export function updatePublishedSettingValue(collections, collectionKey, settingKey, value) {
+export function updatePublishedSettingValue(
+  collections,
+  collectionKey,
+  settingKey,
+  value,
+  { flash = false } = {},
+) {
   const collection = collections[collectionKey];
   const existingSetting = collection?.publishedSettings?.[settingKey];
   if (!existingSetting) {
+    return collections;
+  }
+
+  if (Object.is(existingSetting.value, value)) {
     return collections;
   }
 
@@ -195,7 +205,13 @@ export function updatePublishedSettingValue(collections, collectionKey, settingK
       ...collection,
       publishedSettings: {
         ...collection.publishedSettings,
-        [settingKey]: { ...existingSetting, value },
+        [settingKey]: {
+          ...existingSetting,
+          value,
+          ...(flash && existingSetting.display
+            ? { updateFlashToken: (existingSetting.updateFlashToken || 0) + 1 }
+            : {}),
+        },
       },
     },
   };

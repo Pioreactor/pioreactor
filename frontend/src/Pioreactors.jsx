@@ -2384,7 +2384,7 @@ function FlashLEDButton({ unit, disabled }){
 )}
 
 
-function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, modelDetails = {}}){
+export function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, modelDetails = {}}){
   const [jobDescriptorsStatus, setJobDescriptorsStatus] = useState("loading")
   const [jobDescriptorsErrorText, setJobDescriptorsErrorText] = useState("Job controls unavailable.")
   const [label, setLabel] = useState("")
@@ -2404,6 +2404,9 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
 
   const [jobs, setJobs] = useState(() => ({ monitor: createMonitorJobState() }))
   const [passiveSettingsCollections, setPassiveSettingsCollections] = useState({})
+  const [bioreactorUpdateFlashTokens, setBioreactorUpdateFlashTokens] = useState({})
+  const seenCardTopics = React.useRef(new Set())
+  const receivedBioreactorValues = React.useRef(new Map())
 
   useEffect(() => {
     setLabel(initialLabel || "")
@@ -2459,20 +2462,41 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
     }
   }, [unit])
 
-  const onMessage = useCallback((topic, message, _packet) => {
+  const onMessage = useCallback((topic, message, packet) => {
     if (!message || !topic) return;
 
-    const [job, setting] = topic.toString().split('/').slice(-2)
+    const topicName = topic.toString()
+    const payload = message.toString()
+    const [job, setting] = topicName.split('/').slice(-2)
+    const hasSeenTopic = seenCardTopics.current.has(topicName)
+    seenCardTopics.current.add(topicName)
+    const shouldFlash = hasSeenTopic && packet?.retain === false
+
     if (setting === "$state"){
-      const statePayload = message.toString()
-      setJobs((prev) => ({...prev, [job]: {...prev[job], state: statePayload}}))
+      setJobs((prev) => {
+        const currentJob = prev[job]
+        if (!currentJob || Object.is(currentJob.state, payload)) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          [job]: {
+            ...currentJob,
+            state: payload,
+            ...(shouldFlash && currentJob.metadata?.display
+              ? {updateFlashToken: (currentJob.updateFlashToken || 0) + 1}
+              : {}),
+          },
+        }
+      })
       setPendingStateActionsByJob((previous) => {
         const pendingAction = previous[job]
         if (!pendingAction) {
           return previous
         }
 
-        const shouldClearPending = shouldClearPendingStateAction(pendingAction, statePayload)
+        const shouldClearPending = shouldClearPendingStateAction(pendingAction, payload)
 
         if (!shouldClearPending) {
           return previous
@@ -2483,22 +2507,19 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
         return updated
       })
     } else {
-      setJobs(prev => {
-        const typeOfSetting = prev[job]?.publishedSettings?.[setting]?.type
+      const updateSettingCollection = (previous) => {
+        const typeOfSetting = previous[job]?.publishedSettings?.[setting]?.type
         if (!typeOfSetting) {
-          return prev
+          return previous
         }
-        const settingPayload = parsePayloadToType(message.toString(), typeOfSetting)
-        return updatePublishedSettingValue(prev, job, setting, settingPayload);
-      });
-      setPassiveSettingsCollections(prev => {
-        const typeOfSetting = prev[job]?.publishedSettings?.[setting]?.type
-        if (!typeOfSetting) {
-          return prev
-        }
-        const settingPayload = parsePayloadToType(message.toString(), typeOfSetting)
-        return updatePublishedSettingValue(prev, job, setting, settingPayload);
-      });
+        const settingPayload = parsePayloadToType(payload, typeOfSetting)
+        return updatePublishedSettingValue(previous, job, setting, settingPayload, {
+          flash: shouldFlash,
+        });
+      }
+
+      setJobs(updateSettingCollection);
+      setPassiveSettingsCollections(updateSettingCollection);
     }
   }, []);
 
@@ -2597,12 +2618,13 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
     };
   }, [client, isUnitActive, onMessage, passiveSettingsTopics, subscribeToTopic, unsubscribeFromTopic])
 
-  const onBioreactorMessage = useCallback((topic, message) => {
+  const onBioreactorMessage = useCallback((topic, message, packet) => {
     if (!topic || !message) {
       return;
     }
 
-    const parts = topic.toString().split('/');
+    const topicName = topic.toString()
+    const parts = topicName.split('/');
     const variableName = parts[4];
     const parsedValue = parseNumericValue(message.toString());
 
@@ -2610,11 +2632,27 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
       return;
     }
 
-    setBioreactorValues((previous) => ({
-      ...previous,
-      [variableName]: parsedValue,
-    }));
-  }, [setBioreactorValues]);
+    const hasPreviousValue = receivedBioreactorValues.current.has(topicName)
+    const previousValue = receivedBioreactorValues.current.get(topicName)
+    receivedBioreactorValues.current.set(topicName, parsedValue)
+    const descriptor = bioreactorDescriptors.find(({key}) => key === variableName)
+    const isVisible = descriptor ? descriptor.display !== false : false
+    if (
+      hasPreviousValue
+      && packet?.retain === false
+      && isVisible
+      && !Object.is(previousValue, parsedValue)
+    ) {
+      setBioreactorUpdateFlashTokens((previous) => ({
+        ...previous,
+        [variableName]: (previous[variableName] || 0) + 1,
+      }))
+    }
+
+    setBioreactorValues((previous) => Object.is(previous[variableName], parsedValue)
+      ? previous
+      : {...previous, [variableName]: parsedValue});
+  }, [bioreactorDescriptors, setBioreactorValues]);
 
   useEffect(() => {
     if (!isUnitActive) {
@@ -2980,7 +3018,12 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
                           <CircularProgress size={18} />
                         </Box>
                       ) : (
-                        <StateTypography state={job.state} isDisabled={!isUnitActive} isInteractive={canUsePrimaryAction}/>
+                        <StateTypography
+                          state={job.state}
+                          isDisabled={!isUnitActive}
+                          isInteractive={canUsePrimaryAction}
+                          updateFlashToken={job.updateFlashToken}
+                        />
                       )}
                     </Box>
                     {showStateActionMenu ? (
@@ -3060,6 +3103,9 @@ function PioreactorCard({unit, isUnitActive, experiment, config, initialLabel, m
                           displayKind={displayKind}
                           config={config}
                           isInteractive={canQuickEdit}
+                          updateFlashToken={job_key === "bioreactor"
+                            ? bioreactorUpdateFlashTokens[setting_key]
+                            : setting.updateFlashToken}
                         />
                       </Box>
                     </Box>

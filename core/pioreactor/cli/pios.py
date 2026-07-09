@@ -908,13 +908,12 @@ if am_I_leader() or is_testing_env():
         from pioreactor.pubsub import QOS
 
         setting = setting.replace("-", "_")
+        units = resolve_active_job_units(units, experiments)
 
         if not yes:
             confirm = input(f"Confirm setting {job}'s {setting} to {value} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 raise click.Abort()
-
-        units = resolve_active_job_units(units, experiments)
 
         with create_client() as client:
             for unit in units:
@@ -1068,12 +1067,15 @@ if am_I_leader() or is_testing_env():
         """Shutdown Pioreactor / Raspberry Pi.
 
         Leader handling: only shutdown the leader if it was explicitly included in
-        `--units`. We therefore check the raw CLI parameter for the leader, and resolve
-        targets with `include_leader=False` to avoid implicit leader inclusion.
+        `--units`. All other target selections remain worker-only.
         """
-        also_shutdown_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_all_worker_units(units, experiments)
-        units_san_leader = units
+        leader = get_leader_hostname()
+        if leader in units:
+            units = resolve_explicit_units_including_leader(units, experiments)
+        else:
+            units = resolve_all_worker_units(units, experiments)
+        also_shutdown_leader = leader in units
+        units_san_leader = tuple(unit for unit in units if unit != leader)
 
         if not yes:
             confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip().upper()
@@ -1100,7 +1102,7 @@ if am_I_leader() or is_testing_env():
         # we delay shutdown leader (if asked), since it would prevent
         # executing the shutdown cmd on other workers
         if also_shutdown_leader:
-            response = post_into(resolve_to_address(get_leader_hostname()), "/unit_api/shutdown", timeout=60)
+            response = post_into(resolve_to_address(leader), "/unit_api/system/shutdown", timeout=60)
             try:
                 response.raise_for_status()
             except HTTPErrorStatus as error:
@@ -1115,11 +1117,15 @@ if am_I_leader() or is_testing_env():
         """Reboot Pioreactor / Raspberry Pi.
 
         Leader handling mirrors `shutdown`: only reboot the leader if explicitly
-        requested via `--units`.
+        requested via `--units`; all other target selections remain worker-only.
         """
-        also_reboot_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_all_worker_units(units, experiments)
-        units_san_leader = units
+        leader = get_leader_hostname()
+        if leader in units:
+            units = resolve_explicit_units_including_leader(units, experiments)
+        else:
+            units = resolve_all_worker_units(units, experiments)
+        also_reboot_leader = leader in units
+        units_san_leader = tuple(unit for unit in units if unit != leader)
 
         if not yes:
             confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip().upper()
@@ -1146,7 +1152,7 @@ if am_I_leader() or is_testing_env():
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
         if also_reboot_leader:
-            response = post_into(resolve_to_address(get_leader_hostname()), "/unit_api/reboot", timeout=60)
+            response = post_into(resolve_to_address(leader), "/unit_api/system/reboot", timeout=60)
             try:
                 response.raise_for_status()
             except HTTPErrorStatus as error:

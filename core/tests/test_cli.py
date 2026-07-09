@@ -22,6 +22,7 @@ from pioreactor.cli.pios import kill
 from pioreactor.cli.pios import pios
 from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
+from pioreactor.cli.pios import shutdown
 from pioreactor.config import get_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.config import resolve_global_config_path
@@ -1085,6 +1086,80 @@ def test_pios_jobs_set() -> None:
     assert len(bucket) >= 1
 
 
+@pytest.mark.parametrize(
+    ("arguments", "raw_units", "raw_experiments", "resolved_units"),
+    [
+        ([], (), (), ("unit1", "unit2")),
+        (["--units", "unit2", "--units", "unit1"], ("unit2", "unit1"), (), ("unit1", "unit2")),
+        (["--experiments", "demo"], (), ("demo",), ("unit1", "unit2")),
+    ],
+)
+def test_pios_jobs_set_confirms_resolved_targets_before_publishing(
+    monkeypatch: pytest.MonkeyPatch,
+    arguments: list[str],
+    raw_units: tuple[str, ...],
+    raw_experiments: tuple[str, ...],
+    resolved_units: tuple[str, ...],
+) -> None:
+    resolver_calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+
+    def resolve_active_job_units(units: tuple[str, ...], experiments: tuple[str, ...]) -> tuple[str, ...]:
+        resolver_calls.append((units, experiments))
+        return resolved_units
+
+    def create_client() -> None:
+        raise AssertionError("A rejected confirmation must not publish settings.")
+
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_active_job_units", resolve_active_job_units)
+    monkeypatch.setattr("pioreactor.pubsub.create_client", create_client)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        pios,
+        ["jobs", "set", "stirring", "target-rpm", "500", *arguments],
+        input="n\n",
+    )
+
+    assert result.exit_code == 1
+    assert f"Confirm setting stirring's target_rpm to 500 on {resolved_units}? Y/n:" in result.output
+    assert resolver_calls == [(raw_units, raw_experiments)]
+
+
+def test_pios_jobs_set_publishes_to_each_resolved_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    published_topics: list[str] = []
+
+    class FakePublishResult:
+        def wait_for_publish(self, timeout: float) -> None:
+            assert timeout == 2.0
+
+    class FakeClient:
+        def __enter__(self) -> "FakeClient":
+            return self
+
+        def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+            return None
+
+        def publish(self, topic: str, value: str, qos: object) -> FakePublishResult:
+            assert value == "500"
+            published_topics.append(topic)
+            return FakePublishResult()
+
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.resolve_active_job_units", lambda _units, _experiments: ("unit1", "unit2")
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.get_assigned_experiment_name", lambda unit: f"experiment-{unit}")
+    monkeypatch.setattr("pioreactor.pubsub.create_client", FakeClient)
+
+    runner = CliRunner()
+    result = runner.invoke(pios, ["jobs", "set", "stirring", "target-rpm", "500", "-y"])
+
+    assert result.exit_code == 0
+    assert published_topics == [
+        "pioreactor/unit1/experiment-unit1/stirring/target_rpm/set",
+        "pioreactor/unit2/experiment-unit2/stirring/target_rpm/set",
+    ]
+
+
 @pytest.mark.xfail(reason="the `pio kill` will kill the pid, which is this pytest process!")
 def test_pio_kill_cleans_up_automations_correctly() -> None:
     exp = "test_pio_kill_cleans_up_automations_correctly"
@@ -1945,6 +2020,100 @@ def test_pios_reboot_requests() -> None:
 
     assert len(bucket) == 1
     assert bucket[0].url == "http://unit1.local:4999/unit_api/system/reboot"
+
+
+@pytest.mark.parametrize(
+    ("command", "endpoint"),
+    [
+        (shutdown, "/unit_api/system/shutdown"),
+        (reboot, "/unit_api/system/reboot"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("selected_units", "resolved_units", "expected_addresses"),
+    [
+        (("leader",), ("leader",), ("leader.local",)),
+        (("leader", "worker1"), ("leader", "worker1"), ("worker1.local", "leader.local")),
+    ],
+)
+def test_pios_system_actions_dispatch_explicit_leader_targets(
+    monkeypatch: pytest.MonkeyPatch,
+    command: click.Command,
+    endpoint: str,
+    selected_units: tuple[str, ...],
+    resolved_units: tuple[str, ...],
+    expected_addresses: tuple[str, ...],
+) -> None:
+    resolver_calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+    requests: list[tuple[str, str]] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+    def resolve_explicit_units_including_leader(
+        units: tuple[str, ...], experiments: tuple[str, ...]
+    ) -> tuple[str, ...]:
+        resolver_calls.append((units, experiments))
+        return resolved_units
+
+    def resolve_all_worker_units(_units: tuple[str, ...], _experiments: tuple[str, ...]) -> tuple[str, ...]:
+        raise AssertionError("Explicit targets must use the leader-aware resolver.")
+
+    def post_into(address: str, request_endpoint: str, **_kwargs: object) -> FakeResponse:
+        requests.append((address, request_endpoint))
+        return FakeResponse()
+
+    monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.resolve_explicit_units_including_leader", resolve_explicit_units_including_leader
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_all_worker_units", resolve_all_worker_units)
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", post_into)
+
+    ctx = click.Context(command, allow_extra_args=True)
+    ctx.forward(command, yes=True, units=selected_units, experiments=())
+
+    assert resolver_calls == [(selected_units, ())]
+    assert requests == [(address, endpoint) for address in expected_addresses]
+
+
+@pytest.mark.parametrize(
+    ("command", "endpoint"),
+    [
+        (shutdown, "/unit_api/system/shutdown"),
+        (reboot, "/unit_api/system/reboot"),
+    ],
+)
+@pytest.mark.parametrize("selected_units", [(), ("worker1",)])
+def test_pios_system_actions_keep_worker_targets_worker_only(
+    monkeypatch: pytest.MonkeyPatch,
+    command: click.Command,
+    endpoint: str,
+    selected_units: tuple[str, ...],
+) -> None:
+    requests: list[tuple[str, str]] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+    def post_into(address: str, request_endpoint: str, **_kwargs: object) -> FakeResponse:
+        requests.append((address, request_endpoint))
+        return FakeResponse()
+
+    monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.resolve_all_worker_units", lambda _units, _experiments: ("worker1",)
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", post_into)
+
+    ctx = click.Context(command, allow_extra_args=True)
+    ctx.forward(command, yes=True, units=selected_units, experiments=())
+
+    assert requests == [("worker1.local", endpoint)]
 
 
 def test_pio_blink_surfaces_structured_api_error(monkeypatch) -> None:

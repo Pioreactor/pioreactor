@@ -234,6 +234,39 @@ def test_setting_heat_is_turned_off_when_paused() -> None:
         assert t.heater_duty_cycle == 0
 
 
+def test_inference_leaves_heater_off_when_temperature_automation_sleeps(monkeypatch) -> None:
+    experiment = "test_inference_leaves_heater_off_when_temperature_automation_sleeps"
+    monkeypatch.setattr("pioreactor.background_jobs.temperature_automation.sleep", lambda _: None)
+
+    with TemperatureAutomationJob(unit=unit, experiment=experiment) as t:
+        t._update_heater(30)
+
+        def sleep_during_temperature_reading() -> float:
+            t.set_state(t.SLEEPING)
+            return 25.0
+
+        monkeypatch.setattr(t, "read_external_temperature", sleep_during_temperature_reading)
+
+        t.infer_temperature()
+
+        assert t.state == t.SLEEPING
+        assert t.heater_duty_cycle == 0
+
+
+def test_inference_restores_heater_while_temperature_automation_is_ready(monkeypatch) -> None:
+    experiment = "test_inference_restores_heater_while_temperature_automation_is_ready"
+    monkeypatch.setattr("pioreactor.background_jobs.temperature_automation.sleep", lambda _: None)
+
+    with TemperatureAutomationJob(unit=unit, experiment=experiment) as t:
+        t._update_heater(30)
+        monkeypatch.setattr(t, "read_external_temperature", lambda: 25.0)
+
+        t.infer_temperature()
+
+        assert t.state == t.READY
+        assert t.heater_duty_cycle == 30
+
+
 def test_duty_cycle_is_published_and_not_settable() -> None:
     experiment = "test_duty_cycle_is_published_and_not_settable"
     dc_msgs = []

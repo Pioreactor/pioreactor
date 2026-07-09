@@ -3386,7 +3386,7 @@ def get_shared_config_history() -> ResponseReturnValue:
         (CONFIG_HISTORY_SHARED_KEY,),
     )
 
-    return attach_cache_control(jsonify(configs_for_filename), max_age=15)
+    return attach_cache_control(jsonify(configs_for_filename), max_age=0)
 
 
 @api_bp.route("/config/units/<pioreactor_unit>", methods=["GET"])
@@ -3551,7 +3551,7 @@ def get_specific_config_history_for_pioreactor_unit(pioreactor_unit: str) -> Res
         ),
     )
 
-    return attach_cache_control(jsonify(configs_for_filename), max_age=15)
+    return attach_cache_control(jsonify(configs_for_filename), max_age=0)
 
 
 @api_bp.route("/local_access_point", methods=["GET"])

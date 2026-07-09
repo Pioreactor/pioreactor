@@ -1067,6 +1067,14 @@ def test_update_specific_config_for_worker_saves_snapshot(
     assert history[0]["data"] == "[section]\nvalue=1\n"
 
 
+def test_config_history_responses_require_revalidation(client: FlaskClient) -> None:
+    for endpoint in ("/api/config/shared/history", "/api/config/units/unit1/specific/history"):
+        response = client.get(endpoint)
+
+        assert response.status_code == 200
+        assert response.headers["Cache-Control"] == "public, max-age=0"
+
+
 def test_update_specific_config_for_worker_propagates_validation_error(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:

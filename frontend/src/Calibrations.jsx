@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from "react-router";
+import { useParams, useNavigate, useLocation, Link } from "react-router";
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import {
@@ -334,11 +334,13 @@ export function UploadCalibrationDialog({
 
 
 function CalibrationCard(){
+  const { pathname } = useLocation();
+
   return (
 
     <Card>
       <CardContent sx={{p: 2}}>
-        <CalibrationData/>
+        <CalibrationData key={pathname}/>
       </CardContent>
     </Card>
   )
