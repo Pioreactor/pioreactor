@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # test_export_experiment_data.py
+import json
 import re
 import sqlite3
 import zipfile
@@ -37,6 +38,8 @@ def mock_load_exportable_datasets():
             description="",
             default_order_by="timestamp",
             timestamp_columns=["timestamp"],
+            column_descriptions={"reading": "Rounded sensor reading"},
+            column_units={"reading": "OD"},
         ),
         "test_table_with_experiment": Dataset(
             dataset_name="test_table_with_experiment",
@@ -125,6 +128,81 @@ def test_export_experiment_data(temp_zipfile) -> None:
                 values[4][:4] == "2025"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
             assert "12.858" in values[4]
+
+
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
+        "(1, 'John', '2025-04-16T04:51:12.858Z', 0.1),"
+        "(2, 'Ada', '2025-04-16T04:51:13.858Z', 0.2)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+        )
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        assert "manifest.json" in zf.namelist()
+        assert "test_table/schema.json" in zf.namelist()
+
+        manifest = json.loads(zf.read("manifest.json"))
+        schema = json.loads(zf.read("test_table/schema.json"))
+
+    dataset_manifest = manifest["datasets"][0]
+    csv_path = dataset_manifest["csv_paths"][0]
+
+    assert manifest["schema_version"] == 1
+    assert manifest["filters"] == {
+        "experiments": [],
+        "start_time": None,
+        "end_time": None,
+        "partition_by_unit": False,
+        "partition_by_experiment": True,
+    }
+    assert manifest["selected_datasets"] == ["test_table"]
+    assert dataset_manifest["dataset_name"] == "test_table"
+    assert dataset_manifest["schema_path"] == "test_table/schema.json"
+    assert re.match(r"test_table/test_table-all_experiments-all_units-\d{14}\.csv", csv_path)
+    assert dataset_manifest["row_count"] == 2
+    assert dataset_manifest["csv_files"] == [
+        {
+            "path": csv_path,
+            "row_count": 2,
+            "partition": {"experiment": "all_experiments", "pioreactor_unit": "all_units"},
+        }
+    ]
+    assert dataset_manifest["partition_values"] == {"experiments": [], "pioreactor_units": []}
+
+    assert schema["schema_version"] == 1
+    assert schema["dataset_name"] == "test_table"
+    assert schema["default_order_by"] == "timestamp"
+    assert schema["timestamp_columns"] == ["timestamp"]
+    assert schema["entity_columns"] == []
+    assert schema["generated_columns"] == ["timestamp_localtime"]
+    assert [column["name"] for column in schema["columns"]] == [
+        "id",
+        "name",
+        "timestamp",
+        "reading",
+        "timestamp_localtime",
+    ]
+    assert schema["columns"][3] == {
+        "name": "reading",
+        "generated": False,
+        "description": "Rounded sensor reading",
+        "unit": "OD",
+    }
+    assert schema["columns"][-1] == {"name": "timestamp_localtime", "generated": True}
 
 
 @pytest.mark.usefixtures("mock_load_exportable_datasets")
@@ -449,9 +527,9 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile) -> None:
     # Check if the exported data is correct
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
         # Find the file with a matching pattern
-        assert len(zf.namelist()) == 3
-        assert "od_readings/od_readings-exp1-pio01" in sorted(zf.namelist())[1]
-        assert "od_readings/od_readings-exp1-pio02" in sorted(zf.namelist())[2]
+        assert len(zf.namelist()) == 5
+        assert any(name.startswith("od_readings/od_readings-exp1-pio01") for name in zf.namelist())
+        assert any(name.startswith("od_readings/od_readings-exp1-pio02") for name in zf.namelist())
 
 
 @pytest.mark.usefixtures("mock_load_exportable_datasets")
@@ -496,8 +574,8 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     # Check if the exported data is correct
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
         # Find the file with a matching pattern
-        assert len(zf.namelist()) == 2
-    assert zf.namelist()[1].startswith("od_readings/od_readings-exp1-all_units")
+        assert len(zf.namelist()) == 4
+        assert any(name.startswith("od_readings/od_readings-exp1-all_units") for name in zf.namelist())
 
 
 @pytest.mark.usefixtures("mock_load_exportable_datasets")

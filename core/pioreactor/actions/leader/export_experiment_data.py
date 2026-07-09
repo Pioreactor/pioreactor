@@ -3,6 +3,7 @@
 # See create_tables.sql for all tables
 import csv
 import io
+import json
 import shutil
 import sqlite3
 import sys
@@ -31,6 +32,7 @@ MINIMUM_EXPORT_AVAILABLE_MEMORY_BYTES = 120 * 1024 * 1024
 MAX_EXPORT_WAL_BYTES = 512 * 1024 * 1024
 EXPORT_RESOURCE_CHECK_INTERVAL_ROWS = 5_000
 EXPORT_RESOURCE_CHECK_INTERVAL_SECONDS = 2.0
+EXPORT_METADATA_SCHEMA_VERSION = 1
 
 
 class ExportResourceLimitError(RuntimeError):
@@ -124,6 +126,85 @@ def add_directory_to_zip_with_current_timestamp(zf: zipfile.ZipFile, dir_name: s
 
     # Write an empty payload for the directory entry
     zf.writestr(info, b"")
+
+
+def write_json_to_zip_with_current_timestamp(zf: zipfile.ZipFile, name: str, data: dict[str, Any]) -> None:
+    info = zipfile.ZipInfo(name)
+    info.date_time = datetime.now().timetuple()[:6]
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = 0o644 << 16
+    zf.writestr(info, json.dumps(data, indent=2, sort_keys=True).encode("utf-8"))
+
+
+def build_dataset_schema(dataset: Dataset, headers: Sequence[str]) -> dict[str, Any]:
+    timestamp_localtime_columns = [f"{column}_localtime" for column in dataset.timestamp_columns]
+    generated_columns = [
+        column
+        for column in [*timestamp_localtime_columns, "hours_since_experiment_created"]
+        if column in headers
+    ]
+    entity_columns = [
+        column
+        for column in ("experiment", "pioreactor_unit")
+        if column in headers
+        and (
+            (column == "experiment" and dataset.has_experiment)
+            or (column == "pioreactor_unit" and dataset.has_unit)
+        )
+    ]
+
+    columns: list[dict[str, Any]] = []
+    for column in headers:
+        column_schema: dict[str, Any] = {
+            "name": column,
+            "generated": column in generated_columns,
+        }
+        if description := dataset.column_descriptions.get(column):
+            column_schema["description"] = description
+        if unit := dataset.column_units.get(column):
+            column_schema["unit"] = unit
+        columns.append(column_schema)
+
+    return {
+        "schema_version": EXPORT_METADATA_SCHEMA_VERSION,
+        "dataset_name": dataset.dataset_name,
+        "display_name": dataset.display_name,
+        "description": dataset.description,
+        "source": dataset.source,
+        "table": dataset.table,
+        "query": dataset.query,
+        "default_order_by": dataset.default_order_by,
+        "timestamp_columns": dataset.timestamp_columns,
+        "entity_columns": entity_columns,
+        "generated_columns": generated_columns,
+        "columns": columns,
+    }
+
+
+def build_export_manifest(
+    *,
+    export_created_at: str,
+    experiments: Sequence[str],
+    selected_datasets: Sequence[str],
+    start_time: str | None,
+    end_time: str | None,
+    partition_by_unit: bool,
+    partition_by_experiment: bool,
+    datasets: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "schema_version": EXPORT_METADATA_SCHEMA_VERSION,
+        "export_created_at": export_created_at,
+        "filters": {
+            "experiments": list(experiments),
+            "start_time": start_time,
+            "end_time": end_time,
+            "partition_by_unit": partition_by_unit,
+            "partition_by_experiment": partition_by_experiment,
+        },
+        "selected_datasets": list(selected_datasets),
+        "datasets": datasets,
+    }
 
 
 def cleanup_stale_export_artifacts(exports_dir: Path, logger: Any | None = None) -> None:
@@ -319,6 +400,8 @@ def export_experiment_data(
     _check_export_resources(tmp_output_path, database_path)
     resource_limit_error: ExportResourceLimitError | None = None
     last_sqlite_progress_resource_check = 0.0
+    export_created_at = datetime.now().astimezone().isoformat()
+    manifest_datasets: list[dict[str, Any]] = []
 
     def check_resources_from_sqlite_progress() -> int:
         nonlocal last_sqlite_progress_resource_check
@@ -414,6 +497,8 @@ def export_experiment_data(
                 cursor.execute(query, placeholders)
 
                 headers = [_[0] for _ in cursor.description]
+                schema_path = f"{dataset_name}/schema.json"
+                dataset_schema = build_dataset_schema(dataset, headers)
 
                 order_by_cols: list[str] = []
                 if _partition_by_experiment:
@@ -451,9 +536,12 @@ def export_experiment_data(
                 current_partition: tuple[Any, Any] | None = None
                 current_csv_file: Any | None = None
                 current_csv_writer: Any | None = None
+                current_csv_manifest_entry: dict[str, Any] | None = None
+                csv_manifest_entries: list[dict[str, Any]] = []
                 last_resource_check = monotonic()
 
                 add_directory_to_zip_with_current_timestamp(zf, dataset_name)
+                write_json_to_zip_with_current_timestamp(zf, schema_path, dataset_schema)
 
                 try:
                     for row in cursor:
@@ -486,9 +574,20 @@ def export_experiment_data(
                             current_csv_writer = csv.writer(current_csv_file, delimiter=",")
                             current_csv_writer.writerow(headers)
                             current_partition = rows_partition
+                            current_csv_manifest_entry = {
+                                "path": zip_member,
+                                "row_count": 0,
+                                "partition": {
+                                    "experiment": rows_partition[0],
+                                    "pioreactor_unit": rows_partition[1],
+                                },
+                            }
+                            csv_manifest_entries.append(current_csv_manifest_entry)
 
                         assert current_csv_writer is not None
+                        assert current_csv_manifest_entry is not None
                         current_csv_writer.writerow(row)
+                        current_csv_manifest_entry["row_count"] += 1
 
                         if count % 10_000 == 0:
                             logger.debug(f"Exported {count} rows...")
@@ -505,6 +604,50 @@ def export_experiment_data(
                 logger.debug(f"Exported {count} rows from {dataset_name}.")
                 if count == 0:
                     logger.warning(f"No data present in {dataset_name} with applied filters.")
+
+                partition_experiments = sorted(
+                    {
+                        entry["partition"]["experiment"]
+                        for entry in csv_manifest_entries
+                        if entry["partition"]["experiment"] != "all_experiments"
+                    }
+                )
+                partition_units = sorted(
+                    {
+                        entry["partition"]["pioreactor_unit"]
+                        for entry in csv_manifest_entries
+                        if entry["partition"]["pioreactor_unit"] != "all_units"
+                    }
+                )
+                manifest_datasets.append(
+                    {
+                        "dataset_name": dataset_name,
+                        "display_name": dataset.display_name,
+                        "schema_path": schema_path,
+                        "csv_paths": [entry["path"] for entry in csv_manifest_entries],
+                        "csv_files": csv_manifest_entries,
+                        "row_count": count,
+                        "partition_values": {
+                            "experiments": partition_experiments,
+                            "pioreactor_units": partition_units,
+                        },
+                    }
+                )
+
+            write_json_to_zip_with_current_timestamp(
+                zf,
+                "manifest.json",
+                build_export_manifest(
+                    export_created_at=export_created_at,
+                    experiments=experiments,
+                    selected_datasets=dataset_names,
+                    start_time=start_time,
+                    end_time=end_time,
+                    partition_by_unit=partition_by_unit,
+                    partition_by_experiment=partition_by_experiment,
+                    datasets=manifest_datasets,
+                ),
+            )
 
         tmp_output_path.replace(output_path)
         logger.info(f"Finished export to {output}.")

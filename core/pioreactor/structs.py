@@ -7,6 +7,7 @@ import typing as t
 from datetime import datetime
 from pathlib import Path
 
+from msgspec import field
 from msgspec import Meta
 from msgspec import Struct
 from msgspec import UNSET
@@ -559,6 +560,8 @@ class Dataset(JSONPrintedStruct):
     source: str = "app"
     timestamp_columns: list[str] = []
     always_partition_by_unit: bool = False
+    column_descriptions: dict[str, str] = field(default_factory=dict)
+    column_units: dict[str, str] = field(default_factory=dict)
 
 
 class Model(Struct):

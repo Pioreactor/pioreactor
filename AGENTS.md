@@ -141,7 +141,7 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
 
 ## Testing
 
- - Use **pytest** for Python tests. Running all tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options, with minimal output (when acceptable) `-q --no-header --no-summary`.
+ - Use **pytest** for Python tests. Running all tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
 
   ```bash
   .venv/bin/pytest core/tests/test_cli.py
