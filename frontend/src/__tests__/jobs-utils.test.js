@@ -2,11 +2,14 @@ import {
   buildSettingsCollectionsFromDescriptors,
   buildJobsStateFromDescriptors,
   createMonitorJobState,
+  getJobDescriptor,
+  getJobDescriptors,
   getPublishedSettingsSignature,
   getPublishedSettingsTopicsFromSignature,
+  getSettingsDescriptors,
   getWorkerJobDescriptors,
   getWorkerSettingsDescriptors,
-  resetWorkerJobDescriptorsCache,
+  resetDescriptorCaches,
   runPioreactorJobViaUnitAPI,
   updatePublishedSettingValue,
 } from "../utils/jobs";
@@ -17,7 +20,7 @@ import {
 
 describe("jobs utils", () => {
   beforeEach(() => {
-    resetWorkerJobDescriptorsCache();
+    resetDescriptorCaches();
     global.fetch = jest.fn();
   });
 
@@ -183,6 +186,51 @@ describe("jobs utils", () => {
 
     expect(updated.leds.publishedSettings.intensity.value).toBe("{\"A\": 20}");
     expect(updatePublishedSettingValue(collections, "leds", "missing", 1)).toBe(collections);
+    expect(updatePublishedSettingValue(updated, "leds", "intensity", "{\"A\": 20}")).toBe(updated);
+  });
+
+  test("updatePublishedSettingValue marks changed visible settings for a flash", () => {
+    const collections = buildSettingsCollectionsFromDescriptors([
+      {
+        key: "stirring",
+        display_name: "Stirring settings",
+        display: true,
+        published_settings: [
+          {
+            key: "target_rpm",
+            type: "numeric",
+            display: true,
+            default: 400,
+            label: "Target RPM",
+          },
+          {
+            key: "internal_value",
+            type: "numeric",
+            display: false,
+            default: 1,
+            label: "Internal value",
+          },
+        ],
+      },
+    ]);
+
+    const flashed = updatePublishedSettingValue(
+      collections,
+      "stirring",
+      "target_rpm",
+      500,
+      { flash: true },
+    );
+    const hidden = updatePublishedSettingValue(
+      collections,
+      "stirring",
+      "internal_value",
+      2,
+      { flash: true },
+    );
+
+    expect(flashed.stirring.publishedSettings.target_rpm.updateFlashToken).toBe(1);
+    expect(hidden.stirring.publishedSettings.internal_value.updateFlashToken).toBeUndefined();
   });
 
   test("published settings signature builds stable MQTT topics", () => {
@@ -223,6 +271,78 @@ describe("jobs utils", () => {
     expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit1/jobs/descriptors");
   });
 
+  test("getJobDescriptors caches the leader job descriptor list", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([{ job_name: "self_test", published_settings: [] }]),
+    });
+
+    const first = await getJobDescriptors();
+    const second = await getJobDescriptors();
+
+    expect(first).toEqual([{ job_name: "self_test", published_settings: [] }]);
+    expect(second).toEqual(first);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith("/api/jobs/descriptors");
+  });
+
+  test("getJobDescriptor reuses the leader job descriptor list cache", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([
+        { job_name: "self_test", published_settings: [] },
+        { job_name: "stirring", published_settings: [] },
+      ]),
+    });
+
+    const selfTest = await getJobDescriptor("self_test");
+    const missing = await getJobDescriptor("missing");
+
+    expect(selfTest).toEqual({ job_name: "self_test", published_settings: [] });
+    expect(missing).toBeNull();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("getJobDescriptors retries after a failed request", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: "No descriptors." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ job_name: "self_test", published_settings: [] }]),
+      });
+
+    await expect(getJobDescriptors()).rejects.toThrow("No descriptors.");
+    await expect(getJobDescriptors()).resolves.toEqual([
+      { job_name: "self_test", published_settings: [] },
+    ]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("resetDescriptorCaches clears the leader job descriptor cache", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ job_name: "first", published_settings: [] }]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ job_name: "second", published_settings: [] }]),
+      });
+
+    await expect(getJobDescriptors()).resolves.toEqual([
+      { job_name: "first", published_settings: [] },
+    ]);
+    resetDescriptorCaches();
+    await expect(getJobDescriptors()).resolves.toEqual([
+      { job_name: "second", published_settings: [] },
+    ]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
   test("getWorkerSettingsDescriptors fetches worker settings descriptors", async () => {
     global.fetch.mockResolvedValue({
       ok: true,
@@ -234,6 +354,61 @@ describe("jobs utils", () => {
     expect(descriptors).toEqual([{ key: "leds", published_settings: [] }]);
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit1/settings/descriptors");
+  });
+
+  test("getSettingsDescriptors caches the leader settings descriptor list", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([{ key: "bioreactor", published_settings: [] }]),
+    });
+
+    const first = await getSettingsDescriptors();
+    const second = await getSettingsDescriptors();
+
+    expect(first).toEqual([{ key: "bioreactor", published_settings: [] }]);
+    expect(second).toEqual(first);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith("/api/settings/descriptors");
+  });
+
+  test("getSettingsDescriptors retries after a failed request", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: "No settings descriptors." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ key: "bioreactor", published_settings: [] }]),
+      });
+
+    await expect(getSettingsDescriptors()).rejects.toThrow("No settings descriptors.");
+    await expect(getSettingsDescriptors()).resolves.toEqual([
+      { key: "bioreactor", published_settings: [] },
+    ]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("resetDescriptorCaches clears the leader settings descriptor cache", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ key: "first", published_settings: [] }]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([{ key: "second", published_settings: [] }]),
+      });
+
+    await expect(getSettingsDescriptors()).resolves.toEqual([
+      { key: "first", published_settings: [] },
+    ]);
+    resetDescriptorCaches();
+    await expect(getSettingsDescriptors()).resolves.toEqual([
+      { key: "second", published_settings: [] },
+    ]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
   test("getWorkerJobDescriptors surfaces API cause on failure", async () => {

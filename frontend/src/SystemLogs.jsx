@@ -97,7 +97,7 @@ function SystemLogs(props) {
                   <MenuItem value="INFO" >= Standard </MenuItem>
                   <MenuItem value="DEBUG">≡ Detailed </MenuItem>
                 </Select>
-                <span style={{marginRight: "8px"}}> system logs for</span>
+                <Box component="span" sx={{mr: "8px"}}> system logs for</Box>
                 <Select
                   labelId="configSelect"
                   variant="standard"
@@ -117,7 +117,7 @@ function SystemLogs(props) {
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
                   {hasMultipleUnits && (
-                    <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                    <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All Pioreactors</MenuItem>
                   )}
                 </Select>
               </Typography>
@@ -125,8 +125,8 @@ function SystemLogs(props) {
           </Grid>
           <Grid size={{ md: 12, lg: 5}}>
             <Box sx={{display: "flex", justifyContent: "flex-end", flexFlow: "wrap"}}>
-              <Button to={exportLogsHref} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export system logs
+              <Button to={exportLogsHref} component={Link} sx={{textTransform: 'none', mr: "0px", float: "right"}} color="primary">
+                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Export system logs
               </Button>
             </Box>
           </Grid>

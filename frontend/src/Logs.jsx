@@ -91,6 +91,7 @@ function Logs(props) {
   exportLogsQueryParams.append("datasets", "logs");
   exportLogsQueryParams.set("partition_by_unit", pioreactorUnit ? "true" : "false");
   const exportLogsHref = `/export-data?${exportLogsQueryParams.toString()}`;
+  const eventLogTargetKey = JSON.stringify([pioreactorUnit || "", experimentMetadata.experiment || ""]);
 
   return (
     <Fragment>
@@ -119,7 +120,7 @@ function Logs(props) {
                   <MenuItem value="INFO" >= Standard </MenuItem>
                   <MenuItem value="DEBUG">≡ Detailed </MenuItem>
                 </Select>
-                <span style={{marginRight: "4px"}}> event logs for</span>
+                <Box component="span" sx={{mr: "4px"}}> event logs for</Box>
                 <Select
                   labelId="configSelect"
                   variant="standard"
@@ -138,7 +139,7 @@ function Logs(props) {
                   {assignedUnits.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} />All assigned Pioreactors</MenuItem>
                 </Select>
               </Typography>
             </Box>
@@ -146,13 +147,14 @@ function Logs(props) {
           <Grid size={{ md: 12, lg: 5}}>
             <Box sx={{display: "flex", justifyContent: "flex-end", flexFlow: "wrap"}}>
               <RecordEventLogDialog
+                key={eventLogTargetKey}
                 defaultPioreactor={pioreactorUnit || ''}
                 defaultExperiment={experimentMetadata.experiment}
                 availableUnits={assignedUnits}
                 onSubmit={handleSubmitDialog}
               />
-              <Button to={exportLogsHref} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export logs
+              <Button to={exportLogsHref} component={Link} sx={{textTransform: 'none', mr: "0px", float: "right"}} color="primary">
+                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Export logs
               </Button>
               <Divider orientation="vertical" flexItem variant="middle"/>
               <ManageExperimentMenu experiment={experimentMetadata.experiment}/>

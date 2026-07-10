@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from "react-router";
+import { useParams, useNavigate, useLocation, Link } from "react-router";
 import {
   CircularProgress,
   FormControl,
@@ -43,10 +43,12 @@ const ActiveOrNotCheckBox = ({ onlyActive, setOnlyActive }) => {
 
 
 function EstimatorCard() {
+  const { pathname } = useLocation();
+
   return (
     <Card>
       <CardContent sx={{ p: 2 }}>
-        <EstimatorData />
+        <EstimatorData key={pathname} />
       </CardContent>
     </Card>
   );
@@ -204,7 +206,7 @@ function EstimatorData() {
 
   if (loading) {
     return (
-      <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
+      <Box sx={{ textAlign: 'center', mt: '2rem' }}>
         <CircularProgress />
       </Box>
     );
@@ -219,7 +221,7 @@ function EstimatorData() {
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between" }}>
           <Box>
-            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4 }}>
+            <FormControl size="small" sx={{ mb: '1rem', mr: 4 }}>
               <FormLabel component="legend">Pioreactor</FormLabel>
               <Select
                 labelId="pioreactor-select-label"
@@ -236,12 +238,12 @@ function EstimatorData() {
                 ))}
                 {hasMultipleWorkers && (
                   <MenuItem value={"$broadcast"}>
-                    <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 4px" }} /> All Pioreactors
+                    <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 4px" }} /> All Pioreactors
                   </MenuItem>
                 )}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4 }}>
+            <FormControl size="small" sx={{ mb: '1rem', mr: 4 }}>
               <FormLabel component="legend">Device</FormLabel>
               <Select
                 labelId="device-select-label"
@@ -356,7 +358,7 @@ function EstimatorsContainer() {
             <Box sx={{ fontWeight: "fontWeightBold" }}>Estimators</Box>
           </Typography>
         </Box>
-        <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+        <Divider sx={{ mt: "0px", mb: "15px" }} />
       </Box>
       <Grid container spacing={2}>
         <Grid
@@ -369,7 +371,7 @@ function EstimatorsContainer() {
         </Grid>
       </Grid>
       <Grid size={12}>
-        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/estimators" target="_blank" rel="noopener noreferrer">estimators</a>.</p>
+        <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/estimators" target="_blank" rel="noopener noreferrer">estimators</a>.</Box>
       </Grid>
     </React.Fragment>
   );

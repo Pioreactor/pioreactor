@@ -107,6 +107,42 @@ def test_build_chart_metadata_skips_missing_angles() -> None:
     assert [entry["id"] for entry in series] == [angle for angle in FUSION_ANGLES if angle != "135"]
 
 
+def test_od_fusion_stir_loading_images_match_existing_metadata_shape() -> None:
+    assert od_fusion_standards._od_fusion_stir_loading_images() == [
+        {
+            "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
+            "alt": "Stirring standard vial.",
+            "caption": "One moment please...",
+        }
+        for i in range(1, 13, 2)
+    ]
+
+
+def test_record_observation_uses_shared_stir_loading_images() -> None:
+    session = CalibrationSession(
+        session_id="session-1",
+        protocol_name="od_fusion_standards",
+        target_device=pt.OD_FUSED_DEVICE,
+        status="in_progress",
+        step_id="record_observation",
+        data={"standard_index": 2},
+        created_at=utc_iso_timestamp(),
+        updated_at=utc_iso_timestamp(),
+    )
+    ctx = SessionContext(
+        session=session,
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+    )
+
+    step = od_fusion_standards.RecordObservation().render(ctx)
+
+    assert step.metadata == {
+        "loading_images": od_fusion_standards._od_fusion_stir_loading_images(),
+    }
+
+
 def test_start_fusion_session_seeds_expected_session_data(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         od_fusion_standards,

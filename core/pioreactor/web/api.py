@@ -89,6 +89,7 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import safe_join
 from werkzeug.utils import secure_filename
 
@@ -103,6 +104,7 @@ EXPORTABLE_DATASET_PREVIEW_MAX_ROWS = 100
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
 DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
+MAX_SYSTEM_UPLOAD_REQUEST_BYTES = 60_000_000
 PIOREACTOR_UNIT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
@@ -972,12 +974,20 @@ def run_job_on_unit_in_experiment(
                 "env": request_payload.env
                 | {
                     "EXPERIMENT": experiment,
-                    "MODEL_NAME": worker["model_name"],
-                    "MODEL_VERSION": worker["model_version"],
                     "HOSTNAME": worker["pioreactor_unit"],
                     "ACTIVE": str(int(worker["is_active"])),
                     "TESTING": str(int(is_testing_env())),
-                },
+                }
+                # Current invariant: model metadata is forwarded only as a
+                # complete, non-null pair.
+                | (
+                    {
+                        "MODEL_NAME": worker["model_name"],
+                        "MODEL_VERSION": worker["model_version"],
+                    }
+                    if worker["model_name"] is not None and worker["model_version"] is not None
+                    else {}
+                ),
             }
             for worker in assigned_workers
         ],
@@ -1301,6 +1311,8 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
             FROM logs AS l
             JOIN experiment_worker_assignments_history h
+               -- Current invariant: assignment identity includes experiment;
+               -- unit and timestamp alone are not unique near reassignment.
                on h.pioreactor_unit = l.pioreactor_unit
                and h.experiment = l.experiment
                and h.assigned_at <= l.timestamp
@@ -2792,7 +2804,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 @api_bp.route("/units/<pioreactor_unit>/plugins/install-from-leader-usb", methods=["POST", "PATCH"])
 def install_plugin_from_leader_usb_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """
-    Install one wheel plugin from the leader's Pioreactor-managed USB mount onto selected unit(s).
+    Install one plugin artifact from the leader's Pioreactor-managed USB mount onto selected unit(s).
 
     JSON body:
     {
@@ -2922,12 +2934,25 @@ def upload_system_file() -> ResponseReturnValue:
     Stage a release archive or other system file on the leader.
 
     Multipart form-data body:
-    - `file`: file to upload. The upload must be smaller than 30 MB.
+    - `file`: file to upload. The complete request must be smaller than 60 MB.
     """
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS").is_file():
         abort_with(403, "No UI uploads allowed")
 
-    if "file" not in request.files:
+    # Current invariant: the server enforces the complete request limit while
+    # Werkzeug reads multipart data, before an oversized upload can be staged.
+    request.max_content_length = MAX_SYSTEM_UPLOAD_REQUEST_BYTES
+    try:
+        files = request.files
+    except RequestEntityTooLarge:
+        abort_with(
+            413,
+            "Upload too large",
+            cause="The multipart upload exceeds the 60 MB request limit.",
+            remediation="Upload a smaller release archive.",
+        )
+
+    if "file" not in files:
         abort_with(
             400,
             "No file part",
@@ -2935,7 +2960,7 @@ def upload_system_file() -> ResponseReturnValue:
             remediation="Send a multipart form-data request with a 'file' field.",
         )
 
-    file = request.files["file"]
+    file = files["file"]
 
     # If the user does not select a file, the browser submits an
     # empty file without a filename.
@@ -2945,13 +2970,6 @@ def upload_system_file() -> ResponseReturnValue:
             "No selected file",
             cause="Uploaded file field has an empty filename.",
             remediation="Select a file before submitting the form.",
-        )
-    if file.content_length >= 60_000_000:  # 30mb?
-        abort_with(
-            400,
-            "Too large",
-            cause="Uploaded file exceeds 60 MB limit.",
-            remediation="Upload a smaller file (under 60 MB).",
         )
 
     filename = secure_filename(file.filename)
@@ -3416,7 +3434,7 @@ def create_experiment() -> ResponseReturnValue:
             (
                 current_utc_timestamp(),
                 proposed_experiment_name,
-                body.description,
+                body.description or "",
             ),
         )
 
@@ -3574,7 +3592,7 @@ def update_experiment(experiment: str) -> ResponseReturnValue:
     if body.description is not UNSET:
         modify_app_db(
             "UPDATE experiments SET description = (?) WHERE experiment=(?)",
-            (body.description, experiment),
+            (body.description or "", experiment),
         )
 
     if body.tags is not UNSET:
@@ -3679,7 +3697,7 @@ def get_shared_config_history() -> ResponseReturnValue:
         (CONFIG_HISTORY_SHARED_KEY,),
     )
 
-    return attach_cache_control(jsonify(configs_for_filename), max_age=15)
+    return attach_cache_control(jsonify(configs_for_filename), max_age=0)
 
 
 @api_bp.route("/config/units/<pioreactor_unit>", methods=["GET"])
@@ -3844,7 +3862,7 @@ def get_specific_config_history_for_pioreactor_unit(pioreactor_unit: str) -> Res
         ),
     )
 
-    return attach_cache_control(jsonify(configs_for_filename), max_age=15)
+    return attach_cache_control(jsonify(configs_for_filename), max_age=0)
 
 
 @api_bp.route("/local_access_point", methods=["GET"])
@@ -4029,7 +4047,9 @@ def get_experiment_profiles() -> ResponseReturnValue:
             if file.stat().st_size == 0:
                 parsed_yaml.append(
                     {
-                        "experimentProfile": Profile(experiment_profile_name=f"temporary name: {file.stem}"),
+                        "experimentProfile": Profile(
+                            version="1.0", experiment_profile_name=f"temporary name: {file.stem}"
+                        ),
                         "file": Path(file).name,
                         "fullpath": Path(file).as_posix(),
                     }
@@ -4366,16 +4386,22 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
         one=True,
     )
     if result is None:
-        # If the worker is not found, return an error
         return abort_with(
             404,
             "Worker not found",
             cause="Worker name not found in database.",
             remediation="Check the unit name or add the worker to the inventory.",
         )
+
+    assert isinstance(result, dict)
+    if not result["model_version"] or not result["model_name"]:
+        return abort_with(
+            404,
+            f"Model not set for worker {pioreactor_unit}.",
+            cause="Model not set in database.",
+            remediation="Set the model of this worker.",
+        )
     else:
-        assert isinstance(result, dict)
-        # If the worker is found, return the model and metadata
         return attach_cache_control(
             jsonify(
                 {

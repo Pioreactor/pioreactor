@@ -11,7 +11,6 @@ from io import BytesIO
 from pathlib import Path
 from subprocess import run
 from tempfile import NamedTemporaryFile
-from time import sleep
 from typing import Any
 from typing import Callable
 from typing import cast
@@ -82,7 +81,6 @@ from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import load_settings_collection_descriptors
 from pioreactor.web.utils import wait_for_bool_task_result
 from werkzeug.exceptions import HTTPException
-from werkzeug.security import safe_join
 
 AllCalibrations = subclass_union(CalibrationBase)
 AllEstimators = subclass_union(structs.EstimatorBase)
@@ -92,6 +90,21 @@ unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
 # Register calibration session routes here to keep unit_api_bp ownership in this module.
 register_calibration_session_routes(unit_api_bp)
+
+
+def _validate_storage_path_component(value: str, field: str) -> None:
+    # Current invariant: calibration and estimator path values are valid single
+    # filename components before any filesystem path is constructed.
+    if not value or not is_valid_unix_filename(value):
+        readable_field = field.replace("_", " ")
+        abort_with(
+            400,
+            description=f"Missing or invalid '{field}'.",
+            cause=f"{readable_field.capitalize()} is missing or contains invalid characters.",
+            remediation=(
+                f"Provide a valid {field} using letters, digits, spaces, dots, dashes, or underscores."
+            ),
+        )
 
 
 @unit_api_bp.route("/usb", methods=["GET"])
@@ -660,11 +673,7 @@ def update_software_target(target: str) -> DelayedResponseReturnValue:
 
     commands = build_pio_update_app_args(body)
 
-    if target == "app":
-        task = tasks.pio_update_app(*commands)
-    else:
-        raise ValueError()
-
+    task = tasks.pio_update_app(*commands)
     return create_task_response(task)
 
 
@@ -702,10 +711,9 @@ def reboot_system() -> DelayedResponseReturnValue:
     if _task_is_locked("power-lock"):
         return _locked_task_response("power-lock")
 
-    # don't reboot the leader right away, give time for any other posts/gets to occur.
-    if HOSTNAME == get_leader_hostname():
-        sleep(5)
-    task = tasks.reboot()
+    # Don't reboot the leader right away; keep the HTTP handler responsive so
+    # cluster fan-out callers can receive the queued task response.
+    task = tasks.reboot(wait=5 if HOSTNAME == get_leader_hostname() else 0)
     return create_task_response(task)
 
 
@@ -1012,20 +1020,11 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or browse locally via SSH.",
         )
 
-    BASE_DIR = os.environ["DOT_PIOREACTOR"]
-
-    # Safely join to prevent directory traversal
-    safe_path = safe_join(BASE_DIR, req_path)
-    if not safe_path:
-        abort_with(
-            403,
-            "Invalid path.",
-            cause="Requested path could not be safely resolved.",
-            remediation="Provide a path within the .pioreactor directory.",
-        )
+    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    requested_path = base_dir / req_path
 
     # Check if the path actually exists
-    if not os.path.exists(safe_path):
+    if not requested_path.exists():
         abort_with(
             404,
             "Path not found.",
@@ -1033,9 +1032,20 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
             remediation="Check the path and try again.",
         )
 
+    requested_path = requested_path.resolve()
+    # Current invariant: every filesystem path served by this endpoint resolves
+    # inside the resolved DOT_PIOREACTOR root.
+    if not requested_path.is_relative_to(base_dir):
+        abort_with(
+            403,
+            "Access to this path is not allowed",
+            cause="Requested path is outside the .pioreactor directory.",
+            remediation="Provide a path within the .pioreactor directory.",
+        )
+
     # If it's a file, serve the file
-    if os.path.isfile(safe_path):
-        if safe_path.endswith((".sqlite", ".sqlite.backup", ".sqlite-shm", ".sqlite-wal")):
+    if requested_path.is_file():
+        if requested_path.name.endswith((".sqlite", ".sqlite.backup", ".sqlite-shm", ".sqlite-wal")):
             abort_with(
                 403,
                 "Access to downloading sqlite files is restricted.",
@@ -1043,26 +1053,10 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
                 remediation="Access the database directly on the device.",
             )
 
-        return send_file(safe_path, mimetype="text/plain")
-
-    # Joining the base and the requested path
-    abs_path = os.path.join(BASE_DIR, req_path)
-
-    # Return 404 if path doesn't exist
-    if not os.path.exists(abs_path):
-        abort_with(
-            404,
-            "Path not found.",
-            cause=f"Path does not exist: {req_path}",
-            remediation="Check the path and try again.",
-        )
-
-    # Check if path is a file and serve
-    if os.path.isfile(abs_path):
-        return send_file(abs_path)
+        return send_file(requested_path, mimetype="text/plain")
 
     # Show directory contents
-    current, dirs, files = next(os.walk(abs_path))
+    current, dirs, files = next(os.walk(requested_path))
 
     return attach_cache_control(
         jsonify(
@@ -1160,7 +1154,14 @@ def is_manual_dosing_volume_unsafe(
                 (model_name, model_version)
             ].reactor_max_fill_volume_ml
         except KeyError:
-            return False
+            # Current invariant: manual dosing fails closed when this worker
+            # cannot resolve the supplied model metadata locally.
+            abort_with(
+                400,
+                "Unknown Pioreactor model.",
+                cause=f"Unknown model '{model_name}' with version '{model_version}'.",
+                remediation="Assign a model available on this worker before dosing.",
+            )
     else:
         safety_threshold_ml = whoami.get_pioreactor_model(whoami.get_unit_name()).reactor_max_fill_volume_ml
 
@@ -1549,7 +1550,7 @@ def install_plugin() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/plugins/install-from-usb", methods=["POST", "PATCH"])
 def install_plugin_from_usb() -> DelayedResponseReturnValue:
     """
-    Install one wheel plugin from a Pioreactor-managed USB mount.
+    Install one plugin artifact from a Pioreactor-managed USB mount.
 
     JSON body:
     {
@@ -1569,6 +1570,37 @@ def install_plugin_from_usb() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
+@unit_api_bp.route("/plugins/install-python-file-from-leader-copy", methods=["POST", "PATCH"])
+def install_python_plugin_file_from_leader_copy() -> DelayedResponseReturnValue:
+    """
+    Install one Python file plugin copied by the leader to /tmp.
+
+    JSON body:
+    {
+      "filename": "my_plugin.py"
+    }
+    """
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+        abort_with(
+            403,
+            "DISALLOW_UI_INSTALLS is present",
+            cause="Plugin installs are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
+        )
+
+    filename = Path(decode_request_body(structs.InstallPluginFromLeaderCopyRequest).filename).name
+    if not usb_utils.is_valid_python_plugin_filename(filename):
+        abort_with(
+            400,
+            "Invalid Python plugin filename",
+            cause="The copied plugin filename is not a valid Python module file.",
+            remediation="Use a .py filename with a valid Python module name, for example my_plugin.py.",
+        )
+
+    task = tasks.install_python_plugin_file_from_leader_copy_task(filename)
+    return create_task_response(task)
+
+
 @unit_api_bp.route("/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin() -> DelayedResponseReturnValue:
     """
@@ -1580,6 +1612,14 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
       "args": ["my_plugin_name"]
     }
     """
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+        abort_with(
+            403,
+            "DISALLOW_UI_INSTALLS is present",
+            cause="Plugin installs are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
+        )
+
     body = decode_request_body(structs.ArgsOptionsEnvs)
 
     if len(body.args) != 1:
@@ -1658,20 +1698,8 @@ def create_calibration(device: str) -> ResponseReturnValue:
         calibration_data = yaml_decode(raw_yaml, type=AllCalibrations)
         calibration_name = calibration_data.calibration_name
 
-        if not calibration_name or not is_valid_unix_filename(calibration_name):
-            abort_with(
-                400,
-                description="Missing or invalid 'calibration_name'.",
-                cause="Calibration name missing or contains invalid characters.",
-                remediation="Provide a valid calibration_name using letters, digits, dashes, or underscores.",
-            )
-        elif not device or not is_valid_unix_filename(device):
-            abort_with(
-                400,
-                description="Missing or invalid 'device'.",
-                cause="Device name missing or contains invalid characters.",
-                remediation="Provide a valid device name (letters, digits, dashes, or underscores).",
-            )
+        _validate_storage_path_component(device, "device")
+        _validate_storage_path_component(calibration_name, "calibration_name")
 
         path = calibration_data.path_on_disk_for_device(device)
         save_result = tasks.save_file(str(path), raw_yaml)
@@ -1710,6 +1738,8 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
     """
     Delete a specific calibration for a given device.
     """
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not calibration_path.exists():
@@ -1930,6 +1960,10 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
             for path in sorted(base_dir.rglob("*")):
                 if not path.exists():
                     continue
+                # Current invariant: exports never include content reached
+                # through a symlink that escapes DOT_PIOREACTOR.
+                if not path.resolve().is_relative_to(base_dir):
+                    continue
                 if path == skip_backup:
                     continue
                 # Store paths inside the archive relative to DOT_PIOREACTOR
@@ -2088,6 +2122,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
 
 @unit_api_bp.route("/calibrations/<device>", methods=["GET"])
 def get_calibrations_by_device(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     calibration_dir = CALIBRATION_PATH / device
 
     if not calibration_dir.exists():
@@ -2115,6 +2150,8 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["GET"])
 def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not calibration_path.exists():
@@ -2143,6 +2180,7 @@ def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/estimators/<device>", methods=["GET"])
 def get_estimators_by_device(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     estimator_dir = ESTIMATOR_PATH / device
 
     if not estimator_dir.exists():
@@ -2165,6 +2203,8 @@ def get_estimators_by_device(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/estimators/<device>/<estimator_name>", methods=["GET"])
 def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(estimator_name, "estimator_name")
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
 
     if not estimator_path.exists():
@@ -2194,7 +2234,10 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/active_calibrations/<device>/<calibration_name>", methods=["PATCH"])
 def set_active_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(calibration_name, "calibration_name")
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+    # Current invariant: an active calibration pointer always references a file on disk.
     if not calibration_path.is_file():
         abort_with(
             404,
@@ -2211,6 +2254,7 @@ def set_active_calibration(device: str, calibration_name: str) -> ResponseReturn
 
 @unit_api_bp.route("/active_calibrations/<device>", methods=["DELETE"])
 def remove_active_status_calibration(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     with local_persistent_storage("active_calibrations") as c:
         if device in c:
             c.pop(device)
@@ -2220,7 +2264,10 @@ def remove_active_status_calibration(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/active_estimators/<device>/<estimator_name>", methods=["PATCH"])
 def set_active_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(estimator_name, "estimator_name")
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
+    # Current invariant: an active estimator pointer always references a file on disk.
     if not estimator_path.is_file():
         abort_with(
             404,
@@ -2237,6 +2284,7 @@ def set_active_estimator(device: str, estimator_name: str) -> ResponseReturnValu
 
 @unit_api_bp.route("/active_estimators/<device>", methods=["DELETE"])
 def remove_active_status_estimator(device: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
     with local_persistent_storage("active_estimators") as c:
         if device in c:
             c.pop(device)
@@ -2246,6 +2294,8 @@ def remove_active_status_estimator(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/estimators/<device>/<estimator_name>", methods=["DELETE"])
 def delete_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    _validate_storage_path_component(device, "device")
+    _validate_storage_path_component(estimator_name, "estimator_name")
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
 
     if not estimator_path.exists():

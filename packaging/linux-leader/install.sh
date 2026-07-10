@@ -122,9 +122,11 @@ install_apt_dependencies() {
     git \
     jq \
     lighttpd \
+    lighttpd-mod-openssl \
     logrotate \
     mosquitto \
     mosquitto-clients \
+    openssl \
     openssh-client \
     python3 \
     python3-dev \
@@ -265,6 +267,7 @@ install_system_files() {
   install -d -o root -g root -m 0755 /etc/lighttpd/conf-available
   install -m 0644 "$RUNTIME_FILES_DIR/lighttpd/lighttpd.conf" /etc/lighttpd/lighttpd.conf
   sed -i "s/server.port                 = 80/server.port                 = $UI_PORT/" /etc/lighttpd/lighttpd.conf
+  install -m 0644 "$RUNTIME_FILES_DIR/lighttpd"/10-pioreactor-https.conf /etc/lighttpd/conf-available/
   install -m 0644 "$RUNTIME_FILES_DIR/lighttpd"/10-expire.conf /etc/lighttpd/conf-available/
   install -m 0644 "$RUNTIME_FILES_DIR/lighttpd"/50-pioreactorui.conf /etc/lighttpd/conf-available/
   install -m 0644 "$RUNTIME_FILES_DIR/lighttpd"/51-cors.conf /etc/lighttpd/conf-available/

@@ -17,8 +17,8 @@ export function TimeFormatSwitch({ timeScale, setTimeScale }) {
       onChange={onChange}
       size="small"
     >
-      <ToggleButton style={{ textTransform: "None" }} value="hours">Elapsed time</ToggleButton>
-      <ToggleButton style={{ textTransform: "None" }} value="clock_time">Timestamp</ToggleButton>
+      <ToggleButton sx={{ textTransform: "None" }} value="hours">Elapsed time</ToggleButton>
+      <ToggleButton sx={{ textTransform: "None" }} value="clock_time">Timestamp</ToggleButton>
     </ToggleButtonGroup>
   );
 }
@@ -39,10 +39,10 @@ export function TimeWindowSwitch({ timeWindow, setTimeWindow }) {
       onChange={onChange}
       size="small"
     >
-      <ToggleButton style={{ textTransform: "None" }} value={1000000}>All time</ToggleButton>
-      <ToggleButton style={{ textTransform: "None" }} value={12}>Past 12h</ToggleButton>
-      <ToggleButton style={{ textTransform: "None" }} value={1}>Past hour</ToggleButton>
-      <ToggleButton style={{ textTransform: "None" }} value={0}>Now</ToggleButton>
+      <ToggleButton sx={{ textTransform: "None" }} value={1000000}>All time</ToggleButton>
+      <ToggleButton sx={{ textTransform: "None" }} value={12}>Past 12h</ToggleButton>
+      <ToggleButton sx={{ textTransform: "None" }} value={1}>Past hour</ToggleButton>
+      <ToggleButton sx={{ textTransform: "None" }} value={0}>Now</ToggleButton>
     </ToggleButtonGroup>
   );
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -28,7 +28,7 @@ jest.mock("react-router", () => ({
   useNavigate: () => jest.fn(),
 }));
 
-const { AddNewPioreactor, WorkerCard } = require("../Inventory");
+const { AddNewPioreactor, Blink, WorkerCard } = require("../Inventory");
 
 const modelsResponse = {
   models: [
@@ -213,5 +213,69 @@ describe("WorkerCard", () => {
     );
 
     await screen.findByText("192.168.1.10");
+  });
+
+  test("shows an inline error when no model is selected", async () => {
+    render(
+      <WorkerCard
+        worker={{
+          pioreactor_unit: "unit1",
+          is_active: true,
+          model_name: null,
+          model_version: null,
+          ipv4_address: "192.168.1.10",
+        }}
+        config={{ "cluster.topology": { leader_hostname: "leader" } }}
+        leaderVersion={null}
+      />,
+    );
+
+    await screen.findByText("No model selected");
+    expect(screen.queryByText("Select a Pioreactor model.")).not.toBeInTheDocument();
+  });
+});
+
+describe("Blink", () => {
+  let animationFrameCallback;
+  let originalRequestAnimationFrame;
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+    originalRequestAnimationFrame = global.requestAnimationFrame;
+    global.requestAnimationFrame = jest.fn((callback) => {
+      animationFrameCallback = callback;
+      return 1;
+    });
+  });
+
+  afterEach(() => {
+    global.requestAnimationFrame = originalRequestAnimationFrame;
+    jest.resetAllMocks();
+  });
+
+  test("restarts the feedback animation after every completed blink", () => {
+    render(<Blink unit="unit1" />);
+    const button = screen.getByRole("button", { name: /identify/i });
+
+    fireEvent.click(button);
+    expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit1/blink", { method: "POST" });
+    expect(global.requestAnimationFrame).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      animationFrameCallback();
+    });
+    expect(button).toHaveClass("blinkled");
+
+    fireEvent.animationEnd(button);
+    expect(button).not.toHaveClass("blinkled");
+
+    fireEvent.click(button);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(global.requestAnimationFrame).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      animationFrameCallback();
+    });
+    expect(button).toHaveClass("blinkled");
   });
 });

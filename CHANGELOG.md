@@ -2,15 +2,32 @@
 
 #### Breaking changes
 
+ - Replaced `pio update-settings` and `pios update-settings` with the clearer job-setting commands:
+
+   ```bash
+   pio jobs set <job> <setting> <value>
+   pios jobs set <job> <setting> <value>
+   ```
+
+#### Enhancements
+
+ - Bump to React 19.x, and new vite build system.
+
+
+### 26.6.0
+
+#### Breaking changes
+
  - Migrated legacy experiment `media_used` and `organism_used` values to namespaced experiment tags, then removed those columns from the `experiments` database table.
 
 #### Enhancements
 
- - Improved plugin install and uninstall reliability by moving the lifecycle into the Pioreactor package instead of requiring `/usr/local/bin` helper scripts on the operating system.
+ - Added boot-partition Wi-Fi setup for _new_ Pioreactor images. Users can place a `wifi.ini` file with `ssid` and `passphrase` values on the boot partition, and the image will try those credentials before starting local access point mode.
+ - Added support for installing `.py` drop-in plugins from Pioreactor-managed USB drives on the Plugins page, alongside existing `.whl` plugin installs.
  - Reduced idle CPU usage from Huey on single-core Raspberry Pi leaders by starting the background task queue with fewer workers and a slower polling interval. Multi-core devices keep the existing Huey settings.
  - Reduced idle CPU usage from the monitor job on single-core Raspberry Pis by disabling button controls by default. The new `[monitor.config] enable_button` option supports `auto`, `true`, and `false`.
- - removed tty services from base images.
- - added `git` to base images
+ - added `git` to _new_ Pioreactor images
+ - Plugins installation and uninstallation are now part of core `pioreactor` instead of shelling-out to a bash script.
  - Added a retained MQTT topic for each worker's current experiment assignment:
 
    ```text
@@ -18,11 +35,16 @@
    ```
 
    This gives UI, plugin, and monitoring consumers a lightweight MQTT-native way to observe assignment changes while the leader database remains authoritative.
+ - Bumps the base RPi OS image to 18 Jun 2026 which includes Linux kernel 6.18 (_new_ images only).
 
 #### Bug fixes
 
+- Fixed _new_ Pioreactor images so devices without internet or an RTC restore the last saved system time on offline boots, including local access point mode, instead of reverting to the image build date.
+- Fixed `repeat` actions in common experiment-profile jobs so each Pioreactor runs the expected number of loops independently.
+- Fixed the MCP endpoint to accept both `/mcp` and `/mcp/` without redirecting, and ensured Lighttpd forwards the roots of the `/api`, `/unit_api`, and `/mcp` namespaces to the web application.
 - Fixed plugin uninstall cleanup for legacy plugin UI assets installed from `ui/contrib/`.
 - Fixed network_info.txt lacking networkmanager logs
+- Fixed test_dark_offset_correction_is_effective update missing from self-test dialog.
 
 ### 26.5.3
 

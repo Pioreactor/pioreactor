@@ -20,12 +20,14 @@ import {
   VictoryGroup,
   VictoryLegend,
   VictoryTooltip,
+  VictoryVoronoiContainer,
   createContainer
 } from "victory";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { shiftHue } from "../utils/color";
 import { experimentPathSegment } from "../utils/url";
+import { Box } from "@mui/material";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -102,7 +104,7 @@ function Chart(props) {
   const names = useMemo(() => Object.keys(seriesMap), [seriesMap]);
 
   const ChartContainer = useMemo(
-    () => (allowZoom ? createContainer("zoom", "voronoi") : createContainer("voronoi")),
+    () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
     [allowZoom]
   );
 
@@ -335,7 +337,7 @@ function Chart(props) {
 
       const seriesColor = applyAngleAlpha(name, series?.color);
       let marker = null;
-      if (series.data?.length === 1) {
+      if (interpolation === "none" || series.data?.length === 1) {
         marker = (
           <VictoryScatter
             size={4}
@@ -738,7 +740,7 @@ function Chart(props) {
   const chartHeight = 285 + legendRows * legendRowHeight;
 
   return (
-    <div ref={chartContainerRef} style={{ position: "relative" }}>
+    <Box ref={chartContainerRef} sx={{ position: "relative" }}>
       <VictoryChart
         key={chartStateKey}
         style={{ parent: { width: "100%" } }}
@@ -831,6 +833,7 @@ function Chart(props) {
         <VictoryLegend
           x={70}
           y={chartHeight - legendBottomPadding + 40}
+          titleComponent={<VictoryLabel />}
           symbolSpacer={6}
           itemsPerRow={legendItemsPerRow}
           name="legend"
@@ -876,7 +879,7 @@ function Chart(props) {
           Download SVG
         </MenuItem>
       </Menu>
-    </div>
+    </Box>
   );
 }
 

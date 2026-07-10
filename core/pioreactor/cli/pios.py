@@ -184,6 +184,31 @@ if am_I_leader() or is_testing_env():
             raise click.BadParameter("No target workers matched the selection. Check --units/--experiments.")
         return tuple(sorted(selected_units))
 
+    def resolve_explicit_units_including_leader(
+        units_opt: tuple[str, ...],
+        experiments_opt: tuple[str, ...] | None,
+    ) -> tuple[str, ...]:
+        experiments_opt = experiments_opt or tuple()
+        if experiments_opt:
+            raise click.BadParameter(
+                "Use either --units or --experiments, not both. The combined selector is ambiguous."
+            )
+        if UNIVERSAL_IDENTIFIER in units_opt:
+            raise click.BadParameter(
+                f"{UNIVERSAL_IDENTIFIER} is not valid with --units here. "
+                "Omit --units and --experiments to target the whole cluster."
+            )
+
+        explicit_units = _get_explicit_units(units_opt)
+        inventory_or_leader = _get_inventory_units(active_only=False) | {get_leader_hostname()}
+        unknown_units = explicit_units - inventory_or_leader
+        if unknown_units:
+            raise click.BadParameter(
+                f"Unknown unit(s): {', '.join(sorted(unknown_units))}. Check the inventory and retry."
+            )
+
+        return tuple(sorted(explicit_units))
+
     def which_units(f: t.Callable[..., t.Any]) -> t.Callable[..., t.Any]:
         """Add common targeting options to a `pios` command.
 
@@ -296,14 +321,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, str, list[dict[str, Any]]]:
             try:
-                response = get_from(resolve_to_address(unit), endpoint)
+                address = resolve_to_address(unit)
+                response = get_from(address, endpoint)
                 response.raise_for_status()
                 payload = response.json()
                 if not isinstance(payload, list):
                     raise ValueError("Expected list payload")
                 return True, unit, payload
             except (HTTPException, ValueError) as e:
-                click.echo(f"Unable to list jobs on {unit}: {e}", err=True)
+                click.echo(f"Unable to list jobs on {unit} at {address}: {e}", err=True)
                 return False, unit, []
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -506,16 +532,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
+                address = resolve_to_address(unit)
                 logger.debug(f"deleting {unit}:{filepath}...")
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/system/remove_file", json={"filepath": filepath}
-                )
+                r = post_into(address, "/unit_api/system/remove_file", json={"filepath": filepath})
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True
 
             except HTTPException as e:
-                logger.error(f"Unable to remove file on {unit} due to server error: {e}")
+                logger.error(f"Unable to remove file on {unit} at {address} due to server error: {e}")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -565,12 +590,15 @@ if am_I_leader() or is_testing_env():
         """
         Pulls and installs a Pioreactor software version.
 
-        With no selector, this targets the leader and all workers. If `--units`
-        or `--experiments` is provided, only the selected workers are updated.
+        With no selector, this targets the leader and all workers. With `--units`,
+        this targets exactly the selected known units. With `--experiments`, this
+        targets active workers assigned to the selected experiment(s).
         """
 
-        if units or experiments:
-            units = resolve_all_worker_units(units, experiments)
+        if units:
+            units = resolve_explicit_units_including_leader(units, experiments)
+        elif experiments:
+            units = resolve_active_job_units(units, experiments)
         else:
             units = resolve_cluster_units_including_leader(units, experiments)
 
@@ -610,22 +638,21 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/system/update/app", json={"options": options}
-                )
+                address = resolve_to_address(unit)
+                r = post_into(address, "/unit_api/system/update/app", json={"options": options})
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
                 logger.warning(
-                    f"Unable to update on {unit} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
+                    f"Unable to update on {unit} at {address} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
                 )
                 try:
-                    ssh(resolve_to_address(unit), f"pio update app {args}")
+                    ssh(address, f"pio update app {args}")
                     return True, {"unit": unit}
                 except SSHError as e:
-                    logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
-                return False, {"unit": unit}
+                    logger.error(f"Unable to update on {unit} at {address} due to error: {e}.")
+                    return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
@@ -697,14 +724,13 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
-                )
+                address = resolve_to_address(unit)
+                r = post_into(address, "/unit_api/plugins/install", json=commands, timeout=60)
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                logger.error(f"Unable to install plugin on {unit} due to server error: {e}")
+                logger.error(f"Unable to install plugin on {unit} at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -750,15 +776,14 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
-                )
+                address = resolve_to_address(unit)
+                r = post_into(address, "/unit_api/plugins/uninstall", json=commands, timeout=60)
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
 
             except HTTPException as e:
-                logger.error(f"Unable to uninstall plugin on {unit} due to server error: {e}")
+                logger.error(f"Unable to uninstall plugin on {unit} at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -861,6 +886,45 @@ if am_I_leader() or is_testing_env():
     @which_units
     def list_running_jobs(units: tuple[str, ...], experiments: tuple[str, ...]) -> None:
         _show_cluster_job_history(units, experiments, running_only=True)
+
+    @jobs.command(name="set", short_help="set a running job setting on workers")
+    @click.argument("job", type=click.STRING)
+    @click.argument("setting", type=click.STRING)
+    @click.argument("value", type=click.STRING)
+    @which_units
+    @confirmation
+    def set_job_setting(
+        job: str, setting: str, value: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
+    ) -> None:
+        """
+        Set a published setting on a running job across workers.
+
+        \b
+        Examples:
+          pios jobs set stirring target_rpm 500 --units worker1
+          pios jobs set stirring interval 10 --experiments testing2
+        """
+        from pioreactor.pubsub import create_client
+        from pioreactor.pubsub import QOS
+
+        setting = setting.replace("-", "_")
+        units = resolve_active_job_units(units, experiments)
+
+        if not yes:
+            confirm = input(f"Confirm setting {job}'s {setting} to {value} on {units}? Y/n: ").strip().upper()
+            if confirm != "Y":
+                raise click.Abort()
+
+        with create_client() as client:
+            for unit in units:
+                experiment = get_assigned_experiment_name(unit)
+                # This CLI path is short-lived, so wait before teardown after sending a settings command.
+                msg = client.publish(
+                    f"pioreactor/{unit}/{experiment}/{job}/{setting}/set",
+                    value,
+                    qos=QOS.AT_LEAST_ONCE,
+                )
+                msg.wait_for_publish(timeout=2.0)
 
     @pios.command("kill", short_help="kill a job(s) on workers")
     @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
@@ -973,12 +1037,13 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = post_into(resolve_to_address(unit), f"/unit_api/jobs/run/job_name/{job}", json=data)
+                address = resolve_to_address(unit)
+                r = post_into(address, f"/unit_api/jobs/run/job_name/{job}", json=data)
                 if not r.ok:
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                click.echo(f"Unable to execute run command on {unit} due to server error: {e}")
+                click.echo(f"Unable to execute run command on {unit} at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -1002,12 +1067,15 @@ if am_I_leader() or is_testing_env():
         """Shutdown Pioreactor / Raspberry Pi.
 
         Leader handling: only shutdown the leader if it was explicitly included in
-        `--units`. We therefore check the raw CLI parameter for the leader, and resolve
-        targets with `include_leader=False` to avoid implicit leader inclusion.
+        `--units`. All other target selections remain worker-only.
         """
-        also_shutdown_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_all_worker_units(units, experiments)
-        units_san_leader = units
+        leader = get_leader_hostname()
+        if leader in units:
+            units = resolve_explicit_units_including_leader(units, experiments)
+        else:
+            units = resolve_all_worker_units(units, experiments)
+        also_shutdown_leader = leader in units
+        units_san_leader = tuple(unit for unit in units if unit != leader)
 
         if not yes:
             confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip().upper()
@@ -1016,14 +1084,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
-                response = post_into(resolve_to_address(unit), "/unit_api/system/shutdown", timeout=60)
+                address = resolve_to_address(unit)
+                response = post_into(address, "/unit_api/system/shutdown", timeout=60)
                 response.raise_for_status()
                 return True
             except HTTPErrorStatus:
-                click.echo(f"Unable to shut down {unit}. {summarize_error_response(response)}")
+                click.echo(f"Unable to shut down {unit} at {address}. {summarize_error_response(response)}")
                 return False
             except HTTPException as e:
-                click.echo(f"Unable to shut down {unit} due to server error: {e}.")
+                click.echo(f"Unable to shut down {unit} at {address} due to server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:
@@ -1033,7 +1102,7 @@ if am_I_leader() or is_testing_env():
         # we delay shutdown leader (if asked), since it would prevent
         # executing the shutdown cmd on other workers
         if also_shutdown_leader:
-            response = post_into(resolve_to_address(get_leader_hostname()), "/unit_api/shutdown", timeout=60)
+            response = post_into(resolve_to_address(leader), "/unit_api/system/shutdown", timeout=60)
             try:
                 response.raise_for_status()
             except HTTPErrorStatus as error:
@@ -1048,11 +1117,15 @@ if am_I_leader() or is_testing_env():
         """Reboot Pioreactor / Raspberry Pi.
 
         Leader handling mirrors `shutdown`: only reboot the leader if explicitly
-        requested via `--units`.
+        requested via `--units`; all other target selections remain worker-only.
         """
-        also_reboot_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_all_worker_units(units, experiments)
-        units_san_leader = units
+        leader = get_leader_hostname()
+        if leader in units:
+            units = resolve_explicit_units_including_leader(units, experiments)
+        else:
+            units = resolve_all_worker_units(units, experiments)
+        also_reboot_leader = leader in units
+        units_san_leader = tuple(unit for unit in units if unit != leader)
 
         if not yes:
             confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip().upper()
@@ -1061,14 +1134,15 @@ if am_I_leader() or is_testing_env():
 
         def _thread_function(unit: str) -> bool:
             try:
-                response = post_into(resolve_to_address(unit), "/unit_api/system/reboot", timeout=60)
+                address = resolve_to_address(unit)
+                response = post_into(address, "/unit_api/system/reboot", timeout=60)
                 response.raise_for_status()
                 return True
             except HTTPErrorStatus:
-                click.echo(f"Unable to reboot {unit}. {summarize_error_response(response)}")
+                click.echo(f"Unable to reboot {unit} at {address}. {summarize_error_response(response)}")
                 return False
             except HTTPException as e:
-                click.echo(f"Unable to reboot {unit} due to server error: {e}.")
+                click.echo(f"Unable to reboot {unit} at {address} due to server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:
@@ -1078,60 +1152,13 @@ if am_I_leader() or is_testing_env():
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
         if also_reboot_leader:
-            response = post_into(resolve_to_address(get_leader_hostname()), "/unit_api/reboot", timeout=60)
+            response = post_into(resolve_to_address(leader), "/unit_api/system/reboot", timeout=60)
             try:
                 response.raise_for_status()
             except HTTPErrorStatus as error:
                 raise click.ClickException(
                     f"Unable to reboot the leader. {summarize_error_response(response)}"
                 ) from error
-
-    @pios.command(
-        name="update-settings",
-        context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
-        short_help="update settings on a job on workers",
-    )
-    @click.argument("job", type=click.STRING)
-    @which_units
-    @confirmation
-    @click.pass_context
-    def update_settings(
-        ctx: click.Context, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
-    ) -> None:
-        """
-        Update settings on a running job across workers.
-
-        \b
-        Examples:
-          pios update-settings stirring --target_rpm 500 --units worker1
-          pios update-settings od_reading --interval 10 --experiments testing2
-        """
-        from pioreactor.pubsub import create_client
-        from pioreactor.pubsub import QOS
-
-        extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
-
-        assert len(extra_args) > 0
-
-        if not yes:
-            confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip().upper()
-            if confirm != "Y":
-                raise click.Abort()
-
-        units = resolve_active_job_units(units, experiments)
-
-        with create_client() as client:
-            for unit in units:
-                experiment = get_assigned_experiment_name(unit)
-                for setting, value in extra_args.items():
-                    setting = setting.replace("-", "_")
-                    # This CLI path is short-lived, so wait before teardown after sending a settings command.
-                    msg = client.publish(
-                        f"pioreactor/{unit}/{experiment}/{job}/{setting}/set",
-                        value,
-                        qos=QOS.AT_LEAST_ONCE,
-                    )
-                    msg.wait_for_publish(timeout=2.0)
 
 
 if __name__ == "__main__":

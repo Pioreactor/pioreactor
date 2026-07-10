@@ -8,13 +8,28 @@ from pioreactor.experiment_profiles import profile_struct as structs
 
 def test_minimal() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: minimal
 """
     assert decode(file, type=structs.Profile) is not None
 
 
+@pytest.mark.parametrize(
+    "version",
+    [
+        "",
+        "version: 1.0\n",
+        'version: "2.0"\n',
+    ],
+)
+def test_version_must_be_quoted_v1(version: str) -> None:
+    with pytest.raises(msgspec.ValidationError):
+        decode(f"{version}experiment_profile_name: minimal\n", type=structs.Profile)
+
+
 def test_simple1() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: demo_stirring_example
 
 metadata:
@@ -41,6 +56,7 @@ common:
 
 def test_parsing_t_time_literals() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: time_literals
 
 metadata:
@@ -77,6 +93,7 @@ common:
 
 def test_config_overrides_in_start() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: demo_stirring_example
 
 metadata:
@@ -100,6 +117,7 @@ common:
 
 def test_simple2() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: plugin_version_example
 
 metadata:
@@ -150,6 +168,7 @@ pioreactors:
 
 def test_simple3() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: simple_stirring_example
 
 metadata:
@@ -177,6 +196,7 @@ pioreactors:
 
 def test_complex() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: complex_example
 
 metadata:
@@ -212,6 +232,7 @@ common:
 
 def test_complex2() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: multi_bioreactor_complex
 
 metadata:
@@ -260,6 +281,7 @@ pioreactors:
 
 def test_complex3() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: multi_bioreactor_very_complex
 
 metadata:
@@ -325,6 +347,7 @@ pioreactors:
 
 def test_log() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: demo_stirring_example
 
 metadata:
@@ -363,6 +386,7 @@ pioreactors:
 def test_fails_on_extra_top_level_field() -> None:
     # common mistake
     file = """
+version: "1.0"
 experiment_profile_name: demo_of_logging
 
 metadata:
@@ -384,6 +408,7 @@ worker1:
 
 def test_fails_on_adding_options_where_they_shouldnt_be() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: demo_of_logging
 
 metadata:
@@ -414,6 +439,7 @@ common:
 
 def test_if_statement() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: simple_stirring_example
 
 metadata:
@@ -440,6 +466,7 @@ pioreactors:
 
 def test_repeat_statement() -> None:
     file = """
+version: "1.0"
 experiment_profile_name: demo_stirring_repeat
 
 metadata:
@@ -475,6 +502,7 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
     file = """
+  version: "1.0"
   experiment_profile_name: demo_stirring_repeat
 
   metadata:
@@ -505,6 +533,7 @@ pioreactors:
 
 def test_no_repeats_in_repeats() -> None:
     bad_file = """
+  version: "1.0"
   experiment_profile_name: demo_stirring_repeat
 
   metadata:

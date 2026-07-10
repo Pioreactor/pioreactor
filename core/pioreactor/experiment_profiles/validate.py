@@ -6,6 +6,9 @@ from msgspec import Struct
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.experiment_profiles.diagnostics import Diagnostic
 from pioreactor.experiment_profiles.parser import check_syntax
+from pioreactor.experiment_profiles.plugin_versions import parse_plugin_version_constraint
+
+from packaging.specifiers import InvalidSpecifier
 
 
 STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
@@ -200,6 +203,18 @@ def _validate_options_expressions(
             )
 
 
+def _validate_config_override_expressions(
+    diagnostics: list[Diagnostic], *, path: str, config_overrides: dict[str, Any]
+) -> None:
+    for key, value in config_overrides.items():
+        if is_bracketed_expression(value):
+            _validate_expression_field(
+                diagnostics,
+                path=f"{path}.config_overrides.{key}",
+                expression=value,
+            )
+
+
 def _validate_log_message_expressions(diagnostics: list[Diagnostic], *, path: str, message: str) -> None:
     for match in re.findall(FLEXIBLE_EXPRESSION_PATTERN, message):
         _validate_expression_field(
@@ -366,6 +381,11 @@ def _validate_action_expressions(diagnostics: list[Diagnostic], *, path: str, ac
     if isinstance(action, (struct.Start, struct.Update)):
         _validate_options_expressions(diagnostics, path=path, options=action.options)
 
+    if isinstance(action, struct.Start):
+        _validate_config_override_expressions(
+            diagnostics, path=path, config_overrides=action.config_overrides
+        )
+
     if isinstance(action, struct.Log):
         _validate_log_message_expressions(diagnostics, path=path, message=action.options.message)
 
@@ -395,8 +415,23 @@ def _validate_execution_order_for_job(
             has_started = False
 
 
+def _validate_plugin_versions(diagnostics: list[Diagnostic], plugins: list[struct.Plugin]) -> None:
+    for index, plugin in enumerate(plugins):
+        try:
+            parse_plugin_version_constraint(plugin.version)
+        except InvalidSpecifier:
+            _append_error(
+                diagnostics,
+                "plugin.version.invalid",
+                "Expected a version or one of `==`, `>=`, or `<=` followed by a valid version.",
+                f"plugins[{index}].version",
+            )
+
+
 def validate_profile(profile: struct.Profile) -> ValidationResult:
     diagnostics: list[Diagnostic] = []
+
+    _validate_plugin_versions(diagnostics, profile.plugins)
 
     for path, action in _iter_profile_actions(profile):
         _validate_action_structure(diagnostics, path=path, action=action)

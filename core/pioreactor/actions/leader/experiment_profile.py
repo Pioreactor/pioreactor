@@ -15,6 +15,7 @@ from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.experiment_profiles.plugin_versions import parse_plugin_version_constraint
 from pioreactor.experiment_profiles.validate import (
     check_syntax_of_bool_expression as validate_check_syntax_of_bool_expression,
 )
@@ -43,6 +44,8 @@ Env = dict[str, Any]
 
 STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
 FLEXIBLE_EXPRESSION_PATTERN = r"\${{(.*?)}}"
+START_JOB_SUBMIT_MAX_ATTEMPTS = 3
+START_JOB_SUBMIT_RETRY_SLEEP_SECONDS = 0.5
 
 
 def coalesce(*args: Any) -> Any:
@@ -601,6 +604,11 @@ def repeat(
     actions: list[struct.BasicAction],
     schedule: scheduler,
 ) -> Callable[..., None]:
+    # Current invariant: parsed profile structs are immutable definitions;
+    # repeat progress belongs to each unit-specific execution callback.
+    completed_loops = 0
+    is_first_loop = True
+
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
@@ -609,13 +617,15 @@ def repeat(
             )
             return
 
-        nonlocal env
+        nonlocal completed_loops, env, is_first_loop
         env = env | {
             "hours_elapsed": action_metrics.hours_elapsed(),
             "action_count": action_metrics.count,
         }
 
-        if evaluate_bool_expression(if_, env) and evaluate_bool_expression(while_, env):
+        if (not is_first_loop or evaluate_bool_expression(if_, env)) and evaluate_bool_expression(
+            while_, env
+        ):
             for action in actions:
                 if time_to_seconds(coalesce(action.t, action.hours_elapsed)) > time_to_seconds(every):
                     logger.warning(
@@ -641,26 +651,13 @@ def repeat(
                     ),
                 )
 
-            repeat_action.if_ = True  # not eval'd after the first loop
-            repeat_action._completed_loops += 1
-            if (max_time is None) or (
-                repeat_action._completed_loops * time_to_seconds(every) < time_to_seconds(max_time)
-            ):
+            is_first_loop = False
+            completed_loops += 1
+            if (max_time is None) or (completed_loops * time_to_seconds(every) < time_to_seconds(max_time)):
                 schedule.enter(
                     delay=time_to_seconds(every),
                     priority=get_simple_priority(repeat_action),
-                    action=wrapped_execute_action(
-                        unit,
-                        experiment,
-                        env,
-                        job_name,
-                        logger,
-                        schedule,
-                        action_metrics,
-                        parent_job,
-                        repeat_action,
-                        dry_run,
-                    ),
+                    action=repeat_callback,
                 )
             else:
                 logger.debug(f"Exiting {repeat_action} loop as max time exceeded.")
@@ -670,7 +667,8 @@ def repeat(
                 f"Action's `if` or `while` condition, `{if_=}` or `{while_=}`, evaluated False. Skipping."
             )
 
-    return wrap_in_try_except(_callable, logger)
+    repeat_callback = wrap_in_try_except(_callable, logger)
+    return repeat_callback
 
 
 def log(
@@ -727,7 +725,7 @@ def start_job(
     action_metrics: ActionMetrics,
     options: dict[str, Any],
     args: list[str],
-    config_overrides: dict[str, str],
+    config_overrides: dict[str, Any],
 ) -> Callable[..., None]:
     def _callable() -> None:
         nonlocal env
@@ -743,34 +741,52 @@ def start_job(
             return
 
         if dry_run:
+            evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.info(
-                f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}."
+                f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}, and overrides {evaluated_config_overrides}."
             )
         else:
             evaluated_options = evaluate_options(options, env)
+            evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.debug(
-                f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {config_overrides}."
+                f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {evaluated_config_overrides}."
             )
-            try:
-                response = patch_into(
-                    resolve_to_address(unit),
-                    f"/unit_api/jobs/run/job_name/{job_name}",
-                    json={
-                        "options": evaluated_options,
-                        "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
-                        "args": args,
-                        "config_overrides": [
-                            [f"{job_name}.config", key, value] for (key, value) in config_overrides.items()
-                        ],
-                    },
-                )
-            except HTTPException:
-                raise HTTPException(f"Unable to post to {unit}. Is it online?")
+            address = resolve_to_address(unit)
+            for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
+                try:
+                    response = patch_into(
+                        address,
+                        f"/unit_api/jobs/run/job_name/{job_name}",
+                        json={
+                            "options": evaluated_options,
+                            "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
+                            "args": args,
+                            "config_overrides": [
+                                [f"{job_name}.config", key, str(value)]
+                                for (key, value) in evaluated_config_overrides.items()
+                            ],
+                        },
+                    )
+                    break
+                except HTTPException as exc:
+                    if attempt == START_JOB_SUBMIT_MAX_ATTEMPTS:
+                        raise HTTPException(
+                            f"Unable to submit start command for `{job_name}` to {unit} at {address} after {attempt} attempts. Is it online?"
+                        ) from exc
+                    logger.debug(
+                        f"Unable to submit start command for `{job_name}` to {unit} at {address}. Retrying ({attempt + 1}/{START_JOB_SUBMIT_MAX_ATTEMPTS})."
+                    )
+                    time.sleep(START_JOB_SUBMIT_RETRY_SLEEP_SECONDS)
 
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-            task_result = _wait_for_unit_task_result(unit, response)
+            try:
+                task_result = _wait_for_unit_task_result(unit, response)
+            except HTTPException as exc:
+                raise HTTPException(
+                    f"Submitted start command for `{job_name}` to {unit} at {address}, but couldn't read the task result. The job may still have started."
+                ) from exc
             if task_result is not None and not task_result["ok"]:
                 logger.error(f"Failed to start `{job_name}` on {unit}. {task_result.get('error')}")
 
@@ -1000,32 +1016,15 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
         # this can be slow, so skip it if no plugins are needed
         return
 
-    from packaging.version import Version
-
     installed_plugins = get_installed_plugins_and_versions()
     not_installed = []
 
     for required_plugin in required_plugins:
         required_name = required_plugin.name
-        required_version = required_plugin.version
         if required_name in installed_plugins:
-            installed_version = Version(installed_plugins[required_name])
-            if required_version.startswith(">="):
-                # Version constraint is '>='
-                if not (installed_version >= Version(required_version[2:])):
-                    not_installed.append(required_plugin)
-            elif required_version.startswith("<="):
-                # Version constraint is '<='
-                if not (installed_version <= Version(required_version[2:])):
-                    not_installed.append(required_plugin)
-            elif required_version.startswith("=="):
-                # specific version constraint, exact version match required
-                if installed_version != Version(required_version):
-                    not_installed.append(required_plugin)
-            else:
-                # No version constraint, exact version match required
-                if installed_version != Version(required_version):
-                    not_installed.append(required_plugin)
+            required_versions = parse_plugin_version_constraint(required_plugin.version)
+            if installed_plugins[required_name] not in required_versions:
+                not_installed.append(required_plugin)
         else:
             not_installed.append(required_plugin)
 

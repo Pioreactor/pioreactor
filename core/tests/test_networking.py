@@ -1,7 +1,39 @@
 # -*- coding: utf-8 -*-
+import subprocess
 from typing import Iterator
 
 from pioreactor.utils import networking
+
+
+def test_get_ip_returns_comma_separated_stdout_addresses(monkeypatch) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert args == (["hostname", "-I"],)
+        assert kwargs == {"capture_output": True, "text": True, "check": False}
+        return subprocess.CompletedProcess(
+            args=["hostname", "-I"], returncode=0, stdout="192.168.1.5 10.0.0.2\n"
+        )
+
+    monkeypatch.setattr(networking.subprocess, "run", fake_run)
+
+    assert networking.get_ip() == "192.168.1.5,10.0.0.2"
+
+
+def test_get_ip_returns_empty_string_when_hostname_has_no_stdout(monkeypatch) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=["hostname", "-I"], returncode=0, stdout="")
+
+    monkeypatch.setattr(networking.subprocess, "run", fake_run)
+
+    assert networking.get_ip() == ""
+
+
+def test_get_ip_returns_empty_string_when_hostname_fails_without_stdout(monkeypatch) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=["hostname", "-I"], returncode=1, stdout="")
+
+    monkeypatch.setattr(networking.subprocess, "run", fake_run)
+
+    assert networking.get_ip() == ""
 
 
 def test_discover_workers_on_network_includes_hostname_and_ipv4(monkeypatch) -> None:

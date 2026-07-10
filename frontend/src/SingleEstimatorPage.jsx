@@ -133,7 +133,7 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
   };
 
   return (
-    <Button style={{ textTransform: 'none', marginRight: "0px", float: "right" }} color="secondary" onClick={deleteEstimator}>
+    <Button sx={{ textTransform: 'none', mr: "0px", float: "right" }} color="secondary" onClick={deleteEstimator}>
       <DeleteOutlineIcon fontSize="small" /> Delete
     </Button>
   );
@@ -159,11 +159,11 @@ function ViewYamlSource({ estimatorName, estimator, disabled }) {
   return (
     <>
       <Button
-        style={{ textTransform: 'none', float: 'right' }}
+        sx={{ textTransform: 'none', float: 'right' }}
         disabled={disabled}
         onClick={openAndLoad}
       >
-        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }} />
+        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
         View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
@@ -215,11 +215,11 @@ function DownloadEstimatorYaml({ estimatorName, estimator, disabled, onError }) 
 
   return (
     <Button
-      style={{ textTransform: "none", marginRight: "12px", float: "right" }}
+      sx={{ textTransform: "none", mr: "12px", float: "right" }}
       disabled={disabled}
       onClick={downloadEstimator}
     >
-      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }} />
+      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
       Download estimator
     </Button>
   );

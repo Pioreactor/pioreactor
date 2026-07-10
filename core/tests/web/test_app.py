@@ -39,7 +39,9 @@ def test_process_delayed_json_response_accepts_created_status() -> None:
         def json(self) -> dict[str, str]:
             return {"msg": "Calibration created successfully."}
 
-    assert mod._process_delayed_json_response("unit1", DummyResponse()) == (
+    assert mod._process_delayed_json_response(
+        "unit1", "http://unit.local", DummyResponse(), max_attempts=1, timeout=5.0
+    ) == (
         "unit1",
         {"ok": True, "unit": "unit1", "value": {"msg": "Calibration created successfully."}},
     )
@@ -718,6 +720,20 @@ def test_create_experiment(client) -> None:
     assert data["worker_count"] == 0
 
 
+@pytest.mark.parametrize("description_payload", [None, "omitted"])
+def test_create_experiment_normalizes_missing_description_to_empty_string(
+    client, description_payload: str | None
+) -> None:
+    payload: dict[str, object] = {"experiment": f"exp-with-{description_payload}-description"}
+    if description_payload != "omitted":
+        payload["description"] = description_payload
+
+    response = client.post("/api/experiments", json=payload)
+
+    assert response.status_code == 201
+    assert response.get_json()["description"] == ""
+
+
 def test_create_duplicate_experiment(client) -> None:
     # Try to create an experiment with a duplicate name 'exp1'
     response = client.post(
@@ -858,7 +874,7 @@ def test_update_experiment_can_clear_description(client) -> None:
     )
 
     assert response.status_code == 200
-    assert response.get_json()["description"] is None
+    assert response.get_json()["description"] == ""
 
 
 def test_update_experiment_requires_a_supported_field(client) -> None:
@@ -1072,6 +1088,14 @@ def test_update_specific_config_for_worker_saves_snapshot(
     assert history[0]["data"] == "[section]\nvalue=1\n"
 
 
+def test_config_history_responses_require_revalidation(client: FlaskClient) -> None:
+    for endpoint in ("/api/config/shared/history", "/api/config/units/unit1/specific/history"):
+        response = client.get(endpoint)
+
+        assert response.status_code == 200
+        assert response.headers["Cache-Control"] == "public, max-age=0"
+
+
 def test_update_specific_config_for_worker_propagates_validation_error(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:
@@ -1137,7 +1161,7 @@ def test_update_specific_config_for_worker_rejects_unstructured_worker_error(
 def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
     response = client.post(
         "/api/experiment_profiles",
-        json={"body": "experiment_profile_name: demo", "filename": "bad?name.yaml"},
+        json={"body": 'version: "1.0"\nexperiment_profile_name: demo', "filename": "bad?name.yaml"},
     )
     assert response.status_code == 400
 
@@ -1145,7 +1169,7 @@ def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
 def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
     response = client.patch(
         "/api/experiment_profiles/bad:name.yaml",
-        json={"body": "experiment_profile_name: demo"},
+        json={"body": 'version: "1.0"\nexperiment_profile_name: demo'},
     )
     assert response.status_code == 400
 
@@ -1225,6 +1249,7 @@ def test_create_experiment_profile_returns_diagnostics_for_semantic_validation_e
         "/api/experiment_profiles",
         json={
             "body": """
+version: "1.0"
 experiment_profile_name: demo
 common:
   jobs:
@@ -1245,12 +1270,54 @@ common:
     assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0]"
 
 
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("post", "/api/experiment_profiles"),
+        ("patch", "/api/experiment_profiles/validator_expression_error_test.yaml"),
+    ],
+)
+def test_experiment_profile_mutations_reject_incomplete_expressions(
+    client: FlaskClient, method: str, path: str
+) -> None:
+    payload = {
+        "body": """
+version: "1.0"
+experiment_profile_name: demo
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          t: 0s
+          if: 1 +
+"""
+    }
+    if method == "post":
+        payload["filename"] = "validator_expression_error_test.yaml"
+
+    response = client.open(
+        path,
+        method=method,
+        json=payload,
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["error"] == "Validation error."
+    assert payload["diagnostics"][0]["code"] == "expression.syntax"
+    assert payload["diagnostics"][0]["path"] == "common.jobs.stirring.actions[0].if"
+
+
 def test_create_experiment_profile_reports_save_failure(client, monkeypatch) -> None:
     monkeypatch.setattr("pioreactor.web.api.tasks.save_file", lambda *_args, **_kwargs: FakeTaskResult(False))
 
     response = client.post(
         "/api/experiment_profiles",
-        json={"body": "experiment_profile_name: save_failure_demo", "filename": "save_failure_demo.yaml"},
+        json={
+            "body": 'version: "1.0"\nexperiment_profile_name: save_failure_demo',
+            "filename": "save_failure_demo.yaml",
+        },
     )
 
     assert response.status_code == 500
@@ -1262,7 +1329,7 @@ def test_update_experiment_profile_reports_save_failure(client, monkeypatch) -> 
 
     response = client.patch(
         "/api/experiment_profiles/save_failure_demo.yaml",
-        json={"body": "experiment_profile_name: save_failure_demo"},
+        json={"body": 'version: "1.0"\nexperiment_profile_name: save_failure_demo'},
     )
 
     assert response.status_code == 500
@@ -1275,7 +1342,7 @@ def test_delete_experiment_profile_reports_delete_failure(
     profiles_dir = tmp_path / "experiment_profiles"
     profiles_dir.mkdir()
     (profiles_dir / "delete_failure_demo.yaml").write_text(
-        "experiment_profile_name: delete_failure_demo", encoding="utf-8"
+        'version: "1.0"\nexperiment_profile_name: delete_failure_demo', encoding="utf-8"
     )
     monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
     monkeypatch.setattr("pioreactor.web.api.tasks.rm", lambda *_args, **_kwargs: FakeTaskResult(False))
@@ -1716,6 +1783,25 @@ def test_run_job(client) -> None:
             json={"options": {"target_rpm": 10}},
         )
     assert len(bucket) == 0
+
+
+def test_run_job_omits_incomplete_model_metadata(client) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    modify_app_db(
+        "UPDATE workers SET model_name = NULL, model_version = NULL WHERE pioreactor_unit = ?",
+        ("unit1",),
+    )
+
+    with capture_requests() as bucket:
+        client.post(
+            "/api/workers/unit1/jobs/run/job_name/stirring/experiments/exp1",
+            json={},
+        )
+
+    assert len(bucket) == 1
+    assert "MODEL_NAME" not in bucket[0].json["env"]
+    assert "MODEL_VERSION" not in bucket[0].json["env"]
 
 
 def test_run_job_with_job_source(client) -> None:
@@ -2466,6 +2552,26 @@ def test_system_upload_uses_unique_staged_temp_archive_name(
     assert save_path.name.startswith("pioreactor_update_archive_")
     assert save_path.name.endswith("_release_26.4.2.zip")
     assert save_path.read_bytes() == b"archive-bytes"
+
+
+def test_system_upload_rejects_oversized_request_before_staging_file(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("pioreactor.web.api.tempfile.gettempdir", lambda: str(tmp_path))
+    archive = tmp_path / "oversized-release.zip"
+    with archive.open("wb") as archive_file:
+        archive_file.truncate(60_000_001)
+
+    with archive.open("rb") as archive_file:
+        response = client.post(
+            "/api/system/upload",
+            data={"file": (archive_file, "release.zip")},
+            content_type="multipart/form-data",
+        )
+
+    assert response.status_code == 413
+    assert response.get_json()["error"] == "Upload too large"
+    assert list(tmp_path.glob("pioreactor_update_archive_*")) == []
 
 
 def test_zipped_calibrations_unwraps_raw_fanout_envelopes(

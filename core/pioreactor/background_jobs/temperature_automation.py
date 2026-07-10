@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from contextlib import suppress
 from threading import Event
+from threading import Lock
 from time import sleep
 from typing import Any
 from typing import cast
@@ -112,6 +113,9 @@ class TemperatureAutomationJob(AutomationJob):
         )
 
         self._exit_event = Event()
+        # A non-READY job must never restore an inference's cached heater duty cycle.
+        # This coordinates lifecycle shutdown with inference cleanup.
+        self._heater_state_lock = Lock()
 
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
@@ -133,6 +137,10 @@ class TemperatureAutomationJob(AutomationJob):
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.get_temp_address())
 
+        self.latest_temperture_at = current_utc_datetime()
+
+    def __post__init__(self) -> None:
+        # Timers can trigger execute(), so start them only after subclass __init__ has finished.
         self.read_external_temperature_timer = RepeatedTimer(
             53,
             self.read_external_temperature,
@@ -150,7 +158,7 @@ class TemperatureAutomationJob(AutomationJob):
             run_immediately=True,
         ).start()
 
-        self.latest_temperture_at = current_utc_datetime()
+        super().__post__init__()
 
     def on_init_to_ready(self) -> None:
         if whoami.is_testing_env() or self.seconds_since_last_active_heating() >= 10:
@@ -299,12 +307,14 @@ class TemperatureAutomationJob(AutomationJob):
 
         # this comes after, in case the automation changes dc after publishing the temp.
         with suppress(AttributeError):
-            self.turn_off_heater()
+            with self._heater_state_lock:
+                self.turn_off_heater()
 
     def on_sleeping(self) -> None:
         super().on_sleeping()
         self.publish_temperature_timer.pause()
-        self._update_heater(0)
+        with self._heater_state_lock:
+            self._update_heater(0)
 
     def on_sleeping_to_ready(self) -> None:
         super().on_sleeping_to_ready()
@@ -387,7 +397,11 @@ class TemperatureAutomationJob(AutomationJob):
                 # might listen for the updating temperature, and update the heater (pid_thermostat),
                 # and if we update here too late, we may overwrite their changes.
                 # We also want to remove the lock first, so close this context early.
-                self._update_heater(previous_heater_dc)
+                with self._heater_state_lock:
+                    if self.state == self.READY and not self._exit_event.is_set():
+                        self._update_heater(previous_heater_dc)
+                    else:
+                        self._update_heater(0)
 
         features["time_series_of_temp"] = time_series_of_temp
         self.logger.debug(f"{features=}")

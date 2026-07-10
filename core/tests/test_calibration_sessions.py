@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from collections.abc import Generator
+from typing import Any
 
 import pytest
 from pioreactor import types as pt
@@ -19,7 +20,10 @@ from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
+from pioreactor.structs import CalibrationBase
+from pioreactor.structs import PolyFitCoefficients
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import current_utc_datetime
 
 
 @pytest.fixture(autouse=True)
@@ -45,6 +49,18 @@ def _build_session(session_id: str = "session-1") -> CalibrationSession:
         updated_at=utc_iso_timestamp(),
         result=None,
         error=None,
+    )
+
+
+def _build_calibration() -> CalibrationBase:
+    return CalibrationBase(
+        calibration_name="test_calibration",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=current_utc_datetime(),
+        curve_data_=PolyFitCoefficients(coefficients=[1.0, 2.0]),
+        x="voltage",
+        y="od600",
+        recorded_data={"x": [0.1, 0.2], "y": [1.0, 2.0]},
     )
 
 
@@ -216,6 +232,67 @@ def test_read_voltage_not_available_in_cli() -> None:
     )
     with pytest.raises(ValueError):
         engine.ctx.read_voltage()
+
+
+def test_store_calibration_requires_executor_in_ui() -> None:
+    ctx = SessionContext(
+        session=_build_session(),
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+    )
+
+    with pytest.raises(ValueError, match="Calibration saver is only available in UI sessions."):
+        ctx.store_calibration(_build_calibration(), "od90")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        {},
+        {"path": None},
+    ],
+)
+def test_store_calibration_rejects_invalid_save_payload(payload: object) -> None:
+    def executor(action: str, payload_: dict[str, object]) -> Any:
+        assert action == "save_calibration"
+        assert payload_["device"] == "od90"
+        assert "calibration" in payload_
+        return payload
+
+    ctx = SessionContext(
+        session=_build_session(),
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+        executor=executor,
+    )
+
+    with pytest.raises(ValueError, match="Invalid calibration save payload."):
+        ctx.store_calibration(_build_calibration(), "od90")
+
+
+def test_store_calibration_returns_saved_path_in_ui() -> None:
+    def executor(action: str, payload: dict[str, object]) -> dict[str, object]:
+        assert action == "save_calibration"
+        return {"path": "/tmp/calibration.yaml"}
+
+    ctx = SessionContext(
+        session=_build_session(),
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+        executor=executor,
+    )
+
+    result = ctx.store_calibration(_build_calibration(), "od90")
+
+    assert result == {
+        "device": "od90",
+        "calibration_name": "test_calibration",
+        "path": "/tmp/calibration.yaml",
+    }
 
 
 def test_protocols_expose_step_registries_and_start_sessions() -> None:

@@ -15,9 +15,24 @@ def test_compute_od_timing_happy_path() -> None:
         after_action=0.2,
     )
 
-    assert timing["wait_window"] == pytest.approx(1.8)
     # now - first = 12, 12 % 5 = 2, so time_to_next_od = 3
     assert timing["time_to_next_od"] == pytest.approx(3.0)
+    assert timing["wait_window"] == pytest.approx(1.5)
+
+
+def test_compute_od_timing_wait_window_tracks_actual_next_od_when_timer_is_late() -> None:
+    timing = compute_od_timing(
+        interval=10.0,
+        first_od_obs_time=100.0,
+        now=107.5,
+        od_duration=1.0,
+        pre_delay=1.0,
+        post_delay=0.5,
+        after_action=0.1,
+    )
+
+    assert timing["time_to_next_od"] == pytest.approx(2.5)
+    assert timing["wait_window"] == pytest.approx(1.5)
 
 
 def test_compute_od_timing_wraps_to_full_interval_when_on_boundary() -> None:

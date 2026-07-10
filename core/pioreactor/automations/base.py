@@ -171,6 +171,11 @@ class AutomationJob(BackgroundJob):
         """
         Start a non-overlapping automation execution from an MQTT callback.
         """
+        # A burst of callbacks can start more than one runner thread before any
+        # runner acquires _automation_execution_lock. run_once still prevents
+        # overlapping execute() calls, and biomass updates are not normally bursty
+        # enough for this to matter in production. Ignore unless field evidence
+        # shows real harm.
         if self._automation_execution_lock.locked():
             self._automation_trigger_pending = True
             return

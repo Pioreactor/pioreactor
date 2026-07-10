@@ -19,6 +19,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARED_SQL_DIR = REPO_ROOT / "packaging" / "shared-assets" / "sql"
 
 
+def seed_experiment(cursor: sqlite3.Cursor, experiment: str) -> None:
+    cursor.execute(
+        "INSERT OR IGNORE INTO experiments (experiment, created_at) VALUES (?, ?)",
+        (experiment, current_utc_datetime().isoformat()),
+    )
+
+
 def test_testing_data_is_filtered() -> None:
     unit = "unit"
     exp = get_testing_experiment_name()  # contains _testing_ prefix
@@ -64,6 +71,7 @@ def test_updated_heater_dc() -> None:
 
     cursor.executescript("DROP TABLE IF EXISTS temperature_automation_events;")
     cursor.executescript((SHARED_SQL_DIR / "create_tables.sql").read_text())
+    seed_experiment(cursor, "test")
 
     connection.commit()
 
@@ -100,6 +108,7 @@ def test_dosing_events_land_in_db() -> None:
     cursor.executescript("DROP TRIGGER IF EXISTS update_pioreactor_unit_activity_data_from_dosing_events;")
     cursor.executescript((SHARED_SQL_DIR / "create_tables.sql").read_text())
     cursor.executescript((SHARED_SQL_DIR / "create_triggers.sql").read_text())
+    seed_experiment(cursor, exp)
 
     connection.commit()
 
@@ -144,6 +153,7 @@ def test_bioreactor_topics_land_in_db() -> None:
     cursor.executescript("DROP TABLE IF EXISTS liquid_volumes;")
     cursor.executescript("DROP TABLE IF EXISTS alt_media_fractions;")
     cursor.executescript((SHARED_SQL_DIR / "create_tables.sql").read_text())
+    seed_experiment(cursor, exp)
 
     connection.commit()
 

@@ -6,6 +6,11 @@ from typing import Generator
 
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent.parent / "update_scripts" / "upcoming"
 REQUIRED_BASH_SCRIPT_PREFIX = "#!/bin/bash\n\nset -xeu\n\nexport LC_ALL=C\n\n"
+DESTRUCTIVE_SQL_PATTERNS = (
+    re.compile(r"\bDROP\s+(?:TABLE|VIEW)\b", re.IGNORECASE),
+    re.compile(r"\bALTER\s+TABLE\b", re.IGNORECASE),
+    re.compile(r"\bPRAGMA\s+foreign_keys\s*=\s*OFF\b", re.IGNORECASE),
+)
 
 
 def find_sql_scripts(directory: str | Path) -> Generator[Path, None, None]:
@@ -109,5 +114,26 @@ def test_update_bash_scripts_start_with_required_prefix() -> None:
             error_msgs.append(
                 f"Error in {script}: update bash scripts must start with:\n{REQUIRED_BASH_SCRIPT_PREFIX!r}"
             )
+
+    assert not error_msgs, "\n".join(error_msgs)
+
+
+def test_destructive_sql_migrations_have_guardrails() -> None:
+    error_msgs = []
+
+    for script in find_sql_scripts(SCRIPT_DIRECTORY):
+        contents = script.read_text()
+        if not any(pattern.search(contents) for pattern in DESTRUCTIVE_SQL_PATTERNS):
+            continue
+
+        guardrails = {
+            "BEGIN TRANSACTION": "wrap destructive changes in an explicit transaction",
+            "COMMIT": "commit the explicit transaction",
+            "PRAGMA foreign_keys = ON": "restore foreign-key enforcement",
+            "PRAGMA foreign_key_check": "check for broken relationships after the rewrite",
+        }
+        for required_text, description in guardrails.items():
+            if required_text not in contents:
+                error_msgs.append(f"Error in {script}: destructive SQL migrations must {description}.")
 
     assert not error_msgs, "\n".join(error_msgs)

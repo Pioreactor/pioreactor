@@ -585,7 +585,8 @@ for tool, kwargs in registered_mcp_tools():
 mcp_bp = Blueprint("mcp", __name__, url_prefix="/mcp")
 
 
-@mcp_bp.post("/")
+# Current invariant: the MCP root accepts both /mcp and /mcp/ without redirecting.
+@mcp_bp.post("/", strict_slashes=False)
 def handle_mcp() -> Response:
     payload = request.get_json(force=True, silent=False)
 

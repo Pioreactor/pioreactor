@@ -37,6 +37,12 @@ import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
 dayjs.extend(utc);
 
+const INITIAL_START_PROFILE_STATE = {
+  error: "",
+  profileFilename: "",
+  dryRun: false,
+};
+
 /**
  * 1) Child component that displays the experiment profile dropdown,
  *    the “Run profile” button, etc.
@@ -46,8 +52,6 @@ function RunExperimentProfilesContent({
   experimentProfilesAvailable,
   selectedExperimentProfile,
   selectedExperimentProfileRecord,
-  startInFlight,
-  setStartInFlight,
   viewSource,
   setViewSource,
   selectedProfileDetail,
@@ -57,27 +61,40 @@ function RunExperimentProfilesContent({
   const confirm = useConfirm();
   const navigate = useNavigate();
   const { startProfile } = useRunningProfiles();
-  const [startProfileError, setStartProfileError] = React.useState("");
 
-  const onSubmit = async () => {
-    if (startInFlight || !selectedExperimentProfileRecord) {
-      return;
+  const [startProfileState, startProfileAction, startInFlight] = React.useActionState(async () => {
+    if (!selectedExperimentProfileRecord) {
+      return {
+        error: "",
+        profileFilename: selectedExperimentProfile,
+        dryRun,
+      };
     }
-    setStartInFlight(true);
-    setStartProfileError("");
-    // The “selectedExperimentProfile” is the file key we pass to start
+
     try {
       await startProfile(selectedExperimentProfileRecord.fullpath, experiment, dryRun);
+      return {
+        error: "",
+        profileFilename: selectedExperimentProfile,
+        dryRun,
+      };
     } catch (error) {
-      setStartProfileError(error?.message || "Unable to start experiment profile.");
-    } finally {
-      setStartInFlight(false);
+      return {
+        error: error?.message || "Unable to start experiment profile.",
+        profileFilename: selectedExperimentProfile,
+        dryRun,
+      };
     }
-  };
+  }, INITIAL_START_PROFILE_STATE);
+
+  const visibleStartProfileError =
+    startProfileState.error
+    && startProfileState.profileFilename === selectedExperimentProfile
+    && startProfileState.dryRun === dryRun
+      ? startProfileState.error
+      : "";
 
   const onSelectExperimentProfileChange = (e) => {
-    setStartProfileError("");
-
     navigate(`/experiment-profiles/${e.target.value}`)
 
   };
@@ -91,7 +108,7 @@ function RunExperimentProfilesContent({
       cancellationButtonProps: { color: "secondary" },
     })
       .then(() => {
-        fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
+        fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
           method: "DELETE",
         }).then(res => {
           if (res.ok) {
@@ -123,8 +140,8 @@ function RunExperimentProfilesContent({
   return (
     <Grid container spacing={1}>
       <Grid size={4}>
-        <Box sx={{ width: "100%", marginTop: 2,  display: "flex", justifyContent: "space-between" }}>
-          <FormControl style={{ minWidth: "300px" }}>
+        <Box sx={{ width: "100%", mt: 2,  display: "flex", justifyContent: "space-between" }}>
+          <FormControl sx={{ minWidth: "300px" }}>
             <FormLabel component="legend">Experiment profile</FormLabel>
             <Select
               labelId="profileSelect"
@@ -155,9 +172,9 @@ function RunExperimentProfilesContent({
             aria-label="view source code"
             disabled={selectedExperimentProfile === ""}
             onClick={getSourceAndView}
-            style={{ textTransform: "none" }}
+            sx={{ textTransform: "none" }}
           >
-            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             {viewSource ? "View preview" : "View source"}
           </Button>
           <Button
@@ -165,12 +182,12 @@ function RunExperimentProfilesContent({
             size="small"
             color="primary"
             aria-label="edit source code"
-            style={{ textTransform: "none" }}
+            sx={{ textTransform: "none" }}
             to={`/experiment-profiles/${(selectedExperimentProfile || "")}/edit`}
             component={Link}
             disabled={ selectedExperimentProfile === ''}
           >
-            <EditIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <EditIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             Edit
           </Button>
           <Button
@@ -179,10 +196,10 @@ function RunExperimentProfilesContent({
             color="primary"
             aria-label="duplicate profile"
             onClick={duplicate}
-            style={{ marginRight: "5px", textTransform: "none" }}
+            sx={{ mr: "5px", textTransform: "none" }}
             disabled={selectedExperimentProfile === '' || selectedProfileDetail.loading || !!selectedProfileDetail.error}
           >
-            <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             Duplicate
           </Button>
           <Button
@@ -191,10 +208,10 @@ function RunExperimentProfilesContent({
             color="secondary"
             aria-label="delete profile"
             onClick={deleteProfile}
-            style={{ marginRight: "5px", textTransform: "none" }}
+            sx={{ mr: "5px", textTransform: "none" }}
             disabled={selectedExperimentProfile === ''}
           >
-            <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             Delete
           </Button>
         </Box>
@@ -213,17 +230,25 @@ function RunExperimentProfilesContent({
           />
         }
       </Grid>
-      {startProfileError && (
+      {visibleStartProfileError && (
         <Grid size={12}>
-          <Alert severity="error">{startProfileError}</Alert>
+          <Alert severity="error">{visibleStartProfileError}</Alert>
         </Grid>
       )}
-      <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 0 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", ml: 0 }}>
         <SelectButton
           variant="contained"
           color="primary"
           value={dryRun ? "execute_dry_run" : "execute"}
-          onClick={onSubmit}
+          onClick={() => {
+            if (startInFlight) {
+              return;
+            }
+
+            React.startTransition(() => {
+              startProfileAction();
+            });
+          }}
           endIcon={dryRun ? <PlayDisabledIcon /> : <PlayArrowIcon />}
           loading={startInFlight}
           loadingPosition="end"
@@ -344,7 +369,6 @@ function Profiles(props) {
   const { profileFilename } = useParams();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
-  const [startInFlight, setStartInFlight] = React.useState(false);
   const [viewSource, setViewSource] = React.useState(false);
   const [selectedProfileDetail, setSelectedProfileDetail] = React.useState({
     filename: "",
@@ -486,8 +510,6 @@ function Profiles(props) {
   }, [fetchRecentRuns]);
 
   React.useEffect(() => {
-    setStartInFlight(false);
-
     if (!selectedExperimentProfile) {
       setSelectedProfileDetail({
         filename: "",
@@ -509,7 +531,7 @@ function Profiles(props) {
       error: "",
     });
 
-    fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
+    fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
       method: "GET",
       signal: controller.signal,
     })
@@ -566,10 +588,10 @@ function Profiles(props) {
                 <Button
                   to={`/experiment-profiles/new`}
                   component={Link}
-                  style={{ textTransform: 'none', marginRight: "0px", float: "right" }}
+                  sx={{ textTransform: 'none', mr: "0px", float: "right" }}
                   color="primary"
                 >
-                  <AddIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+                  <AddIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
                   Create new profile
                 </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />
@@ -592,8 +614,6 @@ function Profiles(props) {
             experimentProfilesAvailable={experimentProfilesAvailable}
             selectedExperimentProfile={selectedExperimentProfile}
             selectedExperimentProfileRecord={selectedExperimentProfileRecord}
-            startInFlight={startInFlight}
-            setStartInFlight={setStartInFlight}
             viewSource={viewSource}
             setViewSource={setViewSource}
             selectedProfileDetail={selectedProfileDetail}
@@ -677,12 +697,12 @@ function Profiles(props) {
         </Grid>
 
         <Grid size={12}>
-          <p style={{ textAlign: "center", marginTop: "20px" }}>
+          <Box component="p" sx={{ textAlign: "center", mt: "20px" }}>
             Learn more about{" "}
             <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">
               experiment profiles
             </a>.
-          </p>
+          </Box>
         </Grid>
 
       </Grid>

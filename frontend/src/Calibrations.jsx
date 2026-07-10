@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from "react-router";
+import { useParams, useNavigate, useLocation, Link } from "react-router";
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import {
@@ -86,45 +86,32 @@ export function UploadCalibrationDialog({
   const [selectedDevice, setSelectedDevice] = useState(device || '');
   const [calibrationYaml, setCalibrationYaml] = useState('');
   const [markAsActive, setMarkAsActive] = useState(true);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-
-  const clearUploadMessages = () => {
-    setError(null);
-    setSuccess(null);
-  };
 
   const handleWorkerChange = (event) => {
-    clearUploadMessages();
     setSelectedWorker(event.target.value);
   };
 
   const handleDeviceChange = (event) => {
-    clearUploadMessages();
     setSelectedDevice(sanitizeDeviceName(event.target.value));
   };
 
   const handleMarkAsActiveChange = (event) => {
-    clearUploadMessages();
     setMarkAsActive(event.target.checked);
   };
 
   const handleCalibrationYamlChange = (value) => {
-    clearUploadMessages();
     setCalibrationYaml(value);
   };
 
-  const handleUploadCalibration = async () => {
-    setError(null);
-    setSuccess(null);
+  const [uploadState, uploadCalibration, uploadPending] = React.useActionState(async (_previousState, payload) => {
     try {
       const requestBody = {
-        calibration_data: calibrationYaml,
-        set_as_active: markAsActive,
+        calibration_data: payload.calibrationYaml,
+        set_as_active: payload.markAsActive,
       };
 
       const taskPayload = await fetchTaskResult(
-        `/api/workers/${selectedWorker}/calibrations/${selectedDevice}`,
+        `/api/workers/${payload.selectedWorker}/calibrations/${payload.selectedDevice}`,
         {
           fetchOptions: {
             method: 'POST',
@@ -138,36 +125,44 @@ export function UploadCalibrationDialog({
 
       const failedUnits = getFailedCalibrationUploadUnits(taskPayload);
       if (failedUnits.length > 0) {
-        setError(buildCalibrationUploadFailureMessage(failedUnits));
-        return;
+        return {
+          ...payload,
+          error: buildCalibrationUploadFailureMessage(failedUnits),
+          success: false,
+        };
       }
 
       // Optionally clear fields so user can enter another calibration easily:
       setCalibrationYaml('');
-      setSuccess(
-        <span>
-          Calibration sent to Pioreactor(s). Add another calibration, or{' '}
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              color: 'inherit',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-            }}
-          >
-            refresh
-          </button>{' '}
-          the page to see updates.
-        </span>
-      );
+      return {
+        ...payload,
+        calibrationYaml: '',
+        error: null,
+        success: true,
+      };
     } catch (err) {
-      setError(err.message);
+      return {
+        ...payload,
+        error: err.message,
+        success: false,
+      };
     }
-  };
+  }, {
+    selectedWorker,
+    selectedDevice,
+    calibrationYaml,
+    markAsActive,
+    error: null,
+    success: false,
+  });
+
+  const submittedValuesStillVisible =
+    uploadState.selectedWorker === selectedWorker
+    && uploadState.selectedDevice === selectedDevice
+    && uploadState.calibrationYaml === calibrationYaml
+    && uploadState.markAsActive === markAsActive;
+  const error = submittedValuesStillVisible ? uploadState.error : null;
+  const success = submittedValuesStillVisible && uploadState.success;
 
   useEffect(() => {
     const fetchWorkers = async () => {
@@ -235,7 +230,7 @@ export function UploadCalibrationDialog({
               ))}
               {workers.length > 1 &&
               <MenuItem  value={"$broadcast"}>
-                <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
+                <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} /> All Pioreactors
               </MenuItem>
               }
             </Select>
@@ -263,7 +258,7 @@ export function UploadCalibrationDialog({
         <Box sx={{
             tabSize: "4ch",
             border: "1px solid #ccc",
-            margin: "5px 0px 10px 0px",
+            m: "5px 0px 10px 0px",
             position: "relative",
             width: "100%",
             height: "350px",
@@ -293,11 +288,41 @@ export function UploadCalibrationDialog({
             <Alert severity="error">{error}</Alert>
           )}
           {success && <Box>
-          <CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/> {success}
+          <CheckIcon sx={{verticalAlign: "middle", m: "0px 3px", color: readyGreen}}/> Calibration sent to Pioreactor(s). Add another calibration, or{' '}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'inherit',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+            }}
+          >
+            refresh
+          </button>{' '}
+          the page to see updates.
           </Box>
           }
           </Box>
-          <Button onClick={handleUploadCalibration} variant="contained" sx={{marginTop: "10px", textTransform: 'none'}} disabled={!selectedDevice || !calibrationYaml || !selectedWorker}>
+          <Button
+            onClick={() => {
+              React.startTransition(() => {
+                uploadCalibration({
+                  selectedWorker,
+                  selectedDevice,
+                  calibrationYaml,
+                  markAsActive,
+                });
+              });
+            }}
+            variant="contained"
+            loading={uploadPending}
+            sx={{mt: "10px", textTransform: 'none'}}
+            disabled={!selectedDevice || !calibrationYaml || !selectedWorker}
+          >
             Upload
           </Button>
         </Box>
@@ -309,11 +334,13 @@ export function UploadCalibrationDialog({
 
 
 function CalibrationCard(){
+  const { pathname } = useLocation();
+
   return (
 
     <Card>
       <CardContent sx={{p: 2}}>
-        <CalibrationData/>
+        <CalibrationData key={pathname}/>
       </CardContent>
     </Card>
   )
@@ -492,7 +519,7 @@ function CalibrationData() {
 
   if (loading) {
     return (
-      <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
+      <Box sx={{ textAlign: 'center', mt: '2rem' }}>
         <CircularProgress />
       </Box>
     );
@@ -515,7 +542,7 @@ function CalibrationData() {
       <Box >
         <Box sx={{display: "flex", justifyContent: "space-between" }}>
           <Box>
-            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
+            <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
               <FormLabel component="legend">Pioreactor</FormLabel>
               <Select
                 labelId="pioreactor-select-label"
@@ -532,12 +559,12 @@ function CalibrationData() {
                 ))}
                 {hasMultipleWorkers && (
                   <MenuItem  value={"$broadcast"}>
-                    <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
+                    <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 4px"}} /> All Pioreactors
                   </MenuItem>
                 )}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
+            <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
               <FormLabel component="legend">Device</FormLabel>
               <Select
                 labelId="device-select-label"
@@ -619,7 +646,7 @@ function CalibrationData() {
                   key={i}
                   >
                   <TableCell data-copy-value={unitName} sx={{padding: "6px 6px", display: "flex"}}>
-                    <div
+                    <Box
                       className="indicator-dot-as-legend"
                       role="button"
                       onClick={handleDotClick}
@@ -627,7 +654,7 @@ function CalibrationData() {
                       aria-pressed={!isHidden}
                       aria-label={isHidden ? `Show ${unitName} calibration ${calName}` : `Hide ${unitName} calibration ${calName}`}
                       onKeyDown={handleDotKeyDown}
-                      style={{
+                      sx={{
                         backgroundColor: isHidden ? 'transparent' : dotColor,
                         cursor: 'pointer',
                       }}
@@ -722,26 +749,26 @@ function CalibrationsContainer() {
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <Button
-              style={{textTransform: 'none', marginRight: "0px", float: "right"}}
+              sx={{textTransform: 'none', mr: "0px", float: "right"}}
               color="primary"
               component={Link}
               to="/calibration-coverage"
             >
-              <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+              <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
               Status
             </Button>
-            <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}}
+            <Button sx={{textTransform: 'none', mr: "0px", float: "right"}}
                     color="primary"
                     onClick={() => setOpenUploadDialog(true)}
             >
-              <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/> Upload calibration
+              <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Upload calibration
             </Button>
-            <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleDownloadCalibrations}>
-              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/> Download all calibrations
+            <Button sx={{textTransform: 'none', mr: "0px", float: "right"}} color="primary" onClick={handleDownloadCalibrations}>
+              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all calibrations
             </Button>
           </Box>
         </Box>
-        <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+        <Divider sx={{mt: "0px", mb: "15px"}} />
 
       </Box>
       <UploadCalibrationDialog
@@ -758,7 +785,7 @@ function CalibrationsContainer() {
         </Grid>
       </Grid>
       <Grid size={12}>
-        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</p>
+        <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</Box>
       </Grid>
     </React.Fragment>
   );

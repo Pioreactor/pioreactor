@@ -64,19 +64,20 @@ class UsbUpdateArchive(msgspec.Struct, frozen=True):
         return {"path": str(self.path), "version": self.version}
 
 
-class UsbPluginWheel(msgspec.Struct, frozen=True):
+class UsbPluginArtifact(msgspec.Struct, frozen=True):
     path: Path
     name: str
     version: str | None
+    kind: str
 
     def as_dict(self) -> dict[str, str | None]:
-        return {"path": str(self.path), "name": self.name, "version": self.version}
+        return {"path": str(self.path), "name": self.name, "version": self.version, "kind": self.kind}
 
 
 class UsbScan(msgspec.Struct, frozen=True):
     mountpoint: Path
     updates: tuple[UsbUpdateArchive, ...]
-    plugins: tuple[UsbPluginWheel, ...]
+    plugins: tuple[UsbPluginArtifact, ...]
     writable: bool
     free_bytes: int
 
@@ -208,8 +209,8 @@ def scan_usb_mount(mountpoint: Path) -> UsbScan:
         )
     )
     plugins = tuple(
-        UsbPluginWheel(path=path, name=name, version=version)
-        for path, name, version in _find_plugin_wheels(mountpoint)
+        UsbPluginArtifact(path=path, name=name, version=version, kind=kind)
+        for path, name, version, kind in _find_plugin_artifacts(mountpoint)
     )
     usage = shutil.disk_usage(mountpoint)
     return UsbScan(
@@ -310,7 +311,17 @@ def choose_usb_mountpoint(mountpoint: str | None = None) -> Path:
 def resolve_usb_plugin_wheel(filepath: str) -> Path:
     path = Path(filepath)
     if path.suffix != ".whl":
-        raise ValueError("USB plugin installs currently support .whl files only.")
+        raise ValueError("USB wheel plugin installs support .whl files only.")
+
+    return resolve_usb_plugin_artifact(filepath)
+
+
+def resolve_usb_plugin_artifact(filepath: str) -> Path:
+    path = Path(filepath)
+    if path.suffix not in (".whl", ".py"):
+        raise ValueError("USB plugin installs currently support .whl and .py files only.")
+    if path.suffix == ".py" and not is_valid_python_plugin_filename(path.name):
+        raise ValueError(f"{path.name} is not a valid Python plugin filename.")
     if not path.exists():
         raise ValueError(f"{filepath} does not exist.")
 
@@ -451,20 +462,23 @@ def _pioreactor_managed_mountpoints(partition: UsbPartition) -> list[Path]:
     ]
 
 
-def _find_plugin_wheels(mountpoint: Path) -> list[tuple[Path, str, str | None]]:
+def _find_plugin_artifacts(mountpoint: Path) -> list[tuple[Path, str, str | None, str]]:
     candidates = [mountpoint, mountpoint / "pioreactor" / "plugins"]
     seen: set[Path] = set()
-    plugins: list[tuple[Path, str, str | None]] = []
+    plugins: list[tuple[Path, str, str | None, str]] = []
 
     for directory in candidates:
         if not directory.exists():
             continue
-        for path in sorted(directory.glob("*.whl")):
-            if path in seen:
+        for path in sorted(directory.iterdir()):
+            if path in seen or path.suffix not in (".whl", ".py"):
                 continue
             seen.add(path)
-            name, version = parse_wheel_name(path.name)
-            plugins.append((path, name, version))
+            if path.suffix == ".whl":
+                name, version = parse_wheel_name(path.name)
+                plugins.append((path, name, version, "wheel"))
+            elif is_valid_python_plugin_filename(path.name):
+                plugins.append((path, path.stem, None, "python_file"))
 
     return plugins
 
@@ -474,6 +488,11 @@ def parse_wheel_name(filename: str) -> tuple[str, str | None]:
     if len(parts) < 2:
         return filename.removesuffix(".whl").replace("_", "-"), None
     return parts[0].replace("_", "-"), parts[1]
+
+
+def is_valid_python_plugin_filename(filename: str) -> bool:
+    path = Path(filename)
+    return path.name == filename and path.suffix == ".py" and path.stem.isidentifier()
 
 
 def _as_bool(value: object) -> bool:

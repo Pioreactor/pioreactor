@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import time
 from contextlib import contextmanager
 
@@ -656,6 +657,133 @@ def test_dodging_persists_when_second_od_reader_start_fails() -> None:
                     assert dodger.currently_dodging_od
                     interval_msg = subscribe(interval_topic, timeout=1)
                     assert interval_msg is not None
+
+
+def test_disabling_dodging_while_sleeping_stays_disabled_when_ready() -> None:
+    class FakeTimer:
+        def __init__(self) -> None:
+            self.cancel_count = 0
+            self.unpause_count = 0
+
+        def cancel(self) -> None:
+            self.cancel_count += 1
+
+        def unpause(self) -> None:
+            self.unpause_count += 1
+
+    class FakeEvent:
+        def __init__(self) -> None:
+            self.clear_count = 0
+            self.set_count = 0
+
+        def clear(self) -> None:
+            self.clear_count += 1
+
+        def set(self) -> None:
+            self.set_count += 1
+
+    class FakeLogger:
+        def debug(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def info(self, *args: object, **kwargs: object) -> None:
+            pass
+
+    class SleepingDodger(BackgroundJobWithDodging):
+        def initialize_continuous_operation(self) -> None:
+            self.continuous_operation_calls += 1
+
+    timer = FakeTimer()
+    event = FakeEvent()
+    job = object.__new__(SleepingDodger)
+    object.__setattr__(job, "continuous_operation_calls", 0)
+    object.__setattr__(job, "logger", FakeLogger())
+    object.__setattr__(job, "state", job.SLEEPING)
+    object.__setattr__(job, "enable_dodging_od", True)
+    object.__setattr__(job, "currently_dodging_od", True)
+    object.__setattr__(job, "_dodging_init_called_once", True)
+    object.__setattr__(job, "_dodging_mode_startup_pending", False)
+    object.__setattr__(job, "sneak_in_timer", timer)
+    object.__setattr__(job, "_event_is_dodging_od", event)
+
+    job.set_enable_dodging_od(False)
+
+    assert not job.currently_dodging_od
+    assert timer.cancel_count == 1
+    assert job.continuous_operation_calls == 0
+
+    job.on_sleeping_to_ready()
+
+    assert job.continuous_operation_calls == 0
+    assert timer.unpause_count == 0
+
+    job.ready()
+
+    assert job.continuous_operation_calls == 1
+
+
+def test_dodging_post_init_timer_setup_failure_cleans_up_running_job(monkeypatch) -> None:
+    class FakePublishResult:
+        def wait_for_publish(self, timeout: float | None = None) -> None:
+            pass
+
+    class FakeClient:
+        def publish(self, *args: object, **kwargs: object) -> FakePublishResult:
+            return FakePublishResult()
+
+        def is_connected(self) -> bool:
+            return True
+
+        def message_callback_add(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def subscribe(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def shutdown(self) -> None:
+            pass
+
+    def raise_missing_od_setting(
+        self: JobManager, job_name: str, setting: str, timeout: float | None = None
+    ) -> object:
+        raise NameError("missing OD timing setting")
+
+    monkeypatch.setattr("pioreactor.background_jobs.base.is_active", lambda unit: True)
+    monkeypatch.setattr("pioreactor.background_jobs.base.is_pio_job_running", lambda job_name: True)
+    monkeypatch.setattr(JobManager, "get_setting_from_running_job", raise_missing_od_setting)
+
+    class FailingDodgingSetup(BackgroundJobWithDodging):
+        job_name = "failing_dodging_setup"
+
+        def __init__(self) -> None:
+            super().__init__(
+                unit=get_unit_name(),
+                experiment="test_dodging_post_init_timer_setup_failure_cleans_up_running_job",
+                enable_dodging_od=True,
+            )
+
+        def _create_pub_client(self) -> FakeClient:
+            return FakeClient()
+
+        def _create_sub_client(self) -> FakeClient:
+            return FakeClient()
+
+    with temporary_config_section(config, "failing_dodging_setup.config"):
+        try:
+            with pytest.raises(NameError, match="missing OD timing setting"):
+                FailingDodgingSetup()
+
+            assert not is_pio_job_running("failing_dodging_setup")
+        finally:
+            with JobManager() as jm:
+                job_id = jm.get_running_job_id("failing_dodging_setup")
+                if job_id is not None:
+                    jm.set_not_running(job_id)
+
+            logger = logging.getLogger("failing_dodging_setup")
+            for handler in logger.handlers[:]:
+                logger.removeHandler(handler)
+                handler.close()
 
 
 @pytest.mark.flakey

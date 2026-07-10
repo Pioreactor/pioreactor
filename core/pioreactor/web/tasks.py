@@ -53,7 +53,6 @@ from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.http_response import decode_unit_api_error_payload
 from pioreactor.logging import create_logger
-from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
@@ -70,7 +69,6 @@ from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.version import hardware_version_info
 from pioreactor.web.config import huey
 from pioreactor.web.db import get_database_space_stats
 from pioreactor.web.db import open_app_database_connection
@@ -303,8 +301,8 @@ def filter_to_allowed_env(env: Mapping[str, str | None]) -> dict[str, str]:
 def fanout_success(unit: str, value: Any) -> FanoutResult:
     """Wrap a successful per-unit fanout value.
 
-    Fanout aggregation never unwraps these envelopes. Edge consumers that need
-    domain data should read ``value`` after checking ``ok``.
+    Current invariant: fanout aggregation never unwraps these envelopes. Edge
+    consumers that need domain data read ``value`` after checking ``ok``.
     """
     return {
         "ok": True,
@@ -389,30 +387,11 @@ def _fanout_failure_from_response(
     )
 
 
-def _process_delayed_json_response(
+def _process_json_response(
     unit: str,
     response: Response,
-    *,
-    max_attempts: int = 300,
-    retry_sleep_s: float = 0.1,
+    data: dict[str, Any],
 ) -> tuple[str, Any]:
-    """
-    Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
-    Returns the unit and the appropriate JSON data or result value.
-    """
-    data = response.json()
-    if response.status_code == 202 and "result_url_path" in data:
-        # Follow up shortly on async responses where the unit returns a result URL.
-        if max_attempts <= 0:
-            return unit, fanout_failure(
-                unit,
-                "task_timeout",
-                "Timed out waiting for unit task result.",
-                retryable=True,
-                status_code=response.status_code,
-            )
-        sleep(retry_sleep_s)
-        return _get_from_unit(unit, data["result_url_path"], max_attempts=max_attempts - 1)
     if 200 <= response.status_code < 300:
         if "task_id" in data:
             if data.get("status") == "succeeded":
@@ -442,6 +421,69 @@ def _process_delayed_json_response(
         retryable=response.status_code >= 500,
         status_code=response.status_code,
     )
+
+
+def _process_delayed_json_response(
+    unit: str,
+    address: str,
+    response: Response,
+    *,
+    max_attempts: int,
+    timeout: float,
+    retry_sleep_s: float = 0.1,
+) -> tuple[str, Any]:
+    """
+    Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
+    Returns the unit and the appropriate JSON data or result value.
+    """
+    data = response.json()
+    remaining_attempts = max_attempts
+
+    while response.status_code == 202 and "result_url_path" in data:
+        if remaining_attempts <= 0:
+            return unit, fanout_failure(
+                unit,
+                "task_timeout",
+                "Timed out waiting for unit task result.",
+                retryable=True,
+                status_code=response.status_code,
+            )
+
+        endpoint = data["result_url_path"]
+        remaining_attempts -= 1
+        sleep(retry_sleep_s)
+
+        delayed_response: Response | None = None
+        try:
+            delayed_response = get_from(address, endpoint, timeout=timeout)
+            delayed_response.raise_for_status()
+            response = delayed_response
+            data = response.json()
+        except (HTTPErrorStatus, HTTPException) as e:
+            logger.debug(
+                f"Could not get from {unit}'s {address=}, {endpoint=}, sent json=None and returned {e}."
+                f"{_summarize_unit_api_error(delayed_response)}"
+            )
+            return unit, _fanout_failure_from_response(
+                unit,
+                delayed_response,
+                fallback_kind="http_error" if delayed_response is not None else "connection_error",
+                fallback_message=f"Could not GET from {unit}'s {endpoint}.",
+                retryable=delayed_response is None or delayed_response.status_code >= 500,
+            )
+        except DecodeError:
+            logger.debug(
+                f"Could not decode response from {unit}'s {endpoint=}, sent json=None and returned {_response_body_for_logging(delayed_response)}."
+            )
+            return unit, fanout_failure(
+                unit,
+                "decode_error",
+                f"Could not decode response from {unit}'s {endpoint}.",
+                retryable=False,
+                status_code=delayed_response.status_code if delayed_response is not None else None,
+            )
+
+    return _process_json_response(unit, response, data)
 
 
 def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.1) -> int:
@@ -528,53 +570,20 @@ def add_new_pioreactor(
     return True
 
 
-def _get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int]:
-    adc_cfg = hardware.get_layered_mod_config_for_model("adc", model_name, model_version)
-    addresses: set[int] = set()
-    for adc_data in adc_cfg.values():
-        address = adc_data.get("address")
-        addresses.add(int(address))
-    return addresses
-
-
-def _is_hat_v1_x() -> bool:
-    return hardware_version_info is not None and hardware_version_info[0] == 1
-
-
 @huey.task(priority=10)
 def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
-    if not _is_hat_v1_x():
-        return {"status": "skipped", "reason": "hardware check only applies to HAT v1.x"}
+    result = hardware.check_model_hardware_compatibility(model_name, model_version)
+    result_status = result["status"]
 
-    registered_models = get_registered_models()
-    if (model_name, model_version) in registered_models:
-        display_name = registered_models[(model_name, model_version)].display_name
-    else:
-        display_name = f"{model_name} {model_version}"
+    if result_status == "skipped":
+        logger.debug(f"Hardware check skipped on {get_unit_name()}: {result['reason']}")
+    elif result_status == "warning":
+        logger.warning(f"Hardware check failed on {get_unit_name()}: {result['reason']}")
+        result = {**result, "reason": result["reason"].split(": ", 1)[-1]}
+    elif result_status == "ok":
+        logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
 
-    try:
-        addresses = _get_adc_addresses_for_model(model_name, model_version)
-    except exc.HardwareNotFoundError as err:
-        logger.warning(
-            f"Hardware check skipped on {get_unit_name()}: {err}",
-        )
-        return {"status": "skipped", "reason": str(err)}
-
-    if not addresses:
-        logger.debug(f"Hardware check found no ADC addresses for {display_name} on {get_unit_name()}.")
-        return {"status": "skipped", "reason": "model has no configured ADC addresses"}
-
-    missing = sorted(addr for addr in addresses if not hardware.is_i2c_device_present(addr))
-    if missing:
-        missing_hex = ", ".join(hex(addr) for addr in missing)
-        logger.warning(
-            f"Hardware check failed for {display_name} on {get_unit_name()}: "
-            f"missing I2C devices at {missing_hex}."
-        )
-        return {"status": "warning", "reason": f"missing I2C devices at {missing_hex}"}
-
-    logger.notice(f"Correct hardware found for {display_name} on {get_unit_name()}.")
-    return {"status": "ok"}
+    return result
 
 
 @huey.task()
@@ -1203,11 +1212,15 @@ def install_plugin_from_usb_task(filepath: str) -> bool:
 def _install_plugin_from_usb(filepath: str) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
-    plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
-    plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+    plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
     logger.debug(f"Installing plugin from USB {plugin_path}.")
     try:
-        install_plugin(plugin_name, source=plugin_path.as_posix())
+        if plugin_path.suffix == ".whl":
+            plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+            install_plugin(plugin_name, source=plugin_path.as_posix())
+        else:
+            plugin_name = install_python_plugin_file(plugin_path)
+        clear_plugin_cache()
         return True
     except Exception as exc:
         logger.debug(f"Installing plugin from USB {plugin_path} failed: {exc}")
@@ -1215,16 +1228,23 @@ def _install_plugin_from_usb(filepath: str) -> bool:
 
 
 def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> dict[str, Any]:
-    plugin_path = usb_utils.resolve_usb_plugin_wheel(filepath)
-    plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+    plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
     remote_source = f"/tmp/{plugin_path.name}"
 
     logger.debug(f"Copying USB plugin {plugin_path} to {unit}:{remote_source}.")
     cp_file_across_cluster(unit, plugin_path.as_posix(), remote_source, timeout=60)
 
-    payload = {"args": [plugin_name], "options": {"source": remote_source}}
+    if plugin_path.suffix == ".whl":
+        plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
+        payload = {"args": [plugin_name], "options": {"source": remote_source}}
+        install_endpoint = "/unit_api/plugins/install"
+    else:
+        plugin_name = plugin_path.stem
+        payload = {"filename": plugin_path.name}
+        install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
+
     logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
-    response = post_into(resolve_to_address(unit), "/unit_api/plugins/install", json=payload, timeout=60)
+    response = post_into(resolve_to_address(unit), install_endpoint, json=payload, timeout=60)
     response.raise_for_status()
 
     return {
@@ -1263,6 +1283,40 @@ def install_plugin_from_leader_usb_across_units_task(
 
 def install_plugin_from_leader_usb_across_units(units: list[str], filepath: str, leader: str) -> Any:
     return install_plugin_from_leader_usb_across_units_task(units, filepath, leader)
+
+
+@huey.task()
+@huey.lock_task("plugins-lock")
+def install_python_plugin_file_from_leader_copy_task(filename: str) -> bool:
+    filename = Path(filename).name
+    if not usb_utils.is_valid_python_plugin_filename(filename):
+        return False
+
+    plugin_path = Path("/tmp") / filename
+    if not plugin_path.exists() or not plugin_path.is_file():
+        return False
+
+    try:
+        install_python_plugin_file(plugin_path)
+        clear_plugin_cache()
+        return True
+    except Exception as exc:
+        logger.debug(f"Installing copied Python plugin {plugin_path} failed: {exc}")
+        return False
+
+
+def install_python_plugin_file(source: Path) -> str:
+    plugin_dir = Path(os.environ["DOT_PIOREACTOR"]) / "plugins"
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    target = plugin_dir / source.name
+    shutil.copy2(source, target)
+    return source.stem
+
+
+def clear_plugin_cache() -> None:
+    cache_clear = getattr(get_plugins, "cache_clear", None)
+    if cache_clear is not None:
+        cache_clear()
 
 
 @huey.task()
@@ -1421,6 +1475,12 @@ def pio_update_app(*args: str, env: dict[str, str] | None = None) -> bool:
 
 @huey.task()
 def rm(path: str) -> bool:
+    """
+    Delete a validated path.
+
+    This is a low-level sink. Callers must first constrain the path to the
+    intended root; this task deliberately does not infer containment.
+    """
     logger.debug(f"Deleting {path}.")
     if whoami.is_testing_env():
         return True
@@ -1527,6 +1587,12 @@ def pios(*args: str, env: dict[str, str] | None = None) -> bool:
 
 @huey.task()
 def save_file(path: str, content: str) -> bool:
+    """
+    Write to a validated path.
+
+    This is a low-level sink. Callers must first constrain the path to the
+    intended root and validate filename components where user input is involved.
+    """
     try:
         with open(path, "w") as f:
             f.write(content)
@@ -1587,7 +1653,13 @@ def post_into_unit(
             return unit, fanout_success(unit, None)
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
+        return _process_delayed_json_response(
+            unit,
+            address,
+            r,
+            max_attempts=_delayed_result_max_attempts(timeout),
+            timeout=timeout,
+        )
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1778,8 +1850,10 @@ def _get_from_unit(
         # delayed or immediate JSON response
         return _process_delayed_json_response(
             unit,
+            address,
             r,
             max_attempts=max_attempts if max_attempts is not None else _delayed_result_max_attempts(timeout),
+            timeout=timeout,
         )
 
     except (HTTPErrorStatus, HTTPException) as e:
@@ -1902,7 +1976,13 @@ def patch_into_unit(
             return unit, fanout_success(unit, None)
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r, max_attempts=_delayed_result_max_attempts(timeout))
+        return _process_delayed_json_response(
+            unit,
+            address,
+            r,
+            max_attempts=_delayed_result_max_attempts(timeout),
+            timeout=timeout,
+        )
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
@@ -1947,20 +2027,22 @@ def multicast_patch(
 @huey.task(priority=10)
 def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
     r: Response | None = None
+    address: str | None = None
     try:
-        r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=2.0)
+        address = resolve_to_address(unit)
+        r = delete_from(address, endpoint, json=json, timeout=2.0)
         r.raise_for_status()
         return unit, fanout_success(unit, r.json() if r.content else None)
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not DELETE {unit}'s {endpoint=}, sent {json=} and returned {e}. Check connection?"
+            f"Could not DELETE {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection?"
             f"{_summarize_unit_api_error(r)}"
         )
         return unit, _fanout_failure_from_response(
             unit,
             r,
             fallback_kind="http_error" if r is not None else "connection_error",
-            fallback_message=f"Could not DELETE {unit}'s {endpoint}.",
+            fallback_message=f"Could not DELETE {unit}'s {endpoint} at {address}.",
             retryable=r is None or r.status_code >= 500,
         )
     except DecodeError:

@@ -6,6 +6,7 @@ import pytest
 from msgspec.json import encode
 from msgspec.yaml import decode
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
+from pioreactor.actions.leader.experiment_profile import check_plugins
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.actions.leader.experiment_profile import seconds_to_hours
@@ -27,6 +28,7 @@ from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
 from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.mureq import HTTPErrorStatus
+from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
@@ -78,6 +80,7 @@ def test_execute_experiment_profile_order(
     action3 = Stop(hours_elapsed=4 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
@@ -111,6 +114,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
     job = "led_intensity"
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={"unit1": PioreactorSpecificBlock(jobs={job: Job(actions=[action1, action2, action3])})},
@@ -172,11 +176,47 @@ def test_execute_experiment_profile_hack_for_led_intensity(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_evaluates_config_overrides(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        inputs={"dc": 100},
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "air_bubbler": Job(
+                        actions=[
+                            Start(
+                                t="0s",
+                                config_overrides={"duty_cycle": "${{dc}}"},
+                            )
+                        ]
+                    )
+                }
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/air_bubbler"
+    assert bucket[0].json["config_overrides"] == [["air_bubbler.config", "duty_cycle", "100"]]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_start_failure_is_logged(
     mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -241,6 +281,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -277,6 +318,118 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
     assert "Remediation: Stop the conflicting job and retry." in caplog.text
 
 
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_logs_resolved_address_on_http_exception(
+    mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            side_effect=HTTPException("[Errno 101] Network is unreachable"),
+        ),
+        patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
+        caplog.at_level("ERROR"),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert (
+        "Unable to submit start command for `circulate_alt_media` to unit1 at unit1.local after 3 attempts. Is it online?"
+        in caplog.text
+    )
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_retries_initial_submit_failure(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            side_effect=[
+                HTTPException("[Errno 111] Connection refused"),
+                Response(
+                    "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                    200,
+                    {},
+                    encode({"result": {"ok": True}}),
+                ),
+            ],
+        ) as mock_patch_into,
+        patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert mock_patch_into.call_count == 2
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_start_reports_result_poll_failure_without_retrying_start(
+    mock__load_experiment_profile, caplog: pytest.LogCaptureFixture
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into",
+            return_value=Response(
+                "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                202,
+                {},
+                encode({"result_url_path": "/unit_api/task_results/task-1"}),
+            ),
+        ) as mock_patch_into,
+        patch(
+            "pioreactor.actions.leader.experiment_profile.get_from",
+            side_effect=HTTPException("timed out"),
+        ),
+        caplog.at_level("ERROR"),
+    ):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert mock_patch_into.call_count == 1
+    assert (
+        "Submitted start command for `circulate_alt_media` to unit1 at unit1.local, but couldn't read the task result. The job may still have started."
+        in caplog.text
+    )
+
+
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="flakey test in CI???")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_log_actions(mock__load_experiment_profile, active_workers_in_cluster) -> None:
@@ -302,6 +455,7 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
@@ -315,9 +469,11 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
     mock__load_experiment_profile.return_value = profile
 
-    with collect_all_logs_of_level("NOTICE", "unit1", experiment) as notice_bucket, collect_all_logs_of_level(
-        "INFO", "unit1", experiment
-    ) as info_bucket, collect_all_logs_of_level("DEBUG", "unit1", experiment) as debug_bucket:
+    with (
+        collect_all_logs_of_level("NOTICE", "unit1", experiment) as notice_bucket,
+        collect_all_logs_of_level("INFO", "unit1", experiment) as info_bucket,
+        collect_all_logs_of_level("DEBUG", "unit1", experiment) as debug_bucket,
+    ):
         execute_experiment_profile("profile.yaml", experiment)
         assert notice_bucket[0]["message"] == "test unit1"
         assert [log["message"] for log in info_bucket[:1]] == [
@@ -339,6 +495,7 @@ def test_execute_experiment_start_and_stop_automations(
     action2 = Stop(hours_elapsed=1 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         common=CommonBlock(jobs={"temperature_automation": Job(actions=[action1, action2])}),
         metadata=Metadata(author="test_author"),
@@ -360,6 +517,7 @@ def test_execute_experiment_update_automation(mock__load_experiment_profile) -> 
     action2 = Update(hours_elapsed=1 / 60 / 60, options={"target_temperature": 30})
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         common=CommonBlock(
             jobs={
@@ -386,6 +544,7 @@ def test_execute_experiment_start_automation_succeeds(
     stop = Stop(hours_elapsed=2 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         common=CommonBlock(
             jobs={
@@ -407,6 +566,7 @@ def test_label_fires_a_relabel_to_leader_endpoint(
     experiment = "_testing_experiment"
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -432,6 +592,7 @@ def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) ->
     action_true = Start(hours_elapsed=0, if_="${{1 == 1}}")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -461,6 +622,7 @@ def test_execute_experiment_profile_with_unit_function(
     action_true = Start(hours_elapsed=0, if_="${{ unit() == unit1 }}")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -484,6 +646,7 @@ def test_execute_experiment_profile_with_unit_function(
     action_true = Start(hours_elapsed=0, if_="${{ unit() == unit2 }}")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -512,6 +675,7 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
     action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -545,6 +709,7 @@ def test_execute_experiment_profile_pause_and_resume_actions(
     resume = Resume(hours_elapsed=1 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -576,6 +741,7 @@ def test_execute_experiment_profile_dry_run_skips_job_mutations(
     experiment = "_testing_experiment"
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -617,6 +783,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -656,6 +823,7 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
     action = Start(hours_elapsed=0, if_="1 % 1 and ")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -689,6 +857,7 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -727,6 +896,7 @@ def test_repeat_respects_every_and_time_literals(mock__load_experiment_profile) 
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -754,6 +924,42 @@ def test_repeat_respects_every_and_time_literals(mock__load_experiment_profile) 
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_common_repeat_tracks_completed_loops_independently_per_worker(
+    mock__load_experiment_profile, active_workers_in_cluster
+) -> None:
+    experiment = "_testing_experiment"
+    job_name = "jobbing"
+    repeat = Repeat(
+        t="0s",
+        every="0.01s",
+        max_time="0.03s",
+        actions=[Update(t="0s", options={"setting": "1"})],
+    )
+
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        plugins=[],
+        common=CommonBlock(jobs={job_name: Job(actions=[repeat])}),
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    for worker in active_workers_in_cluster:
+        updates = [
+            request
+            for request in bucket
+            if request.path
+            == f"/api/workers/{worker}/jobs/update/job_name/{job_name}/experiments/{experiment}"
+        ]
+        assert len(updates) == 3
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_repeat_warns_and_skips_actions_beyond_every(mock__load_experiment_profile, caplog) -> None:
     experiment = "_testing_experiment"
 
@@ -766,6 +972,7 @@ def test_repeat_warns_and_skips_actions_beyond_every(mock__load_experiment_profi
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -815,6 +1022,7 @@ def test_repeat_logs_useful_error_for_missing_nested_key_in_while(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -856,6 +1064,7 @@ def test_execute_experiment_profile_expression_in_common(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(
@@ -917,6 +1126,7 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(
@@ -974,6 +1184,7 @@ def test_execute_experiment_profile_when_action_simple(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_profile",
         plugins=[],
         pioreactors={
@@ -1018,6 +1229,7 @@ def test_execute_experiment_profile_log_action_preserves_api_error_details(
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -1074,6 +1286,7 @@ def test_execute_experiment_profile_when_action_with_if(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_with_if_profile",
         plugins=[],
         pioreactors={
@@ -1128,6 +1341,7 @@ def test_execute_experiment_profile_when_action_condition_eventually_met(
     update = Update(hours_elapsed=0.002, options={"target_rpm": 1000})
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_condition_not_met_profile",
         plugins=[],
         pioreactors={
@@ -1182,6 +1396,7 @@ def test_execute_experiment_profile_when_action_nested(
     update = Update(hours_elapsed=0.001, options={"target_rpm": 1000})
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_condition_not_met_profile",
         plugins=[],
         pioreactors={
@@ -1243,6 +1458,7 @@ def test_profiles_in_github_repo() -> None:
 def test_verify_rejects_quoted_string_literals_in_if() -> None:
     action = Start(hours_elapsed=0.0, if_='${{ pio02:monitor:$state == "ready" }}')
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action])}),
@@ -1265,6 +1481,7 @@ def test_api_requests_are_made(
     action3 = Stop(hours_elapsed=4 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
@@ -1294,6 +1511,7 @@ def test_plugin_version_checks(
     experiment = "_testing_experiment"
 
     profile_with_okay_plugins = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[Plugin(name="my-example-plugin", version=">=0.1.0")],  # this plugin is locally present in CI
         common=CommonBlock(jobs={}),
@@ -1304,6 +1522,7 @@ def test_plugin_version_checks(
     execute_experiment_profile("profile.yaml", experiment)
 
     profile_with_wrong_version = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[
             Plugin(name="my-example-plugin", version="<=0.1.0")
@@ -1317,6 +1536,7 @@ def test_plugin_version_checks(
         execute_experiment_profile("profile.yaml", experiment)
 
     profile_with_missing_package = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[Plugin(name="doesnt-exist", version="<=0.1.0")],
         common=CommonBlock(jobs={}),
@@ -1328,6 +1548,7 @@ def test_plugin_version_checks(
         execute_experiment_profile("profile.yaml", experiment)
 
     profile_with_nontrivial_version = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[
             Plugin(name="my-example-plugin", version="<=0.15.1"),
@@ -1340,6 +1561,40 @@ def test_plugin_version_checks(
     )
     mock__load_experiment_profile.return_value = profile_with_nontrivial_version
     execute_experiment_profile("profile.yaml", experiment)
+
+
+@pytest.mark.parametrize(
+    ("constraint", "installed_version"),
+    [
+        ("0.2.0", "0.2.0"),
+        ("==0.2.0", "0.2.0"),
+        (">=0.1.0", "0.2.0"),
+        ("<=0.2.0", "0.2.0"),
+    ],
+)
+@patch(
+    "pioreactor.actions.leader.experiment_profile.get_installed_plugins_and_versions",
+    return_value={"example": "0.2.0"},
+)
+def test_check_plugins_accepts_supported_version_constraints(
+    mock_get_installed_plugins_and_versions,
+    constraint: str,
+    installed_version: str,
+) -> None:
+    mock_get_installed_plugins_and_versions.return_value = {"example": installed_version}
+
+    check_plugins([Plugin(name="example", version=constraint)])
+
+
+@patch(
+    "pioreactor.actions.leader.experiment_profile.get_installed_plugins_and_versions",
+    return_value={"example": "0.2.0"},
+)
+def test_check_plugins_rejects_unmatched_version_constraint(
+    mock_get_installed_plugins_and_versions,
+) -> None:
+    with pytest.raises(ImportError):
+        check_plugins([Plugin(name="example", version="==0.1.0")])
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -1355,6 +1610,7 @@ def test_repeat_actions_can_fail_syntax(mock__load_experiment_profile) -> None:
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -1386,10 +1642,11 @@ def test_execute_experiment_profile_with_config_overrides(
     action = Start(
         hours_elapsed=0,
         options={"target": "${{unit1:jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"},
-        config_overrides={"option1": "value1", "option2": "value2"},
+        config_overrides={"option1": "value1", "option2": "value2", "option3": 100},
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -1422,5 +1679,6 @@ def test_execute_experiment_profile_with_config_overrides(
         "config_overrides": [
             ["jobbing.config", "option1", "value1"],
             ["jobbing.config", "option2", "value2"],
+            ["jobbing.config", "option3", "100"],
         ],
     }

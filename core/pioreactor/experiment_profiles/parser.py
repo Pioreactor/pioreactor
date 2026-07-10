@@ -15,21 +15,24 @@ from .sly import Lexer
 from .sly import Parser
 
 
-def convert_string(input_str: str) -> int | bool | float | str:
+def convert_string(input_value: object) -> object:
+    if not isinstance(input_value, str):
+        return input_value
+
     # Try to convert to float
     try:
-        return float(input_str)
+        return float(input_value)
     except ValueError:
         pass
 
     # Try to convert to boolean
-    if input_str.lower() == "true":
+    if input_value.lower() == "true":
         return True
-    elif input_str.lower() == "false":
+    elif input_value.lower() == "false":
         return False
 
     # Return string if other conversions fail
-    return input_str
+    return input_value
 
 
 class ProfileLexer(Lexer):
@@ -99,16 +102,20 @@ class ProfileParser(Parser):
 
     """
 
-    def __init__(self, env=None) -> None:
+    _SYNTAX_VALUE = object()
+
+    def __init__(self, env=None, *, syntax_only: bool = False) -> None:
         if env:
             self.ENV = env
         else:
             self.ENV = dict()
+        self.syntax_only = syntax_only
 
     tokens = ProfileLexer.tokens
 
     precedence = (
-        ("left", AND, OR),
+        ("left", OR),
+        ("left", AND),
         ("right", NOT),
         ("nonassoc", LESS_THAN, EQUAL, GREATER_THAN),
         ("right", UMINUS),
@@ -119,6 +126,9 @@ class ProfileParser(Parser):
 
     @_("expr AND expr", "expr OR expr")
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         if p[1] == "and":
             return p.expr0 and p.expr1
         elif p[1] == "or":
@@ -126,6 +136,9 @@ class ProfileParser(Parser):
 
     @_("PLUS expr %prec UMINUS", "MINUS expr %prec UMINUS")
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         if p[0] == "+":
             return p.expr
         elif p[0] == "-":
@@ -133,10 +146,16 @@ class ProfileParser(Parser):
 
     @_("expr EXPONENT expr")  # Add rule for exponentiation
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         return p.expr0**p.expr1
 
     @_("expr PLUS expr", "expr MINUS expr", "expr TIMES expr", "expr DIVIDE expr")
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         if p[1] == "+":
             return p.expr0 + p.expr1
         elif p[1] == "-":
@@ -157,6 +176,9 @@ class ProfileParser(Parser):
         "expr LESS_THAN_OR_EQUAL expr",
     )
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         if p[1] == "<":
             return p.expr0 < p.expr1
         elif p[1] == "==":
@@ -170,10 +192,16 @@ class ProfileParser(Parser):
 
     @_("NOT expr")
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         return not p.expr
 
     @_("FUNCTION")
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         if p.FUNCTION == "random()":
             return random()
         elif p.FUNCTION == "unit()":
@@ -189,6 +217,9 @@ class ProfileParser(Parser):
 
     @_("NAME")
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         if p.NAME.lower() == "true":
             return True
         elif p.NAME.lower() == "false":
@@ -200,14 +231,23 @@ class ProfileParser(Parser):
 
     @_('"(" expr ")"')
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         return p.expr
 
     @_("NUMBER")
     def expr(self, p):
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         return float(p.NUMBER)
 
     @_("UNIT_JOB_SETTING", "COMMON_JOB_SETTING")
     def expr(self, p) -> bool | float | str:
+        if self.syntax_only:
+            return self._SYNTAX_VALUE
+
         if hasattr(p, "COMMON_JOB_SETTING"):
             data_string = p.COMMON_JOB_SETTING.replace("::", self.ENV["unit"] + ":")
         else:
@@ -265,6 +305,12 @@ class ProfileParser(Parser):
                 f"{':'.join([unit, job, setting_keys])} does not exist for experiment `{experiment}`"
             )
 
+    def error(self, token) -> None:
+        if self.syntax_only:
+            raise SyntaxError("Invalid profile expression.")
+
+        return super().error(token)
+
 
 def parse_profile_expression_to_bool(profile_string: str, env=None) -> bool:
     result = parse_profile_expression(profile_string, env=env)
@@ -284,7 +330,13 @@ def parse_profile_expression(profile_string: str, env=None):
 
 def check_syntax(profile_string: str) -> bool:
     try:
-        list(ProfileLexer().tokenize(profile_string))  # materialize it to force error
+        lexer = ProfileLexer()
+        # Current invariant: validation and execution use the same expression
+        # grammar, but syntax validation never evaluates values or live state.
+        parser = ProfileParser(syntax_only=True)
+        result = parser.parse(lexer.tokenize(profile_string))
+        if result is None:
+            return False
         return True
-    except Exception as e:
+    except Exception:
         return False

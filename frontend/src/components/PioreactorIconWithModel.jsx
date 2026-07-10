@@ -11,7 +11,7 @@ const PioreactorIconWithModel = ({ badgeContent, color }) => {
       }}
       sx={{
         display: { xs: "none", sm: "none", md: "inline" },
-        marginRight: "8px",
+        mr: "8px",
         "& .MuiBadge-badge": {
           color: "inherit",
           backgroundColor: "rgba(235,235,235)",
@@ -31,8 +31,7 @@ const PioreactorIconWithModel = ({ badgeContent, color }) => {
       showZero={true}
     >
       <PioreactorIcon
-        style={{ verticalAlign: "middle" }}
-        sx={{ display: { xs: "none", sm: "none", md: "inline" }, color: color}}
+        sx={{ verticalAlign: "middle", display: { xs: "none", sm: "none", md: "inline" }, color: color}}
       />
     </Badge>
   );

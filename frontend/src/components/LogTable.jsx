@@ -242,9 +242,9 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
             to={`/logs`}
             component={Link}
             color="primary"
-            style={{ textTransform: 'none', verticalAlign: 'middle', margin: '0px 3px' }}
+            sx={{ textTransform: 'none', verticalAlign: 'middle', m: '0px 3px' }}
           >
-            <ListAltOutlinedIcon style={{ fontSize: 17, margin: '0px 3px' }} color="primary" /> View experiment logs
+            <ListAltOutlinedIcon sx={{ fontSize: 17, m: '0px 3px' }} color="primary" /> View experiment logs
           </Button>
         </CardActions>
       </CardContent>

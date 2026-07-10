@@ -51,7 +51,7 @@ function PageHeader() {
           <Box sx={{ fontWeight: "fontWeightBold" }}>Plugins</Box>
         </Typography>
       </Box>
-      <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+      <Divider sx={{mt: "12px", mb: "15px"}} />
     </Box>
   );
 }
@@ -120,22 +120,6 @@ function assertPluginTaskResultSucceeded(taskPayload, failureMessage) {
   }
 }
 
-function getTaskStatusLabel(task) {
-  if (!task) {
-    return "";
-  }
-
-  if (task.status === "failed") {
-    return "Failed";
-  }
-
-  if (task.status === "succeeded") {
-    return task.action === "uninstall" ? "Removed" : "Installed";
-  }
-
-  return task.action === "uninstall" ? "Uninstalling" : "Installing";
-}
-
 function PluginAvatar({ name, source = "community" }) {
   const colors =
     source === "installed"
@@ -143,27 +127,6 @@ function PluginAvatar({ name, source = "community" }) {
       : ["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"];
 
   return <Avatar name={`${name}${source}`} size={40} colors={colors} variant="bauhaus" />;
-}
-
-function TaskStatusText({ task }) {
-  if (!task) {
-    return null;
-  }
-
-  const label = getTaskStatusLabel(task);
-  const color = task.status === "failed" ? "error" : "text.secondary";
-
-  return (
-    <Typography
-      variant="caption"
-      component="span"
-      color={color}
-      sx={{ display: "block", mt: 0.5 }}
-    >
-      {label} on {getTargetLabel(task.target)}
-      {task.status === "failed" && task.message ? `: ${task.message}` : ""}
-    </Typography>
-  );
 }
 
 function InstallButton({
@@ -269,13 +232,13 @@ function ListSuggestedPlugins({
   return (
     <Box sx={{ mb: "15px", width: "100%" }}>
       {isSuggestedPluginsLoading && (
-        <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "24px" }}>
+        <Box sx={{ textAlign: "center", mb: "24px", mt: "24px" }}>
           <CircularProgress size={24} />
         </Box>
       )}
 
       {!isSuggestedPluginsLoading && suggestedPluginsFetchError && (
-        <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "24px" }}>
+        <Box sx={{ textAlign: "center", mb: "24px", mt: "24px" }}>
           <Typography variant="body2" component="p" color="error">
             {suggestedPluginsFetchError}
           </Typography>
@@ -285,7 +248,7 @@ function ListSuggestedPlugins({
       {!isSuggestedPluginsLoading &&
         !suggestedPluginsFetchError &&
         availablePlugins.length === 0 && (
-          <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "24px" }}>
+          <Box sx={{ textAlign: "center", mb: "24px", mt: "24px" }}>
             <Typography variant="body2" component="p" color="text.secondary">
               No suggested plugins available right now.
             </Typography>
@@ -311,18 +274,17 @@ function ListSuggestedPlugins({
                     secondary={
                       <>
                         <Typography
-                          sx={{ display: "block", fontStyle: "italic" }}
+                          sx={{ display: "block", fontStyle: "italic", my: 0.5 }}
                           component="span"
                           variant="body2"
                           color="text.primary"
                         >
-                          {plugin.author}
+                          By {plugin.author}
                         </Typography>
                         <span>{plugin.description}</span>
-                        <TaskStatusText task={task} />
                       </>
                     }
-                    style={{ maxWidth: "525px" }}
+                    sx={{ maxWidth: "525px" }}
                   />
                   <ListItemSecondaryAction sx={PLUGIN_ROW_ACTION_SX}>
                     <InstallButton
@@ -363,7 +325,7 @@ function ListSuggestedPlugins({
 function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUninstall }) {
   if (selectedTarget === BROADCAST_TARGET) {
     return (
-      <Box sx={{ textAlign: "center", marginBottom: "50px", marginTop: "30px" }}>
+      <Box sx={{ textAlign: "center", mb: "50px", mt: "30px" }}>
         <Typography variant="body2" component="p" color="text.secondary">
           Choose a Pioreactor to view installed plugins.
         </Typography>
@@ -373,7 +335,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
 
   if (installedPlugins.length === 0) {
     return (
-      <Box sx={{ textAlign: "center", marginBottom: "50px", marginTop: "50px" }}>
+      <Box sx={{ textAlign: "center", mb: "50px", mt: "50px" }}>
         <Typography variant="body2" component="p" color="text.secondary">
           No installed plugins. Try installing one below, or read more about{" "}
           <a
@@ -416,22 +378,21 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                 secondary={
                   <>
                     <Typography
-                      sx={{ display: "block", fontStyle: "italic" }}
+                      sx={{ display: "block", fontStyle: "italic",  my: 0.5 }}
                       component="span"
                       variant="body2"
                       color="text.primary"
                     >
-                      {plugin.author || "unknown author"}
+                      By {plugin.author || "unknown author"}
                     </Typography>
                     <span>
                       {plugin.description === "Unknown"
                         ? "No description provided."
                         : plugin.description}
                     </span>
-                    <TaskStatusText task={task} />
                   </>
                 }
-                style={{ maxWidth: "525px" }}
+                sx={{ maxWidth: "525px" }}
               />
               <ListItemSecondaryAction sx={PLUGIN_ROW_ACTION_SX}>
                 <Button
@@ -566,7 +527,18 @@ function ListUsbPlugins({
       <Typography variant="h6" component="h3">
         USB Device
       </Typography>
-      <p> You can attach a USB with Pioreactor plugins to install them on your cluster.</p>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
+        <p>
+           You can attach a USB with Pioreactor plugins to install them on your cluster. Learn more about {" "}
+          <a
+            href="https://docs.pioreactor.com/user-guide/using-usb-drives#install-plugins-from-usb"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+           USB-sourced plugins
+          </a>.
+        </p>
+      </Box>
     </>
     )
   }
@@ -580,7 +552,12 @@ function ListUsbPlugins({
       <Box sx={{ mb: "15px", width: "100%" }}>
         <List>
           {usbPlugins.map((plugin) => {
-            const label = `${plugin.name}${plugin.version ? " (" + plugin.version + ")" : ""}`;
+            const pluginDetail = plugin.version
+              ? ` (${plugin.version})`
+              : plugin.kind === "python_file"
+                ? " (Python file)"
+                : "";
+            const label = `${plugin.name}${pluginDetail}`;
             const isInstalled = installedPlugins.includes(plugin.name);
             const task = getTask("install", "usb", plugin.name);
 
@@ -595,10 +572,9 @@ function ListUsbPlugins({
                   secondary={
                     <>
                       <span>{plugin.path}</span>
-                      <TaskStatusText task={task} />
                     </>
                   }
-                  style={{ maxWidth: "525px" }}
+                  sx={{ maxWidth: "525px" }}
                 />
                 <ListItemSecondaryAction sx={PLUGIN_ROW_ACTION_SX}>
                   <InstallButton
@@ -981,7 +957,7 @@ function PluginContainer() {
                 letterSpacing: "0.15px",
                 fontFamily: "inherit",
                 lineHeight: "34.5px",
-                marginLeft: "5px",
+                ml: "5px",
               }}
             >
               {units.map((unit) => (
@@ -1004,13 +980,13 @@ function PluginContainer() {
           </Typography>
 
           {!isFetchComplete && targetIsRealUnit && (
-            <Box sx={{ textAlign: "center", marginBottom: "50px", marginTop: "50px" }}>
+            <Box sx={{ textAlign: "center", mb: "50px", mt: "50px" }}>
               <CircularProgress size={33} />
             </Box>
           )}
 
           {unitsFetchError && (
-            <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "16px" }}>
+            <Box sx={{ textAlign: "center", mb: "24px", mt: "16px" }}>
               <Typography variant="body2" component="p" color="text.secondary">
                 {unitsFetchError}
               </Typography>
@@ -1018,7 +994,7 @@ function PluginContainer() {
           )}
 
           {!unitsFetchError && isFetchComplete && installedPluginsFetchError && (
-            <Box sx={{ textAlign: "center", marginBottom: "24px", marginTop: "16px" }}>
+            <Box sx={{ textAlign: "center", mb: "24px", mt: "16px" }}>
               <Typography variant="body2" component="p" color="error">
                 {installedPluginsFetchError}
               </Typography>
@@ -1055,7 +1031,7 @@ function PluginContainer() {
           />
         </CardContent>
       </Card>
-      <p style={{ textAlign: "center", marginTop: "30px" }}>
+      <Box component="p" sx={{ textAlign: "center", mt: "30px" }}>
         Learn more about Pioreactor{" "}
         <a
           href="https://docs.pioreactor.com/user-guide/using-community-plugins"
@@ -1065,7 +1041,7 @@ function PluginContainer() {
           plugins
         </a>
         .
-      </p>
+      </Box>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}

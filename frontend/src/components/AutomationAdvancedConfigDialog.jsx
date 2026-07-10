@@ -134,7 +134,7 @@ export default function AutomationAdvancedConfigButton({
 
   return (
     <>
-      <Button size="small" variant="text" disabled={disabled} onClick={handleOpen} style={{textTransform: 'none', float: "right", marginRight: 0}}>
+      <Button size="small" variant="text" disabled={disabled} onClick={handleOpen} sx={{textTransform: 'none', float: "right", mr: 0}}>
         <ExpandMoreIcon sx={{width: 21, mb: 0.25, mr: .25}} /> Advanced
       </Button>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useEffectEvent } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -168,43 +168,43 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
 
 
 
+  const onLiveLogMessage = useEffectEvent((topic, message, _packet) => {
+    if (!message || !topic) return;
+
+    const unit = topic.toString().split('/')[1];
+    const payload = JSON.parse(message.toString());
+    const levelOfMessage = payload.level.toUpperCase();
+
+    if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
+      return
+    }
+
+    setListOfLogs((currentLogs) =>
+      [
+        {
+          timestamp: toTimestampObject(payload.timestamp),
+          pioreactor_unit: unit,
+          message: String(payload.message),
+          task: payload.task,
+          level: payload.level.toUpperCase(),
+          key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
+        },
+        ...currentLogs,
+      ]);
+  });
+
   useEffect(() => {
-    const onMessage = (topic, message, _packet) => {
-      if (!message || !topic) return;
-
-      const unit = topic.toString().split('/')[1];
-      const payload = JSON.parse(message.toString());
-      const levelOfMessage = payload.level.toUpperCase();
-
-      if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
-        return
-      }
-
-      setListOfLogs((currentLogs) =>
-        [
-          {
-            timestamp: toTimestampObject(payload.timestamp),
-            pioreactor_unit: unit,
-            message: String(payload.message),
-            task: payload.task,
-            level: payload.level.toUpperCase(),
-            key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
-          },
-          ...currentLogs,
-        ]);
-    };
-
     if (experiment && client) {
       subscribeToTopic(
         LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
-        onMessage,
+        onLiveLogMessage,
         'PagLogTable'
       );
     }
     return () => {
       LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
     };
-  }, [client, experiment, logLevel, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
+  }, [client, experiment, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSwitchChange = (event) => {
@@ -232,10 +232,10 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
             <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
               <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
                 <colgroup>
-                  <col style={{width:'15%'}}/>
-                  <col style={{width:'10%'}}/>
-                  <col style={{width:'10%'}}/>
-                  <col style={{width:'55%'}}/>
+                  <Box component="col" sx={{width:'15%'}}/>
+                  <Box component="col" sx={{width:'10%'}}/>
+                  <Box component="col" sx={{width:'10%'}}/>
+                  <Box component="col" sx={{width:'55%'}}/>
                 </colgroup>
                 <TableHead>
                   <TableRow >
@@ -282,7 +282,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           )}
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
             <Box sx={{width: 300}}/>
-            <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } style={{textTransform: 'none'}}>
+            <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } sx={{textTransform: 'none'}}>
               {loading ? "Loading..." : "More"}
             </Button>
             <FormControlLabel

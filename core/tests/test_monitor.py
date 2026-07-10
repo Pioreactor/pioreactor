@@ -12,6 +12,7 @@ from pioreactor import bioreactor
 from pioreactor import structs
 from pioreactor.background_jobs.monitor import button_controls_enabled_from_config
 from pioreactor.background_jobs.monitor import Monitor
+from pioreactor.background_jobs.monitor import self_check_interval_hours_from_config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
@@ -64,6 +65,51 @@ def test_monitor_button_controls_enabled_defaults_to_enabled_for_invalid_config(
     assert warning_messages == [
         "[monitor.config] enable_button must be one of: auto, true, false. Defaulting to enabled."
     ]
+
+
+@pytest.mark.parametrize(
+    ("config_value", "expected"),
+    [
+        ("24", 24.0),
+        ("0.5", 0.5),
+        ("0", 0.0),
+    ],
+)
+def test_self_check_interval_hours_from_config(config_value: str, expected: float) -> None:
+    assert self_check_interval_hours_from_config(config_value) == expected
+
+
+@pytest.mark.parametrize("config_value", ["-1", "nope"])
+def test_self_check_interval_hours_from_config_rejects_negative_values(config_value: str) -> None:
+    with pytest.raises(ValueError):
+        self_check_interval_hours_from_config(config_value)
+
+
+def test_monitor_self_check_interval_hours_defaults_for_invalid_config(monkeypatch) -> None:
+    monitor = object.__new__(Monitor)
+    warning_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.monitor.config.get",
+        lambda *_args, **_kwargs: "nope",
+    )
+    monitor.logger = cast(Any, SimpleNamespace(warning=warning_messages.append))
+
+    assert monitor.self_check_interval_hours() == 12
+    assert warning_messages == [
+        "[monitor.config] self_check_interval_hours must be a non-negative number. Defaulting to 12 hours."
+    ]
+
+
+def test_monitor_self_check_interval_zero_runs_once_without_starting_timer(monkeypatch) -> None:
+    monitor = object.__new__(Monitor)
+    calls: list[str] = []
+
+    monkeypatch.setattr(monitor, "self_check_interval_hours", lambda: 0.0)
+    monkeypatch.setattr(monitor, "self_checks", lambda: calls.append("self_checks"))
+
+    assert monitor.start_self_check_thread() is None
+    assert calls == ["self_checks"]
 
 
 def test_monitor_set_versions_ignores_unknown_keys_without_mutating_input(monkeypatch) -> None:

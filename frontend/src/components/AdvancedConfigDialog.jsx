@@ -188,7 +188,7 @@ export default function AdvancedConfigButton({ jobName, displayName, unit, exper
 
   return (
     <>
-      <Button  size="small" variant="text" disabled={disabled} onClick={handleOpen} style={{textTransform: 'none', float: "right", marginRight: "0px"}}>
+      <Button  size="small" variant="text" disabled={disabled} onClick={handleOpen} sx={{textTransform: 'none', float: "right", mr: "0px"}}>
        <ExpandMoreIcon sx={{width: "21px", mb: 0.25, mr: .25}} /> Advanced
       </Button>
       <AdvancedConfigDialog

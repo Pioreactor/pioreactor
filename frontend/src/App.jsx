@@ -124,11 +124,11 @@ function MainSite() {
   }, [])
 
   return (
-    <div style={{display: 'flex'}}>
+    <Box sx={{display: 'flex'}}>
       <ErrorBoundary>
         <ExperimentProvider>
           <SideNavAndHeader />
-          <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+          <Box component="main" sx={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
             <div className="pageContainer">
               <MQTTProvider name="global" config={config}>
                 <React.Suspense fallback={<RouteFallback />}>
@@ -145,7 +145,7 @@ function MainSite() {
                     <Route path="/experiment-profiles/:profileFilename/edit" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
                     <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                     <Route path="/config/:pioreactorUnit/" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
-                    <Route path="/leader" element={<Leader title="Pioreactor ~ Leader"/>}/>
+                    <Route path="/leader" element={<Leader title="Pioreactor ~ Leader" config={config}/>}/>
                     <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                     <Route path="/calibration-coverage" element={<CalibrationCoverage title="Pioreactor ~ Calibration Coverage"/>}/>
                     <Route path="/calibrations/:pioreactorUnit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
@@ -177,10 +177,10 @@ function MainSite() {
                 <TactileButtonNotification />
               </MQTTProvider>
             </div>
-          </main>
+          </Box>
         </ExperimentProvider>
       </ErrorBoundary>
-    </div>
+    </Box>
 )}
 
 export default App;

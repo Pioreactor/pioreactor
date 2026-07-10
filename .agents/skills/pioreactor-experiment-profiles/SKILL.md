@@ -13,6 +13,8 @@ Help Codex produce valid Pioreactor experiment profile YAML that matches the run
 
 ```
 # Main structure of the experiment profile
+version: "1.0"  # Required and quoted; unquoted 1.0 is a YAML number and is rejected
+
 experiment_profile_name: <string>  # Name of the experiment profile
 
 
@@ -63,7 +65,7 @@ pioreactors:
 #   if: <bool_or_expression>
 #   options: {<option_name>: <value>}  # expressions allowed via ${{ }}
 #   args: [<string>, ...]
-#   config_overrides: {<config_name>: <value>}
+#   config_overrides: {<config_name>: <value>}  # expressions allowed via ${{ }}
 #
 # - type: update
 #   t: <time_string_or_float>

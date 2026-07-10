@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # utils.py
-import re
 import typing as t
 from pathlib import Path
 from time import time
@@ -27,6 +26,7 @@ from pioreactor.bioreactor import get_default_bioreactor_value
 from pioreactor.experiment_profiles.diagnostics import Diagnostic
 from pioreactor.http_response import UnitApiErrorPayload
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.files import is_valid_unix_filename  # noqa: F401 - re-export
 from pioreactor.whoami import get_unit_name
 
 
@@ -156,34 +156,6 @@ def scrub_to_valid(value: str) -> str:
     return "".join(chr for chr in value if (chr.isalnum() or chr == "_"))
 
 
-_ALLOWED = re.compile(r"^[A-Za-z0-9._-]+( [A-Za-z0-9._-]+)*$")  # single spaces only
-
-
-def is_valid_unix_filename(name: str, *, max_bytes: int = 255) -> bool:
-    """
-    Return True iff *name* is a single portable filename component.
-
-    Rules
-    -----
-    • ASCII letters, digits, dot, underscore, dash, single spaces
-    • No leading dot or dash
-    • Not '.' or '..'
-    • No slash, backslash, or control chars
-    • Max 255 bytes in UTF‑8
-    """
-    if name in {".", ".."}:
-        return False
-    if name[0] in ".-":
-        return False
-    if "/" in name or "\\" in name:
-        return False
-    if any(ord(c) < 0x20 for c in name):  # control chars (NUL already caught)
-        return False
-    if len(name.encode()) > max_bytes:
-        return False
-    return bool(_ALLOWED.fullmatch(name))
-
-
 def is_rate_limited(job: str, expire_time_seconds: float = 1.0) -> bool:
     """
     Check if the user has made a request within the debounce duration.
@@ -201,6 +173,44 @@ def is_rate_limited(job: str, expire_time_seconds: float = 1.0) -> bool:
         return False
 
 
+def validate_published_settings_descriptors(
+    settings: list[structs.PublishedSettingsDescriptor],
+) -> None:
+    """
+    UI settings descriptors must be semantically renderable, not just parseable.
+    """
+    seen_keys: set[str] = set()
+    for setting in settings:
+        if setting.key in seen_keys:
+            raise ValueError(f"Duplicate published setting key: {setting.key}")
+        seen_keys.add(setting.key)
+
+        if setting.min is not None and setting.max is not None and setting.min > setting.max:
+            raise ValueError(f"Published setting {setting.key} has min greater than max.")
+
+        if setting.display and not setting.label:
+            raise ValueError(f"Displayed published setting {setting.key} requires a label.")
+
+
+def validate_background_job_descriptor(descriptor: structs.BackgroundJobDescriptor) -> None:
+    validate_published_settings_descriptors(descriptor.published_settings)
+
+
+def validate_settings_collection_descriptor(descriptor: structs.SettingsCollectionDescriptor) -> None:
+    validate_published_settings_descriptors(descriptor.published_settings)
+
+
+def validate_automation_descriptor(descriptor: structs.AutomationDescriptor) -> None:
+    seen_keys: set[str] = set()
+    for field in descriptor.fields:
+        if field.key in seen_keys:
+            raise ValueError(f"Duplicate automation field key: {field.key}")
+        seen_keys.add(field.key)
+
+        if field.type == "select" and not field.options:
+            raise ValueError(f"Select automation field {field.key} requires options.")
+
+
 def load_background_job_descriptors(
     dot_pioreactor_path: Path,
     *,
@@ -215,8 +225,11 @@ def load_background_job_descriptors(
     for file in files:
         try:
             decoded_yaml = yaml_decode(file.read_bytes(), type=structs.BackgroundJobDescriptor)
+            # validate_background_job_descriptor(decoded_yaml) TODO: uncomment me for next update.sh release.
+            if decoded_yaml.job_name in parsed_yaml and report_error is not None:
+                report_error(f"Descriptor {file.name} overrides job {decoded_yaml.job_name}.")
             parsed_yaml[decoded_yaml.job_name] = decoded_yaml
-        except (ValidationError, DecodeError) as e:
+        except (ValidationError, DecodeError, ValueError) as e:
             if report_error is not None:
                 report_error(f"Yaml error in {file.name}: {e}")
 
@@ -238,7 +251,8 @@ def load_settings_collection_descriptors(
     for file in files:
         try:
             descriptor = yaml_decode(file.read_bytes(), type=structs.SettingsCollectionDescriptor)
-        except (ValidationError, DecodeError) as e:
+            validate_settings_collection_descriptor(descriptor)
+        except (ValidationError, DecodeError, ValueError) as e:
             if report_error is not None:
                 report_error(f"Yaml error in {file.name}: {e}")
             continue
@@ -265,6 +279,8 @@ def load_settings_collection_descriptors(
                 if (metadata := bioreactor_variables.get(field.key)) is not None
             ]
 
+        if descriptor.key in parsed_yaml and report_error is not None:
+            report_error(f"Descriptor {file.name} overrides settings collection {descriptor.key}.")
         parsed_yaml[descriptor.key] = descriptor
 
     return list(parsed_yaml.values())
@@ -285,8 +301,11 @@ def load_automation_descriptors(
     for file in files:
         try:
             decoded_yaml = yaml_decode(file.read_bytes(), type=structs.AutomationDescriptor)
+            validate_automation_descriptor(decoded_yaml)
+            if decoded_yaml.automation_name in parsed_yaml and report_error is not None:
+                report_error(f"Descriptor {file.name} overrides automation {decoded_yaml.automation_name}.")
             parsed_yaml[decoded_yaml.automation_name] = decoded_yaml
-        except (ValidationError, DecodeError) as e:
+        except (ValidationError, DecodeError, ValueError) as e:
             if report_error is not None:
                 report_error(f"Yaml error in {file.name}: {e}")
 

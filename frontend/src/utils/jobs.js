@@ -2,9 +2,10 @@ import { fetchTaskResult } from "./tasks";
 import { experimentPathSegment } from "./url";
 
 let workerJobDescriptorsRequestCache = new Map();
+let jobDescriptorsRequestCache = null;
 let settingsDescriptorsRequestCache = null;
 let workerSettingsDescriptorsRequestCache = new Map();
-let workerAutomationDescriptorsRequestCache = new Map();
+let automationDescriptorsRequestCache = new Map();
 
 function getAutomationCacheKey(unit, automationType) {
   return `${unit || ""}:${automationType}`;
@@ -77,11 +78,12 @@ function runJobPatch(endpoint, body) {
     });
 }
 
-export function resetWorkerJobDescriptorsCache() {
+export function resetDescriptorCaches() {
   workerJobDescriptorsRequestCache = new Map();
+  jobDescriptorsRequestCache = null;
   settingsDescriptorsRequestCache = null;
   workerSettingsDescriptorsRequestCache = new Map();
-  workerAutomationDescriptorsRequestCache = new Map();
+  automationDescriptorsRequestCache = new Map();
 }
 
 export function createMonitorJobState() {
@@ -180,10 +182,20 @@ export function buildSettingsCollectionsFromDescriptors(
   return collections;
 }
 
-export function updatePublishedSettingValue(collections, collectionKey, settingKey, value) {
+export function updatePublishedSettingValue(
+  collections,
+  collectionKey,
+  settingKey,
+  value,
+  { flash = false } = {},
+) {
   const collection = collections[collectionKey];
   const existingSetting = collection?.publishedSettings?.[settingKey];
   if (!existingSetting) {
+    return collections;
+  }
+
+  if (Object.is(existingSetting.value, value)) {
     return collections;
   }
 
@@ -193,7 +205,13 @@ export function updatePublishedSettingValue(collections, collectionKey, settingK
       ...collection,
       publishedSettings: {
         ...collection.publishedSettings,
-        [settingKey]: { ...existingSetting, value },
+        [settingKey]: {
+          ...existingSetting,
+          value,
+          ...(flash && existingSetting.display
+            ? { updateFlashToken: (existingSetting.updateFlashToken || 0) + 1 }
+            : {}),
+        },
       },
     },
   };
@@ -271,6 +289,27 @@ export async function getWorkerJobDescriptors(unit) {
   );
 }
 
+export async function getJobDescriptors() {
+  if (!jobDescriptorsRequestCache) {
+    jobDescriptorsRequestCache = requestJson("/api/jobs/descriptors")
+      .catch((error) => {
+        jobDescriptorsRequestCache = null;
+        throw error;
+      });
+  }
+
+  return jobDescriptorsRequestCache;
+}
+
+export async function getJobDescriptor(jobName) {
+  if (!jobName) {
+    return null;
+  }
+
+  const descriptors = await getJobDescriptors();
+  return descriptors.find((job) => job.job_name === jobName) || null;
+}
+
 export async function getWorkerSettingsDescriptors(unit) {
   if (!unit) {
     return [];
@@ -285,13 +324,7 @@ export async function getWorkerSettingsDescriptors(unit) {
 
 export async function getSettingsDescriptors() {
   if (!settingsDescriptorsRequestCache) {
-    settingsDescriptorsRequestCache = fetch("/api/settings/descriptors")
-      .then(async (response) => {
-        if (!response.ok) {
-          throw await createApiErrorFromResponse(response);
-        }
-        return response.json();
-      })
+    settingsDescriptorsRequestCache = requestJson("/api/settings/descriptors")
       .catch((error) => {
         settingsDescriptorsRequestCache = null;
         throw error;
@@ -313,7 +346,7 @@ export async function getAutomationDescriptors(unit, automationType) {
     ? `/api/workers/${unit}/automations/descriptors/${automationType}`
     : `/api/automations/descriptors/${automationType}`;
 
-  return getCachedJson(workerAutomationDescriptorsRequestCache, cacheKey, endpoint, {
+  return getCachedJson(automationDescriptorsRequestCache, cacheKey, endpoint, {
     createError: (response) => new Error(`Error ${response.status}.`),
   });
 }

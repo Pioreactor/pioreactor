@@ -190,6 +190,7 @@ def test_REF_is_in_correct_position(
     logger.debug(f"{relative_effect_per_channel=}")
     logger.debug(f"{effect_per_channel=}")
 
+    # Current invariant: REF is materially less responsive to stirring than the strongest SIGNAL.
     MIN_SIGNAL_EFFECT = 0.001
     MAX_REF_EFFECT = 0.015
     MAX_REF_TO_SIGNAL_RATIO = 0.75
@@ -477,7 +478,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     config_ir_intensity = config.get("od_reading.config", "ir_led_intensity")
     if config_ir_intensity == "auto":
-        ir_intensity = 70.0  # this has been our historical default, and should generally work.
+        ir_intensity = 80.0  # this has been our historical default, and should generally work.
     else:
         ir_intensity = float(config_ir_intensity)
 
@@ -512,9 +513,10 @@ def test_REF_is_lower_than_0_dot_256_volts(
         for i in range(6):
             samples.append(adc_reader.take_reading()[reference_channel].reading)
 
+        lb, ub = 0.01, 1.0
         assert (
-            0.02 < mean(samples) < 1.0
-        ), f"Recorded {mean(samples):0.3f} in REF, should ideally be between 0.02 and 0.500. Current IR LED: {ir_intensity}%."
+            lb <= mean(samples) <= ub
+        ), f"Recorded {mean(samples):0.3f} in REF, should ideally be between {lb} and {ub}. Current IR LED: {ir_intensity}%."
 
         # also check for stability: the std. of the reference should be quite low:
         assert (

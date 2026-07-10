@@ -44,16 +44,19 @@ declare -a TEST_SEQUENCE=(
   check_pio_run_latency
   check_pio_logs_cli
   check_pio_usb_cli
+  check_update_cli_contract
   check_leader_api
   check_experiment_cli
   check_stirring_job
   check_experiment_scoping
   check_experiment_profiles
+  check_experiment_profile_validation
   check_exportable_datasets_listing
   check_exportable_dataset_preview_validation
   check_export_datasets_endpoint
   check_dropin_plugin_discovery
   check_calibration_discovery
+  check_storage_path_validation
   check_broadcast_endpoints
   check_thermostat_job
   check_pump_actions
@@ -990,6 +993,7 @@ check_registered_target_validation() {
     http_status_is \
     400 \
     http://localhost/api/units/203.0.113.10/system/reboot \
+    -H "Content-Length: 0" \
     -X POST
 }
 
@@ -1378,6 +1382,7 @@ check_experiment_profiles() {
   info "Testing new experiment_profiles appear in API"
   mkdir -p ~/.pioreactor/experiment_profiles
   cat <<'YAML' > ~/.pioreactor/experiment_profiles/test_profile.yaml
+version: "1.0"
 experiment_profile_name: test_profile
 YAML
 
@@ -1388,6 +1393,67 @@ YAML
   fi
 
   rm -f ~/.pioreactor/experiment_profiles/test_profile.yaml
+}
+
+check_experiment_profile_validation() {
+  info "Testing experiment profile validation diagnostics"
+
+  if ! python3_available; then
+    warn "python3 not available; skipping experiment profile validation diagnostics"
+    return
+  fi
+
+  local payload_file response_file status
+  payload_file="$(mktemp)"
+  response_file="$(mktemp)"
+
+  python3 > "$payload_file" <<'PY'
+import json
+
+body = """\
+version: "1.0"
+experiment_profile_name: agent_smoke_invalid_expression
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          t: 0s
+          if: 1 +
+"""
+
+print(json.dumps({"filename": "agent_smoke_invalid_expression.yaml", "body": body}))
+PY
+
+  status="$(curl -sS -o "$response_file" -w "%{http_code}" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -d "@$payload_file" \
+    http://localhost/api/experiment_profiles)"
+
+  if [[ "$status" == "400" ]]; then
+    ok "invalid expression profile rejected"
+  else
+    fail "invalid expression profile returned HTTP $status"
+    print_prefixed_file_excerpt "profile validation response: " "$response_file" 2000
+    rm -f "$payload_file" "$response_file"
+    return
+  fi
+
+  if [[ "$HAS_JQ" == true ]]; then
+    if jq -e \
+      '.error=="Validation error." and any(.diagnostics[]?; .code=="expression.syntax" and .path=="common.jobs.stirring.actions[0].if")' \
+      "$response_file" >/dev/null; then
+      ok "profile validation returned expression.syntax diagnostic"
+    else
+      fail "profile validation response missing expected diagnostic"
+      print_prefixed_file_excerpt "profile validation response: " "$response_file" 2000
+    fi
+  else
+    ok "profile validation returned HTTP 400"
+  fi
+
+  rm -f "$payload_file" "$response_file"
 }
 
 check_exportable_datasets_listing() {
@@ -1581,6 +1647,44 @@ EOF
   fi
 
   rm -f ~/.pioreactor/storage/calibrations/od/my_test_cal.yaml
+}
+
+check_storage_path_validation() {
+  info "Testing storage path validation"
+
+  run_step \
+    "Checking calibration route rejects invalid device path" \
+    http_status_is \
+    400 \
+    http://localhost/unit_api/calibrations/bad:name
+
+  run_step \
+    "Checking estimator route rejects invalid device path" \
+    http_status_is \
+    400 \
+    http://localhost/unit_api/estimators/bad:name
+
+  local dot_pioreactor_root outside_file symlink_path symlink_name
+  dot_pioreactor_root="${DOT_PIOREACTOR:-$HOME/.pioreactor}"
+  symlink_name="agent_smoke_outside_link"
+  symlink_path="$dot_pioreactor_root/$symlink_name"
+
+  if [[ -e "$symlink_path" || -L "$symlink_path" ]]; then
+    warn "$symlink_path already exists; skipping symlink escape check"
+    return
+  fi
+
+  outside_file="$(mktemp)"
+  printf 'agent smoke path validation\n' > "$outside_file"
+  ln -s "$outside_file" "$symlink_path"
+
+  run_step \
+    "Checking /unit_api/system/path rejects symlink outside DOT_PIOREACTOR" \
+    http_status_is \
+    403 \
+    "http://localhost/unit_api/system/path/$symlink_name"
+
+  rm -f "$symlink_path" "$outside_file"
 }
 
 check_broadcast_endpoints() {

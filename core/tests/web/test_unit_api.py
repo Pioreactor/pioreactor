@@ -340,6 +340,40 @@ def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.Monke
     assert captured == {"unit": HOSTNAME, "experiment": "experiment-a"}
 
 
+def test_system_path_rejects_symlink_outside_dot_pioreactor(
+    client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    outside_file = tmp_path / "outside.txt"
+    outside_file.write_text("secret", encoding="utf-8")
+    (dot_pioreactor / "outside-link").symlink_to(outside_file)
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    response = client.get("/unit_api/system/path/outside-link")
+
+    assert response.status_code == 403
+
+
+def test_zipped_dot_pioreactor_skips_symlink_outside_root(
+    client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text("[section]\n", encoding="utf-8")
+    outside_file = tmp_path / "outside.txt"
+    outside_file.write_text("secret", encoding="utf-8")
+    (dot_pioreactor / "outside-link").symlink_to(outside_file)
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    response = client.get("/unit_api/zipped_dot_pioreactor")
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(BytesIO(response.data)) as archive:
+        assert archive.read("config.ini") == b"[section]\n"
+        assert "outside-link" not in archive.namelist()
+
+
 def test_task_results_complete_is_preserved_across_polls(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 
@@ -554,6 +588,36 @@ def test_install_plugin_from_usb_requires_filepath(client) -> None:
     assert resp.get_json()["remediation"] == "Send a JSON object with the required fields: filepath."
 
 
+def test_install_python_plugin_file_from_leader_copy_schedules_task(
+    client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class DummyTask:
+        id = "install-python-plugin-task"
+
+    captured: dict[str, str] = {}
+
+    def fake_install_python_plugin_file_from_leader_copy_task(filename: str) -> DummyTask:
+        captured["filename"] = filename
+        return DummyTask()
+
+    monkeypatch.setattr(
+        mod.tasks,
+        "install_python_plugin_file_from_leader_copy_task",
+        fake_install_python_plugin_file_from_leader_copy_task,
+    )
+
+    resp = client.post(
+        "/unit_api/plugins/install-python-file-from-leader-copy",
+        json={"filename": "../dropin_plugin.py"},
+    )
+
+    assert resp.status_code == 202
+    assert resp.get_json()["task_id"] == "install-python-plugin-task"
+    assert captured == {"filename": "dropin_plugin.py"}
+
+
 @pytest.mark.parametrize(
     ("method", "endpoint"),
     [
@@ -564,6 +628,7 @@ def test_install_plugin_from_usb_requires_filepath(client) -> None:
         ("post", "/unit_api/jobs/stop"),
         ("patch", "/unit_api/bioreactor/experiments/exp1"),
         ("post", "/unit_api/plugins/install-from-usb"),
+        ("post", "/unit_api/plugins/install-python-file-from-leader-copy"),
         ("post", "/unit_api/calibrations/media_pump"),
     ],
 )
@@ -584,6 +649,33 @@ def test_system_action_endpoints_schedule_task(client, endpoint) -> None:
     assert resp.status_code == 202
     data = resp.get_json()
     assert "task_id" in data and "result_url_path" in data
+
+
+def test_reboot_leader_delays_inside_task_not_http_handler(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class FakeTask:
+        id = "reboot-task"
+
+    captured: dict[str, int] = {}
+
+    def fake_reboot(*, wait: int = 0) -> FakeTask:
+        captured["wait"] = wait
+        return FakeTask()
+
+    def fail_sleep(_seconds: float) -> None:
+        raise AssertionError("reboot handler should not sleep before returning task response")
+
+    monkeypatch.setattr(mod, "HOSTNAME", "leader", raising=False)
+    monkeypatch.setattr(mod, "get_leader_hostname", lambda: "leader", raising=False)
+    monkeypatch.setattr(mod.tasks, "reboot", fake_reboot)
+    monkeypatch.setattr(mod, "sleep", fail_sleep, raising=False)
+
+    resp = client.post("/unit_api/system/reboot")
+
+    assert resp.status_code == 202
+    assert resp.get_json()["task_id"] == "reboot-task"
+    assert captured == {"wait": 5}
 
 
 def test_get_clock_time_success(client) -> None:
@@ -889,6 +981,36 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
     assert response.status_code == 202
 
 
+def test_run_job_rejects_manual_add_media_for_unknown_model(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
+    monkeypatch.setattr(
+        mod.tasks,
+        "pio_run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    response = client.patch(
+        "/unit_api/jobs/run/job_name/add_media",
+        json={
+            "args": [],
+            "options": {"ml": 1.0},
+            "env": {
+                "EXPERIMENT": "exp1",
+                "MODEL_NAME": "unknown_model",
+                "MODEL_VERSION": "1.0",
+            },
+            "config_overrides": [],
+        },
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data["error"] == "Unknown Pioreactor model."
+    assert data["cause"] == "Unknown model 'unknown_model' with version '1.0'."
+
+
 def test_hardware_check_requires_model_payload(client) -> None:
     resp = client.post("/unit_api/hardware/check", json={})
     assert resp.status_code == 400
@@ -981,6 +1103,57 @@ def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     data = resp.get_json()
     assert data["task_id"] == "task-123"
     assert captured["args"] == ("install", "pioreactor-air-bubbler")
+
+
+def test_uninstall_plugin_rejects_when_ui_installs_are_disabled(
+    client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    (tmp_path / "DISALLOW_UI_INSTALLS").touch()
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setattr(
+        mod.tasks,
+        "uninstall_plugin_task",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    response = client.post(
+        "/unit_api/plugins/uninstall",
+        json={"args": ["example-plugin"], "options": {}, "env": {}},
+    )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "DISALLOW_UI_INSTALLS is present",
+        "status": 403,
+        "cause": "Plugin installs are disabled on this unit.",
+        "remediation": "Remove DISALLOW_UI_INSTALLS or install via SSH.",
+    }
+
+
+def test_uninstall_plugin_queues_task(client, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class DummyTask:
+        id = "task-123"
+
+    captured: list[str] = []
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setattr(
+        mod.tasks,
+        "uninstall_plugin_task",
+        lambda plugin_name: captured.append(plugin_name) or DummyTask(),
+    )
+
+    response = client.post(
+        "/unit_api/plugins/uninstall",
+        json={"args": ["example-plugin"], "options": {}, "env": {}},
+    )
+
+    assert response.status_code == 202
+    assert response.get_json()["task_id"] == "task-123"
+    assert captured == ["example-plugin"]
 
 
 def test_get_jobs_returns_history(client) -> None:
@@ -1125,6 +1298,47 @@ def test_create_calibration_returns_error_if_save_fails(client, monkeypatch) -> 
     assert response.status_code == 500
     with local_persistent_storage("active_calibrations") as cache:
         assert cache.get("media_pump") is None
+
+
+@pytest.mark.parametrize(
+    ("method", "endpoint", "invalid_field"),
+    [
+        ("get", "/unit_api/calibrations/%2E%2E", "device"),
+        ("get", "/unit_api/calibrations/media_pump/%2E%2E", "calibration_name"),
+        ("delete", "/unit_api/calibrations/%2E%2E/reference", "device"),
+        ("patch", "/unit_api/active_calibrations/media_pump/%2E%2E", "calibration_name"),
+        ("delete", "/unit_api/active_calibrations/%2E%2E", "device"),
+        ("get", "/unit_api/estimators/%2E%2E", "device"),
+        ("get", "/unit_api/estimators/od_fused/%2E%2E", "estimator_name"),
+        ("delete", "/unit_api/estimators/%2E%2E/reference", "device"),
+        ("patch", "/unit_api/active_estimators/od_fused/%2E%2E", "estimator_name"),
+        ("delete", "/unit_api/active_estimators/%2E%2E", "device"),
+    ],
+)
+def test_calibration_and_estimator_routes_reject_invalid_path_components(
+    client, method: str, endpoint: str, invalid_field: str
+) -> None:
+    response = client.open(endpoint, method=method)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == f"Missing or invalid '{invalid_field}'."
+    assert response.get_json()["cause"] == (
+        f"{invalid_field.replace('_', ' ').capitalize()} is missing or contains invalid characters."
+    )
+    assert response.get_json()["remediation"] is not None
+
+
+def test_create_calibration_accepts_valid_filename_characters(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.tasks, "save_file", lambda *_args, **_kwargs: FakeTaskResult(True))
+
+    response = client.post(
+        "/unit_api/calibrations/media-pump_2.1",
+        json={"calibration_data": _build_valid_calibration_yaml("reference 2.1")},
+    )
+
+    assert response.status_code == 201
 
 
 def test_set_active_calibration_rejects_missing_file(client, monkeypatch, tmp_path) -> None:

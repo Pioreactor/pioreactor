@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Any
 from typing import Callable
-from typing import cast
 from typing import Iterable
 from typing import Literal
 
@@ -289,12 +288,18 @@ class SessionContext:
     ) -> dict[Str, str | None]:
         self.collected_calibrations.append(calibration)
         if self.mode == "ui":
-            assert self.executor is not None
+            if not self.executor:
+                raise ValueError("Calibration saver is only available in UI sessions.")
             payload = self.executor(
                 "save_calibration",
                 {"device": device, "calibration": to_builtins(calibration)},
             )
-            path = cast(str | None, payload.get("path"))
+            if not isinstance(payload, dict):
+                raise ValueError("Invalid calibration save payload.")
+            saved_path = payload.get("path")
+            if not isinstance(saved_path, str):
+                raise ValueError("Invalid calibration save payload.")
+            path = saved_path
         else:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}
@@ -572,6 +577,55 @@ def render_step_for_cli(step: CalibrationStep) -> None:
     click.echo()
 
 
+def _prompt_for_calibration_field(field: CalibrationStepField) -> object:
+    prompt = cli_helpers.green(field.label)
+    if field.field_type == "choice":
+        return click.prompt(
+            prompt,
+            type=click.Choice(field.options or []),
+            default=field.default,
+            show_default=field.default is not None,
+            prompt_suffix=":",
+        )
+    if field.field_type == "float":
+        return click.prompt(
+            prompt,
+            type=str,
+            default=field.default,
+            show_default=field.default is not None,
+            prompt_suffix=":",
+        )
+    if field.field_type == "int":
+        return click.prompt(
+            prompt,
+            type=str,
+            default=field.default,
+            show_default=field.default is not None,
+            prompt_suffix=":",
+        )
+    if field.field_type == "float_list":
+        return click.prompt(
+            prompt,
+            type=str,
+            default=",".join(str(v) for v in (field.default or [])),
+            show_default=field.default is not None,
+            prompt_suffix=":",
+        )
+    if field.field_type == "bool":
+        return click.confirm(
+            prompt,
+            default=bool(field.default),
+            prompt_suffix=":",
+        )
+    return click.prompt(
+        prompt,
+        type=str,
+        default=field.default,
+        show_default=field.default is not None,
+        prompt_suffix=":",
+    )
+
+
 def run_session_in_cli(step_registry: StepRegistry, session: CalibrationSession) -> list[Any]:
     engine = SessionEngine(step_registry=with_terminal_steps(step_registry), session=session, mode="cli")
     while engine.session.status == "in_progress":
@@ -581,54 +635,7 @@ def run_session_in_cli(step_registry: StepRegistry, session: CalibrationSession)
         inputs: dict[Str, object] = {}
         if step.fields:
             for field in step.fields:
-                prompt = cli_helpers.green(field.label)
-                if field.field_type == "choice":
-                    value = click.prompt(
-                        prompt,
-                        type=click.Choice(field.options or []),
-                        default=field.default,
-                        show_default=field.default is not None,
-                        prompt_suffix=":",
-                    )
-                elif field.field_type == "float":
-                    value = click.prompt(
-                        prompt,
-                        type=str,
-                        default=field.default,
-                        show_default=field.default is not None,
-                        prompt_suffix=":",
-                    )
-                elif field.field_type == "int":
-                    value = click.prompt(
-                        prompt,
-                        type=str,
-                        default=field.default,
-                        show_default=field.default is not None,
-                        prompt_suffix=":",
-                    )
-                elif field.field_type == "float_list":
-                    value = click.prompt(
-                        prompt,
-                        type=str,
-                        default=",".join(str(v) for v in (field.default or [])),
-                        show_default=field.default is not None,
-                        prompt_suffix=":",
-                    )
-                elif field.field_type == "bool":
-                    value = click.confirm(
-                        prompt,
-                        default=bool(field.default),
-                        prompt_suffix=":",
-                    )
-                else:
-                    value = click.prompt(
-                        prompt,
-                        type=str,
-                        default=field.default,
-                        show_default=field.default is not None,
-                        prompt_suffix=":",
-                    )
-                inputs[field.name] = value
+                inputs[field.name] = _prompt_for_calibration_field(field)
         else:
             click.prompt(
                 cli_helpers.green("Press enter to continue..."),

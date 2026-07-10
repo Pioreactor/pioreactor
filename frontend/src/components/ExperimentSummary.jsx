@@ -20,7 +20,7 @@ class EditableDescription extends React.Component {
     super(props);
     this.contentEditable = React.createRef();
     this.state = {
-      desc: this.props.experimentMetadata.description,
+      desc: this.props.experimentMetadata.description ?? "",
       recentChange: false,
       savingLoopActive: false,
     };
@@ -28,7 +28,7 @@ class EditableDescription extends React.Component {
 
   componentDidUpdate(prevProps) {
     if (this.props.experimentMetadata !== prevProps.experimentMetadata) {
-      this.setState({ desc: this.props.experimentMetadata.description });
+      this.setState({ desc: this.props.experimentMetadata.description ?? "" });
     }
   }
 
@@ -73,7 +73,7 @@ class EditableDescription extends React.Component {
 
   render = () => {
     return (
-      <div style={{padding: "0px 5px 0px 5px"}}>
+      <Box sx={{padding: "0px 5px 0px 5px"}}>
         <InputLabel htmlFor="description-box">Description</InputLabel>
         <OutlinedInput
           placeholder={"Provide a description of your experiment."}
@@ -82,9 +82,9 @@ class EditableDescription extends React.Component {
           fullWidth={true}
           onChange={this.handleChange}
           value={this.state.desc}
-          style={{padding: "10px 5px 10px 5px",  fontSize: "14px", fontFamily: "Roboto", width: "100%", overflow: "hidden"}}
+          sx={{padding: "10px 5px 10px 5px",  fontSize: "14px", fontFamily: "Roboto", width: "100%", overflow: "hidden"}}
         />
-      </div>
+      </Box>
     )
   };
 };

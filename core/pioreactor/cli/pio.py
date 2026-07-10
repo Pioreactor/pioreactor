@@ -19,9 +19,6 @@ import click
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
-from pioreactor.http_response import summarize_error_response
-from pioreactor.mureq import get
-from pioreactor.mureq import HTTPErrorStatus
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -389,6 +386,8 @@ def get_update_app_commands(
     ) -> list[UpdateCommand]:
         tmp_dir = tempfile.gettempdir()
         tmp_rls_dir = f"{tmp_dir}/release_{release_version}"
+        # Current invariant: release updates require the configured storage
+        # database; a missing [storage].database entry is invalid configuration.
         database_path = config.get("storage", "database")
 
         release_commands: list[UpdateCommand] = [
@@ -423,38 +422,43 @@ def get_update_app_commands(
 
         install_extra = get_install_extra_for_this_unit()
 
+        release_commands.append(
+            update_command(
+                [
+                    "/opt/pioreactor/venv/bin/pip",
+                    "install",
+                    "--no-index",
+                    f"--find-links={tmp_rls_dir}/wheels/",
+                    f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
+                ],
+                3,
+            )
+        )
+
+        release_commands.append(
+            update_command(
+                [
+                    "/opt/pioreactor/venv/bin/pio",
+                    "repair",
+                ],
+                99,
+            )
+        )
+
         if whoami.am_I_leader():
             release_commands.extend(
                 [
-                    update_command(
-                        [
-                            "/opt/pioreactor/venv/bin/pip",
-                            "install",
-                            "--no-index",
-                            f"--find-links={tmp_rls_dir}/wheels/",
-                            f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
-                        ],
-                        3,
-                    ),
                     update_command(
                         ["sudo", "sqlite3", database_path, f".read {tmp_rls_dir}/update.sql"],
                         10,
                         allow_failure=True,
                     ),
+                    update_command(
+                        ["sudo", "sqlite3", database_path, "PRAGMA optimize = 0x10002"],
+                        11,
+                        allow_failure=True,
+                    ),
                 ]
-            )
-        else:
-            release_commands.append(
-                update_command(
-                    [
-                        "/opt/pioreactor/venv/bin/pip",
-                        "install",
-                        "--no-index",
-                        f"--find-links={tmp_rls_dir}/wheels/",
-                        f"{tmp_rls_dir}/pioreactor-{release_version}-py3-none-any.whl[{install_extra}]",
-                    ],
-                    3,
-                )
             )
 
         return release_commands
@@ -927,6 +931,8 @@ def blink() -> None:
     """
     monitor job is required to be running.
     """
+    from pioreactor.http_response import summarize_error_response
+    from pioreactor.mureq import HTTPErrorStatus
     from pioreactor.pubsub import post_into_leader
 
     response = post_into_leader(f"/api/workers/{whoami.get_unit_name()}/blink")
@@ -1108,6 +1114,30 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
             f"  {setting_label}={_stringify(value)} "
             f"(created_at={created_at_display}, updated_at={updated_at_display})"
         )
+
+
+@jobs.command(name="set", short_help="set a running job setting")
+@click.argument("job", type=click.STRING)
+@click.argument("setting", type=click.STRING)
+@click.argument("value", type=click.STRING)
+def job_set(job: str, setting: str, value: str) -> None:
+    """
+    Set a published setting on a running job.
+
+    \b
+    Examples:
+      pio jobs set stirring target_rpm 500
+      pio jobs set stirring target-rpm 500
+    """
+    from pioreactor.pubsub import publish
+    from pioreactor.pubsub import QOS
+
+    unit = whoami.get_unit_name()
+    exp = whoami.get_assigned_experiment_name(unit)
+    setting = setting.replace("-", "_")
+
+    # Job setting updates are command messages, not telemetry. Keep delivery above MQTT's QoS 0 default.
+    publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=QOS.AT_LEAST_ONCE)
 
 
 @jobs.command(name="purge", short_help="remove a job record")
@@ -1382,6 +1412,42 @@ def status(json_output: bool) -> None:
     if identity_details:
         identity_summary = f"{identity_summary} ({'; '.join(identity_details)})"
     add_check("identity", identity_status, identity_summary)
+
+    model_status = "OK"
+    model = None
+    try:
+        model = whoami.get_pioreactor_model()
+        model_details = model.display_name
+    except exc.NoWorkerFoundError:
+        model_details = "N/A"
+    except (exc.NoModelAssignedError, exc.UnknownModelAssignedError) as error:
+        model_status = "WARN"
+        model_details = f"Unknown ({error})"
+    except Exception as error:
+        model_status = "WARN"
+        model_details = f"lookup failed ({error})"
+    add_check("model", model_status, model_details)
+
+    if model is None:
+        add_check("hardware:model", "OK", "skipped: model unavailable")
+    else:
+        try:
+            from pioreactor import hardware
+
+            compatibility_result = hardware.check_model_hardware_compatibility(
+                model.model_name,
+                model.model_version,
+            )
+        except Exception as error:
+            add_check("hardware:model", "WARN", f"lookup failed ({error})")
+        else:
+            compatibility_status = compatibility_result["status"]
+            if compatibility_status == "warning":
+                add_check("hardware:model", "WARN", compatibility_result["reason"])
+            elif compatibility_status == "skipped":
+                add_check("hardware:model", "OK", f"skipped: {compatibility_result['reason']}")
+            else:
+                add_check("hardware:model", "OK", "compatible")
 
     version_details = f"app={tuple_to_text(software_version_info)}"
     version_status = "OK"
@@ -1682,50 +1748,6 @@ def purge_cache(cache: str, key: str, as_int: bool) -> None:
         click.echo(f"No entry for key {key_candidates[0]} found in cache '{cache}'.")
 
 
-@pio.command(
-    name="update-settings",
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
-    short_help="update settings on a running job",
-)
-@click.argument("job", type=click.STRING)
-@click.pass_context
-def update_settings(ctx: click.Context, job: str) -> None:
-    """
-    Examples
-    ----------
-
-    > pio update-settings stirring --target_rpm 500
-    > pio update-settings stirring --target-rpm 500
-
-    """
-    from pioreactor.pubsub import publish
-    from pioreactor.pubsub import QOS
-
-    unit = whoami.get_unit_name()
-    exp = whoami.get_assigned_experiment_name(unit)
-
-    if len(ctx.args) == 0:
-        raise click.UsageError("Provide at least one setting as --key value.")
-
-    if len(ctx.args) % 2 != 0:
-        raise click.UsageError("Settings must be provided as --key value pairs.")
-
-    extra_args: dict[str, str] = {}
-    for index in range(0, len(ctx.args), 2):
-        option_name = ctx.args[index]
-        option_value = ctx.args[index + 1]
-
-        if not option_name.startswith("--") or option_name == "--":
-            raise click.UsageError("Settings must be provided as --key value pairs.")
-
-        extra_args[option_name[2:]] = option_value
-
-    for setting, value in extra_args.items():
-        setting = setting.replace("-", "_")
-        # Job setting updates are command messages, not telemetry. Keep delivery above MQTT's QoS 0 default.
-        publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=QOS.AT_LEAST_ONCE)
-
-
 @pio.group()
 def update() -> None:
     """
@@ -1751,6 +1773,7 @@ def get_non_prerelease_tags_of_pioreactor(repo: str) -> list[str]:
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
     from packaging.version import Version
+    from pioreactor.mureq import get
 
     url = f"https://api.github.com/repos/{repo}/releases"
     headers = {"Accept": "application/vnd.github.v3+json"}

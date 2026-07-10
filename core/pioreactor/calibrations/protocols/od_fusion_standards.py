@@ -37,7 +37,6 @@ from pioreactor.whoami import is_testing_env
 
 
 SAMPLES_PER_STANDARD = 4
-logger = create_logger("calibrations.od_fusion_standards", experiment="$experiment")
 
 
 def _ensure_xr_model() -> None:
@@ -134,6 +133,7 @@ def _measure_fusion_standard_for_session(
     repeats: int = 1,
 ) -> list[dict[pt.PdAngle, float]]:
     if ctx.executor and ctx.mode == "ui":
+        logger = create_logger("calibrations.od_fusion_standards", experiment="$experiment")
         logger.debug(
             "Requesting fusion standard observation via executor: od_value=%s rpm=%s",
             od_value,
@@ -194,6 +194,17 @@ def _build_chart_metadata(records: list[tuple[pt.PdAngle, float, float]]) -> dic
         "y_label": "log(Voltage)",
         "series": series,
     }
+
+
+def _od_fusion_stir_loading_images() -> list[dict[str, str]]:
+    return [
+        {
+            "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
+            "alt": "Stirring standard vial.",
+            "caption": "One moment please...",
+        }
+        for i in range(1, 13, 2)
+    ]
 
 
 def _get_default_estimator_name(ctx: SessionContext) -> str:
@@ -371,21 +382,13 @@ class RecordObservation(SessionStep):
     step_id = "record_observation"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        n_frames = 12
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
             f"Recording standard vial {standard_index}",
             "Press Continue to start stirring and take OD readings for this standard.",
         )
         step.metadata = {
-            "loading_images": [
-                {
-                    "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
-                    "alt": "Stirring standard vial.",
-                    "caption": "One moment please...",
-                }
-                for i in range(1, n_frames + 1, 2)
-            ]
+            "loading_images": _od_fusion_stir_loading_images(),
         }
         return step
 

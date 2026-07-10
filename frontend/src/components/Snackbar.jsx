@@ -1,6 +1,7 @@
 import React from "react";
 import SnackbarContent from "@mui/material/SnackbarContent";
 import { useSnackbar } from "notistack";
+import { Box } from "@mui/material";
 
 function getComparableMessage(message) {
   if (typeof message === "string" || typeof message === "number") {
@@ -17,7 +18,8 @@ export default function Snackbar({
   ...options
 }) {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { style, ...enqueueOptions } = options;
+  const { sx, style, ...enqueueOptions } = options;
+  const snackbarSx = sx ?? style;
   const activeSnackbarKeyRef = React.useRef(null);
   const closedByChildHandlerKeysRef = React.useRef(new Set());
   const wasOpenRef = React.useRef(false);
@@ -73,10 +75,10 @@ export default function Snackbar({
           }
 
           // notistack transition needs a ref-able root element (fragments can't receive refs)
-          return <div style={style}>{renderedChildren}</div>;
+          return <Box sx={snackbarSx}>{renderedChildren}</Box>;
         }
 
-        return <SnackbarContent message={snackMessage} style={style} />;
+        return <SnackbarContent message={snackMessage} sx={snackbarSx} />;
       },
       onClose: (event, reason, key) => {
         const closedByChildHandler = closedByChildHandlerKeysRef.current.has(key);
@@ -96,7 +98,7 @@ export default function Snackbar({
     activeSnackbarKeyRef.current = snackbarKey;
     wasOpenRef.current = true;
     lastComparableMessageRef.current = comparableMessage;
-  }, [children, closeSnackbar, enqueueOptions, enqueueSnackbar, message, onClose, open, style]);
+  }, [children, closeSnackbar, enqueueOptions, enqueueSnackbar, message, onClose, open, snackbarSx]);
 
   React.useEffect(() => {
     return () => {

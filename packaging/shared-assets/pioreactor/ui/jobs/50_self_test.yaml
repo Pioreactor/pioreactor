@@ -28,7 +28,7 @@ published_settings:
   - key: test_pioreactor_HAT_present
     display: false
     type: boolean
-  - key: test_positive_correlation_between_rpm_and_stirring
+  - key: test_dark_offset_correction_is_effective
     display: false
     type: boolean
   - key: test_REF_is_in_correct_position

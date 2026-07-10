@@ -8,7 +8,6 @@ import warnings
 from functools import cache
 from typing import TYPE_CHECKING
 
-from pioreactor import mureq
 from pioreactor.exc import NoModelAssignedError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
@@ -50,6 +49,8 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
 
     from pioreactor.pubsub import get_from_leader
     from pioreactor.config import leader_address
+    from pioreactor.mureq import HTTPErrorStatus
+    from pioreactor.mureq import HTTPException
 
     retries = 6
 
@@ -59,17 +60,17 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
             result.raise_for_status()
             data = result.json()
             return data["experiment"]
-        except mureq.HTTPErrorStatus as e:
+        except HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
-                raise mureq.HTTPException(
+                raise HTTPException(
                     f"Error in authentication to UI. Check http://{leader_address} and config.ini for api_key."
                 )
             elif e.status_code == 404:
                 data = result.json()
                 raise NotAssignedAnExperimentError(data["error"])
-        except mureq.HTTPException:
-            raise mureq.HTTPException(
+        except HTTPException:
+            raise HTTPException(
                 f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
             )
         except Exception:
@@ -93,18 +94,20 @@ def _is_active(unit_name: "pt.Unit") -> bool:
         return False
 
     from pioreactor.pubsub import get_from_leader
+    from pioreactor.mureq import HTTPErrorStatus
+    from pioreactor.mureq import HTTPException
 
     try:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
         return bool(data["is_active"])
-    except mureq.HTTPErrorStatus as e:
+    except HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
         else:
             raise e
-    except mureq.HTTPException as e:
+    except HTTPException as e:
         raise e
 
 
@@ -146,16 +149,17 @@ def am_I_leader() -> bool:
 
 @cache
 def am_I_a_worker() -> bool:
-    from pioreactor.pubsub import get_from_leader
-
     if is_testing_env():
         return True
+
+    from pioreactor.pubsub import get_from_leader
+    from pioreactor.mureq import HTTPErrorStatus
 
     try:
         result = get_from_leader(f"/api/workers/{get_unit_name()}")
         result.raise_for_status()
         return True
-    except mureq.HTTPErrorStatus as e:
+    except HTTPErrorStatus as e:
         if e.status_code == 404:
             return False
         else:
@@ -193,17 +197,19 @@ def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
         return os.environ["MODEL_VERSION"]
 
     from pioreactor.pubsub import get_from_leader
+    from pioreactor.mureq import HTTPErrorStatus
+    from pioreactor.mureq import HTTPException
 
     try:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
         return data["model_version"]
-    except mureq.HTTPErrorStatus as e:
+    except HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
         raise e
-    except mureq.HTTPException as e:
+    except HTTPException as e:
         raise e
 
 
@@ -217,18 +223,20 @@ def _get_pioreactor_model_name(unit_name: "pt.Unit") -> str | None:
         return "pioreactor_40ml"
 
     from pioreactor.pubsub import get_from_leader
+    from pioreactor.mureq import HTTPErrorStatus
+    from pioreactor.mureq import HTTPException
 
     try:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
         return data["model_name"]
-    except mureq.HTTPErrorStatus as e:
+    except HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not found.")
         else:
             raise e
-    except mureq.HTTPException as e:
+    except HTTPException as e:
         raise e
 
 

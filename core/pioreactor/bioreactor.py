@@ -179,11 +179,9 @@ def calculate_updated_current_volume(
     """
     Project the vial volume after a dosing event.
 
-    Important invariant for future readers: in Pioreactor's current liquid model,
-    `remove_waste` is interpreted as lowering the vial only to the efflux-tube
-    level, never below it. Once the estimated volume is at or below
-    `efflux_tube_volume_ml`, additional `remove_waste` events do not reduce the
-    projected volume any further.
+    Current invariant: `remove_waste` lowers the projected volume only to the
+    efflux-tube level, never below it. Once the estimated volume is at or below
+    `efflux_tube_volume_ml`, additional `remove_waste` events do not reduce it.
     """
     volume, event = float(dosing_event.volume_change), dosing_event.event
 

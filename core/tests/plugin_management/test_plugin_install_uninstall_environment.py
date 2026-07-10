@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import os
 import sqlite3
 import subprocess
 import sys
@@ -17,7 +16,6 @@ from pioreactor.plugin_management import uninstall_plugin as uninstall_plugin_mo
 class PluginPackageEnvironment:
     def __init__(self, tmp_path: Path) -> None:
         self.root = tmp_path
-        self.bin_dir = tmp_path / "bin"
         self.dot_pioreactor = tmp_path / "dot_pioreactor"
         self.site_packages = tmp_path / "site-packages"
         self.database = tmp_path / "pioreactor.sqlite"
@@ -27,8 +25,7 @@ class PluginPackageEnvironment:
         self.package_dir_name = "pioreactor_demo_plugin"
         self.install_folder = self.site_packages / self.package_dir_name
 
-    def prepare(self, *, leader_hostname: str = "leader") -> None:
-        self.bin_dir.mkdir()
+    def prepare(self) -> None:
         self.dot_pioreactor.mkdir()
         self.site_packages.mkdir()
         self.database.touch()
@@ -36,32 +33,6 @@ class PluginPackageEnvironment:
         (self.dot_pioreactor / "plugins" / "exportable_datasets").mkdir(parents=True)
         (self.dot_pioreactor / "unit_config.ini").write_text("", encoding="utf-8")
         self.install_folder.mkdir()
-
-        self.write_fake_command("python", self.fake_python_script())
-        self.write_fake_command("pip", self.fake_pip_script())
-        self.write_fake_command("pio", self.fake_pio_script(leader_hostname))
-        self.write_fake_command("crudini", self.fake_crudini_script())
-        self.write_fake_command("sudo", self.fake_sudo_script())
-        self.write_fake_command("rsync", self.fake_rsync_script())
-        self.write_fake_command("sqlite3", self.fake_sqlite3_script())
-        self.write_fake_command("systemctl", self.fake_systemctl_script())
-        self.write_fake_command("hostname", self.fake_hostname_script())
-        self.write_fake_command("rm", self.fake_rm_script())
-
-    def env(self) -> dict[str, str]:
-        env = os.environ.copy()
-        env["PATH"] = f"{self.bin_dir}:{env['PATH']}"
-        env["PIO_VENV"] = str(self.root)
-        env["PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR"] = str(self.dot_pioreactor)
-        env["PLUGIN_INSTALL_HARNESS_SITE_PACKAGES"] = str(self.site_packages)
-        env["PLUGIN_INSTALL_HARNESS_DATABASE"] = str(self.database)
-        env["PLUGIN_INSTALL_HARNESS_COMMAND_LOG"] = str(self.command_log)
-        return env
-
-    def write_fake_command(self, name: str, content: str) -> None:
-        path = self.bin_dir / name
-        path.write_text(content, encoding="utf-8")
-        path.chmod(0o755)
 
     def create_plugin_payload(self, *, use_legacy_ui_contrib: bool = True) -> None:
         ui_root = self.install_folder / "ui"
@@ -92,28 +63,6 @@ class PluginPackageEnvironment:
             encoding="utf-8",
         )
         (self.install_folder / "pre_uninstall.sh").chmod(0o755)
-
-    def run_shell_install(self, source: str | None) -> subprocess.CompletedProcess[str]:
-        script = Path("packaging/runtime-files/bash/install_pioreactor_plugin.sh")
-
-        return subprocess.run(
-            ["bash", str(script), self.plugin_name, source or ""],
-            capture_output=True,
-            cwd=Path.cwd(),
-            env=self.env(),
-            text=True,
-        )
-
-    def run_shell_uninstall(self) -> subprocess.CompletedProcess[str]:
-        script = Path("packaging/runtime-files/bash/uninstall_pioreactor_plugin.sh")
-
-        return subprocess.run(
-            ["bash", str(script), self.plugin_name],
-            capture_output=True,
-            cwd=Path.cwd(),
-            env=self.env(),
-            text=True,
-        )
 
     def run_python_install(
         self, source: str | None, monkeypatch: pytest.MonkeyPatch
@@ -184,116 +133,12 @@ class PluginPackageEnvironment:
         with self.command_log.open("a", encoding="utf-8") as file:
             file.write(content)
 
-    def fake_python_script(self) -> str:
-        return f"""#!/bin/bash
-if [ "$1" = "-c" ]; then
-  printf '%s\\n' "{self.site_packages}"
-  exit 0
-fi
-exit 0
-"""
-
-    def fake_pip_script(self) -> str:
-        return f"""#!/bin/bash
-printf 'pip %s\\n' "$*" >> "{self.command_log}"
-exit 0
-"""
-
-    def fake_pio_script(self, leader_hostname: str) -> str:
-        return f"""#!/bin/bash
-if [ "$1" = "config" ] && [ "$2" = "get" ]; then
-  case "$3" in
-    cluster.topology) printf '%s\\n' "{leader_hostname}" ;;
-    storage) printf '%s\\n' "{self.database}" ;;
-  esac
-fi
-exit 0
-"""
-
-    def fake_crudini_script(self) -> str:
-        return """#!/bin/bash
-set -e
-target="$2"
-if [ "$target" = "/home/pioreactor/.pioreactor/unit_config.ini" ]; then
-  target="$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/unit_config.ini"
-fi
-cat >> "$target"
-"""
-
-    def fake_sudo_script(self) -> str:
-        return """#!/bin/bash
-if [ "$1" = "-u" ]; then
-  shift 2
-fi
-exec "$@"
-"""
-
-    def fake_rsync_script(self) -> str:
-        return """#!/bin/bash
-set -e
-src="$2"
-dest="$3"
-case "$dest" in
-  /home/pioreactor/.pioreactor/plugins/ui/)
-    dest="$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/plugins/ui/"
-    ;;
-  /home/pioreactor/.pioreactor/plugins/exportable_datasets/)
-    dest="$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/plugins/exportable_datasets/"
-    ;;
-esac
-mkdir -p "$dest"
-cp -R "$src". "$dest"
-"""
-
-    def fake_sqlite3_script(self) -> str:
-        return """#!/bin/bash
-set -e
-printf 'sqlite3 %s\\n' "$1" >> "$PLUGIN_INSTALL_HARNESS_COMMAND_LOG"
-cat > "$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR/applied.sql"
-"""
-
-    def fake_systemctl_script(self) -> str:
-        return """#!/bin/bash
-printf 'systemctl %s\\n' "$*" >> "$PLUGIN_INSTALL_HARNESS_COMMAND_LOG"
-exit 0
-"""
-
-    def fake_hostname_script(self) -> str:
-        return """#!/bin/bash
-printf 'leader\\n'
-"""
-
-    def fake_rm_script(self) -> str:
-        return """#!/bin/bash
-for path in "$@"; do
-  mapped="${path/#\\/home\\/pioreactor\\/.pioreactor/$PLUGIN_INSTALL_HARNESS_DOT_PIOREACTOR}"
-  /bin/rm -f "$mapped"
-done
-"""
-
 
 @pytest.fixture()
 def plugin_package_environment(tmp_path: Path) -> PluginPackageEnvironment:
     environment = PluginPackageEnvironment(tmp_path)
     environment.prepare()
     return environment
-
-
-def test_shell_plugin_package_environment_exercises_full_leader_merge_contract(
-    plugin_package_environment: PluginPackageEnvironment,
-) -> None:
-    plugin_package_environment.create_plugin_payload()
-
-    result = plugin_package_environment.run_shell_install("file:///tmp/demo.whl")
-
-    assert result.returncode == 0, result.stderr
-    assert_plugin_install_contract(plugin_package_environment)
-    assert "CREATE TABLE demo_plugin_table" in (
-        plugin_package_environment.dot_pioreactor / "applied.sql"
-    ).read_text(encoding="utf-8")
-
-    command_log = plugin_package_environment.command_log.read_text(encoding="utf-8")
-    assert "sqlite3 " in command_log
 
 
 def test_python_plugin_package_environment_exercises_full_leader_merge_contract(
@@ -312,19 +157,6 @@ def test_python_plugin_package_environment_exercises_full_leader_merge_contract(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'demo_plugin_table'"
         ).fetchone()
     assert table_exists == (1,)
-
-
-def test_shell_plugin_uninstall_environment_exercises_full_leader_cleanup_contract(
-    plugin_package_environment: PluginPackageEnvironment,
-) -> None:
-    plugin_package_environment.create_plugin_payload(use_legacy_ui_contrib=False)
-    install_result = plugin_package_environment.run_shell_install("file:///tmp/demo.whl")
-    assert install_result.returncode == 0, install_result.stderr
-
-    result = plugin_package_environment.run_shell_uninstall()
-
-    assert result.returncode == 0, result.stderr
-    assert_plugin_uninstall_contract(plugin_package_environment)
 
 
 def test_python_plugin_uninstall_environment_exercises_full_leader_cleanup_contract(

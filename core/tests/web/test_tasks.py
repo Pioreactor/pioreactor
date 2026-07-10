@@ -322,10 +322,10 @@ def test_fanout_success_strips_generic_success_status() -> None:
 
 
 def test_check_model_hardware_skips_non_v1_hat(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tasks, "hardware_version_info", (2, 0))
+    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (2, 0))
     monkeypatch.setattr(
-        tasks,
-        "_get_adc_addresses_for_model",
+        tasks.hardware,
+        "get_adc_addresses_for_model",
         lambda *_args: (_ for _ in ()).throw(AssertionError("should not inspect ADCs")),
     )
 
@@ -404,8 +404,8 @@ def test_repair_system_logs_failed_repair_command(monkeypatch: pytest.MonkeyPatc
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(tasks, "hardware_version_info", (1, 2))
-    monkeypatch.setattr(tasks, "_get_adc_addresses_for_model", lambda *_args: {0x48})
+    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (1, 2))
+    monkeypatch.setattr(tasks.hardware, "get_adc_addresses_for_model", lambda *_args: {0x48})
     monkeypatch.setattr(tasks.hardware, "is_i2c_device_present", lambda address: address == 0x48)
 
     assert tasks.check_model_hardware.call_local("pioreactor_20ml", "1.1") == {"status": "ok"}
@@ -677,12 +677,73 @@ def test_install_plugin_from_usb_task_installs_resolved_wheel(
         installed["name"] = name
         installed["source"] = source
 
-    monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_wheel", lambda _filepath: wheel)
+    monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_artifact", lambda _filepath: wheel)
     monkeypatch.setattr("pioreactor.plugin_management.install_plugin.install_plugin", fake_install_plugin)
 
     assert tasks.install_plugin_from_usb_task.call_local(wheel.as_posix()) is True
     assert installed == {"name": "pioreactor-demo", "source": wheel.as_posix()}
     _clear_rate_limit("plugins")
+
+
+def test_install_plugin_from_usb_task_copies_resolved_python_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _clear_rate_limit("plugins")
+    source = tmp_path / "dropin_plugin.py"
+    source.write_text("__plugin_name__ = 'Drop In'\n", encoding="utf-8")
+    dot_pioreactor = tmp_path / "dot_pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", dot_pioreactor.as_posix())
+    monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_artifact", lambda _filepath: source)
+
+    assert tasks.install_plugin_from_usb_task.call_local(source.as_posix()) is True
+    assert (dot_pioreactor / "plugins" / "dropin_plugin.py").read_text(
+        encoding="utf-8"
+    ) == "__plugin_name__ = 'Drop In'\n"
+    _clear_rate_limit("plugins")
+
+
+def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then_posts_filename(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "dropin_plugin.py"
+    source.write_text("plugin", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, str]:
+            return {"task": "installed"}
+
+    def fake_cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int) -> None:
+        captured["copy"] = (unit, localpath, remotepath, timeout)
+
+    def fake_post_into(address: str, endpoint: str, json: dict[str, str], timeout: int) -> FakeResponse:
+        captured["post"] = (address, endpoint, json, timeout)
+        return FakeResponse()
+
+    monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_artifact", lambda _filepath: source)
+    monkeypatch.setattr(tasks, "cp_file_across_cluster", fake_cp_file_across_cluster)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(tasks, "post_into", fake_post_into)
+
+    result = tasks._install_plugin_from_leader_usb_on_worker("worker1", source.as_posix())
+
+    assert captured["copy"] == ("worker1", source.as_posix(), "/tmp/dropin_plugin.py", 60)
+    assert captured["post"] == (
+        "worker1.local",
+        "/unit_api/plugins/install-python-file-from-leader-copy",
+        {"filename": "dropin_plugin.py"},
+        60,
+    )
+    assert result == {
+        "success": True,
+        "unit": "worker1",
+        "plugin": "dropin_plugin",
+        "source": "/tmp/dropin_plugin.py",
+        "install_response": {"task": "installed"},
+    }
 
 
 def test_install_plugin_from_leader_usb_across_units_runs_units_sequentially(

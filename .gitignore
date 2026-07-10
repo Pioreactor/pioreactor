@@ -1,3 +1,4 @@
+
 #
 # Project-specific files
 #
@@ -137,3 +138,8 @@ __pypackages__/
 # Misc
 #
 *.sage.py
+
+
+# openai agent stuff
+.agents/plugins/
+plugins/

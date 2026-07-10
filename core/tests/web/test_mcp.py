@@ -38,6 +38,16 @@ def test_mcp_blueprint_registration(app) -> None:
     assert "/mcp/" in routes
 
 
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_endpoint_accepts_optional_trailing_slash(client, monkeypatch, path: str) -> None:
+    monkeypatch.setattr("pioreactor.web.mcp.mcp.handle_message", lambda payload: None)
+
+    response = client.post(path, json={})
+
+    assert response.status_code == 202
+    assert "Location" not in response.headers
+
+
 def test_get_experiments_invokes_correct_leader_endpoint() -> None:
     """get_experiments(active_only=False) should call the standard /api/experiments endpoint."""
     with capture_requests() as requests:

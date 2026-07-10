@@ -4,7 +4,7 @@ This project is a Flask-based backend for the Pioreactor UI. The codebase expose
 
 Key modules:
 
-*   **`__init__.py`** – Initializes the Flask app, sets up MQTT, configures logging, and provides helper DB functions. It loads plugins and registers the blueprints for `api` and `unit_api` when running on the leader. Example lines show MQTT setup and app creation.
+*   **`app.py`** – Initializes the Flask app, configures logging, loads plugins, provides helper DB functions, and registers `unit_api` on every unit plus `api` and `mcp` when running on the leader.
 
 *   **`api.py`** – Contains over 100 routes for cluster‑wide operations: starting/stopping jobs, synchronizing configs, retrieving logs, exporting datasets, managing experiments, etc. Routes use Huey tasks to broadcast commands across workers.
 
@@ -16,11 +16,9 @@ Key modules:
 
 *   **`cache.py`** – Owns the leader-side fan-out cache for worker `/unit_api` reads, including cache target definitions, invalidation helpers, and the cached multicast read implementation.
 
-*   **`structs.py`** – Msgspec `Struct` definitions for validating request payloads, such as job options or automation descriptors.
-
-*   **`utils.py`** – Helper utilities for caching responses, rate limiting, and validating filenames.
+*   **`utils.py`** – Helper utilities for caching responses, rate limiting, validating filenames, and validating request payloads with msgspec structs.
 
 
-The repository also includes a compiled frontend in the `static/` directory and startup scripts (`fcgi.py`).
+The repository also includes generated frontend build output in the `static/` directory and startup scripts (`fcgi.py`). Treat `static/` as generated output; do not inspect or edit it during normal code search.
 
 Overall, the project provides a REST API and task queue framework to manage Pioreactor clusters, interact with hardware via CLI commands, and expose data/logs to a web UI.

@@ -128,7 +128,7 @@ function SingleExperimentSelect({availableValues, parentHandleChange, values}) {
             <MenuItem
               key={value}
               value={value}
-              style={getStyles(value, selectedValue, theme)}
+              sx={getStyles(value, selectedValue, theme)}
             >
               {value}
             </MenuItem>
@@ -244,7 +244,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
       />
       {dataset.source !== "app" && (
         <Typography
-          sx={{ marginLeft: "30px" }}
+          sx={{ ml: "30px" }}
           variant="caption"
           display="block"
           gutterBottom
@@ -262,19 +262,19 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
           '&::before': {
             display: 'none',
           },
-          marginLeft: "20px",
+          ml: "20px",
           backgroundColor: isSelected ? "#f6f4fa" : "white",
-          marginTop: "8px",
+          mt: "8px",
           maxWidth: "70vw",
           "&.Mui-expanded": {
             backgroundColor: isSelected ? "#f6f4fa" : "#f9f9f9",
-            marginLeft: "20px",
+            ml: "20px",
             width: "70vw",
             overflow: "scroll",
             minHeight: 0,
           },
           "&.Mui-expanded:first-of-type": {
-            marginTop: "8px",
+            mt: "8px",
           },
         }}
         onChange={handlePreview}
@@ -590,14 +590,14 @@ function ExportDataContainer() {
                   onClick={onSubmit}
                   endIcon={<DownloadIcon />}
                   disabled={isRunning || (selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
-                  style={{textTransform: 'none'}}
+                  sx={{textTransform: 'none'}}
                 >
                   Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
               </Button>
             )}
           </Box>
         </Box>
-      <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+      <Divider sx={{mt: "0px", mb: "15px"}} />
       </Box>
       <Card>
         <CardContent sx={{ p: 1 }}>
@@ -626,7 +626,7 @@ function ExportDataContainer() {
                   xs: 5,
                   md: 5
                 }}>
-                <Accordion square disableGutters elevation={0} sx={{ '&::before': { display: 'none' }, backgroundColor: 'transparent', boxShadow: 'none', margin: 0 }}>
+                <Accordion square disableGutters elevation={0} sx={{ '&::before': { display: 'none' }, backgroundColor: 'transparent', boxShadow: 'none', m: 0 }}>
                   <AccordionSummary
                     sx={{
                       flexDirection: 'row-reverse',
@@ -703,7 +703,7 @@ function ExportDataContainer() {
         </CardContent>
       </Card>
       <Grid size={12}>
-        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</p>
+        <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</Box>
       </Grid>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

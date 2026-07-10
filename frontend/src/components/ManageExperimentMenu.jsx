@@ -169,7 +169,7 @@ export default function ManageExperimentMenu({experiment}){
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        style={{textTransform: "None"}}
+        sx={{textTransform: "None"}}
       >
         Manage experiment <ArrowDropDownIcon/>
       </Button>

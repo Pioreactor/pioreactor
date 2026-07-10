@@ -4,13 +4,13 @@
 
 *   **Development Workflow**: The README describes how to run the project in development (`npm run start`) or build for production (`npm run build`).
 
-*   **Build Configuration**: `package.json` lists dependencies such as React 18, Material-UI, mqtt.js, js-yaml, etc., along with scripts for starting, building, linting, and testing the app.
+*   **Build Configuration**: `package.json` lists dependencies such as React 19, Material-UI, mqtt.js, js-yaml, etc., along with scripts for starting, building, linting, and testing the app.
 
 *   **Main Application**: `App.jsx` sets up Material-UI theming and React Router routes for pages like `/overview`, `/pioreactors`, `/export-data`, `/plugins`, and more.
 
 *   **MQTT Integration**: `MQTTContext.js` establishes an MQTT client with a fallback strategy for multiple brokers, using a trie structure to manage topic handlers. It exposes `subscribeToTopic` and `unsubscribeFromTopic` through a React context and displays a Snackbar on connection errors.
 
-*   **Utilities**: `utilities.js` provides helper functions such as `getConfig`, `runPioreactorJob`, and a retryable `checkTaskCallback`. It also defines color constants and a `ColorCycler` class.
+*   **Utilities**: `src/utils/` contains focused helper modules such as `config.js` for `getConfig`, `jobs.js` for `runPioreactorJob`, `tasks.js` for retryable task-result polling, and `color.js` for color constants and `ColorCycler`.
 
 *   **Feature Example**: `CreateExperimentProfile.jsx` allows users to author experiment profiles in YAML using a code editor, save them via an API call, and preview parsed results in real time.
     `ExportData.jsx` lets users pick datasets and experiments, preview samples, and download results via `/api/export_datasets`.
@@ -26,5 +26,5 @@ Rules
 -------
 
 1. Keep imports at the top of the file
-2. Reference (the incomplete) DESIGN.md for style design
+2. Reference DESIGN.md for visual and interaction design rules
 3. Keep React and ESLint warnings green. Before wrapping up frontend work, run the relevant lint command or `make frontend-build` and fix simple warnings instead of leaving them behind.

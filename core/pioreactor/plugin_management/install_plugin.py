@@ -21,9 +21,9 @@ def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
         install_plugin_assets(name_of_plugin)
         logger.notice(f"Successfully installed plugin {name_of_plugin}.")
     except Exception as exc:
-        logger.error(f"Failed to install plugin {name_of_plugin}. See logs.")
+        logger.error(f"Failed to install plugin {name_of_plugin}.")
         logger.debug(str(exc))
-        raise BashScriptError(f"Failed to install plugin {name_of_plugin}. See logs.") from exc
+        raise BashScriptError(f"Failed to install plugin {name_of_plugin}.") from exc
 
 
 @click.command(name="install", short_help="install a plugin")

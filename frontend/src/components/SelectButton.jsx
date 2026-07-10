@@ -37,7 +37,7 @@ const SelectButton = React.forwardRef((props, _ref) => {
       }
       const selected = valueRef.current === child.props.value;
       const valueReadable = child.props.children;
-      const icon = selected ? <CheckIcon sx={{ marginRight: "5px", verticalAlign: "-1px" }} /> : <Icon sx={{ marginRight: "5px", verticalAlign: "-1px" }} />;
+      const icon = selected ? <CheckIcon sx={{ mr: "5px", verticalAlign: "-1px" }} /> : <Icon sx={{ mr: "5px", verticalAlign: "-1px" }} />;
       return (
         <MenuItem
           onClick={handleItemClick(child.props.value)}

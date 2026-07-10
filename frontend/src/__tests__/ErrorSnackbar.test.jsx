@@ -118,6 +118,25 @@ describe("ErrorSnackbar", () => {
     );
   });
 
+  test("links system log alerts to the unit-specific system logs page", () => {
+    renderErrorSnackbar();
+    const handler = mockSubscribeToTopic.mock.calls[0][1];
+
+    publishLog(handler, {
+      unit: "xr1",
+      experiment: "$experiment",
+      message: "stirring is already running (job_id=2062). Skipping.",
+    });
+
+    const firstCallOptions = mockEnqueueSnackbar.mock.calls[0][1];
+    render(<MemoryRouter>{firstCallOptions.content("snackbar-1")}</MemoryRouter>);
+
+    expect(screen.getByRole("link", { name: "View System Logs" })).toHaveAttribute(
+      "href",
+      "/system-logs/xr1",
+    );
+  });
+
   test("updates repeated alerts from the same unit without replacing the snackbar", () => {
     const { unmount } = renderErrorSnackbar();
     const handler = mockSubscribeToTopic.mock.calls[0][1];

@@ -245,6 +245,8 @@ function Protocols(props) {
   }, []);
 
   React.useEffect(() => {
+    let ignore = false;
+
     const fetchProtocols = async () => {
       if (!selectedUnit) {
         setProtocols([]);
@@ -252,6 +254,7 @@ function Protocols(props) {
         setIsLoadingProtocols(false);
         return;
       }
+      setProtocols([]);
       setIsLoadingProtocols(true);
       setProtocolsError("");
       try {
@@ -262,23 +265,35 @@ function Protocols(props) {
           const sharedProtocols = getSharedProtocolsById(getSuccessfulUnitTaskResults(finalPayload)).filter(
             isAllPioreactorsStirringProtocol,
           );
-          setProtocols(sharedProtocols);
+          if (!ignore) {
+            setProtocols(sharedProtocols);
+          }
           return;
         }
         const result = getUnitTaskResult(finalPayload, selectedUnit, "Could not reach this Pioreactor.");
         if (!Array.isArray(result)) {
           throw new Error("Protocol payload is not a list.");
         }
-        setProtocols(result);
+        if (!ignore) {
+          setProtocols(result);
+        }
       } catch (err) {
-        setProtocolsError(err.message || "Failed to load protocols.");
-        setProtocols([]);
+        if (!ignore) {
+          setProtocolsError(err.message || "Failed to load protocols.");
+          setProtocols([]);
+        }
       } finally {
-        setIsLoadingProtocols(false);
+        if (!ignore) {
+          setIsLoadingProtocols(false);
+        }
       }
     };
 
     fetchProtocols();
+
+    return () => {
+      ignore = true;
+    };
   }, [selectedUnit]);
 
   const handleSnackbarClose = (_event, reason) => {
@@ -427,7 +442,7 @@ function Protocols(props) {
         </Typography>
 
       </Box>
-      <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+      <Divider sx={{ mt: "0px", mb: "15px" }} />
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
@@ -454,7 +469,7 @@ function Protocols(props) {
                 >
                   {hasMultipleWorkers && (
                     <MenuItem value={ALL_PIOREACTORS}>
-                      <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 4px" }} />
+                      <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 4px" }} />
                       All Pioreactors
                     </MenuItem>
                   )}

@@ -87,7 +87,6 @@ class Repeat(_ContainerAction):
     max_hours: float | None = None
     max_time: float | str | None = None
     actions: list["BasicAction"] = []
-    _completed_loops: int = 0
 
 
 BasicAction = Log | Start | Pause | Stop | Update | Resume
@@ -125,6 +124,7 @@ class CommonBlock(Struct, forbid_unknown_fields=True):
 
 
 class Profile(Struct, forbid_unknown_fields=True):
+    version: t.Literal["1.0"]
     experiment_profile_name: str
     metadata: Metadata = field(default_factory=Metadata)
     plugins: list[Plugin] = []

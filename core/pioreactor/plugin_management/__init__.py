@@ -1,21 +1,13 @@
 # -*- coding: utf-8 -*-
-import glob
 import importlib
 import importlib.metadata as entry_point
 import os
-from functools import cache
 from typing import Any
 
 import click
 from msgspec import Struct
-from pioreactor import pubsub
-from pioreactor.plugin_management.install_plugin import click_install_plugin
-from pioreactor.plugin_management.list_plugins import click_list_plugins
-from pioreactor.plugin_management.uninstall_plugin import click_uninstall_plugin
 from pioreactor.plugin_management.utils import discover_plugins_in_entry_points
 from pioreactor.plugin_management.utils import discover_plugins_in_local_folder
-from pioreactor.utils import networking
-from pioreactor.whoami import get_unit_name
 
 """
 How do plugins work? There are a few patterns we use to "register" plugins with the core app.
@@ -68,9 +60,31 @@ __all__ = [
 ]
 
 
+def __getattr__(attr: str) -> Any:
+    if attr == "click_install_plugin":
+        from pioreactor.plugin_management.install_plugin import click_install_plugin
+
+        return click_install_plugin
+    elif attr == "click_list_plugins":
+        from pioreactor.plugin_management.list_plugins import click_list_plugins
+
+        return click_list_plugins
+    elif attr == "click_uninstall_plugin":
+        from pioreactor.plugin_management.uninstall_plugin import click_uninstall_plugin
+
+        return click_uninstall_plugin
+    raise AttributeError(attr)
+
+
 def get_plugin_api_url(py_file: str) -> str:
+    from pioreactor.config import config
+    from pioreactor.utils.networking import resolve_to_address
+    from pioreactor.whoami import get_unit_name
+
     endpoint = f"/unit_api/plugins/installed/{py_file}"
-    return pubsub.create_webserver_path(networking.resolve_to_address(get_unit_name()), endpoint)
+    port = config.getint("ui", "port", fallback=80)
+    proto = config.get("ui", "proto", fallback="http")
+    return f"{proto}://{resolve_to_address(get_unit_name())}:{port}/{endpoint.removeprefix('/')}"
 
 
 def get_plugins() -> dict[str, Plugin]:
@@ -89,7 +103,6 @@ def get_plugins() -> dict[str, Plugin]:
     # get entry point plugins
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
-
     for plugin in discover_plugins_in_entry_points():
         try:
             md = entry_point.metadata(plugin.name)
@@ -120,11 +133,12 @@ def get_plugins() -> dict[str, Plugin]:
         try:
             module = importlib.import_module(module_name)
             plugin_name = getattr(module, "__plugin_name__", module_name)
+            plugin_homepage = getattr(module, "__plugin_homepage__", None)
             plugins[plugin_name] = Plugin(
                 module,
                 getattr(module, "__plugin_summary__", BLANK),
                 getattr(module, "__plugin_version__", BLANK),
-                getattr(module, "__plugin_homepage__", get_plugin_api_url(py_file.name)),
+                plugin_homepage if plugin_homepage is not None else get_plugin_api_url(py_file.name),
                 getattr(module, "__plugin_author__", BLANK),
                 f"plugins/{py_file.name}",
             )

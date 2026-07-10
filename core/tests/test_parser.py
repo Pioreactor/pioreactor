@@ -6,6 +6,7 @@ from math import sqrt
 import pytest
 from msgspec.json import encode
 from pioreactor import structs
+from pioreactor.experiment_profiles.parser import check_syntax
 from pioreactor.experiment_profiles.parser import parse_profile_expression
 from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 from pioreactor.experiment_profiles.sly.lex import LexError
@@ -29,6 +30,8 @@ def test_simple_bool() -> None:
     assert parse_profile_expression_to_bool("True and True")
     assert not parse_profile_expression_to_bool("True and False")
     assert parse_profile_expression_to_bool("True or False")
+    assert parse_profile_expression_to_bool("True or False and False")
+    assert not parse_profile_expression_to_bool("False or True and False")
     assert parse_profile_expression_to_bool("True and (True or False)")
     assert parse_profile_expression_to_bool("(False or True) or False")
     assert parse_profile_expression_to_bool("not False")
@@ -41,6 +44,14 @@ def test_syntax_errors_and_typos() -> None:
 
     with pytest.raises(LexError):
         assert parse_profile_expression_to_bool("test.test > 1")  # test.test is too few for mqtt fetches
+
+
+def test_check_syntax_parses_without_evaluating_expression() -> None:
+    assert check_syntax("1 + 2")
+    assert check_syntax(f"{unit}:od_reading:od1.od > 1")
+    assert check_syntax("1 / 0")
+    assert not check_syntax("1 +")
+    assert not check_syntax("(1 + 2")
 
 
 def test_simple_float_comparison() -> None:
@@ -106,6 +117,25 @@ def test_mqtt_fetches() -> None:
     assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_true")
     assert parse_profile_expression_to_bool(f"not {unit}:test_job:bool_false")
     assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_false or {unit}:test_job:bool_true")
+
+
+def test_mqtt_fetches_preserve_decoded_json_scalar_types() -> None:
+    experiment = "_testing_experiment"
+
+    publish(f"pioreactor/{unit}/{experiment}/test_job/json_true", encode(True), retain=True)
+    publish(f"pioreactor/{unit}/{experiment}/test_job/json_int", encode(101), retain=True)
+    publish(
+        f"pioreactor/{unit}/{experiment}/test_job/json_nested",
+        encode({"enabled": True, "count": 101}),
+        retain=True,
+    )
+
+    assert parse_profile_expression(f"{unit}:test_job:json_true") is True
+    assert parse_profile_expression(f"{unit}:test_job:json_int") == 101
+    assert type(parse_profile_expression(f"{unit}:test_job:json_int")) is int
+    assert parse_profile_expression(f"{unit}:test_job:json_nested.enabled") is True
+    assert parse_profile_expression(f"{unit}:test_job:json_nested.count") == 101
+    assert type(parse_profile_expression(f"{unit}:test_job:json_nested.count")) is int
 
 
 def test_mqtt_fetches_with_env() -> None:

@@ -99,10 +99,10 @@ def is_reachable(address: str) -> bool:
 def get_ip() -> str:
     # returns all ipv4s as comma-separated string
     result = subprocess.run(
-        r"hostname -I | grep -Eo '([0-9]*\.){3}[0-9]*' | tr '\n' '\n'",
+        ["hostname", "-I"],
         capture_output=True,
         text=True,
-        shell=True,
+        check=False,
     )
     ipv4_addresses = result.stdout.strip().split()
     if ipv4_addresses:

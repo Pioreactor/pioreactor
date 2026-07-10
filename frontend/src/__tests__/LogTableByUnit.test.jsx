@@ -8,6 +8,7 @@ global.TextDecoder = TextDecoder;
 const { MemoryRouter } = require("react-router");
 const LogTableByUnit = require("../components/LogTableByUnit").default;
 const LogTable = require("../components/LogTable").default;
+const PaginatedLogsTable = require("../components/PaginatedLogsTable").default;
 
 jest.mock("../providers/MQTTContext", () => ({
   useMQTT: jest.fn(),
@@ -302,5 +303,87 @@ describe("LogTableByUnit", () => {
     expect(bodyRows[0]).toHaveTextContent("newest experiment event");
     expect(bodyRows[1]).toHaveTextContent("first experiment event");
     expect(bodyRows[2]).toHaveTextContent("late older experiment event");
+  });
+
+  test("keeps paginated log subscriptions stable while live messages use the latest level", async () => {
+    const subscribeToTopic = jest.fn();
+    const unsubscribeFromTopic = jest.fn();
+
+    useMQTT.mockReturnValue({
+      client: {},
+      subscribeToTopic,
+      unsubscribeFromTopic,
+    });
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <PaginatedLogsTable
+          pioreactorUnit="unit1"
+          experiment="exp1"
+          relabelMap={{}}
+          logLevel="INFO"
+        />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/workers/unit1/experiments/exp1/logs?min_level=INFO"
+      )
+    );
+
+    expect(subscribeToTopic).toHaveBeenCalledTimes(1);
+    const onMessage = subscribeToTopic.mock.calls[0][1];
+
+    rerender(
+      <MemoryRouter>
+        <PaginatedLogsTable
+          pioreactorUnit="unit1"
+          experiment="exp1"
+          relabelMap={{}}
+          logLevel="NOTICE"
+        />
+      </MemoryRouter>
+    );
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/workers/unit1/experiments/exp1/logs?min_level=NOTICE"
+      )
+    );
+    expect(subscribeToTopic).toHaveBeenCalledTimes(1);
+    expect(unsubscribeFromTopic).not.toHaveBeenCalled();
+
+    await act(async () => {
+      onMessage(
+        "pioreactor/unit1/exp1/logs/app/info",
+        Buffer.from(
+          JSON.stringify({
+            timestamp: "2026-03-23T10:00:00.000Z",
+            message: "filtered info event",
+            task: "app",
+            level: "info",
+          })
+        )
+      );
+    });
+
+    expect(screen.queryByText("filtered info event")).not.toBeInTheDocument();
+
+    await act(async () => {
+      onMessage(
+        "pioreactor/unit1/exp1/logs/app/error",
+        Buffer.from(
+          JSON.stringify({
+            timestamp: "2026-03-23T10:00:01.000Z",
+            message: "visible error event",
+            task: "app",
+            level: "error",
+          })
+        )
+      );
+    });
+
+    expect(await screen.findByText("visible error event")).toBeInTheDocument();
   });
 });

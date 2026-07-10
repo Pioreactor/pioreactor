@@ -77,7 +77,7 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        style={{textTransform: "None"}}
+        sx={{textTransform: "None"}}
       >
         Manage inventory <ArrowDropDownIcon/>
       </Button>

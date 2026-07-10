@@ -56,10 +56,6 @@ class Thermostat(TemperatureAutomationJob):
         self.pid.clean_up()
 
     def execute(self) -> UpdatedHeaterDC:
-        while not hasattr(self, "pid"):
-            # sometimes when initializing, this execute can run before the subclasses __init__ is resolved.
-            pass
-
         assert self.latest_temperature is not None
         output = self.pid.update(
             self.latest_temperature, dt=1

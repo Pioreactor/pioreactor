@@ -109,11 +109,11 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
           <Table size="small" aria-label="media throughput">
             <TableHead>
               <TableRow>
-                <TableCell style={{ padding: '6px 0px' }}>Pioreactor</TableCell>
-                <TableCell style={{ padding: '6px 0px' }} align="right">
+                <TableCell sx={{ padding: '6px 0px' }}>Pioreactor</TableCell>
+                <TableCell sx={{ padding: '6px 0px' }} align="right">
                   Media used
                 </TableCell>
-                <TableCell style={{ padding: '6px 0px' }} align="right">
+                <TableCell sx={{ padding: '6px 0px' }} align="right">
                   Alt. Media used
                 </TableCell>
               </TableRow>
@@ -122,13 +122,13 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
 
               {activeUnits.map((unit) => (
                 <TableRow key={unit}>
-                  <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
+                  <TableCell sx={{ padding: '6px 0px' }} component="th" scope="row">
                   <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(unit)} clickable component={Link} to={"/pioreactors/" + unit} data-pioreactor-unit={unit} />
                   </TableCell>
-                  <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
+                  <TableCell align="right" sx={{ fontSize: 13, padding: '6px 0px' }}>
                     {(throughputByUnit[unit]?.media ?? 0).toFixed(1)}mL ({(rates[unit] ? rates[unit].mediaRate.toFixed(1) : '0.0')}mL/h)
                   </TableCell>
-                  <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
+                  <TableCell align="right" sx={{ fontSize: 13, padding: '6px 0px' }}>
                     {(throughputByUnit[unit]?.altMedia ?? 0).toFixed(1)}mL ({(rates[unit] ? rates[unit].altMediaRate.toFixed(1) : '0.0')}mL/h)
                   </TableCell>
                 </TableRow>
@@ -136,13 +136,13 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
 
               {activeUnits.length > 1 &&
               <TableRow key="all">
-                <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
+                <TableCell sx={{ padding: '6px 0px' }} component="th" scope="row">
                   <Chip size="small" icon={<PioreactorsIcon/>} label="All assigned Pioreactors" sx={{backgroundColor: "white"}} />
                 </TableCell>
-                <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
+                <TableCell align="right" sx={{ fontSize: 13, padding: '6px 0px' }}>
                   {totals.media.toFixed(1)}mL ({rates.all.mediaRate.toFixed(1)}mL/h)
                 </TableCell>
-                <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
+                <TableCell align="right" sx={{ fontSize: 13, padding: '6px 0px' }}>
                   {totals.altMedia.toFixed(1)}mL ({rates.all.altMediaRate.toFixed(1)}mL/h)
                 </TableCell>
               </TableRow>

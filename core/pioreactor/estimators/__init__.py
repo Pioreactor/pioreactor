@@ -11,6 +11,7 @@ from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.structs import artifact_path_component
 from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
 
@@ -21,6 +22,8 @@ Device = TypeVar("Device", bound=str)
 
 
 def _estimator_path_for(device: str, name: str) -> Path:
+    device = artifact_path_component(device, "device")
+    name = artifact_path_component(name, "estimator_name")
     return ESTIMATOR_PATH / device / f"{name}.yaml"
 
 
@@ -67,7 +70,8 @@ def load_estimator(device: Device, estimator_name: str) -> structs.AnyEstimator:
 
 
 def list_of_estimators_by_device(device: Device) -> list[str]:
-    device_dir = ESTIMATOR_PATH / device
+    valid_device = artifact_path_component(device, "device")
+    device_dir = ESTIMATOR_PATH / valid_device
     if not device_dir.is_dir():
         return []
     return [file.stem for file in device_dir.glob("*.yaml")]

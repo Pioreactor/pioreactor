@@ -10,6 +10,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Alert from "@mui/material/Alert";
 import {runPioreactorJob} from "../utils/jobs"
 import { experimentPathSegment } from "../utils/url";
+import { Box } from "@mui/material";
 
 
 const actionTextField = {
@@ -102,7 +103,7 @@ export default function ActionPumpForm(props) {
   }
 
   return (
-    <div id={action} style={{padding: "10px 0px 0px 0px"}}>
+    <Box id={action} sx={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
         <RadioGroup
           aria-label="how to dose"
@@ -110,7 +111,7 @@ export default function ActionPumpForm(props) {
           value={dosingMethod}
           onChange={handleRadioChange}
         >
-          <div style={{marginBottom: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
+          <Box sx={{mb: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
             <FormControlLabel value="volume" control={<Radio />} label="Volume" />
             <TextField
               name="mL"
@@ -135,8 +136,8 @@ export default function ActionPumpForm(props) {
                 },
               }}
             />
-          </div>
-          <div style={{marginBottom: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
+          </Box>
+          <Box sx={{mb: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
             <FormControlLabel value="duration" control={<Radio />} label="Duration" />
             <TextField
               name="duration"
@@ -156,13 +157,13 @@ export default function ActionPumpForm(props) {
                 },
               }}
               />
-          </div>
+          </Box>
           <FormControlLabel value="continuously" control={<Radio />} label={isAddAction ? `Fill to max` : "Run continuously"} />
         </RadioGroup>
       </FormControl>
 
 
-      <div style={{display: "flex", marginTop: '5px'}}>
+      <Box sx={{display: "flex", mt: '5px'}}>
         <Button
           disabled={(formErrorML && isVolumeMode) || (formErrorDuration && isDurationMode) || exceedsSafetyThreshold || continuousWouldOverflow || (job?.state === "ready")}
           type="submit"
@@ -170,7 +171,7 @@ export default function ActionPumpForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
-          style={{marginRight: '10px'}}
+          sx={{mr: '10px'}}
         >
           Start
         </Button>
@@ -183,7 +184,7 @@ export default function ActionPumpForm(props) {
         >
           Stop
         </Button>
-      </div>
+      </Box>
       {isAddAction && parsedML > 0 && exceedsSafetyThreshold && (
         <Alert severity="warning" sx={{ mt: 1 }}>
           Entered volume exceeds the estimated headroom.
@@ -202,6 +203,6 @@ export default function ActionPumpForm(props) {
         autoHideDuration={7000}
         key={"snackbar" + unit + action}
       />
-    </div>
+    </Box>
   );
 }

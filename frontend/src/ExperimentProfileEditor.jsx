@@ -28,12 +28,20 @@ import CloseIcon from "@mui/icons-material/Close";
 import CircularProgress from "@mui/material/CircularProgress";
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
-const DEFAULT_CODE = `experiment_profile_name:
+const DEFAULT_CODE = `version: "1.0"
+
+experiment_profile_name:
 
 metadata:
   author:
   description:
 `;
+
+const INITIAL_PROFILE_SAVE_STATE = {
+  error: "",
+  filename: "",
+  code: "",
+};
 
 export function formatProfileSaveError(payload) {
   if (typeof payload === "string" && payload.trim()) {
@@ -127,58 +135,66 @@ export function ExperimentProfileEditorContent({
   const [openSnackbar, setOpenSnackbar] = React.useState(false);
   const [snackbarMsg, setSnackbarMsg] = React.useState("");
   const [isChanged, setIsChanged] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-  const [errorMsg, setErrorMsg] = React.useState("");
 
   const parsedCode = React.useMemo(() => convertYamlToProfilePreview(code), [code]);
 
   const onTextChange = (newCode) => {
     setCode(newCode);
     setIsChanged(true);
-    setErrorMsg("");
   };
 
   const onFilenameChange = (event) => {
     setFilename(event.target.value.replace(/ |\/|\.|\\/g, "_"));
     setIsChanged(true);
-    setErrorMsg("");
   };
 
   const handleSnackbarClose = () => {
     setOpenSnackbar(false);
   };
 
-  const saveCurrentCode = async () => {
-    if (filenameEditable && filename === "") {
-      setErrorMsg("Filename can't be blank.");
-      return;
+  const [saveState, saveCurrentCode, saving] = React.useActionState(async (_previousState, payload) => {
+    if (filenameEditable && payload.filename === "") {
+      return {
+        error: "Filename can't be blank.",
+        filename: payload.filename,
+        code: payload.code,
+      };
     }
 
-    setSaving(true);
-    setErrorMsg("");
-
     try {
-      await onSave({ code, filename });
+      await onSave(payload);
       setIsChanged(false);
       setOpenSnackbar(true);
       setSnackbarMsg(
         filenameEditable
-          ? `Experiment profile ${filename}.yaml saved.`
+          ? `Experiment profile ${payload.filename}.yaml saved.`
           : `Experiment profile ${initialFilename} saved.`,
       );
+      return {
+        error: "",
+        filename: payload.filename,
+        code: payload.code,
+      };
     } catch (error) {
-      setErrorMsg(error.message || "Network error: failed to save profile");
       setIsChanged(true);
-    } finally {
-      setSaving(false);
+      return {
+        error: error.message || "Network error: failed to save profile",
+        filename: payload.filename,
+        code: payload.code,
+      };
     }
-  };
+  }, INITIAL_PROFILE_SAVE_STATE);
+
+  const visibleSaveError =
+    saveState.error && saveState.filename === filename && saveState.code === code
+      ? saveState.error
+      : "";
 
   return (
     <>
       <Grid container spacing={0}>
         <Grid size={12}>
-          <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
+          <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
             {filenameEditable ? (
               <FormControl>
                 <TextField
@@ -186,7 +202,7 @@ export function ExperimentProfileEditorContent({
                   onChange={onFilenameChange}
                   required
                   value={filename}
-                  style={{ width: "320px" }}
+                  sx={{ width: "320px" }}
                   slotProps={{
                     input: {
                       endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
@@ -199,18 +215,18 @@ export function ExperimentProfileEditorContent({
                 label="Filename"
                 value={initialFilename}
                 disabled={true}
-                style={{ width: "350px" }}
+                sx={{ width: "350px" }}
               />
             )}
-          </div>
+          </Box>
         </Grid>
 
         <Grid size={6}>
-          <div
-            style={{
+          <Box
+            sx={{
               tabSize: "4ch",
               border: "1px solid #ccc",
-              margin: "10px auto 10px auto",
+              m: "10px auto 10px auto",
               position: "relative",
               width: "98%",
               height: "350px",
@@ -232,7 +248,7 @@ export function ExperimentProfileEditorContent({
                 minHeight: "100%",
               }}
             />
-          </div>
+          </Box>
         </Grid>
 
         <Grid size={6}>
@@ -244,21 +260,25 @@ export function ExperimentProfileEditorContent({
         </Grid>
 
         <Grid size={12}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <Button
                 variant="contained"
                 color="primary"
-                style={{ marginLeft: "5px", textTransform: "none" }}
-                onClick={saveCurrentCode}
+                sx={{ ml: "5px", textTransform: "none" }}
+                onClick={() => {
+                  React.startTransition(() => {
+                    saveCurrentCode({ code, filename });
+                  });
+                }}
                 endIcon={<SaveIcon />}
                 disabled={!isChanged || saving}
               >
                 {saving ? "Saving..." : "Save"}
               </Button>
-              <Box sx={{ ml: 0.7, mt: 1 }}>{errorMsg ? <Alert severity="error">{errorMsg}</Alert> : ""}</Box>
+              <Box sx={{ ml: 0.7, mt: 1 }}>{visibleSaveError ? <Alert severity="error">{visibleSaveError}</Alert> : ""}</Box>
             </div>
-          </div>
+          </Box>
         </Grid>
       </Grid>
       <Snackbar
@@ -399,13 +419,13 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
           </CardContent>
         </Card>
 
-        <p style={{ textAlign: "center", marginTop: "30px" }}>
+        <Box component="p" sx={{ textAlign: "center", mt: "30px" }}>
           {pageCopy.docsSentence}{" "}
           <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">
             experiment profile schemas
           </a>
           .
-        </p>
+        </Box>
 
         <Dialog
           open={openCapabilities}

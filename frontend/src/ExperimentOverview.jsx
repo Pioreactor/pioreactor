@@ -40,6 +40,7 @@ function Charts(props) {
   const config = props.config
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const enabledCharts = config['ui.overview.charts'] || {};
+  const experiment = props.experimentMetadata.experiment;
 
   useEffect(() => {
     const fetchCharts = async () => {
@@ -68,7 +69,7 @@ function Charts(props) {
             <Grid size={12}>
               <Card sx={{ maxHeight: "100%"}}>
                 <Chart
-                  key={`chart-${chart_key}`}
+                  key={`chart-${chart_key}-${experiment}-all-${props.timeWindow}-${props.timeScale}`}
                   chartKey={chart_key}
                   config={config}
                   dataSource={chart.data_source}
@@ -76,7 +77,7 @@ function Charts(props) {
                   topic={chart.mqtt_topic}
                   payloadKey={chart.payload_key}
                   yAxisLabel={chart.y_axis_label}
-                  experiment={props.experimentMetadata.experiment}
+                  experiment={experiment}
                   experimentStartTime={props.experimentMetadata.created_at}
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
@@ -175,8 +176,7 @@ function Overview(props) {
         <Grid
           container
           spacing={2}
-          sx={{ justifyContent: "flex-start" }}
-          style={{height: "100%"}}
+          sx={{height: "100%",  justifyContent: "flex-start" }}
           size={{
             xs: 12,
             md: 7
@@ -187,8 +187,7 @@ function Overview(props) {
         <Grid
           container
           spacing={2}
-          sx={{ justifyContent: "flex-end" }}
-          style={{height: "100%"}}
+          sx={{height: "100%",  justifyContent: "flex-end" }}
           size={{
             xs: 12,
             md: 5
