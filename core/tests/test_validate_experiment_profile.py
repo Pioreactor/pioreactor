@@ -29,6 +29,7 @@ def test_shared_example_experiment_profiles_are_valid() -> None:
 
 def test_validate_profile_returns_error_diagnostic_for_invalid_expression() -> None:
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         metadata=Metadata(author="test_author"),
         common=CommonBlock(
@@ -52,6 +53,7 @@ def test_validate_profile_returns_error_diagnostic_for_invalid_expression() -> N
 
 def test_validate_profile_accepts_supported_plugin_version_constraints() -> None:
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[
             Plugin(name="bare", version="1.2.3"),
@@ -72,6 +74,7 @@ def test_validate_profile_rejects_unsupported_or_malformed_plugin_version_constr
     constraint: str,
 ) -> None:
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[Plugin(name="example", version=constraint)],
     )
@@ -86,6 +89,7 @@ def test_validate_profile_rejects_unsupported_or_malformed_plugin_version_constr
 def test_validate_profile_checks_all_expression_fields_with_full_parser() -> None:
     profile = yaml_decode(
         b"""
+version: "1.0"
 experiment_profile_name: test_profile
 common:
   jobs:
@@ -147,6 +151,7 @@ common:
 
 def test_validate_profile_warns_when_repeat_action_exceeds_cycle_time() -> None:
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         metadata=Metadata(author="test_author"),
         common=CommonBlock(
@@ -177,6 +182,7 @@ def test_validate_profile_warns_when_repeat_action_exceeds_cycle_time() -> None:
 
 def test_validate_profile_errors_when_both_t_and_hours_elapsed_are_set() -> None:
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         metadata=Metadata(author="test_author"),
         common=CommonBlock(

@@ -1140,7 +1140,7 @@ def test_update_specific_config_for_worker_rejects_unstructured_worker_error(
 def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
     response = client.post(
         "/api/experiment_profiles",
-        json={"body": "experiment_profile_name: demo", "filename": "bad?name.yaml"},
+        json={"body": 'version: "1.0"\nexperiment_profile_name: demo', "filename": "bad?name.yaml"},
     )
     assert response.status_code == 400
 
@@ -1148,7 +1148,7 @@ def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
 def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
     response = client.patch(
         "/api/experiment_profiles/bad:name.yaml",
-        json={"body": "experiment_profile_name: demo"},
+        json={"body": 'version: "1.0"\nexperiment_profile_name: demo'},
     )
     assert response.status_code == 400
 
@@ -1228,6 +1228,7 @@ def test_create_experiment_profile_returns_diagnostics_for_semantic_validation_e
         "/api/experiment_profiles",
         json={
             "body": """
+version: "1.0"
 experiment_profile_name: demo
 common:
   jobs:
@@ -1260,6 +1261,7 @@ def test_experiment_profile_mutations_reject_incomplete_expressions(
 ) -> None:
     payload = {
         "body": """
+version: "1.0"
 experiment_profile_name: demo
 common:
   jobs:
@@ -1291,7 +1293,10 @@ def test_create_experiment_profile_reports_save_failure(client, monkeypatch) -> 
 
     response = client.post(
         "/api/experiment_profiles",
-        json={"body": "experiment_profile_name: save_failure_demo", "filename": "save_failure_demo.yaml"},
+        json={
+            "body": 'version: "1.0"\nexperiment_profile_name: save_failure_demo',
+            "filename": "save_failure_demo.yaml",
+        },
     )
 
     assert response.status_code == 500
@@ -1303,7 +1308,7 @@ def test_update_experiment_profile_reports_save_failure(client, monkeypatch) -> 
 
     response = client.patch(
         "/api/experiment_profiles/save_failure_demo.yaml",
-        json={"body": "experiment_profile_name: save_failure_demo"},
+        json={"body": 'version: "1.0"\nexperiment_profile_name: save_failure_demo'},
     )
 
     assert response.status_code == 500
@@ -1316,7 +1321,7 @@ def test_delete_experiment_profile_reports_delete_failure(
     profiles_dir = tmp_path / "experiment_profiles"
     profiles_dir.mkdir()
     (profiles_dir / "delete_failure_demo.yaml").write_text(
-        "experiment_profile_name: delete_failure_demo", encoding="utf-8"
+        'version: "1.0"\nexperiment_profile_name: delete_failure_demo', encoding="utf-8"
     )
     monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
     monkeypatch.setattr("pioreactor.web.api.tasks.rm", lambda *_args, **_kwargs: FakeTaskResult(False))

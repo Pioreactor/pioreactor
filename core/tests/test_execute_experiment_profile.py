@@ -80,6 +80,7 @@ def test_execute_experiment_profile_order(
     action3 = Stop(hours_elapsed=4 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
@@ -113,6 +114,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
     job = "led_intensity"
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={"unit1": PioreactorSpecificBlock(jobs={job: Job(actions=[action1, action2, action3])})},
@@ -179,6 +181,7 @@ def test_execute_experiment_profile_start_evaluates_config_overrides(
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         inputs={"dc": 100},
         pioreactors={
@@ -213,6 +216,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -277,6 +281,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -319,6 +324,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -351,6 +357,7 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -387,6 +394,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -447,6 +455,7 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
@@ -486,6 +495,7 @@ def test_execute_experiment_start_and_stop_automations(
     action2 = Stop(hours_elapsed=1 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         common=CommonBlock(jobs={"temperature_automation": Job(actions=[action1, action2])}),
         metadata=Metadata(author="test_author"),
@@ -507,6 +517,7 @@ def test_execute_experiment_update_automation(mock__load_experiment_profile) -> 
     action2 = Update(hours_elapsed=1 / 60 / 60, options={"target_temperature": 30})
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         common=CommonBlock(
             jobs={
@@ -533,6 +544,7 @@ def test_execute_experiment_start_automation_succeeds(
     stop = Stop(hours_elapsed=2 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         common=CommonBlock(
             jobs={
@@ -554,6 +566,7 @@ def test_label_fires_a_relabel_to_leader_endpoint(
     experiment = "_testing_experiment"
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -579,6 +592,7 @@ def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) ->
     action_true = Start(hours_elapsed=0, if_="${{1 == 1}}")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -608,6 +622,7 @@ def test_execute_experiment_profile_with_unit_function(
     action_true = Start(hours_elapsed=0, if_="${{ unit() == unit1 }}")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -631,6 +646,7 @@ def test_execute_experiment_profile_with_unit_function(
     action_true = Start(hours_elapsed=0, if_="${{ unit() == unit2 }}")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -659,6 +675,7 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
     action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -692,6 +709,7 @@ def test_execute_experiment_profile_pause_and_resume_actions(
     resume = Resume(hours_elapsed=1 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -723,6 +741,7 @@ def test_execute_experiment_profile_dry_run_skips_job_mutations(
     experiment = "_testing_experiment"
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -764,6 +783,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -803,6 +823,7 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
     action = Start(hours_elapsed=0, if_="1 % 1 and ")
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -836,6 +857,7 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -874,6 +896,7 @@ def test_repeat_respects_every_and_time_literals(mock__load_experiment_profile) 
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -914,6 +937,7 @@ def test_common_repeat_tracks_completed_loops_independently_per_worker(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={job_name: Job(actions=[repeat])}),
@@ -948,6 +972,7 @@ def test_repeat_warns_and_skips_actions_beyond_every(mock__load_experiment_profi
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -997,6 +1022,7 @@ def test_repeat_logs_useful_error_for_missing_nested_key_in_while(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -1038,6 +1064,7 @@ def test_execute_experiment_profile_expression_in_common(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(
@@ -1099,6 +1126,7 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(
@@ -1156,6 +1184,7 @@ def test_execute_experiment_profile_when_action_simple(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_profile",
         plugins=[],
         pioreactors={
@@ -1200,6 +1229,7 @@ def test_execute_experiment_profile_log_action_preserves_api_error_details(
 ) -> None:
     experiment = "_testing_experiment"
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
             "unit1": PioreactorSpecificBlock(
@@ -1256,6 +1286,7 @@ def test_execute_experiment_profile_when_action_with_if(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_with_if_profile",
         plugins=[],
         pioreactors={
@@ -1310,6 +1341,7 @@ def test_execute_experiment_profile_when_action_condition_eventually_met(
     update = Update(hours_elapsed=0.002, options={"target_rpm": 1000})
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_condition_not_met_profile",
         plugins=[],
         pioreactors={
@@ -1364,6 +1396,7 @@ def test_execute_experiment_profile_when_action_nested(
     update = Update(hours_elapsed=0.001, options={"target_rpm": 1000})
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_when_action_condition_not_met_profile",
         plugins=[],
         pioreactors={
@@ -1425,6 +1458,7 @@ def test_profiles_in_github_repo() -> None:
 def test_verify_rejects_quoted_string_literals_in_if() -> None:
     action = Start(hours_elapsed=0.0, if_='${{ pio02:monitor:$state == "ready" }}')
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action])}),
@@ -1447,6 +1481,7 @@ def test_api_requests_are_made(
     action3 = Stop(hours_elapsed=4 / 60 / 60)
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
@@ -1476,6 +1511,7 @@ def test_plugin_version_checks(
     experiment = "_testing_experiment"
 
     profile_with_okay_plugins = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[Plugin(name="my-example-plugin", version=">=0.1.0")],  # this plugin is locally present in CI
         common=CommonBlock(jobs={}),
@@ -1486,6 +1522,7 @@ def test_plugin_version_checks(
     execute_experiment_profile("profile.yaml", experiment)
 
     profile_with_wrong_version = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[
             Plugin(name="my-example-plugin", version="<=0.1.0")
@@ -1499,6 +1536,7 @@ def test_plugin_version_checks(
         execute_experiment_profile("profile.yaml", experiment)
 
     profile_with_missing_package = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[Plugin(name="doesnt-exist", version="<=0.1.0")],
         common=CommonBlock(jobs={}),
@@ -1510,6 +1548,7 @@ def test_plugin_version_checks(
         execute_experiment_profile("profile.yaml", experiment)
 
     profile_with_nontrivial_version = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[
             Plugin(name="my-example-plugin", version="<=0.15.1"),
@@ -1571,6 +1610,7 @@ def test_repeat_actions_can_fail_syntax(mock__load_experiment_profile) -> None:
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
@@ -1606,6 +1646,7 @@ def test_execute_experiment_profile_with_config_overrides(
     )
 
     profile = Profile(
+        version="1.0",
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={

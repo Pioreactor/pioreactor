@@ -3736,7 +3736,9 @@ def get_experiment_profiles() -> ResponseReturnValue:
             if file.stat().st_size == 0:
                 parsed_yaml.append(
                     {
-                        "experimentProfile": Profile(experiment_profile_name=f"temporary name: {file.stem}"),
+                        "experimentProfile": Profile(
+                            version="1.0", experiment_profile_name=f"temporary name: {file.stem}"
+                        ),
                         "file": Path(file).name,
                         "fullpath": Path(file).as_posix(),
                     }

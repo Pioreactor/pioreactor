@@ -28,7 +28,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import CircularProgress from "@mui/material/CircularProgress";
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
-const DEFAULT_CODE = `experiment_profile_name:
+const DEFAULT_CODE = `version: "1.0"
+
+experiment_profile_name:
 
 metadata:
   author:

@@ -54,15 +54,18 @@ jest.mock("../components/DisplayProfile", () => ({
 const { Profiles } = require("../Profiles");
 
 const profileSources = {
-  "profile-a.yaml": `experiment_profile_name: Profile A
+  "profile-a.yaml": `version: "1.0"
+experiment_profile_name: Profile A
 metadata:
   author: Alice
 `,
-  "profile-b.yaml": `experiment_profile_name: Profile B
+  "profile-b.yaml": `version: "1.0"
+experiment_profile_name: Profile B
 metadata:
   author: Bob
 `,
-  "profile with space.yaml": `experiment_profile_name: Profile With Space
+  "profile with space.yaml": `version: "1.0"
+experiment_profile_name: Profile With Space
 metadata:
   author: Carol
 `,
@@ -72,17 +75,17 @@ const profilesResponse = [
   {
     file: "profile-a.yaml",
     fullpath: "/tmp/profile-a.yaml",
-    experimentProfile: { experiment_profile_name: "Profile A" },
+    experimentProfile: { version: "1.0", experiment_profile_name: "Profile A" },
   },
   {
     file: "profile-b.yaml",
     fullpath: "/tmp/profile-b.yaml",
-    experimentProfile: { experiment_profile_name: "Profile B" },
+    experimentProfile: { version: "1.0", experiment_profile_name: "Profile B" },
   },
   {
     file: "profile with space.yaml",
     fullpath: "/tmp/profile with space.yaml",
-    experimentProfile: { experiment_profile_name: "Profile With Space" },
+    experimentProfile: { version: "1.0", experiment_profile_name: "Profile With Space" },
   },
 ];
 

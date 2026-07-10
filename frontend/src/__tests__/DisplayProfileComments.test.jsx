@@ -11,7 +11,8 @@ const {
   getInlineCommentForPath,
 } = require("../utils/experimentProfilePreview");
 
-const profileYaml = `experiment_profile_name: Start fedbatch after batch
+const profileYaml = `version: "1.0"
+experiment_profile_name: Start fedbatch after batch
 
 metadata:
   author: Stijn

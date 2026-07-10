@@ -1382,6 +1382,7 @@ check_experiment_profiles() {
   info "Testing new experiment_profiles appear in API"
   mkdir -p ~/.pioreactor/experiment_profiles
   cat <<'YAML' > ~/.pioreactor/experiment_profiles/test_profile.yaml
+version: "1.0"
 experiment_profile_name: test_profile
 YAML
 
@@ -1410,6 +1411,7 @@ check_experiment_profile_validation() {
 import json
 
 body = """\
+version: "1.0"
 experiment_profile_name: agent_smoke_invalid_expression
 common:
   jobs:
