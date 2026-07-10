@@ -1,7 +1,7 @@
 import React from "react";
 
 import CircularProgress from '@mui/material/CircularProgress';
-import { MQTTProvider, useMQTT } from './providers/MQTTContext';
+import { useMQTT } from './providers/MQTTContext';
 import Tooltip from '@mui/material/Tooltip';
 import { useConfirm } from 'material-ui-confirm';
 import Button from '@mui/material/Button';
@@ -22,7 +22,6 @@ import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
 import UsbDriveCard from './components/UsbDriveCard';
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
-import { getConfig } from "./utils/config";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./utils/color";
 
 import {
@@ -1160,30 +1159,21 @@ function LeaderContainer({config}) {
   );
 }
 
-function Leader({title}) {
-  const [config, setConfig] = React.useState({})
-
+function Leader({title, config}) {
   React.useEffect(() => {
     document.title = title;
   }, [title]);
 
-  React.useEffect(() => {
-    getConfig(setConfig)
-  }, []);
-
-
   return (
-    <MQTTProvider name="leader" config={config}>
-      <Grid container spacing={2}>
-        <Grid
-          size={{
-            md: 12,
-            xs: 12
-          }}>
-          <LeaderContainer config={config}/>
-        </Grid>
+    <Grid container spacing={2}>
+      <Grid
+        size={{
+          md: 12,
+          xs: 12
+        }}>
+        <LeaderContainer config={config}/>
       </Grid>
-    </MQTTProvider>
+    </Grid>
   );
 }
 

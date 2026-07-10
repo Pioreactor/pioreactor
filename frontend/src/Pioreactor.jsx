@@ -704,6 +704,7 @@ function SettingsActionsDialog(props) {
                   {job.metadata.display_name}
                   {(job.metadata.display_name === "Optical density" && isXrModel) ? (
                     <Chip
+                      component="span"
                       size="small"
                       variant="outlined"
                       label="XR"
@@ -1859,6 +1860,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                     {job.metadata.display_name}
                     {(job.metadata.display_name === "Optical density" && isXrModel) ? (
                       <Chip
+                        component="span"
                         size="small"
                         variant="outlined"
                         label="XR"
@@ -1938,6 +1940,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                         {setting.label}
                         {(setting.label === "Optical density" && isXrModel) ? (
                           <Chip
+                            component="span"
                             size="small"
                             variant="outlined"
                             label="XR"

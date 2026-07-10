@@ -143,7 +143,7 @@ function MainSite() {
                     <Route path="/experiment-profiles/:profileFilename/edit" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
                     <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                     <Route path="/config/:pioreactorUnit/" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
-                    <Route path="/leader" element={<Leader title="Pioreactor ~ Leader"/>}/>
+                    <Route path="/leader" element={<Leader title="Pioreactor ~ Leader" config={config}/>}/>
                     <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                     <Route path="/calibration-coverage" element={<CalibrationCoverage title="Pioreactor ~ Calibration Coverage"/>}/>
                     <Route path="/calibrations/:pioreactorUnit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
