@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
-from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import store_camera_still
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
@@ -60,29 +59,8 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
 
 
-def test_camera_status_reports_latest_still(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pioreactor.web.unit_api as mod
-
-    monkeypatch.setattr(mod.huey, "immediate", True)
-    monkeypatch.setattr(
-        "pioreactor.web.tasks.get_camera_status",
-        lambda unit, experiment=None: {
-            "unit": unit,
-            "available": True,
-            "capture_command": "rpicam-still",
-            "latest_still": {
-                "image_id": "image-1",
-            },
-        },
-    )
-
-    response = client.get("/unit_api/camera/status")
-
-    assert response.status_code == 200
-    payload = response.get_json()
-    assert payload["available"] is True
-    assert payload["capture_command"] == "rpicam-still"
-    assert payload["latest_still"]["image_id"] == "image-1"
+def test_unscoped_camera_status_route_is_not_available(client) -> None:
+    assert client.get("/unit_api/camera/status").status_code == 404
 
 
 def test_experiment_camera_status_filters_latest_still_by_experiment(
@@ -118,33 +96,12 @@ def test_experiment_camera_status_filters_latest_still_by_experiment(
     )
 
     scoped_response = client.get("/unit_api/camera/experiments/new-experiment/status")
-    unscoped_response = client.get("/unit_api/camera/status")
-
     assert scoped_response.status_code == 200
     assert scoped_response.get_json()["latest_still"]["image_id"] == "new-image"
-    assert unscoped_response.status_code == 200
-    assert unscoped_response.get_json()["latest_still"]["image_id"] == "old-image"
 
 
-def test_latest_camera_still_returns_stored_image(
-    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    dot_pioreactor = tmp_path / ".pioreactor"
-    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    source_image_path = tmp_path / "capture.jpg"
-    source_image_path.write_bytes(b"fake jpeg")
-    store_camera_still(
-        source_image_path,
-        HOSTNAME,
-        experiment=None,
-        image_id="image-1",
-    )
-
-    response = client.get("/unit_api/camera/latest.jpg")
-
-    assert response.status_code == 200
-    assert response.data == b"fake jpeg"
-    assert response.content_type == "image/jpeg"
+def test_unscoped_latest_camera_still_route_is_not_available(client) -> None:
+    assert client.get("/unit_api/camera/latest.jpg").status_code == 404
 
 
 def test_list_camera_stills_for_experiment_returns_matching_stills(
@@ -283,61 +240,8 @@ def test_zipped_camera_stills_for_experiment_includes_matching_stills(
         assert zip_file.read("image-a.jpg") == b"fake jpeg"
 
 
-def test_capture_camera_still_reports_unavailable_when_capture_command_is_absent(
-    client, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import pioreactor.web.unit_api as mod
-    from pioreactor.camera import CameraUnavailableError
-
-    monkeypatch.setattr(mod.huey, "immediate", True)
-
-    def unavailable_camera(*_args: object, **_kwargs: object) -> None:
-        raise CameraUnavailableError("No Raspberry Pi camera capture command is installed.")
-
-    monkeypatch.setattr("pioreactor.web.tasks.capture_camera_still", unavailable_camera)
-
-    response = client.post("/unit_api/camera/capture", json={})
-
-    assert response.status_code == 202
-
-    result_response = client.get(response.get_json()["result_url_path"])
-
-    assert result_response.status_code == 200
-    assert result_response.get_json()["status"] == "failed"
-    assert "No Raspberry Pi camera capture command is installed" in result_response.get_json()["error"]
-
-
-def test_capture_camera_still_returns_metadata(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pioreactor.web.unit_api as mod
-
-    monkeypatch.setattr(mod.huey, "immediate", True)
-    metadata = CameraStillMetadata(
-        experiment="experiment-a",
-        captured_at=datetime(2026, 6, 10, 12, 30, tzinfo=UTC),
-        image_id="image-1",
-    )
-    captured: dict[str, str | None] = {}
-
-    def fake_capture_camera_still(unit: str, *, experiment: str | None) -> CameraStillMetadata:
-        captured["unit"] = unit
-        captured["experiment"] = experiment
-        return metadata
-
-    monkeypatch.setattr("pioreactor.web.tasks.capture_camera_still", fake_capture_camera_still)
-
-    response = client.post(
-        "/unit_api/camera/capture",
-        json={"experiment": "experiment-a"},
-    )
-
-    assert response.status_code == 202
-
-    result_response = client.get(response.get_json()["result_url_path"])
-
-    assert result_response.status_code == 200
-    assert result_response.get_json()["status"] == "succeeded"
-    assert result_response.get_json()["result"]["image_id"] == "image-1"
-    assert captured == {"unit": HOSTNAME, "experiment": "experiment-a"}
+def test_camera_capture_route_is_not_available(client) -> None:
+    assert client.post("/unit_api/camera/capture", json={}).status_code == 404
 
 
 def test_system_path_rejects_symlink_outside_dot_pioreactor(

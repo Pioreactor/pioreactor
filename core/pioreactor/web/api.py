@@ -506,9 +506,8 @@ def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify({"cameras": results}), max_age=0)
 
 
-@api_bp.route("/workers/<pioreactor_unit>/camera/status", methods=["GET"])
 @api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/status", methods=["GET"])
-def get_camera_status_for_worker(pioreactor_unit: str, experiment: str | None = None) -> ResponseReturnValue:
+def get_camera_status_for_worker(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -517,11 +516,7 @@ def get_camera_status_for_worker(pioreactor_unit: str, experiment: str | None = 
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    worker_endpoint = (
-        f"/unit_api/camera/experiments/{experiment}/status"
-        if experiment is not None
-        else "/unit_api/camera/status"
-    )
+    worker_endpoint = f"/unit_api/camera/experiments/{experiment}/status"
     response: MureqResponse | None = None
     try:
         response = get_from(resolve_registered_worker_address(pioreactor_unit), worker_endpoint, timeout=10)
@@ -533,34 +528,6 @@ def get_camera_status_for_worker(pioreactor_unit: str, experiment: str | None = 
         response.content,
         status=response.status_code,
         content_type=response.headers.get("Content-Type", "application/json"),
-    )
-
-
-@api_bp.route("/workers/<pioreactor_unit>/camera/latest.jpg", methods=["GET"])
-def get_latest_camera_still_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(
-            400,
-            "Cannot fetch latest camera still with $broadcast; choose a specific Pioreactor.",
-            cause="Camera media routes require a single target unit.",
-            remediation="Specify a concrete pioreactor_unit in the URL.",
-        )
-
-    response: MureqResponse | None = None
-    try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
-            "/unit_api/camera/latest.jpg",
-            timeout=20,
-        )
-        response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException):
-        abort_with_worker_error(response, f"Fetching latest camera still failed on {pioreactor_unit}.")
-
-    return Response(
-        response.content,
-        status=response.status_code,
-        content_type=response.headers.get("Content-Type", "image/jpeg"),
     )
 
 
@@ -724,47 +691,6 @@ def get_zipped_camera_stills_for_worker_experiment(
     except Exception:
         archive_path.unlink(missing_ok=True)
         raise
-
-
-@api_bp.route("/workers/<pioreactor_unit>/camera/capture", methods=["POST"])
-def capture_camera_still_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(
-            400,
-            "Cannot capture camera still with $broadcast; choose a specific Pioreactor.",
-            cause="Camera capture routes require a single target unit.",
-            remediation="Specify a concrete pioreactor_unit in the URL.",
-        )
-
-    body = (
-        decode_request_body(structs.CameraCaptureRequest) if request.data else structs.CameraCaptureRequest()
-    )
-
-    response: MureqResponse | None = None
-    try:
-        response = post_into(
-            resolve_registered_worker_address(pioreactor_unit),
-            "/unit_api/camera/capture",
-            json=to_builtins(body),
-            timeout=30,
-        )
-        response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException):
-        abort_with_worker_error(response, f"Capturing camera still failed on {pioreactor_unit}.")
-
-    if response.status_code == 202:
-        payload = response.json()
-        result_url_path = payload.get("result_url_path")
-        if isinstance(result_url_path, str) and result_url_path.startswith("/unit_api/task_results/"):
-            task_id = result_url_path.rsplit("/", 1)[-1]
-            payload["result_url_path"] = f"/api/workers/{pioreactor_unit}/task_results/{task_id}"
-        return jsonify(payload), 202
-
-    return Response(
-        response.content,
-        status=response.status_code,
-        content_type=response.headers.get("Content-Type", "application/json"),
-    )
 
 
 @api_bp.route("/workers/<pioreactor_unit>/task_results/<task_id>", methods=["GET"])

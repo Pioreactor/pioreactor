@@ -742,10 +742,6 @@ class CheckHardwareForModelRequest(Struct, forbid_unknown_fields=True):
     model_version: str
 
 
-class CameraCaptureRequest(Struct, forbid_unknown_fields=True):
-    experiment: str | None = None
-
-
 class RemoveFileRequest(Struct, forbid_unknown_fields=True):
     filepath: str
 

@@ -24,15 +24,8 @@ import PioreactorIcon from "./PioreactorIcon";
 import UnderlineSpan from "./UnderlineSpan";
 import { experimentPathSegment } from "../utils/url";
 
-function workerCameraPath(unit, suffix, experiment = null) {
-  const experimentPath = experiment
-    ? `/experiments/${experimentPathSegment(experiment)}`
-    : "";
-  return `/api/workers/${encodeURIComponent(unit)}/camera${experimentPath}/${suffix}`;
-}
-
-function latestStillUrl(unit, imageVersion) {
-  return `${workerCameraPath(unit, "latest.jpg")}?v=${imageVersion}`;
+function workerCameraPath(unit, suffix, experiment) {
+  return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
 }
 
 function experimentStillUrl(unit, experiment, imageId) {
@@ -128,12 +121,11 @@ export default function CameraPanel({
   unit,
   initialStatus = null,
   detailsHref = null,
-  experiment = null,
+  experiment,
   experimentStartTime = null,
 }) {
   const [status, setStatus] = React.useState(initialStatus);
   const [loading, setLoading] = React.useState(!initialStatus);
-  const [imageVersion, setImageVersion] = React.useState(Date.now());
   const [viewerOpen, setViewerOpen] = React.useState(false);
   const [actionError, setActionError] = React.useState(null);
 
@@ -150,7 +142,6 @@ export default function CameraPanel({
 
       const data = await response.json();
       setStatus(data);
-      setImageVersion(Date.now());
     } catch (error) {
       if (error.name !== "AbortError") {
         setActionError(error.message);
@@ -165,9 +156,6 @@ export default function CameraPanel({
   React.useEffect(() => {
     setStatus(initialStatus);
     setLoading(!initialStatus);
-    if (initialStatus) {
-      setImageVersion(Date.now());
-    }
   }, [initialStatus, unit]);
 
   React.useEffect(() => {
@@ -184,9 +172,9 @@ export default function CameraPanel({
   }, [initialStatus, refreshStatus]);
 
   const hasLatestStill = Boolean(status?.latest_still);
-  const openMediaUrl = status?.latest_still && experiment
+  const openMediaUrl = status?.latest_still
     ? experimentStillUrl(unit, experiment, status.latest_still.image_id)
-    : latestStillUrl(unit, imageVersion);
+    : null;
   const handleMissingImage = React.useCallback(() => {
     setStatus((previous) => (
       previous

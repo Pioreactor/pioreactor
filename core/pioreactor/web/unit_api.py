@@ -42,7 +42,6 @@ from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import delete_camera_still
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
-from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
 from pioreactor.cli.pio import validate_github_repo
@@ -182,19 +181,7 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-def get_assigned_experiment_name_if_available() -> str | None:
-    try:
-        return whoami.get_assigned_experiment_name(HOSTNAME)
-    except Exception:
-        return None
-
-
-@unit_api_bp.route("/camera/status", methods=["GET"])
-def get_camera_status() -> ResponseReturnValue:
-    return get_camera_status_response()
-
-
-def get_camera_status_response(experiment: str | None = None) -> ResponseReturnValue:
+def get_camera_status_response(experiment: str) -> ResponseReturnValue:
     task = tasks.get_camera_status_task(HOSTNAME, experiment)
 
     try:
@@ -213,24 +200,6 @@ def get_camera_status_response(experiment: str | None = None) -> ResponseReturnV
 @unit_api_bp.route("/camera/experiments/<experiment>/status", methods=["GET"])
 def get_camera_status_for_experiment(experiment: str) -> ResponseReturnValue:
     return get_camera_status_response(experiment)
-
-
-@unit_api_bp.route("/camera/latest.jpg", methods=["GET"])
-def get_latest_camera_still() -> ResponseReturnValue:
-    metadata = load_latest_camera_still_metadata(HOSTNAME)
-    if metadata is None:
-        abort_with(
-            404,
-            "No camera still image is available.",
-            cause="This unit does not have a stored camera still image.",
-            remediation="Capture a still image and retry.",
-        )
-
-    return send_file(
-        camera_still_image_path(metadata),
-        mimetype=CAMERA_STILL_CONTENT_TYPE,
-        download_name=camera_still_filename(metadata.image_id),
-    )
 
 
 @unit_api_bp.route("/camera/experiments/<experiment>/stills", methods=["GET"])
@@ -342,20 +311,6 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
     except Exception:
         archive_path.unlink(missing_ok=True)
         raise
-
-
-@unit_api_bp.route("/camera/capture", methods=["POST"])
-def capture_camera_still_from_unit() -> ResponseReturnValue:
-    body = (
-        decode_request_body(structs.CameraCaptureRequest) if request.data else structs.CameraCaptureRequest()
-    )
-
-    experiment = (
-        body.experiment if body.experiment is not None else get_assigned_experiment_name_if_available()
-    )
-
-    task = tasks.capture_camera_still_task(HOSTNAME, experiment)
-    return create_task_response(task)
 
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
