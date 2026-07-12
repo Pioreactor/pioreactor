@@ -12,7 +12,6 @@ import zipfile
 from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import quote
 
 from flask import after_this_request
 from flask import Blueprint
@@ -102,7 +101,7 @@ EXPORTABLE_DATASET_PREVIEW_DEFAULT_ROWS = 5
 EXPORTABLE_DATASET_PREVIEW_MAX_ROWS = 100
 
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
-DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/\\"
+DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%&+/=?\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
 MAX_SYSTEM_UPLOAD_REQUEST_BYTES = 60_000_000
 PIOREACTOR_UNIT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -162,7 +161,7 @@ def _validate_experiment_name(raw_experiment_name: object) -> str:
     if any(character in raw_experiment_name for character in DISALLOWED_EXPERIMENT_NAME_CHARACTERS):
         abort_with(
             400,
-            "Experiment name cannot contain special characters (#, $, %, +, /, \\)",
+            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
             cause="Experiment name contains disallowed characters.",
             remediation="Use letters, digits, spaces, dots, dashes, or underscores.",
         )
@@ -489,7 +488,7 @@ def _broadcast_or_multicast_post(pioreactor_unit: str, endpoint: str) -> Delayed
 @api_bp.route("/experiments/<experiment>/cameras", methods=["GET"])
 def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
     task = fanout.broadcast_get_across_workers_ever_assigned_to_experiment(
-        f"/unit_api/camera/experiments/{quote(experiment, safe='')}/status",
+        f"/unit_api/camera/experiments/{experiment}/status",
         experiment=experiment,
         timeout=5,
     )
@@ -508,7 +507,8 @@ def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
 
 
 @api_bp.route("/workers/<pioreactor_unit>/camera/status", methods=["GET"])
-def get_camera_status_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
+@api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/status", methods=["GET"])
+def get_camera_status_for_worker(pioreactor_unit: str, experiment: str | None = None) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
             400,
@@ -517,11 +517,14 @@ def get_camera_status_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
+    worker_endpoint = (
+        f"/unit_api/camera/experiments/{experiment}/status"
+        if experiment is not None
+        else "/unit_api/camera/status"
+    )
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit), "/unit_api/camera/status", timeout=10
-        )
+        response = get_from(resolve_registered_worker_address(pioreactor_unit), worker_endpoint, timeout=10)
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
         abort_with_worker_error(response, f"Fetching camera status failed on {pioreactor_unit}.")
@@ -575,7 +578,7 @@ def list_camera_stills_for_worker_experiment(pioreactor_unit: str, experiment: s
     try:
         response = get_from(
             resolve_registered_worker_address(pioreactor_unit),
-            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills",
+            f"/unit_api/camera/experiments/{experiment}/stills",
             timeout=20,
         )
         response.raise_for_status()
@@ -607,7 +610,7 @@ def get_camera_still_for_worker_experiment(
     try:
         response = get_from(
             resolve_registered_worker_address(pioreactor_unit),
-            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills/{quote(image_id, safe='')}.jpg",
+            f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
             timeout=20,
         )
         response.raise_for_status()
@@ -640,7 +643,7 @@ def delete_camera_still_for_worker_experiment(
     try:
         response = delete_from(
             resolve_registered_worker_address(pioreactor_unit),
-            f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills/{quote(image_id, safe='')}.jpg",
+            f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
             timeout=20,
         )
         response.raise_for_status()
@@ -676,7 +679,7 @@ def get_zipped_camera_stills_for_worker_experiment(
 
     try:
         worker_address = resolve_registered_worker_address(pioreactor_unit)
-        worker_endpoint = f"/unit_api/camera/experiments/{quote(experiment, safe='')}/stills.zip"
+        worker_endpoint = f"/unit_api/camera/experiments/{experiment}/stills.zip"
         with yield_response(
             "GET",
             create_webserver_path(worker_address, worker_endpoint),

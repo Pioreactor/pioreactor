@@ -901,7 +901,22 @@ def test_create_experiment_missing_fields(client) -> None:
     [
         ("current", "Experiment name cannot be 'current'"),
         ("_testing_exp", "Experiment name cannot start with '_testing'"),
-        ("bad/name", "Experiment name cannot contain special characters (#, $, %, +, /, \\)"),
+        (
+            "bad/name",
+            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
+        ),
+        (
+            "bad?name",
+            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
+        ),
+        (
+            "bad&name",
+            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
+        ),
+        (
+            "bad=name",
+            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
+        ),
         (["exp4"], "Invalid request body."),
     ],
 )
@@ -1435,13 +1450,13 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
         fake_broadcast_get_across_workers_ever_assigned_to_experiment,
     )
 
-    response = client.get("/api/experiments/experiment%20a%3F/cameras")
+    response = client.get("/api/experiments/experiment%20a/cameras")
 
     assert response.status_code == 200
     assert captured == {
-        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/status",
-        "experiment": "experiment a?",
-        "path": "/unit_api/camera/experiments/experiment%20a%3F/status",
+        "endpoint": "/unit_api/camera/experiments/experiment a/status",
+        "experiment": "experiment a",
+        "path": "/unit_api/camera/experiments/experiment%20a/status",
         "timeout": 5,
     }
     assert set(response.get_json()["cameras"]) == {"unit1", "unit2"}
@@ -1455,6 +1470,37 @@ def test_camera_status_proxy_rejects_broadcast(client) -> None:
         response.get_json()["error"]
         == "Cannot fetch camera status with $broadcast; choose a specific Pioreactor."
     )
+
+
+def test_experiment_camera_status_proxy_fetches_worker_experiment_status(
+    client, monkeypatch: MonkeyPatch
+) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    captured: dict[str, str] = {}
+
+    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "application/json"},
+            b'{"unit":"unit1","available":true,"latest_still":null}',
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/status")
+
+    assert response.status_code == 200
+    assert response.get_json()["unit"] == "unit1"
+    assert captured == {
+        "address": "unit1.local",
+        "endpoint": "/unit_api/camera/experiments/experiment a/status",
+    }
 
 
 def test_latest_camera_still_proxy_preserves_image_content_type(client, monkeypatch: MonkeyPatch) -> None:
@@ -1504,14 +1550,14 @@ def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatc
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "get_from", fake_get_from)
 
-    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a%3F/stills")
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills")
 
     assert response.status_code == 200
     assert response.get_json() == {"unit": "unit1", "experiment": "experiment a", "stills": []}
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/stills",
-        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills",
+        "endpoint": "/unit_api/camera/experiments/experiment a/stills",
+        "path": "/unit_api/camera/experiments/experiment%20a/stills",
     }
 
 
@@ -1539,15 +1585,15 @@ def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: Mo
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "get_from", fake_get_from)
 
-    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg")
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg")
 
     assert response.status_code == 200
     assert response.data == b"fake jpeg"
     assert response.content_type == "image/jpeg"
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
-        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
+        "endpoint": "/unit_api/camera/experiments/experiment a/stills/image 1.jpg",
+        "path": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
     }
 
 
@@ -1575,16 +1621,14 @@ def test_delete_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "delete_from", fake_delete_from)
 
-    response = client.delete(
-        "/api/workers/unit1/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg"
-    )
+    response = client.delete("/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg")
 
     assert response.status_code == 200
     assert response.get_json() == {"image_id": "image-1"}
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
-        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills/image%201%3F.jpg",
+        "endpoint": "/unit_api/camera/experiments/experiment a/stills/image 1.jpg",
+        "path": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
     }
 
 
@@ -1596,7 +1640,7 @@ def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypat
     captured: dict[str, object] = {"read_sizes": []}
 
     class FakeStreamingResponse:
-        url = "http://unit1.local/unit_api/camera/experiments/experiment%20a%3F/stills.zip"
+        url = "http://unit1.local/unit_api/camera/experiments/experiment%20a/stills.zip"
         status = 200
         headers = HTTPMessage()
         chunks = iter((b"fake ", b"zip", b""))
@@ -1624,14 +1668,14 @@ def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypat
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "yield_response", fake_yield_response)
 
-    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a%3F/stills.zip")
+    response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills.zip")
 
     assert response.status_code == 200
     assert response.data == b"fake zip"
     assert response.content_type == "application/zip"
     assert response.headers["Content-Disposition"].startswith("attachment;")
     assert captured == {
-        "path": "/unit_api/camera/experiments/experiment%20a%3F/stills.zip",
+        "path": "/unit_api/camera/experiments/experiment%20a/stills.zip",
         "read_sizes": [64 * 1024, 64 * 1024, 64 * 1024],
         "timeout": 60,
     }

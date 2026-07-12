@@ -63,7 +63,7 @@ function ExperimentSummaryForm(props) {
   const [lastPopulatedExperimentIndex, setLastPopulatedExperimentIndex] = React.useState(-1);
   const [loading, setLoading] = React.useState(false);
   const trimmedExpName = expName.trim();
-  const hasInvalidCharacters = trimmedExpName.includes("#") || trimmedExpName.includes("+") || trimmedExpName.includes("/") || trimmedExpName.includes("$") || trimmedExpName.includes("%") || trimmedExpName.includes("\\");
+  const hasInvalidCharacters = /[#$%&+\/=?\\]/.test(trimmedExpName);
   const nameAlreadyUsed = trimmedExpName in historicalExperiments;
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
 
@@ -129,7 +129,7 @@ function ExperimentSummaryForm(props) {
     }
     else if (hasInvalidCharacters) {
       setFormError(true)
-      setHelperText("Can't use $, %, #,\\, / or + characters in experiment name.")
+      setHelperText("Can't use $, %, #, &, \\, /, +, = or ? characters in experiment name.")
       setLoading(false)
       return
     }
@@ -191,9 +191,9 @@ function ExperimentSummaryForm(props) {
       setFormError(true);
       setHelperText("Experiment name already used. Please choose another.")
     }
-    else if (experimentNameProposed.includes("#") || experimentNameProposed.includes("+") || experimentNameProposed.includes("/") ||experimentNameProposed.includes("$") ||experimentNameProposed.includes("%") || experimentNameProposed.includes("\\")) {
+    else if (/[#$%&+\/=?\\]/.test(experimentNameProposed)) {
       setFormError(true)
-      setHelperText("Can't use $, %, #, \\, / or + characters in experiment name.")
+      setHelperText("Can't use $, %, #, &, \\, /, +, = or ? characters in experiment name.")
     }
     else {
       setHelperText(" ")

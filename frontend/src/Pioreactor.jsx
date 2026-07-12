@@ -2326,7 +2326,12 @@ function Pioreactor({title}) {
             <Grid size={12}>
               <Box sx={{ mt: 1, mb: 1 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>Camera</Typography>
-                <CameraPanel unit={unit} />
+                <CameraPanel
+                  key={`${unit}:${experimentMetadata.experiment}`}
+                  unit={unit}
+                  experiment={experimentMetadata.experiment}
+                  experimentStartTime={experimentMetadata.created_at}
+                />
               </Box>
             </Grid>
             <Grid

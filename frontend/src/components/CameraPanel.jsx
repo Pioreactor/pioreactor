@@ -24,8 +24,11 @@ import PioreactorIcon from "./PioreactorIcon";
 import UnderlineSpan from "./UnderlineSpan";
 import { experimentPathSegment } from "../utils/url";
 
-function workerCameraPath(unit, suffix) {
-  return `/api/workers/${encodeURIComponent(unit)}/camera/${suffix}`;
+function workerCameraPath(unit, suffix, experiment = null) {
+  const experimentPath = experiment
+    ? `/experiments/${experimentPathSegment(experiment)}`
+    : "";
+  return `/api/workers/${encodeURIComponent(unit)}/camera${experimentPath}/${suffix}`;
 }
 
 function latestStillUrl(unit, imageVersion) {
@@ -33,7 +36,7 @@ function latestStillUrl(unit, imageVersion) {
 }
 
 function experimentStillUrl(unit, experiment, imageId) {
-  return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/stills/${encodeURIComponent(imageId)}.jpg`;
+  return workerCameraPath(unit, `stills/${encodeURIComponent(imageId)}.jpg`, experiment);
 }
 
 function formatCaptureTime(metadata) {
@@ -139,7 +142,7 @@ export default function CameraPanel({
     setActionError(null);
 
     try {
-      const response = await fetch(workerCameraPath(unit, "status"), { signal });
+      const response = await fetch(workerCameraPath(unit, "status", experiment), { signal });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || "Could not fetch camera status.");
@@ -157,7 +160,7 @@ export default function CameraPanel({
         setLoading(false);
       }
     }
-  }, [unit]);
+  }, [experiment, unit]);
 
   React.useEffect(() => {
     setStatus(initialStatus);
