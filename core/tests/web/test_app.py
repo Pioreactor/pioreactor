@@ -1536,6 +1536,33 @@ def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatc
     }
 
 
+def test_capture_camera_still_proxy_posts_to_worker_experiment_stills(
+    client, monkeypatch: MonkeyPatch
+) -> None:
+    import pioreactor.web.api as mod
+
+    captured: dict[str, str] = {}
+
+    class DummyTask:
+        id = "camera-capture-proxy-task"
+
+    def fake_multicast_post_to_worker(unit: str, endpoint: str) -> DummyTask:
+        captured["unit"] = unit
+        captured["endpoint"] = endpoint
+        return DummyTask()
+
+    monkeypatch.setattr(mod, "multicast_post_to_worker", fake_multicast_post_to_worker)
+
+    response = client.post("/api/workers/unit1/camera/experiments/experiment%20a/stills")
+
+    assert response.status_code == 202
+    assert response.get_json()["result_url_path"] == "/unit_api/task_results/camera-capture-proxy-task"
+    assert captured == {
+        "unit": "unit1",
+        "endpoint": "/unit_api/camera/experiments/experiment a/stills",
+    }
+
+
 def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.api as mod
     from pioreactor.mureq import _prepare_request

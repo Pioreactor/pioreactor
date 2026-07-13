@@ -22,7 +22,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
-import { runPioreactorJob } from "./utils/jobs";
+import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
 import { experimentPathSegment } from "./utils/url";
 
 const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
@@ -170,7 +170,19 @@ export default function CameraStills({ title }) {
     setError(null);
 
     try {
-      await runPioreactorJob(pioreactorUnit, experiment, "camera_snapshot");
+      const taskResult = await fetchTaskResult(
+        workerExperimentCameraPath(pioreactorUnit, experiment, "stills"),
+        {
+          fetchOptions: { method: "POST" },
+          maxRetries: 300,
+          delayMs: 100,
+        },
+      );
+      assertUnitTaskResultSucceeded(
+        taskResult,
+        pioreactorUnit,
+        `Could not take a camera snapshot on ${pioreactorUnit}.`,
+      );
       await loadStills();
     } catch (error) {
       setError(`Could not take a camera snapshot. ${error.message} Check that the camera is connected, then retry.`);

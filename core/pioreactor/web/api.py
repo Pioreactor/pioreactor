@@ -559,6 +559,26 @@ def list_camera_stills_for_worker_experiment(pioreactor_unit: str, experiment: s
     )
 
 
+@api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills", methods=["POST"])
+def capture_camera_still_for_worker_experiment(
+    pioreactor_unit: str, experiment: str
+) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot capture a camera still with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    return create_task_response(
+        multicast_post_to_worker(
+            pioreactor_unit,
+            f"/unit_api/camera/experiments/{experiment}/stills",
+        )
+    )
+
+
 @api_bp.route(
     "/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills/<image_id>.jpg", methods=["GET"]
 )

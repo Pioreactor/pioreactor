@@ -135,6 +135,30 @@ def test_list_camera_stills_for_experiment_returns_matching_stills(
     assert [still["image_id"] for still in payload["stills"]] == ["image-a"]
 
 
+def test_capture_camera_still_for_experiment_returns_delayed_response(
+    client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    captured: dict[str, str] = {}
+
+    class DummyTask:
+        id = "camera-capture-task"
+
+    def fake_capture_camera_still_task(unit: str, experiment: str) -> DummyTask:
+        captured["unit"] = unit
+        captured["experiment"] = experiment
+        return DummyTask()
+
+    monkeypatch.setattr(mod.tasks, "capture_camera_still_task", fake_capture_camera_still_task)
+
+    response = client.post("/unit_api/camera/experiments/experiment-a/stills")
+
+    assert response.status_code == 202
+    assert response.get_json()["result_url_path"] == "/unit_api/task_results/camera-capture-task"
+    assert captured == {"unit": HOSTNAME, "experiment": "experiment-a"}
+
+
 def test_camera_still_for_experiment_requires_matching_experiment(
     client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

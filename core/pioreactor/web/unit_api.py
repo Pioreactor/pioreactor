@@ -218,6 +218,11 @@ def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
     )
 
 
+@unit_api_bp.route("/camera/experiments/<experiment>/stills", methods=["POST"])
+def capture_camera_still_for_experiment(experiment: str) -> DelayedResponseReturnValue:
+    return create_task_response(tasks.capture_camera_still_task(HOSTNAME, experiment))
+
+
 @unit_api_bp.route("/camera/experiments/<experiment>/stills/<image_id>.jpg", methods=["GET"])
 def get_camera_still_for_experiment(experiment: str, image_id: str) -> ResponseReturnValue:
     try:

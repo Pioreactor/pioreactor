@@ -8,14 +8,16 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 const mockConfirm = jest.fn();
-const mockRunPioreactorJob = jest.fn();
+const mockAssertUnitTaskResultSucceeded = jest.fn();
+const mockFetchTaskResult = jest.fn();
 
 jest.mock("material-ui-confirm", () => ({
   useConfirm: () => mockConfirm,
 }));
 
-jest.mock("../utils/jobs", () => ({
-  runPioreactorJob: (...args) => mockRunPioreactorJob(...args),
+jest.mock("../utils/tasks", () => ({
+  assertUnitTaskResultSucceeded: (...args) => mockAssertUnitTaskResultSucceeded(...args),
+  fetchTaskResult: (...args) => mockFetchTaskResult(...args),
 }));
 
 jest.mock("../providers/ExperimentContext", () => ({
@@ -48,7 +50,11 @@ function renderCameraStills() {
 describe("CameraStills", () => {
   beforeEach(() => {
     mockConfirm.mockResolvedValue();
-    mockRunPioreactorJob.mockResolvedValue();
+    mockFetchTaskResult.mockResolvedValue({
+      result: {
+        "unit-1": { ok: true, value: { image_id: "image-2" } },
+      },
+    });
     cameraStills = [
       {
         image_id: "image-1",
@@ -184,7 +190,7 @@ describe("CameraStills", () => {
   test("takes a camera snapshot before refreshing the timeline", async () => {
     const user = userEvent.setup();
     let finishSnapshot;
-    mockRunPioreactorJob.mockReturnValue(new Promise((resolve) => {
+    mockFetchTaskResult.mockReturnValue(new Promise((resolve) => {
       finishSnapshot = resolve;
     }));
     renderCameraStills();
@@ -192,17 +198,26 @@ describe("CameraStills", () => {
     await screen.findByRole("img");
     await user.click(screen.getByRole("button", { name: "Refresh" }));
 
-    expect(mockRunPioreactorJob).toHaveBeenCalledWith(
-      "unit-1",
-      "experiment a",
-      "camera_snapshot",
+    expect(mockFetchTaskResult).toHaveBeenCalledWith(
+      "/api/workers/unit-1/camera/experiments/experiment%20a/stills",
+      { fetchOptions: { method: "POST" }, maxRetries: 300, delayMs: 100 },
     );
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
-    finishSnapshot();
+    const taskResult = {
+      result: {
+        "unit-1": { ok: true, value: { image_id: "image-2" } },
+      },
+    };
+    finishSnapshot(taskResult);
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    expect(mockAssertUnitTaskResultSucceeded).toHaveBeenCalledWith(
+      taskResult,
+      "unit-1",
+      "Could not take a camera snapshot on unit-1.",
+    );
     expect(global.fetch).toHaveBeenLastCalledWith(
       "/api/workers/unit-1/camera/experiments/experiment%20a/stills",
       { signal: undefined },
