@@ -155,6 +155,28 @@ def test_camera_snapshot_interval_minutes_rejects_negative_values(
         tasks.camera_snapshot_interval_minutes()
 
 
+def test_camera_focus_calibration_action_uses_existing_capture_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = object()
+    captured: dict[str, str | None] = {}
+
+    def fake_capture_task(unit: str, experiment: str | None) -> object:
+        captured["unit"] = unit
+        captured["experiment"] = experiment
+        return task
+
+    monkeypatch.setattr(tasks, "capture_camera_still_task", fake_capture_task)
+
+    handler = tasks.get_calibration_action("camera_focus_capture")
+    returned_task, error_label, normalize = handler({"unit": "unit-a", "experiment": "session-a"})
+
+    assert returned_task is task
+    assert error_label == "Camera snapshot"
+    assert normalize({"image_id": "image-a"}) == {"image_id": "image-a"}
+    assert captured == {"unit": "unit-a", "experiment": "session-a"}
+
+
 def test_delete_experiment_task_deletes_and_reports_reclaimable_space(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

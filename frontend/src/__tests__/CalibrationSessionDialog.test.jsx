@@ -30,7 +30,7 @@ describe("CalibrationSessionDialog", () => {
                 title: "Record calibration",
                 body: "Run the hardware action.",
                 fields: [],
-                metadata: {},
+                metadata: { primary_action_label: "Take snapshot" },
               },
             }),
         });
@@ -101,6 +101,7 @@ describe("CalibrationSessionDialog", () => {
     );
 
     await screen.findByText("Record calibration");
+    expect(screen.getByRole("button", { name: "Take snapshot" })).toBeTruthy();
 
     expect(global.fetch).toHaveBeenCalledWith("/api/workers/unit-1/calibrations/sessions/session-1");
     expect(global.fetch).not.toHaveBeenCalledWith(

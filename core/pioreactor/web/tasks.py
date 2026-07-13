@@ -962,6 +962,17 @@ def _register_core_calibration_actions() -> None:
         ),
     )
     register_calibration_action(
+        "camera_focus_capture",
+        lambda payload: (
+            capture_camera_still_task(
+                str(payload["unit"]),
+                str(payload["experiment"]),
+            ),
+            "Camera snapshot",
+            _dict_or_empty_normalizer,
+        ),
+    )
+    register_calibration_action(
         "read_aux_voltage",
         lambda payload: (
             calibration_read_voltage(),

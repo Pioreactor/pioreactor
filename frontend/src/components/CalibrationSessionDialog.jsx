@@ -160,6 +160,8 @@ export default function CalibrationSessionDialog({
     sessionResult?.calibration?.device || sessionResult?.device || protocolTargetDevice;
   const completedEstimatorDevice =
     sessionResult?.device || sessionResult?.calibration?.device || protocolTargetDevice;
+  const primaryActionLabel =
+    sessionResult ? "Done" : sessionStep?.metadata?.primary_action_label || "Continue";
 
   const resetSessionState = React.useCallback(() => {
     setSessionId(null);
@@ -755,7 +757,7 @@ export default function CalibrationSessionDialog({
           disabled={!sessionStep || sessionLoading}
           sx={{ textTransform: "none" }}
         >
-          {sessionResult ? "Done" : "Continue"}
+          {primaryActionLabel}
         </Button>
       </DialogActions>
     </Dialog>

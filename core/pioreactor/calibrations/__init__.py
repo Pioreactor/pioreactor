@@ -98,6 +98,9 @@ def list_devices() -> list[str]:
 
 
 # Import protocols so they are discoverable by get_calibration_protocols.
+from pioreactor.calibrations.protocols.camera_manual_focus import (  # noqa: F401,E402
+    ManualCameraFocusProtocol,
+)
 from pioreactor.calibrations.protocols.od_fusion_standards import (
     FusionStandardsODProtocol,
 )  # noqa: F401,E402
