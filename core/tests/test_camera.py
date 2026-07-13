@@ -22,11 +22,18 @@ from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.camera import store_camera_still
+from pioreactor.config import ConfigParserMod
 from pioreactor.utils import local_persistent_storage
 
 
 def write_source_image(path: Path, contents: bytes = b"fake jpeg") -> None:
     path.write_bytes(contents)
+
+
+def configure_camera_backend(monkeypatch: pytest.MonkeyPatch, **options: str) -> None:
+    camera_config = ConfigParserMod()
+    camera_config["camera"] = options
+    monkeypatch.setattr("pioreactor.camera.config", camera_config)
 
 
 @pytest.fixture(autouse=True)
@@ -236,7 +243,8 @@ def test_camera_hardware_detection_uses_generic_list_cameras_output(monkeypatch:
 
     monkeypatch.setattr("pioreactor.camera.subprocess.run", lambda *_args, **_kwargs: Completed())
 
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still") is True
+    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is True
+    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 1) is False
 
 
 def test_camera_hardware_detection_returns_false_without_indexed_camera(
@@ -248,13 +256,85 @@ def test_camera_hardware_detection_returns_false_without_indexed_camera(
 
     monkeypatch.setattr("pioreactor.camera.subprocess.run", lambda *_args, **_kwargs: Completed())
 
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still") is False
+    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+
+
+def test_rpicam_backend_captures_from_configured_camera_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    configure_camera_backend(monkeypatch, capture_backend="rpicam", camera_index="2")
+    monkeypatch.setattr(
+        "pioreactor.camera.shutil.which",
+        lambda command: f"/usr/bin/{command}" if command == "rpicam-still" else None,
+    )
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        assert command[:-1] == [
+            "/usr/bin/rpicam-still",
+            "--camera",
+            "2",
+            "-n",
+            "--timeout",
+            "1000",
+            "-o",
+        ]
+        Path(command[-1]).write_bytes(b"rpicam still")
+
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
+
+    metadata = capture_camera_still("unit-a", experiment="experiment-a")
+
+    assert camera_still_image_path(metadata).read_bytes() == b"rpicam still"
+
+
+def test_v4l2_backend_uses_configured_device_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/null")
+    monkeypatch.setattr(
+        "pioreactor.camera.shutil.which",
+        lambda command: "/usr/bin/fswebcam" if command == "fswebcam" else None,
+    )
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        assert command[:-1] == [
+            "/usr/bin/fswebcam",
+            "--device",
+            "/dev/null",
+            "--no-banner",
+        ]
+        Path(command[-1]).write_bytes(b"webcam still")
+
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
+
+    status = get_camera_status("unit-a")
+    metadata = capture_camera_still("unit-a", experiment="experiment-a")
+
+    assert status["available"] is True
+    assert status["capture_command"] == "fswebcam"
+    assert camera_still_image_path(metadata).read_bytes() == b"webcam still"
+
+
+def test_camera_backend_rejects_unknown_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="unknown")
+
+    with pytest.raises(ValueError, match="camera.capture_backend"):
+        get_camera_status("unit-a")
+
+
+def test_rpicam_backend_rejects_negative_camera_index(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="rpicam", camera_index="-1")
+
+    with pytest.raises(ValueError, match="camera.camera_index"):
+        get_camera_status("unit-a")
 
 
 def test_camera_status_reuses_cached_hardware_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
 
-    def detect_camera(_capture_command: str) -> bool:
+    def detect_camera(_capture_command: str, _camera_index: int) -> bool:
         nonlocal calls
         calls += 1
         return True

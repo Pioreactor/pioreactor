@@ -22,6 +22,7 @@ from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import types as pt
+from pioreactor.config import config
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.sqlite_cache import cache as SqliteCache
 from pioreactor.whoami import is_testing_env
@@ -31,7 +32,8 @@ CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
 CAMERA_STILL_CONTENT_TYPE = "image/jpeg"
 DEFAULT_CAMERA_STILL_RETENTION_COUNT = 200
 CAMERA_STILLS_CACHE_NAME = "camera_stills"
-CAMERA_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
+RPICAM_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
+V4L2_CAPTURE_COMMAND = "fswebcam"
 DEV_CAMERA_STILLS_DIRNAME = "DEV_CAMERA_STILLS"
 
 SAFE_CAMERA_STORAGE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -84,10 +86,36 @@ def create_camera_image_id(captured_at: datetime | None = None) -> str:
     return f"{timestamp}-{uuid.uuid4().hex[:8]}"
 
 
-def find_camera_capture_command() -> str | None:
-    for command in CAMERA_CAPTURE_COMMANDS:
-        resolved = shutil.which(command)
-        if resolved:
+def get_camera_capture_backend() -> Literal["rpicam", "v4l2"]:
+    backend = config.get("camera", "capture_backend", fallback="rpicam")
+    if backend not in {"rpicam", "v4l2"}:
+        raise ValueError("camera.capture_backend must be either 'rpicam' or 'v4l2'")
+
+    return cast(Literal["rpicam", "v4l2"], backend)
+
+
+def get_camera_index() -> int:
+    camera_index = config.getint("camera", "camera_index", fallback=0)
+    if camera_index < 0:
+        raise ValueError("camera.camera_index must be a non-negative integer")
+
+    return camera_index
+
+
+def get_camera_device_path() -> Path:
+    device_path = config.get("camera", "device_path", fallback="/dev/video0").strip()
+    if not device_path:
+        raise ValueError("camera.device_path must not be empty")
+
+    return Path(device_path)
+
+
+def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | None:
+    if backend == "v4l2":
+        return shutil.which(V4L2_CAPTURE_COMMAND)
+
+    for command in RPICAM_CAPTURE_COMMANDS:
+        if resolved := shutil.which(command):
             return resolved
 
     return None
@@ -190,15 +218,15 @@ def query_camera_still_metadata(
     return [still for still in metadata if camera_still_image_path(still, dot_pioreactor).exists()]
 
 
-def camera_hardware_is_detected(capture_command: str, timeout: float = 3.0) -> bool:
+def camera_hardware_is_detected(capture_command: str, camera_index: int, timeout: float = 3.0) -> bool:
     try:
         result = subprocess.run(
             [capture_command, "--list-cameras"],
             capture_output=True,
             timeout=timeout,
-            check=False,
+            check=True,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return False
 
     output = (
@@ -207,12 +235,16 @@ def camera_hardware_is_detected(capture_command: str, timeout: float = 3.0) -> b
         + result.stderr.decode("utf-8", errors="replace")
     )
 
-    return bool(re.search(r"(?m)^\s*\d+\s*:", output))
+    return bool(re.search(rf"(?m)^\s*{camera_index}\s*:", output))
+
+
+def v4l2_camera_hardware_is_detected(device_path: Path) -> bool:
+    return device_path.exists() and device_path.is_char_device()
 
 
 @cache
-def camera_hardware_is_detected_cached(capture_command: str) -> bool:
-    return camera_hardware_is_detected(capture_command)
+def camera_hardware_is_detected_cached(capture_command: str, camera_index: int) -> bool:
+    return camera_hardware_is_detected(capture_command, camera_index)
 
 
 def clear_camera_hardware_detection_cache() -> None:
@@ -225,11 +257,24 @@ def get_camera_status(
     experiment: pt.Experiment | None = None,
     dot_pioreactor: Path | None = None,
 ) -> dict[str, object]:
-    capture_command = find_camera_capture_command()
+    backend = get_camera_capture_backend()
+    camera_index = get_camera_index() if backend == "rpicam" else None
+    device_path = get_camera_device_path() if backend == "v4l2" else None
+    capture_command = find_camera_capture_command(backend)
     dev_stills_available = dev_camera_stills_are_available(dot_pioreactor)
-    camera_detected = (
-        camera_hardware_is_detected_cached(capture_command) if capture_command is not None else False
-    ) or dev_stills_available
+    if backend == "rpicam":
+        assert camera_index is not None
+        camera_detected = (
+            camera_hardware_is_detected_cached(capture_command, camera_index)
+            if capture_command is not None
+            else False
+        )
+    else:
+        assert device_path is not None
+        camera_detected = (
+            v4l2_camera_hardware_is_detected(device_path) if capture_command is not None else False
+        )
+    camera_detected = camera_detected or dev_stills_available
     latest_metadata = load_latest_camera_still_metadata(
         unit, experiment=experiment, dot_pioreactor=dot_pioreactor
     )
@@ -258,7 +303,10 @@ def capture_camera_still(
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata:
-    command = find_camera_capture_command()
+    backend = get_camera_capture_backend()
+    camera_index = get_camera_index() if backend == "rpicam" else None
+    device_path = get_camera_device_path() if backend == "v4l2" else None
+    command = find_camera_capture_command(backend)
 
     if command is None:
         dev_still = store_next_dev_camera_still(
@@ -269,23 +317,46 @@ def capture_camera_still(
         if dev_still is not None:
             return dev_still
 
-        raise CameraUnavailableError("No Raspberry Pi camera capture command is installed.")
+        raise CameraUnavailableError(f"No capture command is installed for camera backend '{backend}'.")
 
     with tempfile.NamedTemporaryFile(prefix="pioreactor-camera-", suffix=".jpg", delete=False) as tmp:
         tmp_path = Path(tmp.name)
 
     try:
-        result = subprocess.run(
-            [command, "-n", "--timeout", "1000", "-o", tmp_path.as_posix()],
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-        )
-        if result.returncode != 0:
-            stderr = result.stderr.decode("utf-8", errors="replace").strip()
-            stdout = result.stdout.decode("utf-8", errors="replace").strip()
-            message = stderr or stdout or f"{Path(command).name} exited with code {result.returncode}"
-            raise CameraCaptureError(message)
+        if backend == "rpicam":
+            assert camera_index is not None
+            capture_arguments = [
+                command,
+                "--camera",
+                str(camera_index),
+                "-n",
+                "--timeout",
+                "1000",
+                "-o",
+                tmp_path.as_posix(),
+            ]
+        else:
+            assert device_path is not None
+            capture_arguments = [
+                command,
+                "--device",
+                device_path.as_posix(),
+                "--no-banner",
+                tmp_path.as_posix(),
+            ]
+
+        try:
+            subprocess.run(
+                capture_arguments,
+                capture_output=True,
+                timeout=timeout,
+                check=True,
+            )
+        except subprocess.CalledProcessError as error:
+            stderr = error.stderr.decode("utf-8", errors="replace").strip()
+            stdout = error.stdout.decode("utf-8", errors="replace").strip()
+            message = stderr or stdout or f"{Path(command).name} exited with code {error.returncode}"
+            raise CameraCaptureError(message) from error
 
         return store_camera_still(
             tmp_path,
