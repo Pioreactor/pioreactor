@@ -200,6 +200,63 @@ def test_camera_focus_calibration_action_uses_existing_capture_task(
     assert captured == {"unit": "unit-a", "experiment": "session-a"}
 
 
+def test_delete_camera_stills_task_deletes_each_requested_image(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deleted: list[tuple[str, str, str]] = []
+
+    def fake_delete_camera_still(unit: str, experiment: str, image_id: str) -> object | None:
+        deleted.append((unit, experiment, image_id))
+        return object() if image_id == "image-a" else None
+
+    monkeypatch.setattr(tasks, "delete_camera_still", fake_delete_camera_still)
+
+    result = tasks.delete_camera_stills_task.call_local(
+        "unit-a",
+        "session-a",
+        ["image-a", "image-b"],
+    )
+
+    assert result == {"deleted_image_ids": ["image-a"]}
+    assert deleted == [
+        ("unit-a", "session-a", "image-a"),
+        ("unit-a", "session-a", "image-b"),
+    ]
+
+
+def test_camera_focus_cleanup_action_uses_delete_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = object()
+    captured: dict[str, object] = {}
+
+    def fake_delete_task(unit: str, experiment: str, image_ids: list[str]) -> object:
+        captured.update(unit=unit, experiment=experiment, image_ids=image_ids)
+        return task
+
+    monkeypatch.setattr(tasks, "delete_camera_stills_task", fake_delete_task)
+
+    handler = tasks.get_calibration_action("camera_focus_cleanup")
+    returned_task, error_label, normalize = handler(
+        {
+            "unit": "unit-a",
+            "experiment": "session-a",
+            "image_ids": ["image-a", "image-b"],
+        }
+    )
+
+    assert returned_task is task
+    assert error_label == "Camera focus snapshot cleanup"
+    assert normalize({"deleted_image_ids": ["image-a", "image-b"]}) == {
+        "deleted_image_ids": ["image-a", "image-b"]
+    }
+    assert captured == {
+        "unit": "unit-a",
+        "experiment": "session-a",
+        "image_ids": ["image-a", "image-b"],
+    }
+
+
 def test_delete_experiment_task_deletes_and_reports_reclaimable_space(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

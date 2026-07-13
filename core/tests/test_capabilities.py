@@ -143,6 +143,15 @@ def test_capabilities_includes_od_blank_group_action() -> None:
         assert expected in option_names, f"missing option {expected} on od_blank"
 
 
+def test_capabilities_includes_camera_snapshot_action() -> None:
+    camera_snapshot = next(
+        capability for capability in collect_capabilities() if capability["job_name"] == "camera_snapshot"
+    )
+
+    assert camera_snapshot["cli_example"] == "pio run camera_snapshot [OPTIONS]"
+    assert camera_snapshot["published_settings"] == {}
+
+
 def test_chemostat_inherits_parent_settings_and_options() -> None:
     # The 'chemostat' automation should include settings from its base class
     caps = collect_capabilities()

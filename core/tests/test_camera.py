@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import fcntl
 from collections.abc import Generator
 from datetime import datetime
 from datetime import UTC
@@ -8,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from msgspec.json import decode as json_decode
+from pioreactor.camera import camera_capture_lock
 from pioreactor.camera import camera_hardware_is_detected
 from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
@@ -47,6 +49,22 @@ def clear_camera_stills_metadata() -> Generator[None, None, None]:
     clear_camera_hardware_detection_cache()
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
         storage.empty()
+
+
+def test_camera_capture_lock_uses_lock_file_in_camera_storage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    lock_operations: list[int] = []
+    monkeypatch.setattr(
+        "pioreactor.camera.fcntl.flock",
+        lambda _file_descriptor, operation: lock_operations.append(operation),
+    )
+
+    with camera_capture_lock(dot_pioreactor):
+        assert (dot_pioreactor / "storage" / "camera_stills" / ".capture.lock").exists()
+
+    assert lock_operations == [fcntl.LOCK_EX, fcntl.LOCK_UN]
 
 
 def test_store_camera_still_writes_canonical_image_and_metadata(

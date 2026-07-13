@@ -7,6 +7,7 @@ from urllib.parse import quote
 import click
 from pioreactor import structs
 from pioreactor.calibrations.registry import CalibrationProtocol
+from pioreactor.calibrations.registry import SessionCleanupExecutor
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionStep
@@ -27,7 +28,7 @@ def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationS
         target_device=target_device,
         status="in_progress",
         step_id="take_snapshot",
-        data={"unit": get_unit_name(), "experiment": session_id},
+        data={"unit": get_unit_name(), "experiment": session_id, "image_ids": []},
         created_at=now,
         updated_at=now,
     )
@@ -49,7 +50,27 @@ def capture_focus_snapshot(ctx: SessionContext) -> None:
         raise ValueError("Camera snapshot returned invalid metadata.")
 
     ctx.data["image_id"] = image_id
+    ctx.data["image_ids"].append(image_id)
     ctx.data["snapshot_count"] = int(ctx.data.get("snapshot_count", 0)) + 1
+
+
+def cleanup_focus_snapshots(
+    session: CalibrationSession,
+    executor: SessionCleanupExecutor | None,
+) -> None:
+    if executor is None or not session.data["image_ids"]:
+        return
+
+    executor(
+        "camera_focus_cleanup",
+        {
+            "unit": session.data["unit"],
+            "experiment": session.data["experiment"],
+            "image_ids": session.data["image_ids"],
+        },
+    )
+    session.data["image_ids"] = []
+    session.data.pop("image_id", None)
 
 
 class TakeSnapshot(SessionStep):
@@ -102,6 +123,7 @@ class FocusCamera(SessionStep):
             capture_focus_snapshot(ctx)
             return FocusCamera()
 
+        cleanup_focus_snapshots(ctx.session, ctx.executor)
         ctx.complete({"title": "Camera focus complete"})
         return CalibrationComplete()
 
@@ -127,6 +149,14 @@ class ManualCameraFocusProtocol(CalibrationProtocol[Literal["camera"]]):
     @classmethod
     def start_session(cls, target_device: Literal["camera"]) -> CalibrationSession:
         return start_manual_focus_session(target_device)
+
+    @classmethod
+    def on_session_abort(
+        cls,
+        session: CalibrationSession,
+        executor: SessionCleanupExecutor | None = None,
+    ) -> None:
+        cleanup_focus_snapshots(session, executor)
 
     def run(self, target_device: Literal["camera"]) -> structs.CalibrationBase:
         raise click.UsageError("Manual camera focus is only available in the Pioreactor UI.")

@@ -47,6 +47,7 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
 
     assert second_focus_step.metadata["image"]["src"].endswith("/stills/image-2.jpg")
     assert second_focus_step.metadata["image"]["caption"] == "Focus snapshot 2"
+    assert session.data["image_ids"] == ["image-1", "image-2"]
     assert calls == [
         (
             "camera_focus_capture",
@@ -63,9 +64,13 @@ def test_manual_focus_session_completes_without_creating_a_calibration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(camera_manual_focus, "get_unit_name", lambda: "unit-a")
+    calls: list[tuple[str, dict[str, object]]] = []
 
     def executor(action: str, payload: dict[str, object]) -> dict[str, object]:
-        return {"image_id": "image-1"}
+        calls.append((action, payload))
+        if action == "camera_focus_capture":
+            return {"image_id": "image-1"}
+        return {"deleted_image_ids": ["image-1"]}
 
     session = start_manual_focus_session("camera")
     engine = SessionEngine(
@@ -82,6 +87,51 @@ def test_manual_focus_session_completes_without_creating_a_calibration(
     assert session.status == "complete"
     assert session.result == {"title": "Camera focus complete"}
     assert engine.ctx.collected_calibrations == []
+    assert session.data["image_ids"] == []
+    assert "image_id" not in session.data
+    assert calls[-1] == (
+        "camera_focus_cleanup",
+        {
+            "unit": "unit-a",
+            "experiment": session.session_id,
+            "image_ids": ["image-1"],
+        },
+    )
+
+
+def test_manual_focus_session_deletes_snapshots_when_aborted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(camera_manual_focus, "get_unit_name", lambda: "unit-a")
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def executor(action: str, payload: dict[str, object]) -> dict[str, object]:
+        calls.append((action, payload))
+        if action == "camera_focus_capture":
+            return {"image_id": "image-1"}
+        return {"deleted_image_ids": ["image-1"]}
+
+    session = start_manual_focus_session("camera")
+    engine = SessionEngine(
+        step_registry=with_terminal_steps(ManualCameraFocusProtocol.step_registry),
+        session=session,
+        mode="ui",
+        executor=executor,
+    )
+    engine.advance({})
+
+    ManualCameraFocusProtocol.on_session_abort(session, executor)
+
+    assert session.data["image_ids"] == []
+    assert "image_id" not in session.data
+    assert calls[-1] == (
+        "camera_focus_cleanup",
+        {
+            "unit": "unit-a",
+            "experiment": session.session_id,
+            "image_ids": ["image-1"],
+        },
+    )
 
 
 def test_manual_focus_protocol_is_registered() -> None:

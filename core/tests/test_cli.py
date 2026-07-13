@@ -5,6 +5,8 @@ import re
 import stat
 import subprocess
 import time
+from datetime import datetime
+from datetime import UTC
 from pathlib import Path
 from typing import cast
 from typing import Iterator
@@ -1024,6 +1026,38 @@ def test_led_intensity() -> None:
     assert result.exit_code == 0
     with local_intermittent_storage("leds") as c:
         assert float(cast(float, c["A"])) == 1.0
+
+
+def test_camera_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.actions import camera_snapshot
+    from pioreactor.camera import CameraStillMetadata
+
+    metadata = CameraStillMetadata(
+        experiment="experiment-a",
+        captured_at=datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
+        image_id="image-a",
+    )
+    monkeypatch.setattr(camera_snapshot, "camera_snapshot", lambda: metadata)
+
+    result = CliRunner().invoke(pio, ["run", "camera_snapshot"])
+
+    assert result.exit_code == 0
+    assert result.output == "Captured camera snapshot image-a.\n"
+
+
+def test_camera_snapshot_reports_capture_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.actions import camera_snapshot
+    from pioreactor.camera import CameraUnavailableError
+
+    def raise_camera_unavailable() -> None:
+        raise CameraUnavailableError("No camera detected.")
+
+    monkeypatch.setattr(camera_snapshot, "camera_snapshot", raise_camera_unavailable)
+
+    result = CliRunner().invoke(pio, ["run", "camera_snapshot"])
+
+    assert result.exit_code == 1
+    assert result.output == "Error: No camera detected.\n"
 
 
 @pytest.mark.xfail

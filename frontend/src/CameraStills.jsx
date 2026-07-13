@@ -244,7 +244,7 @@ export default function CameraStills({ title }) {
           <CircularProgress />
         </Stack>
       ) : stills.length === 0 ? (
-        <Alert severity="info">No still images were captured for this Pioreactor during this experiment.</Alert>
+        <Alert severity="info">No still images have been captured for this Pioreactor during this experiment.</Alert>
       ) : (
         <>
           <Grid container spacing={2}>

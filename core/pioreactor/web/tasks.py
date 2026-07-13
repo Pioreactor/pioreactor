@@ -47,6 +47,7 @@ from pioreactor import whoami
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraUnavailableError
 from pioreactor.camera import capture_camera_still
+from pioreactor.camera import delete_camera_still
 from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.cluster_management import get_workers_in_inventory
@@ -107,6 +108,18 @@ def capture_camera_still_task(
     experiment: str | None,
 ) -> dict[str, Any]:
     return to_builtins(capture_camera_still(unit, experiment=experiment))
+
+
+@huey.task(priority=20)
+def delete_camera_stills_task(
+    unit: str,
+    experiment: str,
+    image_ids: list[str],
+) -> dict[str, Any]:
+    deleted_image_ids = [
+        image_id for image_id in image_ids if delete_camera_still(unit, experiment, image_id) is not None
+    ]
+    return {"deleted_image_ids": deleted_image_ids}
 
 
 def camera_snapshot_interval_minutes() -> int:
@@ -971,6 +984,18 @@ def _register_core_calibration_actions() -> None:
                 str(payload["experiment"]),
             ),
             "Camera snapshot",
+            _dict_or_empty_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "camera_focus_cleanup",
+        lambda payload: (
+            delete_camera_stills_task(
+                str(payload["unit"]),
+                str(payload["experiment"]),
+                payload["image_ids"],
+            ),
+            "Camera focus snapshot cleanup",
             _dict_or_empty_normalizer,
         ),
     )

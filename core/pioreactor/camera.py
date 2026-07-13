@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import fcntl
 import os
 import re
 import shutil
@@ -8,12 +9,14 @@ import sqlite3
 import subprocess
 import tempfile
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from datetime import UTC
 from functools import cache
 from pathlib import Path
 from typing import Annotated
 from typing import cast
+from typing import Iterator
 from typing import Literal
 
 from msgspec import Meta
@@ -251,6 +254,20 @@ def clear_camera_hardware_detection_cache() -> None:
     camera_hardware_is_detected_cached.cache_clear()
 
 
+@contextmanager
+def camera_capture_lock(dot_pioreactor: Path | None = None) -> Iterator[None]:
+    """Serialize access to the physical camera across local processes."""
+    lock_path = camera_stills_root_path(dot_pioreactor) / ".capture.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with lock_path.open("w", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
 def get_camera_status(
     unit: pt.Unit,
     *,
@@ -375,12 +392,13 @@ def capture_camera_still(
             ]
 
         try:
-            subprocess.run(
-                capture_arguments,
-                capture_output=True,
-                timeout=timeout,
-                check=True,
-            )
+            with camera_capture_lock(dot_pioreactor):
+                subprocess.run(
+                    capture_arguments,
+                    capture_output=True,
+                    timeout=timeout,
+                    check=True,
+                )
         except subprocess.CalledProcessError as error:
             stderr = error.stderr.decode("utf-8", errors="replace").strip()
             stdout = error.stdout.decode("utf-8", errors="replace").strip()
