@@ -8,9 +8,14 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 const mockConfirm = jest.fn();
+const mockRunPioreactorJob = jest.fn();
 
 jest.mock("material-ui-confirm", () => ({
   useConfirm: () => mockConfirm,
+}));
+
+jest.mock("../utils/jobs", () => ({
+  runPioreactorJob: (...args) => mockRunPioreactorJob(...args),
 }));
 
 jest.mock("../providers/ExperimentContext", () => ({
@@ -43,6 +48,7 @@ function renderCameraStills() {
 describe("CameraStills", () => {
   beforeEach(() => {
     mockConfirm.mockResolvedValue();
+    mockRunPioreactorJob.mockResolvedValue();
     cameraStills = [
       {
         image_id: "image-1",
@@ -172,6 +178,34 @@ describe("CameraStills", () => {
     expect(screen.getAllByRole("img")[0]).toHaveAttribute(
       "src",
       expect.stringContaining("image-31.jpg"),
+    );
+  });
+
+  test("takes a camera snapshot before refreshing the timeline", async () => {
+    const user = userEvent.setup();
+    let finishSnapshot;
+    mockRunPioreactorJob.mockReturnValue(new Promise((resolve) => {
+      finishSnapshot = resolve;
+    }));
+    renderCameraStills();
+
+    await screen.findByRole("img");
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(mockRunPioreactorJob).toHaveBeenCalledWith(
+      "unit-1",
+      "experiment a",
+      "camera_snapshot",
+    );
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    finishSnapshot();
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      "/api/workers/unit-1/camera/experiments/experiment%20a/stills",
+      { signal: undefined },
     );
   });
 

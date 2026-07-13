@@ -22,6 +22,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
+import { runPioreactorJob } from "./utils/jobs";
 import { experimentPathSegment } from "./utils/url";
 
 const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
@@ -71,6 +72,7 @@ export default function CameraStills({ title }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [deletingImageId, setDeletingImageId] = React.useState(null);
+  const [takingSnapshot, setTakingSnapshot] = React.useState(false);
   const [refreshIntervalMs, setRefreshIntervalMs] = React.useState(null);
   const [visibleStillCount, setVisibleStillCount] = React.useState(CAMERA_STILLS_PAGE_SIZE);
 
@@ -159,6 +161,24 @@ export default function CameraStills({ title }) {
   const visibleStills = orderedStills.slice(0, visibleStillCount);
   const hasEarlierStills = visibleStills.length < orderedStills.length;
 
+  const takeSnapshotAndRefreshTimeline = React.useCallback(async () => {
+    if (!pioreactorUnit || !experiment || takingSnapshot) {
+      return;
+    }
+
+    setTakingSnapshot(true);
+    setError(null);
+
+    try {
+      await runPioreactorJob(pioreactorUnit, experiment, "camera_snapshot");
+      await loadStills();
+    } catch (error) {
+      setError(`Could not take a camera snapshot. ${error.message} Check that the camera is connected, then retry.`);
+    } finally {
+      setTakingSnapshot(false);
+    }
+  }, [experiment, loadStills, pioreactorUnit, takingSnapshot]);
+
   const deleteStill = React.useCallback(async (still) => {
     if (!pioreactorUnit || !experiment || deletingImageId) {
       return;
@@ -220,7 +240,12 @@ export default function CameraStills({ title }) {
             </Box>
           </Stack>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <Button onClick={() => loadStills()} disabled={loading || !experiment} sx={{ textTransform: "none", whiteSpace: "nowrap" }} startIcon={<RefreshIcon/>}>
+            <Button
+              onClick={takeSnapshotAndRefreshTimeline}
+              disabled={loading || takingSnapshot || !experiment}
+              sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+              startIcon={takingSnapshot ? <CircularProgress color="inherit" size={18} /> : <RefreshIcon />}
+            >
               Refresh
             </Button>
 
