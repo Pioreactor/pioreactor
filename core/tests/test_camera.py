@@ -259,7 +259,7 @@ def test_camera_hardware_detection_returns_false_without_indexed_camera(
     assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
 
 
-def test_rpicam_backend_captures_from_configured_camera_index(
+def test_rpicam_backend_uses_camera_index_and_tuned_capture_settings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
@@ -275,9 +275,38 @@ def test_rpicam_backend_captures_from_configured_camera_index(
             "/usr/bin/rpicam-still",
             "--camera",
             "2",
-            "-n",
-            "--timeout",
-            "1000",
+            "--nopreview",
+            "--immediate",
+            "--tuning-file",
+            "/usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json",
+            "--mode",
+            "2592:1944:10:P",
+            "--width",
+            "2592",
+            "--height",
+            "1944",
+            "--buffer-count",
+            "2",
+            "--framerate",
+            "0",
+            "--shutter",
+            "3000000",
+            "--gain",
+            "16",
+            "--awbgains",
+            "1,1",
+            "--brightness",
+            "0.20",
+            "--contrast",
+            "1.30",
+            "--saturation",
+            "0",
+            "--sharpness",
+            "0",
+            "--denoise",
+            "cdn_hq",
+            "--quality",
+            "95",
             "-o",
         ]
         Path(command[-1]).write_bytes(b"rpicam still")
