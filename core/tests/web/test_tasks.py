@@ -115,21 +115,44 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
 
 
 @pytest.mark.parametrize(
-    ("elapsed_seconds", "expected"),
+    ("now", "captured_at", "interval_minutes", "expected"),
     [
-        (119, False),
-        (120, True),
+        (
+            datetime(2026, 6, 10, 12, 0, 59, tzinfo=UTC),
+            datetime(2026, 6, 10, 12, 0, 1, tzinfo=UTC),
+            1,
+            False,
+        ),
+        (
+            datetime(2026, 6, 10, 12, 1, 45, tzinfo=UTC),
+            datetime(2026, 6, 10, 12, 0, 46, tzinfo=UTC),
+            1,
+            True,
+        ),
+        (
+            datetime(2026, 6, 10, 12, 1, 45, tzinfo=UTC),
+            datetime(2026, 6, 10, 12, 0, 46, tzinfo=UTC),
+            2,
+            False,
+        ),
+        (
+            datetime(2026, 6, 10, 12, 2, 45, tzinfo=UTC),
+            datetime(2026, 6, 10, 12, 0, 46, tzinfo=UTC),
+            2,
+            True,
+        ),
     ],
 )
-def test_camera_snapshot_is_due_uses_whole_minute_intervals(
-    elapsed_seconds: int,
+def test_camera_snapshot_is_due_uses_scheduler_minute_intervals(
+    now: datetime,
+    captured_at: datetime,
+    interval_minutes: int,
     expected: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    now = datetime(2026, 6, 10, 12, 2, tzinfo=UTC)
     metadata = CameraStillMetadata(
         experiment="experiment-a",
-        captured_at=datetime.fromtimestamp(now.timestamp() - elapsed_seconds, tz=UTC),
+        captured_at=captured_at,
         image_id="image-a",
     )
     monkeypatch.setattr(tasks, "current_utc_datetime", lambda: now)
@@ -139,7 +162,7 @@ def test_camera_snapshot_is_due_uses_whole_minute_intervals(
         lambda unit, *, experiment, limit: [metadata],
     )
 
-    assert tasks.camera_snapshot_is_due("unit-a", "experiment-a", 2) is expected
+    assert tasks.camera_snapshot_is_due("unit-a", "experiment-a", interval_minutes) is expected
 
 
 def test_camera_snapshot_interval_minutes_rejects_negative_values(

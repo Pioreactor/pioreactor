@@ -18,6 +18,7 @@ import stat
 import zipfile
 from collections.abc import Callable
 from collections.abc import Mapping
+from datetime import timedelta
 from pathlib import Path
 from shlex import join
 from subprocess import check_call
@@ -120,8 +121,9 @@ def camera_snapshot_is_due(unit: str, experiment: str, interval_minutes: int) ->
     if not recent_stills:
         return True
 
-    elapsed = current_utc_datetime() - recent_stills[0].captured_at
-    return elapsed.total_seconds() >= interval_minutes * 60
+    current_scheduler_minute = current_utc_datetime().replace(second=0, microsecond=0)
+    latest_capture_minute = recent_stills[0].captured_at.replace(second=0, microsecond=0)
+    return current_scheduler_minute - latest_capture_minute >= timedelta(minutes=interval_minutes)
 
 
 @periodic_task(crontab(minute="*"), priority=20)
