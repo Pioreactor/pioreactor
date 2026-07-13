@@ -406,13 +406,6 @@ export default function SideNavAndHeader() {
                 Pioreactors
               </MenuItem>
 
-              <MenuItem
-                icon={<CameraAltOutlinedIcon sx={{fontSize: "23px"}}/>}
-                component={<Link to="/cameras" className="link" />}
-                active={isSelected("/cameras")}
-                >
-                Cameras
-              </MenuItem>
 
               <MenuItem
                 component={<Link to="/logs" className="link" />}
@@ -431,6 +424,13 @@ export default function SideNavAndHeader() {
 
                 >
                 Profiles
+              </MenuItem>
+              <MenuItem
+                icon={<CameraAltOutlinedIcon sx={{fontSize: "23px"}}/>}
+                component={<Link to="/cameras" className="link" />}
+                active={isSelected("/cameras")}
+                >
+                Cameras
               </MenuItem>
 
 

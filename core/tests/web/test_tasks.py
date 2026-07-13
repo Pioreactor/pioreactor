@@ -62,6 +62,25 @@ def test_periodic_camera_capture_noops_when_camera_is_unavailable(
     assert result == {"captured": False, "reason": "camera_unavailable"}
 
 
+def test_periodic_camera_capture_noops_when_worker_is_inactive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
+    monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
+    monkeypatch.setattr(tasks.whoami, "is_active", lambda unit: False)
+    monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(
+        tasks,
+        "get_camera_status",
+        lambda unit: pytest.fail("inactive workers must not probe the camera"),
+    )
+
+    result = tasks.capture_camera_still_periodic_task.call_local()
+
+    assert result == {"captured": False, "reason": "inactive"}
+
+
 def test_periodic_camera_capture_captures_when_snapshot_is_due(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

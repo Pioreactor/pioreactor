@@ -132,6 +132,9 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
         return {"captured": False, "reason": "disabled"}
 
     unit = get_unit_name()
+    if not whoami.is_active(unit):
+        return {"captured": False, "reason": "inactive"}
+
     try:
         experiment = whoami.get_assigned_experiment_name(unit)
     except (exc.NotAssignedAnExperimentError, HTTPException):

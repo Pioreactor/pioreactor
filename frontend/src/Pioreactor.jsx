@@ -2323,17 +2323,6 @@ function Pioreactor({title}) {
               xs: 12,
               md: 5
             }}>
-            <Grid size={12}>
-              <Box sx={{ mt: 1, mb: 1 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>Camera</Typography>
-                <CameraPanel
-                  key={`${unit}:${experimentMetadata.experiment}`}
-                  unit={unit}
-                  experiment={experimentMetadata.experiment}
-                  experimentStartTime={experimentMetadata.created_at}
-                />
-              </Box>
-            </Grid>
             <Grid
               size={{
                 xs: 7,
@@ -2354,6 +2343,16 @@ function Pioreactor({title}) {
             </Grid>
             <Grid size={12}>
               <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.created_at}/>
+            </Grid>
+            <Grid size={12}>
+              <Box sx={{ mt: 1, mb: 1 }}>
+                <CameraPanel
+                  key={`${unit}:${experimentMetadata.experiment}`}
+                  unit={unit}
+                  experiment={experimentMetadata.experiment}
+                  experimentStartTime={experimentMetadata.created_at}
+                />
+              </Box>
             </Grid>
           </Grid>
         </Grid>

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 import dayjs from "dayjs";
 
@@ -11,6 +11,7 @@ const CameraPanel = require("../components/CameraPanel").default;
 
 describe("CameraPanel", () => {
   afterEach(() => {
+    jest.useRealTimers();
     jest.resetAllMocks();
   });
 
@@ -70,5 +71,39 @@ describe("CameraPanel", () => {
       "src",
       "/api/workers/unit-1/camera/experiments/experiment-a/stills/image-1.jpg",
     );
+  });
+
+  test("polls status at the snapshot interval when it owns the request", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          available: true,
+          latest_still: null,
+          snapshot_interval_minutes: 1,
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <CameraPanel unit="unit-1" experiment="experiment-a" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText("No still image")).toBeInTheDocument();
+
+    await act(async () => {
+      jest.advanceTimersByTime(60 * 1000);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
   });
 });

@@ -24,6 +24,8 @@ import PioreactorIcon from "./PioreactorIcon";
 import UnderlineSpan from "./UnderlineSpan";
 import { experimentPathSegment } from "../utils/url";
 
+const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
+
 function workerCameraPath(unit, suffix, experiment) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
 }
@@ -129,8 +131,10 @@ export default function CameraPanel({
   const [viewerOpen, setViewerOpen] = React.useState(false);
   const [actionError, setActionError] = React.useState(null);
 
-  const refreshStatus = React.useCallback(async ({ signal } = {}) => {
-    setLoading(true);
+  const refreshStatus = React.useCallback(async ({ signal, showLoading = true } = {}) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     setActionError(null);
 
     try {
@@ -171,6 +175,27 @@ export default function CameraPanel({
     };
   }, [initialStatus, refreshStatus]);
 
+  const snapshotIntervalMinutes = status?.snapshot_interval_minutes;
+  const refreshIntervalMs = typeof snapshotIntervalMinutes === "number" && snapshotIntervalMinutes > 0
+    ? Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, snapshotIntervalMinutes * 60 * 1000)
+    : null;
+
+  React.useEffect(() => {
+    if (initialStatus || !refreshIntervalMs) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const interval = window.setInterval(() => {
+      void refreshStatus({ signal: controller.signal, showLoading: false });
+    }, refreshIntervalMs);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [initialStatus, refreshIntervalMs, refreshStatus]);
+
   const hasLatestStill = Boolean(status?.latest_still);
   const openMediaUrl = status?.latest_still
     ? experimentStillUrl(unit, experiment, status.latest_still.image_id)
@@ -194,7 +219,9 @@ export default function CameraPanel({
             <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
                 <PioreactorIcon />
-                <Typography variant="h6" noWrap>{unit}</Typography>
+                <Typography variant="h6" noWrap>
+                  <Box sx={{ fontWeight: "fontWeightRegular" }}>{unit}'s Camera</Box>
+                </Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "right", whiteSpace: "nowrap"}}>
                 {experimentStartTime ? (
