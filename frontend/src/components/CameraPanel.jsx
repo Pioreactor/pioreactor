@@ -12,7 +12,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 
 import CloseIcon from "@mui/icons-material/Close";
@@ -24,6 +24,7 @@ import PioreactorIcon from "./PioreactorIcon";
 import UnderlineSpan from "./UnderlineSpan";
 import { experimentPathSegment } from "../utils/url";
 
+const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 
 function workerCameraPath(unit, suffix, experiment) {
@@ -260,33 +261,29 @@ export default function CameraPanel({
 
             {actionError && <Alert severity="error">{actionError}</Alert>}
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between" }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "flex-end" }}>
               <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
                 {detailsHref && (
-                  <Tooltip title="View still history">
-                    <IconButton
+                    <Button
                       size="small"
                       component={Link}
                       to={detailsHref}
+                      sx={{textTransform: 'none', float: "right" }}
                     >
-                      <PhotoLibraryOutlinedIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                      <PhotoLibraryOutlinedIcon fontSize="small" sx={textIcon}/> View still history
+                    </Button>
                 )}
-                <Tooltip title="Open media">
-                  <span>
-                    <IconButton
+                    <Button
                       size="small"
                       component="a"
                       href={openMediaUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       disabled={!hasLatestStill}
+                      sx={{textTransform: 'none', float: "right" }}
                     >
-                      <FullscreenIcon fontSize="small" />
-                    </IconButton>
-                  </span>
-                </Tooltip>
+                      <FullscreenIcon fontSize="small" sx={textIcon}/> Open image
+                    </Button>
               </Stack>
             </Stack>
           </Stack>

@@ -14,6 +14,7 @@ import { experimentPathSegment } from "./utils/url";
 
 const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 
+
 function normalizeCameraResults(payload) {
   const cameras = payload?.cameras;
   if (!cameras || typeof cameras !== "object" || Array.isArray(cameras)) {

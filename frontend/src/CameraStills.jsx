@@ -9,9 +9,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
-import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -27,6 +25,7 @@ import { experimentPathSegment } from "./utils/url";
 
 const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 const CAMERA_STILLS_PAGE_SIZE = 24;
+const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 function workerExperimentCameraPath(unit, experiment, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
@@ -240,34 +239,26 @@ export default function CameraStills({ title }) {
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, mb: 1 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
-            <IconButton component={Link} to="/cameras" size="small">
-              <ArrowBackIcon fontSize="small" />
-            </IconButton>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h5" component="h1">
-                <Box sx={{ fontWeight: "fontWeightBold" }}>
-                  {pioreactorUnit} image timeline
-                </Box>
-              </Typography>
-            </Box>
+            <Button to={`/cameras`} component={Link} sx={{ textTransform: 'none' }}>
+              <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All cameras
+            </Button>
           </Stack>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <Button
               onClick={takeSnapshotAndRefreshTimeline}
               disabled={loading || takingSnapshot || !experiment}
-              sx={{ textTransform: "none", whiteSpace: "nowrap" }}
-              startIcon={takingSnapshot ? <CircularProgress color="inherit" size={18} /> : <RefreshIcon />}
+              sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
             >
+              {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <RefreshIcon  fontSize="small" sx={textIcon} />}
               Refresh
             </Button>
 
             <Button
               href={downloadHref}
-              startIcon={<DownloadIcon />}
               disabled={!experiment || stills.length === 0}
               sx={{ textTransform: "none", whiteSpace: "nowrap" }}
             >
-              Download All
+              <DownloadIcon fontSize="small" sx={textIcon} /> Download All
             </Button>
           </Stack>
         </Box>
@@ -321,34 +312,33 @@ export default function CameraStills({ title }) {
                         </UnderlineSpan>
                       </Typography>
                     </Box>
-                    <Tooltip title="Open image">
-                      <IconButton
+                    <Box>
+                      <Button
+                        aria-label={`Delete camera still captured at ${formatCaptureTime(still)}`}
+                        color="secondary"
+                        disabled={deletingImageId !== null}
+                        onClick={() => deleteStill(still)}
+                        size="small"
+                        sx={{textTransform: 'none', float: "right" }}
+                      >
+                            {deletingImageId === still.image_id ? (
+                              <CircularProgress color="inherit" size={18} />
+                            ) : (
+                              <DeleteOutlineIcon fontSize="small" />
+                            )} Delete
+                      </Button>
+                      <Button
+                        size="small"
                         component="a"
                         href={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        size="small"
+                        sx={{textTransform: 'none', float: "right" }}
                       >
-                        <FullscreenIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete image">
-                      <span>
-                        <IconButton
-                          aria-label={`Delete camera still captured at ${formatCaptureTime(still)}`}
-                          color="secondary"
-                          disabled={deletingImageId !== null}
-                          onClick={() => deleteStill(still)}
-                          size="small"
-                        >
-                          {deletingImageId === still.image_id ? (
-                            <CircularProgress color="inherit" size={18} />
-                          ) : (
-                            <DeleteOutlineIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                        <FullscreenIcon fontSize="small" sx={textIcon}/> Open image
+                      </Button>
+
+                    </Box>
                   </Stack>
                 </Box>
               </Grid>
