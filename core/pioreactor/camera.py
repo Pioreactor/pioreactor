@@ -33,7 +33,7 @@ from pioreactor.whoami import is_testing_env
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
 CAMERA_STILL_CONTENT_TYPE = "image/jpeg"
-DEFAULT_CAMERA_STILL_RETENTION_COUNT = 200
+DEFAULT_CAMERA_STILL_RETENTION_COUNT = 500
 CAMERA_STILLS_CACHE_NAME = "camera_stills"
 RPICAM_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
 V4L2_CAPTURE_COMMAND = "fswebcam"
@@ -429,6 +429,9 @@ def store_camera_still(
     if not source_image_path.exists():
         raise FileNotFoundError(source_image_path)
 
+    if retention_count < 2:
+        raise ValueError("Camera still retention count must be at least 2")
+
     captured_at = captured_at or datetime.now(UTC)
     if captured_at.tzinfo is None:
         captured_at = captured_at.replace(tzinfo=UTC)
@@ -465,7 +468,12 @@ def store_camera_still(
             destination_image_path.unlink()
         raise
 
-    apply_camera_still_retention(unit, retention_count=retention_count, dot_pioreactor=root)
+    apply_camera_still_retention(
+        unit,
+        experiment=experiment,
+        retention_count=retention_count,
+        dot_pioreactor=root,
+    )
 
     return metadata
 
@@ -562,18 +570,57 @@ def list_camera_still_metadata(
 def apply_camera_still_retention(
     unit: pt.Unit,
     *,
+    experiment: pt.Experiment | None,
     retention_count: int = DEFAULT_CAMERA_STILL_RETENTION_COUNT,
     dot_pioreactor: Path | None = None,
 ) -> None:
-    if retention_count < 1:
-        raise ValueError("Camera still retention count must be at least 1")
+    """Retain a bounded temporal coreset of stills for one experiment.
 
-    retained = list_camera_still_metadata(unit, dot_pioreactor=dot_pioreactor)[:retention_count]
-    retained_ids = {still.image_id for still in retained}
+    Stills are ordered from oldest to newest. The first and newest stills are invariants and are
+    never eviction candidates. When the experiment exceeds ``retention_count``, each interior
+    still is assigned the product of its adjacent time gaps::
 
-    for still in list_camera_still_metadata(unit, dot_pioreactor=dot_pioreactor)[retention_count:]:
-        if still.image_id in retained_ids:
-            continue
+        (captured_at - previous.captured_at) * (next.captured_at - captured_at)
+
+    Removing a still increases the sum of squared adjacent time gaps by twice this product, so
+    evicting the smallest product is the locally least-damaging temporal thinning step. Repeating
+    this after each capture progressively spreads the retained stills across the experiment instead
+    of preserving only its newest tail.
+
+    This is an online, irreversible approximation: an evicted image cannot be reconsidered as the
+    experiment grows. ``experiment=None`` is treated as its own retention cohort.
+    """
+    if experiment is None:
+        stills = [
+            still
+            for still in list_camera_still_metadata(
+                unit,
+                sort_order="asc",
+                dot_pioreactor=dot_pioreactor,
+            )
+            if still.experiment is None
+        ]
+    else:
+        stills = list_camera_still_metadata(
+            unit,
+            experiment=experiment,
+            sort_order="asc",
+            dot_pioreactor=dot_pioreactor,
+        )
+
+    while len(stills) > retention_count:
+        # The first and newest stills are never candidates. Removing the interior still with the
+        # smallest adjacent-gap product causes the smallest local increase in squared time gaps.
+        redundant_still_index = min(
+            range(1, len(stills) - 1),
+            key=lambda index: (
+                (stills[index].captured_at - stills[index - 1].captured_at).total_seconds()
+                * (stills[index + 1].captured_at - stills[index].captured_at).total_seconds(),
+                stills[index].captured_at,
+                stills[index].image_id,
+            ),
+        )
+        still = stills.pop(redundant_still_index)
 
         image_path = camera_still_image_path(still, dot_pioreactor)
         if image_path.exists():

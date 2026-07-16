@@ -116,7 +116,7 @@ def test_load_latest_camera_still_metadata_returns_none_without_an_image(
     assert load_latest_camera_still_metadata("unit-a") is None
 
 
-def test_store_camera_still_applies_retention_to_old_stills(
+def test_store_camera_still_retention_preserves_first_and_latest_stills(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
@@ -135,11 +135,84 @@ def test_store_camera_still_applies_retention_to_old_stills(
             retention_count=2,
         )
 
-    assert [metadata.image_id for metadata in list_camera_still_metadata("unit-a")] == ["image-2", "image-1"]
-    assert not (dot_pioreactor / "storage" / "camera_stills" / "image-0.jpg").exists()
+    assert [metadata.image_id for metadata in list_camera_still_metadata("unit-a")] == ["image-2", "image-0"]
+    assert not (dot_pioreactor / "storage" / "camera_stills" / "image-1.jpg").exists()
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
-        assert "image-0" not in storage
+        assert "image-1" not in storage
     assert load_latest_camera_still_metadata("unit-a").image_id == "image-2"
+
+
+def test_store_camera_still_retention_removes_most_temporally_redundant_still(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+
+    for image_id, minute in (("image-0", 0), ("image-1", 1), ("image-9", 9), ("image-20", 20)):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment="experiment-a",
+            captured_at=datetime(2026, 6, 10, 12, minute, tzinfo=UTC),
+            image_id=image_id,
+            retention_count=3,
+        )
+
+    assert [metadata.image_id for metadata in list_camera_still_metadata("unit-a")] == [
+        "image-20",
+        "image-9",
+        "image-0",
+    ]
+    assert not (dot_pioreactor / "storage" / "camera_stills" / "image-1.jpg").exists()
+
+
+def test_store_camera_still_retention_is_scoped_to_each_experiment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+
+    for experiment, hour in (("experiment-a", 12), ("experiment-b", 13)):
+        for minute in range(3):
+            store_camera_still(
+                source_image_path,
+                "unit-a",
+                experiment=experiment,
+                captured_at=datetime(2026, 6, 10, hour, minute, tzinfo=UTC),
+                image_id=f"{experiment}-{minute}",
+                retention_count=2,
+            )
+
+    assert [
+        metadata.image_id for metadata in list_camera_still_metadata("unit-a", experiment="experiment-a")
+    ] == ["experiment-a-2", "experiment-a-0"]
+    assert [
+        metadata.image_id for metadata in list_camera_still_metadata("unit-a", experiment="experiment-b")
+    ] == ["experiment-b-2", "experiment-b-0"]
+
+
+def test_store_camera_still_requires_capacity_for_first_and_latest_stills(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+
+    with pytest.raises(ValueError, match="retention count must be at least 2"):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment="experiment-a",
+            image_id="image-a",
+            retention_count=1,
+        )
+
+    assert not (dot_pioreactor / "storage" / "camera_stills" / "image-a.jpg").exists()
 
 
 def test_list_camera_still_metadata_filters_by_experiment(
