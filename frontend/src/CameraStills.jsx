@@ -72,6 +72,7 @@ export default function CameraStills({ title }) {
   const [error, setError] = React.useState(null);
   const [deletingImageId, setDeletingImageId] = React.useState(null);
   const [takingSnapshot, setTakingSnapshot] = React.useState(false);
+  const [downloadingStills, setDownloadingStills] = React.useState(false);
   const [refreshIntervalMs, setRefreshIntervalMs] = React.useState(null);
   const [visibleStillCount, setVisibleStillCount] = React.useState(CAMERA_STILLS_PAGE_SIZE);
 
@@ -190,6 +191,41 @@ export default function CameraStills({ title }) {
     }
   }, [experiment, loadStills, pioreactorUnit, takingSnapshot]);
 
+  const downloadAllStills = React.useCallback(async () => {
+    if (!downloadHref || downloadingStills || stills.length === 0) {
+      return;
+    }
+
+    setDownloadingStills(true);
+    setError(null);
+
+    try {
+      const response = await fetch(downloadHref);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || `The server returned ${response.status}.`);
+      }
+
+      const archive = await response.blob();
+      const archiveUrl = window.URL.createObjectURL(archive);
+      const link = document.createElement("a");
+      link.href = archiveUrl;
+      link.download = `${pioreactorUnit}_${experiment}_camera_stills.zip`;
+      document.body.appendChild(link);
+
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        window.URL.revokeObjectURL(archiveUrl);
+      }
+    } catch (error) {
+      setError(`Could not download camera stills. ${error.message} Retry the download.`);
+    } finally {
+      setDownloadingStills(false);
+    }
+  }, [downloadHref, downloadingStills, experiment, pioreactorUnit, stills.length]);
+
   const deleteStill = React.useCallback(async (still) => {
     if (!pioreactorUnit || !experiment || deletingImageId) {
       return;
@@ -254,11 +290,14 @@ export default function CameraStills({ title }) {
             </Button>
 
             <Button
-              href={downloadHref}
-              disabled={!experiment || stills.length === 0}
+              onClick={downloadAllStills}
+              disabled={!experiment || stills.length === 0 || downloadingStills}
               sx={{ textTransform: "none", whiteSpace: "nowrap" }}
             >
-              <DownloadIcon fontSize="small" sx={textIcon} /> Download All
+              {downloadingStills
+                ? <CircularProgress color="inherit" size={18} sx={textIcon} />
+                : <DownloadIcon fontSize="small" sx={textIcon} />}
+              Download All
             </Button>
           </Stack>
         </Box>
@@ -353,7 +392,7 @@ export default function CameraStills({ title }) {
                 Load earlier
               </Button>
               <Typography variant="caption" color="text.secondary">
-                Showing {visibleStills.length} of {orderedStills.length} images
+                Showing {visibleStills.length} of {orderedStills.length} images. Older images may be automatically thinned to preserve the full experiment timeline.
               </Typography>
             </Stack>
           )}

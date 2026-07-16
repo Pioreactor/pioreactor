@@ -1036,7 +1036,7 @@ def _format_timestamp_to_seconds(timestamp: str | None) -> str:
     except ValueError:
         return timestamp
 
-    return dt.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S")
+    return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 @jobs.command(name="info", short_help="show details for a job")

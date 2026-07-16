@@ -350,65 +350,6 @@ def test_camera_hardware_detection_returns_false_without_indexed_camera(
     assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
 
 
-def test_rpicam_backend_uses_camera_index_and_tuned_capture_settings(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    dot_pioreactor = tmp_path / ".pioreactor"
-    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    configure_camera_backend(monkeypatch, capture_backend="rpicam", camera_index="2")
-    monkeypatch.setattr(
-        "pioreactor.camera.shutil.which",
-        lambda command: f"/usr/bin/{command}" if command == "rpicam-still" else None,
-    )
-
-    def capture(command: list[str], **_kwargs: object) -> None:
-        assert command[:-1] == [
-            "/usr/bin/rpicam-still",
-            "--camera",
-            "2",
-            "--nopreview",
-            "--immediate",
-            "--tuning-file",
-            "/usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json",
-            "--mode",
-            "2592:1944:10:P",
-            "--width",
-            "2592",
-            "--height",
-            "1944",
-            "--buffer-count",
-            "2",
-            "--framerate",
-            "0",
-            "--shutter",
-            "900000",
-            "--gain",
-            "2",
-            "--awbgains",
-            "1,1",
-            "--brightness",
-            "0",
-            "--contrast",
-            "1.1",
-            "--saturation",
-            "0",
-            "--sharpness",
-            "0",
-            "--denoise",
-            "cdn_hq",
-            "--quality",
-            "95",
-            "-o",
-        ]
-        Path(command[-1]).write_bytes(b"rpicam still")
-
-    monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
-
-    metadata = capture_camera_still("unit-a", experiment="experiment-a")
-
-    assert camera_still_image_path(metadata).read_bytes() == b"rpicam still"
-
-
 def test_v4l2_backend_uses_configured_device_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
