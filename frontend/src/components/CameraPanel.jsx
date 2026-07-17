@@ -6,6 +6,7 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -77,16 +78,16 @@ function CameraEmptyState({ title, detail }) {
 function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
   const latestStill = status?.latest_still;
 
-  if (!status?.available) {
-    return (
-      <CameraEmptyState
-        title="No camera detected"
-        detail="Camera capture tools are not available on this Pioreactor."
-      />
-    );
-  }
-
   if (!latestStill) {
+    if (!status?.available) {
+      return (
+        <CameraEmptyState
+          title="No camera detected"
+          detail="Camera capture tools are not available on this Pioreactor."
+        />
+      );
+    }
+
     return (
       <CameraEmptyState
         title="No still image"
@@ -218,11 +219,23 @@ export default function CameraPanel({
         <CardContent>
           <Stack spacing={2}>
             <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: "center", minWidth: 0, flexWrap: "wrap" }}
+              >
                 <PioreactorIcon />
                 <Typography variant="h6" noWrap>
                   <Box sx={{ fontWeight: "fontWeightRegular" }}>{unit}'s Camera</Box>
                 </Typography>
+                {status?.available === false && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    icon={<ImageNotSupportedOutlinedIcon />}
+                    label="Camera unavailable"
+                  />
+                )}
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "right", whiteSpace: "nowrap"}}>
                 {experimentStartTime ? (

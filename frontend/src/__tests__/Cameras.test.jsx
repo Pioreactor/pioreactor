@@ -55,4 +55,48 @@ describe("Cameras", () => {
 
     expect(await screen.findByText("1.5 h")).toBeInTheDocument();
   });
+
+  test("keeps stored camera stills visible when camera hardware is unavailable", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          cameras: {
+            "unit-1": {
+              ok: true,
+              value: {
+                available: false,
+                snapshot_interval_minutes: 0,
+                latest_still: {
+                  image_id: "image-1",
+                  captured_at: "2026-06-11T12:00:00Z",
+                  experiment: "experiment-a",
+                },
+              },
+            },
+          },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Cameras title="Cameras" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Camera unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Latest camera still for unit-1" })).toHaveAttribute(
+      "src",
+      "/api/workers/unit-1/camera/experiments/experiment-a/stills/image-1.jpg",
+    );
+    expect(screen.getByRole("link", { name: "View still history" })).toHaveAttribute(
+      "href",
+      "/cameras/unit-1",
+    );
+    expect(screen.getByRole("link", { name: "Open image" })).toHaveAttribute(
+      "href",
+      "/api/workers/unit-1/camera/experiments/experiment-a/stills/image-1.jpg",
+    );
+  });
 });

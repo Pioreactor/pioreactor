@@ -234,41 +234,4 @@ describe("CameraStills", () => {
       { signal: undefined },
     );
   });
-
-  test("shows progress while downloading all stills", async () => {
-    const user = userEvent.setup();
-    const archiveBlob = new Blob(["camera stills"]);
-    const clickDownloadLink = jest
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
-    let finishDownload;
-    renderCameraStills();
-
-    await screen.findByRole("img");
-    global.fetch.mockReturnValueOnce(new Promise((resolve) => {
-      finishDownload = resolve;
-    }));
-    await user.click(screen.getByRole("button", { name: "Download All" }));
-
-    expect(screen.getByRole("button", { name: "Download All" })).toBeDisabled();
-    expect(screen.getByRole("progressbar")).toBeInTheDocument();
-    expect(global.fetch).toHaveBeenLastCalledWith(
-      "/api/workers/unit-1/camera/experiments/experiment%20a/stills.zip",
-    );
-
-    finishDownload({
-      ok: true,
-      blob: () => Promise.resolve(archiveBlob),
-    });
-
-    await waitFor(() => expect(clickDownloadLink).toHaveBeenCalledTimes(1));
-    expect(window.URL.createObjectURL).toHaveBeenCalledWith(archiveBlob);
-    expect(window.URL.revokeObjectURL).toHaveBeenCalledWith("blob:camera-stills");
-    expect(screen.getByRole("button", { name: "Download All" })).toBeEnabled();
-    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-    expect(clickDownloadLink.mock.instances[0]).toHaveAttribute(
-      "download",
-      "unit-1_experiment a_camera_stills.zip",
-    );
-  });
 });

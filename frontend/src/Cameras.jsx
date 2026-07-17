@@ -112,7 +112,9 @@ export default function Cameras({ title }) {
   }, [loadCameraStatuses, refreshIntervalMs]);
 
   const onlineCameraResults = cameraResults.filter((result) => result.status);
-  const cameraCapableResults = onlineCameraResults.filter((result) => result.status?.available);
+  const visibleCameraResults = onlineCameraResults.filter(
+    (result) => result.status.available || result.status.latest_still,
+  );
 
   return (
     <Stack spacing={2}>
@@ -133,15 +135,15 @@ export default function Cameras({ title }) {
         </Stack>
       ) : cameraResults.length === 0 ? (
         <Alert severity="info">No assigned Pioreactors were found.</Alert>
-      ) : cameraCapableResults.length === 0 ? (
+      ) : visibleCameraResults.length === 0 ? (
         <Alert severity="info">
-          No camera-capable Pioreactors were detected. Camera tiles will appear here after a worker reports camera support.
+          No camera-capable Pioreactors or stored camera stills were found.
         </Alert>
       ) : null}
 
 
       <Grid container spacing={2}>
-        {cameraCapableResults.map((result, _) => (
+        {visibleCameraResults.map((result, _) => (
           <Grid key={result.unit} size={{ xs: 12, md: 6, xl: 4 }}>
             <CameraPanel
               unit={result.unit}

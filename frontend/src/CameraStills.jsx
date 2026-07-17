@@ -236,7 +236,7 @@ export default function CameraStills({ title }) {
         title: "Delete this camera still?",
         description: `The image captured at ${formatCaptureTime(still)} will be permanently deleted.`,
         confirmationText: "Delete",
-        confirmationButtonProps: { color: "primary", sx: { textTransform: "none" } },
+        confirmationButtonProps: { color: "primary", sx: { textTransform: "none"}, variant: 'contained'},
         cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
       });
     } catch (_error) {
@@ -304,7 +304,7 @@ export default function CameraStills({ title }) {
               {downloadingStills
                 ? <CircularProgress fontSize="small" color="inherit" size={18} sx={textIcon} />
                 : <DownloadIcon fontSize="small" sx={textIcon} />}
-              Download All
+              Download all
             </Button>
           </Box>
         </Box>
