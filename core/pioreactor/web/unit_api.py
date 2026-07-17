@@ -38,6 +38,7 @@ from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import ManualCameraFocusProtocol
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.calibrations.structured_session import load_calibration_session
+from pioreactor.camera import camera_auto_capture_is_enabled
 from pioreactor.camera import CAMERA_STILL_CONTENT_TYPE
 from pioreactor.camera import camera_still_filename
 from pioreactor.camera import camera_still_image_path
@@ -66,6 +67,7 @@ from pioreactor.utils.timing import to_datetime
 from pioreactor.version import __version__
 from pioreactor.web import tasks
 from pioreactor.web.app import HOSTNAME
+from pioreactor.web.app import logger
 from pioreactor.web.app import publish_to_error_log
 from pioreactor.web.app import publish_to_log
 from pioreactor.web.app import query_temp_local_metadata_db
@@ -204,10 +206,16 @@ def get_camera_status_response(experiment: str) -> ResponseReturnValue:
 @unit_api_bp.route("/camera/settings", methods=["PATCH"])
 def update_camera_settings() -> ResponseReturnValue:
     body = decode_request_body(structs.UpdateCameraSettingsRequest)
+    previous_enabled = camera_auto_capture_is_enabled()
+    updated_enabled = set_camera_auto_capture_enabled(body.auto_capture_enabled)
+    logger.info(
+        f"User {'enabled' if updated_enabled else 'disabled'} automatic camera snapshots on {HOSTNAME} "
+        f"(was {'enabled' if previous_enabled else 'disabled'})."
+    )
     return jsonify(
         {
             "unit": HOSTNAME,
-            "auto_capture_enabled": set_camera_auto_capture_enabled(body.auto_capture_enabled),
+            "auto_capture_enabled": updated_enabled,
         }
     )
 
@@ -265,6 +273,10 @@ def capture_camera_still_for_experiment(experiment: str) -> DelayedResponseRetur
             remediation="Refresh the experiment page before taking another camera snapshot.",
         )
 
+    logger.info(
+        f"User requested a {'manual-focus' if is_manual_focus_session else 'manual'} camera snapshot "
+        f"on {HOSTNAME} for experiment {experiment}."
+    )
     return create_task_response(tasks.capture_camera_still_task(HOSTNAME, experiment))
 
 
@@ -315,12 +327,16 @@ def delete_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
             remediation="Refresh the experiment camera stills list.",
         )
 
+    logger.info(f"User deleted camera snapshot {image_id} on {HOSTNAME} for experiment {experiment}.")
     return jsonify(to_builtins(metadata))
 
 
 @unit_api_bp.route("/camera/experiments/<experiment>/stills.zip", methods=["GET"])
 def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
     metadata = list_camera_still_metadata(HOSTNAME, experiment=experiment, sort_order="asc")
+    logger.info(
+        f"User requested a download of {len(metadata)} camera snapshots on {HOSTNAME} for experiment {experiment}."
+    )
     archive_file = NamedTemporaryFile(
         prefix=f"{HOSTNAME}_camera_stills_",
         suffix=".zip",
