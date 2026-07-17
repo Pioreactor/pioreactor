@@ -148,7 +148,6 @@ export default function Cameras({ title }) {
             <CameraPanel
               unit={result.unit}
               initialStatus={result.status}
-              detailsHref={`/cameras/${encodeURIComponent(result.unit)}`}
               experiment={experiment}
               experimentStartTime={experimentMetadata?.created_at}
             />

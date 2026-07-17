@@ -124,7 +124,6 @@ function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
 export default function CameraPanel({
   unit,
   initialStatus = null,
-  detailsHref = null,
   experiment,
   experimentStartTime = null,
 }) {
@@ -276,16 +275,14 @@ export default function CameraPanel({
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "flex-end" }}>
               <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
-                {detailsHref && (
                     <Button
                       size="small"
                       component={Link}
-                      to={detailsHref}
+                      to={`/cameras/${encodeURIComponent(unit)}`}
                       sx={{textTransform: 'none', float: "right" }}
                     >
                       <PhotoLibraryOutlinedIcon fontSize="small" sx={textIcon}/> View still history
                     </Button>
-                )}
                     <Button
                       size="small"
                       component="a"
