@@ -104,8 +104,8 @@ function RunExperimentProfilesContent({
       title: `Are you sure you wish to delete this profile?`,
       description: "This action is permanent.",
       confirmationText: "Delete",
-      confirmationButtonProps: { color: "primary" },
-      cancellationButtonProps: { color: "secondary" },
+      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" }, variant: "contained" },
+      cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
     })
       .then(() => {
         fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
@@ -297,7 +297,7 @@ function RunningProfilesContainer() {
       description: 'Stopping this profile early will stop executing new actions end all actions started by it.',
       title: 'Stop profile?',
       confirmationText: 'Stop profile',
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
     })
       .then(() => stopProfile(job_id))

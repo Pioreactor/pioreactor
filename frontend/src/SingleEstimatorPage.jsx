@@ -110,7 +110,7 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
         description: 'Deleting this estimator will remove it from disk. This is irreversible. Do you wish to continue?',
         title: `Delete estimator ${estimatorName}?`,
         confirmationText: "Confirm",
-        confirmationButtonProps: { color: "primary", sx: { textTransform: 'none' } },
+        confirmationButtonProps: { color: "primary", sx: { textTransform: 'none' }, variant: "contained" },
         cancellationButtonProps: { color: "secondary", sx: { textTransform: 'none' } },
       });
       confirmed = true;

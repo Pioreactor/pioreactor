@@ -258,7 +258,7 @@ function ExperimentsContainer(props) {
         "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?",
       title: "End experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" } },
+      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" }, variant: "contained" },
       cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
     });
 
@@ -284,7 +284,7 @@ function ExperimentsContainer(props) {
         "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?",
       title: "Delete experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" } },
+      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" }, variant: "contained" },
       cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
     });
 

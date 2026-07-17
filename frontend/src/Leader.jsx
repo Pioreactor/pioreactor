@@ -140,7 +140,7 @@ function ManageLeaderMenu({unit}) {
       description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
       title: `Reboot ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
     }).then(() => {
       handleClose();
@@ -153,7 +153,7 @@ function ManageLeaderMenu({unit}) {
       description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
       title: `Shutdown ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
     }).then(() => {
       handleClose();
@@ -168,7 +168,7 @@ function ManageLeaderMenu({unit}) {
         description: `Repair file permissions on ${unit} and run a system status check. This does not reboot the Pioreactor or stop running jobs.`,
         title: `Repair system on ${unit}?`,
         confirmationText: "Repair system",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
         cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
       });
     } catch (_) {
@@ -380,7 +380,7 @@ function DirectoryNavigatorCard({leaderHostname}) {
         description: <><p>Import a previously exported system archive and overwrite this Pioreactor's system data (configuration, calibrations, plugins, etc). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing system data on {leaderHostname}.</Alert></>,
         title: `Import a system archive into ${leaderHostname}?`,
         confirmationText: "Select system archive file",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
         cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
       });
     } catch (_) {
