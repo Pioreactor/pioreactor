@@ -458,6 +458,10 @@ Rules:
 - Optional Pioreactor context may appear as a small icon and secondary text
   above the dialog title.
 - Dialog actions place Cancel before the primary action.
+- Calls to the shared confirmation flow that set `confirmationButtonProps`
+  must include `{ color: "primary", sx: { textTransform: "none" }, variant: "contained" }`.
+- Calls to the shared confirmation flow that set `cancellationButtonProps`
+  must include `{ color: "secondary", sx: { textTransform: "none" } }`.
 - Long-running work must show immediate progress and prevent duplicate
   submission.
 
