@@ -35,13 +35,17 @@ from pioreactor.bioreactor import get_all_bioreactor_values
 from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
+from pioreactor.calibrations import ManualCameraFocusProtocol
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
+from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.camera import CAMERA_STILL_CONTENT_TYPE
 from pioreactor.camera import camera_still_filename
 from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import delete_camera_still
+from pioreactor.camera import delete_camera_stills_for_experiment
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
+from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
 from pioreactor.cli.pio import validate_github_repo
@@ -197,6 +201,17 @@ def get_camera_status_response(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify(status), max_age=0)
 
 
+@unit_api_bp.route("/camera/settings", methods=["PATCH"])
+def update_camera_settings() -> ResponseReturnValue:
+    body = decode_request_body(structs.UpdateCameraSettingsRequest)
+    return jsonify(
+        {
+            "unit": HOSTNAME,
+            "auto_capture_enabled": set_camera_auto_capture_enabled(body.auto_capture_enabled),
+        }
+    )
+
+
 @unit_api_bp.route("/camera/experiments/<experiment>/status", methods=["GET"])
 def get_camera_status_for_experiment(experiment: str) -> ResponseReturnValue:
     return get_camera_status_response(experiment)
@@ -218,8 +233,38 @@ def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
     )
 
 
+@unit_api_bp.route("/camera/experiments/<experiment>/stills", methods=["DELETE"])
+def delete_camera_stills_for_experiment_route(experiment: str) -> ResponseReturnValue:
+    deleted_stills = delete_camera_stills_for_experiment(HOSTNAME, experiment)
+    return jsonify(
+        {
+            "unit": HOSTNAME,
+            "experiment": experiment,
+            "deleted_image_ids": [still.image_id for still in deleted_stills],
+        }
+    )
+
+
 @unit_api_bp.route("/camera/experiments/<experiment>/stills", methods=["POST"])
 def capture_camera_still_for_experiment(experiment: str) -> DelayedResponseReturnValue:
+    calibration_session = load_calibration_session(experiment)
+    is_manual_focus_session = (
+        calibration_session is not None
+        and calibration_session.protocol_name == ManualCameraFocusProtocol.protocol_name
+        and calibration_session.target_device == ManualCameraFocusProtocol.target_device
+        and calibration_session.status == "in_progress"
+        and calibration_session.data.get("unit") == HOSTNAME
+        and calibration_session.data.get("experiment") == experiment
+    )
+
+    if not is_manual_focus_session and experiment != whoami.get_assigned_experiment_name(HOSTNAME):
+        abort_with(
+            409,
+            "Camera snapshot experiment does not match this worker.",
+            cause=f"Worker '{HOSTNAME}' is not currently assigned to experiment '{experiment}'.",
+            remediation="Refresh the experiment page before taking another camera snapshot.",
+        )
+
     return create_task_response(tasks.capture_camera_still_task(HOSTNAME, experiment))
 
 

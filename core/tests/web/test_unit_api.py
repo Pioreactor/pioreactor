@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
+from pioreactor.calibrations.protocols.camera_manual_focus import start_manual_focus_session
+from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.camera import store_camera_still
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
@@ -61,6 +63,24 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
 
 def test_unscoped_camera_status_route_is_not_available(client) -> None:
     assert client.get("/unit_api/camera/status").status_code == 404
+
+
+def test_update_camera_settings_persists_auto_capture_preference(
+    client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.huey, "immediate", True)
+
+    response = client.patch("/unit_api/camera/settings", json={"auto_capture_enabled": False})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"unit": HOSTNAME, "auto_capture_enabled": False}
+
+    status_response = client.get("/unit_api/camera/experiments/experiment-a/status")
+
+    assert status_response.status_code == 200
+    assert status_response.get_json()["auto_capture_enabled"] is False
 
 
 def test_experiment_camera_status_filters_latest_still_by_experiment(
@@ -150,6 +170,7 @@ def test_capture_camera_still_for_experiment_returns_delayed_response(
         captured["experiment"] = experiment
         return DummyTask()
 
+    monkeypatch.setattr(mod.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
     monkeypatch.setattr(mod.tasks, "capture_camera_still_task", fake_capture_camera_still_task)
 
     response = client.post("/unit_api/camera/experiments/experiment-a/stills")
@@ -157,6 +178,52 @@ def test_capture_camera_still_for_experiment_returns_delayed_response(
     assert response.status_code == 202
     assert response.get_json()["result_url_path"] == "/unit_api/task_results/camera-capture-task"
     assert captured == {"unit": HOSTNAME, "experiment": "experiment-a"}
+
+
+def test_capture_camera_still_rejects_historical_experiment(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod.whoami, "get_assigned_experiment_name", lambda unit: "current-experiment")
+    monkeypatch.setattr(
+        mod.tasks,
+        "capture_camera_still_task",
+        lambda unit, experiment: pytest.fail("A rejected snapshot must not start a capture task."),
+    )
+
+    response = client.post("/unit_api/camera/experiments/historical-experiment/stills")
+
+    assert response.status_code == 409
+    assert response.get_json()["error"] == "Camera snapshot experiment does not match this worker."
+
+
+def test_capture_camera_still_allows_manual_focus_session(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pioreactor.calibrations.protocols.camera_manual_focus as manual_focus
+    import pioreactor.web.unit_api as mod
+
+    captured: dict[str, str] = {}
+
+    class DummyTask:
+        id = "camera-focus-capture-task"
+
+    def fake_capture_camera_still_task(unit: str, experiment: str) -> DummyTask:
+        captured["unit"] = unit
+        captured["experiment"] = experiment
+        return DummyTask()
+
+    monkeypatch.setattr(manual_focus, "get_unit_name", lambda: HOSTNAME)
+    monkeypatch.setattr(
+        mod.whoami,
+        "get_assigned_experiment_name",
+        lambda unit: pytest.fail("A manual-focus snapshot must not require an experiment assignment."),
+    )
+    monkeypatch.setattr(mod.tasks, "capture_camera_still_task", fake_capture_camera_still_task)
+    session = start_manual_focus_session("camera")
+    save_calibration_session(session)
+
+    response = client.post(f"/unit_api/camera/experiments/{session.session_id}/stills")
+
+    assert response.status_code == 202
+    assert captured == {"unit": HOSTNAME, "experiment": session.session_id}
 
 
 def test_camera_still_for_experiment_requires_matching_experiment(
@@ -221,6 +288,42 @@ def test_delete_camera_still_for_experiment_requires_matching_experiment(
 
     assert response.status_code == 404
     assert client.get("/unit_api/camera/experiments/experiment-a/stills/image-a.jpg").status_code == 200
+
+
+def test_delete_all_camera_stills_for_experiment_preserves_other_experiments(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-a",
+        image_id="image-a",
+    )
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-b",
+        image_id="image-b",
+    )
+
+    response = client.delete("/unit_api/camera/experiments/experiment-a/stills")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "deleted_image_ids": ["image-a"],
+        "experiment": "experiment-a",
+        "unit": HOSTNAME,
+    }
+    assert client.get("/unit_api/camera/experiments/experiment-a/stills/image-a.jpg").status_code == 404
+    assert client.get("/unit_api/camera/experiments/experiment-b/stills/image-b.jpg").status_code == 200
+
+    retry_response = client.delete("/unit_api/camera/experiments/experiment-a/stills")
+    assert retry_response.status_code == 200
+    assert retry_response.get_json()["deleted_image_ids"] == []
 
 
 def test_zipped_camera_stills_for_experiment_includes_matching_stills(

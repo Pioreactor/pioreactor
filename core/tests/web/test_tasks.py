@@ -62,6 +62,23 @@ def test_periodic_camera_capture_noops_when_camera_is_unavailable(
     assert result == {"captured": False, "reason": "camera_unavailable"}
 
 
+def test_periodic_camera_capture_noops_when_auto_capture_is_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
+    monkeypatch.setattr(tasks, "camera_auto_capture_is_enabled", lambda: False)
+    monkeypatch.setattr(
+        tasks,
+        "get_unit_name",
+        lambda: pytest.fail("disabled camera auto-capture must not inspect the unit"),
+    )
+
+    result = tasks.capture_camera_still_periodic_task.call_local()
+
+    assert result == {"captured": False, "reason": "disabled"}
+
+
 def test_periodic_camera_capture_noops_when_worker_is_inactive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -292,16 +309,111 @@ def test_delete_experiment_task_deletes_and_reports_reclaimable_space(
 
     monkeypatch.setattr(web_db.pioreactor_config, "get", fake_config_get)
 
-    result = tasks.delete_experiment_task.call_local("exp1")
+    result = tasks.delete_experiment_records_task.call_local([], "exp1", [])
 
     assert result["result"] is True
     assert result["experiment"] == "exp1"
     assert result["msg"] == "Deleted experiment"
     assert result["database_space"]["reclaimable_bytes"] >= 0
+    assert result["camera_cleanup"] == {}
+    assert result["camera_cleanup_failures"] == []
 
     with sqlite3.connect(db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM experiments WHERE experiment='exp1'").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM logs").fetchone()[0] == 0
+
+
+def test_delete_experiment_records_reports_worker_camera_cleanup_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_path = tmp_path / "app.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("CREATE TABLE experiments (experiment TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL)")
+        conn.execute(
+            "INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2026-01-01T00:00:00Z')"
+        )
+
+    original_config_get = web_db.pioreactor_config.get
+
+    def fake_config_get(section: str, option: str, *args: Any, **kwargs: Any) -> str:
+        if section == "storage" and option == "database":
+            return str(db_path)
+        return original_config_get(section, option, *args, **kwargs)
+
+    monkeypatch.setattr(web_db.pioreactor_config, "get", fake_config_get)
+    cleanup_results = [
+        (
+            "unit1",
+            tasks.fanout_success("unit1", {"deleted_image_ids": ["image-a"]}),
+        ),
+        (
+            "unit2",
+            tasks.fanout_failure(
+                "unit2",
+                "connection_error",
+                "Could not reach unit2.",
+                retryable=True,
+            ),
+        ),
+    ]
+
+    result = tasks.delete_experiment_records_task.call_local(
+        cleanup_results,
+        "exp1",
+        ["unit1", "unit2"],
+    )
+
+    assert result["result"] is True
+    assert result["camera_cleanup"]["unit1"]["ok"] is True
+    assert result["camera_cleanup"]["unit2"]["ok"] is False
+    assert result["camera_cleanup_failures"] == ["unit2"]
+    assert result["msg"] == "Deleted experiment; camera cleanup failed on unit2"
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM experiments WHERE experiment='exp1'").fetchone()[0] == 0
+
+
+def test_delete_experiment_task_fans_out_camera_cleanup_before_database_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    enqueued_chord = object()
+    task_result = object()
+
+    class FakeDeleteFromUnitTask:
+        @staticmethod
+        def s(unit: str, endpoint: str) -> tuple[str, str, str]:
+            return ("delete", unit, endpoint)
+
+    class FakeDeleteRecordsTask:
+        @staticmethod
+        def s(experiment: str, units: list[str]) -> tuple[str, str, list[str]]:
+            return ("callback", experiment, units)
+
+    def fake_chord(headers: list[object], callback: object) -> object:
+        captured["headers"] = headers
+        captured["callback"] = callback
+        return enqueued_chord
+
+    def fake_enqueue(chord: object) -> object:
+        captured["enqueued"] = chord
+        return task_result
+
+    monkeypatch.setattr(tasks, "delete_from_unit", FakeDeleteFromUnitTask)
+    monkeypatch.setattr(tasks, "delete_experiment_records_task", FakeDeleteRecordsTask)
+    monkeypatch.setattr(tasks, "huey_chord", fake_chord)
+    monkeypatch.setattr(tasks.huey, "enqueue", fake_enqueue)
+
+    result = tasks.delete_experiment_task("experiment a", ["unit1", "unit2"])
+
+    assert result is task_result
+    assert captured == {
+        "headers": [
+            ("delete", "unit1", "/unit_api/camera/experiments/experiment a/stills"),
+            ("delete", "unit2", "/unit_api/camera/experiments/experiment a/stills"),
+        ],
+        "callback": ("callback", "experiment a", ["unit1", "unit2"]),
+        "enqueued": enqueued_chord,
+    }
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:

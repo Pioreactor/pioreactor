@@ -12,8 +12,10 @@ import pytest
 from msgspec.json import decode as json_decode
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.actions.led_intensity import lock_leds_temporarily
+from pioreactor.camera import camera_auto_capture_is_enabled
 from pioreactor.camera import camera_capture_lock
 from pioreactor.camera import camera_hardware_is_detected
+from pioreactor.camera import CAMERA_SETTINGS_CACHE_NAME
 from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
 from pioreactor.camera import CameraCaptureError
@@ -28,6 +30,7 @@ from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
+from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.camera import store_camera_still
 from pioreactor.config import ConfigParserMod
 from pioreactor.utils import local_intermittent_storage
@@ -50,12 +53,22 @@ def clear_camera_stills_metadata() -> Generator[None, None, None]:
     clear_camera_hardware_detection_cache()
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
         storage.empty()
+    with local_persistent_storage(CAMERA_SETTINGS_CACHE_NAME) as storage:
+        storage.empty()
 
     yield
 
     clear_camera_hardware_detection_cache()
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
         storage.empty()
+    with local_persistent_storage(CAMERA_SETTINGS_CACHE_NAME) as storage:
+        storage.empty()
+
+
+def test_camera_auto_capture_preference_defaults_to_enabled_and_persists() -> None:
+    assert camera_auto_capture_is_enabled() is True
+    assert set_camera_auto_capture_enabled(False) is False
+    assert camera_auto_capture_is_enabled() is False
 
 
 def test_camera_capture_lock_uses_lock_file_in_camera_storage(
@@ -307,6 +320,41 @@ def test_delete_camera_still_requires_matching_experiment(
     assert delete_camera_still("unit-a", "experiment-b", "image-a") is None
     assert camera_still_image_path(metadata).exists()
     assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") == metadata
+
+
+def test_delete_camera_stills_for_experiment_is_idempotent_and_preserves_other_experiments(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+
+    experiment_a_still = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-a",
+    )
+    experiment_b_still = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-b",
+        image_id="image-b",
+    )
+
+    deleted = camera.delete_camera_stills_for_experiment("unit-a", "experiment-a")
+
+    assert deleted == [experiment_a_still]
+    assert not camera_still_image_path(experiment_a_still).exists()
+    assert camera_still_image_path(experiment_b_still).exists()
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        assert "image-a" not in storage
+        assert "image-b" in storage
+
+    assert camera.delete_camera_stills_for_experiment("unit-a", "experiment-a") == []
 
 
 def test_store_camera_still_rejects_unsafe_storage_names(

@@ -40,7 +40,7 @@ function renderCameraStills() {
       <Routes>
         <Route
           path="/cameras/:pioreactorUnit"
-          element={<CameraStills title="Camera stills" />}
+          element={<CameraStills title="Camera snapshots" />}
         />
       </Routes>
     </MemoryRouter>,
@@ -89,24 +89,23 @@ describe("CameraStills", () => {
   test("identifies the camera unit below the page toolbar", async () => {
     renderCameraStills();
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Camera stills" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Camera snapshots on unit-1" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "All cameras" })).toHaveAttribute("href", "/cameras");
-    expect(screen.getByRole("link", { name: "unit-1" })).toHaveAttribute("href", "/pioreactors/unit-1");
     expect(screen.getByRole("separator")).toBeInTheDocument();
   });
 
-  test("confirms and removes a deleted still from the timeline", async () => {
+  test("confirms and removes a deleted snapshot from the timeline", async () => {
     const user = userEvent.setup();
     renderCameraStills();
 
     const deleteButton = await screen.findByRole("button", {
-      name: /Delete camera still captured at/,
+      name: /Delete camera snapshot captured at/,
     });
     await user.click(deleteButton);
 
     expect(mockConfirm).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Delete this camera still?",
+        title: "Delete this camera snapshot?",
         confirmationText: "Delete",
       }),
     );
@@ -118,7 +117,7 @@ describe("CameraStills", () => {
     );
     expect(
       screen.queryByRole("button", {
-        name: /Delete camera still captured at/,
+        name: /Delete camera snapshot captured at/,
       }),
     ).not.toBeInTheDocument();
   });
@@ -134,7 +133,7 @@ describe("CameraStills", () => {
     );
   });
 
-  test("initially mounts only the newest 24 stills", async () => {
+  test("initially mounts only the newest 24 snapshots", async () => {
     cameraStills = Array.from({ length: 30 }, (_, index) => ({
       image_id: `image-${index + 1}`,
       captured_at: dayjs("2026-06-10T00:00:00Z").add(index, "hour").toISOString(),
@@ -150,7 +149,7 @@ describe("CameraStills", () => {
     expect(screen.getByRole("button", { name: "Load earlier" })).toBeInTheDocument();
   });
 
-  test("loads the next batch of earlier stills", async () => {
+  test("loads the next batch of earlier snapshots", async () => {
     const user = userEvent.setup();
     cameraStills = Array.from({ length: 30 }, (_, index) => ({
       image_id: `image-${index + 1}`,
@@ -169,7 +168,7 @@ describe("CameraStills", () => {
     expect(screen.queryByRole("button", { name: "Load earlier" })).not.toBeInTheDocument();
   });
 
-  test("preserves the visible window when refreshed with a new still", async () => {
+  test("preserves the visible window when refreshed with a new snapshot", async () => {
     const user = userEvent.setup();
     cameraStills = Array.from({ length: 30 }, (_, index) => ({
       image_id: `image-${index + 1}`,

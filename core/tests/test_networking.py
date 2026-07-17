@@ -5,31 +5,42 @@ from typing import Iterator
 from pioreactor.utils import networking
 
 
-def test_get_ip_returns_comma_separated_stdout_addresses(monkeypatch) -> None:
+def test_get_ip_returns_non_loopback_addresses(monkeypatch) -> None:
     def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        assert args == (["hostname", "-I"],)
-        assert kwargs == {"capture_output": True, "text": True, "check": False}
+        assert args == (["ip", "-4", "-brief", "-j", "address"],)
+        assert kwargs == {"capture_output": True, "text": True, "check": True}
         return subprocess.CompletedProcess(
-            args=["hostname", "-I"], returncode=0, stdout="192.168.1.5 10.0.0.2\n"
+            args=["ip", "-4", "-brief", "-j", "address"],
+            returncode=0,
+            stdout=(
+                '[{"ifname":"lo","operstate":"UNKNOWN","addr_info":'
+                '[{"local":"127.0.0.1","prefixlen":8}]},'
+                '{"ifname":"wlan0","operstate":"UP","addr_info":'
+                '[{"local":"192.168.0.20","prefixlen":24}]},'
+                '{"ifname":"eth0","operstate":"UP","addr_info":'
+                '[{"local":"10.0.0.2","prefixlen":24}]}]'
+            ),
         )
 
     monkeypatch.setattr(networking.subprocess, "run", fake_run)
 
-    assert networking.get_ip() == "192.168.1.5,10.0.0.2"
+    assert networking.get_ip() == "192.168.0.20,10.0.0.2"
 
 
-def test_get_ip_returns_empty_string_when_hostname_has_no_stdout(monkeypatch) -> None:
+def test_get_ip_returns_empty_string_when_ip_has_no_stdout(monkeypatch) -> None:
     def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(args=["hostname", "-I"], returncode=0, stdout="")
+        return subprocess.CompletedProcess(
+            args=["ip", "-4", "-brief", "-j", "address"], returncode=0, stdout=""
+        )
 
     monkeypatch.setattr(networking.subprocess, "run", fake_run)
 
     assert networking.get_ip() == ""
 
 
-def test_get_ip_returns_empty_string_when_hostname_fails_without_stdout(monkeypatch) -> None:
+def test_get_ip_returns_empty_string_when_ip_fails_without_stdout(monkeypatch) -> None:
     def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(args=["hostname", "-I"], returncode=1, stdout="")
+        raise subprocess.CalledProcessError(returncode=1, cmd=["ip", "-4", "-brief", "-j", "address"])
 
     monkeypatch.setattr(networking.subprocess, "run", fake_run)
 

@@ -11,9 +11,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
+import Switch from "@mui/material/Switch";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import CloseIcon from "@mui/icons-material/Close";
@@ -23,6 +25,7 @@ import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
 import UnderlineSpan from "./UnderlineSpan";
+import { fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
 import { experimentPathSegment } from "../utils/url";
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
@@ -30,6 +33,10 @@ const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 
 function workerCameraPath(unit, suffix, experiment) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
+}
+
+function workerCameraSettingsPath(unit) {
+  return `/api/workers/${encodeURIComponent(unit)}/camera/settings`;
 }
 
 function experimentStillUrl(unit, experiment, imageId) {
@@ -90,7 +97,7 @@ function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
 
     return (
       <CameraEmptyState
-        title="No still image"
+        title="No camera snapshot"
         detail="Waiting on image to become available."
       />
     );
@@ -112,7 +119,7 @@ function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
     >
       <Box
         component="img"
-        alt={`Latest camera still for ${unit}`}
+        alt={`Latest camera snapshot for ${unit}`}
         src={imageUrl}
         onError={onMissingImage}
         sx={{ display: "block", width: "100%", aspectRatio: "4 / 3", objectFit: "contain" }}
@@ -131,8 +138,14 @@ export default function CameraPanel({
   const [loading, setLoading] = React.useState(!initialStatus);
   const [viewerOpen, setViewerOpen] = React.useState(false);
   const [actionError, setActionError] = React.useState(null);
+  const [autoCaptureUpdatePending, setAutoCaptureUpdatePending] = React.useState(false);
+  const autoCaptureUpdatePendingRef = React.useRef(false);
+  const autoCaptureUpdateVersionRef = React.useRef(0);
 
   const refreshStatus = React.useCallback(async ({ signal, showLoading = true } = {}) => {
+    const autoCaptureUpdateVersion = autoCaptureUpdateVersionRef.current;
+    const autoCaptureWasUpdating = autoCaptureUpdatePendingRef.current;
+
     if (showLoading) {
       setLoading(true);
     }
@@ -146,7 +159,13 @@ export default function CameraPanel({
       }
 
       const data = await response.json();
-      setStatus(data);
+      setStatus((previous) => ({
+        ...data,
+        auto_capture_enabled:
+          autoCaptureWasUpdating || autoCaptureUpdateVersion !== autoCaptureUpdateVersionRef.current
+            ? previous?.auto_capture_enabled
+            : data.auto_capture_enabled,
+      }));
     } catch (error) {
       if (error.name !== "AbortError") {
         setActionError(error.message);
@@ -212,6 +231,59 @@ export default function CameraPanel({
     ));
   }, []);
 
+  const handleAutoCaptureChange = React.useCallback(async (event) => {
+    if (autoCaptureUpdatePendingRef.current) {
+      return;
+    }
+
+    const autoCaptureEnabled = event.target.checked;
+    const previouslyEnabled = status?.auto_capture_enabled !== false;
+    autoCaptureUpdateVersionRef.current += 1;
+    autoCaptureUpdatePendingRef.current = true;
+    setAutoCaptureUpdatePending(true);
+    setActionError(null);
+    setStatus((previous) => (
+      previous
+        ? { ...previous, auto_capture_enabled: autoCaptureEnabled }
+        : previous
+    ));
+
+    try {
+      const taskPayload = await fetchTaskResult(workerCameraSettingsPath(unit), {
+        fetchOptions: {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ auto_capture_enabled: autoCaptureEnabled }),
+        },
+      });
+      const result = getUnitTaskResult(
+        taskPayload,
+        unit,
+        "Could not update automatic snapshots on this Pioreactor.",
+      );
+      setStatus((previous) => (
+        previous
+          ? { ...previous, auto_capture_enabled: result.auto_capture_enabled }
+          : previous
+      ));
+    } catch (error) {
+      setStatus((previous) => (
+        previous
+          ? { ...previous, auto_capture_enabled: previouslyEnabled }
+          : previous
+      ));
+      setActionError(
+        `Could not update automatic snapshots. ${error.message || "Please try again."}`,
+      );
+    } finally {
+      autoCaptureUpdatePendingRef.current = false;
+      setAutoCaptureUpdatePending(false);
+    }
+  }, [status?.auto_capture_enabled, unit]);
+
+  const automaticStillsDisabledInConfig = snapshotIntervalMinutes === 0;
+  const automaticStillsEnabled = status?.auto_capture_enabled !== false;
+
   return (
     <>
       <Card sx={{ height: "100%" }}>
@@ -273,27 +345,61 @@ export default function CameraPanel({
 
             {actionError && <Alert severity="error">{actionError}</Alert>}
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "flex-end" }}>
-              <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
-                    <Button
-                      size="small"
-                      component={Link}
-                      to={`/cameras/${encodeURIComponent(unit)}`}
-                      sx={{textTransform: 'none', float: "right" }}
-                    >
-                      <PhotoLibraryOutlinedIcon fontSize="small" sx={textIcon}/> View still history
-                    </Button>
-                    <Button
-                      size="small"
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", rowGap: 1 }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", flex: "1 1 240px", minHeight: 40, minWidth: 0 }}>
+                {status && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={automaticStillsEnabled}
+                        disabled={autoCaptureUpdatePending || automaticStillsDisabledInConfig}
+                        onChange={handleAutoCaptureChange}
+                      />
+                    }
+                    label={
+                      automaticStillsDisabledInConfig
+                        ? "Automatic snapshots disabled in configuration"
+                        : "Capture snapshots automatically"
+                    }
+                    sx={{ m: 0 }}
+                  />
+                )}
+                <Box sx={{ display: "flex", justifyContent: "center", width: 20 }}>
+                  {autoCaptureUpdatePending && (
+                    <CircularProgress aria-label="Saving automatic snapshot setting" size={16} />
+                  )}
+                </Box>
+              </Box>
+              <Stack direction="row" spacing={0.5} sx={{ flex: "0 0 auto", ml: "auto" }}>
+                <Tooltip title="View snapshot history">
+                  <IconButton
+                    component={Link}
+                    to={`/cameras/${encodeURIComponent(unit)}`}
+                    aria-label="View snapshot history"
+                    sx={{ minHeight: 44, minWidth: 44 }}
+                  >
+                    <PhotoLibraryOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Open image">
+                  <span>
+                    <IconButton
                       component="a"
                       href={openMediaUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       disabled={!hasLatestStill}
-                      sx={{textTransform: 'none', float: "right" }}
+                      aria-label="Open image"
+                      sx={{ minHeight: 44, minWidth: 44 }}
                     >
-                      <FullscreenIcon fontSize="small" sx={textIcon}/> Open image
-                    </Button>
+                      <FullscreenIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
               </Stack>
             </Stack>
           </Stack>

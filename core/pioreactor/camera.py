@@ -37,6 +37,8 @@ CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
 CAMERA_STILL_CONTENT_TYPE = "image/jpeg"
 DEFAULT_CAMERA_STILL_RETENTION_COUNT = 500
 CAMERA_STILLS_CACHE_NAME = "camera_stills"
+CAMERA_SETTINGS_CACHE_NAME = "camera_settings"
+AUTO_CAPTURE_ENABLED_KEY = "auto_capture_enabled"
 RPICAM_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
 V4L2_CAPTURE_COMMAND = "fswebcam"
 DEV_CAMERA_STILLS_DIRNAME = "DEV_CAMERA_STILLS"
@@ -264,6 +266,18 @@ def clear_camera_hardware_detection_cache() -> None:
     camera_hardware_is_detected_cached.cache_clear()
 
 
+def camera_auto_capture_is_enabled() -> bool:
+    with local_persistent_storage(CAMERA_SETTINGS_CACHE_NAME) as storage:
+        return storage.getboolean(AUTO_CAPTURE_ENABLED_KEY, fallback=True)
+
+
+def set_camera_auto_capture_enabled(enabled: bool) -> bool:
+    with local_persistent_storage(CAMERA_SETTINGS_CACHE_NAME) as storage:
+        storage[AUTO_CAPTURE_ENABLED_KEY] = enabled
+
+    return enabled
+
+
 @contextmanager
 def camera_capture_lock(dot_pioreactor: Path | None = None) -> Iterator[None]:
     """Serialize access to the physical camera across local processes."""
@@ -320,6 +334,7 @@ def get_camera_status(
         "capture_command": Path(capture_command).name if capture_command else None,
         "mock": dev_stills_available and capture_command is None,
         "latest_still": to_builtins(latest_metadata) if latest_metadata is not None else None,
+        "auto_capture_enabled": camera_auto_capture_is_enabled(),
     }
 
 
@@ -435,18 +450,18 @@ def capture_camera_still(
                             source_of_event="camera",
                             verbose=False,
                         )
+
+                return store_camera_still(
+                    tmp_path,
+                    unit,
+                    experiment=experiment,
+                    dot_pioreactor=dot_pioreactor,
+                )
         except subprocess.CalledProcessError as error:
             stderr = error.stderr.decode("utf-8", errors="replace").strip()
             stdout = error.stdout.decode("utf-8", errors="replace").strip()
             message = stderr or stdout or f"{Path(command).name} exited with code {error.returncode}"
             raise CameraCaptureError(message) from error
-
-        return store_camera_still(
-            tmp_path,
-            unit,
-            experiment=experiment,
-            dot_pioreactor=dot_pioreactor,
-        )
     finally:
         if tmp_path.exists():
             tmp_path.unlink()
@@ -573,6 +588,46 @@ def delete_camera_still(
 
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
         storage.pop(image_id, None)
+
+    return metadata
+
+
+def delete_camera_stills_for_experiment(
+    unit: pt.Unit,
+    experiment: pt.Experiment,
+    dot_pioreactor: Path | None = None,
+) -> list[CameraStillMetadata]:
+    """Delete every local camera still belonging to one experiment.
+
+    Camera capture and cleanup share a lock so a completed capture cannot write a
+    new still after experiment cleanup has enumerated the stored metadata.
+    """
+    if not camera_storage_name_is_safe(unit):
+        raise ValueError(f"Unsafe camera unit name: {unit}")
+
+    with camera_capture_lock(dot_pioreactor):
+        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+            initialize_camera_stills_metadata_storage(storage)
+            metadata_rows = storage.cursor.execute(
+                f"""
+                SELECT value
+                FROM {storage.table_name}
+                WHERE json_extract(value, '$.experiment') = ?
+                ORDER BY json_extract(value, '$.captured_at') ASC
+                """,
+                (experiment,),
+            ).fetchall()
+            metadata = [json_decode(value, type=CameraStillMetadata) for (value,) in metadata_rows]
+
+            for still in metadata:
+                image_path = camera_still_image_path(still, dot_pioreactor)
+                if image_path.exists():
+                    image_path.unlink()
+
+            storage.cursor.execute(
+                f"DELETE FROM {storage.table_name} WHERE json_extract(value, '$.experiment') = ?",
+                (experiment,),
+            )
 
     return metadata
 

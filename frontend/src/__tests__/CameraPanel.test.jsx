@@ -1,10 +1,20 @@
 import React from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 import dayjs from "dayjs";
 
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
+
+const mockFetchTaskResult = jest.fn();
+
+jest.mock("../utils/tasks", () => {
+  const actual = jest.requireActual("../utils/tasks");
+  return {
+    ...actual,
+    fetchTaskResult: (...args) => mockFetchTaskResult(...args),
+  };
+});
 
 const { MemoryRouter } = require("react-router");
 const CameraPanel = require("../components/CameraPanel").default;
@@ -40,7 +50,7 @@ describe("CameraPanel", () => {
     );
   });
 
-  test("loads status and the latest still from the selected experiment", async () => {
+  test("loads status and the latest snapshot from the selected experiment", async () => {
     global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
@@ -67,7 +77,7 @@ describe("CameraPanel", () => {
         expect.objectContaining({ signal: expect.anything() }),
       );
     });
-    expect(await screen.findByAltText("Latest camera still for unit-1")).toHaveAttribute(
+    expect(await screen.findByAltText("Latest camera snapshot for unit-1")).toHaveAttribute(
       "src",
       "/api/workers/unit-1/camera/experiments/experiment-a/stills/image-1.jpg",
     );
@@ -95,7 +105,7 @@ describe("CameraPanel", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
-    expect(await screen.findByText("No still image")).toBeInTheDocument();
+    expect(await screen.findByText("No camera snapshot")).toBeInTheDocument();
 
     await act(async () => {
       jest.advanceTimersByTime(60 * 1000);
@@ -105,5 +115,73 @@ describe("CameraPanel", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(2);
     });
+  });
+
+  test("updates automatic snapshots through the worker settings route", async () => {
+    mockFetchTaskResult.mockResolvedValue({
+      result: {
+        "unit-1": { ok: true, value: { auto_capture_enabled: false } },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <CameraPanel
+          unit="unit-1"
+          experiment="experiment-a"
+          initialStatus={{ available: true, auto_capture_enabled: true }}
+        />
+      </MemoryRouter>,
+    );
+
+    const automaticStillsSwitch = screen.getByRole("switch", { name: "Capture snapshots automatically" });
+    expect(automaticStillsSwitch).toBeChecked();
+
+    fireEvent.click(automaticStillsSwitch);
+
+    expect(mockFetchTaskResult).toHaveBeenCalledWith(
+      "/api/workers/unit-1/camera/settings",
+      {
+        fetchOptions: {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ auto_capture_enabled: false }),
+        },
+      },
+    );
+    await waitFor(() => expect(automaticStillsSwitch).not.toBeChecked());
+  });
+
+  test("restores automatic snapshots and explains a failed update", async () => {
+    let rejectUpdate;
+    mockFetchTaskResult.mockImplementation(
+      () => new Promise((_resolve, reject) => {
+        rejectUpdate = reject;
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <CameraPanel
+          unit="unit-1"
+          experiment="experiment-a"
+          initialStatus={{ available: true, auto_capture_enabled: true }}
+        />
+      </MemoryRouter>,
+    );
+
+    const automaticStillsSwitch = screen.getByRole("switch", { name: "Capture snapshots automatically" });
+    fireEvent.click(automaticStillsSwitch);
+
+    expect(automaticStillsSwitch).not.toBeChecked();
+    expect(automaticStillsSwitch).toBeDisabled();
+
+    rejectUpdate(new Error("Worker could not save the setting."));
+
+    expect(await screen.findByText(/Could not update automatic snapshots/)).toHaveTextContent(
+      "Could not update automatic snapshots. Worker could not save the setting.",
+    );
+    expect(automaticStillsSwitch).toBeChecked();
+    expect(automaticStillsSwitch).not.toBeDisabled();
   });
 });

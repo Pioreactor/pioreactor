@@ -44,6 +44,7 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.camera import camera_auto_capture_is_enabled
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraUnavailableError
 from pioreactor.camera import capture_camera_still
@@ -143,7 +144,7 @@ def camera_snapshot_is_due(unit: str, experiment: str, interval_minutes: int) ->
 @huey.lock_task("camera-lock")
 def capture_camera_still_periodic_task() -> dict[str, Any]:
     interval_minutes = camera_snapshot_interval_minutes()
-    if interval_minutes == 0:
+    if interval_minutes == 0 or not camera_auto_capture_is_enabled():
         return {"captured": False, "reason": "disabled"}
 
     unit = get_unit_name()
@@ -1176,8 +1177,16 @@ def export_experiment_data_to_usb_task(
 
 @huey.task()
 @huey.lock_task("delete-experiment-lock")
-def delete_experiment_task(experiment: str) -> dict[str, Any]:
+def delete_experiment_records_task(
+    camera_cleanup_results: list[Any],
+    experiment: str,
+    units: list[str],
+) -> dict[str, Any]:
     logger.debug(f"Deleting experiment {experiment}.")
+    camera_cleanup = _reduce_multicast_results(units, False, camera_cleanup_results)
+    camera_cleanup_failures = [
+        unit for unit, result in camera_cleanup.items() if fanout_result_failed(result)
+    ]
     conn = open_app_database_connection()
     try:
         cursor = conn.execute("DELETE FROM experiments WHERE experiment=?;", (experiment,))
@@ -1191,12 +1200,31 @@ def delete_experiment_task(experiment: str) -> dict[str, Any]:
     finally:
         conn.close()
 
+    msg = "Deleted experiment"
+    if camera_cleanup_failures:
+        msg += f"; camera cleanup failed on {', '.join(camera_cleanup_failures)}"
+
     return {
         "result": True,
         "experiment": experiment,
         "database_space": database_space,
-        "msg": "Deleted experiment",
+        "camera_cleanup": camera_cleanup,
+        "camera_cleanup_failures": camera_cleanup_failures,
+        "msg": msg,
     }
+
+
+def delete_experiment_task(experiment: str, units: list[str]) -> Any:
+    camera_cleanup_endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
+    if not units:
+        return delete_experiment_records_task([], experiment, units)
+
+    return huey.enqueue(
+        huey_chord(
+            [delete_from_unit.s(unit, camera_cleanup_endpoint) for unit in units],
+            delete_experiment_records_task.s(experiment, units),
+        )
+    )
 
 
 @huey.task(priority=100)

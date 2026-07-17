@@ -102,7 +102,7 @@ export default function CameraStills({ title }) {
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Could not fetch camera stills.");
+        throw new Error(payload.error || "Could not fetch camera snapshots.");
       }
 
       const payload = await response.json();
@@ -210,7 +210,7 @@ export default function CameraStills({ title }) {
       const archiveUrl = window.URL.createObjectURL(archive);
       const link = document.createElement("a");
       link.href = archiveUrl;
-      link.download = `${pioreactorUnit}_${experiment}_camera_stills.zip`;
+      link.download = `${pioreactorUnit}_${experiment}_camera_snapshots.zip`;
       document.body.appendChild(link);
 
       try {
@@ -220,7 +220,7 @@ export default function CameraStills({ title }) {
         window.URL.revokeObjectURL(archiveUrl);
       }
     } catch (error) {
-      setError(`Could not download camera stills. ${error.message} Retry the download.`);
+      setError(`Could not download camera snapshots. ${error.message} Retry the download.`);
     } finally {
       setDownloadingStills(false);
     }
@@ -233,7 +233,7 @@ export default function CameraStills({ title }) {
 
     try {
       await confirm({
-        title: "Delete this camera still?",
+        title: "Delete this camera snapshot?",
         description: `The image captured at ${formatCaptureTime(still)} will be permanently deleted.`,
         confirmationText: "Delete",
         confirmationButtonProps: { color: "primary", sx: { textTransform: "none"}, variant: 'contained'},
@@ -257,7 +257,7 @@ export default function CameraStills({ title }) {
       );
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Could not delete camera still.");
+        throw new Error(payload.error || "Could not delete camera snapshot.");
       }
 
       setStills((currentStills) => (
@@ -313,7 +313,7 @@ export default function CameraStills({ title }) {
 
       <Box>
         <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
-          Camera stills on {pioreactorUnit}
+          Camera snapshots on {pioreactorUnit}
         </Typography>
       </Box>
 
@@ -324,7 +324,7 @@ export default function CameraStills({ title }) {
           <CircularProgress />
         </Stack>
       ) : stills.length === 0 ? (
-        <Alert severity="info">No still images have been captured for this Pioreactor during this experiment.</Alert>
+        <Alert severity="info">No snapshots have been captured for this Pioreactor during this experiment.</Alert>
       ) : (
         <>
           <Grid container spacing={2}>
@@ -342,7 +342,7 @@ export default function CameraStills({ title }) {
                   <Box
                     component="img"
                     src={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
-                    alt={`Camera still from ${pioreactorUnit} at ${formatCaptureTime(still)}`}
+                    alt={`Camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(still)}`}
                     loading="lazy"
                     sx={{
                       display: "block",
@@ -366,7 +366,7 @@ export default function CameraStills({ title }) {
                     </Box>
                     <Box>
                       <Button
-                        aria-label={`Delete camera still captured at ${formatCaptureTime(still)}`}
+                        aria-label={`Delete camera snapshot captured at ${formatCaptureTime(still)}`}
                         color="secondary"
                         disabled={deletingImageId !== null}
                         onClick={() => deleteStill(still)}

@@ -98,17 +98,26 @@ def is_reachable(address: str) -> bool:
 
 def get_ip() -> str:
     # returns all ipv4s as comma-separated string
-    result = subprocess.run(
-        ["hostname", "-I"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    ipv4_addresses = result.stdout.strip().split()
-    if ipv4_addresses:
-        return ",".join(ipv4_addresses)
-    else:
+    try:
+        result = subprocess.run(
+            ["ip", "-4", "-brief", "-j", "address"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
         return ""
+
+    if not result.stdout:
+        return ""
+
+    interfaces = msgspec.json.decode(result.stdout)
+    return ",".join(
+        address["local"]
+        for interface in interfaces
+        if interface["ifname"] != "lo"
+        for address in interface["addr_info"]
+    )
 
 
 def discover_workers_on_network(terminate: bool = False) -> Generator[DiscoveredWorker, None, None]:

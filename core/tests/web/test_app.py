@@ -754,8 +754,9 @@ def test_delete_experiment_endpoint_schedules_task(client, monkeypatch: MonkeyPa
 
     captured: dict[str, object] = {}
 
-    def fake_delete_experiment_task(experiment: str) -> DummyTask:
+    def fake_delete_experiment_task(experiment: str, units: list[str]) -> DummyTask:
         captured["experiment"] = experiment
+        captured["units"] = units
         return DummyTask()
 
     monkeypatch.setattr(api.tasks, "delete_experiment_task", fake_delete_experiment_task)
@@ -771,6 +772,7 @@ def test_delete_experiment_endpoint_schedules_task(client, monkeypatch: MonkeyPa
     assert response.get_json()["task_id"] == "delete-experiment-task"
     assert captured == {
         "experiment": "exp1",
+        "units": ["unit1", "unit2"],
         "endpoint": "/unit_api/jobs/stop",
         "json": {"experiment": "exp1"},
     }
@@ -781,7 +783,7 @@ def test_delete_experiment_endpoint_returns_404_without_scheduling_task(
 ) -> None:
     import pioreactor.web.api as api
 
-    def fail_delete_experiment_task(experiment: str) -> None:
+    def fail_delete_experiment_task(experiment: str, units: list[str]) -> None:
         raise AssertionError("delete task should not be scheduled")
 
     monkeypatch.setattr(api.tasks, "delete_experiment_task", fail_delete_experiment_task)
@@ -1464,6 +1466,36 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
 
 def test_unscoped_camera_status_proxy_is_not_available(client) -> None:
     assert client.get("/api/workers/unit1/camera/status").status_code == 404
+
+
+def test_update_camera_settings_proxy_forwards_to_one_worker(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+
+    captured: dict[str, object] = {}
+
+    class DummyTask:
+        id = "camera-settings-task"
+
+    def fake_multicast_patch_to_worker(unit: str, endpoint: str, **kwargs: object) -> DummyTask:
+        captured["unit"] = unit
+        captured["endpoint"] = endpoint
+        captured.update(kwargs)
+        return DummyTask()
+
+    monkeypatch.setattr(mod, "multicast_patch_to_worker", fake_multicast_patch_to_worker)
+
+    response = client.patch(
+        "/api/workers/unit1/camera/settings",
+        json={"auto_capture_enabled": False},
+    )
+
+    assert response.status_code == 202
+    assert response.get_json()["result_url_path"] == "/unit_api/task_results/camera-settings-task"
+    assert captured == {
+        "unit": "unit1",
+        "endpoint": "/unit_api/camera/settings",
+        "json": {"auto_capture_enabled": False},
+    }
 
 
 def test_experiment_camera_status_proxy_fetches_worker_experiment_status(

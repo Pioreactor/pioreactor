@@ -56,7 +56,7 @@ describe("Cameras", () => {
     expect(await screen.findByText("1.5 h")).toBeInTheDocument();
   });
 
-  test("keeps stored camera stills visible when camera hardware is unavailable", async () => {
+  test("keeps stored camera snapshots visible when camera hardware is unavailable", async () => {
     global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
@@ -86,11 +86,11 @@ describe("Cameras", () => {
     );
 
     expect(await screen.findByText("Camera unavailable")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Latest camera still for unit-1" })).toHaveAttribute(
+    expect(screen.getByRole("img", { name: "Latest camera snapshot for unit-1" })).toHaveAttribute(
       "src",
       "/api/workers/unit-1/camera/experiments/experiment-a/stills/image-1.jpg",
     );
-    expect(screen.getByRole("link", { name: "View still history" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "View snapshot history" })).toHaveAttribute(
       "href",
       "/cameras/unit-1",
     );

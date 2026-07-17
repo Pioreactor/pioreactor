@@ -729,6 +729,10 @@ class UpdateExperimentProfileRequest(Struct, forbid_unknown_fields=True):
     body: str
 
 
+class UpdateCameraSettingsRequest(Struct, forbid_unknown_fields=True):
+    auto_capture_enabled: bool
+
+
 class CodePatch(Struct, forbid_unknown_fields=True):
     code: str
 

@@ -61,6 +61,7 @@ from pioreactor.web import fanout
 from pioreactor.web import tasks
 from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
+from pioreactor.web.app import get_all_workers_ever_assigned_to_experiment
 from pioreactor.web.app import get_all_workers_in_experiment
 from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import logger
@@ -528,6 +529,26 @@ def get_camera_status_for_worker(pioreactor_unit: str, experiment: str) -> Respo
         response.content,
         status=response.status_code,
         content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/camera/settings", methods=["PATCH"])
+def update_camera_settings_for_worker(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot update camera settings with $broadcast; choose a specific Pioreactor.",
+            cause="Camera settings apply to one Pioreactor at a time.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    body = decode_request_body(structs.UpdateCameraSettingsRequest)
+    return create_task_response(
+        multicast_patch_to_worker(
+            pioreactor_unit,
+            "/unit_api/camera/settings",
+            json=to_builtins(body),
+        )
     )
 
 
@@ -3434,8 +3455,9 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
             remediation="List experiments and choose a valid experiment name.",
         )
 
+    workers = get_all_workers_ever_assigned_to_experiment(experiment)
     fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
-    task = tasks.delete_experiment_task(experiment)
+    task = tasks.delete_experiment_task(experiment, workers)
     return create_task_response(task)
 
 

@@ -137,7 +137,7 @@ export default function Cameras({ title }) {
         <Alert severity="info">No assigned Pioreactors were found.</Alert>
       ) : visibleCameraResults.length === 0 ? (
         <Alert severity="info">
-          No camera-capable Pioreactors or stored camera stills were found.
+          No camera-capable Pioreactors or stored camera snapshots were found.
         </Alert>
       ) : null}
 
