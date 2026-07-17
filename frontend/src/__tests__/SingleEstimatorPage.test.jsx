@@ -97,6 +97,17 @@ describe("SingleEstimatorPage task-backed mutations", () => {
     jest.resetAllMocks();
   });
 
+  test("separates the page toolbar from the estimator details", async () => {
+    renderSingleEstimatorPage();
+
+    await screen.findByText("Estimator: estimator-a");
+    expect(
+      screen.getAllByRole("separator").some(
+        (separator) => separator.getAttribute("aria-orientation") !== "vertical",
+      ),
+    ).toBe(true);
+  });
+
   test("waits for the active-estimator task before reporting success", async () => {
     const user = userEvent.setup();
     renderSingleEstimatorPage();

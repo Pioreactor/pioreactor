@@ -272,14 +272,21 @@ export default function CameraStills({ title }) {
 
   return (
     <Stack spacing={2}>
-      <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, mb: 1 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
-            <Button to={`/cameras`} component={Link} sx={{ textTransform: 'none' }}>
-              <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All cameras
-            </Button>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+      <Box component="header">
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            flexWrap: "wrap",
+            mb: 1,
+          }}
+        >
+          <Button component={Link} to="/cameras" startIcon={<ArrowBackIcon />} sx={{ textTransform: "none" }}>
+            All cameras
+          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             <Button
               onClick={takeSnapshotAndRefreshTimeline}
               disabled={loading || takingSnapshot || !experiment}
@@ -295,13 +302,19 @@ export default function CameraStills({ title }) {
               sx={{ textTransform: "none", whiteSpace: "nowrap" }}
             >
               {downloadingStills
-                ? <CircularProgress color="inherit" size={18} sx={textIcon} />
+                ? <CircularProgress fontSize="small" color="inherit" size={18} sx={textIcon} />
                 : <DownloadIcon fontSize="small" sx={textIcon} />}
               Download All
             </Button>
-          </Stack>
+          </Box>
         </Box>
-        <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+        <Divider />
+      </Box>
+
+      <Box>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
+          Camera stills on {pioreactorUnit}
+        </Typography>
       </Box>
 
       {error ? (

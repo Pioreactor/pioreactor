@@ -97,6 +97,17 @@ describe("SingleCalibrationPage task-backed mutations", () => {
     jest.resetAllMocks();
   });
 
+  test("separates the page toolbar from the calibration details", async () => {
+    renderSingleCalibrationPage();
+
+    await screen.findByText("Calibration: calibration-a");
+    expect(
+      screen.getAllByRole("separator").some(
+        (separator) => separator.getAttribute("aria-orientation") !== "vertical",
+      ),
+    ).toBe(true);
+  });
+
   test("waits for the active-calibration task before reporting success", async () => {
     const user = userEvent.setup();
     renderSingleCalibrationPage();

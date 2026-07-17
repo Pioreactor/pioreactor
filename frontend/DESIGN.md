@@ -162,9 +162,6 @@ named record.
 
 ```jsx
 <Box component="header" sx={{ mb: 2 }}>
-  <Button component={Link} to="/calibrations" startIcon={<ArrowBackIcon />}>
-    All calibrations
-  </Button>
   <Box
     sx={{
       display: "flex",
@@ -172,31 +169,43 @@ named record.
       justifyContent: "space-between",
       gap: 2,
       flexWrap: "wrap",
-      mt: 1,
       mb: 1,
     }}
   >
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-      <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
-        Calibration: media-pump-1
-      </Typography>
-      {status}
-    </Box>
+    <Button component={Link} to="/calibrations" startIcon={<ArrowBackIcon />}>
+      All calibrations
+    </Button>
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
       {actions}
     </Box>
   </Box>
   <Divider />
 </Box>
+<Box sx={{ mb: 2 }}>
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+    <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
+      Calibration: media-pump-1
+    </Typography>
+    {status}
+  </Box>
+  <Typography variant="subtitle2" color="text.secondary">
+    {parentMetadata}
+  </Typography>
+</Box>
 ```
 
 Rules:
 
 - A back link is navigation. It must not be the page's `h1`.
+- Back-navigation Buttons use `startIcon={<ArrowBackIcon />}`. Do not render
+  `ArrowBackIcon` as a child or add manual icon sizing, margins, or alignment.
+- The back link and page actions share a toolbar above the divider.
+- The divider sits directly beneath that toolbar so its position does not
+  change with the record title, status, or parent metadata.
 - The record name is the `h1`.
 - A short status chip may sit beside the title.
-- Breadcrumbs or parent metadata may appear below the title. They use links
-  and text, not Chips.
+- The record title, status, and parent metadata appear below the divider.
+- Breadcrumbs or parent metadata use links and text, not Chips.
 
 ### Header filters
 

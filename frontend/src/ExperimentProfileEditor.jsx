@@ -393,8 +393,8 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
             <Button sx={{ textTransform: "none", mr: 1 }} variant="text" startIcon={<SearchIcon />} onClick={() => setOpenCapabilities(true)}>
               Search jobs and automations
             </Button>
-            <Button to={`/experiment-profiles`} component={Link} sx={{ textTransform: "none" }}>
-              <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small" /> Back
+            <Button component={Link} to="/experiment-profiles" startIcon={<ArrowBackIcon />} sx={{ textTransform: "none" }}>
+              Back
             </Button>
           </Box>
         </Box>

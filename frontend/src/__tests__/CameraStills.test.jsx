@@ -86,6 +86,15 @@ describe("CameraStills", () => {
     jest.resetAllMocks();
   });
 
+  test("identifies the camera unit below the page toolbar", async () => {
+    renderCameraStills();
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Camera stills" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "All cameras" })).toHaveAttribute("href", "/cameras");
+    expect(screen.getByRole("link", { name: "unit-1" })).toHaveAttribute("href", "/pioreactors/unit-1");
+    expect(screen.getByRole("separator")).toBeInTheDocument();
+  });
+
   test("confirms and removes a deleted still from the timeline", async () => {
     const user = userEvent.setup();
     renderCameraStills();

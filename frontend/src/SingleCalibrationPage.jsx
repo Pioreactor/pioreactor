@@ -363,8 +363,8 @@ function SingleCalibrationPage(props) {
 
           <Typography variant="h5" component="h1">
             <Box sx={{display:"inline"}}>
-              <Button to={`/calibrations`} component={Link} sx={{ textTransform: 'none' }}>
-                <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All calibrations
+              <Button component={Link} to="/calibrations" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none' }}>
+                All calibrations
               </Button>
             </Box>
           </Typography>
@@ -402,6 +402,7 @@ function SingleCalibrationPage(props) {
             </Button>
           </Box>
         </Box>
+        <Divider sx={{ mb: 2 }} />
       </Box>
       <SingleCalibrationPageCard
         pioreactorUnit={pioreactorUnit}

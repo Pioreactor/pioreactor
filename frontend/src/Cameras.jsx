@@ -124,7 +124,7 @@ export default function Cameras({ title }) {
             </Box>
           </Typography>
         </Box>
-        <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
+        <Divider sx={{mt: "12px", mb: "15px"}} />
       </Box>
 
       {loading && cameraResults.length === 0 ? (

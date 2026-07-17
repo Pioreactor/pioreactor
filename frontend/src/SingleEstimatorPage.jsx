@@ -313,8 +313,8 @@ function SingleEstimatorPage(props) {
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h1">
             <Box sx={{ display: "inline" }}>
-              <Button to={`/estimators`} component={Link} sx={{ textTransform: 'none' }}>
-                <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small" /> All estimators
+              <Button component={Link} to="/estimators" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none' }}>
+                All estimators
               </Button>
             </Box>
           </Typography>
@@ -350,6 +350,7 @@ function SingleEstimatorPage(props) {
             </Button>
           </Box>
         </Box>
+        <Divider sx={{ mb: 2 }} />
       </Box>
       <SingleEstimatorPageCard
         pioreactorUnit={pioreactorUnit}
