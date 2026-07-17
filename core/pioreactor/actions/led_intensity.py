@@ -55,7 +55,7 @@ def change_leds_intensities_temporarily(
 
 
 @contextmanager
-def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
+def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[str]:
     lock_id = f"{os.getpid()}:{time_ns()}"
     acquired_channels: list[LedChannel] = []
     try:
@@ -63,7 +63,7 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
             for c in channels:
                 if cache.set_if_absent(c, lock_id):
                     acquired_channels.append(c)
-        yield
+        yield lock_id
     finally:
         with local_intermittent_storage("led_locks") as cache:
             for c in acquired_channels:
@@ -107,6 +107,7 @@ def led_intensity(
     verbose: bool = True,
     source_of_event: str | None = None,
     pubsub_client: Client | None = None,
+    lock_owner: str | None = None,
 ) -> bool:
     """
     Change the intensity of the LED channels A,B,C, or D to an value between 0 and 100.
@@ -124,6 +125,8 @@ def led_intensity(
         A human readable string of who is calling this function
     pubsub_client:
         provide a MQTT paho client to use for publishing.
+    lock_owner:
+        token yielded by ``lock_leds_temporarily`` when updating channels owned by that lock.
 
 
     Returns
@@ -160,15 +163,17 @@ def led_intensity(
         mqtt_publish = pubsub_client.publish
 
     with mqtt_publishing:
-        # any locked channels?
-        for channel in list(desired_state.keys()):
-            if is_led_channel_locked(channel):
-                logger.debug(
-                    f"Unable to update channel {channel} due to a software lock on it. Please try again."
-                )
-                desired_state = {k: v for k, v in desired_state.items() if k != channel}
+        # A lock grants write authority to its token; it is not a blanket freeze on the channel.
+        with local_intermittent_storage("led_locks") as lock_cache:
+            for channel in list(desired_state.keys()):
+                current_lock_owner = lock_cache.get(channel)
+                if current_lock_owner is not None and current_lock_owner != lock_owner:
+                    logger.debug(
+                        f"Unable to update channel {channel} due to a software lock on it. Please try again."
+                    )
+                    desired_state = {k: v for k, v in desired_state.items() if k != channel}
 
-                updated_successfully = False
+                    updated_successfully = False
 
         for channel, intensity in desired_state.items():
             try:

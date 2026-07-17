@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import fcntl
+import subprocess
 from collections.abc import Generator
 from datetime import datetime
 from datetime import UTC
@@ -9,22 +10,27 @@ from pathlib import Path
 
 import pytest
 from msgspec.json import decode as json_decode
+from pioreactor.actions.led_intensity import led_intensity
+from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.camera import camera_capture_lock
 from pioreactor.camera import camera_hardware_is_detected
 from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
+from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import capture_camera_still
 from pioreactor.camera import clear_camera_hardware_detection_cache
 from pioreactor.camera import delete_camera_still
 from pioreactor.camera import dev_camera_still_paths
 from pioreactor.camera import dev_camera_stills_path
+from pioreactor.camera import get_camera_ir_led_intensity
 from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.camera import store_camera_still
 from pioreactor.config import ConfigParserMod
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 
 
@@ -35,6 +41,7 @@ def write_source_image(path: Path, contents: bytes = b"fake jpeg") -> None:
 def configure_camera_backend(monkeypatch: pytest.MonkeyPatch, **options: str) -> None:
     camera_config = ConfigParserMod()
     camera_config["camera"] = options
+    camera_config["leds_reverse"] = {"IR": "A"}
     monkeypatch.setattr("pioreactor.camera.config", camera_config)
 
 
@@ -378,6 +385,178 @@ def test_v4l2_backend_uses_configured_device_path(tmp_path: Path, monkeypatch: p
     assert camera_still_image_path(metadata).read_bytes() == b"webcam still"
 
 
+def test_camera_ir_led_intensity_defaults_to_80(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2")
+
+    assert get_camera_ir_led_intensity() == 80.0
+
+
+@pytest.mark.parametrize("intensity", [70.0, 100.0])
+def test_camera_ir_led_intensity_accepts_bounds(intensity: float, monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", ir_led_intensity=str(intensity))
+
+    assert get_camera_ir_led_intensity() == intensity
+
+
+@pytest.mark.parametrize("intensity", [69.9, 100.1])
+def test_camera_ir_led_intensity_rejects_out_of_range_values(
+    intensity: float, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", ir_led_intensity=str(intensity))
+
+    with pytest.raises(ValueError, match="between 70 and 100"):
+        get_camera_ir_led_intensity()
+
+
+def test_unlocked_camera_illuminates_ir_during_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configure_camera_backend(
+        monkeypatch,
+        capture_backend="v4l2",
+        device_path="/dev/video0",
+        ir_led_intensity="80",
+    )
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    led_states: list[dict[str, float]] = []
+
+    def set_leds(desired_state: dict[str, float], **_kwargs: object) -> bool:
+        led_states.append(desired_state)
+        return True
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        Path(command[-1]).write_bytes(b"camera still")
+
+    monkeypatch.setattr("pioreactor.camera.led_intensity", set_leds)
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
+
+    metadata = capture_camera_still(
+        "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+    )
+
+    assert led_states == [{"A": 80.0}, {"A": 0.0}]
+    assert camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"camera still"
+
+
+def test_camera_does_not_change_ir_while_od_holds_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    monkeypatch.setattr(
+        "pioreactor.camera.led_intensity",
+        lambda *_args, **_kwargs: pytest.fail("camera must not write a locked IR LED"),
+    )
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        Path(command[-1]).write_bytes(b"camera still under OD illumination")
+
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
+
+    with lock_leds_temporarily(["A"]):
+        metadata = capture_camera_still(
+            "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+        )
+
+    assert camera_still_image_path(metadata, tmp_path / ".pioreactor").exists()
+
+
+def test_od_can_preempt_camera_illumination_without_camera_cleanup_interference(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    camera_led_states: list[dict[str, float]] = []
+    od_lock = lock_leds_temporarily(["A"])
+    lock_owner: str | None = None
+
+    def set_camera_leds(desired_state: dict[str, float], **_kwargs: object) -> bool:
+        camera_led_states.append(desired_state)
+        return True
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        nonlocal lock_owner
+        lock_owner = od_lock.__enter__()
+        assert led_intensity({"A": 70.0}, unit="unit-a", experiment="experiment-a", lock_owner=lock_owner)
+        assert led_intensity({"A": 0.0}, unit="unit-a", experiment="experiment-a", lock_owner=lock_owner)
+        Path(command[-1]).write_bytes(b"possibly spoiled camera still")
+
+    monkeypatch.setattr("pioreactor.camera.led_intensity", set_camera_leds)
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
+
+    try:
+        metadata = capture_camera_still(
+            "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+        )
+        assert camera_led_states == [{"A": 80.0}]
+        assert camera_still_image_path(metadata, tmp_path / ".pioreactor").exists()
+        with local_intermittent_storage("leds") as cache:
+            assert cache.get("A") == 0.0
+    finally:
+        if lock_owner is not None:
+            od_lock.__exit__(None, None, None)
+
+
+def test_failed_initial_camera_illumination_prevents_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    monkeypatch.setattr("pioreactor.camera.led_intensity", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(
+        "pioreactor.camera.subprocess.run",
+        lambda *_args, **_kwargs: pytest.fail("camera command must not run without illumination"),
+    )
+
+    with pytest.raises(CameraCaptureError, match="illumination could not be started"):
+        capture_camera_still("unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor")
+
+    assert list_camera_still_metadata("unit-a", dot_pioreactor=tmp_path / ".pioreactor") == []
+
+
+def test_failed_camera_cleanup_keeps_captured_still(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    led_results = iter([True, False])
+    monkeypatch.setattr("pioreactor.camera.led_intensity", lambda *_args, **_kwargs: next(led_results))
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        Path(command[-1]).write_bytes(b"successful camera still")
+
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
+
+    metadata = capture_camera_still(
+        "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+    )
+
+    assert (
+        camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"successful camera still"
+    )
+
+
+def test_camera_command_failure_still_attempts_ir_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    led_states: list[dict[str, float]] = []
+
+    def set_leds(desired_state: dict[str, float], **_kwargs: object) -> bool:
+        led_states.append(desired_state)
+        return True
+
+    def fail_capture(command: list[str], **_kwargs: object) -> None:
+        raise subprocess.CalledProcessError(1, command, output=b"", stderr=b"capture failed")
+
+    monkeypatch.setattr("pioreactor.camera.led_intensity", set_leds)
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", fail_capture)
+
+    with pytest.raises(CameraCaptureError, match="capture failed"):
+        capture_camera_still("unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor")
+
+    assert led_states == [{"A": 80.0}, {"A": 0.0}]
+
+
 def test_camera_backend_rejects_unknown_backend(monkeypatch: pytest.MonkeyPatch) -> None:
     configure_camera_backend(monkeypatch, capture_backend="unknown")
 
@@ -455,6 +634,10 @@ def test_capture_camera_still_uses_dev_camera_stills_when_command_is_absent(
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     monkeypatch.setenv("TESTING", "1")
     monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: None)
+    monkeypatch.setattr(
+        "pioreactor.camera.led_intensity",
+        lambda *_args, **_kwargs: pytest.fail("mock captures must not coordinate IR illumination"),
+    )
     source_dir = dev_camera_stills_path()
     source_dir.mkdir(parents=True)
     (source_dir / "still-1.jpg").write_bytes(b"first")

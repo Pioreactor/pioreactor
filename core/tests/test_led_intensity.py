@@ -26,6 +26,19 @@ def test_lock_will_prevent_led_from_updating() -> None:
         assert float(cache[channel]) == 20
 
 
+def test_lock_owner_can_update_its_locked_led() -> None:
+    unit = get_unit_name()
+    experiment = "test_lock_owner_can_update_its_locked_led"
+
+    with lock_leds_temporarily(["A"]) as lock_owner:
+        assert led_intensity({"A": 40}, unit=unit, experiment=experiment, lock_owner=lock_owner)
+        assert not led_intensity({"A": 30}, unit=unit, experiment=experiment)
+        assert not led_intensity({"A": 20}, unit=unit, experiment=experiment, lock_owner="different-owner")
+
+        with local_intermittent_storage("leds") as cache:
+            assert float(cache["A"]) == 40
+
+
 def test_lock_will_prevent_led_from_updating_single_channel_but_not_others_passed_in() -> None:
     unit = get_unit_name()
     exp = "test_lock_will_prevent_led_from_updating_single_channel_but_not_others_passed_in"

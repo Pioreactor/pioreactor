@@ -1362,30 +1362,37 @@ class ODReader(BackgroundJob):
         self.pre_read_callbacks = self._prepare_pre_callbacks()
         self.post_read_callbacks = self._prepare_post_callbacks()
 
-        # setup the ADC by turning off all LEDs.
-        with led_utils.change_leds_intensities_temporarily(
-            {ch: 0.0 for ch in led_utils.ALL_LED_CHANNELS},
-            unit=self.unit,
-            experiment=self.experiment,
-            source_of_event=self.job_name,
-            pubsub_client=self.pub_client,
-            verbose=False,
-        ):
-            with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-                blank_reading = self.adc_reader.take_reading()
-                self.adc_reader.set_offsets(blank_reading)  # set dark offset
+        # Invariant: OD owns every LED before its first temporary write and keeps ownership until IR is off.
+        with led_utils.lock_leds_temporarily([self.ir_channel, *self.non_ir_led_channels]) as lock_owner:
+            try:
+                with led_utils.change_leds_intensities_temporarily(
+                    {ch: 0.0 for ch in led_utils.ALL_LED_CHANNELS},
+                    unit=self.unit,
+                    experiment=self.experiment,
+                    source_of_event=self.job_name,
+                    pubsub_client=self.pub_client,
+                    verbose=False,
+                    lock_owner=lock_owner,
+                ):
+                    blank_reading = self.adc_reader.take_reading()
+                    self.adc_reader.set_offsets(blank_reading)  # set dark offset
 
-                # IR led is on
-                self.start_ir_led()
-                sleep(0.125)
+                    # IR led is on
+                    self.start_ir_led(lock_owner)
+                    sleep(0.125)
 
-                on_reading = self.adc_reader.tune_adc_with_ir_on()  # determine best gain, max-signal, etc.
+                    on_reading = (
+                        self.adc_reader.tune_adc_with_ir_on()
+                    )  # determine best gain, max-signal, etc.
 
-                # IR led is off so we can set blanks
-                self.stop_ir_led()
+                    # IR led is off so we can set blanks
+                    self.stop_ir_led(lock_owner)
 
-                # clear the history in adc_reader, so that we don't use blank readings in later inference.
-                self.adc_reader.clear_batched_readings()
+                    # clear the history in adc_reader, so that we don't use blank readings in later inference.
+                    self.adc_reader.clear_batched_readings()
+            finally:
+                # IR's only valid idle state is off. Keep ownership until this write is attempted.
+                self.stop_ir_led(lock_owner)
 
         if should_auto_adjust_ir_led:
             self.ir_led_intensity = self._determine_best_ir_led_intensity(
@@ -1558,25 +1565,30 @@ class ODReader(BackgroundJob):
             except Exception:
                 self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
 
-        # we put a soft lock on the LED channels - it's up to the
-        # other jobs to make sure they check the locks.
-        with led_utils.change_leds_intensities_temporarily(
-            desired_state=self.ir_led_on_and_rest_off_state,
-            unit=self.unit,
-            experiment=self.experiment,
-            source_of_event=self.job_name,
-            pubsub_client=self.pub_client,
-            verbose=False,
-        ):
-            with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-                if not (getattr(self.adc_reader, "fake_data", False) or whoami.is_testing_env()):
-                    sleep(
-                        config.getfloat(
-                            "od_reading.config", "duration_between_led_off_and_od_reading", fallback=0.125
+        # OD owns all LED writes through measurement and restoration. Unlocking before IR-off would
+        # let a camera cleanup overwrite OD illumination or leave IR in a non-idle state.
+        with led_utils.lock_leds_temporarily([self.ir_channel, *self.non_ir_led_channels]) as lock_owner:
+            try:
+                with led_utils.change_leds_intensities_temporarily(
+                    desired_state=self.ir_led_on_and_rest_off_state,
+                    unit=self.unit,
+                    experiment=self.experiment,
+                    source_of_event=self.job_name,
+                    pubsub_client=self.pub_client,
+                    verbose=False,
+                    lock_owner=lock_owner,
+                ):
+                    if not (getattr(self.adc_reader, "fake_data", False) or whoami.is_testing_env()):
+                        sleep(
+                            config.getfloat(
+                                "od_reading.config", "duration_between_led_off_and_od_reading", fallback=0.125
+                            )
                         )
-                    )
-                raw_od_readings = self._read_from_adc()
-                raw_od_readings = self.blank_transformer(raw_od_readings)
+                    raw_od_readings = self._read_from_adc()
+                    raw_od_readings = self.blank_transformer(raw_od_readings)
+            finally:
+                # Release the lock only after OD has forced its illumination off.
+                self.stop_ir_led(lock_owner)
 
         try:
             od_readings = self.calibration_transformer(raw_od_readings)
@@ -1627,7 +1639,7 @@ class ODReader(BackgroundJob):
 
         return od_readings
 
-    def start_ir_led(self) -> None:
+    def start_ir_led(self, lock_owner: str | None = None) -> None:
         r = led_utils.led_intensity(
             {self.ir_channel: self.ir_led_intensity},
             unit=self.unit,
@@ -1635,6 +1647,7 @@ class ODReader(BackgroundJob):
             source_of_event=self.job_name,
             pubsub_client=self.pub_client,
             verbose=False,
+            lock_owner=lock_owner,
         )
         if not r:
             self.clean_up()
@@ -1642,7 +1655,7 @@ class ODReader(BackgroundJob):
 
         return
 
-    def stop_ir_led(self) -> None:
+    def stop_ir_led(self, lock_owner: str | None = None) -> None:
         led_utils.led_intensity(
             {self.ir_channel: 0.0},
             unit=self.unit,
@@ -1650,6 +1663,7 @@ class ODReader(BackgroundJob):
             source_of_event=self.job_name,
             pubsub_client=self.pub_client,
             verbose=False,
+            lock_owner=lock_owner,
         )
 
     ###########

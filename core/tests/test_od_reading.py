@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # test_od_reading.py
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
 
 import numpy as np
 import pioreactor.background_jobs.od_reading as od_reading_module
@@ -10,6 +13,7 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
+from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import average_over_od_readings
 from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
@@ -2307,7 +2311,164 @@ def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -
             # after reading, non-IR LEDs should retain their original intensities
             with local_intermittent_storage("leds") as cache_after:
                 for ch, val in init_states.items():
-                    assert cache_after[ch] == val, f"LED {ch} was modified during read"
+                    if ch == od.ir_channel:
+                        assert cache_after[ch] == 0.0
+                    else:
+                        assert cache_after[ch] == val, f"LED {ch} was modified during read"
+
+
+def test_od_initialization_owns_led_locks_until_ir_is_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    events: list[tuple[str, object]] = []
+    original_lock_leds_temporarily = od_reading_module.led_utils.lock_leds_temporarily
+    original_led_intensity = od_reading_module.led_utils.led_intensity
+
+    @contextmanager
+    def tracked_lock_leds_temporarily(channels: list[pt.LedChannel]) -> Iterator[str]:
+        try:
+            with original_lock_leds_temporarily(channels) as lock_owner:
+                events.append(("lock", lock_owner))
+                yield lock_owner
+        finally:
+            events.append(("unlock", None))
+
+    def tracked_led_intensity(
+        desired_state: dict[pt.LedChannel, pt.LedIntensityValue], **kwargs: Any
+    ) -> bool:
+        events.append(
+            (
+                "led",
+                (dict(desired_state), kwargs.get("lock_owner"), is_led_channel_locked("A")),
+            )
+        )
+        return original_led_intensity(desired_state, **kwargs)
+
+    monkeypatch.setattr(od_reading_module.led_utils, "lock_leds_temporarily", tracked_lock_leds_temporarily)
+    monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", tracked_led_intensity)
+
+    od = start_od_reading(
+        make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
+    )
+    try:
+        lock_owner = events[0][1]
+        unlock_index = next(i for i, event in enumerate(events) if event[0] == "unlock")
+        led_events = [event[1] for event in events[1:unlock_index] if event[0] == "led"]
+
+        assert events[0][0] == "lock"
+        assert led_events
+        assert all(owner == lock_owner and ir_locked for _, owner, ir_locked in led_events)
+        assert led_events[-1][0] == {"A": 0.0}
+    finally:
+        od.clean_up()
+
+
+def test_od_initialization_exception_forces_ir_off_before_unlock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[tuple[str, object]] = []
+    original_lock_leds_temporarily = od_reading_module.led_utils.lock_leds_temporarily
+    original_led_intensity = od_reading_module.led_utils.led_intensity
+
+    @contextmanager
+    def tracked_lock_leds_temporarily(channels: list[pt.LedChannel]) -> Iterator[str]:
+        try:
+            with original_lock_leds_temporarily(channels) as lock_owner:
+                events.append(("lock", lock_owner))
+                yield lock_owner
+        finally:
+            events.append(("unlock", None))
+
+    def tracked_led_intensity(
+        desired_state: dict[pt.LedChannel, pt.LedIntensityValue], **kwargs: Any
+    ) -> bool:
+        events.append(
+            (
+                "led",
+                (dict(desired_state), kwargs.get("lock_owner"), is_led_channel_locked("A")),
+            )
+        )
+        return original_led_intensity(desired_state, **kwargs)
+
+    monkeypatch.setattr(od_reading_module.led_utils, "lock_leds_temporarily", tracked_lock_leds_temporarily)
+    monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", tracked_led_intensity)
+    monkeypatch.setattr(
+        od_reading_module.ADCReader,
+        "tune_adc_with_ir_on",
+        lambda _self: (_ for _ in ()).throw(RuntimeError("synthetic tuning failure")),
+    )
+
+    with pytest.raises(RuntimeError, match="synthetic tuning failure"):
+        start_od_reading(
+            make_channels("90", "REF"),
+            interval=None,
+            fake_data=True,
+            calibration=False,
+            estimator=False,
+        )
+
+    lock_owner = events[0][1]
+    unlock_index = next(i for i, event in enumerate(events) if event[0] == "unlock")
+    led_events = [event[1] for event in events[1:unlock_index] if event[0] == "led"]
+    assert led_events
+    assert all(owner == lock_owner and ir_locked for _, owner, ir_locked in led_events)
+    assert led_events[-1][0] == {"A": 0.0}
+
+
+def test_od_reading_forces_ir_off_before_unlock_on_success_and_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    od = start_od_reading(
+        make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
+    )
+    original_lock_leds_temporarily = od_reading_module.led_utils.lock_leds_temporarily
+    original_led_intensity = od_reading_module.led_utils.led_intensity
+    events: list[tuple[str, object]] = []
+
+    @contextmanager
+    def tracked_lock_leds_temporarily(channels: list[pt.LedChannel]) -> Iterator[str]:
+        try:
+            with original_lock_leds_temporarily(channels) as lock_owner:
+                events.append(("lock", lock_owner))
+                yield lock_owner
+        finally:
+            events.append(("unlock", None))
+
+    def tracked_led_intensity(
+        desired_state: dict[pt.LedChannel, pt.LedIntensityValue], **kwargs: Any
+    ) -> bool:
+        events.append(
+            (
+                "led",
+                (dict(desired_state), kwargs.get("lock_owner"), is_led_channel_locked("A")),
+            )
+        )
+        return original_led_intensity(desired_state, **kwargs)
+
+    def assert_ir_off_precedes_unlock() -> None:
+        lock_owner = events[0][1]
+        unlock_index = next(i for i, event in enumerate(events) if event[0] == "unlock")
+        led_events = [event[1] for event in events[1:unlock_index] if event[0] == "led"]
+        assert led_events
+        assert all(owner == lock_owner and ir_locked for _, owner, ir_locked in led_events)
+        assert led_events[-1][0] == {"A": 0.0}
+
+    monkeypatch.setattr(od_reading_module.led_utils, "lock_leds_temporarily", tracked_lock_leds_temporarily)
+    monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", tracked_led_intensity)
+
+    try:
+        assert od.record_from_adc() is not None
+        assert_ir_off_precedes_unlock()
+
+        events.clear()
+        monkeypatch.setattr(
+            od,
+            "_read_from_adc",
+            lambda: (_ for _ in ()).throw(RuntimeError("synthetic reading failure")),
+        )
+        with pytest.raises(RuntimeError, match="synthetic reading failure"):
+            od.record_from_adc()
+        assert_ir_off_precedes_unlock()
+    finally:
+        od.clean_up()
 
 
 def test_calibration_failure_clears_previous_od_state(monkeypatch) -> None:

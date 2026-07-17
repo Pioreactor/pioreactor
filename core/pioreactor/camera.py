@@ -25,6 +25,8 @@ from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import types as pt
+from pioreactor.actions.led_intensity import is_led_channel_locked
+from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.sqlite_cache import cache as SqliteCache
@@ -111,6 +113,14 @@ def get_camera_device_path() -> Path:
         raise ValueError("camera.device_path must not be empty")
 
     return Path(device_path)
+
+
+def get_camera_ir_led_intensity() -> float:
+    intensity = float(config.get("camera", "ir_led_intensity", fallback="80"))
+    if not 70.0 <= intensity <= 100.0:
+        raise ValueError("camera.ir_led_intensity must be between 70 and 100, inclusive")
+
+    return intensity
 
 
 def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | None:
@@ -393,12 +403,38 @@ def capture_camera_still(
 
         try:
             with camera_capture_lock(dot_pioreactor):
-                subprocess.run(
-                    capture_arguments,
-                    capture_output=True,
-                    timeout=timeout,
-                    check=True,
-                )
+                ir_channel = cast(pt.LedChannel, config.get("leds_reverse", "IR"))
+
+                # Camera deliberately never locks IR: OD must be able to preempt illumination mid-capture.
+                # If OD already owns IR, capture under OD's current illumination without writing the channel.
+                if not is_led_channel_locked(ir_channel):
+                    if not led_intensity(
+                        {ir_channel: get_camera_ir_led_intensity()},
+                        unit=unit,
+                        experiment=experiment,
+                        source_of_event="camera",
+                        verbose=False,
+                    ):
+                        raise CameraCaptureError("Camera IR illumination could not be started.")
+
+                try:
+                    subprocess.run(
+                        capture_arguments,
+                        capture_output=True,
+                        timeout=timeout,
+                        check=True,
+                    )
+                finally:
+                    # OD may have acquired IR while the command ran. A locked channel is OD's cleanup
+                    # responsibility; otherwise camera restores the shared idle invariant of IR=0%.
+                    if not is_led_channel_locked(ir_channel):
+                        led_intensity(
+                            {ir_channel: 0.0},
+                            unit=unit,
+                            experiment=experiment,
+                            source_of_event="camera",
+                            verbose=False,
+                        )
         except subprocess.CalledProcessError as error:
             stderr = error.stderr.decode("utf-8", errors="replace").strip()
             stdout = error.stdout.decode("utf-8", errors="replace").strip()
