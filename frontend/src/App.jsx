@@ -118,16 +118,19 @@ function App() {
 
 function MainSite() {
   const [config, setConfig] = React.useState({})
+  const [configLoaded, setConfigLoaded] = React.useState(false)
 
   React.useEffect(() => {
-    getConfig(setConfig)
+    getConfig(setConfig).finally(() => setConfigLoaded(true));
   }, [])
+
+  const cameraUIEnabled = config['ui.features']?.camera === "1";
 
   return (
     <Box sx={{display: 'flex'}}>
       <ErrorBoundary>
         <ExperimentProvider>
-          <SideNavAndHeader />
+          <SideNavAndHeader cameraUIEnabled={cameraUIEnabled} />
           <Box component="main" sx={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
             <div className="pageContainer">
               <MQTTProvider name="global" config={config}>
@@ -159,9 +162,18 @@ function MainSite() {
                     <Route path="/protocols/:pioreactorUnit" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                     <Route path="/protocols/:pioreactorUnit/:device" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                     <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
-                    <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
-                    <Route path="/cameras" element={<Cameras title="Pioreactor ~ Cameras"/>}/>
-                    <Route path="/cameras/:pioreactorUnit" element={<CameraStills title="Pioreactor ~ Camera snapshots"/>}/>
+                    <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor" cameraUIEnabled={cameraUIEnabled}/>}/>
+                    {!configLoaded ? (
+                      <React.Fragment>
+                        <Route path="/cameras" element={<RouteFallback />}/>
+                        <Route path="/cameras/:pioreactorUnit" element={<RouteFallback />}/>
+                      </React.Fragment>
+                    ) : cameraUIEnabled ? (
+                      <React.Fragment>
+                        <Route path="/cameras" element={<Cameras title="Pioreactor ~ Cameras"/>}/>
+                        <Route path="/cameras/:pioreactorUnit" element={<CameraStills title="Pioreactor ~ Camera snapshots"/>}/>
+                      </React.Fragment>
+                    ) : null}
                     <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                     <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                     <Route path="/logs" element={<Logs title="Pioreactor ~ Logs"/>}/>

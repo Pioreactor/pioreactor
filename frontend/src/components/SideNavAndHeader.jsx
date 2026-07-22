@@ -239,7 +239,7 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
 
 
 
-export default function SideNavAndHeader() {
+export default function SideNavAndHeader({ cameraUIEnabled = false }) {
   const location = useLocation()
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -425,13 +425,15 @@ export default function SideNavAndHeader() {
                 >
                 Profiles
               </MenuItem>
-              <MenuItem
-                icon={<CameraAltOutlinedIcon sx={{fontSize: "23px"}}/>}
-                component={<Link to="/cameras" className="link" />}
-                active={isSelected("/cameras")}
-                >
-                Cameras
-              </MenuItem>
+              {cameraUIEnabled && (
+                <MenuItem
+                  icon={<CameraAltOutlinedIcon sx={{fontSize: "23px"}}/>}
+                  component={<Link to="/cameras" className="link" />}
+                  active={isSelected("/cameras")}
+                  >
+                  Cameras
+                </MenuItem>
+              )}
 
 
             <Divider sx={{mt: "15px", mb: "15px"}} />

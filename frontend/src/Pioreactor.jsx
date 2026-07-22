@@ -2154,7 +2154,7 @@ function Charts(props) {
 
 
 
-function Pioreactor({title}) {
+function Pioreactor({title, cameraUIEnabled = false}) {
   const { experimentMetadata, selectExperiment } = useExperiment();
   const [unitConfig, setUnitConfig] = useState({})
   const initialTimeScale = localStorage.getItem('timeScale') || 'hours';
@@ -2344,16 +2344,18 @@ function Pioreactor({title}) {
             <Grid size={12}>
               <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.created_at}/>
             </Grid>
-            <Grid size={12}>
-              <Box sx={{ mt: 1, mb: 1 }}>
-                <CameraPanel
-                  key={`${unit}:${experimentMetadata.experiment}`}
-                  unit={unit}
-                  experiment={experimentMetadata.experiment}
-                  experimentStartTime={experimentMetadata.created_at}
-                />
-              </Box>
-            </Grid>
+            {cameraUIEnabled && (
+              <Grid size={12}>
+                <Box sx={{ mt: 1, mb: 1 }}>
+                  <CameraPanel
+                    key={`${unit}:${experimentMetadata.experiment}`}
+                    unit={unit}
+                    experiment={experimentMetadata.experiment}
+                    experimentStartTime={experimentMetadata.created_at}
+                  />
+                </Box>
+              </Grid>
+            )}
           </Grid>
         </Grid>
       </>

@@ -41,7 +41,7 @@ function parseINIString(data) {
 }
 
 export function getConfig(setCallback) {
-  fetch("/api/config/shared")
+  return fetch("/api/config/shared")
     .then((response) => {
       if (response.ok) {
         return response.text();
