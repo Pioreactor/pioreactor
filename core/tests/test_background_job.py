@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
+from unittest.mock import MagicMock
 
 import pytest
 from pioreactor.background_jobs.base import BackgroundJob
@@ -14,7 +16,9 @@ from pioreactor.config import temporary_config_changes
 from pioreactor.exc import JobPresentError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
+from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
@@ -70,6 +74,100 @@ def test_states() -> None:
     pause()
     assert bj.state == bj.DISCONNECTED
     bj.clean_up()
+
+
+def test_self_state_listener_uses_qos0() -> None:
+    subscriptions_seen: list[tuple[list[str] | str, int]] = []
+
+    class StateSubscriptionQosJob(BackgroundJob):
+        job_name = "state_subscription_qos_job"
+
+        def subscribe_and_callback(
+            self,
+            callback: Callable[[MQTTMessage], None],
+            subscriptions: list[str] | str,
+            allow_retained: bool = True,
+            qos: int = QOS.EXACTLY_ONCE,
+        ) -> None:
+            subscriptions_seen.append((subscriptions, qos))
+            super().subscribe_and_callback(callback, subscriptions, allow_retained, qos)
+
+    unit = get_unit_name()
+    experiment = "test_self_state_listener_uses_qos0"
+    state_topic = f"pioreactor/{unit}/{experiment}/{StateSubscriptionQosJob.job_name}/$state"
+
+    with StateSubscriptionQosJob(unit=unit, experiment=experiment):
+        pass
+
+    assert (state_topic, QOS.AT_MOST_ONCE) in subscriptions_seen
+
+
+def test_disconnected_state_is_terminal() -> None:
+    with BackgroundJob(
+        unit=get_unit_name(),
+        experiment="test_disconnected_state_is_terminal",
+    ) as job:
+        job.set_state(job.DISCONNECTED)
+        job.set_state(job.SLEEPING)
+
+        assert job.state == job.DISCONNECTED
+
+
+def test_job_manager_cleanup_failure_does_not_prevent_mqtt_shutdown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with BackgroundJob(
+        unit=get_unit_name(),
+        experiment="test_job_manager_cleanup_failure_does_not_prevent_mqtt_shutdown",
+    ) as job:
+        sub_client_shutdown = MagicMock(wraps=job.sub_client.shutdown)
+        pub_client_shutdown = MagicMock(wraps=job.pub_client.shutdown)
+        monkeypatch.setattr(
+            job,
+            "_remove_from_job_manager",
+            MagicMock(side_effect=RuntimeError("forced job-manager cleanup failure")),
+        )
+        monkeypatch.setattr(job.sub_client, "shutdown", sub_client_shutdown)
+        monkeypatch.setattr(job.pub_client, "shutdown", pub_client_shutdown)
+
+    sub_client_shutdown.assert_called_once_with()
+    pub_client_shutdown.assert_called_once_with()
+    assert job._is_cleaned_up
+
+
+def test_back_to_back_qos1_state_commands_retain_disconnected_after_cleanup() -> None:
+    unit = get_unit_name()
+    experiment = "test_back_to_back_qos1_state_commands_retain_disconnected_after_cleanup"
+    state_topic = f"pioreactor/{unit}/{experiment}/background_job/$state"
+    control_client = create_client()
+
+    try:
+        with BackgroundJob(unit=unit, experiment=experiment) as job:
+            pause()
+            sleeping = control_client.publish(
+                f"{state_topic}/set",
+                job.SLEEPING,
+                qos=QOS.AT_LEAST_ONCE,
+            )
+            disconnected = control_client.publish(
+                f"{state_topic}/set",
+                job.DISCONNECTED,
+                qos=QOS.AT_LEAST_ONCE,
+            )
+            sleeping.wait_for_publish(timeout=5)
+            disconnected.wait_for_publish(timeout=5)
+            job.block_until_disconnected()
+
+        retained_state = subscribe(
+            state_topic,
+            timeout=2,
+            qos=QOS.AT_LEAST_ONCE,
+        )
+
+        assert retained_state is not None
+        assert retained_state.payload.decode() == job.DISCONNECTED
+    finally:
+        control_client.shutdown()
 
 
 def test_block_until_ready_returns_current_readiness() -> None:
