@@ -282,14 +282,11 @@ export default function SideNavAndHeader() {
     }, 1750);
 
     const latestVersionTimerId = window.setTimeout(() => {
-      // TODO: what happens when there is not internet connection?
       fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
         .then((response) => response.json())
         .then((data) => {
           setLatestVersion(data['tag_name'])
-        }).catch((_e) => {
-          // no internet?
-        });
+        }).catch(() => {});
     }, 2500);
 
     return () => {

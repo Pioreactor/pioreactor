@@ -7,8 +7,6 @@ class TestTemperatureApproximation_2_0:
         self.t = TemperatureAutomationJob
 
     def test_temperature_approximation_if_constant(self) -> None:
-        # TODO: we should add some constants like this to the dataset.
-
         for temp in range(25, 35):
             features = {
                 "room_temp": 22.0,

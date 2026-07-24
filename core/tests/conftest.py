@@ -115,7 +115,7 @@ def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
             mm.json.return_value = {"experiment": "_testing_experiment"}
             return mm
         else:
-            raise ValueError(f"TODO: {endpoint} not mocked")
+            raise ValueError(f"No leader API mock is configured for endpoint: {endpoint}")
 
     mock_get = mocker.patch(
         "pioreactor.cluster_management.get_from_leader", autospec=True, side_effect=mock_get_response

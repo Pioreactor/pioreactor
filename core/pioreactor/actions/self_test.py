@@ -213,8 +213,6 @@ def test_all_positive_correlations_between_pds_and_leds(
     This tests that there is a positive correlation between the IR LED channel, and the photodiodes
     as defined in the config.ini. Note: this includes the REF photodiode when configured in
     od_config.photodiode_channel.
-
-    TODO: if this exits early, we should turn off the LEDs
     """
     from pprint import pformat
 
@@ -246,7 +244,12 @@ def test_all_positive_correlations_between_pds_and_leds(
     )
 
     adc_reader = ADCReader(
-        channels=pd_channels_available, dynamic_gain=True, fake_data=is_testing_env(), penalizer=0.0
+        channels=pd_channels_available,
+        dynamic_gain=True,
+        fake_data=is_testing_env(),
+        penalizer=0.0,
+        unit=unit,
+        experiment=experiment,
     )
     adc_reader.add_external_logger(logger)
     tune_state = {channel: 0.0 for channel in ALL_LED_CHANNELS}
@@ -259,7 +262,6 @@ def test_all_positive_correlations_between_pds_and_leds(
         source_of_event="self_test",
     ):
         adc_reader.tune_adc_with_ir_on()
-    # TODO: should we remove blank? Technically correlation is invariant to location.
 
     with stirring.start_stirring(
         target_rpm=500, unit=unit, experiment=experiment, enable_dodging_od=False
@@ -379,6 +381,8 @@ def test_ambient_light_interference(
         channels=pd_channels_available,
         dynamic_gain=True,
         fake_data=is_testing_env(),
+        unit=unit,
+        experiment=experiment,
     )
 
     adc_reader.add_external_logger(logger)
@@ -409,6 +413,8 @@ def test_dark_offset_correction_is_effective(
         dynamic_gain=True,
         fake_data=is_testing_env(),
         penalizer=0.0,
+        unit=unit,
+        experiment=experiment,
     )
     adc_reader.add_external_logger(logger)
 
@@ -483,7 +489,12 @@ def test_REF_is_lower_than_0_dot_256_volts(
         ir_intensity = float(config_ir_intensity)
 
     adc_reader = ADCReader(
-        channels=[reference_channel], dynamic_gain=True, fake_data=is_testing_env(), penalizer=0.0
+        channels=[reference_channel],
+        dynamic_gain=True,
+        fake_data=is_testing_env(),
+        penalizer=0.0,
+        unit=unit,
+        experiment=experiment,
     )
     adc_reader.add_external_logger(logger)
 

@@ -329,7 +329,6 @@ def cluster_status() -> None:
             resolved_address = "localhost"
         else:
             try:
-                # TODO: we can get this from MQTT, too?
                 resolved_address = networking.resolve_to_address(hostname)
                 ip = socket.gethostbyname(resolved_address)
             except (OSError, Exception):
@@ -366,7 +365,7 @@ def cluster_status() -> None:
         except HTTPException:
             app_version = "unknown(api)" if web_ok else "unknown"
 
-        # is reachable? # TODO: change to webserver?
+        # Prefer the unit API health check; ICMP is a fallback for hosts whose webserver is unavailable.
         reachable = web_ok or networking.is_reachable(resolved_address)
 
         # get experiment

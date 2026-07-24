@@ -592,7 +592,6 @@ class Monitor(LongRunningBackgroundJob):
         if free_gb >= 3.0:
             self.logger.debug(f"Available disk space: {free_gb:.1f}GB.")
         else:
-            # TODO: add documentation to clear disk space.
             self.logger.warning(
                 f"Available disk space: {free_gb:.1f}GB. Export and delete experiments to free up space."
             )
@@ -602,7 +601,6 @@ class Monitor(LongRunningBackgroundJob):
         if cpu_temperature_celcius <= 80:
             self.logger.debug(f"CPU temperature at {cpu_temperature_celcius} ℃.")
         else:
-            # TODO: add documentation
             self.logger.warning(f"CPU temperature at {cpu_temperature_celcius} ℃.")
             self.flicker_led_with_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
@@ -740,7 +738,6 @@ class Monitor(LongRunningBackgroundJob):
             qos=QOS.AT_LEAST_ONCE,
         )
 
-        # TODO: change me!
         self.subscribe_and_callback(
             self.update_bioreactor_state_from_dosing_event,
             f"pioreactor/{self.unit}/+/dosing_events",

@@ -426,7 +426,7 @@ def export_experiment_data(
         ) as con:
             con.create_function(
                 "BASE64", 1, decode_base64
-            )  # TODO: until next OS release which implements a native sqlite3 base64 function
+            )  # SQLite bundles base64() with its CLI, but not with the library used by Python.
 
             con.row_factory = rounded_row_factory
 

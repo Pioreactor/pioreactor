@@ -50,6 +50,46 @@ def test_query_app_db_disallows_dml_via_query_only_pragma(app, tmp_path) -> None
     assert _count_rows(db_path) == 1
 
 
+def test_modify_app_db_rolls_back_after_integrity_error(app, tmp_path) -> None:
+    from pioreactor.web import app as web_app
+
+    db_path = _prepare_db_file(tmp_path)
+
+    with app.app_context():
+        connection = sqlite3.connect(db_path)
+        connection.execute("CREATE UNIQUE INDEX demo_x_ix ON demo(x)")
+        connection.commit()
+        g._app_database = connection
+
+        assert web_app.modify_app_db("INSERT INTO demo(x) VALUES (?)", (1,)) == 0
+        assert connection.in_transaction is False
+        assert web_app.modify_app_db("INSERT INTO demo(x) VALUES (?)", (2,)) == 1
+
+    assert _count_rows(db_path) == 2
+
+
+def test_modify_app_db_rolls_back_after_other_sqlite_error(app, tmp_path) -> None:
+    from pioreactor.web import app as web_app
+
+    db_path = _prepare_db_file(tmp_path)
+
+    def fail_write() -> None:
+        raise RuntimeError("boom")
+
+    with app.app_context():
+        connection = sqlite3.connect(db_path)
+        connection.create_function("fail_write", 0, fail_write)
+        g._app_database = connection
+
+        with pytest.raises(sqlite3.OperationalError, match="user-defined function raised exception"):
+            web_app.modify_app_db("INSERT INTO demo(x) SELECT fail_write()")
+
+        assert connection.in_transaction is False
+        assert web_app.modify_app_db("INSERT INTO demo(x) VALUES (?)", (2,)) == 1
+
+    assert _count_rows(db_path) == 2
+
+
 def test_temp_local_metadata_db_connection_closes_on_app_teardown(app, monkeypatch, tmp_path) -> None:
     from pioreactor.config import config
     from pioreactor.web.app import query_temp_local_metadata_db

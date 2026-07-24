@@ -146,7 +146,6 @@ def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
 
 
 def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeristalticPumpCalibration:
-    # TODO: make sure current voltage is the same as calibrated. Actually where should that check occur? in Pump?
     cal = load_active_calibration(pump_device)
     if cal is None:
         return get_default_calibration()

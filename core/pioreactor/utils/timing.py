@@ -158,10 +158,12 @@ class RepeatedTimer:
 
     @property
     def time_to_next_run(self) -> float:
+        """
+        Return seconds until the next interval, or 0 before the timer thread establishes its start time.
+        """
         if hasattr(self, "start_time"):
             return self.interval - ((perf_counter() - self.start_time) % self.interval)
         else:
-            # TODO technically this is wrong, but it fixes an edge case.
             return 0
 
     def pause(self) -> None:

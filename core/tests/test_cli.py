@@ -15,10 +15,12 @@ import pytest
 from click.testing import CliRunner
 from pioreactor import bioreactor
 from pioreactor import exc
+from pioreactor import structs
 from pioreactor import whoami
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.cli.pio import pio
 from pioreactor.cli.pios import kill
+from pioreactor.cli.pios import parse_click_arguments
 from pioreactor.cli.pios import pios
 from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
@@ -1082,7 +1084,6 @@ def test_pios_jobs_set() -> None:
     pause()
     pause()
     pause()
-    # TODO previously this was strictly more than 1 - why?
     assert len(bucket) >= 1
 
 
@@ -1190,6 +1191,16 @@ def test_pios_run_requests() -> None:
     assert sorted(bucket)[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
 
 
+def test_parse_click_arguments_returns_request_struct() -> None:
+    request = parse_click_arguments(["positional", "--target-rpm", "500", "--skip-first-run"])
+
+    assert isinstance(request, structs.ArgsOptionsEnvsConfigOverrides)
+    assert request.args == ["positional"]
+    assert request.options == {"target-rpm": "500", "skip-first-run": None}
+    assert request.env == {}
+    assert request.config_overrides == []
+
+
 def test_pios_run_requests_dedup() -> None:
     units = ("unit1", "unit1")
 
@@ -1231,10 +1242,10 @@ def test_pios_run_requests_with_config_override() -> None:
 
     assert result.exit_code == 0
     assert len(bucket) == 2
-    assert all(
-        req.json == {"args": [], "options": {}, "config_overrides": [["stirring.config", "pwm_hz", "100"]]}
-        for req in bucket
+    expected_request = structs.ArgsOptionsEnvsConfigOverrides(
+        config_overrides=[["stirring.config", "pwm_hz", "100"]]
     )
+    assert [req.json for req in bucket] == [expected_request, expected_request]
 
 
 def test_pios_run_surfaces_structured_unit_api_error(monkeypatch, capsys) -> None:

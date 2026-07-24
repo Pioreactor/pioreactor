@@ -14,6 +14,7 @@ from typing import Any
 import click
 from msgspec import DecodeError
 from msgspec.json import encode as dumps
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.cli.pio import validate_git_ref_option
 from pioreactor.cli.pio import validate_github_repo_option
@@ -243,7 +244,7 @@ if am_I_leader() or is_testing_env():
     confirmation = click.option("--yes", "-y", is_flag=True, help="Skip asking for confirmation.")
     json_output = click.option("--json", is_flag=True, help="output as json")
 
-    def parse_click_arguments(input_list: list[str]) -> dict:  # TODO: typed dict
+    def parse_click_arguments(input_list: list[str]) -> structs.ArgsOptionsEnvsConfigOverrides:
         args: list[str] = []
         opts: dict[str, str | None] = {}
 
@@ -267,7 +268,7 @@ if am_I_leader() or is_testing_env():
 
             i += 1
 
-        return {"args": args, "options": opts}
+        return structs.ArgsOptionsEnvsConfigOverrides(args=args, options=opts)
 
     def _format_timestamp_to_seconds(timestamp: str | None) -> str:
         if timestamp is None:
@@ -1033,7 +1034,7 @@ if am_I_leader() or is_testing_env():
                 raise click.Abort()
 
         data = parse_click_arguments(extra_args)
-        data["config_overrides"] = [list(override) for override in config_override]
+        data.config_overrides = [list(override) for override in config_override]
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:

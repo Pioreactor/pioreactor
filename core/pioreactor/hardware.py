@@ -336,7 +336,6 @@ def get_dac_address() -> int:
     return int(_load_dac_cfg()["address"])
 
 
-# TODO: remove in a later version
 __all__ = [
     "get_layered_mod_config",
     "determine_gpiochip",
