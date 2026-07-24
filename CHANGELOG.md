@@ -8,7 +8,7 @@
    pio jobs set <job> <setting> <value>
    pios jobs set <job> <setting> <value>
    ```
- - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an upgrade.
+ - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an update to this release.
 
 #### Enhancements
 
@@ -17,6 +17,22 @@
  - Added expression support to experiment-profile job `config_overrides`.
  - Expanded `pio status` with the assigned Pioreactor model and model-to-hardware compatibility checks.
  - Added subtle live-update highlighting to Pioreactor card states and settings.
+ - Adding experimental support for cameras. Set `camera=1` in `[ui.features]`, and include the following in config.ini:
+```
+[camera]
+# whole minutes between automatic still captures during an assigned experiment.
+# Set to 0 to disable automatic capture.
+snapshot_interval_minutes=5
+# IR illumination used for real camera captures. Must be between 70 and 100, inclusive.
+ir_led_intensity=80
+# rpicam uses a camera available to rpicam-still. v4l2 uses a video device with fswebcam.
+capture_backend=rpicam
+# camera_index is used by the rpicam backend.
+camera_index=0
+# device_path is used by the v4l2 backend. Prefer a stable /dev/v4l/by-id path when available.
+device_path=/dev/video0
+```
+
 
 #### Bug fixes
 
