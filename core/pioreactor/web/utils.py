@@ -225,7 +225,7 @@ def load_background_job_descriptors(
     for file in files:
         try:
             decoded_yaml = yaml_decode(file.read_bytes(), type=structs.BackgroundJobDescriptor)
-            # validate_background_job_descriptor(decoded_yaml) TODO: uncomment me for next update.sh release.
+            validate_background_job_descriptor(decoded_yaml)
             if decoded_yaml.job_name in parsed_yaml and report_error is not None:
                 report_error(f"Descriptor {file.name} overrides job {decoded_yaml.job_name}.")
             parsed_yaml[decoded_yaml.job_name] = decoded_yaml
