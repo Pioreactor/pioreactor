@@ -1502,6 +1502,7 @@ def test_current_volume_mqtt_update_at_stop_threshold_sleeps_and_stops_active_pu
     object.__setattr__(job, "logger", FakeLogger())
     object.__setattr__(job, "state", job.READY)
     object.__setattr__(job, "_automation_timer", None)
+    object.__setattr__(job, "_shutdown_started", False)
 
     job._set_current_volume_ml_from_mqtt(Message())
 

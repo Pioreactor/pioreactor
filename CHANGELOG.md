@@ -8,10 +8,26 @@
    pio jobs set <job> <setting> <value>
    pios jobs set <job> <setting> <value>
    ```
+ - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an upgrade.
 
 #### Enhancements
 
  - Bump to React 19.x, and new vite build system.
+ - Added `manifest.json` and per-dataset `schema.json` metadata to exported data archives, including applied filters, row counts, column descriptions, and units.
+ - Added expression support to experiment-profile job `config_overrides`.
+ - Expanded `pio status` with the assigned Pioreactor model and model-to-hardware compatibility checks.
+ - Added subtle live-update highlighting to Pioreactor card states and settings.
+
+#### Bug fixes
+
+ - Improved background-job shutdown during rapid MQTT state changes, preventing queued commands from reviving stopped jobs and reducing cases where successfully stopped jobs remained shown as `lost`.
+ - Fixed temperature automations so an in-progress temperature inference cannot restore heater power after the job sleeps or disconnects.
+ - Fixed experiment-profile MQTT lookups to preserve decoded boolean and numeric values instead of coercing them as strings.
+ - Fixed experiment charts showing stale data when switching experiments, Pioreactors, or time ranges.
+ - Fixed `pios shutdown` and `pios reboot` routing when the leader is explicitly selected while keeping worker-only targets scoped to workers.
+ - Fixed OD-dodging jobs so mode changes made while sleeping take effect correctly when the job resumes.
+ - Fixed the Leader page opening a second MQTT connection alongside the application-wide connection.
+ - Improved validation of calibration and estimator names and custom UI descriptors before they are written or rendered.
 
 
 ### 26.6.0

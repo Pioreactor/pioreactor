@@ -292,6 +292,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment, source: str = "app") -> None:
         # Current invariant: cleanup state exists before any constructor step that can fail.
         self._is_cleaned_up = False
+        self._shutdown_started = False
         self._blocking_event = threading.Event()
 
         if self.job_name in DISALLOWED_JOB_NAMES:
@@ -528,6 +529,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(f"saw {new_state}: not a valid state")
             return
 
+        # Once shutdown starts, disconnected is terminal. This prevents queued
+        # state-control messages from reviving a job while its resources are closing.
+        if new_state_enum == JobState.DISCONNECTED:
+            self._shutdown_started = True
+        elif self._shutdown_started:
+            return
+
         current_state = JobState(self.state)
 
         if new_state_enum == current_state:
@@ -594,6 +602,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         if self._is_cleaned_up:
             return
+
+        self._shutdown_started = True
 
         if self.state != JobState.DISCONNECTED:
             try:
@@ -910,7 +920,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 self.logger.debug("Error in _clear_caches:")
                 self.logger.debug(e, exc_info=True)
 
-        self._remove_from_job_manager()
+        try:
+            self._remove_from_job_manager()
+        except Exception as e:
+            if hasattr(self, "logger"):
+                self.logger.debug("Error in _remove_from_job_manager:")
+                self.logger.debug(e, exc_info=True)
 
         try:
             self._disconnect_from_mqtt_clients()
@@ -994,6 +1009,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.subscribe_and_callback(
             self._confirm_state_in_broker,
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
+            qos=QOS.AT_MOST_ONCE,
         )
 
     def _confirm_state_in_broker(self, message: pt.MQTTMessage) -> None:

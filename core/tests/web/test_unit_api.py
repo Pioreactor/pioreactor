@@ -699,6 +699,7 @@ def test_reboot_leader_delays_inside_task_not_http_handler(client, monkeypatch: 
 
     monkeypatch.setattr(mod, "HOSTNAME", "leader", raising=False)
     monkeypatch.setattr(mod, "get_leader_hostname", lambda: "leader", raising=False)
+    monkeypatch.setattr(mod, "_task_is_locked", lambda _lock_name: False)
     monkeypatch.setattr(mod.tasks, "reboot", fake_reboot)
     monkeypatch.setattr(mod, "sleep", fail_sleep, raising=False)
 
