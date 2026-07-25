@@ -351,6 +351,7 @@ __all__ = [
     "get_adc_curriers",
     "get_dac_address",
     "ADCCurrier",
+    "scan_i2c_bus",
     "is_i2c_device_present",
     "is_DAC_present",
     "is_ADC_present",
@@ -394,6 +395,15 @@ def __getattr__(name: str) -> Any:
     value = factory()
     setattr(sys.modules[__name__], name, value)
     return value
+
+
+def scan_i2c_bus() -> list[int]:
+    if is_testing_env():
+        from pioreactor.utils.mock import MockI2C as I2C
+    else:
+        from adafruit_blinka.microcontroller.generic_linux.i2c import I2C  # type: ignore
+
+    return I2C(1, mode=I2C.MASTER).scan()
 
 
 def is_i2c_device_present(channel: int) -> bool:

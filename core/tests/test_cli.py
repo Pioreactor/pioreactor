@@ -587,11 +587,29 @@ def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> Non
     assert "job manager unavailable" in result.output
 
 
-def test_pio_status_handles_i2c_scan_errors_without_aborting(monkeypatch) -> None:
-    def raise_i2c_error(*_args, **_kwargs) -> None:
+def test_pio_status_reports_detected_i2c_addresses(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pioreactor.utils.mock.MockI2C.scan", lambda _self: [0x17, 0x48])
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    i2c_check = next(check for check in payload["checks"] if check["name"] == "hardware:i2c_bus1")
+    assert i2c_check == {
+        "name": "hardware:i2c_bus1",
+        "status": "OK",
+        "details": "0x17, 0x48",
+    }
+
+
+def test_pio_status_handles_i2c_scan_errors_without_aborting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_i2c_error(*_args: object, **_kwargs: object) -> list[int]:
         raise RuntimeError("i2c unavailable")
 
-    monkeypatch.setattr("pioreactor.utils.mock.MockI2C.writeto", raise_i2c_error)
+    monkeypatch.setattr("pioreactor.utils.mock.MockI2C.scan", raise_i2c_error)
 
     runner = CliRunner()
     result = runner.invoke(pio, ["status"])

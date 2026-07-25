@@ -17,6 +17,6 @@ CACHE_DIR = Path(os.environ["RUN_PIOREACTOR"]) / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
 
 try:
-    huey = SqliteHuey(filename=CACHE_DIR / "huey.db")
+    huey = SqliteHuey(filename=CACHE_DIR / "huey.db", fsync=False)
 except sqlite3.OperationalError:
     raise IOError(f'Unable to open huey.db at {CACHE_DIR / "huey.db"}')
