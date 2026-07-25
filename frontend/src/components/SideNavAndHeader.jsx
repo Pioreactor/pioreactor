@@ -299,6 +299,7 @@ export default function SideNavAndHeader() {
 
   React.useEffect(() => {
     let isActive = true;
+    let usbTimerId = null;
 
     async function fetchUsbStatus() {
       try {
@@ -317,12 +318,37 @@ export default function SideNavAndHeader() {
       }
     }
 
-    fetchUsbStatus();
-    const usbTimerId = window.setInterval(fetchUsbStatus, 15000);
+    function stopUsbPolling() {
+      if (usbTimerId !== null) {
+        window.clearInterval(usbTimerId);
+        usbTimerId = null;
+      }
+    }
+
+    function startUsbPolling() {
+      if (document.hidden || usbTimerId !== null) {
+        return;
+      }
+
+      fetchUsbStatus();
+      usbTimerId = window.setInterval(fetchUsbStatus, 15000);
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        stopUsbPolling();
+      } else {
+        startUsbPolling();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    startUsbPolling();
 
     return () => {
       isActive = false;
-      window.clearInterval(usbTimerId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      stopUsbPolling();
     };
   }, []);
 
