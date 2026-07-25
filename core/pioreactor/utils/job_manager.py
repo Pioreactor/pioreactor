@@ -2,6 +2,7 @@
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from subprocess import run
+from time import sleep
 from typing import Any
 
 from msgspec import Struct
@@ -219,6 +220,7 @@ class JobManager:
                     raise NameError(
                         f"Setting `{setting}` was not found in published settings of `{job_name}`."
                     )
+                sleep(0.05)
 
     def _get_jobs(self, all_jobs: bool = False, **query: str | int | None) -> list[tuple[str, int, int]]:
         if not all_jobs:

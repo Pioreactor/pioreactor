@@ -40,7 +40,7 @@ export async function checkTaskCallback(callbackURL, { maxRetries = 150, delayMs
 
 export async function fetchTaskResult(
   endpoint,
-  { fetchOptions = {}, maxRetries = 100, delayMs = 50 } = {},
+  { fetchOptions = {}, maxRetries = 50, delayMs = 100 } = {},
 ) {
   const response = await fetch(endpoint, fetchOptions);
   if (!response.ok) {
