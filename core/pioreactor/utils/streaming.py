@@ -11,7 +11,7 @@ from typing import Protocol
 from msgspec import DecodeError
 from msgspec.json import decode
 from pioreactor import types as pt
-from pioreactor.pubsub import subscribe
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import DosingEvent
 from pioreactor.structs import ODFused
 from pioreactor.structs import ODReadings
@@ -51,21 +51,33 @@ class MqttODSource(ODObservationSource):
         self._stop_event = ev
 
     def __iter__(self) -> Iterator[ODReadings]:
+        if self._stop_event.is_set():
+            return
+
+        messages: Queue[pt.MQTTMessage] = Queue()
+        client = subscribe_and_callback(
+            messages.put,
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods",
+            allow_retained=False,
+        )
         counter = 0
-        while not self._stop_event.is_set():
-            msg = subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods", allow_retained=False, timeout=2.5
-            )
-            if msg is None:
-                continue
-            counter += 1
-            if counter <= self.skip_first:
-                continue
-            try:
-                yield decode(msg.payload, type=ODReadings)
-            except DecodeError as e:
-                print(f"Failed to decode message: {e}")
-                continue
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    message = messages.get(timeout=0.1)
+                except Empty:
+                    continue
+
+                counter += 1
+                if counter <= self.skip_first:
+                    continue
+                try:
+                    yield decode(message.payload, type=ODReadings)
+                except DecodeError as e:
+                    print(f"Failed to decode message: {e}")
+                    continue
+        finally:
+            client.shutdown()
 
 
 class MqttODFusedSource(ODObservationSource):
@@ -78,36 +90,46 @@ class MqttODFusedSource(ODObservationSource):
         self._stop_event = ev
 
     def __iter__(self) -> Iterator[ODReadings]:
-        counter = 0
-        while not self._stop_event.is_set():
-            msg = subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_fused",
-                allow_retained=False,
-                timeout=2.5,
-            )
-            if msg is None:
-                continue
-            counter += 1
-            if counter <= self.skip_first:
-                continue
-            try:
-                fused = decode(msg.payload, type=ODFused)
-            except DecodeError as e:
-                print(f"Failed to decode message: {e}")
-                continue
+        if self._stop_event.is_set():
+            return
 
-            yield ODReadings(
-                timestamp=fused.timestamp,
-                ods={
-                    FUSED_PD_CHANNEL: RawODReading(
-                        timestamp=fused.timestamp,
-                        angle=FUSED_PD_ANGLE,
-                        od=fused.od_fused,
-                        channel=FUSED_PD_CHANNEL,
-                        ir_led_intensity=0.0,
-                    )
-                },
-            )
+        messages: Queue[pt.MQTTMessage] = Queue()
+        client = subscribe_and_callback(
+            messages.put,
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_fused",
+            allow_retained=False,
+        )
+        counter = 0
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    message = messages.get(timeout=0.1)
+                except Empty:
+                    continue
+
+                counter += 1
+                if counter <= self.skip_first:
+                    continue
+                try:
+                    fused = decode(message.payload, type=ODFused)
+                except DecodeError as e:
+                    print(f"Failed to decode message: {e}")
+                    continue
+
+                yield ODReadings(
+                    timestamp=fused.timestamp,
+                    ods={
+                        FUSED_PD_CHANNEL: RawODReading(
+                            timestamp=fused.timestamp,
+                            angle=FUSED_PD_ANGLE,
+                            od=fused.od_fused,
+                            channel=FUSED_PD_CHANNEL,
+                            ir_led_intensity=0.0,
+                        )
+                    },
+                )
+        finally:
+            client.shutdown()
 
 
 class MqttDosingSource(DosingObservationSource):
@@ -121,17 +143,29 @@ class MqttDosingSource(DosingObservationSource):
         self._stop_event = ev
 
     def __iter__(self) -> Iterator[DosingEvent]:
-        while not self._stop_event.is_set():
-            msg = subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/dosing_events", allow_retained=False, timeout=1
-            )
-            if msg is None:
-                continue
-            try:
-                yield decode(msg.payload, type=DosingEvent)
-            except DecodeError as e:
-                print(f"Failed to decode message: {e}")
-                continue
+        if self._stop_event.is_set():
+            return
+
+        messages: Queue[pt.MQTTMessage] = Queue()
+        client = subscribe_and_callback(
+            messages.put,
+            f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
+            allow_retained=False,
+        )
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    message = messages.get(timeout=0.1)
+                except Empty:
+                    continue
+
+                try:
+                    yield decode(message.payload, type=DosingEvent)
+                except DecodeError as e:
+                    print(f"Failed to decode message: {e}")
+                    continue
+        finally:
+            client.shutdown()
 
 
 T = ODReadings | DosingEvent
