@@ -55,7 +55,7 @@ def test_growth_rate_calculator_stream_preserves_raw_event_order_and_skip_contra
                 )
             },
         )
-        for od in (0.0, 0.1, 0.2)
+        for od in (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)
     ]
     dosing_event = structs.DosingEvent(
         volume_change=1.0,
@@ -85,11 +85,11 @@ def test_growth_rate_calculator_stream_preserves_raw_event_order_and_skip_contra
                     SimpleNamespace(topic=od_topic, payload=encode(reading), retain=False)
                 )
 
-            events = calculator.stream_mqtt_growth_rate_events(skip_first_od_observations=1)
+            events = calculator.stream_mqtt_growth_rate_events()
 
             assert next(events) == dosing_event
-            assert next(events) == readings[1]
-            assert next(events) == readings[2]
+            assert next(events) == readings[5]
+            assert next(events) == readings[6]
 
             calculator._blocking_event.set()
             with pytest.raises(StopIteration):
@@ -109,10 +109,11 @@ def test_growth_rate_calculator_stream_preserves_fused_od_readings_contract() ->
         patch.object(GrowthRateCalculator, "subscribe_and_callback", autospec=True),
     ):
         with GrowthRateCalculator(unit="unit", experiment="experiment") as calculator:
-            calculator._growth_rate_event_messages.put(
-                SimpleNamespace(topic=od_topic, payload=encode(fused), retain=False)
-            )
-            events = calculator.stream_mqtt_growth_rate_events(skip_first_od_observations=0)
+            for _ in range(6):
+                calculator._growth_rate_event_messages.put(
+                    SimpleNamespace(topic=od_topic, payload=encode(fused), retain=False)
+                )
+            events = calculator.stream_mqtt_growth_rate_events()
 
             reading = next(events)
 
@@ -152,7 +153,7 @@ def test_growth_rate_calculator_stream_recovers_from_malformed_payloads() -> Non
             )
 
             with patch.object(calculator.logger, "warning") as warning:
-                events = calculator.stream_mqtt_growth_rate_events(skip_first_od_observations=0)
+                events = calculator.stream_mqtt_growth_rate_events()
 
                 assert next(events) == dosing_event
                 warning.assert_called_once()
@@ -170,7 +171,7 @@ def test_growth_rate_calculator_stream_stop_unblocks_without_closing_shared_clie
 
     finished = Event()
     errors: list[BaseException] = []
-    events = calculator.stream_mqtt_growth_rate_events(skip_first_od_observations=0)
+    events = calculator.stream_mqtt_growth_rate_events()
 
     def consume_one_event() -> None:
         try:

@@ -58,8 +58,10 @@ def create_encoded_od_raw_batched(channels, voltages: list[float], angles, times
 
 def block_until_disconnected_in_background(calc: GrowthRateCalculator) -> Thread:
     def block_without_skipping_startup_observations() -> None:
-        events = calc.stream_mqtt_growth_rate_events(skip_first_od_observations=0)
-        with patch.object(calc, "stream_mqtt_growth_rate_events", return_value=events):
+        with patch(
+            "pioreactor.background_jobs.growth_rate_calculating.INITIAL_OD_OBSERVATIONS_TO_SKIP",
+            0,
+        ):
             calc.block_until_disconnected()
 
     thread = Thread(target=block_without_skipping_startup_observations, daemon=True)
@@ -518,9 +520,7 @@ import pioreactor.background_jobs.growth_rate_calculating
             experiment="test_shutdown_during_warmup_does_not_initialize_from_partial_observations",
         ) as calc:
 
-            def stop_after_one_reading(
-                skip_first_od_observations: int,
-            ) -> Iterator[structs.ODReadings | structs.DosingEvent]:
+            def stop_after_one_reading() -> Iterator[structs.ODReadings | structs.DosingEvent]:
                 yield reading
                 calc._blocking_event.set()
 

@@ -160,10 +160,7 @@ class GrowthRateCalculator(BackgroundJob):
             allow_retained=False,
         )
 
-    def stream_mqtt_growth_rate_events(
-        self,
-        skip_first_od_observations: int,
-    ) -> Iterator[structs.ODReadings | structs.DosingEvent]:
+    def stream_mqtt_growth_rate_events(self) -> Iterator[structs.ODReadings | structs.DosingEvent]:
         od_message_count = 0
 
         while not self._blocking_event.is_set():
@@ -181,7 +178,7 @@ class GrowthRateCalculator(BackgroundJob):
                     raise ValueError(f"Unexpected MQTT topic: {message.topic}")
 
                 od_message_count += 1
-                if od_message_count <= skip_first_od_observations:
+                if od_message_count <= INITIAL_OD_OBSERVATIONS_TO_SKIP:
                     continue
 
                 if self._use_fused_od:
@@ -449,9 +446,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
     def block_until_disconnected(self) -> None:
-        events = self.stream_mqtt_growth_rate_events(
-            skip_first_od_observations=INITIAL_OD_OBSERVATIONS_TO_SKIP
-        )
+        events = self.stream_mqtt_growth_rate_events()
 
         if self.samples_for_od_statistics * self.expected_dt * 60 * 60 >= 600:
             self.logger.warning(
