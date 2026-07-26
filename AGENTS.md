@@ -73,17 +73,6 @@ Ignore the system Python version for project work. Use `.venv/bin/python`; this 
 
 This repo's local development behavior depends heavily on environment variables. Many bugs that look like code regressions are actually the process reading from the wrong environment root or using the wrong interpreter.
 
-Common variables you should assume are meaningful:
-
-- `TESTING=1`
-- `GLOBAL_CONFIG`
-- `DOT_PIOREACTOR`
-- `RUN_PIOREACTOR`
-- `PLUGINS_DEV`
-- `PIO_EXECUTABLE`
-- `PIOS_EXECUTABLE`
-
-These are likely defined in the local `.envrc` file.
 
 Do not assume bare `python`, `pytest`, or `mypy` point at the correct interpreter. Prefer `.venv/bin/python`, `.venv/bin/pytest`, and `.venv/bin/mypy`.
 
@@ -120,22 +109,7 @@ Do not assume bare `python`, `pytest`, or `mypy` point at the correct interprete
 
 ## Tools & commands
 
-Available commands are listed in the `Makefile`. Key ones:
-
-```bash
-make dev-status    # Summarizes which dev servers are already running vs need to be started
-make huey-dev      # Run Huey consumer with dev flags
-make web-dev       # Run Flask API on 127.0.0.1:4999
-make frontend-dev  # Run React dev server on 127.0.0.1:3000
-```
-
-`make dev-status` either reports "All dev services appear to be running" with brief details, or prints a "Need to start" list with only the missing services. Start only those listed; everything else is already running.
-
----
-
-## Decision-making
-
-- If a non-trivial code change has 2–3 valid approaches, ask the user first before editing.
+Available commands are listed in the `Makefile`.
 
 ---
 
@@ -147,10 +121,7 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
   .venv/bin/pytest core/tests/test_cli.py
   ```
  - Don't run tests in parallel.
- - Do not disable or skip tests as a fix. If a test is genuinely invalid, flaky, or external-service-bound, ask the User before changing the test contract:
-    - it is incredibly flakey and unreliable.
-    - relies on an unresponsive external service.
- - Do not delete tests unless the User explicitly asks after reviewing the reason. Reasons to discuss include:
+ - Reasons to delete a test include:
     - its conclusion is orthogonal to the logic being written.
     - its preventing a better refactor or feature.
     - its an incredibly trivial feature that is unlikely to be used.
@@ -163,7 +134,6 @@ make frontend-dev  # Run React dev server on 127.0.0.1:3000
    - use Black for formatting
    - use flake8 for linting
    - do not use Ruff
- - You can skip Python formatting and linting during focused implementation work; pre-commit runs them automatically later.
 
 ---
 
@@ -191,8 +161,9 @@ When searching the repo, exclude these directories:
 * `core/tests/data/`
 * `core/update_scripts/`
 * `core/experiments/`
+* `core/pioreactor/web/static/`
 
-Also exclude  `CHANGELOG.md` files.
+Also exclude `CHANGELOG.md`.
 
 ---
 
@@ -274,11 +245,8 @@ When working on plugins:
 
 ## Database schema
 
-Get the latest database schema:
-
-```
-curl -fsSL https://raw.githubusercontent.com/Pioreactor/CustoPiZer/refs/heads/pioreactor/workspace/scripts/files/sql/create_tables.sql
-```
+`./packaging/shared-assets/sql/create_tables.sql` and
+`./packaging/shared-assets/sql/create_triggers.sql`
 
 ---
 
@@ -310,7 +278,7 @@ The Pioreactor software enables users to control and monitor small-scale bioreac
 
 ## Tickets
 
-Tickets from `tk` look like `pio-xxxx`. Use tickets (`tk`) to write notes to your future self.
+Tickets from `tk` look like `pio-xxxx`.
 
 Use tags sparingly. Prefer 2-4 broad tags per ticket: one area tag, one domain tag when relevant, and one concern tag only if it changes how the work should be found later. Do not tag ticket type, priority, status, or temporary review batches; `tk` already tracks those better.
 
@@ -333,25 +301,4 @@ Preferred broad tags:
 - `typing`
 - `reliability`
 
-Tagging tips:
-
-- Use `web-api` for Flask leader/unit API routes, response contracts, and fanout behavior; use `frontend` for React/UI behavior.
-- Use `backend` for core Python/runtime work that is not primarily CLI, web API, or packaging.
-- Use domain tags like `dosing`, `temperature`, `od`, `calibration`, `automations`, `experiment-profiles`, and `plugins` when the ticket is about that subsystem.
-- Use `reliability` for races, stale state, task-result handling, lifecycle leaks, startup/shutdown behavior, or user-visible failures caused by async/state issues.
-- Use `typing` for mypy/type-boundary work. Do not also add a routine `mypy` tag.
-- Avoid narrow one-off tags unless at least a few future tickets are likely to need the same search key.
-
 ---
-
-## Ignore generated frontend assets
-
-Do not read, search, edit, summarize, or otherwise inspect files under:
-
-`core/pioreactor/web/static/`
-
-Treat this directory as generated/static build output. When searching, use `rg` with an exclusion, for example:
-
-```bash
-rg "pattern" -g '!core/pioreactor/web/static/**'
-```
