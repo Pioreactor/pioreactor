@@ -3,6 +3,8 @@ import os
 import subprocess
 from contextlib import suppress
 from pathlib import Path
+from queue import Empty
+from queue import Queue
 from threading import Thread
 from time import sleep
 from typing import Callable
@@ -139,6 +141,7 @@ class Monitor(LongRunningBackgroundJob):
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         super().__init__(unit=unit, experiment=experiment)
+        self._dosing_event_messages: Queue[MQTTMessage] = Queue()
 
         def pretty_version(info: tuple | None) -> str:
             if info is None:
@@ -721,6 +724,15 @@ class Monitor(LongRunningBackgroundJob):
                 pub_client=self.pub_client,
             ).warning(str(e))
 
+    def block_until_disconnected(self) -> None:
+        while not self._blocking_event.is_set() or not self._dosing_event_messages.empty():
+            try:
+                message = self._dosing_event_messages.get(timeout=0.1)
+            except Empty:
+                continue
+
+            self.update_bioreactor_state_from_dosing_event(message)
+
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.flicker_led_response_okay_and_publish_state,
@@ -739,7 +751,7 @@ class Monitor(LongRunningBackgroundJob):
         )
 
         self.subscribe_and_callback(
-            self.update_bioreactor_state_from_dosing_event,
+            self._dosing_event_messages.put,
             f"pioreactor/{self.unit}/+/dosing_events",
             allow_retained=False,
             qos=QOS.AT_LEAST_ONCE,

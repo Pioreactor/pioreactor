@@ -56,13 +56,13 @@ def create_encoded_od_raw_batched(channels, voltages: list[float], angles, times
     return encode(create_od_raw_batched(channels, voltages, angles, timestamp))
 
 
-def process_until_disconnected_in_background(calc: GrowthRateCalculator) -> Thread:
-    def process_without_skipping_startup_observations() -> None:
+def block_until_disconnected_in_background(calc: GrowthRateCalculator) -> Thread:
+    def block_without_skipping_startup_observations() -> None:
         events = calc.stream_mqtt_growth_rate_events(skip_first_od_observations=0)
         with patch.object(calc, "stream_mqtt_growth_rate_events", return_value=events):
-            calc.process_until_disconnected()
+            calc.block_until_disconnected()
 
-    thread = Thread(target=process_without_skipping_startup_observations, daemon=True)
+    thread = Thread(target=block_without_skipping_startup_observations, daemon=True)
     thread.start()
     return thread
 
@@ -164,7 +164,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                 cache[experiment] = json.dumps({"1": 1.15, "2": 0.93})
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc1:
-                processing_thread = process_until_disconnected_in_background(calc1)
+                processing_thread = block_until_disconnected_in_background(calc1)
                 pause()
 
                 publish(
@@ -226,7 +226,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                 stop_background_processing(calc1, processing_thread)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
-                processing_thread = process_until_disconnected_in_background(calc2)
+                processing_thread = block_until_disconnected_in_background(calc2)
                 pause()
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -279,7 +279,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                 cache[experiment] = json.dumps({"1": 0.5})
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                processing_thread = process_until_disconnected_in_background(calc)
+                processing_thread = block_until_disconnected_in_background(calc)
 
                 first_od_payload = create_encoded_od_raw_batched(
                     ["1"],
@@ -416,7 +416,7 @@ import pioreactor.background_jobs.growth_rate_calculating
             thread = RepeatedTimer(0.025, Mock90ODReadings()).start()
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                processing_thread = process_until_disconnected_in_background(calc)
+                processing_thread = block_until_disconnected_in_background(calc)
 
                 time.sleep(35)
 
@@ -499,7 +499,7 @@ import pioreactor.background_jobs.growth_rate_calculating
         ) as calc:
             calc._blocking_event.set()
 
-            calc.process_until_disconnected()
+            calc.block_until_disconnected()
 
             assert calc.ekf is None
 
@@ -530,7 +530,7 @@ import pioreactor.background_jobs.growth_rate_calculating
             monkeypatch.setattr(calc, "stream_mqtt_growth_rate_events", stop_after_one_reading)
             monkeypatch.setattr(calc, "_initialize_extended_kalman_filter", initialize_filter)
 
-            calc.process_until_disconnected()
+            calc.block_until_disconnected()
 
             assert calc.ekf is None
             initialize_filter.assert_not_called()
@@ -558,7 +558,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                     return_value=iter([reading]),
                 ):
                     with pytest.raises(RuntimeError, match="stopped before job shutdown"):
-                        calc.process_until_disconnected()
+                        calc.block_until_disconnected()
 
     def test_zero_reference_and_zero_od_coming_in(self) -> None:
         unit = get_unit_name()
@@ -588,7 +588,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                         return_value=iter([reading]),
                     ):
                         with pytest.raises(ValueError, match="Non-positive OD normalization factor"):
-                            calc.process_until_disconnected()
+                            calc.block_until_disconnected()
 
                     assert wait_for(lambda: len(bucket) > 0, timeout=5.0)
 

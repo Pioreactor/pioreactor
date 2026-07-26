@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 # test_monitor
 import time
+from queue import Queue
+from threading import Event
 from types import SimpleNamespace
 from typing import Any
+from typing import Callable
 from typing import cast
 
 import pytest
@@ -395,3 +398,86 @@ def test_monitor_logs_bioreactor_projection_failures_under_message_experiment(mo
         "experiment": experiment,
         "task": "bioreactor",
     }
+
+
+def test_monitor_queues_dosing_events_instead_of_processing_them_in_the_mqtt_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monitor = object.__new__(Monitor)
+    monitor.unit = get_unit_name()
+    monitor._dosing_event_messages = Queue()
+    subscriptions: list[tuple[Callable[[MQTTMessage], None], str | list[str]]] = []
+
+    def capture_subscription(
+        callback: Callable[[MQTTMessage], None],
+        topics: str | list[str],
+        **kwargs: Any,
+    ) -> None:
+        subscriptions.append((callback, topics))
+
+    monkeypatch.setattr(monitor, "subscribe_and_callback", capture_subscription)
+
+    monitor.start_passive_listeners()
+
+    dosing_callback, dosing_topic = next(
+        (callback, topics)
+        for callback, topics in subscriptions
+        if isinstance(topics, str) and topics.endswith("/dosing_events")
+    )
+    message = cast(
+        MQTTMessage,
+        SimpleNamespace(
+            topic=f"pioreactor/{monitor.unit}/experiment/dosing_events",
+            payload=b"payload",
+        ),
+    )
+    dosing_callback(message)
+
+    assert dosing_topic == f"pioreactor/{monitor.unit}/+/dosing_events"
+    assert monitor._dosing_event_messages.get_nowait() is message
+
+
+def test_monitor_processes_queued_dosing_events_in_arrival_order_until_shutdown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monitor = object.__new__(Monitor)
+    monitor._blocking_event = Event()
+    monitor._dosing_event_messages = Queue()
+    messages = [
+        cast(MQTTMessage, SimpleNamespace(topic="first", payload=b"first")),
+        cast(MQTTMessage, SimpleNamespace(topic="second", payload=b"second")),
+    ]
+    processed_messages: list[MQTTMessage] = []
+
+    def process_message(message: MQTTMessage) -> None:
+        processed_messages.append(message)
+        if len(processed_messages) == len(messages):
+            monitor._blocking_event.set()
+
+    monkeypatch.setattr(monitor, "update_bioreactor_state_from_dosing_event", process_message)
+    for message in messages:
+        monitor._dosing_event_messages.put(message)
+
+    monitor.block_until_disconnected()
+
+    assert processed_messages == messages
+
+
+def test_monitor_drains_queued_dosing_events_during_shutdown(monkeypatch: pytest.MonkeyPatch) -> None:
+    monitor = object.__new__(Monitor)
+    monitor._blocking_event = Event()
+    monitor._dosing_event_messages = Queue()
+    message = cast(MQTTMessage, SimpleNamespace(topic="queued", payload=b"queued"))
+    processed_messages: list[MQTTMessage] = []
+
+    monkeypatch.setattr(
+        monitor,
+        "update_bioreactor_state_from_dosing_event",
+        processed_messages.append,
+    )
+    monitor._dosing_event_messages.put(message)
+    monitor._blocking_event.set()
+
+    monitor.block_until_disconnected()
+
+    assert processed_messages == [message]

@@ -448,7 +448,7 @@ class GrowthRateCalculator(BackgroundJob):
             ),
         )
 
-    def process_until_disconnected(self) -> None:
+    def block_until_disconnected(self) -> None:
         events = self.stream_mqtt_growth_rate_events(
             skip_first_od_observations=INITIAL_OD_OBSERVATIONS_TO_SKIP
         )
@@ -526,7 +526,7 @@ def click_growth_rate_calculating(ctx: click.Context) -> None:
             unit=unit,
             experiment=experiment,
         ) as job:
-            job.process_until_disconnected()
+            job.block_until_disconnected()
 
 
 @click_growth_rate_calculating.command(name="clear_cache")

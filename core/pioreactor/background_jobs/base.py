@@ -553,7 +553,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def block_until_disconnected(self) -> None:
         """
-        This will block the main thread until disconnected() is called.
+        Own the foreground thread until disconnected() is called.
+
+        The default implementation waits passively. Jobs with foreground work can
+        override this method with a processing loop that observes `_blocking_event`.
 
         This will unblock if:
 
