@@ -356,10 +356,11 @@ def _process_delayed_json_response(
     *,
     max_attempts: int,
     timeout: float,
-    retry_sleep_s: float = 0.1,
+    retry_sleep_s: float = 0.25,
 ) -> tuple[str, Any]:
     """
     Handle delayed HTTP responses (202 with result_url_path) and immediate 2xx responses.
+    Poll once immediately, then wait between subsequent pending polls.
     Returns the unit and the appropriate JSON data or result value.
     """
     data = response.json()
@@ -377,7 +378,6 @@ def _process_delayed_json_response(
 
         endpoint = data["result_url_path"]
         remaining_attempts -= 1
-        sleep(retry_sleep_s)
 
         delayed_response: Response | None = None
         try:
@@ -409,10 +409,13 @@ def _process_delayed_json_response(
                 status_code=delayed_response.status_code if delayed_response is not None else None,
             )
 
+        if response.status_code == 202 and "result_url_path" in data:
+            sleep(retry_sleep_s)
+
     return _process_json_response(unit, response, data)
 
 
-def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.1) -> int:
+def _delayed_result_max_attempts(timeout: float, retry_sleep_s: float = 0.25) -> int:
     return max(1, math.ceil(timeout / retry_sleep_s))
 
 
@@ -1657,20 +1660,31 @@ def _reduce_multicast_results(
     return results_by_unit
 
 
-@huey.task(priority=5)
+@huey.task(priority=10)
 def reduce_multicast_results(
     units: list[str],
     sort_results: bool,
     ordered_results: list[Any],
+    *,
+    child_task_ids: list[str],
 ) -> dict[str, Any]:
-    return _reduce_multicast_results(units, sort_results, ordered_results)
+    reduced_results = _reduce_multicast_results(units, sort_results, ordered_results)
+
+    for task_id in child_task_ids:
+        huey.storage.delete_data(task_id)
+
+    return reduced_results
 
 
 def _enqueue_multicast_chord(task_signatures: list[Any], units: list[str], sort_results: bool) -> Any:
     return huey.enqueue(
         huey_chord(
             task_signatures,
-            reduce_multicast_results.s(units, sort_results),
+            reduce_multicast_results.s(
+                units,
+                sort_results,
+                child_task_ids=[task_signature.id for task_signature in task_signatures],
+            ),
         )
     )
 
@@ -1732,7 +1746,7 @@ def multicast_post(
         params = [params] * len(units)
 
     if not units:
-        return reduce_multicast_results(units, False, [])
+        return reduce_multicast_results(units, False, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
         [post_into_unit.s(units[i], endpoint, json[i], params[i], timeout) for i in range(len(units))],
@@ -1858,7 +1872,7 @@ def multicast_get(
         json = [json] * len(units)
 
     if not units:
-        return reduce_multicast_results(units, True, [])
+        return reduce_multicast_results(units, True, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
         [get_from_unit.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
@@ -1941,7 +1955,7 @@ def multicast_patch(
     assert endpoint.startswith("/unit_api")
 
     if not units:
-        return reduce_multicast_results(units, False, [])
+        return reduce_multicast_results(units, False, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
         [patch_into_unit.s(unit, endpoint, json, timeout) for unit in units],
@@ -1990,7 +2004,7 @@ def multicast_delete(
     assert endpoint.startswith("/unit_api")
 
     if not units:
-        return reduce_multicast_results(units, False, [])
+        return reduce_multicast_results(units, False, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
         [delete_from_unit.s(unit, endpoint, json) for unit in units],

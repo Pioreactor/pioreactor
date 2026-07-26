@@ -10,8 +10,6 @@ from msgspec.json import encode as json_encode
 from pioreactor import types as pt
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.web import tasks
-from pioreactor.web.app import get_all_units
-from pioreactor.web.app import get_all_workers
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -137,25 +135,35 @@ def invalidate_multicast_get_cache(targets: list[MulticastGetCacheTarget], units
 
 
 def invalidate_calibrations_cache(pioreactor_unit: str) -> None:
+    from pioreactor.web.app import get_all_workers
+
     units = get_all_workers() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
     invalidate_multicast_get_cache([CALIBRATIONS, ACTIVE_CALIBRATIONS], units)
 
 
 def invalidate_calibration_protocols_cache(pioreactor_unit: str) -> None:
+    from pioreactor.web.app import get_all_workers
+
     units = get_all_workers() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
     invalidate_multicast_get_cache([CALIBRATION_PROTOCOLS], units)
 
 
 def invalidate_estimators_cache(pioreactor_unit: str) -> None:
+    from pioreactor.web.app import get_all_workers
+
     units = get_all_workers() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
     invalidate_multicast_get_cache([ACTIVE_ESTIMATORS, ESTIMATORS], units)
 
 
 def invalidate_plugins_installed_cache(pioreactor_unit: str) -> None:
+    from pioreactor.web.app import get_all_units
+
     units = get_all_units() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
     invalidate_multicast_get_cache([PLUGINS_INSTALLED], units)
 
 
 def invalidate_merged_config_cache(pioreactor_unit: str) -> None:
+    from pioreactor.web.app import get_all_units
+
     units = get_all_units() if pioreactor_unit == UNIVERSAL_IDENTIFIER else [pioreactor_unit]
     invalidate_multicast_get_cache([MERGED_CONFIG], units)
