@@ -37,19 +37,21 @@ the reference OD by supplying a value to this cache first. See example https://g
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterator
 from datetime import datetime
 from math import exp
 from math import log
+from queue import Empty
+from queue import Queue
 from statistics import mean
 from statistics import median
-from threading import Event
-from threading import Thread
 from typing import Any
 from typing import cast
-from typing import Generator
-from typing import Iterator
+from typing import TYPE_CHECKING
 
 import click
+from msgspec import DecodeError
+from msgspec.json import decode
 from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
@@ -57,17 +59,14 @@ from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.utils import local_persistent_storage
-from pioreactor.utils.streaming import DosingObservationSource
-from pioreactor.utils.streaming import merge_live_streams
-from pioreactor.utils.streaming import MqttDosingSource
-from pioreactor.utils.streaming import MqttODFusedSource
-from pioreactor.utils.streaming import MqttODSource
-from pioreactor.utils.streaming import ODObservationSource
 
-try:
-    from grpredict import CultureGrowthEKF as CultureGrowthEKF
-except ImportError:
-    pass
+if TYPE_CHECKING:
+    from grpredict import CultureGrowthEKF
+
+FUSED_PD_CHANNEL: pt.PdChannel = "1"
+FUSED_PD_ANGLE: pt.PdAngle = "90"
+INITIAL_OD_OBSERVATIONS_TO_SKIP = 5
+POST_DOSE_OBSERVATIONS = 2
 
 
 def _should_use_fused_od(unit: pt.Unit) -> bool:
@@ -105,28 +104,110 @@ class GrowthRateCalculator(BackgroundJob):
         unit: pt.Unit,
         experiment: pt.Experiment,
     ):
-        super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
+        samples_per_second = config.getfloat("od_reading.config", "samples_per_second")
+        if samples_per_second <= 0:
+            raise ValueError(
+                f"Invalid [od_reading.config] samples_per_second={samples_per_second}. Expected a value > 0."
+            )
+
+        samples_for_od_statistics = config.getint(
+            "growth_rate_calculating.config",
+            "samples_for_od_statistics",
+        )
+        if samples_for_od_statistics < 1:
+            raise ValueError(
+                "Invalid [growth_rate_calculating.config] "
+                f"samples_for_od_statistics={samples_for_od_statistics}. Expected a value >= 1."
+            )
+
+        ekf_outlier_std_threshold = config.getfloat(
+            "growth_rate_calculating.config",
+            "ekf_outlier_std_threshold",
+        )
+        if ekf_outlier_std_threshold <= 2.0:
+            raise ValueError(
+                "Invalid [growth_rate_calculating.config] "
+                f"ekf_outlier_std_threshold={ekf_outlier_std_threshold}. Expected a value > 2."
+            )
+
+        super().__init__(unit=unit, experiment=experiment)
 
         self.time_of_previous_observation: datetime | None = None
-        self.expected_dt = 1 / (
-            60 * 60 * config.getfloat("od_reading.config", "samples_per_second")
-        )  # in hours
-
-        # ekf parameters for when a dosing event occurs
-        self._obs_since_last_dose: int | None = None
-        self._obs_required_to_reset: int | None = None
-        self._recent_dilution = False
+        self.expected_dt = 1 / (60 * 60 * samples_per_second)  # in hours
+        self.samples_for_od_statistics = samples_for_od_statistics
+        self.ekf_outlier_std_threshold = ekf_outlier_std_threshold
+        self._post_dose_observations_remaining = 0
 
         # runtime state initialized during processing
-        self.ekf = cast(CultureGrowthEKF, None)
+        self.ekf: CultureGrowthEKF | None = None
         self.od_normalization_factors: dict[pt.PdChannel, float] = {}
-        self.growth_rate = cast(structs.GrowthRate, None)
-        self.od_filtered = cast(structs.ODFiltered, None)
-        self._initialization_complete = Event()
+        self.growth_rate: structs.GrowthRate | None = None
+        self.od_filtered: structs.ODFiltered | None = None
+
+        self._use_fused_od = _should_use_fused_od(unit)
+        self._od_topic = (
+            f"pioreactor/{unit}/{experiment}/od_reading/od_fused"
+            if self._use_fused_od
+            else f"pioreactor/{unit}/{experiment}/od_reading/ods"
+        )
+        self._dosing_topic = f"pioreactor/{unit}/{experiment}/dosing_events"
+        self._growth_rate_event_messages: Queue[pt.MQTTMessage] = Queue()
+
+    def start_passive_listeners(self) -> None:
+        self.subscribe_and_callback(
+            self._growth_rate_event_messages.put,
+            [self._od_topic, self._dosing_topic],
+            allow_retained=False,
+        )
+
+    def stream_mqtt_growth_rate_events(
+        self,
+        skip_first_od_observations: int,
+    ) -> Iterator[structs.ODReadings | structs.DosingEvent]:
+        od_message_count = 0
+
+        while not self._blocking_event.is_set():
+            try:
+                message = self._growth_rate_event_messages.get(timeout=0.1)
+            except Empty:
+                continue
+
+            try:
+                if message.topic == self._dosing_topic:
+                    yield decode(message.payload, type=structs.DosingEvent)
+                    continue
+
+                if message.topic != self._od_topic:
+                    raise ValueError(f"Unexpected MQTT topic: {message.topic}")
+
+                od_message_count += 1
+                if od_message_count <= skip_first_od_observations:
+                    continue
+
+                if self._use_fused_od:
+                    fused = decode(message.payload, type=structs.ODFused)
+                    yield structs.ODReadings(
+                        timestamp=fused.timestamp,
+                        ods={
+                            FUSED_PD_CHANNEL: structs.RawODReading(
+                                timestamp=fused.timestamp,
+                                angle=FUSED_PD_ANGLE,
+                                od=fused.od_fused,
+                                channel=FUSED_PD_CHANNEL,
+                                ir_led_intensity=0.0,
+                            )
+                        },
+                    )
+                else:
+                    yield decode(message.payload, type=structs.ODReadings)
+            except DecodeError as error:
+                self.logger.warning(f"Failed to decode message: {error}")
+                continue
 
     def _initialize_extended_kalman_filter(
         self, warmup_observations: list[dict[pt.PdChannel, float]]
     ) -> CultureGrowthEKF:
+        from grpredict import CultureGrowthEKF
         import numpy as np
 
         self.logger.info("Initializing growth-rate filter from warmup observations.")
@@ -134,17 +215,7 @@ class GrowthRateCalculator(BackgroundJob):
             warmup_observations
         )
         self.logger.debug(f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}")
-        ekf_outlier_std_threshold = config.getfloat(
-            "growth_rate_calculating.config",
-            "ekf_outlier_std_threshold",
-            fallback=3.0,
-        )
-        if ekf_outlier_std_threshold <= 2.0:
-            raise ValueError(
-                "outlier_std_threshold should not be less than 2.0 - that's eliminating too many data points."
-            )
-
-        self.logger.debug(f"{ekf_outlier_std_threshold=}")
+        self.logger.debug(f"{self.ekf_outlier_std_threshold=}")
 
         initial_nOD, initial_growth_rate = self._get_initial_values_from_warmup_observations(
             warmup_observations
@@ -163,7 +234,7 @@ class GrowthRateCalculator(BackgroundJob):
             initial_covariance,
             process_noise_covariance,
             observation_noise_covariance,
-            ekf_outlier_std_threshold,
+            self.ekf_outlier_std_threshold,
         )
 
     def _create_initial_covariance(
@@ -230,15 +301,6 @@ class GrowthRateCalculator(BackgroundJob):
             log_residual_variances.append(log_residual_std * log_residual_std)
 
         return np.diag(log_residual_variances)
-
-    def _warn_if_warmup_may_take_too_long(self) -> None:
-        if (
-            config.getint("growth_rate_calculating.config", "samples_for_od_statistics", fallback=35)
-            / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
-        ) >= 600:
-            self.logger.warning(
-                "Due to the low `samples_per_second`, and high `samples_for_od_statistics` needed to establish a baseline, initial growth rate and nOD may take over 10 minutes to show up."
-            )
 
     def _compute_od_statistics_from_warmup_events(
         self, warmup_events: list[structs.ODReadings]
@@ -357,157 +419,97 @@ class GrowthRateCalculator(BackgroundJob):
         self.time_of_previous_observation = timestamp
         return dt
 
-    def start_post_dose_reset_window(self, observations: int = 2) -> None:
-        self._obs_since_last_dose = 0
-        self._obs_required_to_reset = observations
-        self._recent_dilution = True
-
-    def clear_post_dose_reset_window(self) -> None:
-        self._obs_since_last_dose = None
-        self._obs_required_to_reset = None
-        self._recent_dilution = False
-
-    def advance_post_dose_reset_window(self) -> None:
-        if self._obs_since_last_dose is None or self._obs_required_to_reset is None:
-            return
-
-        self._obs_since_last_dose += 1
-        if self._obs_since_last_dose >= self._obs_required_to_reset:
-            self.clear_post_dose_reset_window()
-
     def _update_state_from_observation(
         self, od_readings: structs.ODReadings
-    ) -> tuple[structs.ODReadings, tuple[structs.GrowthRate, structs.ODFiltered]]:
+    ) -> tuple[structs.GrowthRate, structs.ODFiltered]:
         timestamp = od_readings.timestamp
-
         scaled_observations = self.scale_raw_observations(od_readings)
         dt = self.compute_dt_hours(timestamp)
+        is_recent_dilution = self._post_dose_observations_remaining > 0
 
-        updated_state_, _ = self.ekf.update(list(scaled_observations.values()), dt, self._recent_dilution)
+        assert self.ekf is not None
+        updated_state_, _ = self.ekf.update(
+            list(scaled_observations.values()),
+            dt,
+            is_recent_dilution,
+        )
         updated_state = cast(Any, updated_state_)
-        latest_od_filtered = exp(float(updated_state[0]))
-        latest_growth_rate = float(updated_state[1])
+        if is_recent_dilution:
+            self._post_dose_observations_remaining -= 1
 
-        self.advance_post_dose_reset_window()
-
-        growth_rate = structs.GrowthRate(
-            growth_rate=latest_growth_rate,
-            timestamp=timestamp,
+        return (
+            structs.GrowthRate(
+                growth_rate=float(updated_state[1]),
+                timestamp=timestamp,
+            ),
+            structs.ODFiltered(
+                od_filtered=exp(float(updated_state[0])),
+                timestamp=timestamp,
+            ),
         )
-        od_filtered = structs.ODFiltered(
-            od_filtered=latest_od_filtered,
-            timestamp=timestamp,
+
+    def process_until_disconnected(self) -> None:
+        events = self.stream_mqtt_growth_rate_events(
+            skip_first_od_observations=INITIAL_OD_OBSERVATIONS_TO_SKIP
         )
 
-        return od_readings, (growth_rate, od_filtered)
+        if self.samples_for_od_statistics * self.expected_dt * 60 * 60 >= 600:
+            self.logger.warning(
+                "Due to the low `samples_per_second`, and high `samples_for_od_statistics` needed to establish a baseline, initial growth rate and nOD may take over 10 minutes to show up."
+            )
 
-    def _respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
-        self.start_post_dose_reset_window()
-
-    def process_until_disconnected_or_exhausted_in_background(
-        self,
-        od_stream: ODObservationSource,
-        dosing_stream: DosingObservationSource,
-        wait_for_initialization: bool = False,
-        timeout: float | None = 5.0,
-    ) -> None:
-        """
-        This is function that will wrap process_until_disconnected_or_exhausted in a thread so the main thread can still do work (like publishing) - useful in tests.
-        """
-
-        def consume(od_stream: ODObservationSource, dosing_stream: DosingObservationSource) -> None:
-            for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
-                pass
-
-        Thread(target=consume, args=(od_stream, dosing_stream), daemon=True).start()
-
-        if wait_for_initialization:
-            initialized = self._initialization_complete.wait(timeout)
-            if not initialized:
-                self.logger.debug("Timed out waiting for growth-rate initialization.")
-
-    def process_until_disconnected_or_exhausted(
-        self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
-    ) -> Generator[tuple[structs.GrowthRate, structs.ODFiltered], None, None]:
-        assert od_stream.is_live and dosing_stream.is_live
-        od_events_iter = self._initialize_state_and_get_od_iterator(od_stream, dosing_stream)
-
-        merged_streams = merge_live_streams(od_events_iter, dosing_stream, stop_event=self._blocking_event)
-
-        for event in merged_streams:
-            if isinstance(event, structs.ODReadings):
-                try:
-                    _, (
-                        self.growth_rate,
-                        self.od_filtered,
-                    ) = self._update_state_from_observation(event)
-                except ValueError as e:
-                    self.logger.error(f"Error processing OD readings: {e}", exc_info=True)
-                    continue
-
-                yield self.growth_rate, self.od_filtered
-
-            elif isinstance(event, structs.DosingEvent):
-                self._respond_to_dosing_event(event)
-            else:
-                raise ValueError(f"Unexpected event type: {type(event)}. Expected ODReadings or DosingEvent.")
-
-    def _initialize_state_and_get_od_iterator(
-        self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
-    ) -> Iterator[structs.ODReadings]:
-        self._initialization_complete.clear()
-
-        if od_stream.is_live and dosing_stream.is_live:
-            od_stream.set_stop_event(self._blocking_event)
-            dosing_stream.set_stop_event(self._blocking_event)
-
-        self._warn_if_warmup_may_take_too_long()
-        od_events_iter = iter(od_stream)
         self.logger.info("Collecting warmup OD observations for growth-rate initialization.")
-        warmup_events, od_events_iter = self.collect_warmup_events(
-            od_events_iter,
-            config.getint("growth_rate_calculating.config", "samples_for_od_statistics", fallback=35),
-        )
+        warmup_events = self.collect_warmup_events(events)
+        if self._blocking_event.is_set():
+            return
+
         self.logger.debug(f"Collected {len(warmup_events)} warmup OD observations.")
         self.od_normalization_factors = self._get_precomputed_normalization_factors(warmup_events)
-
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
 
         try:
-            warmup_observations = self.scale_warmup_events(warmup_events)
+            self.logger.debug("Replaying warmup OD observations into the live stream.")
+            warmup_observations = [self.scale_raw_observations(event) for event in warmup_events]
+            self.logger.debug(f"Warmup OD observations: {warmup_observations}")
         except ValueError as error:
             self.logger.error(f"Error processing warmup OD readings: {error}", exc_info=True)
             raise
         self.ekf = self._initialize_extended_kalman_filter(warmup_observations)
-        self._initialization_complete.set()
-        return od_events_iter
+
+        for event in events:
+            if isinstance(event, structs.DosingEvent):
+                self._post_dose_observations_remaining = POST_DOSE_OBSERVATIONS
+                continue
+
+            try:
+                self.growth_rate, self.od_filtered = self._update_state_from_observation(event)
+            except ValueError as error:
+                self.logger.error(f"Error processing OD readings: {error}", exc_info=True)
+
+        if not self._blocking_event.is_set():
+            raise RuntimeError("Growth-rate event stream stopped before job shutdown.")
 
     def collect_warmup_events(
         self,
-        od_iter: Iterator[structs.ODReadings],
-        n_warmup_observations: int,
-    ) -> tuple[list[structs.ODReadings], Iterator[structs.ODReadings]]:
+        events_iter: Iterator[structs.ODReadings | structs.DosingEvent],
+    ) -> list[structs.ODReadings]:
         warmup_events: list[structs.ODReadings] = []
 
-        for _ in range(max(n_warmup_observations, 1)):
+        while len(warmup_events) < self.samples_for_od_statistics:
             try:
-                warmup_events.append(next(od_iter))
+                event = next(events_iter)
             except StopIteration:
-                break
+                if self._blocking_event.is_set():
+                    return warmup_events
+                raise RuntimeError("Growth-rate event stream stopped before job shutdown.")
 
-        if not warmup_events:
-            raise IndexError("Expected at least one OD observation to initialize growth-rate filter.")
+            if isinstance(event, structs.DosingEvent):
+                self.logger.info("Dosing event observed during warmup. Restarting OD observation collection.")
+                warmup_events.clear()
+            else:
+                warmup_events.append(event)
 
-        return warmup_events, od_iter
-
-    def scale_warmup_events(
-        self,
-        warmup_events: list[structs.ODReadings],
-    ) -> list[dict[pt.PdChannel, float]]:
-        self.logger.debug("Replaying warmup OD observations into the live stream.")
-        warmup_observations = [self.scale_raw_observations(event) for event in warmup_events]
-        self.logger.debug(f"Warmup OD observations: {warmup_observations}")
-        return warmup_observations
+        return warmup_events
 
 
 @click.group(invoke_without_command=True, name="growth_rate_calculating")
@@ -520,22 +522,11 @@ def click_growth_rate_calculating(ctx: click.Context) -> None:
         unit = whoami.get_unit_name()
         experiment = whoami.get_assigned_experiment_name(unit)
 
-        use_fused_od = _should_use_fused_od(unit)
-        od_stream: MqttODSource | MqttODFusedSource
-        if use_fused_od:
-            od_stream = MqttODFusedSource(unit=unit, experiment=experiment, skip_first=5)
-        else:
-            od_stream = MqttODSource(unit=unit, experiment=experiment, skip_first=5)
-        dosing_stream = MqttDosingSource(unit=unit, experiment=experiment)
-
         with GrowthRateCalculator(
             unit=unit,
             experiment=experiment,
         ) as job:
-            for _ in job.process_until_disconnected_or_exhausted(
-                od_stream=od_stream, dosing_stream=dosing_stream
-            ):
-                continue
+            job.process_until_disconnected()
 
 
 @click_growth_rate_calculating.command(name="clear_cache")

@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 import json
+import subprocess
+import sys
 import time
-from threading import Event
-from typing import Iterator
+from collections.abc import Iterator
+from threading import Thread
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from msgspec.json import encode
@@ -14,8 +18,6 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
-from pioreactor.utils.streaming import MqttDosingSource
-from pioreactor.utils.streaming import MqttODSource
 from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_unit_name
 
@@ -54,28 +56,21 @@ def create_encoded_od_raw_batched(channels, voltages: list[float], angles, times
     return encode(create_od_raw_batched(channels, voltages, angles, timestamp))
 
 
-def create_od_stream_from_mqtt(unit, experiment):
-    """
-    Create a stream of OD readings from the MQTT topic for a given experiment.
-    """
-    return MqttODSource(unit, experiment, skip_first=0)
+def process_until_disconnected_in_background(calc: GrowthRateCalculator) -> Thread:
+    def process_without_skipping_startup_observations() -> None:
+        events = calc.stream_mqtt_growth_rate_events(skip_first_od_observations=0)
+        with patch.object(calc, "stream_mqtt_growth_rate_events", return_value=events):
+            calc.process_until_disconnected()
+
+    thread = Thread(target=process_without_skipping_startup_observations, daemon=True)
+    thread.start()
+    return thread
 
 
-def create_dosing_stream_from_mqtt(unit, experiment):
-    """
-    Create a stream of OD readings from the MQTT topic for a given experiment.
-    """
-    return MqttDosingSource(unit, experiment)
-
-
-class EmptyLiveDosingSource:
-    is_live = True
-
-    def __iter__(self) -> Iterator[structs.DosingEvent]:
-        return iter(())
-
-    def set_stop_event(self, ev: Event) -> None:
-        return None
+def stop_background_processing(calc: GrowthRateCalculator, thread: Thread) -> None:
+    calc._blocking_event.set()
+    thread.join(timeout=2.0)
+    assert not thread.is_alive()
 
 
 class TestGrowthRateCalculating:
@@ -88,6 +83,69 @@ class TestGrowthRateCalculating:
     def setup_method(self) -> None:
         with JobManager() as job_manager:
             job_manager.clear()
+
+    def test_module_import_does_not_require_grpredict(self) -> None:
+        subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                """
+import builtins
+
+real_import = builtins.__import__
+
+
+def import_without_grpredict(name, *args, **kwargs):
+    if name == "grpredict" or name.startswith("grpredict."):
+        raise ModuleNotFoundError("grpredict is unavailable on leader-only installs")
+    return real_import(name, *args, **kwargs)
+
+
+builtins.__import__ = import_without_grpredict
+import pioreactor.background_jobs.growth_rate_calculating
+""",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    @pytest.mark.parametrize(
+        ("section", "option", "value", "error"),
+        [
+            (
+                "od_reading.config",
+                "samples_per_second",
+                "0",
+                r"samples_per_second=0\.0",
+            ),
+            (
+                "growth_rate_calculating.config",
+                "samples_for_od_statistics",
+                "0",
+                "samples_for_od_statistics=0",
+            ),
+            (
+                "growth_rate_calculating.config",
+                "ekf_outlier_std_threshold",
+                "2",
+                r"ekf_outlier_std_threshold=2\.0",
+            ),
+        ],
+    )
+    def test_invalid_required_configuration_fails_before_startup(
+        self,
+        section: str,
+        option: str,
+        value: str,
+        error: str,
+    ) -> None:
+        with temporary_config_changes(config, [(section, option, value)]):
+            with pytest.raises(ValueError, match=error):
+                GrowthRateCalculator(
+                    unit=get_unit_name(),
+                    experiment="test_invalid_required_configuration_fails_before_startup",
+                )
 
     @pytest.mark.flakey
     def test_restart(self) -> None:
@@ -106,10 +164,7 @@ class TestGrowthRateCalculating:
                 cache[experiment] = json.dumps({"1": 1.15, "2": 0.93})
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc1:
-                od_stream, dosing_stream = create_od_stream_from_mqtt(
-                    unit, experiment
-                ), create_dosing_stream_from_mqtt(unit, experiment)
-                calc1.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                processing_thread = process_until_disconnected_in_background(calc1)
                 pause()
 
                 publish(
@@ -168,13 +223,10 @@ class TestGrowthRateCalculating:
                     ),
                 )
                 assert wait_for(lambda: calc1.growth_rate is not None, timeout=10.0)
+                stop_background_processing(calc1, processing_thread)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
-                od_stream, dosing_stream = create_od_stream_from_mqtt(
-                    unit, experiment
-                ), create_dosing_stream_from_mqtt(unit, experiment)
-
-                calc2.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                processing_thread = process_until_disconnected_in_background(calc2)
                 pause()
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -196,6 +248,7 @@ class TestGrowthRateCalculating:
                     ),
                 )
                 assert wait_for(lambda: calc2.growth_rate is not None, timeout=3.0)
+                stop_background_processing(calc2, processing_thread)
 
     def test_scaling_works(self) -> None:
         experiment = "test_scaling_works"
@@ -225,12 +278,8 @@ class TestGrowthRateCalculating:
             with local_persistent_storage("od_normalization_mean") as cache:
                 cache[experiment] = json.dumps({"1": 0.5})
 
-            od_stream, dosing_stream = create_od_stream_from_mqtt(
-                unit, experiment
-            ), create_dosing_stream_from_mqtt(unit, experiment)
-
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                processing_thread = process_until_disconnected_in_background(calc)
 
                 first_od_payload = create_encoded_od_raw_batched(
                     ["1"],
@@ -295,10 +344,10 @@ class TestGrowthRateCalculating:
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         dosing_event_payload,
                     )
-                    if wait_for(lambda: calc._recent_dilution, timeout=2.0):
+                    if wait_for(lambda: calc._post_dose_observations_remaining > 0, timeout=2.0):
                         break
 
-                assert calc._recent_dilution
+                assert calc._post_dose_observations_remaining > 0
 
                 for i in range(10):
                     post_dose_od_payload = create_encoded_od_raw_batched(
@@ -311,10 +360,11 @@ class TestGrowthRateCalculating:
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
                         post_dose_od_payload,
                     )
-                    if wait_for(lambda: not calc._recent_dilution, timeout=5.0):
+                    if wait_for(lambda: calc._post_dose_observations_remaining == 0, timeout=5.0):
                         break
 
-                assert not calc._recent_dilution
+                assert calc._post_dose_observations_remaining == 0
+                stop_background_processing(calc, processing_thread)
 
     @pytest.mark.slow
     def test_90_angle(self) -> None:
@@ -364,16 +414,14 @@ class TestGrowthRateCalculating:
                     )
 
             thread = RepeatedTimer(0.025, Mock90ODReadings()).start()
-            od_stream, dosing_stream = create_od_stream_from_mqtt(
-                unit, experiment
-            ), create_dosing_stream_from_mqtt(unit, experiment)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+                processing_thread = process_until_disconnected_in_background(calc)
 
                 time.sleep(35)
 
                 assert calc.ekf.state_[1] > 0
+                stop_background_processing(calc, processing_thread)
 
             thread.cancel()
 
@@ -393,6 +441,125 @@ class TestGrowthRateCalculating:
                 "2": 2.0,
             }
 
+    def test_post_dose_reset_window_is_exactly_two_successful_observations(self) -> None:
+        reading = create_od_raw_batched(
+            ["1"],
+            [1.0],
+            ["90"],
+            timestamp="2010-01-01T12:03:00.000Z",
+        )
+
+        with GrowthRateCalculator(
+            unit=get_unit_name(),
+            experiment="test_post_dose_reset_window_is_exactly_two_successful_observations",
+        ) as calc:
+            calc.od_normalization_factors = {"1": 1.0}
+            calc.ekf = MagicMock()
+            calc.ekf.update.return_value = ([0.0, 0.0, 0.0], None)
+            calc._post_dose_observations_remaining = 2
+
+            calc._update_state_from_observation(reading)
+            calc._update_state_from_observation(reading)
+            calc._update_state_from_observation(reading)
+
+            assert [args.args[2] for args in calc.ekf.update.call_args_list] == [
+                True,
+                True,
+                False,
+            ]
+            assert calc._post_dose_observations_remaining == 0
+
+    def test_dosing_during_warmup_restarts_observation_collection(self) -> None:
+        unit = get_unit_name()
+        experiment = "test_dosing_during_warmup_restarts_observation_collection"
+        before_dose = create_od_raw_batched(["1"], [0.5], ["90"], timestamp="2010-01-01T12:00:00.000Z")
+        dosing_event = structs.DosingEvent(
+            volume_change=1.0,
+            event="add_media",
+            source_of_event="test",
+            timestamp=to_datetime("2010-01-01T12:00:01.000Z"),
+        )
+        after_dose = [
+            create_od_raw_batched(["1"], [0.4], ["90"], timestamp="2010-01-01T12:00:02.000Z"),
+            create_od_raw_batched(["1"], [0.41], ["90"], timestamp="2010-01-01T12:00:03.000Z"),
+        ]
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            calc.samples_for_od_statistics = 2
+            events = iter([before_dose, dosing_event, *after_dose])
+            warmup_events = calc.collect_warmup_events(events)
+
+        assert warmup_events == after_dose
+        assert list(events) == []
+
+    def test_shutdown_during_warmup_without_observations_is_clean(self) -> None:
+        with GrowthRateCalculator(
+            unit=get_unit_name(),
+            experiment="test_shutdown_during_warmup_without_observations_is_clean",
+        ) as calc:
+            calc._blocking_event.set()
+
+            calc.process_until_disconnected()
+
+            assert calc.ekf is None
+
+    def test_shutdown_during_warmup_does_not_initialize_from_partial_observations(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        reading = create_od_raw_batched(
+            ["1"],
+            [0.5],
+            ["90"],
+            timestamp="2010-01-01T12:00:00.000Z",
+        )
+
+        with GrowthRateCalculator(
+            unit=get_unit_name(),
+            experiment="test_shutdown_during_warmup_does_not_initialize_from_partial_observations",
+        ) as calc:
+
+            def stop_after_one_reading(
+                skip_first_od_observations: int,
+            ) -> Iterator[structs.ODReadings | structs.DosingEvent]:
+                yield reading
+                calc._blocking_event.set()
+
+            initialize_filter = MagicMock(
+                side_effect=AssertionError("The filter must not initialize after shutdown.")
+            )
+            monkeypatch.setattr(calc, "stream_mqtt_growth_rate_events", stop_after_one_reading)
+            monkeypatch.setattr(calc, "_initialize_extended_kalman_filter", initialize_filter)
+
+            calc.process_until_disconnected()
+
+            assert calc.ekf is None
+            initialize_filter.assert_not_called()
+
+    def test_event_stream_exhaustion_is_not_a_supported_lifecycle(self) -> None:
+        experiment = "test_event_stream_exhaustion_is_not_a_supported_lifecycle"
+        reading = create_od_raw_batched(
+            ["1"],
+            [0.5],
+            ["90"],
+            timestamp="2010-01-01T12:00:00.000Z",
+        )
+
+        with temporary_config_changes(
+            config,
+            [("growth_rate_calculating.config", "samples_for_od_statistics", "1")],
+        ):
+            with local_persistent_storage("od_normalization_mean") as cache:
+                cache[experiment] = json.dumps({"1": 0.5})
+
+            with GrowthRateCalculator(unit=get_unit_name(), experiment=experiment) as calc:
+                with patch.object(
+                    calc,
+                    "stream_mqtt_growth_rate_events",
+                    return_value=iter([reading]),
+                ):
+                    with pytest.raises(RuntimeError, match="stopped before job shutdown"):
+                        calc.process_until_disconnected()
+
     def test_zero_reference_and_zero_od_coming_in(self) -> None:
         unit = get_unit_name()
         experiment = "test_zero_reference_and_zero_od_coming_in"
@@ -407,23 +574,22 @@ class TestGrowthRateCalculating:
             with local_persistent_storage("od_normalization_mean") as cache:
                 cache[experiment] = json.dumps({"1": 0})
 
-            od_stream = create_od_stream_from_mqtt(unit, experiment)
+            reading = create_od_raw_batched(
+                ["1"],
+                [0.0],
+                ["90"],
+                timestamp="2010-01-01T12:00:35.000Z",
+            )
             with collect_all_logs_of_level("ERROR", unit, experiment) as bucket:
                 with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                    calc.process_until_disconnected_or_exhausted_in_background(
-                        od_stream, EmptyLiveDosingSource()
-                    )
-                    pause()
-                    publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_encoded_od_raw_batched(
-                            ["1"],
-                            [0.0],
-                            ["90"],
-                            timestamp="2010-01-01T12:00:35.000Z",
-                        ),
-                        retain=True,
-                    )
+                    with patch.object(
+                        calc,
+                        "stream_mqtt_growth_rate_events",
+                        return_value=iter([reading]),
+                    ):
+                        with pytest.raises(ValueError, match="Non-positive OD normalization factor"):
+                            calc.process_until_disconnected()
+
                     assert wait_for(lambda: len(bucket) > 0, timeout=5.0)
 
     def test_empty_cached_normalization_dicts_are_recomputed(self, monkeypatch: pytest.MonkeyPatch) -> None:

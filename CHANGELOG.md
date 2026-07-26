@@ -17,6 +17,7 @@
  - Added expression support to experiment-profile job `config_overrides`.
  - Expanded `pio status` with the assigned Pioreactor model and model-to-hardware compatibility checks.
  - Added subtle live-update highlighting to Pioreactor card states and settings.
+ - Performance improvements, specifically to growth-rate-calculating (less network overhead).
 
 #### Bug fixes
 
