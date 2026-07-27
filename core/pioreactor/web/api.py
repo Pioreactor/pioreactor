@@ -10,6 +10,7 @@ import typing as t
 import uuid
 import zipfile
 from datetime import timedelta
+from datetime import timezone
 from io import BytesIO
 from pathlib import Path
 
@@ -52,6 +53,7 @@ from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import to_iso_format
 from pioreactor.web import cache
 from pioreactor.web import fanout
 from pioreactor.web import tasks
@@ -3029,9 +3031,12 @@ def export_exportable_datasets() -> ResponseReturnValue:
       "experiments": ["experiment-name"],
       "partition_by_unit": false,
       "partition_by_experiment": false,
-      "start_time": "2025-01-31T00:00:00Z",
-      "end_time": "2025-02-01T00:00:00Z"
+      "start_time": "2025-01-31T00:00:00-05:00",
+      "end_time": "2025-02-01T00:00:00-05:00"
     }
+
+    start_time and end_time must include Z or a numeric UTC offset. Bounds are
+    inclusive and are normalized to UTC before querying stored UTC timestamps.
     """
     body = decode_request_body(structs.ExportDatasetsRequest)
 
@@ -3043,8 +3048,12 @@ def export_exportable_datasets() -> ResponseReturnValue:
         body.experiments,
         body.datasets,
         filename_with_path.as_posix(),
-        start_time=body.start_time,
-        end_time=body.end_time,
+        start_time=(
+            to_iso_format(body.start_time.astimezone(timezone.utc)) if body.start_time is not None else None
+        ),
+        end_time=(
+            to_iso_format(body.end_time.astimezone(timezone.utc)) if body.end_time is not None else None
+        ),
         partition_by_unit=body.partition_by_unit,
         partition_by_experiment=body.partition_by_experiment,
     )
@@ -3062,9 +3071,12 @@ def export_exportable_datasets_to_usb() -> ResponseReturnValue:
       "experiments": ["experiment-name"],
       "partition_by_unit": false,
       "partition_by_experiment": false,
-      "start_time": "2025-01-31T00:00:00Z",
-      "end_time": "2025-02-01T00:00:00Z"
+      "start_time": "2025-01-31T00:00:00-05:00",
+      "end_time": "2025-02-01T00:00:00-05:00"
     }
+
+    start_time and end_time must include Z or a numeric UTC offset. Bounds are
+    inclusive and are normalized to UTC before querying stored UTC timestamps.
     """
     body = decode_request_body(structs.ExportDatasetsRequest)
 
@@ -3075,8 +3087,12 @@ def export_exportable_datasets_to_usb() -> ResponseReturnValue:
         body.experiments,
         body.datasets,
         filename,
-        start_time=body.start_time,
-        end_time=body.end_time,
+        start_time=(
+            to_iso_format(body.start_time.astimezone(timezone.utc)) if body.start_time is not None else None
+        ),
+        end_time=(
+            to_iso_format(body.end_time.astimezone(timezone.utc)) if body.end_time is not None else None
+        ),
         partition_by_unit=body.partition_by_unit,
         partition_by_experiment=body.partition_by_experiment,
     )

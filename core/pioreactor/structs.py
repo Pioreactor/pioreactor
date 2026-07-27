@@ -697,8 +697,12 @@ class ExportDatasetsRequest(Struct, forbid_unknown_fields=True):
     experiments: list[str]
     partition_by_unit: bool
     partition_by_experiment: bool
-    start_time: str | None = None
-    end_time: str | None = None
+    start_time: t.Annotated[datetime, Meta(tz=True)] | None = None
+    end_time: t.Annotated[datetime, Meta(tz=True)] | None = None
+
+    def __post_init__(self) -> None:
+        if self.start_time is not None and self.end_time is not None and self.start_time > self.end_time:
+            raise ValueError("start_time must be earlier than or equal to end_time")
 
 
 class CreateExperimentRequest(Struct, forbid_unknown_fields=True):

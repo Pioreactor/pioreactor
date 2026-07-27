@@ -1564,7 +1564,7 @@ def test_export_datasets_returns_async_task_response(
             "experiments": [],
             "partition_by_unit": True,
             "partition_by_experiment": False,
-            "start_time": "2026-01-01T00:00",
+            "start_time": "2025-11-02T01:30:00-05:00",
             "end_time": None,
         },
     )
@@ -1579,10 +1579,44 @@ def test_export_datasets_returns_async_task_response(
     assert output_path.parent == tmp_path / "exports"
     assert output_path.name.startswith("export_")
     assert output_path.name.endswith(".zip")
-    assert captured["start_time"] == "2026-01-01T00:00"
+    assert captured["start_time"] == "2025-11-02T06:30:00.000Z"
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
     assert captured["partition_by_experiment"] is False
+
+
+def test_export_datasets_rejects_timezone_naive_bounds(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiments": [],
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+            "start_time": "2026-01-01T00:00",
+            "end_time": None,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+
+
+def test_export_datasets_rejects_reversed_bounds(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiments": [],
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+            "start_time": "2026-01-02T00:00:00Z",
+            "end_time": "2026-01-01T00:00:00Z",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
 
 
 def test_export_datasets_to_usb_returns_async_task_response(
@@ -1623,7 +1657,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
             "experiments": ["exp1"],
             "partition_by_unit": True,
             "partition_by_experiment": False,
-            "start_time": "2026-01-01T00:00",
+            "start_time": "2026-01-01T00:00:00Z",
             "end_time": None,
         },
     )
@@ -1635,6 +1669,8 @@ def test_export_datasets_to_usb_returns_async_task_response(
     assert captured["dataset_names"] == ["od_readings"]
     assert str(captured["filename"]).startswith("export_")
     assert str(captured["filename"]).endswith(".zip")
+    assert captured["start_time"] == "2026-01-01T00:00:00.000Z"
+    assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
     assert captured["partition_by_experiment"] is False
 

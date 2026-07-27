@@ -394,6 +394,9 @@ def export_experiment_data(
     """
     Export datasets from the leader database and return a retrievable artifact handle.
 
+    start_time and end_time must be ISO-8601 timestamps with Z or a numeric UTC offset.
+    Both bounds are inclusive.
+
     The returned `download_path` can be fetched from this MCP server, and `leader_local_path`
     points to where the file was written on the leader.
     """

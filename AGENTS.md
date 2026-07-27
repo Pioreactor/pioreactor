@@ -71,8 +71,17 @@ Ignore the system Python version for project work. Use `.venv/bin/python`; this 
 
 ## Environment model
 
-This repo's local development behavior depends heavily on environment variables. Many bugs that look like code regressions are actually the process reading from the wrong environment root or using the wrong interpreter.
+This repo's local development behavior depends heavily on environment variables. Many bugs that look like code regressions are actually the process reading from the wrong environment root or using the wrong interpreter. Some useful environment variables:
 
+ - `TESTING=1`
+ - `SKIP_PLUGINS=1`
+ - `PIO_VENV`
+ - `GLOBAL_CONFIG`
+ - `RUN_PIOREACTOR`
+
+ See all the (production) environment varibles in `./pioreactor/packaging/runtime-files/pioreactor.env`.
+
+See more
 
 Do not assume bare `python`, `pytest`, or `mypy` point at the correct interpreter. Prefer `.venv/bin/python`, `.venv/bin/pytest`, and `.venv/bin/mypy`.
 
