@@ -103,17 +103,232 @@ DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
 MAX_SYSTEM_UPLOAD_REQUEST_BYTES = 60_000_000
 PIOREACTOR_UNIT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+TimeSeriesDataSource = t.Literal[
+    "growth_rates",
+    "temperature_readings",
+    "od_readings_filtered",
+    "od_readings",
+    "od_readings_fused",
+    "raw_od_readings",
+]
+TIME_SERIES_SOURCE_CONFIG: dict[TimeSeriesDataSource, tuple[str, int, bool]] = {
+    "growth_rates": ("rate", 5, False),
+    "temperature_readings": ("temperature_c", 2, False),
+    "od_readings_filtered": ("normalized_od_reading", 7, False),
+    "od_readings": ("od_reading", 7, True),
+    "od_readings_fused": ("od_reading", 7, False),
+    "raw_od_readings": ("od_reading", 7, True),
+}
+
 for rule, options, view_func in registered_api_routes():
     api_bp.add_url_rule(rule, view_func=view_func, **options)
 
 
-def as_json_response(json: str) -> Response:
+def as_json_response(json: str | bytes) -> Response:
     return Response(json, mimetype="application/json")
 
 
-def format_utc_timestamp_for_lookback_hours(lookback_hours: float) -> str:
-    cutoff = current_utc_datetime() - timedelta(hours=lookback_hours)
-    return cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+def query_time_series_from_database(
+    experiment: str,
+    data_source: TimeSeriesDataSource,
+    lookback_hours: float,
+    target_points: int,
+    pioreactor_unit: str | None,
+) -> bytes:
+    """Return temporally even chart data using each source's composite time-series index."""
+    value_column, rounding_digits, partition_by_channel = TIME_SERIES_SOURCE_CONFIG[data_source]
+    index = f"{data_source}_ix"
+    end = current_utc_datetime()
+    end_timestamp = end.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    cutoff_timestamp = (end - timedelta(hours=lookback_hours)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+    if pioreactor_unit is not None:
+        units = [pioreactor_unit]
+    else:
+        unit_rows = query_app_db(
+            f"""
+            WITH RECURSIVE units(pioreactor_unit) AS (
+                SELECT MIN(pioreactor_unit)
+                FROM {data_source} INDEXED BY {index}
+                WHERE experiment=?
+                UNION ALL
+                SELECT (
+                    SELECT MIN(t.pioreactor_unit)
+                    FROM {data_source} AS t INDEXED BY {index}
+                    WHERE t.experiment=?
+                      AND t.pioreactor_unit > units.pioreactor_unit
+                )
+                FROM units
+                WHERE pioreactor_unit IS NOT NULL
+            )
+            SELECT pioreactor_unit
+            FROM units
+            WHERE pioreactor_unit IS NOT NULL
+            """,
+            (experiment, experiment),
+        )
+        assert isinstance(unit_rows, list)
+        units = [row["pioreactor_unit"] for row in unit_rows]
+
+    series: list[tuple[str, int | None]]
+    if partition_by_channel:
+        series = [(unit, channel) for unit in units for channel in (1, 2, 3, 4)]
+    else:
+        series = [(unit, None) for unit in units]
+
+    response_series: list[str] = []
+    response_data: list[list[dict[str, t.Any]]] = []
+
+    # Table, column, and index names above come only from TIME_SERIES_SOURCE_CONFIG.
+    for unit, channel in series:
+        channel_filter = "AND channel=?" if partition_by_channel else ""
+        channel_args: tuple[t.Any, ...] = (channel,) if partition_by_channel else ()
+        timestamps = query_app_db(
+            f"""
+            SELECT timestamp
+            FROM {data_source} INDEXED BY {index}
+            WHERE experiment=?
+              AND pioreactor_unit=?
+              {channel_filter}
+              AND timestamp > ?
+              AND timestamp <= ?
+            ORDER BY timestamp, rowid
+            LIMIT ?
+            """,
+            (
+                experiment,
+                unit,
+                *channel_args,
+                cutoff_timestamp,
+                end_timestamp,
+                target_points + 1,
+            ),
+        )
+        assert isinstance(timestamps, list)
+
+        if not timestamps:
+            continue
+
+        if len(timestamps) <= target_points:
+            rows = query_app_db(
+                f"""
+                SELECT timestamp,
+                       round({value_column}, ?) AS y
+                FROM {data_source} INDEXED BY {index}
+                WHERE experiment=?
+                  AND pioreactor_unit=?
+                  {channel_filter}
+                  AND timestamp > ?
+                  AND timestamp <= ?
+                ORDER BY timestamp, rowid
+                LIMIT ?
+                """,
+                (
+                    rounding_digits,
+                    experiment,
+                    unit,
+                    *channel_args,
+                    cutoff_timestamp,
+                    end_timestamp,
+                    target_points,
+                ),
+            )
+            assert isinstance(rows, list)
+        else:
+            last_row = query_app_db(
+                f"""
+                SELECT timestamp,
+                       round({value_column}, ?) AS y
+                FROM {data_source} INDEXED BY {index}
+                WHERE experiment=?
+                  AND pioreactor_unit=?
+                  {channel_filter}
+                  AND timestamp > ?
+                  AND timestamp <= ?
+                ORDER BY timestamp DESC, rowid DESC
+                LIMIT 1
+                """,
+                (
+                    rounding_digits,
+                    experiment,
+                    unit,
+                    *channel_args,
+                    cutoff_timestamp,
+                    end_timestamp,
+                ),
+                one=True,
+            )
+            assert isinstance(last_row, dict)
+
+            if target_points == 1:
+                rows = [last_row]
+            else:
+                rows = query_app_db(
+                    f"""
+                    WITH RECURSIVE targets(i, target_timestamp) AS (
+                        SELECT 0, ?
+                        UNION ALL
+                        SELECT i + 1,
+                               CASE
+                                   WHEN i + 1 = ? - 1 THEN ?
+                                   ELSE strftime(
+                                       '%Y-%m-%dT%H:%M:%fZ',
+                                       julianday(?) + (
+                                           (julianday(?) - julianday(?)) * (i + 1) / (? - 1)
+                                       )
+                                   )
+                               END
+                        FROM targets
+                        WHERE i + 1 < ?
+                    ), chosen AS MATERIALIZED (
+                        SELECT i,
+                               (
+                                   SELECT t.rowid
+                                   FROM {data_source} AS t INDEXED BY {index}
+                                   WHERE t.experiment=?
+                                     AND t.pioreactor_unit=?
+                                     {channel_filter}
+                                     AND t.timestamp >= targets.target_timestamp
+                                     AND t.timestamp <= ?
+                                   ORDER BY t.timestamp, t.rowid
+                                   LIMIT 1
+                               ) AS selected_rowid
+                        FROM targets
+                    ), unique_chosen AS (
+                        SELECT selected_rowid, MIN(i) AS i
+                        FROM chosen
+                        WHERE selected_rowid IS NOT NULL
+                        GROUP BY selected_rowid
+                    )
+                    SELECT t.timestamp,
+                           round(t.{value_column}, ?) AS y
+                    FROM unique_chosen
+                    JOIN {data_source} AS t ON t.rowid=unique_chosen.selected_rowid
+                    ORDER BY unique_chosen.i
+                    """,
+                    (
+                        timestamps[0]["timestamp"],
+                        target_points,
+                        last_row["timestamp"],
+                        timestamps[0]["timestamp"],
+                        last_row["timestamp"],
+                        timestamps[0]["timestamp"],
+                        target_points,
+                        target_points,
+                        experiment,
+                        unit,
+                        *channel_args,
+                        last_row["timestamp"],
+                        rounding_digits,
+                    ),
+                )
+                assert isinstance(rows, list)
+
+        response_series.append(f"{unit}-{channel}" if partition_by_channel else unit)
+        response_data.append([{"x": row["timestamp"], "y": row["y"]} for row in rows])
+
+    return encode({"series": response_series, "data": response_data})
 
 
 def _parse_experiment_tags(raw_tags: str | None) -> list[str]:
@@ -1125,38 +1340,14 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    growth_rates = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   timestamp,
-                   round(rate, 5) AS y
-            FROM growth_rates INDEXED BY growth_rates_ix
-            WHERE experiment=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT pioreactor_unit AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit
-        );
-        """,
-        (experiment, cutoff_timestamp, target_points, target_points),
-        one=True,
+    growth_rates = query_time_series_from_database(
+        experiment,
+        data_source="growth_rates",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=None,
     )
-
-    assert isinstance(growth_rates, dict)
-    return attach_cache_control(as_json_response(growth_rates["json"]))
+    return attach_cache_control(as_json_response(growth_rates))
 
 
 @api_bp.route("/experiments/<experiment>/time_series/temperature_readings", methods=["GET"])
@@ -1168,42 +1359,14 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    temperature_readings = query_app_db(
-        """
-        WITH numbered AS (
-            SELECT unit,
-                   timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT pioreactor_unit AS unit,
-                       timestamp,
-                       temperature_c AS y
-                FROM temperature_readings
-                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 2))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
-        );
-        """,
-        (experiment, f"-{lookback} hours", target_points, target_points, target_points),
-        one=True,
+    temperature_readings = query_time_series_from_database(
+        experiment,
+        data_source="temperature_readings",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=None,
     )
-
-    assert isinstance(temperature_readings, dict)
-    return attach_cache_control(as_json_response(temperature_readings["json"]))
+    return attach_cache_control(as_json_response(temperature_readings))
 
 
 @api_bp.route("/experiments/<experiment>/time_series/od_readings_filtered", methods=["GET"])
@@ -1215,38 +1378,14 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    filtered_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   timestamp,
-                   round(normalized_od_reading, 7) AS y
-            FROM od_readings_filtered INDEXED BY od_readings_filtered_ix
-            WHERE experiment=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT pioreactor_unit AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit
-        );
-        """,
-        (experiment, cutoff_timestamp, target_points, target_points),
-        one=True,
+    filtered_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="od_readings_filtered",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=None,
     )
-
-    assert isinstance(filtered_od_readings, dict)
-    return attach_cache_control(as_json_response(filtered_od_readings["json"]))
+    return attach_cache_control(as_json_response(filtered_od_readings))
 
 
 @api_bp.route("/experiments/<experiment>/time_series/od_readings", methods=["GET"])
@@ -1258,40 +1397,14 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    raw_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   timestamp,
-                   round(od_reading, 7) AS y
-            FROM od_readings
-            WHERE experiment=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit, channel
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT (pioreactor_unit || '-' || channel) AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit, channel)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit, channel
-        );
-        """,
-        (experiment, cutoff_timestamp, target_points, target_points),
-        one=True,
+    raw_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="od_readings",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=None,
     )
-
-    assert isinstance(raw_od_readings, dict)
-    return attach_cache_control(as_json_response(raw_od_readings["json"]))
+    return attach_cache_control(as_json_response(raw_od_readings))
 
 
 @api_bp.route("/experiments/<experiment>/time_series/od_readings_fused", methods=["GET"])
@@ -1302,38 +1415,14 @@ def get_od_readings_fused(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    fused_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   timestamp,
-                   round(od_reading, 7) AS y
-            FROM od_readings_fused
-            WHERE experiment=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT pioreactor_unit AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit
-        );
-        """,
-        (experiment, cutoff_timestamp, target_points, target_points),
-        one=True,
+    fused_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="od_readings_fused",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=None,
     )
-
-    assert isinstance(fused_od_readings, dict)
-    return attach_cache_control(as_json_response(fused_od_readings["json"]))
+    return attach_cache_control(as_json_response(fused_od_readings))
 
 
 @api_bp.route("/experiments/<experiment>/time_series/raw_od_readings", methods=["GET"])
@@ -1345,40 +1434,14 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    raw_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   timestamp,
-                   round(od_reading, 7) AS y
-            FROM raw_od_readings INDEXED BY raw_od_readings_ix
-            WHERE experiment=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit, channel
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT (pioreactor_unit || '-' || channel) AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit, channel)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit, channel
-        );
-        """,
-        (experiment, cutoff_timestamp, target_points, target_points),
-        one=True,
+    raw_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="raw_od_readings",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=None,
     )
-
-    assert isinstance(raw_od_readings, dict)
-    return attach_cache_control(as_json_response(raw_od_readings["json"]))
+    return attach_cache_control(as_json_response(raw_od_readings))
 
 
 @api_bp.route("/experiments/<experiment>/time_series/<data_source>/<column>", methods=["GET"])
@@ -1442,44 +1505,14 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    growth_rates = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   timestamp,
-                   round(rate, 5) AS y
-            FROM growth_rates INDEXED BY growth_rates_ix
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT pioreactor_unit AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit
-        );
-        """,
-        (
-            experiment,
-            pioreactor_unit,
-            cutoff_timestamp,
-            target_points,
-            target_points,
-        ),
-        one=True,
+    growth_rates = query_time_series_from_database(
+        experiment,
+        data_source="growth_rates",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=pioreactor_unit,
     )
-
-    assert isinstance(growth_rates, dict)
-    return attach_cache_control(as_json_response(growth_rates["json"]))
+    return attach_cache_control(as_json_response(growth_rates))
 
 
 @api_bp.route(
@@ -1493,42 +1526,14 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    temperature_readings = query_app_db(
-        """
-        WITH numbered AS (
-            SELECT unit,
-                   timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT pioreactor_unit AS unit,
-                       timestamp,
-                       temperature_c AS y
-                FROM temperature_readings
-                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 2))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
-        );
-        """,
-        (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
-        one=True,
+    temperature_readings = query_time_series_from_database(
+        experiment,
+        data_source="temperature_readings",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=pioreactor_unit,
     )
-
-    assert isinstance(temperature_readings, dict)
-    return attach_cache_control(as_json_response(temperature_readings["json"]))
+    return attach_cache_control(as_json_response(temperature_readings))
 
 
 @api_bp.route(
@@ -1542,44 +1547,14 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    filtered_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   timestamp,
-                   round(normalized_od_reading, 7) AS y
-            FROM od_readings_filtered INDEXED BY od_readings_filtered_ix
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT pioreactor_unit AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit
-        );
-        """,
-        (
-            experiment,
-            pioreactor_unit,
-            cutoff_timestamp,
-            target_points,
-            target_points,
-        ),
-        one=True,
+    filtered_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="od_readings_filtered",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=pioreactor_unit,
     )
-
-    assert isinstance(filtered_od_readings, dict)
-    return attach_cache_control(as_json_response(filtered_od_readings["json"]))
+    return attach_cache_control(as_json_response(filtered_od_readings))
 
 
 @api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/od_readings", methods=["GET"])
@@ -1590,40 +1565,14 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    raw_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   timestamp,
-                   round(od_reading, 7) AS y
-            FROM od_readings
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit, channel
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT (pioreactor_unit || '-' || channel) AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit, channel)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit, channel
-        );
-        """,
-        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points),
-        one=True,
+    raw_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="od_readings",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=pioreactor_unit,
     )
-
-    assert isinstance(raw_od_readings, dict)
-    return attach_cache_control(as_json_response(raw_od_readings["json"]))
+    return attach_cache_control(as_json_response(raw_od_readings))
 
 
 @api_bp.route(
@@ -1637,44 +1586,14 @@ def get_od_readings_fused_per_unit(pioreactor_unit: str, experiment: str) -> Res
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    fused_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   timestamp,
-                   round(od_reading, 7) AS y
-            FROM od_readings_fused
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT pioreactor_unit AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit
-        );
-        """,
-        (
-            experiment,
-            pioreactor_unit,
-            cutoff_timestamp,
-            target_points,
-            target_points,
-        ),
-        one=True,
+    fused_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="od_readings_fused",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=pioreactor_unit,
     )
-
-    assert isinstance(fused_od_readings, dict)
-    return attach_cache_control(as_json_response(fused_od_readings["json"]))
+    return attach_cache_control(as_json_response(fused_od_readings))
 
 
 @api_bp.route(
@@ -1688,40 +1607,14 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
     if not target_points or target_points <= 0:
         abort_with(400, "target_points must be > 0")
 
-    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
-
-    raw_od_readings = query_app_db(
-        """
-        WITH filtered AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   timestamp,
-                   round(od_reading, 7) AS y
-            FROM raw_od_readings INDEXED BY raw_od_readings_ix
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
-        ), stats AS (
-            SELECT pioreactor_unit,
-                   channel,
-                   COUNT(*) AS total
-            FROM filtered
-            GROUP BY pioreactor_unit, channel
-        )
-        SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
-        FROM (
-            SELECT (pioreactor_unit || '-' || channel) AS unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM filtered
-            JOIN stats USING (pioreactor_unit, channel)
-            WHERE total <= ? OR (abs(random()) % total) < ?
-            GROUP BY pioreactor_unit, channel
-        );
-        """,
-        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points),
-        one=True,
+    raw_od_readings = query_time_series_from_database(
+        experiment,
+        data_source="raw_od_readings",
+        lookback_hours=lookback,
+        target_points=target_points,
+        pioreactor_unit=pioreactor_unit,
     )
-
-    assert isinstance(raw_od_readings, dict)
-    return attach_cache_control(as_json_response(raw_od_readings["json"]))
+    return attach_cache_control(as_json_response(raw_od_readings))
 
 
 @api_bp.route(

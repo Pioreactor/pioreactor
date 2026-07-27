@@ -672,6 +672,259 @@ def test_time_series_target_points_validation_returns_400(client, path: str) -> 
     assert response.status_code == 400
 
 
+def test_time_series_uses_actual_data_duration_and_requested_point_ceiling(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("time-series-test", "2025-12-31T12:00:00.000Z", ""),
+    )
+
+    for hour in range(12, 23):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-test", "unit-a", f"2025-12-31T{hour:02}:00:00.000Z", hour / 100),
+        )
+
+    for hour in (18, 20, 22):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-test", "unit-b", f"2025-12-31T{hour:02}:00:00.000Z", hour / 100),
+        )
+
+    for timestamp in (
+        "2025-12-31T12:00:00.000Z",
+        "2025-12-31T12:01:00.000Z",
+        "2025-12-31T12:02:00.000Z",
+        "2025-12-31T22:00:00.000Z",
+        "2025-12-31T22:01:00.000Z",
+        "2025-12-31T22:02:00.000Z",
+    ):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-test", "unit-c", timestamp, 0.1),
+        )
+
+    response = client.get(
+        "/api/experiments/time-series-test/time_series/growth_rates?lookback=20&target_points=4"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["series"] == ["unit-a", "unit-b", "unit-c"]
+    assert [[point["x"] for point in series] for series in data["data"]] == [
+        [
+            "2025-12-31T12:00:00.000Z",
+            "2025-12-31T16:00:00.000Z",
+            "2025-12-31T19:00:00.000Z",
+            "2025-12-31T22:00:00.000Z",
+        ],
+        [
+            "2025-12-31T18:00:00.000Z",
+            "2025-12-31T20:00:00.000Z",
+            "2025-12-31T22:00:00.000Z",
+        ],
+        [
+            "2025-12-31T12:00:00.000Z",
+            "2025-12-31T22:00:00.000Z",
+            "2025-12-31T22:02:00.000Z",
+        ],
+    ]
+
+    short_lookback_response = client.get(
+        "/api/workers/unit-a/experiments/time-series-test/time_series/growth_rates"
+        "?lookback=2.5&target_points=4"
+    )
+
+    assert short_lookback_response.status_code == 200
+    assert short_lookback_response.get_json() == {
+        "series": ["unit-a"],
+        "data": [[{"x": "2025-12-31T22:00:00.000Z", "y": 0.22}]],
+    }
+
+    latest_response = client.get(
+        "/api/experiments/time-series-test/time_series/growth_rates?lookback=20&target_points=1"
+    )
+
+    assert latest_response.status_code == 200
+    assert [[point["x"] for point in series] for series in latest_response.get_json()["data"]] == [
+        ["2025-12-31T22:00:00.000Z"],
+        ["2025-12-31T22:00:00.000Z"],
+        ["2025-12-31T22:02:00.000Z"],
+    ]
+
+
+def test_time_series_partitions_channel_sources(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("time-series-od-test", "2025-12-31T12:00:00.000Z", ""),
+    )
+
+    for channel in (1, 2):
+        for hour in range(12, 17):
+            modify_app_db(
+                """
+                INSERT INTO od_readings (
+                    experiment, pioreactor_unit, timestamp, od_reading, angle, channel
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "time-series-od-test",
+                    "unit-a",
+                    f"2025-12-31T{hour:02}:00:00.000Z",
+                    channel + hour / 100,
+                    90,
+                    channel,
+                ),
+            )
+
+    response = client.get(
+        "/api/experiments/time-series-od-test/time_series/od_readings" "?lookback=20&target_points=3"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "series": ["unit-a-1", "unit-a-2"],
+        "data": [
+            [
+                {"x": "2025-12-31T12:00:00.000Z", "y": 1.12},
+                {"x": "2025-12-31T14:00:00.000Z", "y": 1.14},
+                {"x": "2025-12-31T16:00:00.000Z", "y": 1.16},
+            ],
+            [
+                {"x": "2025-12-31T12:00:00.000Z", "y": 2.12},
+                {"x": "2025-12-31T14:00:00.000Z", "y": 2.14},
+                {"x": "2025-12-31T16:00:00.000Z", "y": 2.16},
+            ],
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    ("route", "insert_statement", "insert_args", "expected_series", "expected_y"),
+    [
+        (
+            "growth_rates",
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.1234567),
+            "unit-a",
+            0.12346,
+        ),
+        (
+            "temperature_readings",
+            """
+            INSERT INTO temperature_readings (
+                experiment, pioreactor_unit, timestamp, temperature_c
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 20.126),
+            "unit-a",
+            20.13,
+        ),
+        (
+            "od_readings_filtered",
+            """
+            INSERT INTO od_readings_filtered (
+                experiment, pioreactor_unit, timestamp, normalized_od_reading
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789),
+            "unit-a",
+            0.1234568,
+        ),
+        (
+            "od_readings",
+            """
+            INSERT INTO od_readings (
+                experiment, pioreactor_unit, timestamp, od_reading, angle, channel
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789, 90, 1),
+            "unit-a-1",
+            0.1234568,
+        ),
+        (
+            "od_readings_fused",
+            """
+            INSERT INTO od_readings_fused (experiment, pioreactor_unit, timestamp, od_reading)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789),
+            "unit-a",
+            0.1234568,
+        ),
+        (
+            "raw_od_readings",
+            """
+            INSERT INTO raw_od_readings (
+                experiment, pioreactor_unit, timestamp, od_reading, channel
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789, 1),
+            "unit-a-1",
+            0.1234568,
+        ),
+    ],
+)
+def test_built_in_time_series_source_configuration(
+    client: FlaskClient,
+    monkeypatch: MonkeyPatch,
+    route: str,
+    insert_statement: str,
+    insert_args: tuple[object, ...],
+    expected_series: str,
+    expected_y: float,
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("source-test", "2025-12-31T12:00:00.000Z", ""),
+    )
+    modify_app_db(insert_statement, insert_args)
+
+    response = client.get(f"/api/experiments/source-test/time_series/{route}?lookback=20&target_points=3")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "series": [expected_series],
+        "data": [[{"x": "2025-12-31T22:00:00.000Z", "y": expected_y}]],
+    }
+
+
 def test_create_experiment(client) -> None:
     # Create a new experiment
     response = client.post(
