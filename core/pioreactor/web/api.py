@@ -140,8 +140,8 @@ def query_time_series_from_database(
     value_column, rounding_digits, partition_by_channel = TIME_SERIES_SOURCE_CONFIG[data_source]
     index = f"{data_source}_ix"
     end = current_utc_datetime()
-    end_timestamp = end.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    cutoff_timestamp = (end - timedelta(hours=lookback_hours)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    end_timestamp = to_iso_format(end)
+    cutoff_timestamp = to_iso_format(end - timedelta(hours=lookback_hours))
 
     if pioreactor_unit is not None:
         units = [pioreactor_unit]

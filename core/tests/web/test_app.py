@@ -672,6 +672,47 @@ def test_time_series_target_points_validation_returns_400(client, path: str) -> 
     assert response.status_code == 400
 
 
+def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("time-series-bounds-test", "2025-12-31T22:00:00.000Z", ""),
+    )
+
+    for timestamp in (
+        "2025-12-31T22:00:00.000Z",
+        "2025-12-31T23:00:00.000Z",
+        "2026-01-01T00:00:00.000Z",
+    ):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-bounds-test", "unit-a", timestamp, 0.1),
+        )
+
+    response = client.get(
+        "/api/experiments/time-series-bounds-test/time_series/growth_rates" "?lookback=2&target_points=10"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "series": ["unit-a"],
+        "data": [
+            [
+                {"x": "2025-12-31T23:00:00.000Z", "y": 0.1},
+                {"x": "2026-01-01T00:00:00.000Z", "y": 0.1},
+            ]
+        ],
+    }
+
+
 def test_time_series_uses_actual_data_duration_and_requested_point_ceiling(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:
