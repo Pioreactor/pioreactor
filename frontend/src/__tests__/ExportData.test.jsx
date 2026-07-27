@@ -197,4 +197,52 @@ describe("ExportData", () => {
       expect(downloadLink.click).toHaveBeenCalled();
     });
   });
+
+  test("converts local time filters to UTC before exporting", async () => {
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/experiments") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ experiment: "exp-1" }],
+        });
+      }
+
+      if (url === "/api/datasets/exportable") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            {
+              dataset_name: "od_readings",
+              display_name: "OD readings",
+              description: "Optical density readings.",
+              source: "app",
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+    fetchTaskResult.mockResolvedValue({ result: { filename: "export.zip" } });
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderExportData();
+
+    fireEvent.mouseDown(await screen.findByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "exp-1" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "OD readings" }));
+    fireEvent.click(screen.getByText("Export options"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Filter by time range" }));
+    fireEvent.change(screen.getByLabelText("Start time"), {
+      target: { value: "2025-11-02T01:30" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^export 1$/i }));
+
+    await waitFor(() => {
+      const request = fetchTaskResult.mock.calls[0][1];
+      const body = JSON.parse(request.fetchOptions.body);
+      expect(body.start_time).toBe(new Date("2025-11-02T01:30").toISOString());
+      expect(body.end_time).toBeNull();
+    });
+  });
 });

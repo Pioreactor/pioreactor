@@ -84,7 +84,7 @@ def od_statistics(
                 cut_off_n=2,
             )  # see issue #206
 
-            # warn users that a blank is 0 - maybe this should be an error instead? TODO: link this to a docs page.
+            # A zero blank cannot normalize future readings and usually indicates a wiring or config problem.
             if means[channel] == 0.0:
                 logger.warning(
                     f"OD reading for PD Channel {channel} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"

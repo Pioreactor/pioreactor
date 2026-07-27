@@ -198,10 +198,14 @@ class ADCReader(LoggerMixin):
         dynamic_gain: bool = True,
         penalizer: float = 0.0,  # smoothing parameter between samples
         oversampling_count: int = 40,
+        unit: pt.Unit | None = None,
+        experiment: pt.Experiment | None = None,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
+        self.unit = unit or whoami.get_unit_name()
+        self.experiment = experiment or whoami.UNIVERSAL_EXPERIMENT
         self.channels: list[pt.PdChannel] = channels
         self.adc_offsets: dict[pt.PdChannel, float] = {}
         self.penalizer = penalizer
@@ -336,10 +340,6 @@ class ADCReader(LoggerMixin):
 
     def _check_if_over_max(self, value: pt.Voltage) -> None:
         if value > 3.2:
-            # TODO: sometimes we use ADC in self-tests or calibrations, and it might not be assigned. This will fail if that's the case.
-            unit = whoami.get_unit_name()
-            exp = whoami.get_assigned_experiment_name(unit)
-
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
@@ -353,13 +353,13 @@ class ADCReader(LoggerMixin):
             led_utils.led_intensity(
                 {c: 0.0 for c in led_utils.ALL_LED_CHANNELS},
                 source_of_event="ADCReader",
-                unit=unit,
-                experiment=exp,
+                unit=self.unit,
+                experiment=self.experiment,
                 verbose=True,
             )
 
             publish(
-                f"pioreactor/{unit}/{exp}/monitor/flicker_led_with_error_code",
+                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
                 error_codes.ADC_INPUT_TOO_HIGH,
             )
             # kill ourselves - this will hopefully kill ODReader.
@@ -371,14 +371,11 @@ class ADCReader(LoggerMixin):
             return
 
         elif value > 3.0:
-            unit = whoami.get_unit_name()
-            exp = whoami.get_assigned_experiment_name(unit)
-
             self.logger.warning(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.0V. Suggestion: decrease the IR intensity, or change the PD angle to a lower angle."
             )
             publish(
-                f"pioreactor/{unit}/{exp}/monitor/flicker_led_with_error_code",
+                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
                 error_codes.ADC_INPUT_TOO_HIGH,
             )
             return
@@ -396,9 +393,6 @@ class ADCReader(LoggerMixin):
         Formula is
 
         f(t) = C + A*sin(2*pi*freq*t + phi)
-
-        # TODO: is it implemented as C - A*sin(2*pi*freq*t - phi) ??
-
 
         However, estimation occurs as:
 
@@ -496,7 +490,7 @@ class ADCReader(LoggerMixin):
             phi = 0
         else:
             A = np.sqrt(b**2 + c**2)
-            phi = np.arcsin(c / np.sqrt(b**2 + c**2))
+            phi = np.arctan2(c, b)
 
         return (float(C), float(A), float(phi)), AIC
 
@@ -615,8 +609,11 @@ class ADCReader(LoggerMixin):
                     )
 
                 else:
-                    # fallback - just use the mean TODO: doesn't use self.penalizer yet.
-                    best_estimate_of_signal_ = mean(shifted_signals)
+                    best_estimate_of_signal_ = self._simple_trimmed_mean_with_prior(
+                        shifted_signals,
+                        prior_C=prior_C,
+                        penalizer_C=penalizer_C,
+                    )
 
                 # convert to voltage
                 best_estimate_of_signal_v = round(
@@ -1396,7 +1393,7 @@ class ODReader(BackgroundJob):
 
         if should_auto_adjust_ir_led:
             self.ir_led_intensity = self._determine_best_ir_led_intensity(
-                self.channel_angle_map, self.ir_led_intensity, on_reading, blank_reading
+                self.channel_angle_map, self.ir_led_intensity, on_reading
             )
 
         self.set_interval(interval)
@@ -1431,7 +1428,6 @@ class ODReader(BackgroundJob):
         channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
         initial_ir_intensity: float,
         on_reading: RawPDReadings,
-        blank_reading: RawPDReadings,
     ) -> float:
         """
         What do we want for a good value?
@@ -1439,7 +1435,6 @@ class ODReader(BackgroundJob):
          - [REF] is less than 0.256
          - [90] gets lots of light, but less than 3.0, even at a full culture
          - IR intensity always is less than 90%
-         - [90] is "far away" from it's blank signal (TODO: how do we quantify this?)
 
         """
         MAX = 85.0
@@ -1905,9 +1900,7 @@ def start_od_reading(
             estimator_transformer.hydrate_estimator(maybe_estimator)
         else:
             estimator_transformer = NullEstimatorTransformer()
-    elif isinstance(
-        estimator, structs.ODFusionEstimator
-    ):  # TODO: put a intermediate class between the super class and ODFusionEstimator
+    elif isinstance(estimator, structs.ODFusionEstimator):
         estimator_transformer = CachedEstimatorTransformer()
         estimator_transformer.hydrate_estimator(estimator)
     else:
@@ -1932,7 +1925,12 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=active_pd_channels, fake_data=fake_data, dynamic_gain=not fake_data, penalizer=penalizer
+            channels=active_pd_channels,
+            fake_data=fake_data,
+            dynamic_gain=not fake_data,
+            penalizer=penalizer,
+            unit=unit,
+            experiment=experiment,
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         blank_transformer=blank_transformer,

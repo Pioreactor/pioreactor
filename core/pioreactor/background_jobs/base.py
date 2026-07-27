@@ -553,7 +553,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def block_until_disconnected(self) -> None:
         """
-        This will block the main thread until disconnected() is called.
+        Own the foreground thread until disconnected() is called.
+
+        The default implementation waits passively. Jobs with foreground work can
+        override this method with a processing loop that observes `_blocking_event`.
 
         This will unblock if:
 
@@ -847,11 +850,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
     def lost(self) -> None:
-        # TODO: what should happen when a running job receives a lost signal? When does it ever
-        # receive a lost signal?
-        # 1. Monitor can send a lost signal if `check_against_processes_running` triggers.
-        # I think it makes sense to ignore it?
-
         self.state = JobState.LOST
         self._log_state(self.state)
 
@@ -876,7 +874,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.set()
 
     def _remove_from_job_manager(self) -> None:
-        # TODO what happens if the job_id isn't found?
         if hasattr(self, "job_id"):
             with JobManager() as jm:
                 jm.set_not_running(self.job_id)
@@ -1004,8 +1001,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             allow_retained=False,
         )
 
-        # TODO: previously this was in __post_init__ - why?
-        # now start listening to confirm our state is correct in mqtt
+        # Confirm broker state only after subclass construction, so the callback cannot
+        # observe partially initialized subclass state.
         self.subscribe_and_callback(
             self._confirm_state_in_broker,
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",

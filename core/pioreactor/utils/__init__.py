@@ -419,7 +419,8 @@ class SummableDict(dict):
 
     def __getitem__(self, key: Any) -> Any:
         if key not in self:
-            return 0.0  # TODO: later could be generalized for the init to accept a zero element.
+            # Missing keys use the additive identity so independent quantities can be summed directly.
+            return 0.0
         else:
             return dict.__getitem__(self, key)
 

@@ -8,12 +8,14 @@
    pio jobs set <job> <setting> <value>
    pios jobs set <job> <setting> <value>
    ```
- - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an update to this release.
+ - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an upgrade.
+ - Changed time-filtered dataset export bounds supplied through the API, MCP, or CLI to require an explicit `Z` or numeric UTC offset. The Export Data UI continues to accept local times and converts them using the browser's timezone.
 
 #### Enhancements
 
  - Bump to React 19.x, and new vite build system.
  - Added `manifest.json` and per-dataset `schema.json` metadata to exported data archives, including applied filters, row counts, column descriptions, and units.
+ - Accelerated time-filtered dataset exports by using indexed UTC timestamp comparisons. On a representative 381,840-row experiment, a one-day query improved from more than 30 seconds to about 0.02 seconds.
  - Added expression support to experiment-profile job `config_overrides`.
  - Expanded `pio status` with the assigned Pioreactor model and model-to-hardware compatibility checks.
  - Added subtle live-update highlighting to Pioreactor card states and settings.
@@ -33,6 +35,7 @@ camera_index=0
 device_path=/dev/video0
 ```
 
+ - Performance improvements, specifically to growth-rate-calculating (less network overhead).
 
 #### Bug fixes
 

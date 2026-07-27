@@ -679,7 +679,7 @@ def start_stirring(
 
     if use_rpm and not is_testing_env():
         rpm_calculator = RpmFromFrequency()
-        rpm_calculator.setup()  # TODO: why do I set up _before_? If stirring is already running, this fails here instead of a duplicate job error?
+        rpm_calculator.setup()
     elif use_rpm and is_testing_env():
         rpm_calculator = MockRpmCalculator()  # type: ignore
         rpm_calculator.setup()

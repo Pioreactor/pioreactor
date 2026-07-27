@@ -2,7 +2,24 @@
 import subprocess
 from typing import Iterator
 
+import pytest
 from pioreactor.utils import networking
+
+
+@pytest.mark.parametrize(("returncode", "expected"), [(0, True), (1, False)])
+def test_is_reachable_uses_ping_returncode(monkeypatch, returncode: int, expected: bool) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        assert args == (["ping", "-c1", "-W3", "worker.local"],)
+        assert kwargs == {
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+            "check": False,
+        }
+        return subprocess.CompletedProcess(args=args[0], returncode=returncode)
+
+    monkeypatch.setattr(networking.subprocess, "run", fake_run)
+
+    assert networking.is_reachable("worker.local") is expected
 
 
 def test_get_ip_returns_non_loopback_addresses(monkeypatch) -> None:

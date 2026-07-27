@@ -37,7 +37,7 @@ const DEFAULT_EXPORT_STATE = {
   experimentSelection: [],
   partitionByUnitSelection: false,
   selectedDatasets: [],
-  // ISO-8601 strings in UTC
+  // Values from datetime-local inputs, interpreted in the browser's time zone on submission.
   startTime: null,
   endTime: null,
   // enable time filter inputs
@@ -476,8 +476,12 @@ function ExportDataContainer() {
             partition_by_unit: state.partitionByUnitSelection,
             partition_by_experiment: true,
             datasets: state.selectedDatasets,
-            start_time: state.useTimeFilter ? state.startTime : null,
-            end_time: state.useTimeFilter ? state.endTime : null,
+            start_time: state.useTimeFilter && state.startTime
+              ? new Date(state.startTime).toISOString()
+              : null,
+            end_time: state.useTimeFilter && state.endTime
+              ? new Date(state.endTime).toISOString()
+              : null,
           }),
           headers: {
             'Accept': 'application/json',
@@ -658,7 +662,7 @@ function ExportDataContainer() {
                       }
                       label="Filter by time range"
                     />
-                    <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                       <TextField
                         label="Start time"
                         type="datetime-local"
@@ -682,6 +686,10 @@ function ExportDataContainer() {
                         }
                       />
                     </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
+                      Times use this browser&apos;s time zone. During daylight-saving fall-back,
+                      a repeated time uses its earlier occurrence.
+                    </Typography>
                   </AccordionDetails>
                 </Accordion>
               </Grid>

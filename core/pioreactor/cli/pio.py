@@ -582,7 +582,7 @@ def pio(ctx: click.Context, show_version: bool) -> None:
         ctx.exit()
 
     if not whoami.is_testing_env():
-        # this check could go somewhere else. TODO This check won't execute if calling pioreactor from a script.
+        # This guards Click entrypoints; code that invokes jobs directly does not pass through pio startup.
         if not whoami.check_firstboot_successful():
             raise SystemError(
                 "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
@@ -1467,11 +1467,9 @@ def status(json_output: bool) -> None:
     add_check("version", version_status, version_details)
 
     try:
-        from pioreactor.hardware import is_i2c_device_present
+        from pioreactor.hardware import scan_i2c_bus
 
-        detected_i2c_addresses = [
-            f"0x{address:02x}" for address in range(0x03, 0x78) if is_i2c_device_present(address)
-        ]
+        detected_i2c_addresses = [f"0x{address:02x}" for address in scan_i2c_bus()]
         detected_summary = ", ".join(detected_i2c_addresses) if detected_i2c_addresses else "none found"
         add_check("hardware:i2c_bus1", "OK", detected_summary)
     except Exception as error:
@@ -1622,7 +1620,6 @@ def repair() -> None:
     """
     Repair ownership and group permissions for the local .pioreactor tree and /run/pioreactor runtime tree.
     Clear stale Pioreactor runtime export artifacts.
-    TODO: add more repair things
     """
     dot_pioreactor_root = get_dot_pioreactor_root()
     if not dot_pioreactor_root.exists():
@@ -1698,7 +1695,9 @@ def view_cache(cache: str, key: str | None) -> None:
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
-    for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
+    # Cache names don't encode their storage type, so inspect both stores.
+    # Opening an absent cache may create an empty table in that store.
+    for cacher in [local_intermittent_storage, local_persistent_storage]:
         with cacher(cache) as c:
             if key is not None:
                 for candidate in _cache_key_candidates(key):
@@ -1948,7 +1947,8 @@ def update_firmware(version: str | None) -> None:
     """
     Update the RP2040 firmware.
 
-    # TODO: this needs accept a --source arg
+    Firmware updates currently download only from pioreactor/pico-build GitHub releases;
+    offline and custom sources are not supported.
     """
 
     from msgspec.json import decode as loads

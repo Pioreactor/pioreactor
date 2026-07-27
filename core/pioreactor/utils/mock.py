@@ -53,6 +53,9 @@ class MockI2C:
     def writeto(self, *args: Any, **kwargs: Any) -> None:
         return
 
+    def scan(self) -> list[int]:
+        return []
+
     def try_lock(self, *args: Any, **kwargs: Any) -> bool:
         return True
 

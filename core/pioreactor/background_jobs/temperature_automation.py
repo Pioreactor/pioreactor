@@ -24,7 +24,6 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
-from pioreactor.version import rpi_version_info
 from pioreactor.whoami import get_pioreactor_model
 
 
@@ -339,7 +338,7 @@ class TemperatureAutomationJob(AutomationJob):
 
     @staticmethod
     def _get_room_temperature() -> float:
-        # TODO: improve somehow
+        # The legacy estimator assumes 22 °C unless a subclass provides an ambient source.
         return 22.0
 
     def infer_temperature(self) -> None:
@@ -367,9 +366,6 @@ class TemperatureAutomationJob(AutomationJob):
             # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
             # users can override this function with something more accurate later.
             features["room_temp"] = self._get_room_temperature()
-
-            # B models have a hotter ambient env. TODO: what about As?
-            features["is_rpi_zero"] = rpi_version_info.startswith("Raspberry Pi Zero")
 
             # the amount of liquid in the vial is a factor!
             features["volume"] = bioreactor.get_bioreactor_value(self.experiment, "current_volume_ml")

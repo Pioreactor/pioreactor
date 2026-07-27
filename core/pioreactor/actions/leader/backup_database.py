@@ -65,7 +65,6 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
     Elsewhere, a cronjob is set up as well to run this action every N days.
 
-    TODO: backup more historical copies, too. Like a versioning system that logrotate does.
     """
 
     import sqlite3

@@ -687,7 +687,8 @@ def update_software_target(target: str) -> DelayedResponseReturnValue:
     if _task_is_locked("update-lock"):
         return _locked_task_response("update-lock")
 
-    if target not in ("app",):  # todo: firmware
+    # Cluster updates currently support the application target only.
+    if target not in ("app",):
         abort_with(404, description="Invalid target")
 
     body = decode_request_body(structs.ArgsOptionsEnvs)
@@ -728,7 +729,6 @@ def reboot_system() -> DelayedResponseReturnValue:
 
     No request body is required.
     """
-    # TODO: only let requests from the leader do this. Use lighttpd conf for this.
     if _task_is_locked("power-lock"):
         return _locked_task_response("power-lock")
 

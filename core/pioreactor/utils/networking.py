@@ -83,17 +83,13 @@ def is_reachable(address: str) -> bool:
     """
     Can we ping the computer at `address`?
     """
-    std_out_from_ping = subprocess.Popen(
+    result = subprocess.run(
         ["ping", "-c1", "-W3", address],
-        stdout=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        text=True,
-    ).stdout
-    if std_out_from_ping is not None:
-        output = std_out_from_ping.read()
-        # TODO: find a better test, or rethink above ping...
-        return True if "1 received" in output else False
-    return False
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def get_ip() -> str:

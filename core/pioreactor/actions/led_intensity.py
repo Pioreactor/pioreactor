@@ -80,7 +80,10 @@ def _update_current_state(
     state: LEDsToIntensityMapping,
 ) -> tuple[LEDsToIntensityMapping, LEDsToIntensityMapping]:
     """
-    TODO: Eventually I should try to modify the UI to not even need this `state` variable,
+    Merge a partial LED update into the complete retained state.
+
+    The complete state is published for consumers and is also used to restore LEDs after
+    temporary changes.
     """
 
     with local_intermittent_storage("leds") as led_cache:

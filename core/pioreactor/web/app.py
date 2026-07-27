@@ -197,7 +197,7 @@ def _get_app_db_connection() -> sqlite3.Connection:
 
         db.create_function(
             "BASE64", 1, decode_base64
-        )  # TODO: until next OS release which implements a native sqlite3 base64 function
+        )  # SQLite bundles base64() with its CLI, but not with the library used by Python.
 
         db.row_factory = _make_dicts
 
@@ -261,12 +261,13 @@ def modify_app_db(statement: str, args: tuple[t.Any, ...] = ()) -> int:
         cur.execute(statement, args)
         con.commit()
     except sqlite3.IntegrityError as e:
+        con.rollback()
         print(e)
         return 0
     except Exception as e:
+        con.rollback()
         print(e)
-        con.rollback()  # TODO: test
-        raise e
+        raise
     finally:
         row_changes = cur.rowcount
         cur.close()

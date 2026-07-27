@@ -283,14 +283,11 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
     }, 1750);
 
     const latestVersionTimerId = window.setTimeout(() => {
-      // TODO: what happens when there is not internet connection?
       fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
         .then((response) => response.json())
         .then((data) => {
           setLatestVersion(data['tag_name'])
-        }).catch((_e) => {
-          // no internet?
-        });
+        }).catch(() => {});
     }, 2500);
 
     return () => {
@@ -303,6 +300,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
   React.useEffect(() => {
     let isActive = true;
+    let usbTimerId = null;
 
     async function fetchUsbStatus() {
       try {
@@ -321,12 +319,37 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
       }
     }
 
-    fetchUsbStatus();
-    const usbTimerId = window.setInterval(fetchUsbStatus, 15000);
+    function stopUsbPolling() {
+      if (usbTimerId !== null) {
+        window.clearInterval(usbTimerId);
+        usbTimerId = null;
+      }
+    }
+
+    function startUsbPolling() {
+      if (document.hidden || usbTimerId !== null) {
+        return;
+      }
+
+      fetchUsbStatus();
+      usbTimerId = window.setInterval(fetchUsbStatus, 15000);
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        stopUsbPolling();
+      } else {
+        startUsbPolling();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    startUsbPolling();
 
     return () => {
       isActive = false;
-      window.clearInterval(usbTimerId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      stopUsbPolling();
     };
   }, []);
 

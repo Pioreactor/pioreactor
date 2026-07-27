@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 from huey.exceptions import RateLimitExceeded
+from huey.storage import SqliteStorage
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.mureq import Response
 from pioreactor.web import db as web_db
@@ -423,32 +424,35 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
         _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
         _response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}}),
     ]
+    events: list[str] = []
 
     # Each request pops the next response in sequence.
     def fake_get_from(
         address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
     ) -> Response:
+        events.append("get")
         return responses.pop(0)
 
     monkeypatch.setattr(tasks, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     # Avoid test delays from retry sleeps.
-    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+    monkeypatch.setattr(tasks, "sleep", lambda _: events.append("sleep"))
 
     unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
     assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
     assert responses == []
+    assert events == ["get", "get", "sleep", "get"]
 
 
 def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    old_default_window = 60
+    shorter_timeout_attempts = tasks._delayed_result_max_attempts(5.0)
     responses = [
         _response(202, {"result_url_path": "/unit_api/task_results/abc"})
-        for _ in range(old_default_window + 1)
+        for _ in range(shorter_timeout_attempts + 1)
     ]
     responses.append(_response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}}))
 
@@ -652,7 +656,7 @@ def test_reduce_multicast_results_handles_partial_failures() -> None:
         None,
     ]
 
-    output = tasks.reduce_multicast_results.call_local(units, False, ordered_results)
+    output = tasks.reduce_multicast_results.call_local(units, False, ordered_results, child_task_ids=[])
     helper_output = tasks._reduce_multicast_results(units, False, ordered_results)
 
     assert output == {
@@ -682,9 +686,63 @@ def test_reduce_multicast_results_sorts_when_requested() -> None:
         ("unit1", tasks.fanout_success("unit1", {"value": 1})),
     ]
 
-    output = tasks.reduce_multicast_results.call_local(units, True, ordered_results)
+    output = tasks.reduce_multicast_results.call_local(units, True, ordered_results, child_task_ids=[])
 
     assert list(output.keys()) == ["unit1", "unit2"]
+
+
+def test_multicast_chord_deletes_child_results_and_preserves_callback_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tasks.huey, "_immediate", False)
+    monkeypatch.setattr(
+        tasks.huey,
+        "storage",
+        SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"),
+    )
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: f"http://{unit}.local")
+    monkeypatch.setattr(
+        tasks,
+        "get_from",
+        lambda address, endpoint, json=None, timeout=5.0: _response(
+            200, {"address": address, "endpoint": endpoint}
+        ),
+    )
+
+    chord_result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    child_task_ids = [child_result.id for child_result in chord_result.results]
+
+    for _ in child_task_ids:
+        child_task = tasks.huey.dequeue()
+        assert child_task is not None
+        tasks.huey.execute(child_task)
+
+    assert all(tasks.huey.storage.has_data_for_key(task_id) for task_id in child_task_ids)
+
+    callback_task = tasks.huey.dequeue()
+    assert callback_task is not None
+    tasks.huey.execute(callback_task)
+
+    assert tasks.huey.dequeue() is None
+    assert all(not tasks.huey.storage.has_data_for_key(task_id) for task_id in child_task_ids)
+    assert tasks.huey.storage.has_data_for_key(chord_result.callback.id)
+
+    expected = {
+        "unit1": {
+            "ok": True,
+            "unit": "unit1",
+            "value": {"address": "http://unit1.local", "endpoint": "/unit_api/test"},
+        },
+        "unit2": {
+            "ok": True,
+            "unit": "unit2",
+            "value": {"address": "http://unit2.local", "endpoint": "/unit_api/test"},
+        },
+    }
+    assert chord_result.get(preserve=True) == expected
+    chord_result.reset()
+    assert chord_result.get(preserve=True) == expected
 
 
 def test_multicast_get_uncached_allows_headroom_for_aggregate_result(

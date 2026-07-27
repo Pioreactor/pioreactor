@@ -25,6 +25,12 @@ def test_to_datetime() -> None:
     )
 
 
+def test_repeated_timer_time_to_next_run_is_zero_before_start() -> None:
+    timer = RepeatedTimer(5, lambda: None)
+
+    assert timer.time_to_next_run == 0
+
+
 def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused() -> None:
     class Counter:
         counter = 0

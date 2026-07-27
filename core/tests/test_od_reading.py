@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # test_od_reading.py
+import signal as signal_module
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -165,6 +166,19 @@ def test_sin_regression_exactly_50hz() -> None:
     assert C_ == pytest.approx(C, abs=0.15)
     assert A_ == pytest.approx(A, abs=0.15)
     assert phi_ == pytest.approx(phi, abs=0.15)
+
+
+def test_sin_regression_preserves_phase_quadrant() -> None:
+    freq = 50
+    phase = 2.5
+    x = [i / 37 for i in range(37)]
+    y = [10.0 + 2.0 * np.sin(freq * 2 * np.pi * _x + phase) for _x in x]
+
+    adc_reader = ADCReader(channels=[])
+
+    (_, _, phase_), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
+
+    assert phase_ == pytest.approx(phase)
 
 
 def test_sin_regression_estimator_is_consistent() -> None:
@@ -700,6 +714,99 @@ def test_simple_trimmed_mean_with_prior() -> None:
     )
 
 
+def test_take_reading_uses_penalized_trimmed_mean_without_an_ac_frequency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adc_reader = ADCReader(
+        channels=["1"],
+        fake_data=True,
+        dynamic_gain=False,
+        penalizer=2.0,
+        oversampling_count=5,
+    )
+    adc_reader.most_appropriate_AC_hz = None
+    calls: list[tuple[list[float], float | None, float | None]] = []
+
+    monkeypatch.setattr(od_reading_module, "sleep", lambda _: None)
+    monkeypatch.setattr(adc_reader.adcs["1"], "read_from_channel", lambda: 1.0)
+    monkeypatch.setattr(adc_reader, "_check_if_over_max", lambda _: None)
+
+    def record_trimmed_mean_call(
+        readings: list[float],
+        prior_C: float | None = None,
+        penalizer_C: float | None = 0,
+    ) -> float:
+        calls.append((readings, prior_C, penalizer_C))
+        return 1.0
+
+    monkeypatch.setattr(adc_reader, "_simple_trimmed_mean_with_prior", record_trimmed_mean_call)
+
+    adc_reader.take_reading()
+
+    assert calls == [([1.0] * 5, None, 10.0)]
+
+
+def test_adc_overvoltage_safety_does_not_require_an_assigned_experiment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    led_calls: list[tuple[dict[str, float], dict[str, object]]] = []
+    published: list[tuple[str, int]] = []
+    signals: list[tuple[int, signal_module.Signals]] = []
+
+    def raise_not_assigned(_: str) -> str:
+        raise exc.NotAssignedAnExperimentError("not assigned")
+
+    def record_led_intensity(intensities: dict[str, float], **kwargs: object) -> None:
+        led_calls.append((intensities, kwargs))
+
+    monkeypatch.setattr(od_reading_module.whoami, "get_unit_name", lambda: "unit1")
+    monkeypatch.setattr(
+        od_reading_module.whoami,
+        "get_assigned_experiment_name",
+        raise_not_assigned,
+    )
+    monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", record_led_intensity)
+    monkeypatch.setattr(
+        od_reading_module,
+        "publish",
+        lambda topic, payload: published.append((topic, payload)),
+    )
+    monkeypatch.setattr(
+        od_reading_module.os,
+        "kill",
+        lambda pid, sig: signals.append((pid, sig)),
+    )
+    adc_reader = ADCReader(channels=[])
+
+    with local_intermittent_storage("led_locks") as cache:
+        for channel in ALL_LED_CHANNELS:
+            cache[channel] = "od_reading"
+
+    adc_reader._check_if_over_max(3.21)
+
+    with local_intermittent_storage("led_locks") as cache:
+        assert all(cache.get(channel) is None for channel in ALL_LED_CHANNELS)
+
+    assert led_calls == [
+        (
+            {channel: 0.0 for channel in ALL_LED_CHANNELS},
+            {
+                "source_of_event": "ADCReader",
+                "unit": "unit1",
+                "experiment": "$experiment",
+                "verbose": True,
+            },
+        )
+    ]
+    assert published == [
+        (
+            "pioreactor/unit1/$experiment/monitor/flicker_led_with_error_code",
+            od_reading_module.error_codes.ADC_INPUT_TOO_HIGH,
+        )
+    ]
+    assert signals == [(od_reading_module.os.getpid(), signal_module.SIGTERM)]
+
+
 def test_ADC_picks_to_correct_freq() -> None:
     actual_freq = 50.0
 
@@ -989,7 +1096,6 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"2": "90"},
             50,
             {"1": structs.RawPDReading(0.05, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
-            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 85.0
     )
@@ -999,7 +1105,6 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"2": "90"},
             50,
             {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
-            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 62.5
     )
@@ -1009,7 +1114,6 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"2": "90"},
             50,
             {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.5, "2")},  # on
-            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 50  # 6.0
     )
@@ -1019,7 +1123,6 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"2": "90"},
             50,
             {"1": structs.RawPDReading(0.0, "1"), "2": structs.RawPDReading(0.0, "2")},
-            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},
         )
         == 85.0
     )

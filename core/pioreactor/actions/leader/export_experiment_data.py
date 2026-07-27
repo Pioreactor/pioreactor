@@ -12,6 +12,7 @@ import zipfile
 from base64 import b64decode
 from contextlib import closing
 from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -24,6 +25,7 @@ from msgspec.yaml import decode as yaml_decode
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Dataset
+from pioreactor.utils.timing import to_iso_format
 from pioreactor.whoami import is_testing_env
 
 
@@ -314,22 +316,21 @@ def create_experiment_clause(
 def create_timespan_clause(
     start_time: str | None, end_time: str | None, time_column: str, existing_placeholders: dict[str, str]
 ) -> tuple[str, dict[str, str]]:
-    local_timetamp_clause = f"strftime('%Y-%m-%dT%H:%M:%f', T.{time_column}, 'localtime')"
     if start_time is not None and end_time is not None:
         existing_placeholders["start_time"] = start_time
         existing_placeholders["end_time"] = end_time
         return (
-            f"{local_timetamp_clause} >= :start_time AND {local_timetamp_clause} <= :end_time",
+            f"T.{time_column} >= :start_time AND T.{time_column} <= :end_time",
             existing_placeholders,
         )
 
     elif start_time is not None:
         existing_placeholders["start_time"] = start_time
-        return f"{local_timetamp_clause} >= :start_time", existing_placeholders
+        return f"T.{time_column} >= :start_time", existing_placeholders
 
     elif end_time is not None:
         existing_placeholders["end_time"] = end_time
-        return f"{local_timetamp_clause} <= :end_time", existing_placeholders
+        return f"T.{time_column} <= :end_time", existing_placeholders
     else:
         raise ValueError
 
@@ -384,6 +385,29 @@ def export_experiment_data(
         click.echo("At least one dataset name must be provided.")
         sys.exit(1)
 
+    start_time_as_datetime = datetime.fromisoformat(start_time) if start_time is not None else None
+    end_time_as_datetime = datetime.fromisoformat(end_time) if end_time is not None else None
+    if start_time_as_datetime is not None and start_time_as_datetime.tzinfo is None:
+        raise ValueError("start_time must include a timezone offset")
+    if end_time_as_datetime is not None and end_time_as_datetime.tzinfo is None:
+        raise ValueError("end_time must include a timezone offset")
+    if (
+        start_time_as_datetime is not None
+        and end_time_as_datetime is not None
+        and start_time_as_datetime > end_time_as_datetime
+    ):
+        raise ValueError("start_time must be earlier than or equal to end_time")
+    start_time = (
+        to_iso_format(start_time_as_datetime.astimezone(timezone.utc))
+        if start_time_as_datetime is not None
+        else None
+    )
+    end_time = (
+        to_iso_format(end_time_as_datetime.astimezone(timezone.utc))
+        if end_time_as_datetime is not None
+        else None
+    )
+
     logger = create_logger("export_experiment_data", experiment="$experiment")
     logger.info(
         f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)} to {output}."
@@ -426,7 +450,7 @@ def export_experiment_data(
         ) as con:
             con.create_function(
                 "BASE64", 1, decode_base64
-            )  # TODO: until next OS release which implements a native sqlite3 base64 function
+            )  # SQLite bundles base64() with its CLI, but not with the library used by Python.
 
             con.row_factory = rounded_row_factory
 
@@ -666,8 +690,8 @@ def export_experiment_data(
 @click.option("--partition-by-unit", is_flag=True)
 @click.option("--partition-by-experiment", is_flag=True)
 @click.option("--dataset-name", multiple=True, default=[])
-@click.option("--start-time", help="iso8601")
-@click.option("--end-time", help="iso8601")
+@click.option("--start-time", help="Offset-aware ISO-8601 timestamp.")
+@click.option("--end-time", help="Offset-aware ISO-8601 timestamp.")
 def click_export_experiment_data(
     experiment: tuple[str, ...],
     output: str,

@@ -11,6 +11,7 @@ import pytest
 from pioreactor.actions.leader import export_experiment_data as export_experiment_data_module
 from pioreactor.actions.leader.export_experiment_data import _check_export_resources
 from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
+from pioreactor.actions.leader.export_experiment_data import create_timespan_clause
 from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 from pioreactor.actions.leader.export_experiment_data import ExportResourceLimitError
 from pioreactor.actions.leader.export_experiment_data import source_exists
@@ -24,6 +25,43 @@ def test_source_exists() -> None:
 
     assert source_exists(cursor, "test_table")
     assert not source_exists(cursor, "nonexistent_table")
+
+
+def test_timespan_clause_uses_experiment_timestamp_index_range() -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (experiment TEXT, timestamp TEXT)")
+    conn.execute("CREATE INDEX test_table_ix ON test_table (experiment, timestamp)")
+
+    timespan_clause, placeholders = create_timespan_clause(
+        "2025-11-02T05:30:00.000Z",
+        "2025-11-02T06:30:00.000Z",
+        "timestamp",
+        {"experiment": "exp1"},
+    )
+    query_plan = conn.execute(
+        (
+            "EXPLAIN QUERY PLAN SELECT * FROM test_table T "
+            f"WHERE T.experiment = :experiment AND {timespan_clause}"
+        ),
+        placeholders,
+    ).fetchall()
+    plan_description = " ".join(str(row[3]) for row in query_plan)
+
+    assert "strftime" not in timespan_clause
+    assert "test_table_ix" in plan_description
+    assert "timestamp>?" in plan_description
+    assert "timestamp<?" in plan_description
+
+
+def test_export_experiment_data_rejects_timezone_naive_bound(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="start_time must include a timezone offset"):
+        export_experiment_data(
+            experiments=[],
+            output=(tmp_path / "test.zip").as_posix(),
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+            start_time="2025-11-02T01:30:00",
+        )
 
 
 @pytest.fixture
@@ -597,7 +635,7 @@ def test_export_experiment_data_with_start_time(temp_zipfile) -> None:
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            start_time="2021-09-01T00:00:10",
+            start_time="2021-09-01T00:00:10Z",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
@@ -633,7 +671,7 @@ def test_export_experiment_data_with_end_time(temp_zipfile) -> None:
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            end_time="2021-09-01T00:00:05",
+            end_time="2021-09-01T00:00:05Z",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
@@ -670,8 +708,8 @@ def test_export_experiment_data_with_start_and_end_time(temp_zipfile) -> None:
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            start_time="2021-09-01T00:00:09",
-            end_time="2021-09-01T00:00:21",
+            start_time="2021-09-01T00:00:09Z",
+            end_time="2021-09-01T00:00:21Z",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
@@ -687,3 +725,39 @@ def test_export_experiment_data_with_start_and_end_time(temp_zipfile) -> None:
             assert len(rows) == 2
             ids = [row.split(",")[0] for row in rows]
             assert ids == ["2", "3"]
+
+
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_normalizes_dst_fall_back_bounds_to_utc(temp_zipfile) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
+        "(1, 'EDT', '2025-11-02T05:30:00.000Z', 0.1),"
+        "(2, 'EST', '2025-11-02T06:30:00.000Z', 0.2)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+            start_time="2025-11-02T01:30:00-05:00",
+            end_time="2025-11-02T01:30:00-05:00",
+        )
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        csv_filename = next(
+            fn for fn in zf.namelist() if fn.startswith("test_table/") and fn.endswith(".csv")
+        )
+        with zf.open(csv_filename) as csv_file:
+            content = csv_file.read().decode("utf-8").strip().splitlines()
+            assert len(content) == 2
+            assert content[1].split(",")[0] == "2"
+
+        manifest = json.loads(zf.read("manifest.json"))
+        assert manifest["filters"]["start_time"] == "2025-11-02T06:30:00.000Z"
+        assert manifest["filters"]["end_time"] == "2025-11-02T06:30:00.000Z"
