@@ -1369,6 +1369,56 @@ def test_config_history_responses_require_revalidation(client: FlaskClient) -> N
         assert response.headers["Cache-Control"] == "public, max-age=0"
 
 
+def test_zipped_configs_contains_shared_and_all_reachable_unit_configs(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text("[shared]\nvalue=global\n", encoding="utf-8")
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    class FakeTask:
+        def get(self, blocking: bool, timeout: float) -> dict[str, object]:
+            return {
+                "unit1": {
+                    "ok": True,
+                    "unit": "unit1",
+                    "value": b"[unit]\nvalue=one\n",
+                },
+                "unit2": {
+                    "ok": True,
+                    "unit": "unit2",
+                    "value": None,
+                },
+                "unit3": {
+                    "ok": False,
+                    "unit": "unit3",
+                    "error": {"kind": "connection_error", "message": "Could not reach unit3."},
+                    "status_code": None,
+                    "retryable": True,
+                },
+            }
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.fanout.broadcast_get_across_cluster",
+        lambda *args, **kwargs: FakeTask(),
+    )
+
+    response = client.get("/api/config/zipped")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"] == "attachment; filename=configuration_inis.zip"
+    with zipfile.ZipFile(BytesIO(response.data), "r") as zf:
+        assert zf.namelist() == [
+            "config.ini",
+            "unit1/unit_config.ini",
+            "unit2/unit_config.ini",
+        ]
+        assert zf.read("config.ini") == b"[shared]\nvalue=global\n"
+        assert zf.read("unit1/unit_config.ini") == b"[unit]\nvalue=one\n"
+        assert zf.read("unit2/unit_config.ini") == b""
+
+
 def test_update_specific_config_for_worker_propagates_validation_error(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:

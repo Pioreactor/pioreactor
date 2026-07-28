@@ -13,6 +13,7 @@ import {Typography} from '@mui/material';
 import Snackbar from './components/Snackbar';
 import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/Save';
+import DownloadIcon from '@mui/icons-material/Download';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import Alert from "@mui/material/Alert";
@@ -386,20 +387,65 @@ function EditableCodeDiv() {
 
 
 function EditConfigContainer(){
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+
+  const handleDownloadConfigurations = async () => {
+    setDownloading(true);
+    setDownloadError("");
+
+    try {
+      const response = await fetch("/api/config/zipped");
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "configuration_inis.zip");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Configuration download failed:", error);
+      setDownloadError("Could not download configurations. Check that the Pioreactors are online and try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return(
     <React.Fragment>
 
-      <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Configuration
-            </Box>
+      <Box component="header" sx={{ mb: 2 }}>
+        <Box sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          flexWrap: "wrap",
+          mb: 1,
+        }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
+            Configuration
           </Typography>
+          <Button
+            sx={{ textTransform: "none", mr: "0px", float: "right" }}
+            color="primary"
+            onClick={handleDownloadConfigurations}
+            loading={downloading}
+          >
+            <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
+            Download all configurations
+          </Button>
         </Box>
-
+        <Divider />
       </Box>
-      <Divider sx={{mt: "12px", mb: "15px"}} />
+
+      {downloadError && <Alert severity="error" sx={{ mb: 2 }}>{downloadError}</Alert>}
 
       <Card >
         <CardContent sx={{p: 1}}>

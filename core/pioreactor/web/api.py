@@ -3221,6 +3221,56 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 ## CONFIG CONTROL
 
 
+@api_bp.route("/config/zipped", methods=["GET"])
+def get_zipped_configs() -> ResponseReturnValue:
+    try:
+        shared_config = _read_text(_get_shared_config_path())
+    except Exception as e:
+        publish_to_error_log(str(e), "get_zipped_configs")
+        abort_with(400, str(e))
+
+    task = fanout.broadcast_get_across_cluster(
+        "/unit_api/config/specific",
+        timeout=10,
+        return_raw=True,
+    )
+
+    try:
+        results = task.get(blocking=True, timeout=60)
+    except (HueyException, TaskException):
+        abort_with(
+            500,
+            "Timed out fetching configurations",
+            cause="Timed out waiting for units to provide their unit-specific configurations.",
+            remediation="Retry the request and check unit connectivity.",
+        )
+
+    archive = BytesIO()
+
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr("config.ini", shared_config)
+
+        for unit, raw_result in results.items():
+            if not isinstance(raw_result, dict) or raw_result.get("ok") is not True:
+                continue
+
+            unit_config = raw_result.get("value")
+            if unit_config is None:
+                unit_config = b""
+            elif not isinstance(unit_config, bytes):
+                continue
+
+            zip_file.writestr(f"{unit}/unit_config.ini", unit_config)
+
+    archive.seek(0)
+    return send_file(
+        archive,
+        as_attachment=True,
+        download_name="configuration_inis.zip",
+        mimetype="application/zip",
+    )
+
+
 @api_bp.route("/config/shared", methods=["GET"])
 def get_shared_config() -> ResponseReturnValue:
     try:

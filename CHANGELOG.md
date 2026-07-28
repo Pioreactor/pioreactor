@@ -15,6 +15,7 @@
 
  - Bump to React 19.x, and new vite build system.
  - Added `manifest.json` and per-dataset `schema.json` metadata to exported data archives, including applied filters, row counts, column descriptions, and units.
+ - Added a **Download all configurations** action to the Configuration page, which downloads the shared `config.ini` and each reachable Pioreactor's `unit_config.ini` in one ZIP archive.
  - Accelerated time-filtered dataset exports by using indexed UTC timestamp comparisons. On a representative 381,840-row experiment, a one-day query improved from more than 30 seconds to about 0.02 seconds.
  - Added expression support to experiment-profile job `config_overrides`.
  - Expanded `pio status` with the assigned Pioreactor model and model-to-hardware compatibility checks.
