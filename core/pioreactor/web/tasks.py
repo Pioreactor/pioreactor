@@ -948,7 +948,21 @@ def export_experiment_data_task(
     from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 
-    logger.debug("Exporting experiment data.")
+    logger.debug(
+        "Exporting experiment data. Parameters: %s",
+        json.dumps(
+            {
+                "experiments": experiments,
+                "dataset_names": dataset_names,
+                "output": output,
+                "start_time": start_time,
+                "end_time": end_time,
+                "partition_by_unit": partition_by_unit,
+                "partition_by_experiment": partition_by_experiment,
+            },
+            separators=(",", ":"),
+        ),
+    )
     try:
         if not output:
             raise ValueError("Missing output")
