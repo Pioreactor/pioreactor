@@ -35,6 +35,19 @@ def test_get_ip_returns_comma_separated_stdout_addresses(monkeypatch) -> None:
     assert networking.get_ip() == "192.168.1.5,10.0.0.2"
 
 
+def test_get_ip_filters_out_ipv6_addresses(monkeypatch) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=["hostname", "-I"],
+            returncode=0,
+            stdout="192.168.1.5 fe80::1234:5678:9abc:def0 10.0.0.2\n",
+        )
+
+    monkeypatch.setattr(networking.subprocess, "run", fake_run)
+
+    assert networking.get_ip() == "192.168.1.5,10.0.0.2"
+
+
 def test_get_ip_returns_empty_string_when_hostname_has_no_stdout(monkeypatch) -> None:
     def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args=["hostname", "-I"], returncode=0, stdout="")

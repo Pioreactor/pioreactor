@@ -26,6 +26,7 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Dataset
 from pioreactor.utils.timing import to_iso_format
+from pioreactor.version import __version__
 from pioreactor.whoami import is_testing_env
 
 
@@ -196,6 +197,7 @@ def build_export_manifest(
 ) -> dict[str, Any]:
     return {
         "schema_version": EXPORT_METADATA_SCHEMA_VERSION,
+        "pioreactor_version": __version__,
         "export_created_at": export_created_at,
         "filters": {
             "experiments": list(experiments),

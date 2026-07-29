@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import subprocess
+from ipaddress import ip_address
+from ipaddress import IPv4Address
 from pathlib import Path
 from queue import Empty
 from queue import Queue
@@ -100,7 +102,9 @@ def get_ip() -> str:
         text=True,
         check=False,
     )
-    ipv4_addresses = result.stdout.strip().split()
+    ipv4_addresses = [
+        address for address in result.stdout.split() if isinstance(ip_address(address), IPv4Address)
+    ]
     if ipv4_addresses:
         return ",".join(ipv4_addresses)
     else:

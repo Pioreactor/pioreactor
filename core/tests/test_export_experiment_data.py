@@ -16,6 +16,7 @@ from pioreactor.actions.leader.export_experiment_data import export_experiment_d
 from pioreactor.actions.leader.export_experiment_data import ExportResourceLimitError
 from pioreactor.actions.leader.export_experiment_data import source_exists
 from pioreactor.structs import Dataset
+from pioreactor.version import __version__
 
 
 def test_source_exists() -> None:
@@ -200,6 +201,7 @@ def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> No
     csv_path = dataset_manifest["csv_paths"][0]
 
     assert manifest["schema_version"] == 1
+    assert manifest["pioreactor_version"] == __version__
     assert manifest["filters"] == {
         "experiments": [],
         "start_time": None,
