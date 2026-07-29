@@ -211,7 +211,7 @@ def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> No
     dataset_manifest = manifest["datasets"][0]
     csv_path = dataset_manifest["csv_paths"][0]
 
-    assert manifest["schema_version"] == 2
+    assert manifest["schema_version"] == 1
     assert manifest["pioreactor_version"] == __version__
     assert manifest["filters"] == {
         "experiment": "test_experiment",
@@ -234,7 +234,7 @@ def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> No
     ]
     assert dataset_manifest["partition_values"] == {"experiments": [], "pioreactor_units": []}
 
-    assert schema["schema_version"] == 2
+    assert schema["schema_version"] == 1
     assert schema["dataset_name"] == "test_table"
     assert schema["default_order_by"] == "timestamp"
     assert schema["timestamp_columns"] == ["timestamp"]

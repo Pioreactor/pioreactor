@@ -10,7 +10,7 @@
    ```
  - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an upgrade.
  - Changed time-filtered dataset export bounds supplied through the API, MCP, or CLI to require an explicit `Z` or numeric UTC offset. The Export Data UI continues to accept local times and converts them using the browser's timezone.
- - Changed dataset exports to require exactly one experiment. API and MCP clients should provide an `experiment` string instead of an `experiments` list, and `pio run export_experiment_data` now requires one `--experiment`. Export manifests now use schema version 2 with `filters.experiment`.
+ - Changed dataset exports to require exactly one experiment. API and MCP clients should provide an `experiment` string instead of an `experiments` list, and `pio run export_experiment_data` now requires one `--experiment`. Export manifests use schema version 1 with `filters.experiment`.
 
 #### Enhancements
 
