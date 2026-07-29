@@ -10,6 +10,7 @@
    ```
  - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an upgrade.
  - Changed time-filtered dataset export bounds supplied through the API, MCP, or CLI to require an explicit `Z` or numeric UTC offset. The Export Data UI continues to accept local times and converts them using the browser's timezone.
+ - Changed dataset exports to require exactly one experiment. API and MCP clients should provide an `experiment` string instead of an `experiments` list, and `pio run export_experiment_data` now requires one `--experiment`. Export manifests now use schema version 2 with `filters.experiment`.
 
 #### Enhancements
 
@@ -24,6 +25,7 @@
 
 #### Bug fixes
 
+ - Fixed large sorted dataset exports exhausting memory by moving SQLite temporary sort files from RAM-backed `/tmp` to disk-backed `/var/tmp/pioreactor`.
  - Improved background-job shutdown during rapid MQTT state changes, preventing queued commands from reviving stopped jobs and reducing cases where successfully stopped jobs remained shown as `lost`.
  - Fixed temperature automations so an in-progress temperature inference cannot restore heater power after the job sleeps or disconnects.
  - Fixed experiment-profile MQTT lookups to preserve decoded boolean and numeric values instead of coercing them as strings.
@@ -32,6 +34,7 @@
  - Fixed OD-dodging jobs so mode changes made while sleeping take effect correctly when the job resumes.
  - Fixed the Leader page opening a second MQTT connection alongside the application-wide connection.
  - Improved validation of calibration and estimator names and custom UI descriptors before they are written or rendered.
+ - Fixed IPv4 reporting in the monitor, API, and `pio status` so IPv6 addresses returned by the operating system are no longer included.
 
 
 ### 26.6.0
