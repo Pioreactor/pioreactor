@@ -8,3 +8,4 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 bash "$SCRIPT_DIR/10_update_install_exportable_dataset_descriptors.sh"
 bash "$SCRIPT_DIR/20_migrate_experiment_profile_versions.sh"
+bash "$SCRIPT_DIR/30_configure_sqlite_temp_directory.sh"

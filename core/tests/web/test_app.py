@@ -1549,7 +1549,7 @@ def test_export_datasets_rejects_wrong_field_types(client: FlaskClient) -> None:
         "/api/datasets/exportable/export",
         json={
             "datasets": "od_readings",
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
         },
@@ -1561,10 +1561,40 @@ def test_export_datasets_rejects_wrong_field_types(client: FlaskClient) -> None:
         "status": 400,
         "cause": "Expected `array`, got `str` - at `$.datasets`",
         "remediation": (
-            "Send a JSON object with the required fields: datasets, experiments, "
+            "Send a JSON object with the required fields: datasets, experiment, "
             "partition_by_unit, partition_by_experiment."
         ),
     }
+
+
+def test_export_datasets_rejects_plural_experiments_field(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiments": ["exp1"],
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+
+
+def test_export_datasets_rejects_empty_experiment(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiment": "",
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
 
 
 def test_create_experiment_profile_returns_diagnostics_for_semantic_validation_errors(client) -> None:
@@ -1879,7 +1909,7 @@ def test_export_datasets_returns_async_task_response(
         id = "export-task"
 
     def fake_export_experiment_data_task(
-        experiments: list[str],
+        experiment: str,
         dataset_names: list[str],
         output: str,
         start_time: str | None = None,
@@ -1887,7 +1917,7 @@ def test_export_datasets_returns_async_task_response(
         partition_by_unit: bool = False,
         partition_by_experiment: bool = True,
     ) -> DummyTask:
-        captured["experiments"] = experiments
+        captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
         captured["output"] = output
         captured["start_time"] = start_time
@@ -1905,7 +1935,7 @@ def test_export_datasets_returns_async_task_response(
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2025-11-02T01:30:00-05:00",
@@ -1917,7 +1947,7 @@ def test_export_datasets_returns_async_task_response(
     data = response.get_json()
     assert data["task_id"] == "export-task"
     assert data["result_url_path"] == "/unit_api/task_results/export-task"
-    assert captured["experiments"] == []
+    assert captured["experiment"] == "exp1"
     assert captured["dataset_names"] == ["od_readings"]
     output_path = Path(str(captured["output"]))
     assert output_path.parent == tmp_path / "exports"
@@ -1934,7 +1964,7 @@ def test_export_datasets_rejects_timezone_naive_bounds(client: FlaskClient) -> N
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2026-01-01T00:00",
@@ -1951,7 +1981,7 @@ def test_export_datasets_rejects_reversed_bounds(client: FlaskClient) -> None:
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2026-01-02T00:00:00Z",
@@ -1972,7 +2002,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
         id = "usb-export-task"
 
     def fake_export_experiment_data_to_usb_task(
-        experiments: list[str],
+        experiment: str,
         dataset_names: list[str],
         filename: str,
         start_time: str | None = None,
@@ -1980,7 +2010,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
         partition_by_unit: bool = False,
         partition_by_experiment: bool = True,
     ) -> DummyTask:
-        captured["experiments"] = experiments
+        captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
         captured["filename"] = filename
         captured["start_time"] = start_time
@@ -1998,7 +2028,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
         "/api/datasets/exportable/export-to-usb",
         json={
             "datasets": ["od_readings"],
-            "experiments": ["exp1"],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2026-01-01T00:00:00Z",
@@ -2009,7 +2039,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
     assert response.status_code == 202
     data = response.get_json()
     assert data["task_id"] == "usb-export-task"
-    assert captured["experiments"] == ["exp1"]
+    assert captured["experiment"] == "exp1"
     assert captured["dataset_names"] == ["od_readings"]
     assert str(captured["filename"]).startswith("export_")
     assert str(captured["filename"]).endswith(".zip")

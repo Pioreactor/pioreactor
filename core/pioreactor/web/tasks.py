@@ -937,7 +937,7 @@ def require_export_disk_space(output_dir: Path) -> None:
 @huey.task()
 @huey.lock_task("export-data-lock")
 def export_experiment_data_task(
-    experiments: list[str],
+    experiment: str,
     dataset_names: list[str],
     output: str,
     start_time: str | None = None,
@@ -952,7 +952,7 @@ def export_experiment_data_task(
         "Exporting experiment data. Parameters: %s",
         json.dumps(
             {
-                "experiments": experiments,
+                "experiment": experiment,
                 "dataset_names": dataset_names,
                 "output": output,
                 "start_time": start_time,
@@ -975,7 +975,7 @@ def export_experiment_data_task(
         cleanup_stale_export_artifacts(output_path.parent, logger)
         require_export_disk_space(output_path.parent)
         export_experiment_data(
-            experiments,
+            experiment,
             dataset_names,
             output,
             start_time=start_time,
@@ -1027,7 +1027,7 @@ def eject_usb_task(device: str | None = None) -> dict[str, Any]:
 @huey.lock_task("export-data-lock")
 @huey.lock_task("usb-lock")
 def export_experiment_data_to_usb_task(
-    experiments: list[str],
+    experiment: str,
     dataset_names: list[str],
     filename: str,
     start_time: str | None = None,
@@ -1055,7 +1055,7 @@ def export_experiment_data_to_usb_task(
     try:
         cleanup_stale_export_artifacts(output_dir, logger)
         export_experiment_data(
-            experiments,
+            experiment,
             dataset_names,
             output_path.as_posix(),
             start_time=start_time,

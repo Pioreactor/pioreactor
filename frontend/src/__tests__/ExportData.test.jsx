@@ -82,7 +82,7 @@ describe("ExportData", () => {
       throw new Error(`Unexpected fetch call: ${url}`);
     });
 
-    renderExportData("/export-data?experiments=E%20coli%2C%2037C");
+    renderExportData("/export-data?experiment=E%20coli%2C%2037C");
 
     await waitFor(() => {
       expect(screen.getByRole("combobox")).toHaveTextContent("E coli, 37C");
@@ -241,6 +241,8 @@ describe("ExportData", () => {
     await waitFor(() => {
       const request = fetchTaskResult.mock.calls[0][1];
       const body = JSON.parse(request.fetchOptions.body);
+      expect(body.experiment).toBe("exp-1");
+      expect(body.experiments).toBeUndefined();
       expect(body.start_time).toBe(new Date("2025-11-02T01:30").toISOString());
       expect(body.end_time).toBeNull();
     });

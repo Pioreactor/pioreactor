@@ -5,6 +5,7 @@ import re
 import sqlite3
 import zipfile
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -57,11 +58,21 @@ def test_timespan_clause_uses_experiment_timestamp_index_range() -> None:
 def test_export_experiment_data_rejects_timezone_naive_bound(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="start_time must include a timezone offset"):
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=(tmp_path / "test.zip").as_posix(),
             partition_by_unit=False,
             dataset_names=["test_table"],
             start_time="2025-11-02T01:30:00",
+        )
+
+
+@pytest.mark.parametrize("experiment", ["", cast(str, ["exp1", "exp2"])])
+def test_export_experiment_data_requires_exactly_one_experiment(experiment: str, tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Exactly one experiment must be provided"):
+        export_experiment_data(
+            experiment=experiment,
+            dataset_names=["test_table"],
+            output=(tmp_path / "test.zip").as_posix(),
         )
 
 
@@ -137,7 +148,7 @@ def test_export_experiment_data(temp_zipfile) -> None:
         mock_connect.return_value = conn
 
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -184,7 +195,7 @@ def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> No
         mock_connect.return_value = conn
 
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -200,10 +211,10 @@ def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> No
     dataset_manifest = manifest["datasets"][0]
     csv_path = dataset_manifest["csv_paths"][0]
 
-    assert manifest["schema_version"] == 1
+    assert manifest["schema_version"] == 2
     assert manifest["pioreactor_version"] == __version__
     assert manifest["filters"] == {
-        "experiments": [],
+        "experiment": "test_experiment",
         "start_time": None,
         "end_time": None,
         "partition_by_unit": False,
@@ -223,7 +234,7 @@ def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> No
     ]
     assert dataset_manifest["partition_values"] == {"experiments": [], "pioreactor_units": []}
 
-    assert schema["schema_version"] == 1
+    assert schema["schema_version"] == 2
     assert schema["dataset_name"] == "test_table"
     assert schema["default_order_by"] == "timestamp"
     assert schema["timestamp_columns"] == ["timestamp"]
@@ -261,7 +272,7 @@ def test_export_experiment_data_writes_tmp_zip_then_renames(
     with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -287,7 +298,7 @@ def test_export_experiment_data_removes_partial_artifacts_on_failure(
         mock_connect.return_value = conn
         with pytest.raises(OSError, match="full"):
             export_experiment_data(
-                experiments=[],
+                experiment="test_experiment",
                 output=temp_zipfile.strpath,
                 partition_by_unit=False,
                 dataset_names=["test_table"],
@@ -316,7 +327,7 @@ def test_export_experiment_data_removes_partial_artifacts_on_resource_limit(
         mock_connect.return_value = conn
         with pytest.raises(ExportResourceLimitError, match="low memory"):
             export_experiment_data(
-                experiments=[],
+                experiment="test_experiment",
                 output=temp_zipfile.strpath,
                 partition_by_unit=False,
                 dataset_names=["test_table"],
@@ -345,6 +356,31 @@ def test_check_export_resources_rejects_low_export_space(
 
     with pytest.raises(ExportResourceLimitError, match="low on free space"):
         _check_export_resources(tmp_path / "export.zip", tmp_path / "pioreactor.sqlite")
+
+
+def test_check_export_resources_checks_sqlite_temp_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class Usage:
+        free = export_experiment_data_module.MINIMUM_EXPORT_FREE_BYTES
+
+    output_directory = tmp_path / "exports"
+    output_directory.mkdir()
+    sqlite_temp_directory = tmp_path / "sqlite-temp"
+    sqlite_temp_directory.mkdir()
+    checked_paths: list[Path] = []
+
+    def record_disk_usage(path: Path) -> Usage:
+        checked_paths.append(Path(path))
+        return Usage()
+
+    monkeypatch.setenv("SQLITE_TMPDIR", str(sqlite_temp_directory))
+    monkeypatch.setattr(export_experiment_data_module, "_read_mem_available_bytes", lambda: None)
+    monkeypatch.setattr(export_experiment_data_module.shutil, "disk_usage", record_disk_usage)
+
+    _check_export_resources(output_directory / "export.zip", tmp_path / "pioreactor.sqlite")
+
+    assert checked_paths == [output_directory, sqlite_temp_directory]
 
 
 def test_check_export_resources_rejects_large_wal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -389,7 +425,7 @@ def test_zip_directory_timestamp_not_1980(temp_zipfile) -> None:
     with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -413,7 +449,7 @@ def test_zip_csv_timestamp_not_1980(temp_zipfile) -> None:
     with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -445,7 +481,7 @@ def test_export_experiment_data_with_base64_data(temp_zipfile) -> None:
         mock_connect.return_value = conn
 
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_base64"],
@@ -491,7 +527,7 @@ def test_export_experiment_data_with_experiment(temp_zipfile) -> None:
         mock_connect.return_value = conn
 
         export_experiment_data(
-            experiments=["test_export_experiment_data_with_experiment"],
+            experiment="test_export_experiment_data_with_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table_with_experiment"],
@@ -558,7 +594,7 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile) -> None:
         mock_connect.return_value = conn
 
         export_experiment_data(
-            experiments=["exp1"],
+            experiment="exp1",
             output=temp_zipfile.strpath,
             partition_by_unit=True,
             dataset_names=["od_readings"],
@@ -605,7 +641,7 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
         mock_connect.return_value = conn
 
         export_experiment_data(
-            experiments=["exp1"],
+            experiment="exp1",
             output=temp_zipfile.strpath,
             partition_by_unit=True,
             dataset_names=["od_readings"],
@@ -633,7 +669,7 @@ def test_export_experiment_data_with_start_time(temp_zipfile) -> None:
     with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -669,7 +705,7 @@ def test_export_experiment_data_with_end_time(temp_zipfile) -> None:
     with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -706,7 +742,7 @@ def test_export_experiment_data_with_start_and_end_time(temp_zipfile) -> None:
     with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
@@ -743,7 +779,7 @@ def test_export_experiment_data_normalizes_dst_fall_back_bounds_to_utc(temp_zipf
     with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
         export_experiment_data(
-            experiments=[],
+            experiment="test_experiment",
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],

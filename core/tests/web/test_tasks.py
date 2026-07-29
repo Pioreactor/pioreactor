@@ -506,7 +506,7 @@ def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filena
     stale_tmp.write_text("old", encoding="utf-8")
 
     def fake_export_experiment_data(
-        experiments: list[str],
+        experiment: str,
         dataset_names: list[str],
         output: str,
         start_time: str | None = None,
@@ -514,6 +514,7 @@ def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filena
         partition_by_unit: bool = False,
         partition_by_experiment: bool = True,
     ) -> None:
+        assert experiment == "exp1"
         output_path.write_text("zip", encoding="utf-8")
 
     monkeypatch.setattr(
@@ -522,7 +523,7 @@ def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filena
     )
 
     result = tasks.export_experiment_data_task.call_local(
-        ["exp1"],
+        "exp1",
         ["od_readings"],
         output_path.as_posix(),
     )
@@ -557,7 +558,7 @@ def test_export_experiment_data_task_logs_export_failures(
 
     with pytest.raises(RuntimeError, match="database is locked"):
         tasks.export_experiment_data_task.call_local(
-            ["exp1"],
+            "exp1",
             ["od_readings"],
             output_path.as_posix(),
         )
@@ -599,7 +600,7 @@ def test_export_experiment_data_to_usb_task_writes_final_output_path(
     export_dir = tmp_path / "pioreactor" / "exports"
 
     def fake_export_experiment_data(
-        experiments: list[str],
+        experiment: str,
         dataset_names: list[str],
         output: str,
         start_time: str | None = None,
@@ -607,6 +608,7 @@ def test_export_experiment_data_to_usb_task_writes_final_output_path(
         partition_by_unit: bool = False,
         partition_by_experiment: bool = True,
     ) -> None:
+        assert experiment == "exp1"
         assert output == (export_dir / "export.zip").as_posix()
         Path(output).write_text("zip", encoding="utf-8")
 
@@ -617,7 +619,7 @@ def test_export_experiment_data_to_usb_task_writes_final_output_path(
     )
 
     result = tasks.export_experiment_data_to_usb_task.call_local(
-        ["exp1"],
+        "exp1",
         ["od_readings"],
         "export.zip",
     )

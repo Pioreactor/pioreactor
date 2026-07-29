@@ -2916,12 +2916,12 @@ def preview_exportable_dataset(target_dataset: str) -> ResponseReturnValue:
 @api_bp.route("/datasets/exportable/export", methods=["POST"])
 def export_exportable_datasets() -> ResponseReturnValue:
     """
-    Export selected datasets for selected experiments.
+    Export selected datasets for one experiment.
 
     JSON body:
     {
       "datasets": ["od_readings"],
-      "experiments": ["experiment-name"],
+      "experiment": "experiment-name",
       "partition_by_unit": false,
       "partition_by_experiment": false,
       "start_time": "2025-01-31T00:00:00-05:00",
@@ -2938,7 +2938,7 @@ def export_exportable_datasets() -> ResponseReturnValue:
 
     filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
     task = tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
-        body.experiments,
+        body.experiment,
         body.datasets,
         filename_with_path.as_posix(),
         start_time=(
@@ -2956,12 +2956,12 @@ def export_exportable_datasets() -> ResponseReturnValue:
 @api_bp.route("/datasets/exportable/export-to-usb", methods=["POST"])
 def export_exportable_datasets_to_usb() -> ResponseReturnValue:
     """
-    Export selected datasets for selected experiments to the leader's mounted USB.
+    Export selected datasets for one experiment to the leader's mounted USB.
 
     JSON body:
     {
       "datasets": ["od_readings"],
-      "experiments": ["experiment-name"],
+      "experiment": "experiment-name",
       "partition_by_unit": false,
       "partition_by_experiment": false,
       "start_time": "2025-01-31T00:00:00-05:00",
@@ -2977,7 +2977,7 @@ def export_exportable_datasets_to_usb() -> ResponseReturnValue:
     filename = f"export_{timestamp}.zip"
 
     task = tasks.export_experiment_data_to_usb_task(
-        body.experiments,
+        body.experiment,
         body.datasets,
         filename,
         start_time=(
