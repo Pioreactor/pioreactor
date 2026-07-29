@@ -5,6 +5,7 @@ Quick helper to create a release candidate branch and bump version.
 
 Actions performed:
  - Ensure we are in a git repo and on `develop` (unless --force)
+ - Build the frontend and stage the generated static assets
  - Compute a release candidate as YY.M.N + rcN (auto-incremented by default)
  - Update core/pioreactor/version.py `__version__`
  - Commit the change
@@ -33,6 +34,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = REPO_ROOT / "core" / "pioreactor" / "version.py"
 UPDATE_SCRIPTS_DIR = REPO_ROOT / "core" / "update_scripts"
+FE_BUILD_DIR = REPO_ROOT / "core" / "pioreactor" / "web" / "static"
 SERIES_PATTERN = re.compile(r"^\d{2}\.\d{1,2}$")
 VERSION_PATTERN = re.compile(
     r"^(?P<yy>\d{2})\.(?P<month>\d{1,2})\.(?P<release>\d+)(?P<suffix>(?:\.dev\d+|rc\d+)?)$"
@@ -371,6 +373,14 @@ def stage_update_scripts_changes(version: str, dry_run: bool) -> None:
             subprocess.run(["git", "rm", "--cached", "--ignore-unmatch", "--quiet", path], check=True)
 
 
+def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
+    if dry_run:
+        print("DRY-RUN: would run make frontend-build and verify static assets are clean")
+        return False
+    subprocess.run(["make", "frontend-build"], check=True)
+    return True
+
+
 def build_github_release_url(version: str, branch: str) -> str:
     base = "https://github.com/pioreactor/pioreactor/releases/new"
     return f"{base}?tag={version}&target={branch}&title={version}&prerelease=1"
@@ -396,8 +406,10 @@ def main(argv: list[str]) -> int:
             )
             return 2
 
+        fe_build_changed = False
         if not args.force:
             ensure_clean_working_tree()
+            fe_build_changed = ensure_frontend_build_is_up_to_date(dry_run=args.dry_run)
 
         print(f"Creating release candidate for {version} (base={version_base})\n")
 
@@ -415,6 +427,8 @@ def main(argv: list[str]) -> int:
         stage_if_exists(VERSION_FILE, dry_run=args.dry_run)
         if pre_update_changed or update_sql_changed or update_scripts_changed:
             stage_update_scripts_changes(version, dry_run=args.dry_run)
+        if fe_build_changed:
+            stage_if_exists(FE_BUILD_DIR, dry_run=args.dry_run)
         update_files = list_update_scripts_for(version)
         run_git_command(["commit", "-m", "bump rc version"], dry_run=args.dry_run)
 
