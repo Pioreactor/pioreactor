@@ -3246,21 +3246,39 @@ def get_zipped_configs() -> ResponseReturnValue:
         )
 
     archive = BytesIO()
+    included_config_files = ["config.ini"]
+    omitted_units: list[str] = []
 
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zip_file:
         zip_file.writestr("config.ini", shared_config)
 
         for unit, raw_result in results.items():
             if not isinstance(raw_result, dict) or raw_result.get("ok") is not True:
+                omitted_units.append(unit)
                 continue
 
             unit_config = raw_result.get("value")
             if unit_config is None:
                 unit_config = b""
             elif not isinstance(unit_config, bytes):
+                omitted_units.append(unit)
                 continue
 
-            zip_file.writestr(f"{unit}/unit_config.ini", unit_config)
+            archive_path = f"{unit}/unit_config.ini"
+            zip_file.writestr(archive_path, unit_config)
+            included_config_files.append(archive_path)
+
+        zip_file.writestr(
+            "metadata.json",
+            encode(
+                {
+                    "metadata_version": 1,
+                    "downloaded_at_utc": current_utc_timestamp(),
+                    "included_config_files": included_config_files,
+                    "omitted_units": omitted_units,
+                }
+            ),
+        )
 
     archive.seek(0)
     return send_file(

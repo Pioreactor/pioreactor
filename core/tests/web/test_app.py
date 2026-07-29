@@ -1403,6 +1403,10 @@ def test_zipped_configs_contains_shared_and_all_reachable_unit_configs(
         "pioreactor.web.api.fanout.broadcast_get_across_cluster",
         lambda *args, **kwargs: FakeTask(),
     )
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_timestamp",
+        lambda: "2026-07-29T14:32:10.000Z",
+    )
 
     response = client.get("/api/config/zipped")
 
@@ -1413,10 +1417,21 @@ def test_zipped_configs_contains_shared_and_all_reachable_unit_configs(
             "config.ini",
             "unit1/unit_config.ini",
             "unit2/unit_config.ini",
+            "metadata.json",
         ]
         assert zf.read("config.ini") == b"[shared]\nvalue=global\n"
         assert zf.read("unit1/unit_config.ini") == b"[unit]\nvalue=one\n"
         assert zf.read("unit2/unit_config.ini") == b""
+        assert json.loads(zf.read("metadata.json")) == {
+            "metadata_version": 1,
+            "downloaded_at_utc": "2026-07-29T14:32:10.000Z",
+            "included_config_files": [
+                "config.ini",
+                "unit1/unit_config.ini",
+                "unit2/unit_config.ini",
+            ],
+            "omitted_units": ["unit3"],
+        }
 
 
 def test_update_specific_config_for_worker_propagates_validation_error(
