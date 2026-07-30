@@ -5,6 +5,7 @@ Automate the production hotfix release flow described in the ops runbook.
 
 The script performs the local git tasks:
  - ensure repository state is suitable (on a non-protected branch unless --force)
+ - run pre-commit before leaving the hotfix source branch
  - ensure version.py matches the target YY.M.N release (and bump if needed)
  - ensure CHANGELOG top entry matches the same YY.M.N release
  - move update scripts from core/update_scripts/upcoming to the YY.M.N folder
@@ -70,6 +71,38 @@ def run_git_command(args: list[str], dry_run: bool) -> None:
     if dry_run:
         print(f"DRY-RUN: $ {' '.join(cmd)}")
         return
+    subprocess.run(cmd, check=True)
+
+
+def run_pre_commit_on_all_files(dry_run: bool) -> None:
+    if dry_run:
+        print("DRY-RUN: $ make precommit")
+        return
+    subprocess.run(["make", "precommit"], check=True)
+
+
+def commit_staged_changes(message: str, dry_run: bool) -> None:
+    cmd = ["git", "commit", "-m", message]
+    if dry_run:
+        print(f"DRY-RUN: $ {' '.join(cmd)}")
+        return
+
+    unstaged_changes_before_commit = subprocess.run(["git", "diff", "--quiet"], check=False)
+    if unstaged_changes_before_commit.returncode not in {0, 1}:
+        unstaged_changes_before_commit.check_returncode()
+
+    commit_result = subprocess.run(cmd, check=False)
+    if commit_result.returncode == 0:
+        return
+
+    unstaged_changes_after_commit = subprocess.run(["git", "diff", "--quiet"], check=False)
+    if unstaged_changes_after_commit.returncode not in {0, 1}:
+        unstaged_changes_after_commit.check_returncode()
+    if unstaged_changes_before_commit.returncode == 1 or unstaged_changes_after_commit.returncode == 0:
+        commit_result.check_returncode()
+
+    print("Pre-commit modified files. Re-staging tracked changes and retrying the commit once.")
+    subprocess.run(["git", "add", "--update"], check=True)
     subprocess.run(cmd, check=True)
 
 
@@ -397,6 +430,13 @@ def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
         print("DRY-RUN: would run make frontend-build and verify static assets are clean")
         return False
     subprocess.run(["make", "frontend-build"], check=True)
+    unstaged_changes_result = subprocess.run(["git", "diff", "--quiet"], check=False)
+    if unstaged_changes_result.returncode == 1:
+        raise RuntimeError(
+            "Frontend build modified unstaged source files. Review and commit them on the source branch, "
+            "then run the release again."
+        )
+    unstaged_changes_result.check_returncode()
     return True
 
 
@@ -422,6 +462,8 @@ def main(argv: list[str]) -> int:
 
         fe_build_changed = False
         if not args.force:
+            ensure_clean_working_tree()
+            run_pre_commit_on_all_files(dry_run=args.dry_run)
             ensure_clean_working_tree()
             fe_build_changed = ensure_frontend_build_is_up_to_date(dry_run=args.dry_run)
 
@@ -456,7 +498,7 @@ def main(argv: list[str]) -> int:
             need_release_commit = git_diff_cached_has_changes()
 
         if need_release_commit:
-            run_git_command(["commit", "-m", "bump version"], dry_run=args.dry_run)
+            commit_staged_changes("bump version", dry_run=args.dry_run)
         else:
             print("No changes detected for release prep commit; skipping commit.")
 
@@ -476,7 +518,7 @@ def main(argv: list[str]) -> int:
             need_dev_commit = git_diff_cached_has_changes()
 
         if need_dev_commit:
-            run_git_command(["commit", "-m", "bump version to dev"], dry_run=args.dry_run)
+            commit_staged_changes("bump version to dev", dry_run=args.dry_run)
         else:
             print("No changes detected for develop bump; skipping commit.")
 

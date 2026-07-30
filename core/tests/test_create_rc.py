@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import importlib.util
+import subprocess
 from pathlib import Path
+from unittest.mock import call
 from unittest.mock import patch
 
 
@@ -67,8 +69,18 @@ def test_ensure_pre_update_script_uses_same_series_floor_for_patch_rc(tmp_path: 
 def test_ensure_frontend_build_runs_frontend_build_make_target() -> None:
     create_rc = load_create_rc_module()
 
-    with patch.object(create_rc.subprocess, "run") as run:
+    with patch.object(
+        create_rc.subprocess,
+        "run",
+        side_effect=[
+            subprocess.CompletedProcess(["make", "frontend-build"], returncode=0),
+            subprocess.CompletedProcess(["git", "diff", "--quiet"], returncode=0),
+        ],
+    ) as run:
         changed = create_rc.ensure_frontend_build_is_up_to_date(dry_run=False)
 
     assert changed is True
-    run.assert_called_once_with(["make", "frontend-build"], check=True)
+    assert run.call_args_list == [
+        call(["make", "frontend-build"], check=True),
+        call(["git", "diff", "--quiet"], check=False),
+    ]
