@@ -1,6 +1,6 @@
-version: "1.0"
-
 experiment_profile_name: Demo of logging real-time data
+
+version: "1.0"
 
 metadata:
   author: Cam Davidson-Pilon
@@ -21,7 +21,7 @@ common:
         - type: log
           t: 10s
           options:
-            message: "Increasing to 800 RPM in ${{unit()}}. Try changing the target RPM in the UI."
+            message: "Increasing to 800 RPM in ${{unit()}}."
         - type: update
           t: 10s
           options:
