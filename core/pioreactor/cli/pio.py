@@ -1559,7 +1559,7 @@ def status(json_output: bool) -> None:
 
     try:
         with JobManager() as jm:
-            running_jobs = jm.list_jobs(all_jobs=True)
+            running_jobs = jm.list_jobs()
     except Exception as error:
         add_check("jobs:running", "FAIL", str(error))
     else:

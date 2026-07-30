@@ -603,6 +603,7 @@ def export_experiment_data(
                             zip_info = zipfile.ZipInfo(zip_member)
                             zip_info.date_time = datetime.now().timetuple()[:6]
                             zip_info.compress_type = zipfile.ZIP_DEFLATED
+                            zip_info.compress_level = 1
                             zip_info.external_attr = 0o644 << 16
                             current_csv_file = io.TextIOWrapper(
                                 zf.open(zip_info, mode="w"),

@@ -144,7 +144,12 @@ def test_export_experiment_data(temp_zipfile) -> None:
     conn.commit()
 
     # Mock the connection and logger objects
-    with patch("sqlite3.connect") as mock_connect:
+    with patch("sqlite3.connect") as mock_connect, patch.object(
+        zipfile.ZipFile,
+        "open",
+        autospec=True,
+        wraps=zipfile.ZipFile.open,
+    ) as mock_zip_open:
         mock_connect.return_value = conn
 
         export_experiment_data(
@@ -153,6 +158,13 @@ def test_export_experiment_data(temp_zipfile) -> None:
             partition_by_unit=False,
             dataset_names=["test_table"],
         )
+
+    csv_zip_infos = [
+        call.args[1]
+        for call in mock_zip_open.call_args_list
+        if isinstance(call.args[1], zipfile.ZipInfo) and call.args[1].filename.endswith(".csv")
+    ]
+    assert [zip_info.compress_level for zip_info in csv_zip_infos] == [1]
 
     # Check if the exported data is correct
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:

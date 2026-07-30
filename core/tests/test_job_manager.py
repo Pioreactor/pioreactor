@@ -82,6 +82,38 @@ def test_can_kill_long_running_job_if_request(job_manager: JobManager) -> None:
     job_manager.set_not_running(job_key)
 
 
+def test_list_jobs_includes_long_running_jobs(job_manager: JobManager) -> None:
+    regular_job_id = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "stirring", "test_source", 12345, "test_leader", False
+    )
+    long_running_job_id = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "monitor", "test_source", 12346, "test_leader", True
+    )
+
+    listed_job_ids = {job_id for _, _, job_id in job_manager.list_jobs()}
+
+    assert listed_job_ids == {regular_job_id, long_running_job_id}
+
+
+def test_kill_all_jobs_excludes_long_running_jobs(
+    job_manager: JobManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    kill_commands: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        "pioreactor.utils.job_manager.run",
+        lambda command: kill_commands.append(command),
+    )
+    job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "stirring", "test_source", 12345, "test_leader", False
+    )
+    job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "monitor", "test_source", 12346, "test_leader", True
+    )
+
+    assert job_manager.kill_jobs(all_jobs=True) == 1
+    assert kill_commands == [("kill", "-2", "12345")]
+
+
 def test_is_job_running(job_manager: JobManager) -> None:
     job_key = job_manager.register_and_set_running(
         "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader", False

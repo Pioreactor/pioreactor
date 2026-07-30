@@ -535,6 +535,39 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
     }
 
 
+def test_pio_status_counts_long_running_jobs() -> None:
+    with JobManager() as job_manager:
+        job_manager.register_and_set_running(
+            unit=whoami.get_unit_name(),
+            experiment=whoami.UNIVERSAL_EXPERIMENT,
+            job_name="stirring",
+            job_source="test",
+            pid=12345,
+            leader=get_leader_hostname(),
+            is_long_running_job=False,
+        )
+        job_manager.register_and_set_running(
+            unit=whoami.get_unit_name(),
+            experiment=whoami.UNIVERSAL_EXPERIMENT,
+            job_name="monitor",
+            job_source="test",
+            pid=12346,
+            leader=get_leader_hostname(),
+            is_long_running_job=True,
+        )
+
+    result = CliRunner().invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    running_jobs_check = next(check for check in payload["checks"] if check["name"] == "jobs:running")
+    assert running_jobs_check == {
+        "name": "jobs:running",
+        "status": "OK",
+        "details": "count=2",
+    }
+
+
 def test_pio_status_checks_leader_api_health() -> None:
     with temporary_config_change(
         config_module.config,
