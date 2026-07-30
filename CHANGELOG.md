@@ -1,4 +1,4 @@
-### Upcoming
+### 26.7.0
 
 #### Breaking changes
 
