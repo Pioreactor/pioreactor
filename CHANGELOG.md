@@ -1,3 +1,10 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Increased Turbidostat's post-dose settling time from 5 to 30 seconds, reducing erroneous repeat dilutions caused by temporary OD spikes after pumping.
+
+
 ### 26.7.0
 
 #### Breaking changes

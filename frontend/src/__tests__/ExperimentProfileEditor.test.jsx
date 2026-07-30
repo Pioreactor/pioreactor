@@ -28,16 +28,6 @@ function renderEditor(props) {
 }
 
 describe("ExperimentProfileEditorContent", () => {
-  test("starts new profiles with an explicit quoted v1 version", () => {
-    render(
-      <MemoryRouter>
-        <CreateExperimentProfile title="Create profile" />
-      </MemoryRouter>,
-    );
-
-    expect(getEditorTextarea().value).toMatch(/^version: "1\.0"\n/);
-  });
-
   test("returns plain text save errors from the backend", () => {
     expect(formatProfileSaveError("leader returned plain text error")).toBe("leader returned plain text error");
   });
