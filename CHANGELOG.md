@@ -1,5 +1,12 @@
 ### Upcoming
 
+#### Bug fixes
+
+ - Increased Turbidostat's post-dose settling time from 5 to 30 seconds, reducing erroneous repeat dilutions caused by temporary OD spikes after pumping.
+
+
+### 26.7.0
+
 #### Breaking changes
 
  - Replaced `pio update-settings` and `pios update-settings` with the clearer job-setting commands:
@@ -10,11 +17,13 @@
    ```
  - Added the required `version: "1.0"` field to experiment-profile YAML. Existing profile files are migrated automatically during an upgrade.
  - Changed time-filtered dataset export bounds supplied through the API, MCP, or CLI to require an explicit `Z` or numeric UTC offset. The Export Data UI continues to accept local times and converts them using the browser's timezone.
+ - Changed dataset exports to require exactly one experiment. API and MCP clients should provide an `experiment` string instead of an `experiments` list, and `pio run export_experiment_data` now requires one `--experiment`. Export manifests use schema version 1 with `filters.experiment`.
 
 #### Enhancements
 
  - Bump to React 19.x, and new vite build system.
  - Added `manifest.json` and per-dataset `schema.json` metadata to exported data archives, including applied filters, row counts, column descriptions, and units.
+ - Added a **Download all configurations** action to the Configuration page, which downloads the shared `config.ini` and each reachable Pioreactor's `unit_config.ini` in one ZIP archive.
  - Accelerated time-filtered dataset exports by using indexed UTC timestamp comparisons. On a representative 381,840-row experiment, a one-day query improved from more than 30 seconds to about 0.02 seconds.
  - Added expression support to experiment-profile job `config_overrides`.
  - Expanded `pio status` with the assigned Pioreactor model and model-to-hardware compatibility checks.
@@ -39,6 +48,7 @@ device_path=/dev/video0
 
 #### Bug fixes
 
+ - Fixed large sorted dataset exports exhausting memory by moving SQLite temporary sort files from RAM-backed `/tmp` to disk-backed `/var/tmp/pioreactor`.
  - Improved background-job shutdown during rapid MQTT state changes, preventing queued commands from reviving stopped jobs and reducing cases where successfully stopped jobs remained shown as `lost`.
  - Fixed temperature automations so an in-progress temperature inference cannot restore heater power after the job sleeps or disconnects.
  - Fixed experiment-profile MQTT lookups to preserve decoded boolean and numeric values instead of coercing them as strings.
@@ -47,6 +57,7 @@ device_path=/dev/video0
  - Fixed OD-dodging jobs so mode changes made while sleeping take effect correctly when the job resumes.
  - Fixed the Leader page opening a second MQTT connection alongside the application-wide connection.
  - Improved validation of calibration and estimator names and custom UI descriptors before they are written or rendered.
+ - Fixed IPv4 reporting in the monitor, API, and `pio status` so IPv6 addresses returned by the operating system are no longer included.
 
 
 ### 26.6.0

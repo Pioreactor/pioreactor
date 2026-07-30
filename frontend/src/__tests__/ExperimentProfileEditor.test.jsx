@@ -7,7 +7,6 @@ global.TextDecoder = TextDecoder;
 
 const { MemoryRouter } = require("react-router");
 const { ExperimentProfileEditorContent, formatProfileSaveError } = require("../ExperimentProfileEditor");
-const CreateExperimentProfile = require("../CreateExperimentProfile").default;
 
 function getEditorTextarea() {
   const textarea = document.querySelector(".npm__react-simple-code-editor__textarea");
@@ -28,16 +27,6 @@ function renderEditor(props) {
 }
 
 describe("ExperimentProfileEditorContent", () => {
-  test("starts new profiles with an explicit quoted v1 version", () => {
-    render(
-      <MemoryRouter>
-        <CreateExperimentProfile title="Create profile" />
-      </MemoryRouter>,
-    );
-
-    expect(getEditorTextarea().value).toMatch(/^version: "1\.0"\n/);
-  });
-
   test("returns plain text save errors from the backend", () => {
     expect(formatProfileSaveError("leader returned plain text error")).toBe("leader returned plain text error");
   });

@@ -31,6 +31,7 @@ declare -a TEST_SEQUENCE=(
   check_configuration_files
   check_config_api_endpoints
   check_services
+  check_ui_static_assets
   check_mqtt_logging
   check_monitor_job
   check_database_access
@@ -896,14 +897,29 @@ check_services() {
   done
 }
 
-ui_should_be_up() {
-  if [[ "$HAS_SYSTEMCTL" != true ]]; then
-    return 1
+check_ui_static_assets() {
+  info "Checking UI entrypoint and built assets"
+
+  local html javascript_path stylesheet_path
+  if ! html="$(curl -fsS http://localhost/)"; then
+    fail "UI entrypoint request failed"
+    return
   fi
 
-  systemctl is-active --quiet lighttpd
-}
+  javascript_path="$(grep -Eo '/static/static/[^"]+\.js' <<< "$html" | head -n 1)"
+  stylesheet_path="$(grep -Eo '/static/static/[^"]+\.css' <<< "$html" | head -n 1)"
+  if [[ -z "$javascript_path" || -z "$stylesheet_path" ]]; then
+    fail "UI entrypoint did not reference built JavaScript and CSS assets"
+    return
+  fi
 
+  if curl -fsS "http://localhost${javascript_path}" >/dev/null && \
+     curl -fsS "http://localhost${stylesheet_path}" >/dev/null; then
+    ok "UI entrypoint references loadable JavaScript and CSS assets"
+  else
+    fail "UI JavaScript or CSS asset failed to load"
+  fi
+}
 
 check_mqtt_logging() {
   run_step "Logging a test message to MQTT" pio log -m "agent_smoke: hello from $(hostname)"
@@ -976,7 +992,11 @@ check_unit_api_core() {
   run_step "Checking /unit_api/jobs/running" curl_check http://localhost/unit_api/jobs/running 'type=="array"'
   run_step "Checking /unit_api/capabilities" curl_check http://localhost/unit_api/capabilities
   run_step "Checking /unit_api/system/utc_clock" curl_check http://localhost/unit_api/system/utc_clock
-  run_step "Checking /unit_api/system/ipv4" curl_check http://localhost/unit_api/system/ipv4 '.ipv4_address | type=="string"'
+  run_step \
+    "Checking /unit_api/system/ipv4" \
+    curl_check \
+    http://localhost/unit_api/system/ipv4 \
+    '.ipv4_address | type=="string" and length>0 and (split(",") | all(test("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$")))'
   run_step "Checking /unit_api/calibration_protocols" curl_check http://localhost/unit_api/calibration_protocols
   run_step "Checking /unit_api/calibrations" curl_check http://localhost/unit_api/calibrations
   run_step "Checking /unit_api/active_calibrations" curl_check http://localhost/unit_api/active_calibrations
@@ -1156,9 +1176,20 @@ check_pio_usb_cli() {
   fi
 }
 
-
 check_update_cli_contract() {
-  info "Checking update CLI command shape"
+  info "Checking CLI command shape"
+
+  if pio jobs set --help >/dev/null; then
+    ok "pio jobs set command available"
+  else
+    fail "pio jobs set command missing"
+  fi
+
+  if pios jobs set --help >/dev/null; then
+    ok "pios jobs set command available"
+  else
+    fail "pios jobs set command missing"
+  fi
 
   if pio update --help | grep -q "app"; then
     ok "pio update exposes app subcommand"
@@ -1517,8 +1548,10 @@ YAML
 
 check_export_datasets_endpoint() {
   info "Testing export_datasets endpoint"
-  local payload
-  payload='{"datasets":["experiments","liquid_volumes"],"experiments":["<All experiments>"],"partition_by_unit":false,"partition_by_experiment":false}'
+
+  local export_experiment payload
+  export_experiment="agent-smoke-export"
+  payload='{"datasets":["experiments","liquid_volumes"],"experiment":"agent-smoke-export","partition_by_unit":false,"partition_by_experiment":false}'
   local response
 
   if ! response="$(curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" http://localhost/api/datasets/exportable/export)"; then
@@ -1574,15 +1607,48 @@ check_export_datasets_endpoint() {
     fi
 
     if echo "$task_response" | jq -e '.result.result == true' >/dev/null; then
-      local filename
+      local filename archive_file
       filename="$(echo "$task_response" | jq -r '.result.filename // empty')"
-      ok "export_datasets succeeded${filename:+ (file: $filename)}"
-      if [[ -n "$filename" && -f "/run/pioreactor/exports/$filename" ]]; then
-        ok "export file present: /run/pioreactor/exports/$filename"
-      elif [[ -n "$filename" ]] && curl -fsS "http://localhost/exports/$filename" >/dev/null; then
-        ok "export file served: /exports/$filename"
+      if [[ -z "$filename" ]]; then
+        fail "export_datasets succeeded without a filename"
+        return
+      fi
+
+      ok "export_datasets succeeded (file: $filename)"
+      archive_file="/run/pioreactor/exports/$filename"
+      if [[ ! -f "$archive_file" ]]; then
+        fail "export file not found: $archive_file"
+        return
+      fi
+      ok "export file present: $archive_file"
+
+      if python3_available; then
+        if python3 - "$archive_file" "$export_experiment" <<'PY'
+import json
+import sys
+import zipfile
+
+archive_path, experiment = sys.argv[1:]
+datasets = ["experiments", "liquid_volumes"]
+
+with zipfile.ZipFile(archive_path) as archive:
+    manifest = json.loads(archive.read("manifest.json"))
+    assert manifest["schema_version"] == 1
+    assert manifest["filters"]["experiment"] == experiment
+    assert manifest["selected_datasets"] == datasets
+
+    for dataset in datasets:
+        schema = json.loads(archive.read(f"{dataset}/schema.json"))
+        assert schema["schema_version"] == 1
+        assert schema["dataset_name"] == dataset
+PY
+        then
+          ok "export archive contains versioned manifest and dataset metadata"
+        else
+          fail "export archive metadata is invalid"
+        fi
       else
-        warn "export file not found locally (may be transient or permissions)"
+        warn "python3 not available; skipping export archive metadata validation"
       fi
     else
       local msg

@@ -1218,12 +1218,14 @@ def status(json_output: bool) -> None:
     """
     Show a quick, local-only status report for this unit.
     """
+    import ipaddress
     import socket
     import sqlite3
 
     from pioreactor import mureq
     from pioreactor.config import config
     from pioreactor.pubsub import create_webserver_path
+    from pioreactor.utils.networking import get_ip
     from pioreactor.utils.job_manager import JobManager
     from pioreactor.version import get_firmware_version
     from pioreactor.version import software_version_info
@@ -1475,6 +1477,22 @@ def status(json_output: bool) -> None:
     except Exception as error:
         add_check("hardware:i2c_bus1", "WARN", f"scan failed ({error})")
 
+    try:
+        ipv4_address = get_ip()
+    except Exception as error:
+        add_check("connectivity:ipv4", "FAIL", f"lookup failed ({error})")
+    else:
+        if not ipv4_address:
+            add_check("connectivity:ipv4", "FAIL", "no IPv4 address found")
+        else:
+            try:
+                for address in ipv4_address.split(","):
+                    ipaddress.IPv4Address(address)
+            except ipaddress.AddressValueError:
+                add_check("connectivity:ipv4", "FAIL", f"{ipv4_address} (invalid IPv4 address)")
+            else:
+                add_check("connectivity:ipv4", "OK", ipv4_address)
+
     broker_host = "localhost"
     broker_port = 1883
     mqtt_config_error: Exception | None = None
@@ -1510,6 +1528,22 @@ def status(json_output: bool) -> None:
     except Exception as error:
         add_check("services:web", "FAIL", f"{webserver_url} ({error})")
 
+    leader_webserver_url = "unit_api/health"
+    try:
+        leader_address = config.get("cluster.topology", "leader_address", fallback="localhost")
+        leader_webserver_url = create_webserver_path(leader_address, "unit_api/health")
+        response = mureq.get(leader_webserver_url, timeout=2)
+        if response.ok:
+            add_check("connectivity:leader_api", "OK", leader_webserver_url)
+        else:
+            add_check(
+                "connectivity:leader_api",
+                "FAIL",
+                f"{leader_webserver_url} (HTTP {response.status_code})",
+            )
+    except Exception as error:
+        add_check("connectivity:leader_api", "FAIL", f"{leader_webserver_url} ({error})")
+
     systemctl_path = shutil.which("systemctl")
     if systemctl_path is None:
         add_check("services:huey", "WARN", "systemctl not available")
@@ -1525,7 +1559,7 @@ def status(json_output: bool) -> None:
 
     try:
         with JobManager() as jm:
-            running_jobs = jm.list_jobs(all_jobs=True)
+            running_jobs = jm.list_jobs()
     except Exception as error:
         add_check("jobs:running", "FAIL", str(error))
     else:

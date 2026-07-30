@@ -5,6 +5,8 @@ Quick helper to create a release candidate branch and bump version.
 
 Actions performed:
  - Ensure we are in a git repo and on `develop` (unless --force)
+ - Run pre-commit before leaving `develop`
+ - Build the frontend and stage the generated static assets
  - Compute a release candidate as YY.M.N + rcN (auto-incremented by default)
  - Update core/pioreactor/version.py `__version__`
  - Commit the change
@@ -33,6 +35,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = REPO_ROOT / "core" / "pioreactor" / "version.py"
 UPDATE_SCRIPTS_DIR = REPO_ROOT / "core" / "update_scripts"
+FE_BUILD_DIR = REPO_ROOT / "core" / "pioreactor" / "web" / "static"
 SERIES_PATTERN = re.compile(r"^\d{2}\.\d{1,2}$")
 VERSION_PATTERN = re.compile(
     r"^(?P<yy>\d{2})\.(?P<month>\d{1,2})\.(?P<release>\d+)(?P<suffix>(?:\.dev\d+|rc\d+)?)$"
@@ -69,6 +72,38 @@ def run_git_command(args: list[str], dry_run: bool) -> None:
     if dry_run:
         print(f"DRY-RUN: $ {' '.join(cmd)}")
         return
+    subprocess.run(cmd, check=True)
+
+
+def run_pre_commit_on_all_files(dry_run: bool) -> None:
+    if dry_run:
+        print("DRY-RUN: $ make precommit")
+        return
+    subprocess.run(["make", "precommit"], check=True)
+
+
+def commit_staged_changes(message: str, dry_run: bool) -> None:
+    cmd = ["git", "commit", "-m", message]
+    if dry_run:
+        print(f"DRY-RUN: $ {' '.join(cmd)}")
+        return
+
+    unstaged_changes_before_commit = subprocess.run(["git", "diff", "--quiet"], check=False)
+    if unstaged_changes_before_commit.returncode not in {0, 1}:
+        unstaged_changes_before_commit.check_returncode()
+
+    commit_result = subprocess.run(cmd, check=False)
+    if commit_result.returncode == 0:
+        return
+
+    unstaged_changes_after_commit = subprocess.run(["git", "diff", "--quiet"], check=False)
+    if unstaged_changes_after_commit.returncode not in {0, 1}:
+        unstaged_changes_after_commit.check_returncode()
+    if unstaged_changes_before_commit.returncode == 1 or unstaged_changes_after_commit.returncode == 0:
+        commit_result.check_returncode()
+
+    print("Pre-commit modified files. Re-staging tracked changes and retrying the commit once.")
+    subprocess.run(["git", "add", "--update"], check=True)
     subprocess.run(cmd, check=True)
 
 
@@ -371,6 +406,21 @@ def stage_update_scripts_changes(version: str, dry_run: bool) -> None:
             subprocess.run(["git", "rm", "--cached", "--ignore-unmatch", "--quiet", path], check=True)
 
 
+def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
+    if dry_run:
+        print("DRY-RUN: would run make frontend-build and verify static assets are clean")
+        return False
+    subprocess.run(["make", "frontend-build"], check=True)
+    unstaged_changes_result = subprocess.run(["git", "diff", "--quiet"], check=False)
+    if unstaged_changes_result.returncode == 1:
+        raise RuntimeError(
+            "Frontend build modified unstaged source files. Review and commit them on the source branch, "
+            "then run the release again."
+        )
+    unstaged_changes_result.check_returncode()
+    return True
+
+
 def build_github_release_url(version: str, branch: str) -> str:
     base = "https://github.com/pioreactor/pioreactor/releases/new"
     return f"{base}?tag={version}&target={branch}&title={version}&prerelease=1"
@@ -396,8 +446,12 @@ def main(argv: list[str]) -> int:
             )
             return 2
 
+        fe_build_changed = False
         if not args.force:
             ensure_clean_working_tree()
+            run_pre_commit_on_all_files(dry_run=args.dry_run)
+            ensure_clean_working_tree()
+            fe_build_changed = ensure_frontend_build_is_up_to_date(dry_run=args.dry_run)
 
         print(f"Creating release candidate for {version} (base={version_base})\n")
 
@@ -415,8 +469,10 @@ def main(argv: list[str]) -> int:
         stage_if_exists(VERSION_FILE, dry_run=args.dry_run)
         if pre_update_changed or update_sql_changed or update_scripts_changed:
             stage_update_scripts_changes(version, dry_run=args.dry_run)
+        if fe_build_changed:
+            stage_if_exists(FE_BUILD_DIR, dry_run=args.dry_run)
         update_files = list_update_scripts_for(version)
-        run_git_command(["commit", "-m", "bump rc version"], dry_run=args.dry_run)
+        commit_staged_changes("bump rc version", dry_run=args.dry_run)
 
         run_git_command(["push", "origin", release_branch], dry_run=args.dry_run)
 

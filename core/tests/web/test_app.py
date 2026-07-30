@@ -693,6 +693,300 @@ def test_time_series_target_points_validation_returns_400(client, path: str) -> 
     assert response.status_code == 400
 
 
+def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("time-series-bounds-test", "2025-12-31T22:00:00.000Z", ""),
+    )
+
+    for timestamp in (
+        "2025-12-31T22:00:00.000Z",
+        "2025-12-31T23:00:00.000Z",
+        "2026-01-01T00:00:00.000Z",
+    ):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-bounds-test", "unit-a", timestamp, 0.1),
+        )
+
+    response = client.get(
+        "/api/experiments/time-series-bounds-test/time_series/growth_rates" "?lookback=2&target_points=10"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "series": ["unit-a"],
+        "data": [
+            [
+                {"x": "2025-12-31T23:00:00.000Z", "y": 0.1},
+                {"x": "2026-01-01T00:00:00.000Z", "y": 0.1},
+            ]
+        ],
+    }
+
+
+def test_time_series_uses_actual_data_duration_and_requested_point_ceiling(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("time-series-test", "2025-12-31T12:00:00.000Z", ""),
+    )
+
+    for hour in range(12, 23):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-test", "unit-a", f"2025-12-31T{hour:02}:00:00.000Z", hour / 100),
+        )
+
+    for hour in (18, 20, 22):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-test", "unit-b", f"2025-12-31T{hour:02}:00:00.000Z", hour / 100),
+        )
+
+    for timestamp in (
+        "2025-12-31T12:00:00.000Z",
+        "2025-12-31T12:01:00.000Z",
+        "2025-12-31T12:02:00.000Z",
+        "2025-12-31T22:00:00.000Z",
+        "2025-12-31T22:01:00.000Z",
+        "2025-12-31T22:02:00.000Z",
+    ):
+        modify_app_db(
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("time-series-test", "unit-c", timestamp, 0.1),
+        )
+
+    response = client.get(
+        "/api/experiments/time-series-test/time_series/growth_rates?lookback=20&target_points=4"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["series"] == ["unit-a", "unit-b", "unit-c"]
+    assert [[point["x"] for point in series] for series in data["data"]] == [
+        [
+            "2025-12-31T12:00:00.000Z",
+            "2025-12-31T16:00:00.000Z",
+            "2025-12-31T19:00:00.000Z",
+            "2025-12-31T22:00:00.000Z",
+        ],
+        [
+            "2025-12-31T18:00:00.000Z",
+            "2025-12-31T20:00:00.000Z",
+            "2025-12-31T22:00:00.000Z",
+        ],
+        [
+            "2025-12-31T12:00:00.000Z",
+            "2025-12-31T22:00:00.000Z",
+            "2025-12-31T22:02:00.000Z",
+        ],
+    ]
+
+    short_lookback_response = client.get(
+        "/api/workers/unit-a/experiments/time-series-test/time_series/growth_rates"
+        "?lookback=2.5&target_points=4"
+    )
+
+    assert short_lookback_response.status_code == 200
+    assert short_lookback_response.get_json() == {
+        "series": ["unit-a"],
+        "data": [[{"x": "2025-12-31T22:00:00.000Z", "y": 0.22}]],
+    }
+
+    latest_response = client.get(
+        "/api/experiments/time-series-test/time_series/growth_rates?lookback=20&target_points=1"
+    )
+
+    assert latest_response.status_code == 200
+    assert [[point["x"] for point in series] for series in latest_response.get_json()["data"]] == [
+        ["2025-12-31T22:00:00.000Z"],
+        ["2025-12-31T22:00:00.000Z"],
+        ["2025-12-31T22:02:00.000Z"],
+    ]
+
+
+def test_time_series_partitions_channel_sources(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("time-series-od-test", "2025-12-31T12:00:00.000Z", ""),
+    )
+
+    for channel in (1, 2):
+        for hour in range(12, 17):
+            modify_app_db(
+                """
+                INSERT INTO od_readings (
+                    experiment, pioreactor_unit, timestamp, od_reading, angle, channel
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "time-series-od-test",
+                    "unit-a",
+                    f"2025-12-31T{hour:02}:00:00.000Z",
+                    channel + hour / 100,
+                    90,
+                    channel,
+                ),
+            )
+
+    response = client.get(
+        "/api/experiments/time-series-od-test/time_series/od_readings" "?lookback=20&target_points=3"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "series": ["unit-a-1", "unit-a-2"],
+        "data": [
+            [
+                {"x": "2025-12-31T12:00:00.000Z", "y": 1.12},
+                {"x": "2025-12-31T14:00:00.000Z", "y": 1.14},
+                {"x": "2025-12-31T16:00:00.000Z", "y": 1.16},
+            ],
+            [
+                {"x": "2025-12-31T12:00:00.000Z", "y": 2.12},
+                {"x": "2025-12-31T14:00:00.000Z", "y": 2.14},
+                {"x": "2025-12-31T16:00:00.000Z", "y": 2.16},
+            ],
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    ("route", "insert_statement", "insert_args", "expected_series", "expected_y"),
+    [
+        (
+            "growth_rates",
+            """
+            INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.1234567),
+            "unit-a",
+            0.12346,
+        ),
+        (
+            "temperature_readings",
+            """
+            INSERT INTO temperature_readings (
+                experiment, pioreactor_unit, timestamp, temperature_c
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 20.126),
+            "unit-a",
+            20.13,
+        ),
+        (
+            "od_readings_filtered",
+            """
+            INSERT INTO od_readings_filtered (
+                experiment, pioreactor_unit, timestamp, normalized_od_reading
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789),
+            "unit-a",
+            0.1234568,
+        ),
+        (
+            "od_readings",
+            """
+            INSERT INTO od_readings (
+                experiment, pioreactor_unit, timestamp, od_reading, angle, channel
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789, 90, 1),
+            "unit-a-1",
+            0.1234568,
+        ),
+        (
+            "od_readings_fused",
+            """
+            INSERT INTO od_readings_fused (experiment, pioreactor_unit, timestamp, od_reading)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789),
+            "unit-a",
+            0.1234568,
+        ),
+        (
+            "raw_od_readings",
+            """
+            INSERT INTO raw_od_readings (
+                experiment, pioreactor_unit, timestamp, od_reading, channel
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789, 1),
+            "unit-a-1",
+            0.1234568,
+        ),
+    ],
+)
+def test_built_in_time_series_source_configuration(
+    client: FlaskClient,
+    monkeypatch: MonkeyPatch,
+    route: str,
+    insert_statement: str,
+    insert_args: tuple[object, ...],
+    expected_series: str,
+    expected_y: float,
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("source-test", "2025-12-31T12:00:00.000Z", ""),
+    )
+    modify_app_db(insert_statement, insert_args)
+
+    response = client.get(f"/api/experiments/source-test/time_series/{route}?lookback=20&target_points=3")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "series": [expected_series],
+        "data": [[{"x": "2025-12-31T22:00:00.000Z", "y": expected_y}]],
+    }
+
+
 def test_create_experiment(client) -> None:
     # Create a new experiment
     response = client.post(
@@ -1113,6 +1407,71 @@ def test_config_history_responses_require_revalidation(client: FlaskClient) -> N
         assert response.headers["Cache-Control"] == "public, max-age=0"
 
 
+def test_zipped_configs_contains_shared_and_all_reachable_unit_configs(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text("[shared]\nvalue=global\n", encoding="utf-8")
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
+    class FakeTask:
+        def get(self, blocking: bool, timeout: float) -> dict[str, object]:
+            return {
+                "unit1": {
+                    "ok": True,
+                    "unit": "unit1",
+                    "value": b"[unit]\nvalue=one\n",
+                },
+                "unit2": {
+                    "ok": True,
+                    "unit": "unit2",
+                    "value": None,
+                },
+                "unit3": {
+                    "ok": False,
+                    "unit": "unit3",
+                    "error": {"kind": "connection_error", "message": "Could not reach unit3."},
+                    "status_code": None,
+                    "retryable": True,
+                },
+            }
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.fanout.broadcast_get_across_cluster",
+        lambda *args, **kwargs: FakeTask(),
+    )
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_timestamp",
+        lambda: "2026-07-29T14:32:10.000Z",
+    )
+
+    response = client.get("/api/config/zipped")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"] == "attachment; filename=configuration_inis.zip"
+    with zipfile.ZipFile(BytesIO(response.data), "r") as zf:
+        assert zf.namelist() == [
+            "config.ini",
+            "unit1/unit_config.ini",
+            "unit2/unit_config.ini",
+            "metadata.json",
+        ]
+        assert zf.read("config.ini") == b"[shared]\nvalue=global\n"
+        assert zf.read("unit1/unit_config.ini") == b"[unit]\nvalue=one\n"
+        assert zf.read("unit2/unit_config.ini") == b""
+        assert json.loads(zf.read("metadata.json")) == {
+            "metadata_version": 1,
+            "downloaded_at_utc": "2026-07-29T14:32:10.000Z",
+            "included_config_files": [
+                "config.ini",
+                "unit1/unit_config.ini",
+                "unit2/unit_config.ini",
+            ],
+            "omitted_units": ["unit3"],
+        }
+
+
 def test_update_specific_config_for_worker_propagates_validation_error(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:
@@ -1243,7 +1602,7 @@ def test_export_datasets_rejects_wrong_field_types(client: FlaskClient) -> None:
         "/api/datasets/exportable/export",
         json={
             "datasets": "od_readings",
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
         },
@@ -1255,10 +1614,40 @@ def test_export_datasets_rejects_wrong_field_types(client: FlaskClient) -> None:
         "status": 400,
         "cause": "Expected `array`, got `str` - at `$.datasets`",
         "remediation": (
-            "Send a JSON object with the required fields: datasets, experiments, "
+            "Send a JSON object with the required fields: datasets, experiment, "
             "partition_by_unit, partition_by_experiment."
         ),
     }
+
+
+def test_export_datasets_rejects_plural_experiments_field(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiments": ["exp1"],
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+
+
+def test_export_datasets_rejects_empty_experiment(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/datasets/exportable/export",
+        json={
+            "datasets": ["od_readings"],
+            "experiment": "",
+            "partition_by_unit": True,
+            "partition_by_experiment": False,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
 
 
 def test_create_experiment_profile_returns_diagnostics_for_semantic_validation_errors(client) -> None:
@@ -1947,7 +2336,7 @@ def test_export_datasets_returns_async_task_response(
         id = "export-task"
 
     def fake_export_experiment_data_task(
-        experiments: list[str],
+        experiment: str,
         dataset_names: list[str],
         output: str,
         start_time: str | None = None,
@@ -1955,7 +2344,7 @@ def test_export_datasets_returns_async_task_response(
         partition_by_unit: bool = False,
         partition_by_experiment: bool = True,
     ) -> DummyTask:
-        captured["experiments"] = experiments
+        captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
         captured["output"] = output
         captured["start_time"] = start_time
@@ -1973,7 +2362,7 @@ def test_export_datasets_returns_async_task_response(
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2025-11-02T01:30:00-05:00",
@@ -1985,7 +2374,7 @@ def test_export_datasets_returns_async_task_response(
     data = response.get_json()
     assert data["task_id"] == "export-task"
     assert data["result_url_path"] == "/unit_api/task_results/export-task"
-    assert captured["experiments"] == []
+    assert captured["experiment"] == "exp1"
     assert captured["dataset_names"] == ["od_readings"]
     output_path = Path(str(captured["output"]))
     assert output_path.parent == tmp_path / "exports"
@@ -2002,7 +2391,7 @@ def test_export_datasets_rejects_timezone_naive_bounds(client: FlaskClient) -> N
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2026-01-01T00:00",
@@ -2019,7 +2408,7 @@ def test_export_datasets_rejects_reversed_bounds(client: FlaskClient) -> None:
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiments": [],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2026-01-02T00:00:00Z",
@@ -2040,7 +2429,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
         id = "usb-export-task"
 
     def fake_export_experiment_data_to_usb_task(
-        experiments: list[str],
+        experiment: str,
         dataset_names: list[str],
         filename: str,
         start_time: str | None = None,
@@ -2048,7 +2437,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
         partition_by_unit: bool = False,
         partition_by_experiment: bool = True,
     ) -> DummyTask:
-        captured["experiments"] = experiments
+        captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
         captured["filename"] = filename
         captured["start_time"] = start_time
@@ -2066,7 +2455,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
         "/api/datasets/exportable/export-to-usb",
         json={
             "datasets": ["od_readings"],
-            "experiments": ["exp1"],
+            "experiment": "exp1",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2026-01-01T00:00:00Z",
@@ -2077,7 +2466,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
     assert response.status_code == 202
     data = response.get_json()
     assert data["task_id"] == "usb-export-task"
-    assert captured["experiments"] == ["exp1"]
+    assert captured["experiment"] == "exp1"
     assert captured["dataset_names"] == ["od_readings"]
     assert str(captured["filename"]).startswith("export_")
     assert str(captured["filename"]).endswith(".zip")

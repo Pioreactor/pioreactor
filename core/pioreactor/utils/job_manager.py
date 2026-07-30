@@ -222,7 +222,9 @@ class JobManager:
                     )
                 sleep(0.05)
 
-    def _get_jobs(self, all_jobs: bool = False, **query: str | int | None) -> list[tuple[str, int, int]]:
+    def _get_jobs_to_kill(
+        self, all_jobs: bool = False, **query: str | int | None
+    ) -> list[tuple[str, int, int]]:
         if not all_jobs:
             # Construct the WHERE clause based on the query parameters
             where_clause = " AND ".join([f"{key} = :{key}" for key in query.keys() if query[key] is not None])
@@ -272,9 +274,15 @@ class JobManager:
 
         return self.cursor.fetchall()
 
-    def list_jobs(self, all_jobs: bool = False, **query: str | int | None) -> list[tuple[str, int, int]]:
-        """Return job rows matching *query* using the same filters as kill_jobs."""
-        return self._get_jobs(all_jobs, **query)
+    def list_jobs(self) -> list[tuple[str, int, int]]:
+        self.cursor.execute(
+            """
+            SELECT job_name, pid, job_id
+            FROM pio_job_metadata
+            WHERE is_running = 1
+            """
+        )
+        return self.cursor.fetchall()
 
     def list_job_history(
         self, running_only: bool = False
@@ -339,7 +347,7 @@ class JobManager:
         shell_kill = ShellKill()
         count = 0
 
-        for job, pid, job_id, *_ in self._get_jobs(all_jobs, **query):
+        for job, pid, job_id, *_ in self._get_jobs_to_kill(all_jobs, **query):
             if job == "led_intensity":
                 if LEDKill().kill_jobs():
                     count += 1

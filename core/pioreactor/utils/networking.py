@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import subprocess
+from ipaddress import ip_address
+from ipaddress import IPv4Address
 from pathlib import Path
 from queue import Empty
 from queue import Queue
@@ -94,26 +96,19 @@ def is_reachable(address: str) -> bool:
 
 def get_ip() -> str:
     # returns all ipv4s as comma-separated string
-    try:
-        result = subprocess.run(
-            ["ip", "-4", "-brief", "-j", "address"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError:
-        return ""
-
-    if not result.stdout:
-        return ""
-
-    interfaces = msgspec.json.decode(result.stdout)
-    return ",".join(
-        address["local"]
-        for interface in interfaces
-        if interface["ifname"] != "lo"
-        for address in interface["addr_info"]
+    result = subprocess.run(
+        ["hostname", "-I"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
+    ipv4_addresses = [
+        address for address in result.stdout.split() if isinstance(ip_address(address), IPv4Address)
+    ]
+    if ipv4_addresses:
+        return ",".join(ipv4_addresses)
+    else:
+        return ""
 
 
 def discover_workers_on_network(terminate: bool = False) -> Generator[DiscoveredWorker, None, None]:

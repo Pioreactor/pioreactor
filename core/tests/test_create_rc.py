@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import importlib.util
+import subprocess
 from pathlib import Path
+from unittest.mock import call
+from unittest.mock import patch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -61,3 +64,23 @@ def test_ensure_pre_update_script_uses_same_series_floor_for_patch_rc(tmp_path: 
     assert changed is True
     contents = (tmp_path / "upcoming" / "pre_update.sh").read_text(encoding="utf-8")
     assert 'min_version="26.5.0"' in contents
+
+
+def test_ensure_frontend_build_runs_frontend_build_make_target() -> None:
+    create_rc = load_create_rc_module()
+
+    with patch.object(
+        create_rc.subprocess,
+        "run",
+        side_effect=[
+            subprocess.CompletedProcess(["make", "frontend-build"], returncode=0),
+            subprocess.CompletedProcess(["git", "diff", "--quiet"], returncode=0),
+        ],
+    ) as run:
+        changed = create_rc.ensure_frontend_build_is_up_to_date(dry_run=False)
+
+    assert changed is True
+    assert run.call_args_list == [
+        call(["make", "frontend-build"], check=True),
+        call(["git", "diff", "--quiet"], check=False),
+    ]

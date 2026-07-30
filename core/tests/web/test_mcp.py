@@ -158,7 +158,7 @@ def test_export_experiment_data_returns_artifact_handle(tmp_path, monkeypatch) -
                 lambda endpoint, json=None: {"result": True, "filename": filename, "msg": "Finished"},
             )
             result = export_experiment_data(
-                experiments=["noise data 2"],
+                experiment="noise data 2",
                 dataset_names=["stirring_rates"],
             )
 

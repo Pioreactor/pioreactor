@@ -34,7 +34,7 @@ const datasetDescription = {
 const SYSTEM_EXPERIMENT_LABEL = "<System>";
 
 const DEFAULT_EXPORT_STATE = {
-  experimentSelection: [],
+  experimentSelection: "",
   partitionByUnitSelection: false,
   selectedDatasets: [],
   // Values from datetime-local inputs, interpreted in the browser's time zone on submission.
@@ -55,10 +55,10 @@ function getQueryList(searchParams, key) {
 function parseExportStateFromSearch(search) {
   const searchParams = new URLSearchParams(search);
 
-  const experimentFromQuery = searchParams.get("experiments")?.trim();
-  const experimentSelection = experimentFromQuery
-    ? [experimentFromQuery === "$experiment" ? SYSTEM_EXPERIMENT_LABEL : experimentFromQuery]
-    : [];
+  const experimentFromQuery = searchParams.get("experiment")?.trim();
+  const experimentSelection = experimentFromQuery === "$experiment"
+    ? SYSTEM_EXPERIMENT_LABEL
+    : experimentFromQuery || "";
 
   const selectedDatasets = getQueryList(searchParams, "datasets");
 
@@ -96,15 +96,15 @@ function getStyles(value, selectedValue, theme) {
   };
 }
 
-function SingleExperimentSelect({availableValues, parentHandleChange, values}) {
+function SingleExperimentSelect({availableValues, parentHandleChange, value}) {
   const theme = useTheme();
-  const selectedValue = values[0] || "";
+  const selectedValue = value || "";
   const selectableValues = selectedValue && !availableValues.includes(selectedValue)
     ? [selectedValue, ...availableValues]
     : availableValues;
 
   const handleChange = (event) => {
-    parentHandleChange(event.target.value ? [event.target.value] : []);
+    parentHandleChange(event.target.value);
   };
 
   return (
@@ -171,7 +171,7 @@ function ExperimentSelection(props) {
       <SingleExperimentSelect
         availableValues={experiments}
         parentHandleChange={handleChange}
-        values={experimentSelection}
+        value={experimentSelection}
       />
     </Box>
   )
@@ -448,9 +448,9 @@ function ExportDataContainer() {
       return;
     }
 
-    const experimentsForExport = state.experimentSelection.map((experiment) =>
-      experiment === "<System>" ? "$experiment" : experiment
-    );
+    const experimentForExport = state.experimentSelection === "<System>"
+      ? "$experiment"
+      : state.experimentSelection;
 
     setIsRunning(true);
     setSnackbarOpen(true);
@@ -472,7 +472,7 @@ function ExportDataContainer() {
         fetchOptions: {
           method: "POST",
           body: JSON.stringify({
-            experiments: experimentsForExport,
+            experiment: experimentForExport,
             partition_by_unit: state.partitionByUnitSelection,
             partition_by_experiment: true,
             datasets: state.selectedDatasets,
@@ -528,10 +528,10 @@ function ExportDataContainer() {
     }));
   };
 
-  function handleExperimentSelectionChange(experiments) {
+  function handleExperimentSelectionChange(experiment) {
     setState(prevState => ({
       ...prevState,
-      experimentSelection: experiments
+      experimentSelection: experiment
     }));
   };
 
@@ -556,7 +556,7 @@ function ExportDataContainer() {
       ? <Alert onClose={() => setSuccessMsg("")} severity="success">{successMsg}</Alert>
       : "";
   const selectedDatasetsCount = state.selectedDatasets.length;
-  const experimentSelectionCount = state.experimentSelection.length;
+  const hasExperimentSelection = Boolean(state.experimentSelection);
   return (
     <React.Fragment>
       <Box>
@@ -575,7 +575,7 @@ function ExportDataContainer() {
                 endIcon={<DownloadIcon />}
                 loading={isRunning}
                 loadingPosition="end"
-                disabled={isRunning || (selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
+                disabled={isRunning || (selectedDatasetsCount === 0) || !hasExperimentSelection}
               >
                 <MenuItem value="download">
                   Export
@@ -593,7 +593,7 @@ function ExportDataContainer() {
                   loadingPosition="end"
                   onClick={onSubmit}
                   endIcon={<DownloadIcon />}
-                  disabled={isRunning || (selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
+                  disabled={isRunning || (selectedDatasetsCount === 0) || !hasExperimentSelection}
                   sx={{textTransform: 'none'}}
                 >
                   Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}

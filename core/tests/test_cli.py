@@ -537,6 +537,92 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
     }
 
 
+def test_pio_status_counts_long_running_jobs() -> None:
+    with JobManager() as job_manager:
+        job_manager.register_and_set_running(
+            unit=whoami.get_unit_name(),
+            experiment=whoami.UNIVERSAL_EXPERIMENT,
+            job_name="stirring",
+            job_source="test",
+            pid=12345,
+            leader=get_leader_hostname(),
+            is_long_running_job=False,
+        )
+        job_manager.register_and_set_running(
+            unit=whoami.get_unit_name(),
+            experiment=whoami.UNIVERSAL_EXPERIMENT,
+            job_name="monitor",
+            job_source="test",
+            pid=12346,
+            leader=get_leader_hostname(),
+            is_long_running_job=True,
+        )
+
+    result = CliRunner().invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    running_jobs_check = next(check for check in payload["checks"] if check["name"] == "jobs:running")
+    assert running_jobs_check == {
+        "name": "jobs:running",
+        "status": "OK",
+        "details": "count=2",
+    }
+
+
+def test_pio_status_checks_leader_api_health() -> None:
+    with temporary_config_change(
+        config_module.config,
+        "cluster.topology",
+        "leader_address",
+        "leader.local",
+    ):
+        with capture_requests() as requests:
+            runner = CliRunner()
+            result = runner.invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    leader_api_check = next(
+        check for check in payload["checks"] if check["name"] == "connectivity:leader_api"
+    )
+    assert leader_api_check == {
+        "name": "connectivity:leader_api",
+        "status": "OK",
+        "details": "http://leader.local:4999/unit_api/health",
+    }
+    assert any(request.url == "http://leader.local:4999/unit_api/health" for request in requests)
+
+
+@pytest.mark.parametrize(
+    ("ipv4_address", "expected_status", "expected_details"),
+    [
+        ("192.168.1.5,10.0.0.2", "OK", "192.168.1.5,10.0.0.2"),
+        ("not-an-ip", "FAIL", "not-an-ip (invalid IPv4 address)"),
+        ("", "FAIL", "no IPv4 address found"),
+    ],
+)
+def test_pio_status_reports_ipv4_address(
+    monkeypatch: pytest.MonkeyPatch,
+    ipv4_address: str,
+    expected_status: str,
+    expected_details: str,
+) -> None:
+    monkeypatch.setattr("pioreactor.utils.networking.get_ip", lambda: ipv4_address)
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    ipv4_check = next(check for check in payload["checks"] if check["name"] == "connectivity:ipv4")
+    assert ipv4_check == {
+        "name": "connectivity:ipv4",
+        "status": expected_status,
+        "details": expected_details,
+    }
+
+
 def test_pio_status_warns_on_model_hardware_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "pioreactor.hardware.check_model_hardware_compatibility",

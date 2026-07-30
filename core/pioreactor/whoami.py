@@ -233,7 +233,7 @@ def _get_pioreactor_model_name(unit_name: "pt.Unit") -> str | None:
         return data["model_name"]
     except HTTPErrorStatus as e:
         if e.status_code == 404:
-            raise NoWorkerFoundError(f"Worker {unit_name} is not found.")
+            raise NoWorkerFoundError(f"Worker {unit_name} is not found or not assigned a model.")
         else:
             raise e
     except HTTPException as e:

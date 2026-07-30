@@ -4,10 +4,10 @@
 import csv
 import io
 import json
+import os
 import shutil
 import sqlite3
 import sys
-import tempfile
 import zipfile
 from base64 import b64decode
 from contextlib import closing
@@ -26,6 +26,7 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Dataset
 from pioreactor.utils.timing import to_iso_format
+from pioreactor.version import __version__
 from pioreactor.whoami import is_testing_env
 
 
@@ -186,7 +187,7 @@ def build_dataset_schema(dataset: Dataset, headers: Sequence[str]) -> dict[str, 
 def build_export_manifest(
     *,
     export_created_at: str,
-    experiments: Sequence[str],
+    experiment: str,
     selected_datasets: Sequence[str],
     start_time: str | None,
     end_time: str | None,
@@ -196,9 +197,10 @@ def build_export_manifest(
 ) -> dict[str, Any]:
     return {
         "schema_version": EXPORT_METADATA_SCHEMA_VERSION,
+        "pioreactor_version": __version__,
         "export_created_at": export_created_at,
         "filters": {
-            "experiments": list(experiments),
+            "experiment": experiment,
             "start_time": start_time,
             "end_time": end_time,
             "partition_by_unit": partition_by_unit,
@@ -261,6 +263,29 @@ def _deduplicate_existing_paths(paths: Sequence[Path]) -> list[Path]:
     return deduplicated_paths
 
 
+def _get_sqlite_temp_directory() -> Path:
+    # Keep this in SQLite's Unix temp-directory search order. We intentionally
+    # do not mutate SQLite's deprecated process-global temp directory at runtime.
+    candidates = (
+        os.environ.get("SQLITE_TMPDIR"),
+        os.environ.get("TMPDIR"),
+        "/var/tmp",
+        "/usr/tmp",
+        "/tmp",
+        ".",
+    )
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+
+        path = Path(candidate)
+        if path.is_dir() and os.access(path, os.W_OK | os.X_OK):
+            return path
+
+    raise ExportResourceLimitError("Export cannot find a writable directory for SQLite temporary files.")
+
+
 def _check_export_resources(output_path: Path, database_path: Path) -> None:
     mem_available_bytes = _read_mem_available_bytes()
     if mem_available_bytes is not None and mem_available_bytes < MINIMUM_EXPORT_AVAILABLE_MEMORY_BYTES:
@@ -270,7 +295,7 @@ def _check_export_resources(output_path: Path, database_path: Path) -> None:
             f"Export stopped because available memory is low. {required_mb} MB required, {available_mb} MB available."
         )
 
-    for path in _deduplicate_existing_paths([output_path.parent, Path(tempfile.gettempdir())]):
+    for path in _deduplicate_existing_paths([output_path.parent, _get_sqlite_temp_directory()]):
         free_bytes = shutil.disk_usage(path).free
         if free_bytes < MINIMUM_EXPORT_FREE_BYTES:
             free_mb = free_bytes // (1024 * 1024)
@@ -298,19 +323,6 @@ def validate_dataset_information(dataset: Dataset, cursor: sqlite3.Cursor) -> No
         table = dataset.table
         if not source_exists(cursor, table):
             raise ValueError(f"Table {table} does not exist.")
-
-
-def create_experiment_clause(
-    experiments: Sequence[str], existing_placeholders: dict[str, str]
-) -> tuple[str, dict[str, str]]:
-    if not experiments:  # Simplified check for an empty list
-        return "TRUE", existing_placeholders
-    else:
-        quoted_experiments = ", ".join(f":experiment{i}" for i in range(len(experiments)))
-        existing_placeholders = existing_placeholders | {
-            f"experiment{i}": experiment for i, experiment in enumerate(experiments)
-        }
-        return f"T.experiment IN ({quoted_experiments})", existing_placeholders
 
 
 def create_timespan_clause(
@@ -366,7 +378,7 @@ def create_sql_query(
 
 
 def export_experiment_data(
-    experiments: Sequence[str],
+    experiment: str,
     dataset_names: Sequence[str],
     output: str,
     start_time: str | None = None,
@@ -375,8 +387,11 @@ def export_experiment_data(
     partition_by_experiment: bool = True,
 ) -> None:
     """
-    Set an experiment, else it defaults to the entire table.
+    Export datasets for exactly one experiment.
     """
+    if not isinstance(experiment, str) or not experiment:
+        raise ValueError("Exactly one experiment must be provided.")
+
     if not output.endswith(".zip"):
         click.echo("output should end with .zip")
         sys.exit(1)
@@ -497,8 +512,8 @@ def export_experiment_data(
                     selects.append(generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns))
 
                 if dataset.has_experiment:
-                    experiment_clause, placeholders = create_experiment_clause(experiments, placeholders)
-                    where_clauses.append(experiment_clause)
+                    placeholders["experiment"] = experiment
+                    where_clauses.append("T.experiment = :experiment")
 
                 if dataset.has_experiment and dataset.default_order_by:
                     selects.append(generate_timestamp_to_relative_time_clause(dataset.default_order_by))
@@ -528,7 +543,6 @@ def export_experiment_data(
                 if _partition_by_experiment:
                     try:
                         iloc_experiment = headers.index("experiment")
-                        order_by_cols.append("experiment")
                     except ValueError:
                         iloc_experiment = None
                 else:
@@ -589,6 +603,7 @@ def export_experiment_data(
                             zip_info = zipfile.ZipInfo(zip_member)
                             zip_info.date_time = datetime.now().timetuple()[:6]
                             zip_info.compress_type = zipfile.ZIP_DEFLATED
+                            zip_info.compress_level = 1
                             zip_info.external_attr = 0o644 << 16
                             current_csv_file = io.TextIOWrapper(
                                 zf.open(zip_info, mode="w"),
@@ -663,7 +678,7 @@ def export_experiment_data(
                 "manifest.json",
                 build_export_manifest(
                     export_created_at=export_created_at,
-                    experiments=experiments,
+                    experiment=experiment,
                     selected_datasets=dataset_names,
                     start_time=start_time,
                     end_time=end_time,
@@ -685,7 +700,7 @@ def export_experiment_data(
 
 
 @click.command(name="export_experiment_data")
-@click.option("--experiment", multiple=True, default=[])
+@click.option("--experiment", required=True)
 @click.option("--output", default="./output.zip")
 @click.option("--partition-by-unit", is_flag=True)
 @click.option("--partition-by-experiment", is_flag=True)
@@ -693,7 +708,7 @@ def export_experiment_data(
 @click.option("--start-time", help="Offset-aware ISO-8601 timestamp.")
 @click.option("--end-time", help="Offset-aware ISO-8601 timestamp.")
 def click_export_experiment_data(
-    experiment: tuple[str, ...],
+    experiment: str,
     output: str,
     partition_by_unit: bool,
     partition_by_experiment: bool,

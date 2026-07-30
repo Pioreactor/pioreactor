@@ -460,7 +460,7 @@ function ExperimentsContainer(props) {
                           setDialogError("");
                           setEditingExperiment(experiment);
                         }}
-                        onExport={() => navigate(`/export-data?experiments=${encodeURIComponent(experiment.experiment)}`)}
+                        onExport={() => navigate(`/export-data?experiment=${encodeURIComponent(experiment.experiment)}`)}
                         onEnd={() => handleEndExperiment(experiment).catch(() => {})}
                         onDelete={() => handleDeleteExperiment(experiment).catch(() => {})}
                         deleteDisabled={experiments.length <= 1}

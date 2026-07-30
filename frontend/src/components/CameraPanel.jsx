@@ -28,7 +28,6 @@ import UnderlineSpan from "./UnderlineSpan";
 import { fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
 import { experimentPathSegment } from "../utils/url";
 
-const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 
 function workerCameraPath(unit, suffix, experiment) {

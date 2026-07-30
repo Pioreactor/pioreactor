@@ -384,7 +384,7 @@ def run_job_or_action_on_pioreactor_unit(
 
 @mcp.tool()
 def export_experiment_data(
-    experiments: list[str],
+    experiment: str,
     dataset_names: list[str],
     partition_by_unit: bool = False,
     partition_by_experiment: bool = True,
@@ -404,7 +404,7 @@ def export_experiment_data(
         "/api/datasets/exportable/export",
         json={
             "datasets": dataset_names,
-            "experiments": experiments,
+            "experiment": experiment,
             "partition_by_unit": partition_by_unit,
             "partition_by_experiment": partition_by_experiment,
             "start_time": start_time,

@@ -16,7 +16,7 @@ from pioreactor.config import config
 from pioreactor.estimators import load_active_estimator
 from pioreactor.utils.timing import current_utc_datetime
 
-SETTLING_TIME_SECONDS = 5.0
+SETTLING_TIME_SECONDS = 30.0
 
 
 class Turbidostat(DosingAutomationJob):
