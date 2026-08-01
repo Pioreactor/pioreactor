@@ -78,8 +78,6 @@ describe("CameraStills", () => {
         }),
       });
     });
-    window.URL.createObjectURL = jest.fn(() => "blob:camera-stills");
-    window.URL.revokeObjectURL = jest.fn();
   });
 
   afterEach(() => {
@@ -92,6 +90,22 @@ describe("CameraStills", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Camera snapshots on unit-1" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "All cameras" })).toHaveAttribute("href", "/cameras");
     expect(screen.getByRole("separator")).toBeInTheDocument();
+  });
+
+  test("uses the native browser download path for all snapshots", async () => {
+    renderCameraStills();
+
+    const downloadLink = await screen.findByRole("link", { name: "Download all" });
+
+    expect(downloadLink).toHaveAttribute(
+      "href",
+      "/api/workers/unit-1/camera/experiments/experiment%20a/stills.zip",
+    );
+    expect(downloadLink).toHaveAttribute(
+      "download",
+      "unit-1_experiment a_camera_snapshots.zip",
+    );
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   test("confirms and removes a deleted snapshot from the timeline", async () => {

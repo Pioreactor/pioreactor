@@ -132,6 +132,38 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     }
 
 
+def test_huey_lifecycle_starts_and_stops_camera_warmer(monkeypatch: pytest.MonkeyPatch) -> None:
+    lifecycle: list[str] = []
+    monkeypatch.setattr(tasks, "get_plugins", lambda: [])
+    monkeypatch.setattr(tasks, "start_camera_warmer", lambda: lifecycle.append("start") or True)
+    monkeypatch.setattr(tasks, "stop_camera_warmer", lambda: lifecycle.append("stop"))
+
+    tasks.initialized()
+    tasks.clean_up_camera_warmer()
+
+    assert lifecycle == ["start", "stop"]
+
+
+def test_manual_camera_capture_logs_snapshot_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_lock("camera-lock")
+    metadata = CameraStillMetadata(
+        experiment="experiment-a",
+        captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
+        image_id="image-a",
+    )
+    log_messages: list[str] = []
+
+    monkeypatch.setattr(tasks, "capture_camera_still", lambda unit, *, experiment: metadata)
+    monkeypatch.setattr(tasks.logger, "info", log_messages.append)
+
+    result = tasks.capture_camera_still_task.call_local("xr1", "experiment-a", False)
+
+    assert result["image_id"] == "image-a"
+    assert log_messages == [
+        "User requested a manual camera snapshot image-a on xr1 for experiment `experiment-a`."
+    ]
+
+
 @pytest.mark.parametrize(
     ("now", "captured_at", "interval_minutes", "expected"),
     [
@@ -200,11 +232,12 @@ def test_camera_focus_calibration_action_uses_existing_capture_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     task = object()
-    captured: dict[str, str | None] = {}
+    captured: dict[str, str | bool | None] = {}
 
-    def fake_capture_task(unit: str, experiment: str | None) -> object:
+    def fake_capture_task(unit: str, experiment: str | None, is_manual_focus_session: bool) -> object:
         captured["unit"] = unit
         captured["experiment"] = experiment
+        captured["is_manual_focus_session"] = is_manual_focus_session
         return task
 
     monkeypatch.setattr(tasks, "capture_camera_still_task", fake_capture_task)
@@ -215,7 +248,11 @@ def test_camera_focus_calibration_action_uses_existing_capture_task(
     assert returned_task is task
     assert error_label == "Camera snapshot"
     assert normalize({"image_id": "image-a"}) == {"image_id": "image-a"}
-    assert captured == {"unit": "unit-a", "experiment": "session-a"}
+    assert captured == {
+        "unit": "unit-a",
+        "experiment": "session-a",
+        "is_manual_focus_session": True,
+    }
 
 
 def test_delete_camera_stills_task_deletes_each_requested_image(

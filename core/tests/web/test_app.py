@@ -2060,7 +2060,7 @@ def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypat
     from http.client import HTTPMessage
     from pioreactor.mureq import _prepare_request
 
-    captured: dict[str, object] = {"read_sizes": []}
+    captured: dict[str, object] = {"context_closed": False, "read_sizes": []}
 
     class FakeStreamingResponse:
         url = "http://unit1.local/unit_api/camera/experiments/experiment%20a/stills.zip"
@@ -2077,9 +2077,12 @@ def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypat
             return FakeStreamingResponse()
 
         def __exit__(self, *_args: object) -> None:
+            captured["context_closed"] = True
             return None
 
     FakeStreamingResponse.headers["Content-Type"] = "application/zip"
+    FakeStreamingResponse.headers["Content-Length"] = "8"
+    FakeStreamingResponse.headers["Content-Disposition"] = 'attachment; filename="worker.zip"'
 
     def fake_yield_response(method: str, url: str, **kwargs: object) -> FakeStreamingResponseContext:
         _, connection, path = _prepare_request(method, url)
@@ -2094,10 +2097,13 @@ def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypat
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills.zip")
 
     assert response.status_code == 200
+    assert response.is_streamed
     assert response.data == b"fake zip"
     assert response.content_type == "application/zip"
-    assert response.headers["Content-Disposition"].startswith("attachment;")
+    assert response.headers["Content-Length"] == "8"
+    assert response.headers["Content-Disposition"] == 'attachment; filename="worker.zip"'
     assert captured == {
+        "context_closed": True,
         "path": "/unit_api/camera/experiments/experiment%20a/stills.zip",
         "read_sizes": [64 * 1024, 64 * 1024, 64 * 1024],
         "timeout": 60,

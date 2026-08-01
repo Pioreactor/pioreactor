@@ -9,12 +9,12 @@ import tempfile
 import typing as t
 import uuid
 import zipfile
+from contextlib import ExitStack
 from datetime import timedelta
 from datetime import timezone
 from io import BytesIO
 from pathlib import Path
 
-from flask import after_this_request
 from flask import Blueprint
 from flask import jsonify
 from flask import request
@@ -894,61 +894,58 @@ def get_zipped_camera_stills_for_worker_experiment(
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    archive_file = tempfile.NamedTemporaryFile(
-        prefix=f"{pioreactor_unit}_camera_stills_",
-        suffix=".zip",
-        delete=False,
-    )
-    archive_path = Path(archive_file.name)
+    response_stack = ExitStack()
     error_response: MureqResponse | None = None
 
     try:
         worker_address = resolve_registered_worker_address(pioreactor_unit)
         worker_endpoint = f"/unit_api/camera/experiments/{experiment}/stills.zip"
-        with yield_response(
-            "GET",
-            create_webserver_path(worker_address, worker_endpoint),
-            timeout=60,
-        ) as response:
-            if 400 <= response.status < 600:
-                error_response = MureqResponse(
-                    response.url,
-                    response.status,
-                    response.headers,
-                    response.read(1_048_576),
-                )
-                raise HTTPErrorStatus(response.status)
-
-            shutil.copyfileobj(response, archive_file, length=64 * 1024)
+        worker_response = response_stack.enter_context(
+            yield_response(
+                "GET",
+                create_webserver_path(worker_address, worker_endpoint),
+                timeout=60,
+            )
+        )
+        if 400 <= worker_response.status < 600:
+            error_response = MureqResponse(
+                worker_response.url,
+                worker_response.status,
+                worker_response.headers,
+                worker_response.read(1_048_576),
+            )
+            raise HTTPErrorStatus(worker_response.status)
     except (HTTPErrorStatus, HTTPException):
-        archive_file.close()
-        archive_path.unlink(missing_ok=True)
+        response_stack.close()
         abort_with_worker_error(
             error_response,
             f"Downloading camera stills failed on {pioreactor_unit}.",
         )
     except Exception:
-        archive_file.close()
-        archive_path.unlink(missing_ok=True)
+        response_stack.close()
         raise
 
-    archive_file.close()
+    def stream_worker_archive() -> t.Iterator[bytes]:
+        try:
+            while chunk := worker_response.read(64 * 1024):
+                yield chunk
+        finally:
+            response_stack.close()
 
-    @after_this_request
-    def cleanup_camera_stills_archive(response: Response) -> Response:
-        archive_path.unlink(missing_ok=True)
-        return response
+    response_headers = {
+        "Content-Disposition": worker_response.headers.get("Content-Disposition", "attachment"),
+    }
+    if content_length := worker_response.headers.get("Content-Length"):
+        response_headers["Content-Length"] = content_length
 
-    try:
-        return send_file(
-            archive_path,
-            mimetype="application/zip",
-            as_attachment=True,
-            download_name=f"{pioreactor_unit}_{experiment}_camera_stills.zip",
-        )
-    except Exception:
-        archive_path.unlink(missing_ok=True)
-        raise
+    streaming_response = Response(
+        stream_worker_archive(),
+        status=worker_response.status,
+        content_type=worker_response.headers.get("Content-Type", "application/zip"),
+        headers=response_headers,
+    )
+    streaming_response.call_on_close(response_stack.close)
+    return streaming_response
 
 
 @api_bp.route("/workers/<pioreactor_unit>/task_results/<task_id>", methods=["GET"])

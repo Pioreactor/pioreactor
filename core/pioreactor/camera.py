@@ -5,6 +5,7 @@ import fcntl
 import os
 import re
 import shutil
+import signal
 import sqlite3
 import subprocess
 import tempfile
@@ -14,6 +15,8 @@ from datetime import datetime
 from datetime import UTC
 from functools import cache
 from pathlib import Path
+from time import monotonic
+from time import sleep
 from typing import Annotated
 from typing import cast
 from typing import Iterator
@@ -42,8 +45,16 @@ AUTO_CAPTURE_ENABLED_KEY = "auto_capture_enabled"
 RPICAM_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
 V4L2_CAPTURE_COMMAND = "fswebcam"
 DEV_CAMERA_STILLS_DIRNAME = "DEV_CAMERA_STILLS"
+CAMERA_WARMER_RUNTIME_DIR = Path("/run/pioreactor")
+CAMERA_WARMER_PID_FILENAME = "camera-warmer.pid"
+CAMERA_WARMER_IMAGE_FILENAME = "camera-warmer.jpg"
+CAMERA_WARMER_LATEST_FILENAME = "camera-warmer-latest.jpg"
+CAMERA_WARMER_STARTUP_GRACE_SECONDS = 1.0
+CAMERA_WARMER_POLL_SECONDS = 0.01
 
 SAFE_CAMERA_STORAGE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+camera_warmer_process: subprocess.Popen[bytes] | None = None
 
 
 class CameraStillMetadata(Struct, frozen=True):
@@ -125,6 +136,13 @@ def get_camera_ir_led_intensity() -> float:
     return intensity
 
 
+def camera_should_be_kept_active() -> bool:
+    return (
+        config.getboolean("camera", "keep_camera_active", fallback=False)
+        and get_camera_capture_backend() == "rpicam"
+    )
+
+
 def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | None:
     if backend == "v4l2":
         return shutil.which(V4L2_CAPTURE_COMMAND)
@@ -134,6 +152,171 @@ def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | Non
             return resolved
 
     return None
+
+
+def get_rpicam_still_arguments(command: str, camera_index: int) -> list[str]:
+    return [
+        command,
+        "--camera",
+        str(camera_index),
+        "--nopreview",
+        "--tuning-file",
+        "/usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json",
+        "--mode",
+        "2592:1944:10:P",
+        "--width",
+        "2592",
+        "--height",
+        "1944",
+        "--buffer-count",
+        "2",
+        "--framerate",
+        "0",
+        "--shutter",
+        "180000",
+        "--gain",
+        "1",
+        "--awbgains",
+        "1,1",
+        "--brightness",
+        "0",
+        "--contrast",
+        "1.1",
+        "--saturation",
+        "0",
+        "--sharpness",
+        "0",
+        "--denoise",
+        "cdn_hq",
+        "--quality",
+        "95",
+    ]
+
+
+def camera_warmer_runtime_paths() -> tuple[Path, Path, Path]:
+    return (
+        CAMERA_WARMER_RUNTIME_DIR / CAMERA_WARMER_PID_FILENAME,
+        CAMERA_WARMER_RUNTIME_DIR / CAMERA_WARMER_IMAGE_FILENAME,
+        CAMERA_WARMER_RUNTIME_DIR / CAMERA_WARMER_LATEST_FILENAME,
+    )
+
+
+def camera_warmer_pid() -> int | None:
+    pid_path, _, _ = camera_warmer_runtime_paths()
+    if not pid_path.exists():
+        return None
+
+    try:
+        pid = int(pid_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pid_path.unlink(missing_ok=True)
+        return None
+
+    command_line_path = Path("/proc") / str(pid) / "cmdline"
+    if not command_line_path.exists():
+        pid_path.unlink(missing_ok=True)
+        return None
+
+    try:
+        command_line = command_line_path.read_bytes()
+    except OSError:
+        return None
+
+    if b"rpicam-still" not in command_line:
+        pid_path.unlink(missing_ok=True)
+        return None
+
+    return pid
+
+
+def start_camera_warmer() -> bool:
+    """Heat the camera chamber to reduce coverslip fogging at high headspace or culture temperatures."""
+    global camera_warmer_process
+
+    if not camera_should_be_kept_active():
+        return False
+
+    command = shutil.which("rpicam-still")
+    if command is None:
+        return False
+
+    with camera_capture_lock():
+        if camera_warmer_pid() is not None:
+            return True
+
+        pid_path, image_path, latest_path = camera_warmer_runtime_paths()
+        CAMERA_WARMER_RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+        image_path.unlink(missing_ok=True)
+        latest_path.unlink(missing_ok=True)
+
+        try:
+            process = subprocess.Popen(
+                get_rpicam_still_arguments(command, get_camera_index())
+                + [
+                    "--signal",
+                    "--timeout",
+                    "0",
+                    "--latest",
+                    latest_path.as_posix(),
+                    "-o",
+                    image_path.as_posix(),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            return False
+
+        sleep(CAMERA_WARMER_STARTUP_GRACE_SECONDS)
+        if process.poll() is not None:
+            return False
+
+        pid_path.write_text(str(process.pid), encoding="utf-8")
+        camera_warmer_process = process
+        return True
+
+
+def stop_camera_warmer() -> None:
+    global camera_warmer_process
+
+    with camera_capture_lock():
+        pid = camera_warmer_pid()
+        if pid is None:
+            camera_warmer_process = None
+            return
+
+        try:
+            os.kill(pid, signal.SIGUSR2)
+        except ProcessLookupError:
+            pass
+
+        if camera_warmer_process is not None and camera_warmer_process.pid == pid:
+            try:
+                camera_warmer_process.wait(timeout=5.0)
+            except subprocess.TimeoutExpired:
+                pass
+
+        camera_warmer_runtime_paths()[0].unlink(missing_ok=True)
+        camera_warmer_process = None
+
+
+def capture_camera_still_using_warmer(pid: int, timeout: float) -> Path:
+    _, _, latest_path = camera_warmer_runtime_paths()
+    latest_path.unlink(missing_ok=True)
+
+    try:
+        os.kill(pid, signal.SIGUSR1)
+    except ProcessLookupError as error:
+        raise CameraCaptureError("The persistent camera process stopped before capture.") from error
+
+    deadline = monotonic() + timeout
+    while monotonic() < deadline:
+        if latest_path.exists():
+            return latest_path
+        sleep(CAMERA_WARMER_POLL_SECONDS)
+
+    raise CameraCaptureError("The persistent camera process timed out during capture.")
 
 
 def dev_camera_still_paths(dot_pioreactor: Path | None = None) -> tuple[Path, ...]:
@@ -349,6 +532,7 @@ def capture_camera_still(
     camera_index = get_camera_index() if backend == "rpicam" else None
     device_path = get_camera_device_path() if backend == "v4l2" else None
     command = find_camera_capture_command(backend)
+    keep_camera_active = camera_should_be_kept_active()
 
     if command is None:
         dev_still = store_next_dev_camera_still(
@@ -367,42 +551,8 @@ def capture_camera_still(
     try:
         if backend == "rpicam":
             assert camera_index is not None
-            capture_arguments = [
-                command,
-                "--camera",
-                str(camera_index),
-                "--nopreview",
+            capture_arguments = get_rpicam_still_arguments(command, camera_index) + [
                 "--immediate",
-                "--tuning-file",
-                "/usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json",
-                "--mode",
-                "2592:1944:10:P",
-                "--width",
-                "2592",
-                "--height",
-                "1944",
-                "--buffer-count",
-                "2",
-                "--framerate",
-                "0",
-                "--shutter",
-                "180000",
-                "--gain",
-                "1",
-                "--awbgains",
-                "1,1",
-                "--brightness",
-                "0",
-                "--contrast",
-                "1.1",
-                "--saturation",
-                "0",
-                "--sharpness",
-                "0",
-                "--denoise",
-                "cdn_hq",
-                "--quality",
-                "95",
                 "-o",
                 tmp_path.as_posix(),
             ]
@@ -428,17 +578,20 @@ def capture_camera_still(
                         unit=unit,
                         experiment=experiment,
                         source_of_event="camera",
-                        verbose=False,
                     ):
                         raise CameraCaptureError("Camera IR illumination could not be started.")
 
                 try:
-                    subprocess.run(
-                        capture_arguments,
-                        capture_output=True,
-                        timeout=timeout,
-                        check=True,
-                    )
+                    if keep_camera_active and (pid := camera_warmer_pid()) is not None:
+                        captured_image_path = capture_camera_still_using_warmer(pid, timeout)
+                    else:
+                        subprocess.run(
+                            capture_arguments,
+                            capture_output=True,
+                            timeout=timeout,
+                            check=True,
+                        )
+                        captured_image_path = tmp_path
                 finally:
                     # OD may have acquired IR while the command ran. A locked channel is OD's cleanup
                     # responsibility; otherwise camera restores the shared idle invariant of IR=0%.
@@ -448,11 +601,10 @@ def capture_camera_still(
                             unit=unit,
                             experiment=experiment,
                             source_of_event="camera",
-                            verbose=False,
                         )
 
                 return store_camera_still(
-                    tmp_path,
+                    captured_image_path,
                     unit,
                     experiment=experiment,
                     dot_pioreactor=dot_pioreactor,
@@ -465,6 +617,8 @@ def capture_camera_still(
     finally:
         if tmp_path.exists():
             tmp_path.unlink()
+        if keep_camera_active:
+            start_camera_warmer()
 
 
 def store_camera_still(

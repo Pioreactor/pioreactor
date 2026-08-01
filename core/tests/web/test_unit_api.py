@@ -160,14 +160,17 @@ def test_capture_camera_still_for_experiment_returns_delayed_response(
 ) -> None:
     import pioreactor.web.unit_api as mod
 
-    captured: dict[str, str] = {}
+    captured: dict[str, str | bool] = {}
 
     class DummyTask:
         id = "camera-capture-task"
 
-    def fake_capture_camera_still_task(unit: str, experiment: str) -> DummyTask:
+    def fake_capture_camera_still_task(
+        unit: str, experiment: str, is_manual_focus_session: bool
+    ) -> DummyTask:
         captured["unit"] = unit
         captured["experiment"] = experiment
+        captured["is_manual_focus_session"] = is_manual_focus_session
         return DummyTask()
 
     monkeypatch.setattr(mod.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
@@ -177,7 +180,11 @@ def test_capture_camera_still_for_experiment_returns_delayed_response(
 
     assert response.status_code == 202
     assert response.get_json()["result_url_path"] == "/unit_api/task_results/camera-capture-task"
-    assert captured == {"unit": HOSTNAME, "experiment": "experiment-a"}
+    assert captured == {
+        "unit": HOSTNAME,
+        "experiment": "experiment-a",
+        "is_manual_focus_session": False,
+    }
 
 
 def test_capture_camera_still_rejects_historical_experiment(client, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -187,7 +194,9 @@ def test_capture_camera_still_rejects_historical_experiment(client, monkeypatch:
     monkeypatch.setattr(
         mod.tasks,
         "capture_camera_still_task",
-        lambda unit, experiment: pytest.fail("A rejected snapshot must not start a capture task."),
+        lambda unit, experiment, is_manual_focus_session: pytest.fail(
+            "A rejected snapshot must not start a capture task."
+        ),
     )
 
     response = client.post("/unit_api/camera/experiments/historical-experiment/stills")
@@ -200,14 +209,17 @@ def test_capture_camera_still_allows_manual_focus_session(client, monkeypatch: p
     import pioreactor.calibrations.protocols.camera_manual_focus as manual_focus
     import pioreactor.web.unit_api as mod
 
-    captured: dict[str, str] = {}
+    captured: dict[str, str | bool] = {}
 
     class DummyTask:
         id = "camera-focus-capture-task"
 
-    def fake_capture_camera_still_task(unit: str, experiment: str) -> DummyTask:
+    def fake_capture_camera_still_task(
+        unit: str, experiment: str, is_manual_focus_session: bool
+    ) -> DummyTask:
         captured["unit"] = unit
         captured["experiment"] = experiment
+        captured["is_manual_focus_session"] = is_manual_focus_session
         return DummyTask()
 
     monkeypatch.setattr(manual_focus, "get_unit_name", lambda: HOSTNAME)
@@ -223,7 +235,11 @@ def test_capture_camera_still_allows_manual_focus_session(client, monkeypatch: p
     response = client.post(f"/unit_api/camera/experiments/{session.session_id}/stills")
 
     assert response.status_code == 202
-    assert captured == {"unit": HOSTNAME, "experiment": session.session_id}
+    assert captured == {
+        "unit": HOSTNAME,
+        "experiment": session.session_id,
+        "is_manual_focus_session": True,
+    }
 
 
 def test_camera_still_for_experiment_requires_matching_experiment(
@@ -357,6 +373,9 @@ def test_zipped_camera_stills_for_experiment_includes_matching_stills(
 
     monkeypatch.setattr(mod, "send_file", record_archive_path)
 
+    log_messages: list[str] = []
+    monkeypatch.setattr(mod.logger, "info", log_messages.append)
+
     response = client.get("/unit_api/camera/experiments/experiment-a/stills.zip")
 
     assert response.status_code == 200
@@ -364,7 +383,12 @@ def test_zipped_camera_stills_for_experiment_includes_matching_stills(
     assert archive_was_file_backed
     with zipfile.ZipFile(BytesIO(response.data), "r") as zip_file:
         assert sorted(zip_file.namelist()) == ["camera_stills_manifest.json", "image-a.jpg"]
+        assert zip_file.getinfo("image-a.jpg").compress_type == zipfile.ZIP_STORED
         assert zip_file.read("image-a.jpg") == b"fake jpeg"
+    assert log_messages == [
+        f"User requested all camera snapshots on {HOSTNAME} for experiment `experiment-a` to be downloaded.",
+        f"Sending 1 camera snapshot from {HOSTNAME} for experiment `experiment-a`.",
+    ]
 
 
 def test_camera_capture_route_is_not_available(client) -> None:

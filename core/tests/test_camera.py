@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import fcntl
+import signal
 import subprocess
 from collections.abc import Generator
+from contextlib import nullcontext
 from datetime import datetime
 from datetime import UTC
 from pathlib import Path
@@ -16,8 +18,10 @@ from pioreactor.camera import camera_auto_capture_is_enabled
 from pioreactor.camera import camera_capture_lock
 from pioreactor.camera import camera_hardware_is_detected
 from pioreactor.camera import CAMERA_SETTINGS_CACHE_NAME
+from pioreactor.camera import camera_should_be_kept_active
 from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
+from pioreactor.camera import camera_warmer_runtime_paths
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import capture_camera_still
@@ -31,6 +35,8 @@ from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.camera import set_camera_auto_capture_enabled
+from pioreactor.camera import start_camera_warmer
+from pioreactor.camera import stop_camera_warmer
 from pioreactor.camera import store_camera_still
 from pioreactor.config import ConfigParserMod
 from pioreactor.utils import local_intermittent_storage
@@ -85,6 +91,94 @@ def test_camera_capture_lock_uses_lock_file_in_camera_storage(
         assert (dot_pioreactor / "storage" / "camera_stills" / ".capture.lock").exists()
 
     assert lock_operations == [fcntl.LOCK_EX, fcntl.LOCK_UN]
+
+
+def test_keep_camera_active_defaults_off_and_only_applies_to_rpicam(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="rpicam")
+    assert camera_should_be_kept_active() is False
+
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", keep_camera_active="1")
+    assert camera_should_be_kept_active() is False
+
+    configure_camera_backend(monkeypatch, capture_backend="rpicam", keep_camera_active="1")
+    assert camera_should_be_kept_active() is True
+
+
+def test_start_camera_warmer_uses_persistent_signal_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    configure_camera_backend(
+        monkeypatch,
+        capture_backend="rpicam",
+        camera_index="1",
+        keep_camera_active="1",
+    )
+    monkeypatch.setattr(camera, "CAMERA_WARMER_RUNTIME_DIR", tmp_path)
+    monkeypatch.setattr(camera, "camera_capture_lock", nullcontext)
+    monkeypatch.setattr(camera, "camera_warmer_pid", lambda: None)
+    monkeypatch.setattr(camera.shutil, "which", lambda command: f"/usr/bin/{command}")
+    monkeypatch.setattr(camera, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(camera, "camera_warmer_process", None)
+    popen_calls: list[tuple[list[str], dict[str, object]]] = []
+
+    class RunningProcess:
+        pid = 123
+
+        def poll(self) -> None:
+            return None
+
+    def popen(arguments: list[str], **kwargs: object) -> RunningProcess:
+        popen_calls.append((arguments, kwargs))
+        return RunningProcess()
+
+    monkeypatch.setattr(camera.subprocess, "Popen", popen)
+
+    assert start_camera_warmer() is True
+
+    pid_path, image_path, latest_path = camera_warmer_runtime_paths()
+    assert pid_path.read_text(encoding="utf-8") == "123"
+    assert len(popen_calls) == 1
+    arguments, _ = popen_calls[0]
+    assert arguments[0:3] == ["/usr/bin/rpicam-still", "--camera", "1"]
+    assert "--signal" in arguments
+    assert arguments[arguments.index("--timeout") + 1] == "0"
+    assert arguments[arguments.index("--latest") + 1] == latest_path.as_posix()
+    assert arguments[arguments.index("-o") + 1] == image_path.as_posix()
+    assert "--immediate" not in arguments
+
+
+def test_stop_camera_warmer_requests_exit_without_capturing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    monkeypatch.setattr(camera, "CAMERA_WARMER_RUNTIME_DIR", tmp_path)
+    monkeypatch.setattr(camera, "camera_capture_lock", nullcontext)
+    monkeypatch.setattr(camera, "camera_warmer_pid", lambda: 123)
+    pid_path, _, _ = camera_warmer_runtime_paths()
+    pid_path.write_text("123", encoding="utf-8")
+    signals: list[tuple[int, int]] = []
+    waited: list[float] = []
+
+    class RunningProcess:
+        pid = 123
+
+        def wait(self, *, timeout: float) -> None:
+            waited.append(timeout)
+
+    monkeypatch.setattr(camera, "camera_warmer_process", RunningProcess())
+    monkeypatch.setattr(camera.os, "kill", lambda pid, sig: signals.append((pid, sig)))
+
+    stop_camera_warmer()
+
+    assert signals == [(123, signal.SIGUSR2)]
+    assert waited == [5.0]
+    assert not pid_path.exists()
+    assert camera.camera_warmer_process is None
 
 
 def test_store_camera_still_writes_canonical_image_and_metadata(
@@ -431,6 +525,89 @@ def test_v4l2_backend_uses_configured_device_path(tmp_path: Path, monkeypatch: p
     assert status["available"] is True
     assert status["capture_command"] == "fswebcam"
     assert camera_still_image_path(metadata).read_bytes() == b"webcam still"
+
+
+def test_rpicam_backend_uses_persistent_process_and_stores_normal_still(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    dot_pioreactor = tmp_path / ".pioreactor"
+    runtime_dir = tmp_path / "run"
+    runtime_dir.mkdir()
+    configure_camera_backend(
+        monkeypatch,
+        capture_backend="rpicam",
+        keep_camera_active="1",
+        ir_led_intensity="80",
+    )
+    monkeypatch.setattr(camera, "CAMERA_WARMER_RUNTIME_DIR", runtime_dir)
+    monkeypatch.setattr(camera, "camera_warmer_pid", lambda: 123)
+    monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/rpicam-still")
+    monkeypatch.setattr(
+        camera.subprocess,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("persistent capture must not launch another process"),
+    )
+    monkeypatch.setattr(camera, "start_camera_warmer", lambda: True)
+    led_states: list[dict[str, float]] = []
+    monkeypatch.setattr(
+        camera,
+        "led_intensity",
+        lambda desired_state, **_kwargs: led_states.append(desired_state) or True,
+    )
+    signals: list[tuple[int, int]] = []
+
+    def signal_camera(pid: int, sig: int) -> None:
+        signals.append((pid, sig))
+        _, image_path, latest_path = camera_warmer_runtime_paths()
+        image_path.write_bytes(b"persistent camera still")
+        latest_path.symlink_to(image_path)
+
+    monkeypatch.setattr(camera.os, "kill", signal_camera)
+
+    metadata = capture_camera_still(
+        "unit-a",
+        experiment="experiment-a",
+        dot_pioreactor=dot_pioreactor,
+    )
+
+    assert signals == [(123, signal.SIGUSR1)]
+    assert led_states == [{"A": 80.0}, {"A": 0.0}]
+    assert camera_still_image_path(metadata, dot_pioreactor).read_bytes() == b"persistent camera still"
+
+
+def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    configure_camera_backend(monkeypatch, capture_backend="rpicam", keep_camera_active="1")
+    monkeypatch.setattr(camera, "camera_warmer_pid", lambda: None)
+    monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/rpicam-still")
+    monkeypatch.setattr(camera, "led_intensity", lambda *_args, **_kwargs: True)
+    capture_commands: list[list[str]] = []
+
+    def capture(arguments: list[str], **_kwargs: object) -> None:
+        capture_commands.append(arguments)
+        Path(arguments[-1]).write_bytes(b"one-shot camera still")
+
+    warmer_starts: list[bool] = []
+    monkeypatch.setattr(camera.subprocess, "run", capture)
+    monkeypatch.setattr(camera, "start_camera_warmer", lambda: warmer_starts.append(True) or True)
+
+    metadata = capture_camera_still(
+        "unit-a",
+        experiment="experiment-a",
+        dot_pioreactor=tmp_path / ".pioreactor",
+    )
+
+    assert len(capture_commands) == 1
+    assert "--immediate" in capture_commands[0]
+    assert warmer_starts == [True]
+    assert (
+        camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"one-shot camera still"
+    )
 
 
 def test_camera_ir_led_intensity_defaults_to_80(monkeypatch: pytest.MonkeyPatch) -> None:

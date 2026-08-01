@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from contextlib import suppress
 from threading import RLock
-from time import perf_counter
 from time import sleep
 from time import time
 from typing import Callable
@@ -100,7 +99,7 @@ class RpmCalculator:
     def estimate(self, seconds_to_observe: float) -> float:
         return 0.0
 
-    def callback(self, *args: object) -> None:
+    def callback(self, _chip: int, _gpio: int, _level: int, _timestamp_ns: int) -> None:
         pass
 
     def sleep_for(self, seconds: float) -> None:
@@ -126,9 +125,9 @@ class RpmFromFrequency(RpmCalculator):
     _running_count = 0
     _start_time = None
 
-    def callback(self, *args: object) -> None:
+    def callback(self, _chip: int, _gpio: int, _level: int, timestamp_ns: int) -> None:
         _start_time = self._start_time
-        obs_time = perf_counter()
+        obs_time = timestamp_ns / 1_000_000_000
         if not self.collecting:
             return
 
@@ -705,7 +704,7 @@ def start_stirring(
     "--target-rpm",
     help="set the target RPM",
     show_default=True,
-    type=click.FloatRange(0, 1500, clamp=True),
+    type=click.FloatRange(0, 2000, clamp=True),
 )
 @click.option("--use-rpm", type=click.BOOL, default=None, show_default=True, help="Use RPM feedback loop.")
 @click.option(

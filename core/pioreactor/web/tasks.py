@@ -51,6 +51,8 @@ from pioreactor.camera import capture_camera_still
 from pioreactor.camera import delete_camera_still
 from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
+from pioreactor.camera import start_camera_warmer
+from pioreactor.camera import stop_camera_warmer
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
@@ -88,6 +90,7 @@ FanoutResult = dict[str, Any]
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
 MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
 periodic_task = getattr(huey, "periodic_task")
+on_shutdown = getattr(huey, "on_shutdown")
 crontab = getattr(huey_api, "crontab")
 
 
@@ -107,8 +110,14 @@ def get_camera_status_task(unit: str, experiment: str | None = None) -> dict[str
 def capture_camera_still_task(
     unit: str,
     experiment: str | None,
+    is_manual_focus_session: bool,
 ) -> dict[str, Any]:
-    return to_builtins(capture_camera_still(unit, experiment=experiment))
+    metadata = capture_camera_still(unit, experiment=experiment)
+    logger.debug(
+        f"User requested a {'manual-focus' if is_manual_focus_session else 'manual'} camera snapshot "
+        f"{metadata.image_id} on {unit} for experiment `{experiment}`."
+    )
+    return to_builtins(metadata)
 
 
 @huey.task(priority=20)
@@ -519,8 +528,14 @@ def initialized() -> None:
         plugins = get_plugins()
         for plugin in plugins:
             logger.debug(f"Loading plugin {plugin}")
+        start_camera_warmer()
     except Exception:
         raise
+
+
+@on_shutdown()
+def clean_up_camera_warmer() -> None:
+    stop_camera_warmer()
 
 
 @huey.task(priority=50)
@@ -986,6 +1001,7 @@ def _register_core_calibration_actions() -> None:
             capture_camera_still_task(
                 str(payload["unit"]),
                 str(payload["experiment"]),
+                True,
             ),
             "Camera snapshot",
             _dict_or_empty_normalizer,

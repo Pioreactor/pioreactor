@@ -60,6 +60,33 @@ fi
 # copy public key over
 sshpass -p "$SSHPASS" ssh-copy-id pioreactor@"$ADDRESS"
 
+# A worker may still have topology overrides from a previous cluster. Since
+# unit_config.ini overrides the shared config.ini, remove these values so this
+# leader's shared configuration is authoritative.
+ssh pioreactor@"$ADDRESS" '
+    UNIT_CONFIG=/home/pioreactor/.pioreactor/unit_config.ini
+    source /etc/pioreactor.env 2>/dev/null || true
+    VENV_BIN="${PIO_VENV:-/opt/pioreactor/venv}/bin"
+
+    if [ ! -f "$UNIT_CONFIG" ]; then
+        exit 0
+    fi
+
+    if ! "$VENV_BIN/python" -c '\''import configparser, pathlib, sys; parser = configparser.ConfigParser(strict=False, allow_no_value=True); parser.read_string(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))'\'' "$UNIT_CONFIG"
+    then
+        echo "Unable to parse $UNIT_CONFIG. Fix its configuration before adding this worker." >&2
+        exit 1
+    fi
+
+    for PARAMETER in leader_address leader_hostname
+    do
+        if VALUE=$("$VENV_BIN/crudini" --get "$UNIT_CONFIG" cluster.topology "$PARAMETER" 2>/dev/null); then
+            echo "Removing [cluster.topology] $PARAMETER=$VALUE from worker unit_config.ini."
+            "$VENV_BIN/crudini" --del "$UNIT_CONFIG" cluster.topology "$PARAMETER"
+        fi
+    done
+'
+
 # add worker's address to config
 CONFIG=/home/pioreactor/.pioreactor/config.ini
 sudo -u pioreactor "$PIO" config set cluster.addresses "$HOSTNAME" "$ADDRESS" --shared
