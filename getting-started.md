@@ -13,12 +13,19 @@ The development flow is POSIX-shell based. On macOS, use Terminal. On Windows, u
 
 ### macOS
 
-Install Homebrew if needed, then install the basic runtime tools:
+Install Homebrew if needed, then install the basic runtime tools and `nvm`:
 
 ```bash
-brew install python@3.13 node@20 direnv make mosquitto
+brew install python@3.13 direnv make mosquitto
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 ```
 
+Restart Terminal, then install Node 25, matching the version used by the project and CI:
+
+```bash
+nvm install 25
+nvm use 25
+```
 
 Make sure `python3.13`, `node`, `npm`, `make`, and `direnv` are available:
 
@@ -42,10 +49,10 @@ Open Ubuntu, then install the base tools:
 
 ```bash
 sudo apt update
-sudo apt install -y build-essential curl git make direnv mosquitto
+sudo apt install -y build-essential curl git make direnv mosquitto sqlite3
 ```
 
-Install Python 3.13 and Node 20. The most reliable cross-distro option is `pyenv` for Python and `nvm` for Node:
+Install Python 3.13 and Node 25, matching the versions used by the project and CI. The most reliable cross-distro option is `pyenv` for Python and `nvm` for Node:
 
 ```bash
 curl https://pyenv.run | bash
@@ -57,8 +64,8 @@ Restart the Ubuntu shell, then:
 ```bash
 pyenv install 3.13.0
 pyenv global 3.13.0
-nvm install 20
-nvm use 20
+nvm install 25
+nvm use 25
 ```
 
 Confirm:
@@ -85,10 +92,17 @@ If you already have the repo, start from its root directory.
 The app expects a Pioreactor data root with config, storage, plugins, and export directories. For local development, keep that under the repo as `.pioreactor`.
 
 ```bash
-mkdir -p .pioreactor/storage .pioreactor/cache .pioreactor/plugins .pioreactor/experiment_profiles .pioreactor/exportable_datasets plugins_dev
+mkdir -p .pioreactor/storage .pioreactor/cache .pioreactor/exports .pioreactor/plugins .pioreactor/experiment_profiles .pioreactor/exportable_datasets .pioreactor/ui plugins_dev
 cp -n config.dev.ini .pioreactor/config.ini
 touch .pioreactor/unit_config.ini
+cp -R packaging/shared-assets/pioreactor/ui/. .pioreactor/ui/
+cp packaging/shared-assets/pioreactor/exportable_datasets/*.yaml .pioreactor/exportable_datasets/
+cp -n packaging/shared-assets/pioreactor/experiment_profiles/*.yaml .pioreactor/experiment_profiles/
+sqlite3 .pioreactor/storage/pioreactor.sqlite < packaging/shared-assets/sql/create_tables.sql
+sqlite3 .pioreactor/storage/pioreactor.sqlite < packaging/shared-assets/sql/create_triggers.sql
 ```
+
+The copied YAML files are the built-in UI and export descriptors used by the API. The SQLite commands initialize the development database schema and are safe to rerun because the schema uses `IF NOT EXISTS`.
 
 Do not commit `.envrc`, `.pioreactor/`, `plugins_dev/`, or generated local state.
 
@@ -227,7 +241,7 @@ Run these checks from the repo root:
 ```bash
 make dev-status
 pio version
-pio workers
+pio workers status
 curl -fsS http://127.0.0.1:4999/unit_api/health
 ```
 

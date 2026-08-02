@@ -535,8 +535,8 @@ These are design debt, not alternate approved patterns.
 
 | Area | Intended rule | Current inconsistency |
 | --- | --- | --- |
-| Page heading semantics | One `h1` per route page | Calibrations, Estimators, Plugins, Protocols, Export data, Leader, Configuration, Logs, System logs, and Experiment Profiles use `component="h2"` for the top-level title in at least one route state. |
-| Header divider | Every normal page header ends with a divider | Experiments, Configuration, experiment profile create/edit, Logs, and System logs omit the standard divider. |
+| Page heading semantics | One `h1` per route page | Calibrations, Estimators, Plugins, Protocols, Export data, Leader, Logs, System logs, Experiment Profiles, and the experiment profile create/edit pages use `component="h2"` for the top-level title in at least one route state. |
+| Header divider | Every normal page header ends with a divider | Experiment profile create/edit, Logs, and System logs omit the standard divider. |
 | Header location | Page title sits outside content Cards | Start new experiment places its page title inside the form Card. |
 | Detail headers | Back navigation is separate from the record `h1` | Single calibration and single estimator pages mark the back button container as the `h1`; the actual record title is an `h2` inside the Card. |
 | Stable page titles | Filters are below or adjacent to the title | Logs and System logs place two `Select` controls inside the heading, making the title visually and semantically unstable. |
