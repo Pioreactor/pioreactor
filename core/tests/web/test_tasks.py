@@ -53,6 +53,7 @@ def test_periodic_camera_capture_noops_when_camera_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
@@ -67,6 +68,7 @@ def test_periodic_camera_capture_noops_when_auto_capture_is_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "camera_auto_capture_is_enabled", lambda: False)
     monkeypatch.setattr(
@@ -84,6 +86,7 @@ def test_periodic_camera_capture_noops_when_worker_is_inactive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "is_active", lambda unit: False)
@@ -103,6 +106,7 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
     captured: dict[str, str | None] = {}
     metadata = CameraStillMetadata(
         experiment="experiment-a",
@@ -136,6 +140,22 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     }
 
 
+def test_periodic_camera_capture_noops_when_camera_feature_is_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: False)
+    monkeypatch.setattr(
+        tasks,
+        "camera_snapshot_interval_minutes",
+        lambda: pytest.fail("disabled camera feature must not inspect the capture interval"),
+    )
+
+    result = tasks.capture_camera_still_periodic_task.call_local()
+
+    assert result == {"captured": False, "reason": "camera_disabled"}
+
+
 def test_huey_lifecycle_starts_and_stops_camera_warmer(monkeypatch: pytest.MonkeyPatch) -> None:
     lifecycle: list[str] = []
     monkeypatch.setattr(tasks, "get_plugins", lambda: [])
@@ -148,13 +168,7 @@ def test_huey_lifecycle_starts_and_stops_camera_warmer(monkeypatch: pytest.Monke
     assert lifecycle == ["start", "stop"]
 
 
-@pytest.mark.parametrize(
-    ("is_manual_focus_session", "expected_capture_reason"),
-    [(False, "manual"), (True, "manual_focus")],
-)
 def test_user_requested_camera_capture_records_capture_reason(
-    is_manual_focus_session: bool,
-    expected_capture_reason: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
@@ -173,9 +187,34 @@ def test_user_requested_camera_capture_records_capture_reason(
 
     monkeypatch.setattr(tasks, "capture_camera_still", fake_capture_camera_still)
 
-    tasks.capture_camera_still_task.call_local("unit-a", "experiment-a", is_manual_focus_session)
+    tasks.capture_camera_still_task.call_local("unit-a", "experiment-a")
 
-    assert captured_reasons == [expected_capture_reason]
+    assert captured_reasons == ["manual"]
+
+
+def test_latest_camera_still_publication_is_retained_and_scoped_to_experiment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    published: list[tuple[str, bytes | None, dict[str, object]]] = []
+
+    def fake_publish(topic: str, message: bytes | None, **kwargs: object) -> None:
+        published.append((topic, message, kwargs))
+
+    monkeypatch.setattr(tasks, "publish", fake_publish)
+
+    tasks.publish_latest_camera_still_task.call_local(
+        "unit-a",
+        "experiment-a",
+        {"image_id": "image-a"},
+    )
+
+    assert published == [
+        (
+            "pioreactor/unit-a/experiment-a/camera/latest_still",
+            b'{"image_id":"image-a"}',
+            {"retries": 1, "retain": True},
+        )
+    ]
 
 
 @pytest.mark.parametrize(
@@ -242,87 +281,75 @@ def test_camera_snapshot_interval_minutes_rejects_negative_values(
         tasks.camera_snapshot_interval_minutes()
 
 
-def test_camera_focus_calibration_action_uses_existing_capture_task(
+def test_camera_focus_calibration_action_uses_ephemeral_preview_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     task = object()
-    captured: dict[str, str | bool | None] = {}
+    captured: dict[str, str] = {}
 
-    def fake_capture_task(unit: str, experiment: str | None, is_manual_focus_session: bool) -> object:
+    def fake_capture_task(unit: str, session_id: str) -> object:
         captured["unit"] = unit
-        captured["experiment"] = experiment
-        captured["is_manual_focus_session"] = is_manual_focus_session
+        captured["session_id"] = session_id
         return task
 
-    monkeypatch.setattr(tasks, "capture_camera_still_task", fake_capture_task)
+    monkeypatch.setattr(tasks, "capture_camera_focus_preview_task", fake_capture_task)
 
     handler = tasks.get_calibration_action("camera_focus_capture")
-    returned_task, error_label, normalize = handler({"unit": "unit-a", "experiment": "session-a"})
+    returned_task, error_label, normalize = handler({"unit": "unit-a", "session_id": "session-a"})
 
     assert returned_task is task
-    assert error_label == "Camera snapshot"
-    assert normalize({"image_id": "image-a"}) == {"image_id": "image-a"}
+    assert error_label == "Camera focus preview"
+    assert normalize(None) == {}
     assert captured == {
         "unit": "unit-a",
-        "experiment": "session-a",
-        "is_manual_focus_session": True,
+        "session_id": "session-a",
     }
 
 
-def test_delete_camera_stills_task_deletes_each_requested_image(
+def test_camera_focus_preview_task_captures_without_experiment_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    deleted: list[tuple[str, str, str]] = []
+    _clear_lock("camera-lock")
+    captured: list[tuple[str, str]] = []
 
-    def fake_delete_camera_still(unit: str, experiment: str, image_id: str) -> object | None:
-        deleted.append((unit, experiment, image_id))
-        return object() if image_id == "image-a" else None
-
-    monkeypatch.setattr(tasks, "delete_camera_still", fake_delete_camera_still)
-
-    result = tasks.delete_camera_stills_task.call_local(
-        "unit-a",
-        "session-a",
-        ["image-a", "image-b"],
+    monkeypatch.setattr(
+        tasks,
+        "capture_camera_focus_preview",
+        lambda unit, session_id: captured.append((unit, session_id)),
     )
 
-    assert result == {"deleted_image_ids": ["image-a"]}
-    assert deleted == [
-        ("unit-a", "session-a", "image-a"),
-        ("unit-a", "session-a", "image-b"),
-    ]
+    result = tasks.capture_camera_focus_preview_task.call_local("unit-a", "session-a")
+
+    assert result is None
+    assert captured == [("unit-a", "session-a")]
 
 
-def test_camera_focus_cleanup_action_uses_delete_task(
+def test_camera_focus_cleanup_action_uses_preview_delete_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     task = object()
     captured: dict[str, object] = {}
 
-    def fake_delete_task(unit: str, experiment: str, image_ids: list[str]) -> object:
-        captured.update(unit=unit, experiment=experiment, image_ids=image_ids)
+    def fake_delete_task(unit: str, session_id: str) -> object:
+        captured.update(unit=unit, session_id=session_id)
         return task
 
-    monkeypatch.setattr(tasks, "delete_camera_stills_task", fake_delete_task)
+    monkeypatch.setattr(tasks, "delete_camera_focus_preview_task", fake_delete_task)
 
     handler = tasks.get_calibration_action("camera_focus_cleanup")
     returned_task, error_label, normalize = handler(
         {
             "unit": "unit-a",
-            "experiment": "session-a",
-            "image_ids": ["image-a", "image-b"],
+            "session_id": "session-a",
         }
     )
 
     assert returned_task is task
-    assert error_label == "Camera focus snapshot cleanup"
-    assert normalize({"deleted_image_ids": ["image-a", "image-b"]}) == {
-        "deleted_image_ids": ["image-a", "image-b"]
-    }
+    assert error_label == "Camera focus preview cleanup"
+    assert normalize(None) == {}
     assert captured == {
         "unit": "unit-a",
-        "experiment": "session-a",
-        "image_ids": ["image-a", "image-b"],
+        "session_id": "session-a",
     }
 
 

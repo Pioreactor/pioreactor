@@ -25,10 +25,9 @@ import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 
 import PioreactorIcon from "./PioreactorIcon";
 import UnderlineSpan from "./UnderlineSpan";
+import useCameraResource from "../hooks/useCameraResource";
 import { fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
 import { experimentPathSegment } from "../utils/url";
-
-const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 
 function workerCameraPath(unit, suffix, experiment) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
@@ -129,91 +128,40 @@ function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
 
 export default function CameraPanel({
   unit,
-  initialStatus = null,
+  status: controlledStatus,
+  onStatusChange,
   experiment,
   experimentStartTime = null,
 }) {
-  const [status, setStatus] = React.useState(initialStatus);
-  const [loading, setLoading] = React.useState(!initialStatus);
+  const ownsStatus = controlledStatus === undefined;
+  const statusUrl = ownsStatus && unit && experiment
+    ? workerCameraPath(unit, "status", experiment)
+    : null;
+  const {
+    data: loadedStatus,
+    error: statusError,
+    loading,
+    setData: setLoadedStatus,
+  } = useCameraResource({
+    mqttTopic: statusUrl ? `pioreactor/${unit}/${experiment}/camera/latest_still` : null,
+    url: statusUrl,
+  });
+  const status = ownsStatus ? loadedStatus : controlledStatus;
   const [viewerOpen, setViewerOpen] = React.useState(false);
   const [actionError, setActionError] = React.useState(null);
   const [autoCaptureUpdatePending, setAutoCaptureUpdatePending] = React.useState(false);
+  const [autoCaptureOverride, setAutoCaptureOverride] = React.useState(null);
   const autoCaptureUpdatePendingRef = React.useRef(false);
-  const autoCaptureUpdateVersionRef = React.useRef(0);
 
-  const refreshStatus = React.useCallback(async ({ signal, showLoading = true } = {}) => {
-    const autoCaptureUpdateVersion = autoCaptureUpdateVersionRef.current;
-    const autoCaptureWasUpdating = autoCaptureUpdatePendingRef.current;
-
-    if (showLoading) {
-      setLoading(true);
+  const setStatus = React.useCallback((nextStatus) => {
+    if (ownsStatus) {
+      setLoadedStatus(nextStatus);
+    } else {
+      onStatusChange?.(nextStatus);
     }
-    setActionError(null);
-
-    try {
-      const response = await fetch(workerCameraPath(unit, "status", experiment), { signal });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Could not fetch camera status.");
-      }
-
-      const data = await response.json();
-      setStatus((previous) => ({
-        ...data,
-        auto_capture_enabled:
-          autoCaptureWasUpdating || autoCaptureUpdateVersion !== autoCaptureUpdateVersionRef.current
-            ? previous?.auto_capture_enabled
-            : data.auto_capture_enabled,
-      }));
-    } catch (error) {
-      if (error.name !== "AbortError") {
-        setActionError(error.message);
-      }
-    } finally {
-      if (!signal?.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [experiment, unit]);
-
-  React.useEffect(() => {
-    setStatus(initialStatus);
-    setLoading(!initialStatus);
-  }, [initialStatus, unit]);
-
-  React.useEffect(() => {
-    if (initialStatus) {
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    void refreshStatus({ signal: controller.signal });
-
-    return () => {
-      controller.abort();
-    };
-  }, [initialStatus, refreshStatus]);
+  }, [onStatusChange, ownsStatus, setLoadedStatus]);
 
   const snapshotIntervalMinutes = status?.snapshot_interval_minutes;
-  const refreshIntervalMs = typeof snapshotIntervalMinutes === "number" && snapshotIntervalMinutes > 0
-    ? Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, snapshotIntervalMinutes * 60 * 1000)
-    : null;
-
-  React.useEffect(() => {
-    if (initialStatus || !refreshIntervalMs) {
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    const interval = window.setInterval(() => {
-      void refreshStatus({ signal: controller.signal, showLoading: false });
-    }, refreshIntervalMs);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(interval);
-    };
-  }, [initialStatus, refreshIntervalMs, refreshStatus]);
 
   const hasLatestStill = Boolean(status?.latest_still);
   const openMediaUrl = status?.latest_still
@@ -228,7 +176,7 @@ export default function CameraPanel({
           }
         : previous
     ));
-  }, []);
+  }, [setStatus]);
 
   const handleAutoCaptureChange = React.useCallback(async (event) => {
     if (autoCaptureUpdatePendingRef.current) {
@@ -236,16 +184,10 @@ export default function CameraPanel({
     }
 
     const autoCaptureEnabled = event.target.checked;
-    const previouslyEnabled = status?.auto_capture_enabled !== false;
-    autoCaptureUpdateVersionRef.current += 1;
     autoCaptureUpdatePendingRef.current = true;
     setAutoCaptureUpdatePending(true);
+    setAutoCaptureOverride(autoCaptureEnabled);
     setActionError(null);
-    setStatus((previous) => (
-      previous
-        ? { ...previous, auto_capture_enabled: autoCaptureEnabled }
-        : previous
-    ));
 
     try {
       const taskPayload = await fetchTaskResult(workerCameraSettingsPath(unit), {
@@ -266,22 +208,18 @@ export default function CameraPanel({
           : previous
       ));
     } catch (error) {
-      setStatus((previous) => (
-        previous
-          ? { ...previous, auto_capture_enabled: previouslyEnabled }
-          : previous
-      ));
       setActionError(
         `Could not update automatic snapshots. ${error.message || "Please try again."}`,
       );
     } finally {
       autoCaptureUpdatePendingRef.current = false;
       setAutoCaptureUpdatePending(false);
+      setAutoCaptureOverride(null);
     }
-  }, [status?.auto_capture_enabled, unit]);
+  }, [setStatus, unit]);
 
   const automaticStillsDisabledInConfig = snapshotIntervalMinutes === 0;
-  const automaticStillsEnabled = status?.auto_capture_enabled !== false;
+  const automaticStillsEnabled = autoCaptureOverride ?? status?.auto_capture_enabled !== false;
 
   return (
     <>
@@ -342,7 +280,9 @@ export default function CameraPanel({
               )}
             </Box>
 
-            {actionError && <Alert severity="error">{actionError}</Alert>}
+            {(statusError || actionError) && (
+              <Alert severity="error">{statusError || actionError}</Alert>
+            )}
 
             <Stack
               direction="row"

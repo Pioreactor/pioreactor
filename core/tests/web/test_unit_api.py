@@ -13,8 +13,7 @@ from pathlib import Path
 import pytest
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
-from pioreactor.calibrations.protocols.camera_manual_focus import start_manual_focus_session
-from pioreactor.calibrations.structured_session import save_calibration_session
+from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import store_camera_still
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
@@ -160,17 +159,14 @@ def test_capture_camera_still_for_experiment_returns_delayed_response(
 ) -> None:
     import pioreactor.web.unit_api as mod
 
-    captured: dict[str, str | bool] = {}
+    captured: dict[str, str] = {}
 
     class DummyTask:
         id = "camera-capture-task"
 
-    def fake_capture_camera_still_task(
-        unit: str, experiment: str, is_manual_focus_session: bool
-    ) -> DummyTask:
+    def fake_capture_camera_still_task(unit: str, experiment: str) -> DummyTask:
         captured["unit"] = unit
         captured["experiment"] = experiment
-        captured["is_manual_focus_session"] = is_manual_focus_session
         return DummyTask()
 
     monkeypatch.setattr(mod.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
@@ -183,7 +179,6 @@ def test_capture_camera_still_for_experiment_returns_delayed_response(
     assert captured == {
         "unit": HOSTNAME,
         "experiment": "experiment-a",
-        "is_manual_focus_session": False,
     }
 
 
@@ -194,9 +189,7 @@ def test_capture_camera_still_rejects_historical_experiment(client, monkeypatch:
     monkeypatch.setattr(
         mod.tasks,
         "capture_camera_still_task",
-        lambda unit, experiment, is_manual_focus_session: pytest.fail(
-            "A rejected snapshot must not start a capture task."
-        ),
+        lambda unit, experiment: pytest.fail("A rejected snapshot must not start a capture task."),
     )
 
     response = client.post("/unit_api/camera/experiments/historical-experiment/stills")
@@ -205,41 +198,22 @@ def test_capture_camera_still_rejects_historical_experiment(client, monkeypatch:
     assert response.get_json()["error"] == "Camera snapshot experiment does not match this worker."
 
 
-def test_capture_camera_still_allows_manual_focus_session(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pioreactor.calibrations.protocols.camera_manual_focus as manual_focus
-    import pioreactor.web.unit_api as mod
+def test_camera_focus_preview_is_served_outside_experiment_still_storage(
+    client,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    preview_path = camera_focus_preview_path("session-a")
+    preview_path.parent.mkdir(parents=True)
+    preview_path.write_bytes(b"focus preview")
 
-    captured: dict[str, str | bool] = {}
+    response = client.get("/unit_api/camera/focus_sessions/session-a/preview.jpg")
 
-    class DummyTask:
-        id = "camera-focus-capture-task"
-
-    def fake_capture_camera_still_task(
-        unit: str, experiment: str, is_manual_focus_session: bool
-    ) -> DummyTask:
-        captured["unit"] = unit
-        captured["experiment"] = experiment
-        captured["is_manual_focus_session"] = is_manual_focus_session
-        return DummyTask()
-
-    monkeypatch.setattr(manual_focus, "get_unit_name", lambda: HOSTNAME)
-    monkeypatch.setattr(
-        mod.whoami,
-        "get_assigned_experiment_name",
-        lambda unit: pytest.fail("A manual-focus snapshot must not require an experiment assignment."),
-    )
-    monkeypatch.setattr(mod.tasks, "capture_camera_still_task", fake_capture_camera_still_task)
-    session = start_manual_focus_session("camera")
-    save_calibration_session(session)
-
-    response = client.post(f"/unit_api/camera/experiments/{session.session_id}/stills")
-
-    assert response.status_code == 202
-    assert captured == {
-        "unit": HOSTNAME,
-        "experiment": session.session_id,
-        "is_manual_focus_session": True,
-    }
+    assert response.status_code == 200
+    assert response.data == b"focus preview"
+    assert response.content_type == "image/jpeg"
 
 
 def test_camera_still_for_experiment_requires_matching_experiment(

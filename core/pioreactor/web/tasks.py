@@ -45,10 +45,13 @@ from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.camera import camera_auto_capture_is_enabled
+from pioreactor.camera import camera_is_enabled
 from pioreactor.camera import CameraCaptureError
+from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import CameraUnavailableError
+from pioreactor.camera import capture_camera_focus_preview
 from pioreactor.camera import capture_camera_still
-from pioreactor.camera import delete_camera_still
+from pioreactor.camera import delete_camera_focus_preview
 from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import start_camera_warmer
@@ -66,6 +69,7 @@ from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import post_into
+from pioreactor.pubsub import publish
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
@@ -105,35 +109,70 @@ def get_camera_status_task(unit: str, experiment: str | None = None) -> dict[str
     return status
 
 
+@huey.task(priority=10)
+def publish_latest_camera_still_task(
+    unit: str,
+    experiment: str,
+    latest_still: dict[str, Any] | None,
+) -> None:
+    try:
+        publish(
+            f"pioreactor/{unit}/{experiment}/camera/latest_still",
+            json_encode(latest_still) if latest_still is not None else None,
+            retries=1,
+            retain=True,
+        )
+    except ConnectionRefusedError:
+        logger.debug(f"Unable to publish the latest camera still for {unit} in experiment `{experiment}`.")
+
+
+def enqueue_latest_camera_still_publication(
+    unit: str,
+    experiment: str,
+    latest_still: CameraStillMetadata | None,
+) -> None:
+    publish_latest_camera_still_task(
+        unit,
+        experiment,
+        to_builtins(latest_still) if latest_still is not None else None,
+    )
+
+
 @huey.task(priority=20)
 @huey.lock_task("camera-lock")
 def capture_camera_still_task(
     unit: str,
     experiment: str | None,
-    is_manual_focus_session: bool,
 ) -> dict[str, Any]:
     metadata = capture_camera_still(
         unit,
         experiment=experiment,
-        capture_reason="manual_focus" if is_manual_focus_session else "manual",
+        capture_reason="manual",
     )
     logger.debug(
-        f"User requested a {'manual-focus' if is_manual_focus_session else 'manual'} camera snapshot "
-        f"{metadata.image_id} on {unit} for experiment `{experiment}`."
+        f"User requested a manual camera snapshot {metadata.image_id} on {unit} "
+        f"for experiment `{experiment}`."
     )
+    if experiment is not None:
+        enqueue_latest_camera_still_publication(unit, experiment, metadata)
     return to_builtins(metadata)
 
 
 @huey.task(priority=20)
-def delete_camera_stills_task(
+@huey.lock_task("camera-lock")
+def capture_camera_focus_preview_task(
     unit: str,
-    experiment: str,
-    image_ids: list[str],
-) -> dict[str, Any]:
-    deleted_image_ids = [
-        image_id for image_id in image_ids if delete_camera_still(unit, experiment, image_id) is not None
-    ]
-    return {"deleted_image_ids": deleted_image_ids}
+    session_id: str,
+) -> None:
+    capture_camera_focus_preview(unit, session_id)
+    logger.debug(f"User requested a manual-focus camera preview on {unit} for session `{session_id}`.")
+
+
+@huey.task(priority=20)
+def delete_camera_focus_preview_task(unit: str, session_id: str) -> None:
+    deleted = delete_camera_focus_preview(session_id)
+    if deleted:
+        logger.debug(f"Deleted the manual-focus camera preview on {unit} for session `{session_id}`.")
 
 
 def camera_snapshot_interval_minutes() -> int:
@@ -156,6 +195,9 @@ def camera_snapshot_is_due(unit: str, experiment: str, interval_minutes: int) ->
 @periodic_task(crontab(minute="*"), priority=20)
 @huey.lock_task("camera-lock")
 def capture_camera_still_periodic_task() -> dict[str, Any]:
+    if not camera_is_enabled():
+        return {"captured": False, "reason": "camera_disabled"}
+
     interval_minutes = camera_snapshot_interval_minutes()
     if interval_minutes == 0 or not camera_auto_capture_is_enabled():
         return {"captured": False, "reason": "disabled"}
@@ -188,6 +230,7 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
         logger.debug(f"Scheduled camera capture failed on {unit}: {error}")
         return {"captured": False, "reason": "capture_failed", "error": str(error)}
 
+    enqueue_latest_camera_still_publication(unit, experiment, metadata)
     return {"captured": True, "still": to_builtins(metadata)}
 
 
@@ -1006,24 +1049,22 @@ def _register_core_calibration_actions() -> None:
     register_calibration_action(
         "camera_focus_capture",
         lambda payload: (
-            capture_camera_still_task(
+            capture_camera_focus_preview_task(
                 str(payload["unit"]),
-                str(payload["experiment"]),
-                True,
+                str(payload["session_id"]),
             ),
-            "Camera snapshot",
+            "Camera focus preview",
             _dict_or_empty_normalizer,
         ),
     )
     register_calibration_action(
         "camera_focus_cleanup",
         lambda payload: (
-            delete_camera_stills_task(
+            delete_camera_focus_preview_task(
                 str(payload["unit"]),
-                str(payload["experiment"]),
-                payload["image_ids"],
+                str(payload["session_id"]),
             ),
-            "Camera focus snapshot cleanup",
+            "Camera focus preview cleanup",
             _dict_or_empty_normalizer,
         ),
     )

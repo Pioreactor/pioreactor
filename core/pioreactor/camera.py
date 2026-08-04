@@ -37,6 +37,7 @@ from pioreactor.whoami import is_testing_env
 
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
+CAMERA_FOCUS_PREVIEWS_RELATIVE_DIR = Path("storage") / "camera_focus_previews"
 CAMERA_STILL_CONTENT_TYPE = "image/jpeg"
 DEFAULT_CAMERA_STILL_RETENTION_COUNT = 500
 CAMERA_STILLS_CACHE_NAME = "camera_stills"
@@ -56,7 +57,7 @@ SAFE_CAMERA_STORAGE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 camera_warmer_process: subprocess.Popen[bytes] | None = None
 
-type CameraCaptureReason = Literal["scheduled", "manual", "manual_focus"]
+type CameraCaptureReason = Literal["scheduled", "manual"]
 
 
 class CameraStillMetadata(Struct, frozen=True):
@@ -87,6 +88,11 @@ def resolve_dot_pioreactor_path() -> Path:
 def camera_stills_root_path(dot_pioreactor: Path | None = None) -> Path:
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
     return root / CAMERA_STILLS_RELATIVE_DIR
+
+
+def camera_focus_previews_root_path(dot_pioreactor: Path | None = None) -> Path:
+    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
+    return root / CAMERA_FOCUS_PREVIEWS_RELATIVE_DIR
 
 
 def dev_camera_stills_path(dot_pioreactor: Path | None = None) -> Path:
@@ -144,6 +150,10 @@ def camera_should_be_kept_active() -> bool:
         config.getboolean("camera", "keep_camera_active", fallback=False)
         and get_camera_capture_backend() == "rpicam"
     )
+
+
+def camera_is_enabled() -> bool:
+    return config.getboolean("camera", "enabled", fallback=False)
 
 
 def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | None:
@@ -527,14 +537,14 @@ def get_camera_status(
     }
 
 
-def capture_camera_still(
+@contextmanager
+def camera_captured_image(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
-    capture_reason: CameraCaptureReason,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
-) -> CameraStillMetadata:
+) -> Iterator[Path]:
     backend = get_camera_capture_backend()
     camera_index = get_camera_index() if backend == "rpicam" else None
     device_path = get_camera_device_path() if backend == "v4l2" else None
@@ -542,14 +552,12 @@ def capture_camera_still(
     keep_camera_active = camera_should_be_kept_active()
 
     if command is None:
-        dev_still = store_next_dev_camera_still(
-            unit,
-            experiment=experiment,
-            capture_reason=capture_reason,
-            dot_pioreactor=dot_pioreactor,
-        )
-        if dev_still is not None:
-            return dev_still
+        source_paths = dev_camera_still_paths(dot_pioreactor)
+        if source_paths:
+            index = len(list_camera_still_metadata(unit, dot_pioreactor=dot_pioreactor)) % len(source_paths)
+            with camera_capture_lock(dot_pioreactor):
+                yield source_paths[index]
+            return
 
         raise CameraUnavailableError(f"No capture command is installed for camera backend '{backend}'.")
 
@@ -630,13 +638,7 @@ def capture_camera_still(
                             verbose=False,
                         )
 
-                return store_camera_still(
-                    captured_image_path,
-                    unit,
-                    experiment=experiment,
-                    capture_reason=capture_reason,
-                    dot_pioreactor=dot_pioreactor,
-                )
+                yield captured_image_path
         except subprocess.CalledProcessError as error:
             stderr = error.stderr.decode("utf-8", errors="replace").strip()
             stdout = error.stdout.decode("utf-8", errors="replace").strip()
@@ -647,6 +649,78 @@ def capture_camera_still(
             tmp_path.unlink()
         if keep_camera_active:
             start_camera_warmer()
+
+
+def capture_camera_still(
+    unit: pt.Unit,
+    *,
+    experiment: pt.Experiment | None,
+    capture_reason: CameraCaptureReason,
+    timeout: float = 20.0,
+    dot_pioreactor: Path | None = None,
+) -> CameraStillMetadata:
+    with camera_captured_image(
+        unit,
+        experiment=experiment,
+        timeout=timeout,
+        dot_pioreactor=dot_pioreactor,
+    ) as captured_image_path:
+        return store_camera_still(
+            captured_image_path,
+            unit,
+            experiment=experiment,
+            capture_reason=capture_reason,
+            dot_pioreactor=dot_pioreactor,
+        )
+
+
+def camera_focus_preview_path(session_id: str, dot_pioreactor: Path | None = None) -> Path:
+    if not camera_storage_name_is_safe(session_id):
+        raise ValueError(f"Unsafe camera focus session id: {session_id}")
+
+    return camera_focus_previews_root_path(dot_pioreactor) / f"{session_id}.jpg"
+
+
+def capture_camera_focus_preview(
+    unit: pt.Unit,
+    session_id: str,
+    *,
+    timeout: float = 20.0,
+    dot_pioreactor: Path | None = None,
+) -> Path:
+    preview_path = camera_focus_preview_path(session_id, dot_pioreactor)
+    preview_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with camera_captured_image(
+        unit,
+        experiment=None,
+        timeout=timeout,
+        dot_pioreactor=dot_pioreactor,
+    ) as captured_image_path:
+        with tempfile.NamedTemporaryFile(
+            prefix=f"{session_id}-",
+            suffix=".jpg",
+            dir=preview_path.parent,
+            delete=False,
+        ) as temporary_preview_file:
+            temporary_preview_path = Path(temporary_preview_file.name)
+
+        try:
+            shutil.copyfile(captured_image_path, temporary_preview_path)
+            temporary_preview_path.replace(preview_path)
+        finally:
+            temporary_preview_path.unlink(missing_ok=True)
+
+    return preview_path
+
+
+def delete_camera_focus_preview(session_id: str, dot_pioreactor: Path | None = None) -> bool:
+    preview_path = camera_focus_preview_path(session_id, dot_pioreactor)
+    if not preview_path.exists():
+        return False
+
+    preview_path.unlink()
+    return True
 
 
 def store_camera_still(
@@ -851,9 +925,9 @@ def apply_camera_still_retention(
 ) -> None:
     """Retain a bounded temporal coreset of stills for one experiment.
 
-    Stills are ordered from oldest to newest. Manual and manual-focus stills, and the first and
-    newest stills, are invariants and are never eviction candidates. ``retention_count`` bounds
-    scheduled stills only. When scheduled stills exceed that count, each scheduled interior still
+    Stills are ordered from oldest to newest. Manual stills, and the first and newest stills, are
+    invariants and are never eviction candidates. ``retention_count`` bounds scheduled stills only.
+    When scheduled stills exceed that count, each scheduled interior still
     is assigned the product of its adjacent time gaps::
 
         (captured_at - previous.captured_at) * (next.captured_at - captured_at)

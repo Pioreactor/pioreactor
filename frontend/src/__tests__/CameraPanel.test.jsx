@@ -8,6 +8,14 @@ global.TextDecoder = TextDecoder;
 
 const mockFetchTaskResult = jest.fn();
 
+jest.mock("../providers/MQTTContext", () => ({
+  useMQTT: () => ({
+    client: null,
+    subscribeToTopic: jest.fn(),
+    unsubscribeFromTopic: jest.fn(),
+  }),
+}));
+
 jest.mock("../utils/tasks", () => {
   const actual = jest.requireActual("../utils/tasks");
   return {
@@ -18,6 +26,12 @@ jest.mock("../utils/tasks", () => {
 
 const { MemoryRouter } = require("react-router");
 const CameraPanel = require("../components/CameraPanel").default;
+
+
+function ControlledCameraPanel({ initialStatus, ...props }) {
+  const [status, setStatus] = React.useState(initialStatus);
+  return <CameraPanel {...props} status={status} onStatusChange={setStatus} />;
+}
 
 describe("CameraPanel", () => {
   afterEach(() => {
@@ -32,7 +46,7 @@ describe("CameraPanel", () => {
           unit="unit-1"
           experiment="experiment-a"
           experimentStartTime="2026-06-11T10:30:00Z"
-          initialStatus={{
+          status={{
             available: true,
             latest_still: {
               image_id: "image-1",
@@ -83,7 +97,7 @@ describe("CameraPanel", () => {
     );
   });
 
-  test("polls status at the snapshot interval when it owns the request", async () => {
+  test("uses a low-frequency recovery refresh when it owns the request", async () => {
     jest.useFakeTimers();
     global.fetch = jest.fn(() =>
       Promise.resolve({
@@ -108,7 +122,7 @@ describe("CameraPanel", () => {
     expect(await screen.findByText("No camera snapshot")).toBeInTheDocument();
 
     await act(async () => {
-      jest.advanceTimersByTime(60 * 1000);
+      jest.advanceTimersByTime(5 * 60 * 1000);
       await Promise.resolve();
     });
 
@@ -126,7 +140,7 @@ describe("CameraPanel", () => {
 
     render(
       <MemoryRouter>
-        <CameraPanel
+        <ControlledCameraPanel
           unit="unit-1"
           experiment="experiment-a"
           initialStatus={{ available: true, auto_capture_enabled: true }}
@@ -162,7 +176,7 @@ describe("CameraPanel", () => {
 
     render(
       <MemoryRouter>
-        <CameraPanel
+        <ControlledCameraPanel
           unit="unit-1"
           experiment="experiment-a"
           initialStatus={{ available: true, auto_capture_enabled: true }}

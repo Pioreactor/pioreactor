@@ -1199,19 +1199,11 @@ def test_create_experiment_missing_fields(client) -> None:
         ("_testing_exp", "Experiment name cannot start with '_testing'"),
         (
             "bad/name",
-            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
+            "Experiment name cannot contain special characters (#, $, %, +, /, ?, \\)",
         ),
         (
             "bad?name",
-            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
-        ),
-        (
-            "bad&name",
-            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
-        ),
-        (
-            "bad=name",
-            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
+            "Experiment name cannot contain special characters (#, $, %, +, /, ?, \\)",
         ),
         (["exp4"], "Invalid request body."),
     ],
@@ -1223,6 +1215,13 @@ def test_create_experiment_rejects_invalid_names(
 
     assert response.status_code == 400
     assert response.get_json()["error"] == expected_error
+
+
+@pytest.mark.parametrize("experiment_name", ["condition A&B", "condition=A"])
+def test_experiment_names_keep_non_delimiting_url_characters(experiment_name: str) -> None:
+    import pioreactor.web.api as mod
+
+    assert mod._validate_experiment_name(experiment_name) == experiment_name
 
 
 def test_404_for_unknown_api(client) -> None:
@@ -1920,6 +1919,36 @@ def test_experiment_camera_status_proxy_fetches_worker_experiment_status(
 
 def test_unscoped_latest_camera_still_proxy_is_not_available(client) -> None:
     assert client.get("/api/workers/unit1/camera/latest.jpg").status_code == 404
+
+
+def test_camera_focus_preview_proxy_preserves_image_content_type(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import Response as MureqResponse
+
+    captured: dict[str, str] = {}
+
+    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "image/jpeg"},
+            b"focus preview",
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    response = client.get("/api/workers/unit1/camera/focus_sessions/session-a/preview.jpg?v=2")
+
+    assert response.status_code == 200
+    assert response.data == b"focus preview"
+    assert response.content_type == "image/jpeg"
+    assert captured == {
+        "address": "unit1.local",
+        "endpoint": "/unit_api/camera/focus_sessions/session-a/preview.jpg",
+    }
 
 
 def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatch: MonkeyPatch) -> None:

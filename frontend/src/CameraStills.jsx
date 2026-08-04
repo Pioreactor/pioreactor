@@ -27,10 +27,10 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 
 import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
+import useCameraResource from "./hooks/useCameraResource";
 import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
 import { experimentPathSegment } from "./utils/url";
 
-const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 const CAMERA_STILLS_PAGE_SIZE = 24;
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
@@ -68,98 +68,49 @@ function sortCameraStillsNewestFirst(stills) {
   });
 }
 
+
+function normalizeCameraStills(payload) {
+  return Array.isArray(payload?.stills) ? payload.stills : [];
+}
+
 export default function CameraStills({ title }) {
   const confirm = useConfirm();
   const { pioreactorUnit } = useParams();
   const { experimentMetadata } = useExperiment();
   const experiment = experimentMetadata?.experiment;
   const experimentStartTime = experimentMetadata?.created_at;
-  const [stills, setStills] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
+  const stillsUrl = pioreactorUnit && experiment
+    ? workerExperimentCameraPath(pioreactorUnit, experiment, "stills")
+    : null;
+  const {
+    data: stills = [],
+    error,
+    loading,
+    refresh: loadStills,
+    setData: setStills,
+    setError,
+  } = useCameraResource({
+    mqttTopic: experiment && pioreactorUnit
+      ? `pioreactor/${pioreactorUnit}/${experiment}/camera/latest_still`
+      : null,
+    normalize: normalizeCameraStills,
+    url: stillsUrl,
+  });
   const [deletingImageId, setDeletingImageId] = React.useState(null);
   const [takingSnapshot, setTakingSnapshot] = React.useState(false);
-  const [refreshIntervalMs, setRefreshIntervalMs] = React.useState(null);
-  const [visibleStillCount, setVisibleStillCount] = React.useState(CAMERA_STILLS_PAGE_SIZE);
+  const resourceKey = `${pioreactorUnit || ""}:${experiment || ""}`;
+  const [pagination, setPagination] = React.useState({
+    resourceKey,
+    visibleStillCount: CAMERA_STILLS_PAGE_SIZE,
+  });
+  const visibleStillCount = pagination.resourceKey === resourceKey
+    ? pagination.visibleStillCount
+    : CAMERA_STILLS_PAGE_SIZE;
   const [selectedStillImageId, setSelectedStillImageId] = React.useState(null);
-
-  const loadStills = React.useCallback(async ({
-    signal,
-    showLoading = true,
-    resetVisibleStillCount = false,
-  } = {}) => {
-    if (!pioreactorUnit || !experiment) {
-      setStills([]);
-      setRefreshIntervalMs(null);
-      setLoading(false);
-      return;
-    }
-
-    if (showLoading) {
-      setLoading(true);
-    }
-    if (resetVisibleStillCount) {
-      setVisibleStillCount(CAMERA_STILLS_PAGE_SIZE);
-    }
-    setError(null);
-
-    try {
-      const response = await fetch(workerExperimentCameraPath(pioreactorUnit, experiment, "stills"), {
-        signal,
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Could not fetch camera snapshots.");
-      }
-
-      const payload = await response.json();
-      setStills(Array.isArray(payload?.stills) ? payload.stills : []);
-      const intervalMinutes = payload?.snapshot_interval_minutes;
-      setRefreshIntervalMs(
-        typeof intervalMinutes === "number" && intervalMinutes > 0
-          ? Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, intervalMinutes * 60 * 1000)
-          : null,
-      );
-    } catch (error) {
-      if (error.name !== "AbortError") {
-        setError(error.message);
-      }
-    } finally {
-      if (!signal?.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [experiment, pioreactorUnit]);
 
   React.useEffect(() => {
     document.title = title;
   }, [title]);
-
-  React.useEffect(() => {
-    const controller = new AbortController();
-    void loadStills({
-      signal: controller.signal,
-      resetVisibleStillCount: true,
-    });
-
-    return () => {
-      controller.abort();
-    };
-  }, [loadStills]);
-
-  React.useEffect(() => {
-    if (!refreshIntervalMs) {
-      return undefined;
-    }
-
-    const interval = window.setInterval(() => {
-      void loadStills({ showLoading: false });
-    }, refreshIntervalMs);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [loadStills, refreshIntervalMs]);
 
   const downloadHref = pioreactorUnit && experiment
     ? workerExperimentCameraPath(pioreactorUnit, experiment, "stills.zip")
@@ -207,7 +158,7 @@ export default function CameraStills({ title }) {
     } finally {
       setTakingSnapshot(false);
     }
-  }, [experiment, loadStills, pioreactorUnit, takingSnapshot]);
+  }, [experiment, loadStills, pioreactorUnit, setError, takingSnapshot]);
 
   const deleteStill = React.useCallback(async (still) => {
     if (!pioreactorUnit || !experiment || deletingImageId) {
@@ -251,7 +202,7 @@ export default function CameraStills({ title }) {
     } finally {
       setDeletingImageId(null);
     }
-  }, [confirm, deletingImageId, experiment, pioreactorUnit]);
+  }, [confirm, deletingImageId, experiment, pioreactorUnit, setError, setStills]);
 
   return (
     <Stack spacing={2}>
@@ -300,9 +251,13 @@ export default function CameraStills({ title }) {
         </Typography>
       </Box>
 
-      {error ? (
-        <Alert severity="error">{error}</Alert>
-      ) : loading && stills.length === 0 ? (
+      {error && (
+        <Alert severity="error">
+          {error} {stills.length > 0 ? "Existing snapshots remain available below." : "Retry in a moment."}
+        </Alert>
+      )}
+
+      {loading && stills.length === 0 ? (
         <Stack sx={{ alignItems: "center", py: 8 }}>
           <CircularProgress />
         </Stack>
@@ -312,12 +267,8 @@ export default function CameraStills({ title }) {
         <>
           <Grid container spacing={2}>
             {visibleStills.map((still) => {
-              const isScheduled = !["manual", "manual_focus"].includes(still.capture_reason);
-              const captureReasonLabel = still.capture_reason === "manual_focus"
-                ? "Manual-focus snapshot"
-                : isScheduled
-                  ? "Scheduled snapshot"
-                  : "Manual snapshot";
+              const isScheduled = still.capture_reason !== "manual";
+              const captureReasonLabel = isScheduled ? "Scheduled snapshot" : "Manual snapshot";
               const CaptureReasonIcon = isScheduled ? ScheduleIcon : LocalSeeIcon;
 
               return (
@@ -425,7 +376,10 @@ export default function CameraStills({ title }) {
           {hasEarlierStills && (
             <Stack sx={{ alignItems: "center", pt: 1 }}>
               <Button
-                onClick={() => setVisibleStillCount((count) => count + CAMERA_STILLS_PAGE_SIZE)}
+                onClick={() => setPagination({
+                  resourceKey,
+                  visibleStillCount: visibleStillCount + CAMERA_STILLS_PAGE_SIZE,
+                })}
                 sx={{ textTransform: "none" }}
               >
                 Load earlier

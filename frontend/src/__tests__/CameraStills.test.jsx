@@ -10,6 +10,17 @@ global.TextDecoder = TextDecoder;
 const mockConfirm = jest.fn();
 const mockAssertUnitTaskResultSucceeded = jest.fn();
 const mockFetchTaskResult = jest.fn();
+const mockSubscribeToTopic = jest.fn();
+const mockUnsubscribeFromTopic = jest.fn();
+const mockMqttClient = {};
+
+jest.mock("../providers/MQTTContext", () => ({
+  useMQTT: () => ({
+    client: mockMqttClient,
+    subscribeToTopic: mockSubscribeToTopic,
+    unsubscribeFromTopic: mockUnsubscribeFromTopic,
+  }),
+}));
 
 jest.mock("material-ui-confirm", () => ({
   useConfirm: () => mockConfirm,
@@ -339,5 +350,56 @@ describe("CameraStills", () => {
       "/api/workers/unit-1/camera/experiments/experiment%20a/stills",
       { signal: undefined },
     );
+  });
+
+  test("keeps existing snapshots visible when a background refresh fails", async () => {
+    const user = userEvent.setup();
+    let requestCount = 0;
+    global.fetch = jest.fn(() => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ stills: cameraStills }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ error: "Could not refresh camera snapshots." }),
+      });
+    });
+    renderCameraStills();
+
+    const existingSnapshot = await screen.findByRole("img", { name: /Camera snapshot from unit-1/ });
+    await user.click(screen.getByRole("button", { name: "Capture snapshot" }));
+
+    expect(await screen.findByText(/Could not refresh camera snapshots/)).toBeInTheDocument();
+    expect(existingSnapshot).toBeInTheDocument();
+  });
+
+  test("refreshes the timeline when the worker publishes a new still", async () => {
+    renderCameraStills();
+    await screen.findByRole("img", { name: /Camera snapshot from unit-1/ });
+    cameraStills = [
+      ...cameraStills,
+      {
+        image_id: "image-2",
+        captured_at: "2026-06-11T12:05:00Z",
+        experiment: "experiment a",
+        capture_reason: "scheduled",
+      },
+    ];
+
+    const subscribedTopic = `pioreactor/unit-1/experiment a/camera/latest_still`;
+    const subscription = mockSubscribeToTopic.mock.calls.find(([topic]) => topic === subscribedTopic);
+    expect(subscription).toBeDefined();
+    subscription[1](subscribedTopic, Buffer.from("{}"));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(
+      screen.getAllByRole("img", { name: /Camera snapshot from unit-1/ })
+        .some((image) => image.getAttribute("src").includes("image-2.jpg")),
+    ).toBe(true));
   });
 });

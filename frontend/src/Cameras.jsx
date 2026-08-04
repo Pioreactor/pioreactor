@@ -9,10 +9,9 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import CameraPanel from "./components/CameraPanel";
+import useCameraResource from "./hooks/useCameraResource";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
-
-const MIN_CAMERA_REFRESH_INTERVAL_MS = 5000;
 
 
 function normalizeCameraResults(payload) {
@@ -34,108 +33,67 @@ function normalizeCameraResults(payload) {
   });
 }
 
-function cameraRefreshIntervalMs(cameraResults) {
-  const intervalMinutes = cameraResults
-    .map((result) => result.status?.snapshot_interval_minutes)
-    .filter((value) => typeof value === "number" && value > 0);
-
-  if (intervalMinutes.length === 0) {
-    return null;
-  }
-
-  return Math.max(MIN_CAMERA_REFRESH_INTERVAL_MS, Math.min(...intervalMinutes) * 60 * 1000);
-}
-
 export default function Cameras({ title }) {
   const { experimentMetadata } = useExperiment();
-  const [cameraResults, setCameraResults] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
   const experiment = experimentMetadata?.experiment;
-
-  const loadCameraStatuses = React.useCallback(async ({ signal, showLoading = true } = {}) => {
-    if (!experiment) {
-      setCameraResults([]);
-      setLoading(false);
-      return;
-    }
-
-    if (showLoading) {
-      setLoading(true);
-    }
-
-    try {
-      const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/cameras`, { signal });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Could not fetch camera statuses.");
-      }
-
-      const payload = await response.json();
-      setCameraResults(normalizeCameraResults(payload));
-    } catch (error) {} finally {
-      if (!signal?.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [experiment]);
+  const cameraUrl = experiment
+    ? `/api/experiments/${experimentPathSegment(experiment)}/cameras`
+    : null;
+  const {
+    data: cameraResults = [],
+    error,
+    loading,
+    setData: setCameraResults,
+  } = useCameraResource({
+    mqttTopic: experiment ? `pioreactor/+/${experiment}/camera/latest_still` : null,
+    normalize: normalizeCameraResults,
+    url: cameraUrl,
+  });
 
   React.useEffect(() => {
     document.title = title;
   }, [title]);
 
-  React.useEffect(() => {
-    const controller = new AbortController();
-    void loadCameraStatuses({ signal: controller.signal });
-
-    return () => {
-      controller.abort();
-    };
-  }, [loadCameraStatuses]);
-
-  const refreshIntervalMs = React.useMemo(
-    () => cameraRefreshIntervalMs(cameraResults),
-    [cameraResults],
-  );
-
-  React.useEffect(() => {
-    if (!refreshIntervalMs) {
-      return undefined;
-    }
-
-    const interval = window.setInterval(() => {
-      void loadCameraStatuses({ showLoading: false });
-    }, refreshIntervalMs);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [loadCameraStatuses, refreshIntervalMs]);
+  const updateCameraStatus = React.useCallback((unit, nextStatus) => {
+    setCameraResults((currentResults = []) => currentResults.map((result) => (
+      result.unit === unit
+        ? {
+            ...result,
+            status: typeof nextStatus === "function" ? nextStatus(result.status) : nextStatus,
+          }
+        : result
+    )));
+  }, [setCameraResults]);
 
   const onlineCameraResults = cameraResults.filter((result) => result.status);
+  const failedCameraResults = cameraResults.filter((result) => result.error);
   const visibleCameraResults = onlineCameraResults.filter(
     (result) => result.status.available || result.status.latest_still,
   );
 
   return (
     <Stack spacing={2}>
-      <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography variant="h5" component="h1">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Cameras
-            </Box>
-          </Typography>
-        </Box>
-        <Divider sx={{mt: "12px", mb: "15px"}} />
+      <Box component="header">
+        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
+          Cameras
+        </Typography>
+        <Divider />
       </Box>
+
+      {error && <Alert severity="error">{error} Existing camera information may be out of date.</Alert>}
+      {failedCameraResults.map((result) => (
+        <Alert key={result.unit} severity="warning">
+          {result.unit}: {result.error}
+        </Alert>
+      ))}
 
       {loading && cameraResults.length === 0 ? (
         <Stack sx={{ alignItems: "center", py: 8 }}>
           <CircularProgress />
         </Stack>
-      ) : cameraResults.length === 0 ? (
+      ) : !error && cameraResults.length === 0 ? (
         <Alert severity="info">No assigned Pioreactors were found.</Alert>
-      ) : visibleCameraResults.length === 0 ? (
+      ) : !error && visibleCameraResults.length === 0 ? (
         <Alert severity="info">
           No camera-capable Pioreactors or stored camera snapshots were found.
         </Alert>
@@ -147,7 +105,8 @@ export default function Cameras({ title }) {
           <Grid key={result.unit} size={{ xs: 12, md: 6, xl: 4 }}>
             <CameraPanel
               unit={result.unit}
-              initialStatus={result.status}
+              status={result.status}
+              onStatusChange={(nextStatus) => updateCameraStatus(result.unit, nextStatus)}
               experiment={experiment}
               experimentStartTime={experimentMetadata?.created_at}
             />

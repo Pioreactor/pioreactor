@@ -17,6 +17,7 @@ from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.camera import camera_auto_capture_is_enabled
 from pioreactor.camera import camera_capture_lock
+from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import camera_hardware_is_detected
 from pioreactor.camera import CAMERA_SETTINGS_CACHE_NAME
 from pioreactor.camera import camera_should_be_kept_active
@@ -25,6 +26,7 @@ from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
 from pioreactor.camera import camera_warmer_runtime_paths
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillMetadata
+from pioreactor.camera import capture_camera_focus_preview
 from pioreactor.camera import capture_camera_still
 from pioreactor.camera import clear_camera_hardware_detection_cache
 from pioreactor.camera import delete_camera_still
@@ -292,9 +294,7 @@ def test_store_camera_still_retention_removes_most_temporally_redundant_still(
     assert not (dot_pioreactor / "storage" / "camera_stills" / "image-1.jpg").exists()
 
 
-@pytest.mark.parametrize("protected_capture_reason", ["manual", "manual_focus"])
 def test_store_camera_still_retention_never_deletes_user_requested_stills(
-    protected_capture_reason: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -305,7 +305,7 @@ def test_store_camera_still_retention_never_deletes_user_requested_stills(
 
     for image_id, minute, capture_reason in (
         ("automatic-0", 0, "scheduled"),
-        ("protected-1", 1, protected_capture_reason),
+        ("protected-1", 1, "manual"),
         ("automatic-2", 2, "scheduled"),
         ("automatic-10", 10, "scheduled"),
     ):
@@ -994,3 +994,32 @@ def test_capture_camera_still_uses_dev_camera_stills_when_command_is_absent(
         second.image_id,
         first.image_id,
     ]
+
+
+def test_camera_focus_preview_overwrites_one_ephemeral_file_without_still_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("TESTING", "1")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: None)
+    source_dir = dev_camera_stills_path(dot_pioreactor)
+    source_dir.mkdir(parents=True)
+    source_image = source_dir / "still-1.jpg"
+    source_image.write_bytes(b"first preview")
+
+    first_path = capture_camera_focus_preview(
+        "unit-a",
+        "session-a",
+        dot_pioreactor=dot_pioreactor,
+    )
+    source_image.write_bytes(b"second preview")
+    second_path = capture_camera_focus_preview(
+        "unit-a",
+        "session-a",
+        dot_pioreactor=dot_pioreactor,
+    )
+
+    assert first_path == second_path == camera_focus_preview_path("session-a", dot_pioreactor)
+    assert second_path.read_bytes() == b"second preview"
+    assert list_camera_still_metadata("unit-a", dot_pioreactor=dot_pioreactor) == []

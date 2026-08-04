@@ -124,7 +124,7 @@ function MainSite() {
     getConfig(setConfig).finally(() => setConfigLoaded(true));
   }, [])
 
-  const cameraUIEnabled = config['ui.features']?.camera === "1";
+  const cameraUIEnabled = config.camera?.enabled === "1";
 
   return (
     <Box sx={{display: 'flex'}}>

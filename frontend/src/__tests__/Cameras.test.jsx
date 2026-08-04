@@ -5,6 +5,14 @@ import { TextDecoder, TextEncoder } from "util";
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+jest.mock("../providers/MQTTContext", () => ({
+  useMQTT: () => ({
+    client: null,
+    subscribeToTopic: jest.fn(),
+    unsubscribeFromTopic: jest.fn(),
+  }),
+}));
+
 jest.mock("../providers/ExperimentContext", () => ({
   useExperiment: () => ({
     experimentMetadata: {
@@ -98,5 +106,37 @@ describe("Cameras", () => {
       "href",
       "/api/workers/unit-1/camera/experiments/experiment-a/stills/image-1.jpg",
     );
+  });
+
+  test("shows unreachable Pioreactors without hiding reachable camera cards", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          cameras: {
+            "unit-1": {
+              ok: true,
+              value: {
+                available: true,
+                latest_still: null,
+              },
+            },
+            "unit-2": {
+              ok: false,
+              error: { message: "Could not reach this Pioreactor." },
+            },
+          },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Cameras title="Cameras" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("unit-1's Camera")).toBeInTheDocument();
+    expect(screen.getByText("unit-2: Could not reach this Pioreactor.")).toBeInTheDocument();
   });
 });

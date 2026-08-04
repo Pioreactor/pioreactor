@@ -104,7 +104,7 @@ EXPORTABLE_DATASET_PREVIEW_DEFAULT_ROWS = 5
 EXPORTABLE_DATASET_PREVIEW_MAX_ROWS = 100
 
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
-DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%&+/=?\\"
+DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/?\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
 MAX_SYSTEM_UPLOAD_REQUEST_BYTES = 60_000_000
 PIOREACTOR_UNIT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -379,7 +379,7 @@ def _validate_experiment_name(raw_experiment_name: object) -> str:
     if any(character in raw_experiment_name for character in DISALLOWED_EXPERIMENT_NAME_CHARACTERS):
         abort_with(
             400,
-            "Experiment name cannot contain special characters (#, $, %, &, +, /, =, ?, \\)",
+            "Experiment name cannot contain special characters (#, $, %, +, /, ?, \\)",
             cause="Experiment name contains disallowed characters.",
             remediation="Use letters, digits, spaces, dots, dashes, or underscores.",
         )
@@ -703,6 +703,32 @@ def _broadcast_or_multicast_post(pioreactor_unit: str, endpoint: str) -> Delayed
     return create_task_response(task)
 
 
+def get_camera_worker_response(
+    pioreactor_unit: str,
+    worker_endpoint: str,
+    *,
+    timeout: int,
+    error_message: str,
+    default_content_type: str,
+) -> Response:
+    response: MureqResponse | None = None
+    try:
+        response = get_from(
+            resolve_registered_worker_address(pioreactor_unit),
+            worker_endpoint,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, error_message)
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", default_content_type),
+    )
+
+
 @api_bp.route("/experiments/<experiment>/cameras", methods=["GET"])
 def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
     task = fanout.broadcast_get_across_workers_ever_assigned_to_experiment(
@@ -734,18 +760,12 @@ def get_camera_status_for_worker(pioreactor_unit: str, experiment: str) -> Respo
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    worker_endpoint = f"/unit_api/camera/experiments/{experiment}/status"
-    response: MureqResponse | None = None
-    try:
-        response = get_from(resolve_registered_worker_address(pioreactor_unit), worker_endpoint, timeout=10)
-        response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException):
-        abort_with_worker_error(response, f"Fetching camera status failed on {pioreactor_unit}.")
-
-    return Response(
-        response.content,
-        status=response.status_code,
-        content_type=response.headers.get("Content-Type", "application/json"),
+    return get_camera_worker_response(
+        pioreactor_unit,
+        f"/unit_api/camera/experiments/{experiment}/status",
+        timeout=10,
+        error_message=f"Fetching camera status failed on {pioreactor_unit}.",
+        default_content_type="application/json",
     )
 
 
@@ -769,6 +789,28 @@ def update_camera_settings_for_worker(pioreactor_unit: str) -> DelayedResponseRe
     )
 
 
+@api_bp.route(
+    "/workers/<pioreactor_unit>/camera/focus_sessions/<session_id>/preview.jpg",
+    methods=["GET"],
+)
+def get_camera_focus_preview_for_worker(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot fetch a camera focus preview with $broadcast; choose a specific Pioreactor.",
+            cause="Camera focus previews belong to one Pioreactor.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    return get_camera_worker_response(
+        pioreactor_unit,
+        f"/unit_api/camera/focus_sessions/{session_id}/preview.jpg",
+        timeout=20,
+        error_message=f"Fetching camera focus preview failed on {pioreactor_unit}.",
+        default_content_type="image/jpeg",
+    )
+
+
 @api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills", methods=["GET"])
 def list_camera_stills_for_worker_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -779,21 +821,12 @@ def list_camera_stills_for_worker_experiment(pioreactor_unit: str, experiment: s
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    response: MureqResponse | None = None
-    try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
-            f"/unit_api/camera/experiments/{experiment}/stills",
-            timeout=20,
-        )
-        response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException):
-        abort_with_worker_error(response, f"Fetching camera stills failed on {pioreactor_unit}.")
-
-    return Response(
-        response.content,
-        status=response.status_code,
-        content_type=response.headers.get("Content-Type", "application/json"),
+    return get_camera_worker_response(
+        pioreactor_unit,
+        f"/unit_api/camera/experiments/{experiment}/stills",
+        timeout=20,
+        error_message=f"Fetching camera stills failed on {pioreactor_unit}.",
+        default_content_type="application/json",
     )
 
 
@@ -831,21 +864,12 @@ def get_camera_still_for_worker_experiment(
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    response: MureqResponse | None = None
-    try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
-            f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
-            timeout=20,
-        )
-        response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException):
-        abort_with_worker_error(response, f"Fetching camera still failed on {pioreactor_unit}.")
-
-    return Response(
-        response.content,
-        status=response.status_code,
-        content_type=response.headers.get("Content-Type", "image/jpeg"),
+    return get_camera_worker_response(
+        pioreactor_unit,
+        f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+        timeout=20,
+        error_message=f"Fetching camera still failed on {pioreactor_unit}.",
+        default_content_type="image/jpeg",
     )
 
 

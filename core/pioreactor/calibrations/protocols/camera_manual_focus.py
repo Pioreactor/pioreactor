@@ -28,7 +28,7 @@ def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationS
         target_device=target_device,
         status="in_progress",
         step_id="take_snapshot",
-        data={"unit": get_unit_name(), "experiment": session_id, "image_ids": []},
+        data={"unit": get_unit_name(), "snapshot_count": 0},
         created_at=now,
         updated_at=now,
     )
@@ -38,19 +38,13 @@ def capture_focus_snapshot(ctx: SessionContext) -> None:
     if ctx.mode != "ui" or ctx.executor is None:
         raise ValueError("Manual camera focus is only available in the Pioreactor UI.")
 
-    payload = ctx.executor(
+    ctx.executor(
         "camera_focus_capture",
         {
             "unit": ctx.data["unit"],
-            "experiment": ctx.data["experiment"],
+            "session_id": ctx.session.session_id,
         },
     )
-    image_id = payload.get("image_id")
-    if not isinstance(image_id, str):
-        raise ValueError("Camera snapshot returned invalid metadata.")
-
-    ctx.data["image_id"] = image_id
-    ctx.data["image_ids"].append(image_id)
     ctx.data["snapshot_count"] = int(ctx.data.get("snapshot_count", 0)) + 1
 
 
@@ -58,19 +52,16 @@ def cleanup_focus_snapshots(
     session: CalibrationSession,
     executor: SessionCleanupExecutor | None,
 ) -> None:
-    if executor is None or not session.data["image_ids"]:
+    if executor is None or int(session.data.get("snapshot_count", 0)) == 0:
         return
 
     executor(
         "camera_focus_cleanup",
         {
             "unit": session.data["unit"],
-            "experiment": session.data["experiment"],
-            "image_ids": session.data["image_ids"],
+            "session_id": session.session_id,
         },
     )
-    session.data["image_ids"] = []
-    session.data.pop("image_id", None)
 
 
 class TakeSnapshot(SessionStep):
@@ -95,8 +86,7 @@ class FocusCamera(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         unit = str(ctx.data["unit"])
-        experiment = str(ctx.data["experiment"])
-        image_id = str(ctx.data["image_id"])
+        snapshot_count = int(ctx.data["snapshot_count"])
         step = steps.info(
             "Adjust the camera focus",
             "Turn the camera's focus control until fine details look sharp. Take another snapshot to "
@@ -105,11 +95,11 @@ class FocusCamera(SessionStep):
         step.metadata = {
             "image": {
                 "src": (
-                    f"/api/workers/{quote(unit, safe='')}/camera/experiments/"
-                    f"{quote(experiment, safe='')}/stills/{quote(image_id, safe='')}.jpg"
+                    f"/api/workers/{quote(unit, safe='')}/camera/focus_sessions/"
+                    f"{quote(ctx.session.session_id, safe='')}/preview.jpg?v={snapshot_count}"
                 ),
                 "alt": f"Camera focus snapshot from {unit}.",
-                "caption": f"Focus snapshot {int(ctx.data['snapshot_count'])}",
+                "caption": f"Focus snapshot {snapshot_count}",
             },
             "actions": [
                 {"label": "Take another snapshot", "inputs": {"action": "retake"}},

@@ -35,10 +35,9 @@ from pioreactor.bioreactor import get_all_bioreactor_values
 from pioreactor.bioreactor import get_bioreactor_value
 from pioreactor.bioreactor import set_and_publish_bioreactor_value
 from pioreactor.calibrations import CALIBRATION_PATH
-from pioreactor.calibrations import ManualCameraFocusProtocol
 from pioreactor.calibrations.registry import get_calibration_protocols as get_calibration_protocols_registry
-from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.camera import camera_auto_capture_is_enabled
+from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import CAMERA_STILL_CONTENT_TYPE
 from pioreactor.camera import camera_still_filename
 from pioreactor.camera import camera_still_image_path
@@ -46,6 +45,7 @@ from pioreactor.camera import delete_camera_still
 from pioreactor.camera import delete_camera_stills_for_experiment
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
+from pioreactor.camera import load_latest_camera_still_metadata
 from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
@@ -233,7 +233,6 @@ def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
             {
                 "unit": HOSTNAME,
                 "experiment": experiment,
-                "snapshot_interval_minutes": tasks.camera_snapshot_interval_minutes(),
                 "stills": [to_builtins(still) for still in metadata],
             }
         ),
@@ -244,6 +243,7 @@ def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
 @unit_api_bp.route("/camera/experiments/<experiment>/stills", methods=["DELETE"])
 def delete_camera_stills_for_experiment_route(experiment: str) -> ResponseReturnValue:
     deleted_stills = delete_camera_stills_for_experiment(HOSTNAME, experiment)
+    tasks.enqueue_latest_camera_still_publication(HOSTNAME, experiment, None)
     return jsonify(
         {
             "unit": HOSTNAME,
@@ -255,17 +255,7 @@ def delete_camera_stills_for_experiment_route(experiment: str) -> ResponseReturn
 
 @unit_api_bp.route("/camera/experiments/<experiment>/stills", methods=["POST"])
 def capture_camera_still_for_experiment(experiment: str) -> DelayedResponseReturnValue:
-    calibration_session = load_calibration_session(experiment)
-    is_manual_focus_session = (
-        calibration_session is not None
-        and calibration_session.protocol_name == ManualCameraFocusProtocol.protocol_name
-        and calibration_session.target_device == ManualCameraFocusProtocol.target_device
-        and calibration_session.status == "in_progress"
-        and calibration_session.data.get("unit") == HOSTNAME
-        and calibration_session.data.get("experiment") == experiment
-    )
-
-    if not is_manual_focus_session and experiment != whoami.get_assigned_experiment_name(HOSTNAME):
+    if experiment != whoami.get_assigned_experiment_name(HOSTNAME):
         abort_with(
             409,
             "Camera snapshot experiment does not match this worker.",
@@ -273,8 +263,33 @@ def capture_camera_still_for_experiment(experiment: str) -> DelayedResponseRetur
             remediation="Refresh the experiment page before taking another camera snapshot.",
         )
 
-    return create_task_response(
-        tasks.capture_camera_still_task(HOSTNAME, experiment, is_manual_focus_session)
+    return create_task_response(tasks.capture_camera_still_task(HOSTNAME, experiment))
+
+
+@unit_api_bp.route("/camera/focus_sessions/<session_id>/preview.jpg", methods=["GET"])
+def get_camera_focus_preview(session_id: str) -> ResponseReturnValue:
+    try:
+        preview_path = camera_focus_preview_path(session_id)
+    except ValueError:
+        abort_with(
+            404,
+            "Camera focus preview was not found.",
+            cause="The requested camera focus session id is not valid.",
+            remediation="Return to the manual camera focus session and take another snapshot.",
+        )
+
+    if not preview_path.exists():
+        abort_with(
+            404,
+            "Camera focus preview was not found.",
+            cause="No preview image exists for this manual camera focus session.",
+            remediation="Take another snapshot in the manual camera focus session.",
+        )
+
+    return send_file(
+        preview_path,
+        mimetype=CAMERA_STILL_CONTENT_TYPE,
+        download_name="camera-focus-preview.jpg",
     )
 
 
@@ -326,6 +341,11 @@ def delete_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
         )
 
     logger.debug(f"User deleted camera snapshot {image_id} on {HOSTNAME} for experiment {experiment}.")
+    tasks.enqueue_latest_camera_still_publication(
+        HOSTNAME,
+        experiment,
+        load_latest_camera_still_metadata(HOSTNAME, experiment=experiment),
+    )
     return jsonify(to_builtins(metadata))
 
 
