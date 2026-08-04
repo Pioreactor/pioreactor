@@ -18,7 +18,7 @@ def camera_snapshot(
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
     with managed_lifecycle(unit, experiment, "camera_snapshot"):
-        return capture_camera_still(unit, experiment=experiment)
+        return capture_camera_still(unit, experiment=experiment, capture_reason="manual")
 
 
 @click.command(name="camera_snapshot")

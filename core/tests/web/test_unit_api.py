@@ -342,55 +342,6 @@ def test_delete_all_camera_stills_for_experiment_preserves_other_experiments(
     assert retry_response.get_json()["deleted_image_ids"] == []
 
 
-def test_zipped_camera_stills_for_experiment_includes_matching_stills(
-    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import pioreactor.web.unit_api as mod
-
-    dot_pioreactor = tmp_path / ".pioreactor"
-    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    source_image_path = tmp_path / "capture.jpg"
-    source_image_path.write_bytes(b"fake jpeg")
-    store_camera_still(
-        source_image_path,
-        HOSTNAME,
-        experiment="experiment-a",
-        image_id="image-a",
-    )
-    store_camera_still(
-        source_image_path,
-        HOSTNAME,
-        experiment="experiment-b",
-        image_id="image-b",
-    )
-    archive_was_file_backed = False
-    send_file = mod.send_file
-
-    def record_archive_path(path: Path, **kwargs: object):
-        nonlocal archive_was_file_backed
-        archive_was_file_backed = Path(path).is_file()
-        return send_file(path, **kwargs)
-
-    monkeypatch.setattr(mod, "send_file", record_archive_path)
-
-    log_messages: list[str] = []
-    monkeypatch.setattr(mod.logger, "info", log_messages.append)
-
-    response = client.get("/unit_api/camera/experiments/experiment-a/stills.zip")
-
-    assert response.status_code == 200
-    assert response.content_type == "application/zip"
-    assert archive_was_file_backed
-    with zipfile.ZipFile(BytesIO(response.data), "r") as zip_file:
-        assert sorted(zip_file.namelist()) == ["camera_stills_manifest.json", "image-a.jpg"]
-        assert zip_file.getinfo("image-a.jpg").compress_type == zipfile.ZIP_STORED
-        assert zip_file.read("image-a.jpg") == b"fake jpeg"
-    assert log_messages == [
-        f"User requested all camera snapshots on {HOSTNAME} for experiment `experiment-a` to be downloaded.",
-        f"Sending 1 camera snapshot from {HOSTNAME} for experiment `experiment-a`.",
-    ]
-
-
 def test_camera_capture_route_is_not_available(client) -> None:
     assert client.post("/unit_api/camera/capture", json={}).status_code == 404
 

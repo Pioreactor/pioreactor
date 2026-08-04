@@ -56,11 +56,14 @@ SAFE_CAMERA_STORAGE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 camera_warmer_process: subprocess.Popen[bytes] | None = None
 
+type CameraCaptureReason = Literal["scheduled", "manual", "manual_focus"]
+
 
 class CameraStillMetadata(Struct, frozen=True):
     experiment: pt.Experiment | None
     captured_at: Annotated[datetime, Meta(tz=True)]
     image_id: str
+    capture_reason: CameraCaptureReason = "scheduled"
 
 
 class CameraUnavailableError(RuntimeError):
@@ -345,6 +348,7 @@ def store_next_dev_camera_still(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
+    capture_reason: CameraCaptureReason,
     dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata | None:
     source_paths = dev_camera_still_paths(dot_pioreactor)
@@ -356,6 +360,7 @@ def store_next_dev_camera_still(
         source_paths[index],
         unit,
         experiment=experiment,
+        capture_reason=capture_reason,
         dot_pioreactor=dot_pioreactor,
     )
 
@@ -506,6 +511,7 @@ def get_camera_status(
         latest_metadata = store_next_dev_camera_still(
             unit,
             experiment=experiment,
+            capture_reason="scheduled",
             dot_pioreactor=dot_pioreactor,
         )
 
@@ -525,6 +531,7 @@ def capture_camera_still(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
+    capture_reason: CameraCaptureReason,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata:
@@ -538,6 +545,7 @@ def capture_camera_still(
         dev_still = store_next_dev_camera_still(
             unit,
             experiment=experiment,
+            capture_reason=capture_reason,
             dot_pioreactor=dot_pioreactor,
         )
         if dev_still is not None:
@@ -578,6 +586,7 @@ def capture_camera_still(
                         unit=unit,
                         experiment=experiment,
                         source_of_event="camera",
+                        verbose=False,
                     ):
                         raise CameraCaptureError("Camera IR illumination could not be started.")
 
@@ -601,12 +610,14 @@ def capture_camera_still(
                             unit=unit,
                             experiment=experiment,
                             source_of_event="camera",
+                            verbose=False,
                         )
 
                 return store_camera_still(
                     captured_image_path,
                     unit,
                     experiment=experiment,
+                    capture_reason=capture_reason,
                     dot_pioreactor=dot_pioreactor,
                 )
         except subprocess.CalledProcessError as error:
@@ -626,6 +637,7 @@ def store_camera_still(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
+    capture_reason: CameraCaptureReason = "scheduled",
     captured_at: datetime | None = None,
     image_id: str | None = None,
     retention_count: int = DEFAULT_CAMERA_STILL_RETENTION_COUNT,
@@ -661,6 +673,7 @@ def store_camera_still(
         experiment=experiment,
         captured_at=captured_at,
         image_id=image_id,
+        capture_reason=capture_reason,
     )
 
     metadata_bytes = json_encode(metadata)
@@ -821,9 +834,10 @@ def apply_camera_still_retention(
 ) -> None:
     """Retain a bounded temporal coreset of stills for one experiment.
 
-    Stills are ordered from oldest to newest. The first and newest stills are invariants and are
-    never eviction candidates. When the experiment exceeds ``retention_count``, each interior
-    still is assigned the product of its adjacent time gaps::
+    Stills are ordered from oldest to newest. Manual and manual-focus stills, and the first and
+    newest stills, are invariants and are never eviction candidates. ``retention_count`` bounds
+    scheduled stills only. When scheduled stills exceed that count, each scheduled interior still
+    is assigned the product of its adjacent time gaps::
 
         (captured_at - previous.captured_at) * (next.captured_at - captured_at)
 
@@ -853,11 +867,13 @@ def apply_camera_still_retention(
             dot_pioreactor=dot_pioreactor,
         )
 
-    while len(stills) > retention_count:
-        # The first and newest stills are never candidates. Removing the interior still with the
-        # smallest adjacent-gap product causes the smallest local increase in squared time gaps.
+    scheduled_still_count = sum(still.capture_reason == "scheduled" for still in stills)
+    while scheduled_still_count > retention_count:
+        # Manual stills and the timeline endpoints are never candidates. Removing the scheduled
+        # interior still with the smallest adjacent-gap product causes the smallest local increase
+        # in squared time gaps.
         redundant_still_index = min(
-            range(1, len(stills) - 1),
+            (index for index in range(1, len(stills) - 1) if stills[index].capture_reason == "scheduled"),
             key=lambda index: (
                 (stills[index].captured_at - stills[index - 1].captured_at).total_seconds()
                 * (stills[index + 1].captured_at - stills[index].captured_at).total_seconds(),
@@ -866,6 +882,7 @@ def apply_camera_still_retention(
             ),
         )
         still = stills.pop(redundant_still_index)
+        scheduled_still_count -= 1
 
         image_path = camera_still_image_path(still, dot_pioreactor)
         if image_path.exists():

@@ -112,7 +112,11 @@ def capture_camera_still_task(
     experiment: str | None,
     is_manual_focus_session: bool,
 ) -> dict[str, Any]:
-    metadata = capture_camera_still(unit, experiment=experiment)
+    metadata = capture_camera_still(
+        unit,
+        experiment=experiment,
+        capture_reason="manual_focus" if is_manual_focus_session else "manual",
+    )
     logger.debug(
         f"User requested a {'manual-focus' if is_manual_focus_session else 'manual'} camera snapshot "
         f"{metadata.image_id} on {unit} for experiment `{experiment}`."
@@ -173,7 +177,11 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
         return {"captured": False, "reason": "not_due"}
 
     try:
-        metadata = capture_camera_still(unit, experiment=experiment)
+        metadata = capture_camera_still(
+            unit,
+            experiment=experiment,
+            capture_reason="scheduled",
+        )
     except CameraUnavailableError:
         return {"captured": False, "reason": "camera_unavailable"}
     except CameraCaptureError as error:

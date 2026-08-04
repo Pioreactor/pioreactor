@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextDecoder, TextEncoder } from "util";
 import dayjs from "dayjs";
@@ -60,6 +60,7 @@ describe("CameraStills", () => {
         image_id: "image-1",
         captured_at: "2026-06-11T12:00:00Z",
         experiment: "experiment a",
+        capture_reason: "scheduled",
       },
     ];
     global.fetch = jest.fn((url, options = {}) => {
@@ -147,6 +148,55 @@ describe("CameraStills", () => {
     );
   });
 
+  test("shows informational icons for scheduled and manual snapshots", async () => {
+    const user = userEvent.setup();
+    cameraStills = [
+      cameraStills[0],
+      {
+        image_id: "image-2",
+        captured_at: "2026-06-11T12:05:00Z",
+        experiment: "experiment a",
+        capture_reason: "manual",
+      },
+    ];
+
+    renderCameraStills();
+
+    const scheduledIcon = await screen.findByRole("img", { name: "Scheduled snapshot" });
+    const manualIcon = screen.getByRole("img", { name: "Manual snapshot" });
+    expect(scheduledIcon).toHaveAttribute("data-testid", "ScheduleIcon");
+    expect(manualIcon).toHaveAttribute("data-testid", "LocalSeeIcon");
+    expect(within(screen.getByRole("button", { name: "Refresh" })).getByTestId("LocalSeeIcon")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Scheduled snapshot" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manual snapshot" })).not.toBeInTheDocument();
+
+    await user.hover(scheduledIcon);
+    expect(await screen.findByRole("tooltip", { name: "Scheduled snapshot" })).toBeInTheDocument();
+    await user.unhover(scheduledIcon);
+    await user.hover(manualIcon);
+    expect(await screen.findByRole("tooltip", { name: "Manual snapshot" })).toBeInTheDocument();
+  });
+
+  test("uses labeled icon buttons for snapshot actions", async () => {
+    const user = userEvent.setup();
+    renderCameraStills();
+
+    const deleteButton = await screen.findByRole("button", {
+      name: /Delete camera snapshot captured at/,
+    });
+    const openImageLink = screen.getByRole("link", { name: "Open image" });
+    expect(within(deleteButton).getByTestId("DeleteOutlinedIcon")).toBeInTheDocument();
+    expect(within(openImageLink).getByTestId("FullscreenIcon")).toBeInTheDocument();
+    expect(deleteButton).not.toHaveTextContent("Delete");
+    expect(openImageLink).not.toHaveTextContent("Open image");
+
+    await user.hover(deleteButton);
+    expect(await screen.findByRole("tooltip", { name: "Delete snapshot" })).toBeInTheDocument();
+    await user.unhover(deleteButton);
+    await user.hover(openImageLink);
+    expect(await screen.findByRole("tooltip", { name: "Open image" })).toBeInTheDocument();
+  });
+
   test("initially mounts only the newest 24 snapshots", async () => {
     cameraStills = Array.from({ length: 30 }, (_, index) => ({
       image_id: `image-${index + 1}`,
@@ -156,7 +206,7 @@ describe("CameraStills", () => {
 
     renderCameraStills();
 
-    const images = await screen.findAllByRole("img");
+    const images = await screen.findAllByRole("img", { name: /Camera snapshot from unit-1/ });
     expect(images).toHaveLength(24);
     expect(images[0]).toHaveAttribute("src", expect.stringContaining("image-30.jpg"));
     expect(images[23]).toHaveAttribute("src", expect.stringContaining("image-7.jpg"));
@@ -174,8 +224,8 @@ describe("CameraStills", () => {
 
     await user.click(await screen.findByRole("button", { name: "Load earlier" }));
 
-    expect(screen.getAllByRole("img")).toHaveLength(30);
-    expect(screen.getAllByRole("img")[29]).toHaveAttribute(
+    expect(screen.getAllByRole("img", { name: /Camera snapshot from unit-1/ })).toHaveLength(30);
+    expect(screen.getAllByRole("img", { name: /Camera snapshot from unit-1/ })[29]).toHaveAttribute(
       "src",
       expect.stringContaining("image-1.jpg"),
     );
@@ -192,7 +242,7 @@ describe("CameraStills", () => {
     renderCameraStills();
 
     await user.click(await screen.findByRole("button", { name: "Load earlier" }));
-    expect(screen.getAllByRole("img")).toHaveLength(30);
+    expect(screen.getAllByRole("img", { name: /Camera snapshot from unit-1/ })).toHaveLength(30);
 
     cameraStills = [
       ...cameraStills,
@@ -204,8 +254,10 @@ describe("CameraStills", () => {
     ];
     await user.click(screen.getByRole("button", { name: "Refresh" }));
 
-    await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(31));
-    expect(screen.getAllByRole("img")[0]).toHaveAttribute(
+    await waitFor(() => expect(
+      screen.getAllByRole("img", { name: /Camera snapshot from unit-1/ }),
+    ).toHaveLength(31));
+    expect(screen.getAllByRole("img", { name: /Camera snapshot from unit-1/ })[0]).toHaveAttribute(
       "src",
       expect.stringContaining("image-31.jpg"),
     );
@@ -219,7 +271,7 @@ describe("CameraStills", () => {
     }));
     renderCameraStills();
 
-    await screen.findByRole("img");
+    await screen.findByRole("img", { name: /Camera snapshot from unit-1/ });
     await user.click(screen.getByRole("button", { name: "Refresh" }));
 
     expect(mockFetchTaskResult).toHaveBeenCalledWith(

@@ -211,6 +211,15 @@ def test_store_camera_still_writes_canonical_image_and_metadata(
     assert load_latest_camera_still_metadata("unit-a") == metadata
 
 
+def test_camera_still_metadata_without_capture_reason_defaults_to_scheduled() -> None:
+    metadata = json_decode(
+        b'{"experiment":"experiment-a","captured_at":"2026-06-10T12:30:15Z","image_id":"image-1"}',
+        type=CameraStillMetadata,
+    )
+
+    assert metadata.capture_reason == "scheduled"
+
+
 def test_load_latest_camera_still_metadata_returns_none_without_an_image(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -280,6 +289,42 @@ def test_store_camera_still_retention_removes_most_temporally_redundant_still(
         "image-0",
     ]
     assert not (dot_pioreactor / "storage" / "camera_stills" / "image-1.jpg").exists()
+
+
+@pytest.mark.parametrize("protected_capture_reason", ["manual", "manual_focus"])
+def test_store_camera_still_retention_never_deletes_user_requested_stills(
+    protected_capture_reason: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+
+    for image_id, minute, capture_reason in (
+        ("automatic-0", 0, "scheduled"),
+        ("protected-1", 1, protected_capture_reason),
+        ("automatic-2", 2, "scheduled"),
+        ("automatic-10", 10, "scheduled"),
+    ):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment="experiment-a",
+            captured_at=datetime(2026, 6, 10, 12, minute, tzinfo=UTC),
+            image_id=image_id,
+            capture_reason=capture_reason,
+            retention_count=2,
+        )
+
+    assert [metadata.image_id for metadata in list_camera_still_metadata("unit-a")] == [
+        "automatic-10",
+        "protected-1",
+        "automatic-0",
+    ]
+    assert not (dot_pioreactor / "storage" / "camera_stills" / "automatic-2.jpg").exists()
+    assert (dot_pioreactor / "storage" / "camera_stills" / "protected-1.jpg").exists()
 
 
 def test_store_camera_still_retention_is_scoped_to_each_experiment(
@@ -431,6 +476,7 @@ def test_delete_camera_stills_for_experiment_is_idempotent_and_preserves_other_e
         "unit-a",
         experiment="experiment-a",
         image_id="image-a",
+        capture_reason="manual",
     )
     experiment_b_still = store_camera_still(
         source_image_path,
@@ -520,7 +566,7 @@ def test_v4l2_backend_uses_configured_device_path(tmp_path: Path, monkeypatch: p
     monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
 
     status = get_camera_status("unit-a")
-    metadata = capture_camera_still("unit-a", experiment="experiment-a")
+    metadata = capture_camera_still("unit-a", experiment="experiment-a", capture_reason="scheduled")
 
     assert status["available"] is True
     assert status["capture_command"] == "fswebcam"
@@ -569,6 +615,7 @@ def test_rpicam_backend_uses_persistent_process_and_stores_normal_still(
     metadata = capture_camera_still(
         "unit-a",
         experiment="experiment-a",
+        capture_reason="scheduled",
         dot_pioreactor=dot_pioreactor,
     )
 
@@ -599,6 +646,7 @@ def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
     metadata = capture_camera_still(
         "unit-a",
         experiment="experiment-a",
+        capture_reason="scheduled",
         dot_pioreactor=tmp_path / ".pioreactor",
     )
 
@@ -656,7 +704,10 @@ def test_unlocked_camera_illuminates_ir_during_capture(
     monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
 
     metadata = capture_camera_still(
-        "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+        "unit-a",
+        experiment="experiment-a",
+        capture_reason="scheduled",
+        dot_pioreactor=tmp_path / ".pioreactor",
     )
 
     assert led_states == [{"A": 80.0}, {"A": 0.0}]
@@ -680,7 +731,10 @@ def test_camera_does_not_change_ir_while_od_holds_lock(
 
     with lock_leds_temporarily(["A"]):
         metadata = capture_camera_still(
-            "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+            "unit-a",
+            experiment="experiment-a",
+            capture_reason="scheduled",
+            dot_pioreactor=tmp_path / ".pioreactor",
         )
 
     assert camera_still_image_path(metadata, tmp_path / ".pioreactor").exists()
@@ -711,7 +765,10 @@ def test_od_can_preempt_camera_illumination_without_camera_cleanup_interference(
 
     try:
         metadata = capture_camera_still(
-            "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+            "unit-a",
+            experiment="experiment-a",
+            capture_reason="scheduled",
+            dot_pioreactor=tmp_path / ".pioreactor",
         )
         assert camera_led_states == [{"A": 80.0}]
         assert camera_still_image_path(metadata, tmp_path / ".pioreactor").exists()
@@ -734,7 +791,12 @@ def test_failed_initial_camera_illumination_prevents_capture(
     )
 
     with pytest.raises(CameraCaptureError, match="illumination could not be started"):
-        capture_camera_still("unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor")
+        capture_camera_still(
+            "unit-a",
+            experiment="experiment-a",
+            capture_reason="scheduled",
+            dot_pioreactor=tmp_path / ".pioreactor",
+        )
 
     assert list_camera_still_metadata("unit-a", dot_pioreactor=tmp_path / ".pioreactor") == []
 
@@ -751,7 +813,10 @@ def test_failed_camera_cleanup_keeps_captured_still(tmp_path: Path, monkeypatch:
     monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
 
     metadata = capture_camera_still(
-        "unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor"
+        "unit-a",
+        experiment="experiment-a",
+        capture_reason="scheduled",
+        dot_pioreactor=tmp_path / ".pioreactor",
     )
 
     assert (
@@ -777,7 +842,12 @@ def test_camera_command_failure_still_attempts_ir_cleanup(
     monkeypatch.setattr("pioreactor.camera.subprocess.run", fail_capture)
 
     with pytest.raises(CameraCaptureError, match="capture failed"):
-        capture_camera_still("unit-a", experiment="experiment-a", dot_pioreactor=tmp_path / ".pioreactor")
+        capture_camera_still(
+            "unit-a",
+            experiment="experiment-a",
+            capture_reason="scheduled",
+            dot_pioreactor=tmp_path / ".pioreactor",
+        )
 
     assert led_states == [{"A": 80.0}, {"A": 0.0}]
 
@@ -868,11 +938,13 @@ def test_capture_camera_still_uses_dev_camera_stills_when_command_is_absent(
     (source_dir / "still-1.jpg").write_bytes(b"first")
     (source_dir / "still-2.jpg").write_bytes(b"second")
 
-    first = capture_camera_still("unit-a", experiment="experiment-a")
-    second = capture_camera_still("unit-a", experiment="experiment-a")
+    first = capture_camera_still("unit-a", experiment="experiment-a", capture_reason="scheduled")
+    second = capture_camera_still("unit-a", experiment="experiment-a", capture_reason="manual")
 
     assert camera_still_image_path(first).read_bytes() == b"first"
     assert camera_still_image_path(second).read_bytes() == b"second"
+    assert first.capture_reason == "scheduled"
+    assert second.capture_reason == "manual"
     assert [metadata.image_id for metadata in list_camera_still_metadata("unit-a")] == [
         second.image_id,
         first.image_id,

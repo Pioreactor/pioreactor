@@ -26,13 +26,18 @@ def test_camera_snapshot_uses_current_unit_and_experiment(monkeypatch: pytest.Mo
     )
     monkeypatch.setattr(camera_snapshot, "managed_lifecycle", lifecycle)
 
-    def capture(unit: str, *, experiment: str | None) -> CameraStillMetadata:
+    def capture(unit: str, *, experiment: str | None, capture_reason: str) -> CameraStillMetadata:
         captured["unit"] = unit
         captured["experiment"] = experiment
+        captured["capture_reason"] = capture_reason
         return metadata
 
     monkeypatch.setattr(camera_snapshot, "capture_camera_still", capture)
 
     assert camera_snapshot.camera_snapshot() == metadata
-    assert captured == {"unit": "unit-a", "experiment": "experiment-a"}
+    assert captured == {
+        "unit": "unit-a",
+        "experiment": "experiment-a",
+        "capture_reason": "manual",
+    }
     lifecycle.assert_called_once_with("unit-a", "experiment-a", "camera_snapshot")

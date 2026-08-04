@@ -9,14 +9,17 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import LocalSeeIcon from "@mui/icons-material/LocalSee";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 
 import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
@@ -256,7 +259,7 @@ export default function CameraStills({ title }) {
               disabled={loading || takingSnapshot || !experiment}
               sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
             >
-              {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <RefreshIcon  fontSize="small" sx={textIcon} />}
+              {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <LocalSeeIcon  fontSize="small" sx={textIcon} />}
               Refresh
             </Button>
 
@@ -292,73 +295,97 @@ export default function CameraStills({ title }) {
       ) : (
         <>
           <Grid container spacing={2}>
-            {visibleStills.map((still) => (
-              <Grid key={still.image_id} size={{ xs: 12, sm: 4, lg: 3, xl: 3 }}>
-                <Box
-                  sx={{
-                    bgcolor: "background.paper",
-                    borderRadius: 1,
-                    overflow: "hidden",
-                    border: 1,
-                    borderColor: "divider",
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
-                    alt={`Camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(still)}`}
-                    loading="lazy"
-                    sx={{
-                      display: "block",
-                      width: "100%",
-                      aspectRatio: "4 / 3",
-                      objectFit: "contain",
-                      bgcolor: "action.hover",
-                    }}
-                  />
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{ alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1 }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" noWrap>
-                        <UnderlineSpan title={formatCaptureTime(still)}>
-                          {formatCaptureDelta(still, experimentStartTime)}
-                        </UnderlineSpan>
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Button
-                        aria-label={`Delete camera snapshot captured at ${formatCaptureTime(still)}`}
-                        color="secondary"
-                        disabled={deletingImageId !== null}
-                        onClick={() => deleteStill(still)}
-                        size="small"
-                        sx={{textTransform: 'none', float: "right" }}
-                      >
-                            {deletingImageId === still.image_id ? (
-                              <CircularProgress color="inherit" size={18} />
-                            ) : (
-                              <DeleteOutlineIcon fontSize="small" />
-                            )} Delete
-                      </Button>
-                      <Button
-                        size="small"
-                        component="a"
-                        href={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{textTransform: 'none', float: "right" }}
-                      >
-                        <FullscreenIcon fontSize="small" sx={textIcon}/> Open image
-                      </Button>
+            {visibleStills.map((still) => {
+              const isScheduled = !["manual", "manual_focus"].includes(still.capture_reason);
+              const captureReasonLabel = still.capture_reason === "manual_focus"
+                ? "Manual-focus snapshot"
+                : isScheduled
+                  ? "Scheduled snapshot"
+                  : "Manual snapshot";
+              const CaptureReasonIcon = isScheduled ? ScheduleIcon : LocalSeeIcon;
 
-                    </Box>
-                  </Stack>
-                </Box>
-              </Grid>
-            ))}
+              return (
+                <Grid key={still.image_id} size={{ xs: 12, sm: 4, lg: 3, xl: 3 }}>
+                  <Box
+                    sx={{
+                      bgcolor: "background.paper",
+                      borderRadius: 1,
+                      overflow: "hidden",
+                      border: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
+                      alt={`Camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(still)}`}
+                      loading="lazy"
+                      sx={{
+                        display: "block",
+                        width: "100%",
+                        aspectRatio: "4 / 3",
+                        objectFit: "contain",
+                        bgcolor: "action.hover",
+                      }}
+                    />
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1 }}
+                    >
+                      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", minWidth: 0 }}>
+                        <Tooltip title={captureReasonLabel}>
+                          <CaptureReasonIcon
+                            role="img"
+                            titleAccess={captureReasonLabel}
+                            fontSize="small"
+                            sx={{ color: "text.secondary", flexShrink: 0 }}
+                          />
+                        </Tooltip>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" noWrap>
+                            <UnderlineSpan title={formatCaptureTime(still)}>
+                              {formatCaptureDelta(still, experimentStartTime)}
+                            </UnderlineSpan>
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5}>
+                        <Tooltip title="Delete snapshot">
+                          <span>
+                            <IconButton
+                              aria-label={`Delete camera snapshot captured at ${formatCaptureTime(still)}`}
+                              color="secondary"
+                              disabled={deletingImageId !== null}
+                              onClick={() => deleteStill(still)}
+                              sx={{ minHeight: 44, minWidth: 44 }}
+                            >
+                              {deletingImageId === still.image_id ? (
+                                <CircularProgress color="inherit" size={18} />
+                              ) : (
+                                <DeleteOutlineIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title="Open image">
+                          <IconButton
+                            aria-label="Open image"
+                            component="a"
+                            href={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ minHeight: 44, minWidth: 44 }}
+                          >
+                            <FullscreenIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                </Grid>
+              );
+            })}
           </Grid>
           {hasEarlierStills && (
             <Stack sx={{ alignItems: "center", pt: 1 }}>

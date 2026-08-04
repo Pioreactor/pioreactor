@@ -110,9 +110,12 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
         image_id="image-a",
     )
 
-    def fake_capture_camera_still(unit: str, *, experiment: str | None) -> CameraStillMetadata:
+    def fake_capture_camera_still(
+        unit: str, *, experiment: str | None, capture_reason: str
+    ) -> CameraStillMetadata:
         captured["unit"] = unit
         captured["experiment"] = experiment
+        captured["capture_reason"] = capture_reason
         return metadata
 
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
@@ -129,6 +132,7 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     assert captured == {
         "unit": "unit-a",
         "experiment": "experiment-a",
+        "capture_reason": "scheduled",
     }
 
 
@@ -144,24 +148,34 @@ def test_huey_lifecycle_starts_and_stops_camera_warmer(monkeypatch: pytest.Monke
     assert lifecycle == ["start", "stop"]
 
 
-def test_manual_camera_capture_logs_snapshot_name(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("is_manual_focus_session", "expected_capture_reason"),
+    [(False, "manual"), (True, "manual_focus")],
+)
+def test_user_requested_camera_capture_records_capture_reason(
+    is_manual_focus_session: bool,
+    expected_capture_reason: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _clear_lock("camera-lock")
+    captured_reasons: list[str] = []
     metadata = CameraStillMetadata(
         experiment="experiment-a",
         captured_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
         image_id="image-a",
     )
-    log_messages: list[str] = []
 
-    monkeypatch.setattr(tasks, "capture_camera_still", lambda unit, *, experiment: metadata)
-    monkeypatch.setattr(tasks.logger, "info", log_messages.append)
+    def fake_capture_camera_still(
+        unit: str, *, experiment: str | None, capture_reason: str
+    ) -> CameraStillMetadata:
+        captured_reasons.append(capture_reason)
+        return metadata
 
-    result = tasks.capture_camera_still_task.call_local("xr1", "experiment-a", False)
+    monkeypatch.setattr(tasks, "capture_camera_still", fake_capture_camera_still)
 
-    assert result["image_id"] == "image-a"
-    assert log_messages == [
-        "User requested a manual camera snapshot image-a on xr1 for experiment `experiment-a`."
-    ]
+    tasks.capture_camera_still_task.call_local("unit-a", "experiment-a", is_manual_focus_session)
+
+    assert captured_reasons == [expected_capture_reason]
 
 
 @pytest.mark.parametrize(
