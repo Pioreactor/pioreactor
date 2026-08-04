@@ -577,10 +577,19 @@ def capture_camera_still(
         try:
             with camera_capture_lock(dot_pioreactor):
                 ir_channel = cast(pt.LedChannel, config.get("leds_reverse", "IR"))
+                capture_deadline = monotonic() + timeout
 
-                # Camera deliberately never locks IR: OD must be able to preempt illumination mid-capture.
-                # If OD already owns IR, capture under OD's current illumination without writing the channel.
-                if not is_led_channel_locked(ir_channel):
+                # OD owns IR while taking a reading. Wait for that short window to finish before
+                # starting the camera, but continue to let OD preempt a capture that is underway.
+                while True:
+                    if is_led_channel_locked(ir_channel):
+                        if monotonic() >= capture_deadline:
+                            raise CameraCaptureError(
+                                "Camera capture timed out waiting for OD reading to release IR illumination."
+                            )
+                        sleep(CAMERA_WARMER_POLL_SECONDS)
+                        continue
+
                     if not led_intensity(
                         {ir_channel: get_camera_ir_led_intensity()},
                         unit=unit,
@@ -588,16 +597,24 @@ def capture_camera_still(
                         source_of_event="camera",
                         verbose=False,
                     ):
+                        # OD may have acquired IR after the unlocked check above. Give it priority and retry.
+                        if is_led_channel_locked(ir_channel):
+                            continue
                         raise CameraCaptureError("Camera IR illumination could not be started.")
+                    break
 
                 try:
+                    remaining_capture_time = capture_deadline - monotonic()
+                    if remaining_capture_time <= 0:
+                        raise CameraCaptureError("Camera capture timed out before taking a photo.")
+
                     if keep_camera_active and (pid := camera_warmer_pid()) is not None:
-                        captured_image_path = capture_camera_still_using_warmer(pid, timeout)
+                        captured_image_path = capture_camera_still_using_warmer(pid, remaining_capture_time)
                     else:
                         subprocess.run(
                             capture_arguments,
                             capture_output=True,
-                            timeout=timeout,
+                            timeout=remaining_capture_time,
                             check=True,
                         )
                         captured_image_path = tmp_path

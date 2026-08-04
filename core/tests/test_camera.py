@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from msgspec.json import decode as json_decode
+from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.camera import camera_auto_capture_is_enabled
@@ -714,30 +715,74 @@ def test_unlocked_camera_illuminates_ir_during_capture(
     assert camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"camera still"
 
 
-def test_camera_does_not_change_ir_while_od_holds_lock(
+def test_camera_waits_for_od_lock_before_illuminating(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
     monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    led_states: list[dict[str, float]] = []
     monkeypatch.setattr(
         "pioreactor.camera.led_intensity",
-        lambda *_args, **_kwargs: pytest.fail("camera must not write a locked IR LED"),
+        lambda desired_state, **_kwargs: led_states.append(desired_state) or True,
     )
 
     def capture(command: list[str], **_kwargs: object) -> None:
-        Path(command[-1]).write_bytes(b"camera still under OD illumination")
+        assert not is_led_channel_locked("A")
+        Path(command[-1]).write_bytes(b"camera still after OD reading")
 
     monkeypatch.setattr("pioreactor.camera.subprocess.run", capture)
 
-    with lock_leds_temporarily(["A"]):
+    od_lock = lock_leds_temporarily(["A"])
+    od_lock.__enter__()
+    lock_released = False
+
+    def release_od_lock(_seconds: float) -> None:
+        nonlocal lock_released
+        od_lock.__exit__(None, None, None)
+        lock_released = True
+
+    monkeypatch.setattr("pioreactor.camera.sleep", release_od_lock)
+
+    try:
         metadata = capture_camera_still(
             "unit-a",
             experiment="experiment-a",
             capture_reason="scheduled",
             dot_pioreactor=tmp_path / ".pioreactor",
         )
+    finally:
+        if not lock_released:
+            od_lock.__exit__(None, None, None)
 
-    assert camera_still_image_path(metadata, tmp_path / ".pioreactor").exists()
+    assert led_states == [{"A": 80.0}, {"A": 0.0}]
+    assert (
+        camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes()
+        == b"camera still after OD reading"
+    )
+
+
+def test_camera_times_out_waiting_for_od_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda _command: "/usr/bin/fswebcam")
+    monkeypatch.setattr("pioreactor.camera.monotonic", lambda: 1.0)
+    monkeypatch.setattr(
+        "pioreactor.camera.led_intensity",
+        lambda *_args, **_kwargs: pytest.fail("camera must not illuminate while OD holds the lock"),
+    )
+    monkeypatch.setattr(
+        "pioreactor.camera.subprocess.run",
+        lambda *_args, **_kwargs: pytest.fail("camera must not capture while OD holds the lock"),
+    )
+
+    with lock_leds_temporarily(["A"]):
+        with pytest.raises(CameraCaptureError, match="timed out waiting for OD reading"):
+            capture_camera_still(
+                "unit-a",
+                experiment="experiment-a",
+                capture_reason="scheduled",
+                timeout=0.0,
+                dot_pioreactor=tmp_path / ".pioreactor",
+            )
 
 
 def test_od_can_preempt_camera_illumination_without_camera_cleanup_interference(
