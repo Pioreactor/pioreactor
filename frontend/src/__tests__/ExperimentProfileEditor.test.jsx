@@ -7,7 +7,6 @@ global.TextDecoder = TextDecoder;
 
 const { MemoryRouter } = require("react-router");
 const { ExperimentProfileEditorContent, formatProfileSaveError } = require("../ExperimentProfileEditor");
-const CreateExperimentProfile = require("../CreateExperimentProfile").default;
 
 function getEditorTextarea() {
   const textarea = document.querySelector(".npm__react-simple-code-editor__textarea");

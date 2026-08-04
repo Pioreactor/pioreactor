@@ -444,6 +444,10 @@ def main(argv: list[str]) -> int:
         release_version = determine_release_base(series, read_version_value())
         release_branch = f"release/{release_version}"
 
+        if input(f"Confirm version {release_version}? y/n: ").strip().lower() not in {"y", "yes"}:
+            print('Aborted. Re-run with ARGS="--series YY.M" to choose a different release series.')
+            return 1
+
         current_branch = get_current_git_branch()
         if current_branch != "develop" and not args.force:
             print(

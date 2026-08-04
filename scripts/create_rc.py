@@ -439,6 +439,10 @@ def main(argv: list[str]) -> int:
         version_base, version = compute_rc_version(args.rc, args.series)
         release_branch = f"release/{version}"
 
+        if input(f"Confirm version {version}? y/n: ").strip().lower() not in {"y", "yes"}:
+            print('Aborted. Re-run with ARGS="--series YY.M --rc N" to choose a different version.')
+            return 1
+
         current_branch = get_current_git_branch()
         if current_branch != "develop" and not args.force:
             print(
