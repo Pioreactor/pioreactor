@@ -1,4 +1,4 @@
-### Upcoming
+### 26.8.0
 
 #### Bug fixes
 
