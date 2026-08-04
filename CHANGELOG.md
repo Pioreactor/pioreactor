@@ -2,6 +2,7 @@
 
 #### Bug fixes
 
+ - Fixed `mqtt_to_db_streaming` so it restores database-topic subscriptions after MQTT reconnects, preventing experiment data from silently failing to reach the database while the service remains running.
  - Increased Turbidostat's post-dose settling time from 5 to 30 seconds, reducing erroneous repeat dilutions caused by temporary OD spikes after pumping.
 
 

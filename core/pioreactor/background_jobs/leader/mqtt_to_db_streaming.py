@@ -85,7 +85,9 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
         )
 
         self.logger.debug(f"Listening to {topics_to_tables}")
-        topics_and_callbacks = [
+        # MQTT subscriptions are declarations, not one-time constructor work.
+        # start_passive_listeners registers them after initialization and after every reconnect.
+        self.topics_and_callbacks = [
             TopicToCallback(
                 topic_to_table.topic,
                 self.create_on_message_callback(topic_to_table.parser, topic_to_table.table),
@@ -98,8 +100,6 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             self.write_stats,
             job_name=self.job_name,
         ).start()
-
-        self.initialize_callbacks(topics_and_callbacks)
 
     def write_stats(self) -> None:
         with local_intermittent_storage(self.job_name) as c:
@@ -173,8 +173,8 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
 
         return callback
 
-    def initialize_callbacks(self, topics_and_callbacks: list[TopicToCallback]) -> None:
-        for topic_and_callback in topics_and_callbacks:
+    def start_passive_listeners(self) -> None:
+        for topic_and_callback in self.topics_and_callbacks:
             self.subscribe_and_callback(
                 topic_and_callback.callback,
                 topic_and_callback.topic,  # this can be a str, or list of str

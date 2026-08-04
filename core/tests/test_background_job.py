@@ -190,6 +190,7 @@ def test_block_until_ready_returns_current_readiness() -> None:
 
 def test_general_passive_listeners_start_after_subclass_constructor_finishes() -> None:
     values_seen_by_listener: list[str] = []
+    reconnect_readiness_seen_by_listener: list[bool] = []
 
     class ConstructorDependentJob(BackgroundJob):
         job_name = "constructor_dependent_job"
@@ -201,6 +202,7 @@ def test_general_passive_listeners_start_after_subclass_constructor_finishes() -
         def _start_general_passive_listeners(self) -> None:
             super()._start_general_passive_listeners()
             values_seen_by_listener.append(self.constructor_value)
+            reconnect_readiness_seen_by_listener.append(self._reconnect_callbacks_ready)
 
     with ConstructorDependentJob(
         unit=get_unit_name(),
@@ -209,6 +211,7 @@ def test_general_passive_listeners_start_after_subclass_constructor_finishes() -
         pass
 
     assert values_seen_by_listener == ["ready"]
+    assert reconnect_readiness_seen_by_listener == [True]
 
 
 def test_init_state_is_sent_to_mqtt() -> None:

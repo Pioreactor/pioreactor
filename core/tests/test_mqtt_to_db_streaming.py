@@ -14,6 +14,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
+from tests.utils import FakeMQTTClient
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARED_SQL_DIR = REPO_ROOT / "packaging" / "shared-assets" / "sql"
@@ -24,6 +25,23 @@ def seed_experiment(cursor: sqlite3.Cursor, experiment: str) -> None:
         "INSERT OR IGNORE INTO experiments (experiment, created_at) VALUES (?, ?)",
         (experiment, current_utc_datetime().isoformat()),
     )
+
+
+def test_start_passive_listeners_resubscribes_to_database_topics() -> None:
+    topic = "pioreactor/+/+/od_reading/od2"
+    client = FakeMQTTClient()
+    job = object.__new__(m2db.MqttToDBStreamer)
+    object.__setattr__(job, "sub_client", client)
+    object.__setattr__(
+        job,
+        "topics_and_callbacks",
+        [m2db.TopicToCallback(topic, lambda message: None)],
+    )
+
+    job.start_passive_listeners()
+    job.start_passive_listeners()
+
+    assert client.subscriptions == [topic, topic]
 
 
 def test_testing_data_is_filtered() -> None:
