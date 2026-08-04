@@ -7,6 +7,9 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
@@ -15,6 +18,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
@@ -77,6 +81,7 @@ export default function CameraStills({ title }) {
   const [takingSnapshot, setTakingSnapshot] = React.useState(false);
   const [refreshIntervalMs, setRefreshIntervalMs] = React.useState(null);
   const [visibleStillCount, setVisibleStillCount] = React.useState(CAMERA_STILLS_PAGE_SIZE);
+  const [selectedStillImageId, setSelectedStillImageId] = React.useState(null);
 
   const loadStills = React.useCallback(async ({
     signal,
@@ -162,6 +167,17 @@ export default function CameraStills({ title }) {
   const orderedStills = sortCameraStillsNewestFirst(stills);
   const visibleStills = orderedStills.slice(0, visibleStillCount);
   const hasEarlierStills = visibleStills.length < orderedStills.length;
+  const selectedStillIndex = orderedStills.findIndex(
+    (still) => still.image_id === selectedStillImageId,
+  );
+  const selectedStill = selectedStillIndex >= 0 ? orderedStills[selectedStillIndex] : null;
+
+  const moveSelectedStill = (offset) => {
+    setSelectedStillImageId((currentImageId) => {
+      const currentIndex = orderedStills.findIndex((still) => still.image_id === currentImageId);
+      return orderedStills[currentIndex + offset]?.image_id ?? currentImageId;
+    });
+  };
 
   const takeSnapshotAndRefreshTimeline = React.useCallback(async () => {
     if (!pioreactorUnit || !experiment || takingSnapshot) {
@@ -260,7 +276,7 @@ export default function CameraStills({ title }) {
               sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
             >
               {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <LocalSeeIcon  fontSize="small" sx={textIcon} />}
-              Refresh
+              Capture snapshot
             </Button>
 
             <Button
@@ -316,18 +332,37 @@ export default function CameraStills({ title }) {
                     }}
                   >
                     <Box
-                      component="img"
-                      src={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
-                      alt={`Camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(still)}`}
-                      loading="lazy"
+                      component="button"
+                      type="button"
+                      aria-label={`Enlarge camera snapshot captured at ${formatCaptureTime(still)}`}
+                      onClick={() => setSelectedStillImageId(still.image_id)}
                       sx={{
                         display: "block",
                         width: "100%",
-                        aspectRatio: "4 / 3",
-                        objectFit: "contain",
+                        p: 0,
+                        border: 0,
                         bgcolor: "action.hover",
+                        cursor: "zoom-in",
+                        "&:focus-visible": {
+                          outline: "2px solid",
+                          outlineColor: "primary.main",
+                          outlineOffset: "-2px",
+                        },
                       }}
-                    />
+                    >
+                      <Box
+                        component="img"
+                        src={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
+                        alt={`Camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(still)}`}
+                        loading="lazy"
+                        sx={{
+                          display: "block",
+                          width: "100%",
+                          aspectRatio: "4 / 3",
+                          objectFit: "contain",
+                        }}
+                      />
+                    </Box>
                     <Stack
                       direction="row"
                       spacing={1}
@@ -402,6 +437,56 @@ export default function CameraStills({ title }) {
           )}
         </>
       )}
+
+      <Dialog
+        open={selectedStill !== null}
+        onClose={() => setSelectedStillImageId(null)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            moveSelectedStill(-1);
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            moveSelectedStill(1);
+          }
+        }}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle sx={{ pr: 6 }}>
+          {selectedStill ? formatCaptureTime(selectedStill) : "Camera snapshot"}
+          <IconButton
+            aria-label="Close"
+            onClick={() => setSelectedStillImageId(null)}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {selectedStill && (
+            <Box
+              sx={{
+                bgcolor: "action.hover",
+                borderRadius: 1,
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                component="img"
+                src={stillImageUrl(pioreactorUnit, experiment, selectedStill.image_id)}
+                alt={`Enlarged camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(selectedStill)}`}
+                sx={{
+                  display: "block",
+                  width: "100%",
+                  aspectRatio: "4 / 3",
+                  objectFit: "contain",
+                }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </Stack>
   );
 }

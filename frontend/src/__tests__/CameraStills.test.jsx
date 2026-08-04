@@ -166,7 +166,7 @@ describe("CameraStills", () => {
     const manualIcon = screen.getByRole("img", { name: "Manual snapshot" });
     expect(scheduledIcon).toHaveAttribute("data-testid", "ScheduleIcon");
     expect(manualIcon).toHaveAttribute("data-testid", "LocalSeeIcon");
-    expect(within(screen.getByRole("button", { name: "Refresh" })).getByTestId("LocalSeeIcon")).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: "Capture snapshot" })).getByTestId("LocalSeeIcon")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Scheduled snapshot" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manual snapshot" })).not.toBeInTheDocument();
 
@@ -195,6 +195,47 @@ describe("CameraStills", () => {
     await user.unhover(deleteButton);
     await user.hover(openImageLink);
     expect(await screen.findByRole("tooltip", { name: "Open image" })).toBeInTheDocument();
+  });
+
+  test("enlarges snapshots and navigates through them with the arrow keys", async () => {
+    const user = userEvent.setup();
+    cameraStills = [
+      cameraStills[0],
+      {
+        image_id: "image-2",
+        captured_at: "2026-06-11T12:05:00Z",
+        experiment: "experiment a",
+        capture_reason: "manual",
+      },
+    ];
+    renderCameraStills();
+
+    const enlargeButtons = await screen.findAllByRole("button", {
+      name: /Enlarge camera snapshot captured at/,
+    });
+    await user.click(enlargeButtons[0]);
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("img", { name: /Enlarged camera snapshot/ })).toHaveAttribute(
+      "src",
+      expect.stringContaining("image-2.jpg"),
+    );
+    expect(within(dialog).queryByRole("button", { name: "Previous snapshot" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Next snapshot" })).not.toBeInTheDocument();
+
+    await user.keyboard("{ArrowRight}");
+
+    expect(within(dialog).getByRole("img", { name: /Enlarged camera snapshot/ })).toHaveAttribute(
+      "src",
+      expect.stringContaining("image-1.jpg"),
+    );
+
+    await user.keyboard("{ArrowLeft}");
+
+    expect(within(dialog).getByRole("img", { name: /Enlarged camera snapshot/ })).toHaveAttribute(
+      "src",
+      expect.stringContaining("image-2.jpg"),
+    );
   });
 
   test("initially mounts only the newest 24 snapshots", async () => {
@@ -252,7 +293,7 @@ describe("CameraStills", () => {
         experiment: "experiment a",
       },
     ];
-    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await user.click(screen.getByRole("button", { name: "Capture snapshot" }));
 
     await waitFor(() => expect(
       screen.getAllByRole("img", { name: /Camera snapshot from unit-1/ }),
@@ -272,13 +313,13 @@ describe("CameraStills", () => {
     renderCameraStills();
 
     await screen.findByRole("img", { name: /Camera snapshot from unit-1/ });
-    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await user.click(screen.getByRole("button", { name: "Capture snapshot" }));
 
     expect(mockFetchTaskResult).toHaveBeenCalledWith(
       "/api/workers/unit-1/camera/experiments/experiment%20a/stills",
       { fetchOptions: { method: "POST" }, maxRetries: 300, delayMs: 100 },
     );
-    expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Capture snapshot" })).toBeDisabled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
     const taskResult = {
