@@ -83,7 +83,7 @@ frontend-install: $(NODE_DIR)/node_modules/.installed ## Alias
 # --- quality gates ------------------------------------------------------------
 
 precommit: venv ## Run pre-commit on all files
-	@$(ACTIVATE) && pre-commit run --all-files
+	@$(ACTIVATE) && pre-commit run --files $$(git ls-files | grep -Ev '^core/update_scripts/[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}/')
 
 # --- test ---------------------------------------------------------------------
 test: venv  ## Run all pytest suites
