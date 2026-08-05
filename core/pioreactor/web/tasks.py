@@ -163,16 +163,18 @@ def capture_camera_still_task(
 def capture_camera_focus_preview_task(
     unit: str,
     session_id: str,
-) -> None:
+) -> dict[str, bool]:
     capture_camera_focus_preview(unit, session_id)
     logger.debug(f"User requested a manual-focus camera preview on {unit} for session `{session_id}`.")
+    return {"captured": True}
 
 
 @huey.task(priority=20)
-def delete_camera_focus_preview_task(unit: str, session_id: str) -> None:
+def delete_camera_focus_preview_task(unit: str, session_id: str) -> dict[str, bool]:
     deleted = delete_camera_focus_preview(session_id)
     if deleted:
         logger.debug(f"Deleted the manual-focus camera preview on {unit} for session `{session_id}`.")
+    return {"deleted": deleted}
 
 
 def camera_snapshot_interval_minutes() -> int:

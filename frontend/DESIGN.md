@@ -172,8 +172,8 @@ named record.
       mb: 1,
     }}
   >
-    <Button component={Link} to="/calibrations" startIcon={<ArrowBackIcon />}>
-      All calibrations
+    <Button component={Link} to="/calibrations">
+      <ArrowBackIcon fontSize="small" sx={textIcon} /> All calibrations
     </Button>
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
       {actions}
@@ -197,8 +197,8 @@ named record.
 Rules:
 
 - A back link is navigation. It must not be the page's `h1`.
-- Back-navigation Buttons use `startIcon={<ArrowBackIcon />}`. Do not render
-  `ArrowBackIcon` as a child or add manual icon sizing, margins, or alignment.
+- Back-navigation Buttons render `ArrowBackIcon` inline before the label using
+  the text-button icon treatment described under [Buttons and actions](#buttons-and-actions).
 - The back link and page actions share a toolbar above the divider.
 - The divider sits directly beneath that toolbar so its position does not
   change with the record title, status, or parent metadata.
@@ -276,7 +276,8 @@ Exceptions:
 - **Page, card, and dialog titles:** use Typography. A raw icon may precede the
   title when it adds context, but do not put the title in a Chip.
 - **Breadcrumbs:** use linked text so the hierarchy stays visually quiet.
-- **Buttons:** use `startIcon` or `endIcon`; do not put a Chip inside a button.
+- **Buttons:** render label icons inline using the text-button icon treatment;
+  do not put a Chip inside a button.
 
 ### Status Chips
 
@@ -413,6 +414,23 @@ Setting every normal cell to white hides the zebra pattern.
 - Avoid custom shadows and corner radii for ordinary Cards.
 
 ## Buttons and actions
+
+### Text-button icons
+
+Icons that are part of a text button label must be rendered inline immediately
+before the label. Use the small icon size, vertically center the icon against
+the text, and leave `3px` of horizontal space around it:
+
+```jsx
+const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
+
+<Button variant="text" onClick={openSearch}>
+  <SearchIcon fontSize="small" sx={textIcon} /> Search jobs and automations
+</Button>
+```
+
+Reuse one local `textIcon` style object when a file has multiple text-button
+icons. Do not use MUI's `startIcon` for this pattern.
 
 ### Hierarchy
 

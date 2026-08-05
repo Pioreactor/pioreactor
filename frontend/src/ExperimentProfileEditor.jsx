@@ -28,6 +28,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import CircularProgress from "@mui/material/CircularProgress";
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
 
+
+const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
+
 const DEFAULT_CODE = `experiment_profile_name:
 
 version: "1.0"
@@ -390,11 +393,11 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
             {pageCopy.heading}
           </Typography>
           <Box>
-            <Button sx={{ textTransform: "none", mr: 1 }} variant="text" startIcon={<SearchIcon />} onClick={() => setOpenCapabilities(true)}>
-              Search jobs and automations
+            <Button sx={{ textTransform: "none", mr: 1 }} variant="text" onClick={() => setOpenCapabilities(true)}>
+              <SearchIcon fontSize="small" sx={textIcon}/> Search jobs and automations
             </Button>
-            <Button component={Link} to="/experiment-profiles" startIcon={<ArrowBackIcon />} sx={{ textTransform: "none" }}>
-              Back
+            <Button component={Link} to="/experiment-profiles" sx={{ textTransform: "none" }}>
+              <ArrowBackIcon fontSize="small" sx={textIcon}/> Back
             </Button>
           </Box>
         </Box>

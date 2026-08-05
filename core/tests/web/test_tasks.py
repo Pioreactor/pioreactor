@@ -299,7 +299,7 @@ def test_camera_focus_calibration_action_uses_ephemeral_preview_task(
 
     assert returned_task is task
     assert error_label == "Camera focus preview"
-    assert normalize(None) == {}
+    assert normalize({"captured": True}) == {"captured": True}
     assert captured == {
         "unit": "unit-a",
         "session_id": "session-a",
@@ -320,7 +320,7 @@ def test_camera_focus_preview_task_captures_without_experiment_metadata(
 
     result = tasks.capture_camera_focus_preview_task.call_local("unit-a", "session-a")
 
-    assert result is None
+    assert result == {"captured": True}
     assert captured == [("unit-a", "session-a")]
 
 
@@ -346,11 +346,51 @@ def test_camera_focus_cleanup_action_uses_preview_delete_task(
 
     assert returned_task is task
     assert error_label == "Camera focus preview cleanup"
-    assert normalize(None) == {}
+    assert normalize({"deleted": True}) == {"deleted": True}
     assert captured == {
         "unit": "unit-a",
         "session_id": "session-a",
     }
+
+
+@pytest.mark.parametrize("deleted", [True, False])
+def test_camera_focus_cleanup_task_reports_if_preview_was_deleted(
+    deleted: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tasks, "delete_camera_focus_preview", lambda session_id: deleted)
+
+    result = tasks.delete_camera_focus_preview_task.call_local("unit-a", "session-a")
+
+    assert result == {"deleted": deleted}
+
+
+def test_camera_focus_tasks_publish_results_when_huey_is_not_immediate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tasks.huey, "_immediate", False)
+    monkeypatch.setattr(
+        tasks.huey,
+        "storage",
+        SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"),
+    )
+    monkeypatch.setattr(tasks, "capture_camera_focus_preview", lambda unit, session_id: None)
+    monkeypatch.setattr(tasks, "delete_camera_focus_preview", lambda session_id: True)
+
+    capture_result = tasks.capture_camera_focus_preview_task("unit-a", "session-a")
+    capture_task = tasks.huey.dequeue()
+    assert capture_task is not None
+    tasks.huey.execute(capture_task)
+
+    assert capture_result.get(blocking=True, timeout=0.1) == {"captured": True}
+
+    cleanup_result = tasks.delete_camera_focus_preview_task("unit-a", "session-a")
+    cleanup_task = tasks.huey.dequeue()
+    assert cleanup_task is not None
+    tasks.huey.execute(cleanup_task)
+
+    assert cleanup_result.get(blocking=True, timeout=0.1) == {"deleted": True}
 
 
 def test_delete_experiment_task_deletes_and_reports_reclaimable_space(

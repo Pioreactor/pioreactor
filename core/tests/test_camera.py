@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import fcntl
 import signal
+import stat
 import subprocess
 from collections.abc import Generator
 from contextlib import nullcontext
@@ -206,7 +207,9 @@ def test_store_camera_still_writes_canonical_image_and_metadata(
         captured_at=captured_at,
         image_id="image-1",
     )
-    assert camera_still_image_path(metadata).read_bytes() == b"fake jpeg"
+    image_path = camera_still_image_path(metadata)
+    assert image_path.read_bytes() == b"fake jpeg"
+    assert stat.S_IMODE(image_path.stat().st_mode) == 0o664
 
     with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
         assert json_decode(storage["image-1"], type=CameraStillMetadata) == metadata
@@ -1022,4 +1025,5 @@ def test_camera_focus_preview_overwrites_one_ephemeral_file_without_still_metada
 
     assert first_path == second_path == camera_focus_preview_path("session-a", dot_pioreactor)
     assert second_path.read_bytes() == b"second preview"
+    assert stat.S_IMODE(second_path.stat().st_mode) == 0o664
     assert list_camera_still_metadata("unit-a", dot_pioreactor=dot_pioreactor) == []

@@ -52,7 +52,7 @@ def cleanup_focus_snapshots(
     session: CalibrationSession,
     executor: SessionCleanupExecutor | None,
 ) -> None:
-    if executor is None or int(session.data.get("snapshot_count", 0)) == 0:
+    if executor is None:
         return
 
     executor(

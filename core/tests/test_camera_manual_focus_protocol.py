@@ -127,6 +127,32 @@ def test_manual_focus_session_deletes_snapshots_when_aborted(
     )
 
 
+def test_manual_focus_session_attempts_cleanup_when_snapshot_count_is_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(camera_manual_focus, "get_unit_name", lambda: "unit-a")
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def executor(action: str, payload: dict[str, object]) -> dict[str, object]:
+        calls.append((action, payload))
+        return {"deleted": False}
+
+    session = start_manual_focus_session("camera")
+
+    ManualCameraFocusProtocol.on_session_abort(session, executor)
+
+    assert session.data["snapshot_count"] == 0
+    assert calls == [
+        (
+            "camera_focus_cleanup",
+            {
+                "unit": "unit-a",
+                "session_id": session.session_id,
+            },
+        )
+    ]
+
+
 def test_manual_focus_protocol_is_registered() -> None:
     assert get_protocol("camera", "manual_focus") is ManualCameraFocusProtocol
 

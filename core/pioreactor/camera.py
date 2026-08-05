@@ -699,6 +699,7 @@ def capture_camera_focus_preview(
 
         try:
             shutil.copyfile(captured_image_path, temporary_preview_path)
+            temporary_preview_path.chmod(0o664)  # Huey writes; www-data serves.
             temporary_preview_path.replace(preview_path)
         finally:
             temporary_preview_path.unlink(missing_ok=True)
@@ -750,6 +751,7 @@ def store_camera_still(
     filename = camera_still_filename(image_id)
     destination_image_path = stills_root / filename
     shutil.copyfile(source_image_path, destination_image_path)
+    destination_image_path.chmod(0o664)  # Huey writes; www-data serves.
 
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
     metadata = CameraStillMetadata(
