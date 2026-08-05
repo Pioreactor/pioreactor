@@ -226,7 +226,7 @@ export default function CameraStills({ title }) {
               disabled={loading || takingSnapshot || !experiment}
               sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
             >
-              {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <LocalSeeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} fontSize="small" sx={textIcon} />}
+              {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <LocalSeeIcon fontSize="small" sx={textIcon} />}
               Capture snapshot
             </Button>
 
