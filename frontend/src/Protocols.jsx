@@ -600,7 +600,6 @@ function Protocols(props) {
           setActiveSessionProtocolId(null);
           setActiveSessionUnit(null);
           clearStoredCalibrationSession();
-          setSnackbarMessage("Calibration session completed.");
           setSnackbarOpen(true);
         }}
         onPause={() => {
