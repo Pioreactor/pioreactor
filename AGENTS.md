@@ -79,9 +79,7 @@ This repo's local development behavior depends heavily on environment variables.
  - `GLOBAL_CONFIG`
  - `RUN_PIOREACTOR`
 
- See all the (production) environment varibles in `./pioreactor/packaging/runtime-files/pioreactor.env`.
-
-See more
+See all the production environment variables in `packaging/runtime-files/pioreactor.env`.
 
 Do not assume bare `python`, `pytest`, or `mypy` point at the correct interpreter. Prefer `.venv/bin/python`, `.venv/bin/pytest`, and `.venv/bin/mypy`.
 
@@ -211,7 +209,7 @@ Some leader `/api` read endpoints fan out to worker `/unit_api` routes and may u
 
 - prefer existing cached fan-out helpers when the response can tolerate brief staleness
 - keep cached payloads close to the uncached worker payload shape
-- add explicit invalidation on successful writes
+- invalidate affected entries after request validation and before queueing or dispatching the mutation
 - avoid caching highly volatile or write-heavy paths
 
 ---

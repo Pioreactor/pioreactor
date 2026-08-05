@@ -84,3 +84,23 @@ def test_ensure_frontend_build_runs_frontend_build_make_target() -> None:
         call(["make", "frontend-build"], check=True),
         call(["git", "diff", "--quiet"], check=False),
     ]
+
+
+def test_declining_version_confirmation_aborts_before_branch_check() -> None:
+    create_rc = load_create_rc_module()
+
+    with (
+        patch.object(create_rc, "assert_git_repo"),
+        patch.object(create_rc, "compute_rc_version", return_value=("26.8.0", "26.8.0rc1")),
+        patch("builtins.input", return_value="n") as prompt,
+        patch.object(create_rc, "get_current_git_branch") as get_current_git_branch,
+        patch("builtins.print") as print_output,
+    ):
+        result = create_rc.main([])
+
+    assert result == 1
+    prompt.assert_called_once_with("Confirm version 26.8.0rc1? y/n: ")
+    get_current_git_branch.assert_not_called()
+    print_output.assert_called_once_with(
+        'Aborted. Re-run with ARGS="--series YY.M --rc N" to choose a different version.'
+    )

@@ -44,7 +44,8 @@ If you want to cache another fan-out object, such as estimators or plugins, foll
    *   Example: `cache.cached_multicast_get(cache.ESTIMATORS, get_all_workers())`
 3. Add an invalidation helper in `cache.py` for that object family.
    *   Mirror `invalidate_calibrations_cache(...)` or `invalidate_estimators_cache(...)`.
-4. Call that invalidation helper from every successful mutation route that changes the cached payload.
+4. After validating the request, call that invalidation helper immediately before queueing or
+   dispatching every mutation that can change the cached payload.
    *   For a single unit, invalidate only that unit.
    *   For `$broadcast`, invalidate all workers covered by the route.
 5. Inside invalidation helpers, use `invalidate_multicast_get_cache(...)` with one or more cache targets.
@@ -57,7 +58,7 @@ If you want to cache another fan-out object, such as estimators or plugins, foll
 
 **example: calibrations**
 
-Calibrations are the first slice using this pattern:
+Calibrations are one object family using this pattern:
 
 *   Cache target in `cache.py`: `CALIBRATIONS = MulticastGetCacheTarget("calibrations", "/unit_api/calibrations")`
 *   Cached route: `/api/workers/<pioreactor_unit>/calibrations`
@@ -75,10 +76,12 @@ Related calibration targets now include:
 
 That means repeated visits to the calibration listing can avoid worker fan-out and YAML parsing on warm reads, while writes still clear the affected cached entries.
 
+The same cache mechanism also serves estimator, installed-plugin, and merged-config reads, with invalidation tied to their corresponding mutation routes.
+
 
 **practical notes**
 
 *   Prefer per-worker cached payloads over one giant broadcast blob. Per-worker keys make invalidation much cheaper and are reusable for both single-unit and broadcast routes.
 *   Keep TTL short unless you have strong invalidation and a clear product reason for longer staleness.
-*   Do not cache failures for long. The current implementation skips writing `None` results into the cache.
+*   Do not cache failures. The current implementation skips failed fan-out results, but caches a successful empty payload as `None` for the normal short TTL.
 *   Keep the cached value shape identical to the uncached worker payload unless there is a strong reason not to. It makes reuse and debugging much easier.

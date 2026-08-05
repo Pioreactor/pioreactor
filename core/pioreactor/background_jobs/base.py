@@ -377,9 +377,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         P.ready()
         C.on_ready() # default noop
         """
+        self._reconnect_callbacks_ready = True
         self._start_general_passive_listeners()
         self.start_passive_listeners()
-        self._reconnect_callbacks_ready = True
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
         self.set_state(JobState.READY)

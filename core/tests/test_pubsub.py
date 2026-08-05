@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
-from paho.mqtt.enums import CallbackAPIVersion
 from pioreactor.pubsub import add_hash_suffix
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client

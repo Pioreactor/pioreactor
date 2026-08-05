@@ -2,14 +2,16 @@
 
 Estimators are saved artifacts used to transform or combine sensor data into a derived measurement.
 They are similar to calibrations in terms of lifecycle (created via a protocol flow, saved to disk,
-optionally marked active), but are not calibrations and are not exposed in the calibrations UI/CLI.
+optionally marked active), but are not calibrations. They are managed through the separate estimators
+UI and `pio estimators` CLI rather than through the calibrations UI/CLI.
 
 ## Terminology
 
-- protocol: the step-by-step workflow that collects data and runs the estimator.
-- estimator: the function or routine that accepts data and produces an estimation.
-- estimation: the resulting artifact produced by an estimator.
-- estimand: the object being transformed by the estimator.
+- protocol: the step-by-step workflow that collects the data needed to produce or update an estimator.
+- fitting routine: the code that turns the collected protocol data into estimator parameters.
+- estimator: the saved model or artifact applied to sensor readings to produce a derived measurement.
+- estimation: the derived measurement produced by applying an estimator.
+- estimand: the quantity the estimator is intended to recover.
 
 ## Storage
 
@@ -39,10 +41,12 @@ if estimator is not None:
 
 ## UI flow
 
-The estimator protocol runs through the calibration session UI. On completion, the session engine
-calls the `save_estimator` action, which uses `EstimatorBase.save_to_disk_for_device` and
-`EstimatorBase.set_as_active_calibration_for_device` to persist the estimator YAML and mark it
-active for the device. Estimators do not appear in the calibrations UI after saving.
+Estimator creation uses the shared calibration-session machinery from the Protocols page. On
+completion, the session engine calls the `save_estimator` action, which uses
+`EstimatorBase.save_to_disk_for_device` and `EstimatorBase.set_as_active_calibration_for_device` to
+persist the estimator YAML and mark it active for the device. Once saved, the artifact is managed
+through the separate Estimators UI and `pio estimators`; it does not appear in the calibrations
+UI or CLI.
 
 ## Notes
 
