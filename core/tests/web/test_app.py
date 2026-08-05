@@ -13,8 +13,6 @@ from flask.testing import FlaskClient
 from huey.exceptions import TaskException
 from pioreactor.web.config import huey
 from pytest import MonkeyPatch
-from tests.utils import FakeMQTTClient
-from tests.utils import FakeMQTTMessageInfo
 
 from .conftest import capture_requests
 from .test_unit_api import _build_valid_calibration_yaml
@@ -2328,38 +2326,57 @@ def test_run_job_response(client) -> None:
     )
 
 
-def test_stop_specific_job_returns_task_response_when_mqtt_publish_fails(client, monkeypatch) -> None:
+def test_stop_specific_job_uses_worker_job_manager(client, monkeypatch) -> None:
     import pioreactor.web.api as mod
 
     class DummyTask:
-        id = "fallback-task"
+        id = "stop-task"
 
-    monkeypatch.setattr(
-        mod,
-        "create_client",
-        lambda *_args, **_kwargs: FakeMQTTClient(
-            message_info_factory=lambda: FakeMQTTMessageInfo(wait_error=RuntimeError("mqtt down"))
-        ),
-    )
-    monkeypatch.setattr(mod.tasks, "multicast_post", lambda *_args, **_kwargs: DummyTask())
+    captured: dict[str, object] = {}
+
+    def fake_multicast_post(endpoint: str, units: list[str], json: dict[str, str]) -> DummyTask:
+        captured.update({"endpoint": endpoint, "units": units, "json": json})
+        return DummyTask()
+
+    monkeypatch.setattr(mod.tasks, "multicast_post", fake_multicast_post)
 
     response = client.post("/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1")
 
     assert response.status_code == 202
     data = response.get_json()
-    assert data["task_id"] == "fallback-task"
-    assert data["result_url_path"] == "/unit_api/task_results/fallback-task"
+    assert data["task_id"] == "stop-task"
+    assert data["result_url_path"] == "/unit_api/task_results/stop-task"
+    assert captured == {
+        "endpoint": "/unit_api/jobs/stop",
+        "units": ["unit1"],
+        "json": {"job_name": "stirring", "experiment": "exp1"},
+    }
 
 
-def test_stop_specific_job_returns_accepted_when_mqtt_publish_succeeds(client, monkeypatch) -> None:
+def test_stop_specific_job_broadcast_uses_worker_job_manager(client, monkeypatch) -> None:
     import pioreactor.web.api as mod
 
-    monkeypatch.setattr(mod, "create_client", lambda *_args, **_kwargs: FakeMQTTClient())
+    class DummyTask:
+        id = "broadcast-stop-task"
 
-    response = client.post("/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1")
+    captured: dict[str, object] = {}
+
+    def fake_broadcast_post(endpoint: str, json: dict[str, str]) -> DummyTask:
+        captured.update({"endpoint": endpoint, "json": json})
+        return DummyTask()
+
+    monkeypatch.setattr(mod.fanout, "broadcast_post_across_cluster", fake_broadcast_post)
+
+    response = client.post("/api/workers/$broadcast/jobs/stop/job_name/stirring/experiments/exp1")
 
     assert response.status_code == 202
-    assert response.get_json() == {"status": "accepted"}
+    data = response.get_json()
+    assert data["task_id"] == "broadcast-stop-task"
+    assert data["result_url_path"] == "/unit_api/task_results/broadcast-stop-task"
+    assert captured == {
+        "endpoint": "/unit_api/jobs/stop",
+        "json": {"job_name": "stirring", "experiment": "exp1"},
+    }
 
 
 def test_export_datasets_returns_async_task_response(

@@ -50,7 +50,6 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.release_archive import ReleaseArchiveVerificationError
 from pioreactor.release_archive import verify_release_archive
-from pioreactor.states import JobState
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
 from pioreactor.utils.networking import is_using_local_access_point
@@ -1042,32 +1041,26 @@ def stop_specific_job_on_unit(
     pioreactor_unit: str,
     job_name: str,
     experiment: str,
-) -> ResponseReturnValue:
+) -> DelayedResponseReturnValue:
     """
     Stop one job on one unit in one experiment.
 
     No request body is required.
     """
 
-    try:
-        with create_client() as client:
-            msg = client.publish(
-                f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/$state/set",
-                JobState.DISCONNECTED.to_bytes(),
-                qos=QOS.AT_LEAST_ONCE,
-            )
-            msg.wait_for_publish(timeout=2.0)
-    except Exception as e:
-        publish_to_error_log(str(e), "stop_specific_job_on_unit")
-        # Fall back to the unit API stop endpoint instead of surfacing a false failure.
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = fanout.broadcast_post_across_cluster(
+            "/unit_api/jobs/stop",
+            json={"job_name": job_name, "experiment": experiment},
+        )
+    else:
         task = multicast_post_to_unit(
             pioreactor_unit,
             "/unit_api/jobs/stop",
             json={"job_name": job_name, "experiment": experiment},
         )
-        return create_task_response(task)
 
-    return {"status": "accepted"}, 202
+    return create_task_response(task)
 
 
 @api_bp.route(
