@@ -903,8 +903,10 @@ def stop_job(
             logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
         else:
             logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
-            response = patch_into_leader(
-                f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
+            response = patch_into(
+                resolve_to_address(unit),
+                "/unit_api/jobs/stop",
+                json={"job_name": job_name, "experiment": experiment},
             )
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))

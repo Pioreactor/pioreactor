@@ -100,7 +100,8 @@ def test_execute_experiment_profile_order(
     assert bucket[1].path == "/unit_api/jobs/run/job_name/job1"
     assert bucket[2].path == "/unit_api/jobs/run/job_name/job1"
     assert bucket[3].path == "/unit_api/jobs/run/job_name/job2"
-    assert bucket[4].path == "/api/workers/unit1/jobs/stop/job_name/job2/experiments/_testing_experiment"
+    assert bucket[4].url == "http://unit1.local:4999/unit_api/jobs/stop"
+    assert bucket[4].json == {"job_name": "job2", "experiment": "_testing_experiment"}
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -1501,7 +1502,8 @@ def test_api_requests_are_made(
     assert bucket[1].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/job1"
     assert bucket[2].url == "http://unit2.local:4999/unit_api/jobs/run/job_name/job1"
     assert bucket[3].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/job2"
-    assert bucket[4].path == f"/api/workers/unit1/jobs/stop/job_name/job2/experiments/{experiment}"
+    assert bucket[4].url == "http://unit1.local:4999/unit_api/jobs/stop"
+    assert bucket[4].json == {"job_name": "job2", "experiment": experiment}
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
