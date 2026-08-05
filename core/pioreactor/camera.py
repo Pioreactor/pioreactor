@@ -37,23 +37,15 @@ from pioreactor.whoami import is_testing_env
 
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
-CAMERA_FOCUS_PREVIEWS_RELATIVE_DIR = Path("storage") / "camera_focus_previews"
 CAMERA_STILL_CONTENT_TYPE = "image/jpeg"
 DEFAULT_CAMERA_STILL_RETENTION_COUNT = 500
 CAMERA_STILLS_CACHE_NAME = "camera_stills"
 CAMERA_SETTINGS_CACHE_NAME = "camera_settings"
 AUTO_CAPTURE_ENABLED_KEY = "auto_capture_enabled"
 RPICAM_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
-V4L2_CAPTURE_COMMAND = "fswebcam"
-DEV_CAMERA_STILLS_DIRNAME = "DEV_CAMERA_STILLS"
 CAMERA_WARMER_RUNTIME_DIR = Path("/run/pioreactor")
-CAMERA_WARMER_PID_FILENAME = "camera-warmer.pid"
-CAMERA_WARMER_IMAGE_FILENAME = "camera-warmer.jpg"
-CAMERA_WARMER_LATEST_FILENAME = "camera-warmer-latest.jpg"
 CAMERA_WARMER_STARTUP_GRACE_SECONDS = 1.0
 CAMERA_WARMER_POLL_SECONDS = 0.01
-
-SAFE_CAMERA_STORAGE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 camera_warmer_process: subprocess.Popen[bytes] | None = None
 
@@ -92,15 +84,15 @@ def camera_stills_root_path(dot_pioreactor: Path | None = None) -> Path:
 
 def camera_focus_previews_root_path(dot_pioreactor: Path | None = None) -> Path:
     root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
-    return root / CAMERA_FOCUS_PREVIEWS_RELATIVE_DIR
+    return root / "storage" / "camera_focus_previews"
 
 
 def dev_camera_stills_path(dot_pioreactor: Path | None = None) -> Path:
-    return camera_stills_root_path(dot_pioreactor) / DEV_CAMERA_STILLS_DIRNAME
+    return camera_stills_root_path(dot_pioreactor) / "DEV_CAMERA_STILLS"
 
 
 def camera_storage_name_is_safe(value: str) -> bool:
-    return bool(SAFE_CAMERA_STORAGE_NAME.fullmatch(value))
+    return re.fullmatch(r"[A-Za-z0-9_.-]+", value) is not None
 
 
 def create_camera_image_id(captured_at: datetime | None = None) -> str:
@@ -158,7 +150,7 @@ def camera_is_enabled() -> bool:
 
 def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | None:
     if backend == "v4l2":
-        return shutil.which(V4L2_CAPTURE_COMMAND)
+        return shutil.which("fswebcam")
 
     for command in RPICAM_CAPTURE_COMMANDS:
         if resolved := shutil.which(command):
@@ -208,9 +200,9 @@ def get_rpicam_still_arguments(command: str, camera_index: int) -> list[str]:
 
 def camera_warmer_runtime_paths() -> tuple[Path, Path, Path]:
     return (
-        CAMERA_WARMER_RUNTIME_DIR / CAMERA_WARMER_PID_FILENAME,
-        CAMERA_WARMER_RUNTIME_DIR / CAMERA_WARMER_IMAGE_FILENAME,
-        CAMERA_WARMER_RUNTIME_DIR / CAMERA_WARMER_LATEST_FILENAME,
+        CAMERA_WARMER_RUNTIME_DIR / "camera-warmer.pid",
+        CAMERA_WARMER_RUNTIME_DIR / "camera-warmer.jpg",
+        CAMERA_WARMER_RUNTIME_DIR / "camera-warmer-latest.jpg",
     )
 
 

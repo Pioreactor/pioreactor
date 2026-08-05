@@ -226,7 +226,7 @@ export default function CameraStills({ title }) {
               disabled={loading || takingSnapshot || !experiment}
               sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
             >
-              {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <LocalSeeIcon  fontSize="small" sx={textIcon} />}
+              {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <LocalSeeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} fontSize="small" sx={textIcon} />}
               Capture snapshot
             </Button>
 
@@ -235,10 +235,9 @@ export default function CameraStills({ title }) {
               href={downloadHref}
               download={`${pioreactorUnit}_${experiment}_camera_snapshots.zip`}
               disabled={!experiment || stills.length === 0}
-              startIcon={<DownloadIcon />}
-              sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+              sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
             >
-              Download all
+              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all
             </Button>
           </Box>
         </Box>
