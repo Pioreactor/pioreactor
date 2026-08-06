@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from unittest.mock import call
+from unittest.mock import MagicMock
+
 import pytest
 from click.testing import CliRunner
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
@@ -7,8 +10,51 @@ from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.actions.led_intensity import LedChannel
 from pioreactor.actions.led_intensity import lock_leds_temporarily
+from pioreactor.exc import HardwareNotFoundError
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
+
+
+def test_led_intensity_reuses_one_dac_for_multiple_channels(monkeypatch: pytest.MonkeyPatch) -> None:
+    dac = MagicMock(A=8, B=9, C=10, D=11)
+    dac_constructor = MagicMock(return_value=dac)
+    monkeypatch.setattr("pioreactor.utils.mock.Mock_DAC", dac_constructor)
+
+    assert led_intensity({"A": 10.0, "C": 30.5}, verbose=False, source_of_event="test")
+
+    dac_constructor.assert_called_once_with()
+    assert dac.set_intensity_to.call_args_list == [call(8, 10.0), call(10, 30.5)]
+
+
+def test_led_intensity_does_not_construct_dac_without_an_eligible_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dac_constructor = MagicMock()
+    monkeypatch.setattr("pioreactor.utils.mock.Mock_DAC", dac_constructor)
+
+    assert led_intensity({}, verbose=False, source_of_event="test")
+
+    with lock_leds_temporarily(["A", "C"]):
+        assert not led_intensity({"A": 10.0, "C": 30.5}, verbose=False, source_of_event="test")
+
+    dac_constructor.assert_not_called()
+
+
+def test_led_intensity_preserves_partial_write_behavior_on_hardware_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dac = MagicMock(A=8, B=9, C=10, D=11)
+    dac.set_intensity_to.side_effect = [None, HardwareNotFoundError()]
+    dac_constructor = MagicMock(return_value=dac)
+    monkeypatch.setattr("pioreactor.utils.mock.Mock_DAC", dac_constructor)
+
+    assert not led_intensity({"A": 10.0, "C": 30.5}, verbose=False, source_of_event="test")
+
+    dac_constructor.assert_called_once_with()
+    assert dac.set_intensity_to.call_args_list == [call(8, 10.0), call(10, 30.5)]
+    with local_intermittent_storage("leds") as cache:
+        assert cache.get("A", 0.0) == pytest.approx(0.0)
+        assert cache.get("C", 0.0) == pytest.approx(0.0)
 
 
 def test_lock_will_prevent_led_from_updating() -> None:

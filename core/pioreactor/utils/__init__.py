@@ -4,9 +4,6 @@ from __future__ import annotations
 import os
 import signal
 import time
-from concurrent.futures import ThreadPoolExecutor
-from functools import wraps
-from subprocess import run
 from threading import Event
 from typing import Any
 from typing import Callable
@@ -16,8 +13,6 @@ from typing import Self
 from typing import Sequence
 from typing import TYPE_CHECKING
 
-from msgspec import Struct
-from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import get_leader_hostname
@@ -25,7 +20,6 @@ from pioreactor.exc import JobRequiredError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
-from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as st

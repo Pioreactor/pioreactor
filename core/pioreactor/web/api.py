@@ -99,14 +99,8 @@ AllCalibrations = structs.subclass_union(CalibrationBase)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
-EXPORTABLE_DATASET_PREVIEW_DEFAULT_ROWS = 5
-EXPORTABLE_DATASET_PREVIEW_MAX_ROWS = 100
-
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
-DISALLOWED_EXPERIMENT_NAME_CHARACTERS = "#$%+/?\\"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
-MAX_SYSTEM_UPLOAD_REQUEST_BYTES = 60_000_000
-PIOREACTOR_UNIT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 TimeSeriesDataSource = t.Literal[
     "growth_rates",
@@ -343,6 +337,8 @@ def _parse_experiment_tags(raw_tags: str | None) -> list[str]:
 
 
 def _validate_experiment_name(raw_experiment_name: object) -> str:
+    disallowed_characters = "#$%+/?\\"
+
     if not isinstance(raw_experiment_name, str) or not raw_experiment_name:
         abort_with(
             400,
@@ -375,7 +371,7 @@ def _validate_experiment_name(raw_experiment_name: object) -> str:
             remediation="Choose a name that does not start with '_testing'.",
         )
 
-    if any(character in raw_experiment_name for character in DISALLOWED_EXPERIMENT_NAME_CHARACTERS):
+    if any(character in raw_experiment_name for character in disallowed_characters):
         abort_with(
             400,
             "Experiment name cannot contain special characters (#, $, %, +, /, ?, \\)",
@@ -508,7 +504,6 @@ def abort_with_worker_error(response: MureqResponse | None, fallback_error: str)
     )
 
 
-CONFIG_HISTORY_SHARED_KEY = "config.ini"
 UNIT_CONFIG_HISTORY_PREFIX = "unit_config.ini::"
 
 
@@ -611,7 +606,7 @@ def pioreactor_unit_name_can_be_persisted(pioreactor_unit: str) -> bool:
     return (
         bool(pioreactor_unit)
         and pioreactor_unit != UNIVERSAL_IDENTIFIER
-        and PIOREACTOR_UNIT_NAME_PATTERN.fullmatch(pioreactor_unit) is not None
+        and re.fullmatch(r"^[A-Za-z0-9_-]+$", pioreactor_unit) is not None
         and not pioreactor_unit_name_is_address(pioreactor_unit)
     )
 
@@ -2818,9 +2813,11 @@ def upload_system_file() -> ResponseReturnValue:
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS").is_file():
         abort_with(403, "No UI uploads allowed")
 
+    max_system_upload_request_bytes = 60_000_000
+
     # Current invariant: the server enforces the complete request limit while
     # Werkzeug reads multipart data, before an oversized upload can be staged.
-    request.max_content_length = MAX_SYSTEM_UPLOAD_REQUEST_BYTES
+    request.max_content_length = max_system_upload_request_bytes
     try:
         files = request.files
     except RequestEntityTooLarge:
@@ -3172,23 +3169,25 @@ def get_exportable_datasets() -> ResponseReturnValue:
 def preview_exportable_dataset(target_dataset: str) -> ResponseReturnValue:
     builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
     plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
+    default_preview_rows = 5
+    max_preview_rows = 100
 
     try:
-        n_rows = int(request.args.get("n_rows", EXPORTABLE_DATASET_PREVIEW_DEFAULT_ROWS))
+        n_rows = int(request.args.get("n_rows", default_preview_rows))
     except ValueError:
         abort_with(
             400,
             "Invalid n_rows",
             cause="n_rows must be an integer.",
-            remediation=(f"Provide n_rows as an integer from 1 to {EXPORTABLE_DATASET_PREVIEW_MAX_ROWS}."),
+            remediation=(f"Provide n_rows as an integer from 1 to {max_preview_rows}."),
         )
 
-    if n_rows < 1 or n_rows > EXPORTABLE_DATASET_PREVIEW_MAX_ROWS:
+    if n_rows < 1 or n_rows > max_preview_rows:
         abort_with(
             400,
             "Invalid n_rows",
-            cause=f"n_rows must be between 1 and {EXPORTABLE_DATASET_PREVIEW_MAX_ROWS}.",
-            remediation=(f"Provide n_rows as an integer from 1 to {EXPORTABLE_DATASET_PREVIEW_MAX_ROWS}."),
+            cause=f"n_rows must be between 1 and {max_preview_rows}.",
+            remediation=(f"Provide n_rows as an integer from 1 to {max_preview_rows}."),
         )
 
     for file in builtins + plugins:
@@ -3656,7 +3655,7 @@ def update_shared_config() -> ResponseReturnValue:
 def get_shared_config_history() -> ResponseReturnValue:
     configs_for_filename = query_app_db(
         "SELECT filename, timestamp, data FROM config_files_histories WHERE filename=? ORDER BY timestamp DESC",
-        (CONFIG_HISTORY_SHARED_KEY,),
+        ("config.ini",),
     )
 
     return attach_cache_control(jsonify(configs_for_filename), max_age=0)

@@ -152,6 +152,7 @@ def led_intensity(
 
     logger = create_logger("led_intensity", experiment=experiment, unit=unit, pub_client=pubsub_client)
     updated_successfully = True
+    dac = None
 
     if not is_testing_env():
         from pioreactor.utils.dacs import DAC
@@ -187,7 +188,8 @@ def led_intensity(
                     0.0 <= intensity <= 100.0
                 ), f"Channel {channel} intensity should be between 0 and 100, inclusive"
 
-                dac = DAC()
+                if dac is None:
+                    dac = DAC()
                 dac.set_intensity_to(getattr(dac, channel), intensity)
             except (ValueError, HardwareNotFoundError) as e:
                 logger.debug(e, exc_info=True)
