@@ -435,6 +435,63 @@ def test_bad_setting_name_in_published_settings() -> None:
             pass
 
 
+def test_settable_published_setting_requires_supported_datatype() -> None:
+    class TestJob(BackgroundJob):
+        job_name = "job"
+        published_settings = {
+            "growth_rate": {
+                "datatype": "GrowthRate",
+                "settable": True,
+            },
+        }
+
+    with pytest.raises(ValueError, match="unsupported datatype"):
+        with TestJob(
+            unit=get_unit_name(),
+            experiment="test_settable_published_setting_requires_supported_datatype",
+        ):
+            pass
+
+
+def test_readonly_published_setting_allows_rich_datatype() -> None:
+    BackgroundJob._check_published_settings({"growth_rate": {"datatype": "GrowthRate", "settable": False}})
+
+
+def test_dynamically_added_settable_setting_requires_supported_datatype() -> None:
+    with BackgroundJob(
+        unit=get_unit_name(),
+        experiment="test_dynamically_added_settable_setting_requires_supported_datatype",
+    ) as job:
+        with pytest.raises(ValueError, match="unsupported datatype"):
+            job.add_to_published_settings("growth_rate", {"datatype": "GrowthRate", "settable": True})
+
+
+@pytest.mark.parametrize(
+    ("setting", "datatype", "payload", "previous_value"),
+    [
+        ("float_setting", "float", b"invalid", 1.5),
+        ("integer_setting", "integer", b"1.5", 2),
+        ("boolean_setting", "boolean", b"invalid", True),
+        ("json_setting", "json", b"{", {"value": 1}),
+    ],
+)
+def test_invalid_setter_payload_does_not_mutate_setting(
+    setting: str, datatype: str, payload: bytes, previous_value: object
+) -> None:
+    job = object.__new__(BackgroundJob)
+    job.published_settings = {setting: {"datatype": datatype, "settable": True}}  # type: ignore
+    job.logger = MagicMock()
+    object.__setattr__(job, setting, previous_value)
+    message = MQTTMessage()
+    message.topic = f"pioreactor/unit/experiment/job/{setting}/set"
+    message.payload = payload
+
+    job._set_attr_from_message(message)
+
+    assert getattr(job, setting) == previous_value
+    job.logger.warning.assert_called_once()
+
+
 @pytest.mark.flakey
 def test_editing_readonly_attr_via_mqtt() -> None:
     class TestJob(BackgroundJob):

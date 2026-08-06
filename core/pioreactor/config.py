@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import configparser
 import os
+import re
 from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
@@ -136,6 +137,47 @@ class ConfigParserMod(configparser.ConfigParser):
             )
             print(1, e)
             raise e
+
+
+def replace_or_append_config_entry(
+    config_text: str, section_name: str, parameter_name: str, value: str
+) -> str:
+    """Return config text with one entry updated while preserving comments and layout."""
+    newline = "\r\n" if "\r\n" in config_text else "\n"
+    lines = config_text.splitlines()
+    section_header = f"[{section_name}]"
+    section_start: int | None = None
+    section_end = len(lines)
+    parameter_pattern = re.compile(rf"^(\s*){re.escape(parameter_name)}(\s*[:=]).*$")
+
+    for index, line in enumerate(lines):
+        if line.strip() == section_header:
+            section_start = index
+            break
+
+    if section_start is not None:
+        for index in range(section_start + 1, len(lines)):
+            stripped_line = lines[index].strip()
+            if stripped_line.startswith("[") and stripped_line.endswith("]"):
+                section_end = index
+                break
+
+        for index in range(section_start + 1, section_end):
+            match = parameter_pattern.match(lines[index])
+            if match is not None:
+                indentation, delimiter = match.groups()
+                lines[index] = f"{indentation}{parameter_name}{delimiter}{value}"
+                return newline.join(lines) + newline
+
+        lines.insert(section_end, f"{parameter_name}={value}")
+        return newline.join(lines) + newline
+
+    new_lines = list(lines)
+    if new_lines and new_lines[-1].strip() != "":
+        new_lines.append("")
+    new_lines.append(section_header)
+    new_lines.append(f"{parameter_name}={value}")
+    return newline.join(new_lines) + newline
 
 
 def _apply_runtime_config_sections(config: ConfigParserMod) -> ConfigParserMod:

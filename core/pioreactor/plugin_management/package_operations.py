@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os
 import shutil
 import site
 import sqlite3
@@ -12,6 +13,7 @@ from pathlib import Path
 
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_config
+from pioreactor.config import replace_or_append_config_entry
 from pioreactor.whoami import am_I_leader
 
 
@@ -108,7 +110,7 @@ def install_plugin_assets(
     install_folder = site_packages_dir / clean_plugin_name_for_package_dir(plugin_name)
 
     merge_plugin_ui_assets(install_folder, dot_pioreactor_dir)
-    merge_additional_config(install_folder, dot_pioreactor_dir)
+    merge_additional_config(install_folder, dot_pioreactor_dir, is_leader=is_leader)
 
     if is_leader:
         sql_was_applied = apply_additional_sql(install_folder, database_path)
@@ -198,19 +200,72 @@ def remove_tree_files(source_dir: Path, destination_dir: Path) -> None:
             destination_path.unlink(missing_ok=True)
 
 
-def merge_additional_config(install_folder: Path, dot_pioreactor_dir: Path) -> None:
+def merge_additional_config(install_folder: Path, dot_pioreactor_dir: Path, *, is_leader: bool) -> None:
+    """Merge unit runtime config locally and dotted UI config into the leader's shared config."""
     additional_config_path = install_folder / "additional_config.ini"
 
     if not additional_config_path.exists():
         return
 
+    additional_config = ConfigParserMod()
+    additional_config.read(additional_config_path)
+
     unit_config_path = dot_pioreactor_dir / "unit_config.ini"
-    config = ConfigParserMod()
-    config.read(unit_config_path)
-    config.read(additional_config_path)
+    unit_config = ConfigParserMod()
+    unit_config.read(unit_config_path)
+
+    # Dotted ui.* sections are leader-owned UI state and must never become unit overrides.
+    for section in additional_config.sections():
+        if section.startswith("ui."):
+            continue
+
+        if not unit_config.has_section(section):
+            unit_config.add_section(section)
+
+        for option, value in additional_config.items(section, raw=True):
+            unit_config.set(section, option, value)
 
     with unit_config_path.open("w", encoding="utf-8") as file:
-        config.write(file)
+        unit_config.write(file)
+
+    if not is_leader:
+        return
+
+    shared_config_path = dot_pioreactor_dir / "config.ini"
+    shared_config_text = shared_config_path.read_text(encoding="utf-8")
+    original_shared_config_text = shared_config_text
+    shared_config = ConfigParserMod()
+    shared_config.read_string(shared_config_text)
+
+    for section in additional_config.sections():
+        if not section.startswith("ui."):
+            continue
+
+        if not shared_config.has_section(section):
+            shared_config.add_section(section)
+
+        for option, value in additional_config.items(section, raw=True):
+            if shared_config.has_option(section, option):
+                continue
+
+            shared_config_text = replace_or_append_config_entry(shared_config_text, section, option, value)
+            shared_config.set(section, option, value)
+
+    if shared_config_text == original_shared_config_text:
+        return
+
+    existing_mode = shared_config_path.stat().st_mode & 0o777
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=shared_config_path.parent,
+        delete=False,
+    ) as temporary_file:
+        temporary_file.write(shared_config_text)
+        os.fchmod(temporary_file.fileno(), existing_mode)
+        temporary_path = Path(temporary_file.name)
+
+    temporary_path.replace(shared_config_path)
 
 
 def apply_additional_sql(install_folder: Path, database_path: Path) -> bool:

@@ -47,22 +47,26 @@ DISALLOWED_JOB_NAMES = {
     "assignment",
 }
 
+SETTABLE_PUBLISHED_SETTING_DATATYPES = frozenset({"string", "float", "integer", "boolean", "json"})
+
 
 def cast_bytes_to_type(value: bytes, type_: str) -> t.Any:
-    try:
-        if type_ == "string":
-            return value.decode()
-        elif type_ == "float":
-            return float(value)
-        elif type_ == "integer":
-            return int(value)
-        elif type_ == "boolean":
-            return value.decode().lower() in ("true", "1", "y", "on", "yes", "t")
-        elif type_ == "json":
-            return loads(value)
-        raise TypeError(f"{type_} not found.")
-    except Exception as e:
-        raise e
+    if type_ == "string":
+        return value.decode()
+    elif type_ == "float":
+        return float(value)
+    elif type_ == "integer":
+        return int(value)
+    elif type_ == "boolean":
+        decoded_value = value.decode().lower()
+        if decoded_value in ("true", "1", "y", "on", "yes", "t"):
+            return True
+        elif decoded_value in ("false", "0", "n", "off", "no", "f"):
+            return False
+        raise ValueError(f"Unable to cast {value!r} to boolean.")
+    elif type_ == "json":
+        return loads(value)
+    raise TypeError(f"{type_} not found.")
 
 
 def format_with_optional_units(value: pt.PublishableSettingDataType, units: str | None) -> str:
@@ -656,6 +660,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     f"Missing necessary property in setting `{setting}`. All settings require at least {necessary_properties}"
                 )
 
+            if properties["settable"] and properties["datatype"] not in SETTABLE_PUBLISHED_SETTING_DATATYPES:
+                raise ValueError(
+                    f"Settable setting `{setting}` has unsupported datatype `{properties['datatype']}`."
+                )
+
             # correct syntax in setting name?
             if not all(ss.isalnum() for ss in setting.split("_")):
                 # only alphanumeric separated by _ is allowed.
@@ -975,7 +984,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
             return
 
         previous_value = copy(getattr(self, attr))
-        new_value = cast_bytes_to_type(message.payload, self.published_settings[attr]["datatype"])
+        datatype = self.published_settings[attr]["datatype"]
+        try:
+            new_value = cast_bytes_to_type(message.payload, datatype)
+        except (TypeError, ValueError):
+            self.logger.warning(
+                f"Unable to set `{attr}` in {self.job_name}. Payload is not valid for datatype `{datatype}`."
+            )
+            return
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
         # for example, see Stirring.set_target_rpm, and `set_state` here

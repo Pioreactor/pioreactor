@@ -19,6 +19,7 @@ import click
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
+from pioreactor.config import replace_or_append_config_entry
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -644,46 +645,6 @@ def _get_config_value_from_file(config_path: Path, section_name: str, parameter_
     return config.get(section_name, parameter_name)
 
 
-def _replace_or_append_config_entry(
-    config_text: str, section_name: str, parameter_name: str, value: str
-) -> str:
-    newline = "\r\n" if "\r\n" in config_text else "\n"
-    lines = config_text.splitlines()
-    section_header = f"[{section_name}]"
-    section_start: int | None = None
-    section_end = len(lines)
-    parameter_pattern = re.compile(rf"^(\s*){re.escape(parameter_name)}(\s*[:=]).*$")
-
-    for index, line in enumerate(lines):
-        if line.strip() == section_header:
-            section_start = index
-            break
-
-    if section_start is not None:
-        for index in range(section_start + 1, len(lines)):
-            stripped_line = lines[index].strip()
-            if stripped_line.startswith("[") and stripped_line.endswith("]"):
-                section_end = index
-                break
-
-        for index in range(section_start + 1, section_end):
-            match = parameter_pattern.match(lines[index])
-            if match is not None:
-                indentation, delimiter = match.groups()
-                lines[index] = f"{indentation}{parameter_name}{delimiter}{value}"
-                return newline.join(lines) + newline
-
-        lines.insert(section_end, f"{parameter_name}={value}")
-        return newline.join(lines) + newline
-
-    new_lines = list(lines)
-    if new_lines and new_lines[-1].strip() != "":
-        new_lines.append("")
-    new_lines.append(section_header)
-    new_lines.append(f"{parameter_name}={value}")
-    return newline.join(new_lines) + newline
-
-
 def _refresh_config_caches() -> None:
     import pioreactor.config as config_module
     from pioreactor import whoami
@@ -701,7 +662,7 @@ def _set_config_value_in_file(config_path: Path, section_name: str, parameter_na
 
     existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
     current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
-    updated_text = _replace_or_append_config_entry(current_text, section_name, parameter_name, value)
+    updated_text = replace_or_append_config_entry(current_text, section_name, parameter_name, value)
 
     parser = ConfigParserMod(strict=False)
     parser.read_string(updated_text)

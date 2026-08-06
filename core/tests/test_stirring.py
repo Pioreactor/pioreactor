@@ -11,12 +11,14 @@ from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
+from pioreactor.exc import JobPresentError
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as job_state
 from pioreactor.structs import SimpleStirringCalibration
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.mock import MockRpmCalculator as RpmCalculator
 from pioreactor.utils.timing import catchtime
@@ -53,6 +55,68 @@ def test_stirring_runs() -> None:
     st = start_stirring(target_rpm=500)
     assert st.duty_cycle > 0
     st.clean_up()
+
+
+def test_duplicate_start_does_not_setup_or_clean_up_rpm_calculator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exp = "test_duplicate_start_does_not_setup_or_clean_up_rpm_calculator"
+
+    class TrackingRpmCalculator(RpmCalculator):
+        setup_calls = 0
+        clean_up_calls = 0
+
+        def setup(self) -> None:
+            type(self).setup_calls += 1
+
+        def clean_up(self) -> None:
+            type(self).clean_up_calls += 1
+
+    monkeypatch.setattr(stirring_mod, "MockRpmCalculator", TrackingRpmCalculator)
+
+    with start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=False):
+        with pytest.raises(JobPresentError):
+            start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=True)
+
+    assert TrackingRpmCalculator.setup_calls == 0
+    assert TrackingRpmCalculator.clean_up_calls == 0
+
+
+def test_rpm_calculator_is_cleaned_up_when_setup_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    exp = "test_rpm_calculator_is_cleaned_up_when_setup_fails"
+
+    class FailingRpmCalculator(RpmCalculator):
+        clean_up_calls = 0
+
+        def setup(self) -> None:
+            raise RuntimeError("rpm setup failed")
+
+        def clean_up(self) -> None:
+            type(self).clean_up_calls += 1
+
+    monkeypatch.setattr(stirring_mod, "MockRpmCalculator", FailingRpmCalculator)
+
+    with pytest.raises(RuntimeError, match="rpm setup failed"):
+        start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=True)
+
+    assert FailingRpmCalculator.clean_up_calls == 1
+    assert not is_pio_job_running("stirring")
+
+
+def test_direct_stirrer_construction_does_not_setup_rpm_calculator() -> None:
+    exp = "test_direct_stirrer_construction_does_not_setup_rpm_calculator"
+
+    class TrackingRpmCalculator(RpmCalculator):
+        setup_calls = 0
+
+        def setup(self) -> None:
+            type(self).setup_calls += 1
+
+    rpm_calculator = TrackingRpmCalculator()
+    rpm_calculator.setup()
+
+    with Stirrer(500, unit, exp, rpm_calculator=rpm_calculator):
+        assert TrackingRpmCalculator.setup_calls == 1
 
 
 def test_initial_startup_publishes_kick_to_pwm(monkeypatch) -> None:

@@ -31,6 +31,13 @@ class PluginPackageEnvironment:
         self.database.touch()
         (self.dot_pioreactor / "plugins" / "ui").mkdir(parents=True)
         (self.dot_pioreactor / "plugins" / "exportable_datasets").mkdir(parents=True)
+        (self.dot_pioreactor / "config.ini").write_text(
+            """# Preserve shared config comments.
+[ui.overview.charts]
+operator_hidden_chart=0
+""",
+            encoding="utf-8",
+        )
         (self.dot_pioreactor / "unit_config.ini").write_text("", encoding="utf-8")
         self.install_folder.mkdir()
 
@@ -157,6 +164,81 @@ def test_python_plugin_package_environment_exercises_full_leader_merge_contract(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'demo_plugin_table'"
         ).fetchone()
     assert table_exists == (1,)
+
+
+def test_plugin_config_routes_ui_sections_to_shared_config_on_leader(
+    plugin_package_environment: PluginPackageEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_package_environment.create_plugin_payload()
+    (plugin_package_environment.install_folder / "additional_config.ini").write_text(
+        "[demo]\n"
+        "enabled=1\n"
+        "\n"
+        "[ui.overview.charts]\n"
+        "operator_hidden_chart=1\n"
+        "demo_chart=1\n"
+        "\n"
+        "[ui.demo]\n"
+        "CamelCaseUiKey=ok\n",
+        encoding="utf-8",
+    )
+
+    result = plugin_package_environment.run_python_install("file:///tmp/demo.whl", monkeypatch)
+
+    assert result.returncode == 0, result.stderr
+    shared_config_text = (plugin_package_environment.dot_pioreactor / "config.ini").read_text(
+        encoding="utf-8"
+    )
+    assert "# Preserve shared config comments." in shared_config_text
+
+    shared_config = ConfigParserMod()
+    shared_config.read(plugin_package_environment.dot_pioreactor / "config.ini")
+    assert shared_config.get("ui.overview.charts", "operator_hidden_chart") == "0"
+    assert shared_config.get("ui.overview.charts", "demo_chart") == "1"
+    assert shared_config.get("ui.demo", "CamelCaseUiKey") == "ok"
+
+    unit_config = ConfigParserMod()
+    unit_config.read(plugin_package_environment.dot_pioreactor / "unit_config.ini")
+    assert unit_config.get("demo", "enabled") == "1"
+    assert not unit_config.has_section("ui.overview.charts")
+    assert not unit_config.has_section("ui.demo")
+
+
+def test_plugin_config_ignores_ui_sections_on_worker(
+    plugin_package_environment: PluginPackageEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_package_environment.create_plugin_payload()
+    (plugin_package_environment.install_folder / "additional_config.ini").write_text(
+        """[demo]
+enabled=1
+
+[ui.overview.charts]
+demo_chart=1
+""",
+        encoding="utf-8",
+    )
+    plugin_package_environment.patch_python_subprocess(monkeypatch)
+    original_shared_config = (plugin_package_environment.dot_pioreactor / "config.ini").read_text(
+        encoding="utf-8"
+    )
+
+    package_operations.install_plugin_assets(
+        plugin_package_environment.plugin_name,
+        dot_pioreactor_dir=plugin_package_environment.dot_pioreactor,
+        site_packages_dir=plugin_package_environment.site_packages,
+        database_path=plugin_package_environment.database,
+        is_leader=False,
+    )
+
+    assert (plugin_package_environment.dot_pioreactor / "config.ini").read_text(
+        encoding="utf-8"
+    ) == original_shared_config
+    unit_config = ConfigParserMod()
+    unit_config.read(plugin_package_environment.dot_pioreactor / "unit_config.ini")
+    assert unit_config.get("demo", "enabled") == "1"
+    assert not unit_config.has_section("ui.overview.charts")
 
 
 def test_python_plugin_uninstall_environment_exercises_full_leader_cleanup_contract(

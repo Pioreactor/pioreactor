@@ -221,10 +221,12 @@ export function CalibrateDialog({
 
   const isGrowRateJobRunning = growthRateJobState === "ready";
   const hasActiveODCalibration = Object.keys(activeCalibrations || {}).some((device) => device.startsWith("od"));
+  const hasActiveFusedODEstimator = activeEstimators?.od_fused?.is_active === true;
+  const hasIncompatibleODArtifact = hasActiveODCalibration || hasActiveFusedODEstimator;
   const blankODButton = createUserButtonsBasedOnState(
     odBlankJobState,
     "od_blank",
-    isGrowRateJobRunning || hasActiveODCalibration,
+    isGrowRateJobRunning || hasIncompatibleODArtifact,
   );
   const activeEstimatorEntries = Object.entries(activeEstimators || {}).filter(([, estimator]) => estimator?.is_active);
 
@@ -269,15 +271,15 @@ export function CalibrateDialog({
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
               For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
-              media&apos;s <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>. If your Pioreactor has an active OD calibration, this isn&apos;t required.
+              media&apos;s <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>. Per-experiment blanking is incompatible with active OD calibrations and fused estimators.
             </Typography>
             <Typography variant="body2" component="p" sx={{ m: "20px 0px" }}>
               Recorded optical densities of blank vial: <code>{odBlankReading ? Object.entries(JSON.parse(odBlankReading)).map(([k, v]) => `${k}:${v.toFixed(5)}`).join(", ") : "—"}</code>
             </Typography>
 
             <Box sx={{ display: "flex" }}>
-              {hasActiveODCalibration ? (
-                <UnderlineSpan title="If an active OD calibration is present, this isn't used.">
+              {hasIncompatibleODArtifact ? (
+                <UnderlineSpan title="Blanking is incompatible with active OD calibrations and fused estimators.">
                   {blankODButton}
                 </UnderlineSpan>
               ) : (
