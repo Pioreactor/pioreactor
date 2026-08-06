@@ -609,7 +609,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
       </Card>
     </Grid>
     <Grid size={12}>
-      <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</Box>
+      <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/managing-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</Box>
     </Grid>
   </Grid>
   );

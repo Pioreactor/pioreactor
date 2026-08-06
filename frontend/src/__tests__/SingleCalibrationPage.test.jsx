@@ -101,6 +101,10 @@ describe("SingleCalibrationPage task-backed mutations", () => {
     renderSingleCalibrationPage();
 
     await screen.findByText("Calibration: calibration-a");
+    expect(screen.getByRole("link", { name: "calibrations" })).toHaveAttribute(
+      "href",
+      "https://docs.pioreactor.com/user-guide/managing-calibrations",
+    );
     expect(
       screen.getAllByRole("separator").some(
         (separator) => separator.getAttribute("aria-orientation") !== "vertical",

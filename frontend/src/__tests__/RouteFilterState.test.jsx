@@ -119,6 +119,10 @@ describe("route-backed collection filters", () => {
     renderCollectionPage(Calibrations, "/calibrations", "Calibrations");
 
     expect(await screen.findByText("calibration-unit-1-od")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "calibrations" })).toHaveAttribute(
+      "href",
+      "https://docs.pioreactor.com/user-guide/managing-calibrations",
+    );
 
     await user.click(screen.getByRole("button", { name: "Go to next route" }));
     expect(await screen.findByText("calibration-unit-2-stirring")).toBeInTheDocument();

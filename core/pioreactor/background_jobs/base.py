@@ -541,13 +541,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if new_state_enum == current_state:
             return
 
-        if hasattr(self, f"on_{current_state}_to_{new_state_enum}"):
-            try:
-                getattr(self, f"on_{current_state}_to_{new_state_enum}")()
-            except Exception as e:
-                self.logger.debug(f"Error in on_{current_state}_to_{new_state_enum}")
-                self.logger.debug(e, exc_info=True)
-                self.logger.error(e)
+        transition_hook_name = f"on_{current_state}_to_{new_state_enum}"
+        try:
+            getattr(self, transition_hook_name)()
+        except Exception as e:
+            self.logger.debug(f"Error in {transition_hook_name}")
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(e)
 
         getattr(self, new_state_enum)()
 

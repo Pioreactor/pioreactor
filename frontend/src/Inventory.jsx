@@ -569,7 +569,7 @@ function WorkerCard({worker, config, leaderVersion}) {
       return "Offline"
     }
     else if ((state === "disconnected") && !isActive){
-      return "Offline, change inventory status in config.ini"
+      return "Inactive, change status in Inventory"
     }
     else if (state === "lost"){
       return "Lost, something went wrong. Try manually power-cycling the unit."
@@ -1156,7 +1156,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: 'Export an archive containing this Pioreactor\'s system data (ex: configuration and calibration files) so you can back up or migrate settings.',
+        description: 'Export an archive containing this Pioreactor\'s DOT_PIOREACTOR data, including configuration, calibration, estimator, plugin, and other unit data, so you can back up or migrate it.',
         title: `Export system archive from ${unit}?`,
         confirmationText: "Export",
         confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
@@ -1238,7 +1238,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: <><p>Import a previously exported system archive and overwrite this Pioreactor's system data (configuration, calibrations, plugins, etc). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing system data on {unit}.</Alert></>,
+        description: <><p>Import a previously exported system archive and overwrite this Pioreactor's DOT_PIOREACTOR data (including configuration, calibration, estimator, plugin, and other unit data). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing DOT_PIOREACTOR data on {unit}.</Alert></>,
         title: `Import a system archive into ${unit}?`,
         confirmationText: "Select system archive file",
         confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
@@ -1261,7 +1261,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
 
   const handleRemove = () => {
     confirm({
-      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory. No experiment data is removed, and calibration data still exists on the worker.',
+      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove its inventory record and shared configuration. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},

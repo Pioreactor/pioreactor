@@ -7,8 +7,8 @@ global.TextDecoder = TextDecoder;
 
 jest.mock("../providers/MQTTContext", () => ({
   useMQTT: () => ({
-    client: null,
-    subscribeToTopic: jest.fn(),
+    client: {},
+    subscribeToTopic: mockSubscribeToTopic,
     unsubscribeFromTopic: jest.fn(),
   }),
 }));
@@ -29,6 +29,8 @@ jest.mock("react-router", () => ({
 }));
 
 const { AddNewPioreactor, Blink, WorkerCard } = require("../Inventory");
+
+const mockSubscribeToTopic = jest.fn();
 
 const modelsResponse = {
   models: [
@@ -195,6 +197,7 @@ describe("AddNewPioreactor", () => {
 describe("WorkerCard", () => {
   beforeEach(() => {
     setupFetchMocks();
+    mockSubscribeToTopic.mockReset();
   });
 
   test("renders backend-provided IPv4 before MQTT data arrives", async () => {
@@ -232,6 +235,47 @@ describe("WorkerCard", () => {
 
     await screen.findByText("No model selected");
     expect(screen.queryByText("Select a Pioreactor model.")).not.toBeInTheDocument();
+  });
+
+  test("distinguishes inactive units from active units that are offline", async () => {
+    mockSubscribeToTopic.mockImplementation((_topic, onMessage) => {
+      onMessage("pioreactor/unit1/$experiment/monitor/$state", "disconnected");
+    });
+
+    render(
+      <WorkerCard
+        worker={{
+          pioreactor_unit: "unit1",
+          is_active: false,
+          model_name: "pioreactor_40ml",
+          model_version: "1.5",
+          ipv4_address: "192.168.1.10",
+        }}
+        config={{ "cluster.topology": { leader_hostname: "leader" } }}
+        leaderVersion={null}
+      />,
+    );
+
+    expect(await screen.findByLabelText("Inactive, change status in Inventory")).toBeInTheDocument();
+
+    mockSubscribeToTopic.mockImplementation((_topic, onMessage) => {
+      onMessage("pioreactor/unit2/$experiment/monitor/$state", "disconnected");
+    });
+    render(
+      <WorkerCard
+        worker={{
+          pioreactor_unit: "unit2",
+          is_active: true,
+          model_name: "pioreactor_40ml",
+          model_version: "1.5",
+          ipv4_address: "192.168.1.11",
+        }}
+        config={{ "cluster.topology": { leader_hostname: "leader" } }}
+        leaderVersion={null}
+      />,
+    );
+
+    expect(await screen.findByLabelText("Offline")).toBeInTheDocument();
   });
 });
 

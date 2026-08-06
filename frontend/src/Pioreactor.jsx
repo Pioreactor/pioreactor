@@ -1695,7 +1695,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       return "Offline"
     }
     else if ((state === "disconnected") && !isActive){
-      return "Offline, change inventory status in config.ini"
+      return "Inactive, change status in Inventory"
     }
     else if (state === "lost"){
       return "Lost, something went wrong. Try manually power-cycling the unit."

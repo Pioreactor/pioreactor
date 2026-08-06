@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import sys
 import time
-import warnings
 from functools import cache
 from typing import TYPE_CHECKING
 
@@ -21,11 +20,6 @@ if TYPE_CHECKING:
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
-
-
-def get_latest_experiment_name() -> "pt.Experiment":
-    warnings.warn("Use whoami.get_assigned_experiment_name(unit) instead", DeprecationWarning, stacklevel=2)
-    return get_assigned_experiment_name(get_unit_name())
 
 
 def get_testing_experiment_name() -> "pt.Experiment":

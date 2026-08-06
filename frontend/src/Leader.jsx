@@ -377,7 +377,7 @@ function DirectoryNavigatorCard({leaderHostname}) {
   const handleImportClick = async () => {
     try {
       await confirm({
-        description: <><p>Import a previously exported system archive and overwrite this Pioreactor's system data (configuration, calibrations, plugins, etc). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing system data on {leaderHostname}.</Alert></>,
+        description: <><p>Import a previously exported system archive and overwrite this Pioreactor's DOT_PIOREACTOR data (including configuration, calibration, estimator, plugin, and other unit data). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing DOT_PIOREACTOR data on {leaderHostname}.</Alert></>,
         title: `Import a system archive into ${leaderHostname}?`,
         confirmationText: "Select system archive file",
         confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
@@ -643,9 +643,6 @@ function LeaderCard({leaderHostname}) {
   const getInicatorLabel = (state) => {
     if ((state === "disconnected") ) {
       return "Offline"
-    }
-    else if ((state === "disconnected")){
-      return "Offline, change inventory status in config.ini"
     }
     else if (state === "lost"){
       return "Lost, something went wrong. Try manually power-cycling the unit."
