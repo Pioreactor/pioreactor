@@ -217,17 +217,9 @@ class Stirrer(BackgroundJobWithDodging):
         duty_cycle: float | None = None,
         target_rpm_during_od_reading: float | None = None,
         target_rpm_outside_od_reading: float | None = None,
-        _setup_rpm_calculator: bool = False,
     ) -> None:
         super(Stirrer, self).__init__(unit=unit, experiment=experiment, enable_dodging_od=enable_dodging_od)
         self.rpm_calculator = rpm_calculator
-
-        # start_stirring owns setup for the calculator it creates. Doing this after
-        # BackgroundJob's duplicate check also puts setup failures inside Stirrer's
-        # constructor-cleanup boundary. Direct Stirrer callers continue to supply an
-        # already-set-up calculator.
-        if _setup_rpm_calculator and self.rpm_calculator is not None:
-            self.rpm_calculator.setup()
 
         if not hardware.is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")
@@ -686,8 +678,10 @@ def start_stirring(
 
     if use_rpm and not is_testing_env():
         rpm_calculator = RpmFromFrequency()
+        rpm_calculator.setup()
     elif use_rpm and is_testing_env():
         rpm_calculator = MockRpmCalculator()  # type: ignore
+        rpm_calculator.setup()
     else:
         rpm_calculator = None
 
@@ -701,7 +695,6 @@ def start_stirring(
         duty_cycle=duty_cycle,
         target_rpm_during_od_reading=target_rpm_during_od_reading,
         target_rpm_outside_od_reading=target_rpm_outside_od_reading,
-        _setup_rpm_calculator=rpm_calculator is not None,
     )
     return stirrer
 
