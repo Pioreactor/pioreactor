@@ -2,6 +2,7 @@
 
 #### Enhancements
 
+ - bump MCP support to 2026-07-28.
  - Adding experimental support for cameras. More docs coming soon.
 ```
 [camera]
