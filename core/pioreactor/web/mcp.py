@@ -19,7 +19,7 @@ from flask import request
 from flask import Response
 from flask import send_file
 from mcp_utils.core import MCPServer
-from mcp_utils.queue import SQLiteResponseQueue
+from mcp_utils.schema import MCPErrorResponse
 from pioreactor.config import get_leader_hostname
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import delete_from_leader as _delete_from_leader
@@ -61,7 +61,7 @@ def wrap_result_as_dict(func: Callable[..., object]) -> Callable[..., dict[str, 
     return wrapper
 
 
-mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=SQLiteResponseQueue(), instructions=INSTRUCTIONS)
+mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, instructions=INSTRUCTIONS)
 
 
 def _normalize_options(
@@ -591,13 +591,20 @@ mcp_bp = Blueprint("mcp", __name__, url_prefix="/mcp")
 # Current invariant: the MCP root accepts both /mcp and /mcp/ without redirecting.
 @mcp_bp.post("/", strict_slashes=False)
 def handle_mcp() -> Response:
+    origin = request.headers.get("Origin")
+    if origin is not None and origin.rstrip("/") != request.host_url.rstrip("/"):
+        return Response(status=403)
+
     payload = request.get_json(force=True, silent=False)
 
-    result = mcp.handle_message(payload)
-    if result:
-        return jsonify(msgspec.to_builtins(result))
-    else:
+    result = mcp.handle_message(payload, http_headers=dict(request.headers))
+    if result is None:
         return Response(status=202)
+
+    response = jsonify(msgspec.to_builtins(result))
+    if isinstance(result, MCPErrorResponse):
+        response.status_code = result.http_status_code
+    return response
 
 
 @mcp_bp.get("/artifacts/exports/<filename>")

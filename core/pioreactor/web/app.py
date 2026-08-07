@@ -124,6 +124,10 @@ def create_app() -> Flask:
 
     @app.after_request
     def ensure_error_payload(response: t.Any) -> t.Any:
+        if request.endpoint == "mcp.handle_mcp":
+            # MCP errors must retain their JSON-RPC error object.
+            return response
+
         if response.status_code < 400:
             return response
 

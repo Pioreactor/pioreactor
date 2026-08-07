@@ -40,12 +40,111 @@ def test_mcp_blueprint_registration(app) -> None:
 
 @pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
 def test_mcp_endpoint_accepts_optional_trailing_slash(client, monkeypatch, path: str) -> None:
-    monkeypatch.setattr("pioreactor.web.mcp.mcp.handle_message", lambda payload: None)
+    monkeypatch.setattr("pioreactor.web.mcp.mcp.handle_message", lambda payload, **kwargs: None)
 
     response = client.post(path, json={})
 
     assert response.status_code == 202
     assert "Location" not in response.headers
+
+
+def test_mcp_endpoint_supports_modern_discovery(client) -> None:
+    response = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": "discover-1",
+            "method": "server/discover",
+            "params": {
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                }
+            },
+        },
+        headers={
+            "Origin": "http://localhost",
+            "MCP-Protocol-Version": "2026-07-28",
+            "Mcp-Method": "server/discover",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json["result"]["supportedVersions"] == ["2026-07-28"]
+    assert response.json["result"]["resultType"] == "complete"
+    assert response.json["result"]["capabilities"]["tools"] == {"listChanged": False}
+    assert "Mcp-Session-Id" not in response.headers
+
+
+def test_mcp_endpoint_rejects_missing_client_capabilities(client) -> None:
+    response = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": "tools-1",
+            "method": "tools/list",
+            "params": {
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                }
+            },
+        },
+        headers={
+            "MCP-Protocol-Version": "2026-07-28",
+            "Mcp-Method": "tools/list",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json["error"]["code"] == -32602
+
+
+def test_mcp_endpoint_returns_not_found_for_unknown_method(client) -> None:
+    response = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": "unknown-1",
+            "method": "unknown/method",
+            "params": {
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                }
+            },
+        },
+        headers={
+            "MCP-Protocol-Version": "2026-07-28",
+            "Mcp-Method": "unknown/method",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json["error"]["code"] == -32601
+
+
+def test_mcp_endpoint_rejects_cross_origin_requests(client) -> None:
+    response = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": "discover-1",
+            "method": "server/discover",
+            "params": {
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                }
+            },
+        },
+        headers={
+            "Origin": "https://example.invalid",
+            "MCP-Protocol-Version": "2026-07-28",
+            "Mcp-Method": "server/discover",
+        },
+    )
+
+    assert response.status_code == 403
 
 
 def test_get_experiments_invokes_correct_leader_endpoint() -> None:
