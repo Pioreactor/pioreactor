@@ -18,7 +18,7 @@ def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
             logger.notice(f"Skipping LEADER_ONLY plugin {name_of_plugin} on worker.")
             return
 
-        install_plugin_assets(name_of_plugin)
+        install_plugin_assets(name_of_plugin, logger)
         logger.notice(f"Successfully installed plugin {name_of_plugin}.")
     except Exception as exc:
         logger.error(f"Failed to install plugin {name_of_plugin}.")

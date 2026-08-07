@@ -9,12 +9,17 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from importlib import metadata
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_config
 from pioreactor.config import replace_or_append_config_entry
 from pioreactor.whoami import am_I_leader
+
+if TYPE_CHECKING:
+    from pioreactor.logging import CustomLogger
 
 
 def clean_plugin_name_for_pip(plugin_name: str) -> str:
@@ -94,8 +99,29 @@ def package_is_leader_only(plugin_name: str) -> bool:
             return "LEADER_ONLY" in wheel.namelist()
 
 
+def get_plugin_install_folder(plugin_name: str, site_packages_dir: Path) -> Path:
+    plugin_module_roots = {
+        entry_point.module.partition(".")[0]
+        for entry_point in metadata.distribution(plugin_name).entry_points
+        if entry_point.group == "pioreactor.plugins"
+    }
+
+    if len(plugin_module_roots) != 1:
+        raise ValueError(
+            f"Plugin {plugin_name} must declare exactly one Python package in its "
+            "pioreactor.plugins entry points."
+        )
+
+    install_folder = site_packages_dir / plugin_module_roots.pop()
+    if not install_folder.is_dir():
+        raise FileNotFoundError(f"Plugin package directory does not exist: {install_folder}")
+
+    return install_folder
+
+
 def install_plugin_assets(
     plugin_name: str,
+    logger: CustomLogger,
     *,
     dot_pioreactor_dir: Path | None = None,
     site_packages_dir: Path | None = None,
@@ -107,7 +133,8 @@ def install_plugin_assets(
     database_path = database_path or get_pioreactor_database_path()
     is_leader = am_I_leader() if is_leader is None else is_leader
 
-    install_folder = site_packages_dir / clean_plugin_name_for_package_dir(plugin_name)
+    install_folder = get_plugin_install_folder(plugin_name, site_packages_dir)
+    logger.debug(f"Resolved plugin {plugin_name} package directory to {install_folder}.")
 
     merge_plugin_ui_assets(install_folder, dot_pioreactor_dir)
     merge_additional_config(install_folder, dot_pioreactor_dir, is_leader=is_leader)
@@ -119,12 +146,13 @@ def install_plugin_assets(
         if sql_was_applied:
             restart_mqtt_to_db_streaming()
 
-    run_post_install_hook(install_folder)
+    run_post_install_hook(install_folder, logger)
     ensure_dot_pioreactor_tree_group_is_www_data(dot_pioreactor_dir)
 
 
 def uninstall_plugin_assets(
     plugin_name: str,
+    logger: CustomLogger,
     *,
     dot_pioreactor_dir: Path | None = None,
     site_packages_dir: Path | None = None,
@@ -134,9 +162,10 @@ def uninstall_plugin_assets(
     site_packages_dir = site_packages_dir or get_site_packages_dir()
     is_leader = am_I_leader() if is_leader is None else is_leader
 
-    install_folder = site_packages_dir / clean_plugin_name_for_package_dir(plugin_name)
+    install_folder = get_plugin_install_folder(plugin_name, site_packages_dir)
+    logger.debug(f"Resolved plugin {plugin_name} package directory to {install_folder}.")
 
-    run_pre_uninstall_hook(install_folder)
+    run_pre_uninstall_hook(install_folder, logger)
     remove_plugin_ui_assets(install_folder, dot_pioreactor_dir)
 
     if is_leader:
@@ -288,18 +317,26 @@ def restart_mqtt_to_db_streaming() -> None:
     )
 
 
-def run_post_install_hook(install_folder: Path) -> None:
+def run_post_install_hook(install_folder: Path, logger: CustomLogger) -> None:
     post_install_path = install_folder / "post_install.sh"
 
     if post_install_path.exists():
+        logger.debug(f"Running plugin post-install hook {post_install_path}.")
         subprocess.run(["bash", str(post_install_path)], check=True)
+        logger.debug(f"Completed plugin post-install hook {post_install_path}.")
+    else:
+        logger.debug(f"No plugin post-install hook found at {post_install_path}.")
 
 
-def run_pre_uninstall_hook(install_folder: Path) -> None:
+def run_pre_uninstall_hook(install_folder: Path, logger: CustomLogger) -> None:
     pre_uninstall_path = install_folder / "pre_uninstall.sh"
 
     if pre_uninstall_path.exists():
+        logger.debug(f"Running plugin pre-uninstall hook {pre_uninstall_path}.")
         subprocess.run(["sudo", "bash", str(pre_uninstall_path)], check=False)
+        logger.debug(f"Completed plugin pre-uninstall hook {pre_uninstall_path}.")
+    else:
+        logger.debug(f"No plugin pre-uninstall hook found at {pre_uninstall_path}.")
 
 
 def ensure_dot_pioreactor_tree_group_is_www_data(dot_pioreactor_dir: Path) -> None:

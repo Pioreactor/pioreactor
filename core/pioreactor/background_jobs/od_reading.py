@@ -944,10 +944,18 @@ class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
         blank_corrected_ods: dict[pt.PdChannel, structs.ODReading] = {}
         for channel, od_reading in od_readings.ods.items():
             blank_value = self.od_blank.get(channel, 0.0)
+            blank_corrected_od = od_reading.od - blank_value
+            if blank_corrected_od < 0:
+                raise ValueError(
+                    f"OD signal on channel {channel} is below its stored blank "
+                    f"({od_reading.od:.3g} < {blank_value:.3g}). No OD reading was published. "
+                    "Clear or recreate this experiment's OD blank if this continues."
+                )
+
             blank_corrected_ods[channel] = structs.RawODReading(
                 timestamp=od_reading.timestamp,
                 angle=od_reading.angle,
-                od=od_reading.od - blank_value,
+                od=blank_corrected_od,
                 channel=od_reading.channel,
                 ir_led_intensity=od_reading.ir_led_intensity,
             )

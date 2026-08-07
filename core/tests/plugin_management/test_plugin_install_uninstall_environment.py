@@ -4,7 +4,10 @@ from __future__ import annotations
 import sqlite3
 import subprocess
 import sys
+from importlib.metadata import EntryPoint
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 from pioreactor.config import ConfigParserMod
@@ -20,6 +23,7 @@ class PluginPackageEnvironment:
         self.site_packages = tmp_path / "site-packages"
         self.database = tmp_path / "pioreactor.sqlite"
         self.command_log = tmp_path / "commands.log"
+        self.logger = MagicMock()
 
         self.plugin_name = "pioreactor-demo-plugin"
         self.package_dir_name = "pioreactor_demo_plugin"
@@ -80,6 +84,7 @@ operator_hidden_chart=0
             package_operations.install_plugin_package(self.plugin_name, source)
             package_operations.install_plugin_assets(
                 self.plugin_name,
+                self.logger,
                 dot_pioreactor_dir=self.dot_pioreactor,
                 site_packages_dir=self.site_packages,
                 database_path=self.database,
@@ -95,6 +100,7 @@ operator_hidden_chart=0
         try:
             package_operations.uninstall_plugin_assets(
                 self.plugin_name,
+                self.logger,
                 dot_pioreactor_dir=self.dot_pioreactor,
                 site_packages_dir=self.site_packages,
                 is_leader=True,
@@ -106,6 +112,20 @@ operator_hidden_chart=0
 
     def patch_python_subprocess(self, monkeypatch: pytest.MonkeyPatch) -> None:
         real_subprocess_run = subprocess.run
+
+        monkeypatch.setattr(
+            package_operations.metadata,
+            "distribution",
+            lambda name: SimpleNamespace(
+                entry_points=(
+                    EntryPoint(
+                        name=self.package_dir_name,
+                        value=self.package_dir_name,
+                        group="pioreactor.plugins",
+                    ),
+                )
+            ),
+        )
 
         def fake_subprocess_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
             if args[:6] == ["sudo", "-u", "pioreactor", sys.executable, "-m", "pip"]:
@@ -164,6 +184,35 @@ def test_python_plugin_package_environment_exercises_full_leader_merge_contract(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'demo_plugin_table'"
         ).fetchone()
     assert table_exists == (1,)
+
+
+def test_plugin_assets_use_entry_point_module_when_distribution_name_differs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    environment = PluginPackageEnvironment(tmp_path)
+    environment.package_dir_name = "oled_status_display"
+    environment.install_folder = environment.site_packages / environment.package_dir_name
+    environment.prepare()
+    environment.create_plugin_payload()
+    result = environment.run_python_install("file:///tmp/demo.whl", monkeypatch)
+
+    assert result.returncode == 0, result.stderr
+    assert_plugin_install_contract(environment)
+    environment.logger.debug.assert_any_call(
+        f"Resolved plugin {environment.plugin_name} package directory to {environment.install_folder}."
+    )
+    environment.logger.debug.assert_any_call(
+        f"Running plugin post-install hook {environment.install_folder / 'post_install.sh'}."
+    )
+    environment.logger.debug.assert_any_call(
+        f"Completed plugin post-install hook {environment.install_folder / 'post_install.sh'}."
+    )
+
+    uninstall_result = environment.run_python_uninstall(monkeypatch)
+
+    assert uninstall_result.returncode == 0, uninstall_result.stderr
+    assert_plugin_uninstall_contract(environment)
 
 
 def test_plugin_config_routes_ui_sections_to_shared_config_on_leader(
@@ -226,6 +275,7 @@ demo_chart=1
 
     package_operations.install_plugin_assets(
         plugin_package_environment.plugin_name,
+        plugin_package_environment.logger,
         dot_pioreactor_dir=plugin_package_environment.dot_pioreactor,
         site_packages_dir=plugin_package_environment.site_packages,
         database_path=plugin_package_environment.database,
@@ -298,7 +348,7 @@ def test_install_plugin_skips_assets_when_leader_only_package_is_not_installed(
     monkeypatch.setattr(
         install_plugin_module,
         "install_plugin_assets",
-        lambda name: calls.append(f"assets:{name}"),
+        lambda name, logger: calls.append(f"assets:{name}"),
     )
 
     install_plugin_module.install_plugin("pioreactor-leader-only")
@@ -310,7 +360,7 @@ def test_uninstall_plugin_warns_when_package_is_not_installed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(uninstall_plugin_module, "discover_plugins_in_local_folder", lambda: [])
-    monkeypatch.setattr(uninstall_plugin_module, "uninstall_plugin_assets", lambda name: None)
+    monkeypatch.setattr(uninstall_plugin_module, "uninstall_plugin_assets", lambda name, logger: None)
     monkeypatch.setattr(
         uninstall_plugin_module,
         "uninstall_plugin_package",

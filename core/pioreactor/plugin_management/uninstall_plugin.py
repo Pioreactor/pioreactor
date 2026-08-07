@@ -21,7 +21,7 @@ def uninstall_plugin(name_of_plugin: str) -> None:
             return
 
     try:
-        uninstall_plugin_assets(name_of_plugin)
+        uninstall_plugin_assets(name_of_plugin, logger)
         result = uninstall_plugin_package(name_of_plugin)
     except Exception as exc:
         logger.error(f"Failed to uninstall plugin {name_of_plugin}.")

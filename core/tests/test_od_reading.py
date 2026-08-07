@@ -1182,6 +1182,33 @@ def test_cached_blank_transformer_subtracts_blank_from_od_readings() -> None:
     assert blank_corrected.ods["2"].od == pytest.approx(0.41)
 
 
+def test_cached_blank_transformer_rejects_od_reading_below_blank() -> None:
+    timestamp = current_utc_datetime()
+    od_readings = structs.ODReadings(
+        timestamp=timestamp,
+        ods={
+            "1": structs.RawODReading(
+                timestamp=timestamp,
+                angle="90",
+                od=0.12,
+                channel="1",
+                ir_led_intensity=80.0,
+            ),
+        },
+    )
+
+    blank_transformer = CachedBlankTransformer()
+    blank_transformer.od_blank = {"1": 0.13}
+
+    with pytest.raises(ValueError) as error:
+        blank_transformer(od_readings)
+
+    assert str(error.value) == (
+        "OD signal on channel 1 is below its stored blank (0.12 < 0.13). "
+        "No OD reading was published. Clear or recreate this experiment's OD blank if this continues."
+    )
+
+
 def test_calibration_not_present() -> None:
     with local_persistent_storage("active_calibrations") as c:
         c.pop("od90")

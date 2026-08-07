@@ -24,6 +24,7 @@ device_path=/dev/video0
  - Prevented the Blanks UI from starting a per-experiment OD blank while an OD calibration or fused OD estimator is active, avoiding an incompatible setup that blocks OD reading. Existing blanks can still be cleared.
  - Fixed duplicate stirring starts so they report that stirring is already running before trying to claim the Hall-sensor GPIO, avoiding misleading hardware errors.
  - Fixed packaged plugins so `ui.*` settings, such as Overview chart visibility, are installed into the leader's shared configuration instead of a Pioreactor's `unit_config.ini`. Existing misplaced settings are migrated automatically during upgrade without overriding operator choices.
+ - Fixed packaged plugins with different distribution and Python package names so their bundled install hooks, configuration, UI assets, and exportable datasets are discovered and applied correctly, with debug logging for hook execution.
 
 
 ### 26.7.2
