@@ -49,7 +49,31 @@ def test_importing_tasks_does_not_import_web_app() -> None:
     assert result.stdout.strip() == "False"
 
 
-def test_periodic_camera_capture_noops_when_camera_is_unavailable(
+def test_periodic_camera_capture_attempts_capture_when_detection_is_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable_camera(unit: str, *, experiment: str | None, capture_reason: str) -> CameraStillMetadata:
+        raise tasks.CameraUnavailableError("camera unavailable")
+
+    _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
+    monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
+    monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(
+        tasks,
+        "get_camera_status",
+        lambda unit, *, experiment: {"detection_status": "unknown"},
+    )
+    monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
+    monkeypatch.setattr(tasks, "capture_camera_still", unavailable_camera)
+
+    result = tasks.capture_camera_still_periodic_task.call_local()
+
+    assert result == {"captured": False, "reason": "camera_unavailable"}
+
+
+def test_periodic_camera_capture_skips_confirmed_missing_camera(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_lock("camera-lock")
@@ -57,11 +81,41 @@ def test_periodic_camera_capture_noops_when_camera_is_unavailable(
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
-    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"available": False})
+    monkeypatch.setattr(
+        tasks,
+        "get_camera_status",
+        lambda unit, *, experiment: {"detection_status": "configured_camera_not_detected"},
+    )
+    monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
+    monkeypatch.setattr(
+        tasks,
+        "capture_camera_still",
+        lambda *_args, **_kwargs: pytest.fail("confirmed missing cameras must not be captured"),
+    )
 
     result = tasks.capture_camera_still_periodic_task.call_local()
 
     assert result == {"captured": False, "reason": "camera_unavailable"}
+
+
+def test_periodic_camera_capture_does_not_probe_before_snapshot_is_due(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_lock("camera-lock")
+    monkeypatch.setattr(tasks, "camera_is_enabled", lambda: True)
+    monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
+    monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
+    monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
+    monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: False)
+    monkeypatch.setattr(
+        tasks,
+        "get_camera_status",
+        lambda unit, *, experiment: pytest.fail("camera detection must wait until a snapshot is due"),
+    )
+
+    result = tasks.capture_camera_still_periodic_task.call_local()
+
+    assert result == {"captured": False, "reason": "not_due"}
 
 
 def test_periodic_camera_capture_noops_when_auto_capture_is_disabled(
@@ -94,7 +148,7 @@ def test_periodic_camera_capture_noops_when_worker_is_inactive(
     monkeypatch.setattr(
         tasks,
         "get_camera_status",
-        lambda unit: pytest.fail("inactive workers must not probe the camera"),
+        lambda unit, **_kwargs: pytest.fail("inactive workers must not probe the camera"),
     )
 
     result = tasks.capture_camera_still_periodic_task.call_local()
@@ -125,7 +179,11 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
-    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"available": True})
+    monkeypatch.setattr(
+        tasks,
+        "get_camera_status",
+        lambda unit, *, experiment: {"detection_status": "detected"},
+    )
     monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
     monkeypatch.setattr(tasks, "capture_camera_still", fake_capture_camera_still)
 

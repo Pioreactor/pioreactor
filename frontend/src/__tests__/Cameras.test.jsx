@@ -35,7 +35,7 @@ describe("Cameras", () => {
             "unit-1": {
               ok: true,
               value: {
-                available: true,
+                detection_status: "detected",
                 snapshot_interval_minutes: 0,
                 latest_still: {
                   image_id: "image-1",
@@ -73,7 +73,7 @@ describe("Cameras", () => {
             "unit-1": {
               ok: true,
               value: {
-                available: false,
+                detection_status: "configured_camera_not_detected",
                 snapshot_interval_minutes: 0,
                 latest_still: {
                   image_id: "image-1",
@@ -117,7 +117,7 @@ describe("Cameras", () => {
             "unit-1": {
               ok: true,
               value: {
-                available: true,
+                detection_status: "detected",
                 latest_still: null,
               },
             },
@@ -138,5 +138,34 @@ describe("Cameras", () => {
 
     expect(await screen.findByText("unit-1's Camera")).toBeInTheDocument();
     expect(screen.getByText("unit-2: Could not reach this Pioreactor.")).toBeInTheDocument();
+  });
+
+  test("keeps a Pioreactor visible when camera detection is unknown", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          cameras: {
+            "unit-1": {
+              ok: true,
+              value: {
+                detection_status: "unknown",
+                latest_still: null,
+              },
+            },
+          },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Cameras title="Cameras" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("unit-1's Camera")).toBeInTheDocument();
+    expect(screen.getByText("Camera status unknown")).toBeInTheDocument();
+    expect(screen.queryByText(/No camera-capable Pioreactors/)).not.toBeInTheDocument();
   });
 });

@@ -1032,7 +1032,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             return
 
         state_in_broker = message.payload.decode()
-        if state_in_broker == self.LOST and state_in_broker != self.state:
+        if self.state != state_in_broker == self.LOST:
             self.logger.debug(
                 f"Job is in state {self.state}, but in state {state_in_broker} in broker. Attempting fix by publishing {self.state}."
             )

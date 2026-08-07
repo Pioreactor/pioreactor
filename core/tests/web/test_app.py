@@ -1811,12 +1811,15 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
                 "unit1": {
                     "ok": True,
                     "unit": "unit1",
-                    "value": {"available": True, "latest_still": None},
+                    "value": {"detection_status": "detected", "latest_still": None},
                 },
                 "unit2": {
                     "ok": True,
                     "unit": "unit2",
-                    "value": {"available": False, "latest_still": None},
+                    "value": {
+                        "detection_status": "configured_camera_not_detected",
+                        "latest_still": None,
+                    },
                 },
             }
 
@@ -1899,7 +1902,7 @@ def test_experiment_camera_status_proxy_fetches_worker_experiment_status(
             f"http://{address}{endpoint}",
             200,
             {"Content-Type": "application/json"},
-            b'{"unit":"unit1","available":true,"latest_still":null}',
+            b'{"unit":"unit1","detection_status":"detected","latest_still":null}',
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")

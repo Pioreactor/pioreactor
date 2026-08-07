@@ -47,7 +47,7 @@ describe("CameraPanel", () => {
           experiment="experiment-a"
           experimentStartTime="2026-06-11T10:30:00Z"
           status={{
-            available: true,
+            detection_status: "detected",
             latest_still: {
               image_id: "image-1",
               captured_at: "2026-06-11T12:00:00Z",
@@ -69,7 +69,7 @@ describe("CameraPanel", () => {
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
-          available: true,
+          detection_status: "detected",
           latest_still: {
             image_id: "image-1",
             captured_at: "2026-06-11T12:00:00Z",
@@ -103,7 +103,7 @@ describe("CameraPanel", () => {
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
-          available: true,
+          detection_status: "detected",
           latest_still: null,
           snapshot_interval_minutes: 1,
         }),
@@ -143,7 +143,7 @@ describe("CameraPanel", () => {
         <ControlledCameraPanel
           unit="unit-1"
           experiment="experiment-a"
-          initialStatus={{ available: true, auto_capture_enabled: true }}
+          initialStatus={{ detection_status: "detected", auto_capture_enabled: true }}
         />
       </MemoryRouter>,
     );
@@ -179,7 +179,7 @@ describe("CameraPanel", () => {
         <ControlledCameraPanel
           unit="unit-1"
           experiment="experiment-a"
-          initialStatus={{ available: true, auto_capture_enabled: true }}
+          initialStatus={{ detection_status: "detected", auto_capture_enabled: true }}
         />
       </MemoryRouter>,
     );
@@ -197,5 +197,22 @@ describe("CameraPanel", () => {
     );
     expect(automaticStillsSwitch).toBeChecked();
     expect(automaticStillsSwitch).not.toBeDisabled();
+  });
+
+  test("distinguishes an unknown detection result from a missing camera", () => {
+    render(
+      <MemoryRouter>
+        <CameraPanel
+          unit="unit-1"
+          experiment="experiment-a"
+          status={{ detection_status: "unknown", latest_still: null }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Camera status unknown")).toBeInTheDocument();
+    expect(screen.getByText("Camera status unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Camera detection did not complete. It will be checked again automatically.")).toBeInTheDocument();
+    expect(screen.queryByText("Camera unavailable")).not.toBeInTheDocument();
   });
 });

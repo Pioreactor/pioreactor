@@ -13,7 +13,6 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from datetime import UTC
-from functools import cache
 from pathlib import Path
 from time import monotonic
 from time import sleep
@@ -48,9 +47,16 @@ CAMERA_WARMER_RUNTIME_DIR = Path("/run/pioreactor")
 CAMERA_WARMER_STARTUP_GRACE_SECONDS = 1.0
 CAMERA_WARMER_POLL_SECONDS = 0.01
 
-camera_warmer_process: subprocess.Popen[bytes] | None = None
-
+type DefinitiveCameraDetectionStatus = Literal[
+    "detected",
+    "configured_camera_not_detected",
+]
+type CameraDetectionStatus = DefinitiveCameraDetectionStatus | Literal["unknown"]
 type CameraCaptureReason = Literal["scheduled", "manual"]
+
+camera_warmer_process: subprocess.Popen[bytes] | None = None
+# Only definitive probe results are cached. Command failures and timeouts must remain retryable.
+camera_hardware_detection_cache: dict[tuple[str, int], DefinitiveCameraDetectionStatus] = {}
 
 
 class CameraStillMetadata(Struct, frozen=True):
@@ -424,7 +430,9 @@ def query_camera_still_metadata(
     return [still for still in metadata if camera_still_image_path(still, dot_pioreactor).exists()]
 
 
-def camera_hardware_is_detected(capture_command: str, camera_index: int, timeout: float = 3.0) -> bool:
+def get_rpicam_camera_detection_status(
+    capture_command: str, camera_index: int, timeout: float = 3.0
+) -> CameraDetectionStatus:
     try:
         result = subprocess.run(
             [capture_command, "--list-cameras"],
@@ -437,19 +445,19 @@ def camera_hardware_is_detected(capture_command: str, camera_index: int, timeout
             f"Unable to run `{capture_command} --list-cameras` while detecting camera index "
             f"{camera_index}: {error}."
         )
-        return False
+        return "unknown"
     except subprocess.CalledProcessError as error:
         create_logger("camera", to_mqtt=False).debug(
             f"`{capture_command} --list-cameras` exited with code {error.returncode} while detecting "
             f"camera index {camera_index}. stdout={error.stdout!r}, stderr={error.stderr!r}."
         )
-        return False
+        return "unknown"
     except subprocess.TimeoutExpired as error:
         create_logger("camera", to_mqtt=False).debug(
             f"`{capture_command} --list-cameras` timed out after {error.timeout} seconds while detecting "
             f"camera index {camera_index}. stdout={error.stdout!r}, stderr={error.stderr!r}."
         )
-        return False
+        return "unknown"
 
     output = (
         result.stdout.decode("utf-8", errors="replace")
@@ -457,27 +465,39 @@ def camera_hardware_is_detected(capture_command: str, camera_index: int, timeout
         + result.stderr.decode("utf-8", errors="replace")
     )
 
-    camera_detected = bool(re.search(rf"(?m)^\s*{camera_index}\s*:", output))
-    if not camera_detected:
+    if not re.search(rf"(?m)^\s*{camera_index}\s*:", output):
         create_logger("camera", to_mqtt=False).debug(
             f"`{capture_command} --list-cameras` did not report configured camera index {camera_index}. "
             f"stdout={result.stdout!r}, stderr={result.stderr!r}."
         )
+        return "configured_camera_not_detected"
 
-    return camera_detected
-
-
-def v4l2_camera_hardware_is_detected(device_path: Path) -> bool:
-    return device_path.exists() and device_path.is_char_device()
+    return "detected"
 
 
-@cache
-def camera_hardware_is_detected_cached(capture_command: str, camera_index: int) -> bool:
-    return camera_hardware_is_detected(capture_command, camera_index)
+def get_v4l2_camera_detection_status(device_path: Path) -> CameraDetectionStatus:
+    if device_path.exists() and device_path.is_char_device():
+        return "detected"
+    return "configured_camera_not_detected"
+
+
+def get_cached_rpicam_camera_detection_status(
+    capture_command: str, camera_index: int
+) -> CameraDetectionStatus:
+    cache_key = (capture_command, camera_index)
+    cached_status = camera_hardware_detection_cache.get(cache_key)
+    if cached_status is not None:
+        return cached_status
+
+    detection_status = get_rpicam_camera_detection_status(capture_command, camera_index)
+    if detection_status != "unknown":
+        camera_hardware_detection_cache[cache_key] = detection_status
+
+    return detection_status
 
 
 def clear_camera_hardware_detection_cache() -> None:
-    camera_hardware_is_detected_cached.cache_clear()
+    camera_hardware_detection_cache.clear()
 
 
 def camera_auto_capture_is_enabled() -> bool:
@@ -517,19 +537,16 @@ def get_camera_status(
     device_path = get_camera_device_path() if backend == "v4l2" else None
     capture_command = find_camera_capture_command(backend)
     dev_stills_available = dev_camera_stills_are_available(dot_pioreactor)
-    if backend == "rpicam":
+    if dev_stills_available:
+        detection_status: CameraDetectionStatus = "detected"
+    elif capture_command is None:
+        detection_status = "unknown"
+    elif backend == "rpicam":
         assert camera_index is not None
-        camera_detected = (
-            camera_hardware_is_detected_cached(capture_command, camera_index)
-            if capture_command is not None
-            else False
-        )
+        detection_status = get_cached_rpicam_camera_detection_status(capture_command, camera_index)
     else:
         assert device_path is not None
-        camera_detected = (
-            v4l2_camera_hardware_is_detected(device_path) if capture_command is not None else False
-        )
-    camera_detected = camera_detected or dev_stills_available
+        detection_status = get_v4l2_camera_detection_status(device_path)
     latest_metadata = load_latest_camera_still_metadata(
         unit, experiment=experiment, dot_pioreactor=dot_pioreactor
     )
@@ -543,7 +560,7 @@ def get_camera_status(
 
     return {
         "unit": unit,
-        "available": camera_detected,
+        "detection_status": detection_status,
         "runtime_available": (capture_command is not None) or dev_stills_available,
         "capture_command": Path(capture_command).name if capture_command else None,
         "mock": dev_stills_available and capture_command is None,

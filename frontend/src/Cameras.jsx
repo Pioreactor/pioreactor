@@ -68,7 +68,10 @@ export default function Cameras({ title }) {
   const onlineCameraResults = cameraResults.filter((result) => result.status);
   const failedCameraResults = cameraResults.filter((result) => result.error);
   const visibleCameraResults = onlineCameraResults.filter(
-    (result) => result.status.available || result.status.latest_still,
+    (result) => (
+      result.status.detection_status !== "configured_camera_not_detected"
+      || result.status.latest_still
+    ),
   );
 
   return (

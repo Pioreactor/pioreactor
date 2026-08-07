@@ -20,6 +20,7 @@ import Typography from "@mui/material/Typography";
 
 import CloseIcon from "@mui/icons-material/Close";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupportedOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 
@@ -60,7 +61,11 @@ function formatCaptureDelta(metadata, experimentStartTime) {
   return `${deltaHours} h`;
 }
 
-function CameraEmptyState({ title, detail }) {
+function CameraEmptyState({
+  title,
+  detail,
+  icon = <ImageNotSupportedOutlinedIcon color="action" sx={{ fontSize: 40 }} />,
+}) {
   return (
     <Stack
       spacing={1}
@@ -73,7 +78,7 @@ function CameraEmptyState({ title, detail }) {
         px: 2,
       }}
     >
-      <ImageNotSupportedOutlinedIcon color="action" sx={{ fontSize: 40 }} />
+      {icon}
       <Typography variant="subtitle2">{title}</Typography>
       {detail && <Typography variant="body2">{detail}</Typography>}
     </Stack>
@@ -84,11 +89,21 @@ function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
   const latestStill = status?.latest_still;
 
   if (!latestStill) {
-    if (!status?.available) {
+    if (status?.detection_status === "configured_camera_not_detected") {
       return (
         <CameraEmptyState
           title="No camera detected"
-          detail="Camera capture tools are not available on this Pioreactor."
+          detail="The configured camera was not detected on this Pioreactor."
+        />
+      );
+    }
+
+    if (status?.detection_status === "unknown") {
+      return (
+        <CameraEmptyState
+          title="Camera status unavailable"
+          detail="Camera detection did not complete. It will be checked again automatically."
+          icon={<HelpOutlineOutlinedIcon color="action" sx={{ fontSize: 40 }} />}
         />
       );
     }
@@ -236,12 +251,20 @@ export default function CameraPanel({
                 <Typography variant="h6" noWrap>
                   <Box sx={{ fontWeight: "fontWeightRegular" }}>{unit}'s Camera</Box>
                 </Typography>
-                {status?.available === false && (
+                {status?.detection_status === "configured_camera_not_detected" && (
                   <Chip
                     size="small"
                     variant="outlined"
                     icon={<ImageNotSupportedOutlinedIcon />}
                     label="Camera unavailable"
+                  />
+                )}
+                {status?.detection_status === "unknown" && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    icon={<HelpOutlineOutlinedIcon />}
+                    label="Camera status unknown"
                   />
                 )}
               </Stack>

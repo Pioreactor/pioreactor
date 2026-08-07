@@ -20,7 +20,6 @@ from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.camera import camera_auto_capture_is_enabled
 from pioreactor.camera import camera_capture_lock
 from pioreactor.camera import camera_focus_preview_path
-from pioreactor.camera import camera_hardware_is_detected
 from pioreactor.camera import CAMERA_SETTINGS_CACHE_NAME
 from pioreactor.camera import camera_should_be_kept_active
 from pioreactor.camera import camera_still_image_path
@@ -36,6 +35,7 @@ from pioreactor.camera import dev_camera_still_paths
 from pioreactor.camera import dev_camera_stills_path
 from pioreactor.camera import get_camera_ir_led_intensity
 from pioreactor.camera import get_camera_status
+from pioreactor.camera import get_rpicam_camera_detection_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
@@ -534,10 +534,10 @@ def test_camera_hardware_detection_uses_generic_list_cameras_output(monkeypatch:
 
     monkeypatch.setattr("pioreactor.camera.subprocess.run", lambda *_args, **_kwargs: Completed())
 
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is True
+    assert get_rpicam_camera_detection_status("/usr/bin/rpicam-still", 0) == "detected"
 
 
-def test_camera_hardware_detection_returns_false_without_indexed_camera(
+def test_camera_hardware_detection_returns_configured_camera_not_detected_without_indexed_camera(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class Completed:
@@ -548,7 +548,7 @@ def test_camera_hardware_detection_returns_false_without_indexed_camera(
     monkeypatch.setattr("pioreactor.camera.subprocess.run", lambda *_args, **_kwargs: Completed())
     monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
 
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    assert get_rpicam_camera_detection_status("/usr/bin/rpicam-still", 0) == "configured_camera_not_detected"
     logger.debug.assert_called_once_with(
         "`/usr/bin/rpicam-still --list-cameras` did not report configured camera index 0. "
         "stdout=b'No cameras available!\\n', stderr=b''."
@@ -566,7 +566,7 @@ def test_camera_hardware_detection_logs_command_failure(monkeypatch: pytest.Monk
     monkeypatch.setattr("pioreactor.camera.subprocess.run", MagicMock(side_effect=error))
     monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
 
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    assert get_rpicam_camera_detection_status("/usr/bin/rpicam-still", 0) == "unknown"
     logger.debug.assert_called_once_with(
         "`/usr/bin/rpicam-still --list-cameras` exited with code 1 while detecting camera index 0. "
         "stdout=b'partial output', stderr=b'camera manager unavailable'."
@@ -579,7 +579,7 @@ def test_camera_hardware_detection_logs_executable_failure(monkeypatch: pytest.M
     monkeypatch.setattr("pioreactor.camera.subprocess.run", MagicMock(side_effect=error))
     monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
 
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    assert get_rpicam_camera_detection_status("/usr/bin/rpicam-still", 0) == "unknown"
     logger.debug.assert_called_once_with(
         "Unable to run `/usr/bin/rpicam-still --list-cameras` while detecting camera index 0: "
         "executable unavailable."
@@ -597,7 +597,7 @@ def test_camera_hardware_detection_logs_timeout(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr("pioreactor.camera.subprocess.run", MagicMock(side_effect=error))
     monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
 
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    assert get_rpicam_camera_detection_status("/usr/bin/rpicam-still", 0) == "unknown"
     logger.debug.assert_called_once_with(
         "`/usr/bin/rpicam-still --list-cameras` timed out after 3.0 seconds while detecting camera index 0. "
         "stdout=b'partial output', stderr=b'still starting'."
@@ -627,7 +627,7 @@ def test_v4l2_backend_uses_configured_device_path(tmp_path: Path, monkeypatch: p
     status = get_camera_status("unit-a")
     metadata = capture_camera_still("unit-a", experiment="experiment-a", capture_reason="scheduled")
 
-    assert status["available"] is True
+    assert status["detection_status"] == "detected"
     assert status["capture_command"] == "fswebcam"
     assert camera_still_image_path(metadata).read_bytes() == b"webcam still"
 
@@ -969,23 +969,58 @@ def test_rpicam_backend_rejects_negative_camera_index(monkeypatch: pytest.Monkey
         get_camera_status("unit-a")
 
 
-def test_camera_status_reuses_cached_hardware_detection(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_camera_status_reuses_successful_hardware_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
 
-    def detect_camera(_capture_command: str, _camera_index: int) -> bool:
+    def detect_camera(_capture_command: str, _camera_index: int) -> str:
         nonlocal calls
         calls += 1
-        return True
+        return "detected"
 
     monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: f"/usr/bin/{command}")
-    monkeypatch.setattr("pioreactor.camera.camera_hardware_is_detected", detect_camera)
+    monkeypatch.setattr("pioreactor.camera.dev_camera_stills_are_available", lambda _path: False)
+    monkeypatch.setattr("pioreactor.camera.get_rpicam_camera_detection_status", detect_camera)
 
     first_status = get_camera_status("unit-a")
     second_status = get_camera_status("unit-a")
 
-    assert first_status["available"] is True
-    assert second_status["available"] is True
+    assert first_status["detection_status"] == "detected"
+    assert second_status["detection_status"] == "detected"
     assert calls == 1
+
+
+def test_camera_status_retries_unknown_hardware_detection(monkeypatch: pytest.MonkeyPatch) -> None:
+    detection_results = iter(("unknown", "detected"))
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: f"/usr/bin/{command}")
+    monkeypatch.setattr("pioreactor.camera.dev_camera_stills_are_available", lambda _path: False)
+    monkeypatch.setattr(
+        "pioreactor.camera.get_rpicam_camera_detection_status",
+        lambda _capture_command, _camera_index: next(detection_results),
+    )
+
+    first_status = get_camera_status("unit-a")
+    second_status = get_camera_status("unit-a")
+    third_status = get_camera_status("unit-a")
+
+    assert first_status["detection_status"] == "unknown"
+    assert second_status["detection_status"] == "detected"
+    assert third_status["detection_status"] == "detected"
+
+
+def test_camera_status_reuses_confirmed_missing_hardware_detection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    detect_camera = MagicMock(return_value="configured_camera_not_detected")
+    monkeypatch.setattr("pioreactor.camera.shutil.which", lambda command: f"/usr/bin/{command}")
+    monkeypatch.setattr("pioreactor.camera.dev_camera_stills_are_available", lambda _path: False)
+    monkeypatch.setattr("pioreactor.camera.get_rpicam_camera_detection_status", detect_camera)
+
+    first_status = get_camera_status("unit-a")
+    second_status = get_camera_status("unit-a")
+
+    assert first_status["detection_status"] == "configured_camera_not_detected"
+    assert second_status["detection_status"] == "configured_camera_not_detected"
+    detect_camera.assert_called_once()
 
 
 def test_dev_camera_stills_are_discovered_only_when_testing_is_enabled(
@@ -1018,7 +1053,8 @@ def test_camera_status_seeds_latest_still_from_dev_camera_stills(
 
     status = get_camera_status("unit-a")
 
-    assert status["available"] is True
+    assert status["detection_status"] == "detected"
+    assert "available" not in status
     assert "capture_available" not in status
     assert status["runtime_available"] is True
     assert status["mock"] is True
