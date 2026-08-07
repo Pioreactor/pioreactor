@@ -1040,7 +1040,12 @@ def execute_experiment_profile(
     unit = get_unit_name()
     action_name = "experiment_profile"
     with long_running_managed_lifecycle(unit, experiment, action_name) as mananged_job:
-        logger = create_logger(mananged_job.job_key, unit=unit, experiment=experiment)
+        logger = create_logger(
+            mananged_job.job_key,
+            unit=unit,
+            experiment=experiment,
+            pub_client=mananged_job.mqtt_client,
+        )
 
         try:
             profile = load_and_verify_profile(profile_filename)

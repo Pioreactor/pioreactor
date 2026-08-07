@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
@@ -67,6 +68,36 @@ def test_time_to_seconds_rejects_bad_literals() -> None:
 
     with pytest.raises(ValueError):
         time_to_seconds("-5m")
+
+
+@patch("pioreactor.actions.leader.experiment_profile.create_logger")
+@patch("pioreactor.actions.leader.experiment_profile.long_running_managed_lifecycle")
+@patch(
+    "pioreactor.actions.leader.experiment_profile.load_and_verify_profile",
+    side_effect=RuntimeError("invalid profile"),
+)
+def test_execute_experiment_profile_reuses_lifecycle_mqtt_client_for_logging(
+    mock_load_and_verify_profile: MagicMock,
+    mock_long_running_managed_lifecycle: MagicMock,
+    mock_create_logger: MagicMock,
+) -> None:
+    experiment = "_testing_experiment"
+    mqtt_client = MagicMock(name="mqtt_client")
+    managed_job = mock_long_running_managed_lifecycle.return_value.__enter__.return_value
+    managed_job.job_key = "experiment_profile/1"
+    managed_job.mqtt_client = mqtt_client
+
+    with pytest.raises(RuntimeError, match="invalid profile"):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    unit = mock_long_running_managed_lifecycle.call_args.args[0]
+    mock_create_logger.assert_called_once_with(
+        managed_job.job_key,
+        unit=unit,
+        experiment=experiment,
+        pub_client=mqtt_client,
+    )
+    mock_load_and_verify_profile.assert_called_once_with("profile.yaml")
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

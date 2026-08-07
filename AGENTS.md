@@ -293,7 +293,7 @@ Preferred broad tags:
 
 - `frontend`
 - `backend`
-- `web-api`
+- `web-api-and-tasks`
 - `cli`
 - `packaging`
 - `docs`
@@ -307,5 +307,7 @@ Preferred broad tags:
 - `config`
 - `typing`
 - `reliability`
+- `performance`
+- `operating-system`
 
 ---

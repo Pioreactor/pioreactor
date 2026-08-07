@@ -152,7 +152,7 @@ export function CalibrateDialog({
 
     const fetchCalibrations = async () => {
       try {
-        const data = await fetchTaskResult(apiUrl, { delayMs: 2000 });
+        const data = await fetchTaskResult(apiUrl, { delayMs: 200 });
         setActiveCalibrations(getUnitTaskResult(data, unit, "Failed to fetch calibration."));
         setLoadingCalibrations(false);
       } catch (err) {
@@ -163,7 +163,7 @@ export function CalibrateDialog({
 
     const fetchEstimators = async () => {
       try {
-        const data = await fetchTaskResult(estimatorsUrl, { delayMs: 2000 });
+        const data = await fetchTaskResult(estimatorsUrl, { delayMs: 200 });
         setActiveEstimators(getUnitTaskResult(data, unit, "Failed to fetch estimators."));
         setLoadingEstimators(false);
       } catch (err) {

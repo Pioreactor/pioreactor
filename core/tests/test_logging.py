@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
+from pathlib import Path
 
+from pioreactor.logging import create_logger
 from pioreactor.logging import CustomisedJSONFormatter
+from tests.utils import FakeMQTTClient
 
 
 class DummyLogger:
@@ -17,6 +20,22 @@ class DummyLogger:
 
     def error(self, *args, **kwargs) -> None:
         pass
+
+
+def test_logger_cleanup_does_not_shutdown_borrowed_mqtt_client(tmp_path: Path) -> None:
+    mqtt_client = FakeMQTTClient()
+    logger = create_logger(
+        "test_borrowed_mqtt_client",
+        unit="unit1",
+        experiment="test_logger_cleanup",
+        pub_client=mqtt_client,
+        log_file_location=str(tmp_path / "pioreactor.log"),
+    )
+
+    logger.clean_up()
+
+    assert not mqtt_client.shutdown_called
+    assert logger.logger.handlers == []
 
 
 def test_customised_json_formatter_strips_ansi_decodes_bytes_and_normalizes_newlines() -> None:

@@ -533,7 +533,7 @@ def export_experiment_data(
                     order_by_col=None,
                     has_experiment=dataset.has_experiment,
                 )
-                cursor.execute(query, placeholders)
+                cursor.execute(f"SELECT * FROM ({query}) LIMIT 0", placeholders)
 
                 headers = [_[0] for _ in cursor.description]
                 schema_path = f"{dataset_name}/schema.json"

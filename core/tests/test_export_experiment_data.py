@@ -519,6 +519,50 @@ def test_export_experiment_data_with_base64_data(temp_zipfile) -> None:
             assert values[1] == '"{""volume"":0.5,""duration"":20.0,""state"":""init""}"'
 
 
+def test_export_header_discovery_does_not_execute_aggregate_query(temp_zipfile) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE plugin_events (value INTEGER)")
+    conn.executemany("INSERT INTO plugin_events VALUES (?)", [(1,), (2,), (3,)])
+
+    values_aggregated = 0
+
+    def count_aggregated_value(value: int) -> int:
+        nonlocal values_aggregated
+        values_aggregated += 1
+        return value
+
+    conn.create_function("COUNT_AGGREGATED_VALUE", 1, count_aggregated_value)
+    plugin_dataset = Dataset(
+        dataset_name="plugin_rollup",
+        display_name="Plugin rollup",
+        query="SELECT SUM(COUNT_AGGREGATED_VALUE(value)) AS total FROM plugin_events",
+        has_unit=False,
+        has_experiment=False,
+        description="",
+        default_order_by=None,
+    )
+
+    with patch("sqlite3.connect") as mock_connect, patch(
+        "pioreactor.actions.leader.export_experiment_data.load_exportable_datasets",
+        return_value={"plugin_rollup": plugin_dataset},
+    ):
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiment="test_experiment",
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["plugin_rollup"],
+        )
+
+    assert values_aggregated == 3
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        csv_filename = next(
+            name for name in zf.namelist() if name.startswith("plugin_rollup/") and name.endswith(".csv")
+        )
+        assert zf.read(csv_filename).decode("utf-8").strip().splitlines() == ["total", "6"]
+
+
 @pytest.mark.usefixtures("mock_load_exportable_datasets")
 def test_export_experiment_data_with_experiment(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
