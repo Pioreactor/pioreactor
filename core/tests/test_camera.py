@@ -10,6 +10,7 @@ from contextlib import nullcontext
 from datetime import datetime
 from datetime import UTC
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from msgspec.json import decode as json_decode
@@ -534,7 +535,6 @@ def test_camera_hardware_detection_uses_generic_list_cameras_output(monkeypatch:
     monkeypatch.setattr("pioreactor.camera.subprocess.run", lambda *_args, **_kwargs: Completed())
 
     assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is True
-    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 1) is False
 
 
 def test_camera_hardware_detection_returns_false_without_indexed_camera(
@@ -544,9 +544,64 @@ def test_camera_hardware_detection_returns_false_without_indexed_camera(
         stdout = b"No cameras available!\n"
         stderr = b""
 
+    logger = MagicMock()
     monkeypatch.setattr("pioreactor.camera.subprocess.run", lambda *_args, **_kwargs: Completed())
+    monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
 
     assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    logger.debug.assert_called_once_with(
+        "`/usr/bin/rpicam-still --list-cameras` did not report configured camera index 0. "
+        "stdout=b'No cameras available!\\n', stderr=b''."
+    )
+
+
+def test_camera_hardware_detection_logs_command_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    logger = MagicMock()
+    error = subprocess.CalledProcessError(
+        1,
+        ["/usr/bin/rpicam-still", "--list-cameras"],
+        output=b"partial output",
+        stderr=b"camera manager unavailable",
+    )
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", MagicMock(side_effect=error))
+    monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
+
+    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    logger.debug.assert_called_once_with(
+        "`/usr/bin/rpicam-still --list-cameras` exited with code 1 while detecting camera index 0. "
+        "stdout=b'partial output', stderr=b'camera manager unavailable'."
+    )
+
+
+def test_camera_hardware_detection_logs_executable_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    logger = MagicMock()
+    error = OSError("executable unavailable")
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", MagicMock(side_effect=error))
+    monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
+
+    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    logger.debug.assert_called_once_with(
+        "Unable to run `/usr/bin/rpicam-still --list-cameras` while detecting camera index 0: "
+        "executable unavailable."
+    )
+
+
+def test_camera_hardware_detection_logs_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    logger = MagicMock()
+    error = subprocess.TimeoutExpired(
+        ["/usr/bin/rpicam-still", "--list-cameras"],
+        3.0,
+        output=b"partial output",
+        stderr=b"still starting",
+    )
+    monkeypatch.setattr("pioreactor.camera.subprocess.run", MagicMock(side_effect=error))
+    monkeypatch.setattr("pioreactor.camera.create_logger", lambda *_args, **_kwargs: logger)
+
+    assert camera_hardware_is_detected("/usr/bin/rpicam-still", 0) is False
+    logger.debug.assert_called_once_with(
+        "`/usr/bin/rpicam-still --list-cameras` timed out after 3.0 seconds while detecting camera index 0. "
+        "stdout=b'partial output', stderr=b'still starting'."
+    )
 
 
 def test_v4l2_backend_uses_configured_device_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -964,7 +1019,7 @@ def test_camera_status_seeds_latest_still_from_dev_camera_stills(
     status = get_camera_status("unit-a")
 
     assert status["available"] is True
-    assert status["capture_available"] is True
+    assert "capture_available" not in status
     assert status["runtime_available"] is True
     assert status["mock"] is True
     assert load_latest_camera_still_metadata("unit-a").image_id == status["latest_still"]["image_id"]

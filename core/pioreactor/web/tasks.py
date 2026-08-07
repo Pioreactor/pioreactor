@@ -214,7 +214,7 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
         return {"captured": False, "reason": "no_assigned_experiment"}
 
     status = get_camera_status(unit)
-    if not status.get("capture_available"):
+    if not status.get("available"):
         return {"captured": False, "reason": "camera_unavailable"}
 
     if not camera_snapshot_is_due(unit, experiment, interval_minutes):

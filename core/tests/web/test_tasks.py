@@ -57,7 +57,7 @@ def test_periodic_camera_capture_noops_when_camera_is_unavailable(
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
-    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"capture_available": False})
+    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"available": False})
 
     result = tasks.capture_camera_still_periodic_task.call_local()
 
@@ -125,7 +125,7 @@ def test_periodic_camera_capture_captures_when_snapshot_is_due(
     monkeypatch.setattr(tasks, "camera_snapshot_interval_minutes", lambda: 1)
     monkeypatch.setattr(tasks, "get_unit_name", lambda: "unit-a")
     monkeypatch.setattr(tasks.whoami, "get_assigned_experiment_name", lambda unit: "experiment-a")
-    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"capture_available": True})
+    monkeypatch.setattr(tasks, "get_camera_status", lambda unit: {"available": True})
     monkeypatch.setattr(tasks, "camera_snapshot_is_due", lambda unit, experiment, interval: True)
     monkeypatch.setattr(tasks, "capture_camera_still", fake_capture_camera_still)
 

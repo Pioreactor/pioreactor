@@ -31,6 +31,7 @@ from pioreactor import types as pt
 from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.sqlite_cache import cache as SqliteCache
 from pioreactor.whoami import is_testing_env
@@ -431,7 +432,23 @@ def camera_hardware_is_detected(capture_command: str, camera_index: int, timeout
             timeout=timeout,
             check=True,
         )
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+    except OSError as error:
+        create_logger("camera", to_mqtt=False).debug(
+            f"Unable to run `{capture_command} --list-cameras` while detecting camera index "
+            f"{camera_index}: {error}."
+        )
+        return False
+    except subprocess.CalledProcessError as error:
+        create_logger("camera", to_mqtt=False).debug(
+            f"`{capture_command} --list-cameras` exited with code {error.returncode} while detecting "
+            f"camera index {camera_index}. stdout={error.stdout!r}, stderr={error.stderr!r}."
+        )
+        return False
+    except subprocess.TimeoutExpired as error:
+        create_logger("camera", to_mqtt=False).debug(
+            f"`{capture_command} --list-cameras` timed out after {error.timeout} seconds while detecting "
+            f"camera index {camera_index}. stdout={error.stdout!r}, stderr={error.stderr!r}."
+        )
         return False
 
     output = (
@@ -440,7 +457,14 @@ def camera_hardware_is_detected(capture_command: str, camera_index: int, timeout
         + result.stderr.decode("utf-8", errors="replace")
     )
 
-    return bool(re.search(rf"(?m)^\s*{camera_index}\s*:", output))
+    camera_detected = bool(re.search(rf"(?m)^\s*{camera_index}\s*:", output))
+    if not camera_detected:
+        create_logger("camera", to_mqtt=False).debug(
+            f"`{capture_command} --list-cameras` did not report configured camera index {camera_index}. "
+            f"stdout={result.stdout!r}, stderr={result.stderr!r}."
+        )
+
+    return camera_detected
 
 
 def v4l2_camera_hardware_is_detected(device_path: Path) -> bool:
@@ -521,7 +545,6 @@ def get_camera_status(
         "unit": unit,
         "available": camera_detected,
         "runtime_available": (capture_command is not None) or dev_stills_available,
-        "capture_available": camera_detected,
         "capture_command": Path(capture_command).name if capture_command else None,
         "mock": dev_stills_available and capture_command is None,
         "latest_still": to_builtins(latest_metadata) if latest_metadata is not None else None,
