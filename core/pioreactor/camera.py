@@ -725,7 +725,7 @@ def capture_camera_focus_preview(
 
     with camera_captured_image(
         unit,
-        experiment=None,
+        experiment="$experiment",
         timeout=timeout,
         dot_pioreactor=dot_pioreactor,
     ) as captured_image_path:

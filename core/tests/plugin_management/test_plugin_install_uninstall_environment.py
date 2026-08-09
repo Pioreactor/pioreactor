@@ -357,22 +357,37 @@ def test_install_plugin_skips_assets_when_leader_only_package_is_not_installed(
 
 
 def test_uninstall_plugin_warns_when_package_is_not_installed(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     monkeypatch.setattr(uninstall_plugin_module, "discover_plugins_in_local_folder", lambda: [])
-    monkeypatch.setattr(uninstall_plugin_module, "uninstall_plugin_assets", lambda name, logger: None)
-    monkeypatch.setattr(
-        uninstall_plugin_module,
-        "uninstall_plugin_package",
-        lambda name: subprocess.CompletedProcess(
-            [name],
+    monkeypatch.setattr(package_operations, "get_dot_pioreactor_dir", lambda: tmp_path)
+    monkeypatch.setattr(package_operations, "get_site_packages_dir", lambda: tmp_path)
+    monkeypatch.setattr(package_operations, "am_I_leader", lambda: True)
+
+    def raise_package_not_found(name: str) -> None:
+        raise package_operations.metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(package_operations.metadata, "distribution", raise_package_not_found)
+    uninstall_package = MagicMock(
+        return_value=subprocess.CompletedProcess(
+            ["pioreactor-demo-plugin"],
             1,
             "",
             "WARNING: Skipping pioreactor-demo-plugin as it is not installed.\n",
-        ),
+        )
+    )
+    monkeypatch.setattr(
+        uninstall_plugin_module,
+        "uninstall_plugin_package",
+        uninstall_package,
     )
 
     uninstall_plugin_module.uninstall_plugin("pioreactor-demo-plugin")
+
+    uninstall_package.assert_called_once_with("pioreactor-demo-plugin")
+    assert "Unable to uninstall: plugin pioreactor-demo-plugin is not installed." in caplog.text
 
 
 def assert_plugin_install_contract(plugin_package_environment: PluginPackageEnvironment) -> None:

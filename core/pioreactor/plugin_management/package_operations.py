@@ -166,7 +166,12 @@ def uninstall_plugin_assets(
     site_packages_dir = site_packages_dir or get_site_packages_dir()
     is_leader = am_I_leader() if is_leader is None else is_leader
 
-    install_folder = get_plugin_install_folder(plugin_name, site_packages_dir)
+    try:
+        install_folder = get_plugin_install_folder(plugin_name, site_packages_dir)
+    except metadata.PackageNotFoundError:
+        logger.debug(f"Distribution metadata for plugin {plugin_name} was not found; skipping asset cleanup.")
+        return
+
     logger.debug(f"Resolved plugin {plugin_name} package directory to {install_folder}.")
 
     run_pre_uninstall_hook(install_folder, logger)
