@@ -4183,6 +4183,12 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
 
 @api_bp.route("/workers", methods=["PUT"])
 def add_worker() -> ResponseReturnValue:
+    """Register a worker without changing an existing worker on retry.
+
+    A new worker returns 201. Retrying an existing worker returns 200 and
+    preserves its added time, active status, model metadata, and assignment.
+    Use the worker-specific status and model routes to change those fields.
+    """
     data = decode_request_body(structs.AddWorkerRequest)
     pioreactor_unit = data.pioreactor_unit
     model_name = data.model_name
@@ -4197,18 +4203,17 @@ def add_worker() -> ResponseReturnValue:
         )
 
     nrows = modify_app_db(
-        "INSERT OR REPLACE INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version) VALUES (?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 1, ?, ?);",
+        """
+        INSERT INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version)
+        VALUES (?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 1, ?, ?)
+        ON CONFLICT(pioreactor_unit) DO NOTHING
+        """,
         (pioreactor_unit, model_name, model_version),
     )
     if nrows > 0:
         return {"status": "success"}, 201
-    else:
-        abort_with(
-            500,
-            "Failed to add worker to database.",
-            cause="Failed to insert worker into database.",
-            remediation="Check database logs and retry.",
-        )
+
+    return {"status": "success"}, 200
 
 
 @api_bp.route("/workers/<pioreactor_unit>", methods=["DELETE"])
@@ -4575,7 +4580,11 @@ def get_list_of_historical_workers_for_experiment(experiment: str) -> ResponseRe
 
 @api_bp.route("/experiments/<experiment>/workers", methods=["PUT"])
 def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
-    # assign
+    """Assign a worker, treating a retry of the current assignment as a no-op.
+
+    Assigning the worker to a different experiment remains a reassignment: it
+    closes the previous history entry and stops jobs from that experiment.
+    """
     data = decode_request_body(structs.AddWorkerToExperimentRequest)
     pioreactor_unit = data.pioreactor_unit
 
@@ -4593,9 +4602,20 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
     if isinstance(existing_assignment, dict):
         previous_experiment = existing_assignment.get("experiment")
 
+    if previous_experiment == experiment:
+        return {"status": "success"}, 200
+
     row_counts = modify_app_db(
-        "INSERT OR REPLACE INTO experiment_worker_assignments (pioreactor_unit, experiment, assigned_at) VALUES (?, ?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))",
-        (pioreactor_unit, experiment),
+        """
+        INSERT OR REPLACE INTO experiment_worker_assignments (pioreactor_unit, experiment, assigned_at)
+        SELECT ?, ?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM experiment_worker_assignments
+            WHERE pioreactor_unit = ? AND experiment = ?
+        )
+        """,
+        (pioreactor_unit, experiment, pioreactor_unit, experiment),
     )
     if row_counts > 0:
         assignment = query_app_db(
@@ -4624,14 +4644,23 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
         )
 
         return {"status": "success"}, 200
-    else:
-        # probably an integrity error
-        abort_with(
-            500,
-            "Failed to add to database.",
-            cause="Failed to insert assignment into database.",
-            remediation="Check database logs and retry.",
-        )
+
+    current_assignment = query_app_db(
+        "SELECT experiment FROM experiment_worker_assignments WHERE pioreactor_unit = ?",
+        (pioreactor_unit,),
+        one=True,
+    )
+    if isinstance(current_assignment, dict) and current_assignment.get("experiment") == experiment:
+        # A concurrent identical request completed between the initial read
+        # and the conditional write.
+        return {"status": "success"}, 200
+
+    abort_with(
+        500,
+        "Failed to add to database.",
+        cause="Failed to insert assignment into database.",
+        remediation="Check database logs and retry.",
+    )
 
 
 @api_bp.route("/experiments/<experiment>/workers/<pioreactor_unit>", methods=["DELETE"])

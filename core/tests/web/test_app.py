@@ -9,6 +9,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from flask import g
 from flask.testing import FlaskClient
 from huey.exceptions import TaskException
 from pioreactor.web.config import huey
@@ -200,6 +201,42 @@ def test_add_worker_rejects_address_like_names(client: FlaskClient, pioreactor_u
     assert response.status_code == 400
 
 
+def test_add_existing_worker_is_idempotent(client: FlaskClient) -> None:
+    db = g._app_database
+    db.execute("PRAGMA foreign_keys = ON")
+
+    worker_before = db.execute(
+        "SELECT * FROM workers WHERE pioreactor_unit = ?",
+        ("unit4",),
+    ).fetchone()
+    assignment_before = db.execute(
+        "SELECT * FROM experiment_worker_assignments WHERE pioreactor_unit = ?",
+        ("unit4",),
+    ).fetchone()
+
+    response = client.put(
+        "/api/workers",
+        json={
+            "pioreactor_unit": "unit4",
+            "model_name": "pioreactor_40ml",
+            "model_version": "1.0",
+        },
+    )
+
+    worker_after = db.execute(
+        "SELECT * FROM workers WHERE pioreactor_unit = ?",
+        ("unit4",),
+    ).fetchone()
+    assignment_after = db.execute(
+        "SELECT * FROM experiment_worker_assignments WHERE pioreactor_unit = ?",
+        ("unit4",),
+    ).fetchone()
+
+    assert worker_after == worker_before
+    assert assignment_after == assignment_before
+    assert response.status_code == 200
+
+
 def test_assign_worker_to_experiment_rejects_unregistered_worker(client: FlaskClient) -> None:
     response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "203.0.113.10"})
 
@@ -365,6 +402,58 @@ def test_add_worker_to_experiment_publishes_retained_assignment(
     assert payload["experiment"] == "exp1"
     assert isinstance(payload["assigned_at"], str)
     assert isinstance(payload["updated_at"], str)
+
+
+def test_retry_assignment_to_same_experiment_is_a_noop(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
+    db = g._app_database
+    db.execute("PRAGMA recursive_triggers = ON")
+    triggers_path = Path(__file__).parents[3] / "packaging" / "shared-assets" / "sql" / "create_triggers.sql"
+    db.executescript(triggers_path.read_text(encoding="utf-8"))
+
+    assignment_before = db.execute(
+        "SELECT * FROM experiment_worker_assignments WHERE pioreactor_unit = ?",
+        ("unit2",),
+    ).fetchone()
+    assert assignment_before is not None
+    db.execute(
+        """
+        INSERT INTO experiment_worker_assignments_history
+            (pioreactor_unit, experiment, assigned_at)
+        VALUES (?, ?, ?)
+        """,
+        (
+            assignment_before["pioreactor_unit"],
+            assignment_before["experiment"],
+            assignment_before["assigned_at"],
+        ),
+    )
+    db.commit()
+    history_before = db.execute(
+        "SELECT * FROM experiment_worker_assignments_history WHERE pioreactor_unit = ?",
+        ("unit2",),
+    ).fetchall()
+
+    def fail_on_side_effect(*args: object, **kwargs: object) -> None:
+        raise AssertionError("An idempotent assignment retry should not emit side effects.")
+
+    monkeypatch.setattr("pioreactor.web.api.publish_worker_experiment_assignment", fail_on_side_effect)
+    monkeypatch.setattr("pioreactor.web.api.multicast_post_to_worker", fail_on_side_effect)
+    monkeypatch.setattr("pioreactor.web.api.publish_to_experiment_log", fail_on_side_effect)
+
+    response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit2"})
+
+    assignment_after = db.execute(
+        "SELECT * FROM experiment_worker_assignments WHERE pioreactor_unit = ?",
+        ("unit2",),
+    ).fetchone()
+    history_after = db.execute(
+        "SELECT * FROM experiment_worker_assignments_history WHERE pioreactor_unit = ?",
+        ("unit2",),
+    ).fetchall()
+
+    assert response.status_code == 200
+    assert assignment_after == assignment_before
+    assert history_after == history_before
 
 
 def test_reassign_worker_to_experiment_stops_jobs_from_previous_experiment(
@@ -2258,6 +2347,17 @@ def test_run_job(client) -> None:
     assert len(bucket) == 0
 
 
+def test_run_job_rejects_unknown_request_fields(client) -> None:
+    response = client.post(
+        "/api/workers/unit1/jobs/run/job_name/stirring/experiments/exp1",
+        json={"optoins": {"target_rpm": 10}},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+    assert response.get_json()["status"] == 400
+
+
 def test_run_job_omits_incomplete_model_metadata(client) -> None:
     from pioreactor.web.app import modify_app_db
 
@@ -2836,6 +2936,20 @@ def test_update_app_from_release_archive_rejects_unverified_archive(
     assert response.status_code == 400
     assert response.get_json()["error"] == "Release archive failed verification"
     assert queued is False
+
+
+def test_job_settings_unit_api_does_not_advertise_patch(client: FlaskClient) -> None:
+    get_response = client.get("/unit_api/jobs/settings/job_name/not-a-running-job")
+    assert get_response.status_code == 404
+    assert get_response.get_json()["error"] == "No settings found for job."
+
+    patch_response = client.patch(
+        "/unit_api/jobs/settings/job_name/not-a-running-job",
+        json={"settings": {"target_rpm": 500}},
+    )
+    assert patch_response.status_code == 405
+    assert patch_response.get_json()["status"] == 405
+    assert patch_response.get_json()["error"] == "The method is not allowed for the requested URL."
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")

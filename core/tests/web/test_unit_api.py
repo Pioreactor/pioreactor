@@ -939,6 +939,26 @@ def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, 
     assert data["error"] == "Requested dose would meet or exceed the reactor safety threshold."
 
 
+def test_run_job_rejects_unknown_request_fields(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
+    monkeypatch.setattr(
+        mod.tasks,
+        "pio_run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    response = client.patch(
+        "/unit_api/jobs/run/job_name/stirring",
+        json={"optoins": {"target_rpm": 10}},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Invalid request body."
+    assert response.get_json()["status"] == 400
+
+
 def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypatch) -> None:
     import pioreactor.web.unit_api as mod
 

@@ -279,7 +279,7 @@ function ListSuggestedPlugins({
                           variant="body2"
                           color="text.primary"
                         >
-                          By {plugin.author}
+                          Author: {plugin.author} · Version: {plugin.latest_version_available}
                         </Typography>
                         <span>{plugin.description}</span>
                       </>
@@ -371,9 +371,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                 <PluginAvatar name={plugin.name} source="installed" />
               </ListItemAvatar>
               <ListItemText
-                primary={`${plugin.name} ${
-                  plugin.version === "Unknown" ? "" : "(" + plugin.version + ")"
-                }`}
+                primary={plugin.name}
                 slotProps={{ primary: { style: { fontSize: "0.95rem" } } }}
                 secondary={
                   <>
@@ -383,7 +381,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                       variant="body2"
                       color="text.primary"
                     >
-                      By {plugin.author || "unknown author"}
+                      Author: {plugin.author || "unknown author"} · Version: {plugin.version}
                     </Typography>
                     <span>
                       {plugin.description === "Unknown"
@@ -552,12 +550,10 @@ function ListUsbPlugins({
       <Box sx={{ mb: "15px", width: "100%" }}>
         <List>
           {usbPlugins.map((plugin) => {
-            const pluginDetail = plugin.version
-              ? ` (${plugin.version})`
-              : plugin.kind === "python_file"
-                ? " (Python file)"
-                : "";
-            const label = `${plugin.name}${pluginDetail}`;
+            const pluginMetadata =
+              plugin.kind === "python_file"
+                ? "Type: Python file"
+                : `Version: ${plugin.version || "Unknown"}`;
             const isInstalled = installedPlugins.includes(plugin.name);
             const task = getTask("install", "usb", plugin.name);
 
@@ -567,10 +563,18 @@ function ListUsbPlugins({
                   <PluginAvatar name={plugin.name} source="usb" />
                 </ListItemAvatar>
                 <ListItemText
-                  primary={label}
+                  primary={plugin.name}
                   slotProps={{ primary: { style: { fontSize: "0.95rem" } } }}
                   secondary={
                     <>
+                      <Typography
+                        sx={{ display: "block", fontStyle: "italic", my: 0.5 }}
+                        component="span"
+                        variant="body2"
+                        color="text.primary"
+                      >
+                        {pluginMetadata}
+                      </Typography>
                       <span>{plugin.path}</span>
                     </>
                   }

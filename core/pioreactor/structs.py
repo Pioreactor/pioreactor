@@ -682,7 +682,7 @@ class ChartDescriptor(Struct, forbid_unknown_fields=True):
     ] = "stepAfter"
 
 
-class ArgsOptionsEnvs(Struct):
+class ArgsOptionsEnvs(Struct, forbid_unknown_fields=True):
     options: dict[str, t.Any] = {}
     env: dict[str, str] = {}
     args: list[str] = []

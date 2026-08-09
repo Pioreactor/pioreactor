@@ -141,9 +141,13 @@ def install_plugin_assets(
 
     if is_leader:
         sql_was_applied = apply_additional_sql(install_folder, database_path)
-        merge_exportable_dataset_assets(install_folder, dot_pioreactor_dir)
+        export_dataset_was_added = merge_exportable_dataset_assets(install_folder, dot_pioreactor_dir)
+
+        if export_dataset_was_added:
+            logger.debug("Added exportable_datasets.")
 
         if sql_was_applied:
+            logger.debug("Applied SQL statement. Attempting to restart mqtt_to_db_streaming.")
             restart_mqtt_to_db_streaming()
 
     run_post_install_hook(install_folder, logger)
@@ -187,11 +191,13 @@ def merge_plugin_ui_assets(install_folder: Path, dot_pioreactor_dir: Path) -> No
         copy_tree_contents(ui_dir, dot_pioreactor_dir / "plugins" / "ui")
 
 
-def merge_exportable_dataset_assets(install_folder: Path, dot_pioreactor_dir: Path) -> None:
+def merge_exportable_dataset_assets(install_folder: Path, dot_pioreactor_dir: Path) -> bool:
     datasets_dir = install_folder / "exportable_datasets"
 
     if datasets_dir.is_dir():
         copy_tree_contents(datasets_dir, dot_pioreactor_dir / "plugins" / "exportable_datasets")
+        return True
+    return False
 
 
 def remove_plugin_ui_assets(install_folder: Path, dot_pioreactor_dir: Path) -> None:
@@ -266,6 +272,7 @@ def merge_additional_config(install_folder: Path, dot_pioreactor_dir: Path, *, i
     shared_config = ConfigParserMod()
     shared_config.read_string(shared_config_text)
 
+    # add the [ui.*] sections to the leader's shared config so the UI reads it.
     for section in additional_config.sections():
         if not section.startswith("ui."):
             continue

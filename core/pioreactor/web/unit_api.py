@@ -1353,21 +1353,6 @@ def get_job_setting(job_name: str, setting: str) -> ResponseReturnValue:
     return jsonify({setting_metadata["setting"]: setting_metadata["value"]})
 
 
-@unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["PATCH"])
-def update_job(job_name: str) -> ResponseReturnValue:
-    """
-    The body should look like:
-
-    {
-      "settings": {
-        <setting1>: <value1>,
-        <setting2>: <value2>
-      },
-    }
-    """
-    abort_with(503, "Not implemented.")
-
-
 @unit_api_bp.route("/bioreactor/experiments/<experiment>", methods=["GET"])
 def get_bioreactor_values(experiment: str) -> ResponseReturnValue:
     return jsonify({"values": get_all_bioreactor_values(experiment)})
