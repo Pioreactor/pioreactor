@@ -3,7 +3,7 @@ import SvgIcon from '@mui/material/SvgIcon'
 
 function PioreactorIcon(props) {
   return (
-    <SvgIcon viewBox="-4 -2 24 24" strokeWidth="1.9" {...props}>
+    <SvgIcon viewBox="-3.5 -2.5 24 24" strokeWidth="2" strokeLinejoin="round" {...props}>
       <path
         d="M1.4 18.9L1.4 14.7L0 14.7L0 11.2L2.8 11.2L2.8 0H14v11.2h2.8v3.5h-1.4v4.2H1.4z"
         fill={props.fillColor || 'none'}
