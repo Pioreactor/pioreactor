@@ -145,8 +145,15 @@ def create_client(
     for retries in range(1, max_connection_attempts + 1):
         try:
             client.connect(hostname, port, keepalive=keepalive)
-        except (socket.gaierror, OSError):
+        except (socket.gaierror, OSError) as e:
             if retries == max_connection_attempts:
+                from pioreactor.logging import create_logger
+
+                create_logger("pubsub.create_client", to_mqtt=False).warning(
+                    f"Unable to connect to MQTT broker at {hostname}:{port} after "
+                    f"{max_connection_attempts} attempts. Returning a disconnected client. "
+                    f"client_id={client_id or '<auto>'}, tls={tls}. Last error: {e}"
+                )
                 break
             if "pytest" not in sys.modules and environ.get("TESTING", "") != "1":
                 sleep(2 * retries)

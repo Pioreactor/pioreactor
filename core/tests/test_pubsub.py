@@ -83,16 +83,29 @@ def test_create_client_with_custom_on_message(mock_client) -> None:
     assert client_instance.on_message == on_message
 
 
-def test_create_client_max_connection_attempts(mock_client) -> None:
+def test_create_client_max_connection_attempts_logs_locally(mock_client) -> None:
     hostname = "test_hostname"
     client_instance = MagicMock(spec=Client)
     mock_client.return_value = client_instance
-    client_instance.connect.side_effect = socket.gaierror()
+    client_instance.connect.side_effect = socket.gaierror("Unable to resolve broker")
 
     max_connection_attempts = 3
-    create_client(hostname=hostname, max_connection_attempts=max_connection_attempts)
+    with patch("pioreactor.logging.create_logger") as create_logger:
+        client = create_client(
+            hostname=hostname,
+            client_id="test-client",
+            max_connection_attempts=max_connection_attempts,
+        )
 
+    assert client is client_instance
     assert client_instance.connect.call_count == max_connection_attempts
+    client_instance.loop_start.assert_not_called()
+    create_logger.assert_called_once_with("pubsub.create_client", to_mqtt=False)
+    create_logger.return_value.warning.assert_called_once_with(
+        "Unable to connect to MQTT broker at test_hostname:1883 after 3 attempts. "
+        "Returning a disconnected client. client_id=test-client, tls=False. "
+        "Last error: Unable to resolve broker"
+    )
 
 
 def test_subscribe_and_callback_registers_cleanup_for_existing_client() -> None:

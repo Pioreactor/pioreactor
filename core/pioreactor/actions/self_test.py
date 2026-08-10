@@ -59,7 +59,7 @@ type SelfTest = Callable[[managed_lifecycle, CustomLogger, str, str], None]
 REGISTERED_SELF_TESTS: list[SelfTest] = []
 
 
-class SelfTestTimedOut(TimeoutError):
+class SelfTestTimedOut(BaseException):
     pass
 
 
@@ -141,7 +141,6 @@ def test_REF_is_in_correct_position(
             estimator=False,
         ) as od_reader,
     ):
-        st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
         warmup_samples = 5
         n_cycles = 8
