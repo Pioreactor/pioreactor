@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="50 59 120 142">
+<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="50 59 120 142">
   <g style="color:#616161">
     <g transform="translate(95.3 100.1) scale(2.6)" stroke="currentColor" stroke-width="1.2" fill="none">
       <rect x="1.0" y="11.3" width="9.3" height="7.6" rx="0.6" ry="0.6" fill="#9FD7F4" stroke="none" />

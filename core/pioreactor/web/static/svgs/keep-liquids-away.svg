@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
   <!-- Base icon color shared by all elements. -->
   <g style="color:#616161">
     <!-- Pioreactor outline baked from defs + translate(215,76) + scale(3) + parent translate(14,0). -->
