@@ -134,7 +134,9 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
         switch (load) {
           case 'stirring':
             const rpmEstimate = parseFloat(dcs[pin]) * 26.66666667;
-            rpm_ = Math.min(Math.max(rpmEstimate, 100), rpmClampMax);
+            rpm_ = rpmEstimate > 0
+              ? Math.min(Math.max(rpmEstimate, 100), rpmClampMax)
+              : rpmEstimate;
             break;
           case 'media':
             pumps_.add('media');
@@ -191,6 +193,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       return undefined;
     }
     const ctx = canvas.getContext('2d');
+    const isAnimating = Number.isFinite(rpm) && rpm > 0;
     let now;
     let elapsed;
     const liquidLevel = (volume / size) * bioreactor.height;
@@ -414,7 +417,9 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       ctx.strokeStyle = '#000';
       ctx.beginPath();
       ctx.stroke();
-      const angle = (2 * Math.PI / (frameFactor * fps / rpm)) * stirBarFrame.current;
+      const angle = isAnimating
+        ? (2 * Math.PI / (frameFactor * fps / rpm)) * stirBarFrame.current
+        : 0;
       const width = bioreactor.stirBar.maxWidth * Math.abs(Math.cos(angle)) + 10;
       drawRoundedRect(
         bioreactor.stirBar.x + (bioreactor.stirBar.maxWidth - width) / 2,
@@ -430,6 +435,11 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       drawLabeledRectangles(dynamicRects);
       drawLabeledHeat(heaterRec);
       if (pumps.size) drawWarning(warningRects);
+    }
+
+    if (!isAnimating) {
+      drawBioreactor();
+      return undefined;
     }
 
     function startAnimating() {

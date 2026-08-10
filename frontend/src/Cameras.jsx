@@ -80,7 +80,7 @@ export default function Cameras({ title }) {
         <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
           Cameras
         </Typography>
-        <Divider />
+        <Divider sx={{mt: "12px", mb: "15px"}} />
       </Box>
 
       {error && <Alert severity="error">{error} Existing camera information may be out of date.</Alert>}

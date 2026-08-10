@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import typing as t
+from time import monotonic
 
 from pioreactor import structs
 from pioreactor import types as pt
@@ -258,108 +259,101 @@ def apply_dosing_event_to_bioreactor(
     dosing_event: structs.DosingEvent,
     mqtt_client: Client | None = None,
 ) -> dict[str, float]:
-    current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
-    efflux_tube_volume_ml = get_bioreactor_value(experiment, "efflux_tube_volume_ml")
-    current_alt_media_fraction = get_bioreactor_value(experiment, "alt_media_fraction")
-    current_cumulative_media_added_ml = get_bioreactor_value(experiment, "cumulative_media_added_ml")
-    current_cumulative_alt_media_added_ml = get_bioreactor_value(experiment, "cumulative_alt_media_added_ml")
-    current_cumulative_waste_removed_ml = get_bioreactor_value(experiment, "cumulative_waste_removed_ml")
+    with local_persistent_storage("bioreactor") as cache:
+        try:
+            cache.cursor.execute("BEGIN IMMEDIATE")
+            current_state = {
+                variable_name: validate_bioreactor_value(
+                    variable_name,
+                    cache.getfloat(
+                        (experiment, variable_name),
+                        fallback=get_default_bioreactor_value(variable_name),
+                    ),
+                )
+                for variable_name in _BIOREACTOR_VARIABLES
+            }
 
-    updated_alt_media_fraction = calculate_updated_alt_media_fraction(
-        dosing_event,
-        current_alt_media_fraction=current_alt_media_fraction,
-        current_volume_ml=current_volume_ml,
-    )
-    updated_current_volume_ml = calculate_updated_current_volume(
-        dosing_event,
-        current_volume_ml=current_volume_ml,
-        efflux_tube_volume_ml=efflux_tube_volume_ml,
-    )
-    updated_cumulative_media_added_ml = calculate_updated_cumulative_volume(
-        "cumulative_media_added_ml",
-        dosing_event,
-        current_cumulative_media_added_ml,
-    )
-    updated_cumulative_alt_media_added_ml = calculate_updated_cumulative_volume(
-        "cumulative_alt_media_added_ml",
-        dosing_event,
-        current_cumulative_alt_media_added_ml,
-    )
-    updated_cumulative_waste_removed_ml = calculate_updated_cumulative_volume(
-        "cumulative_waste_removed_ml",
-        dosing_event,
-        current_cumulative_waste_removed_ml,
-    )
+            updated_state = {
+                "alt_media_fraction": calculate_updated_alt_media_fraction(
+                    dosing_event,
+                    current_alt_media_fraction=current_state["alt_media_fraction"],
+                    current_volume_ml=current_state["current_volume_ml"],
+                ),
+                "current_volume_ml": calculate_updated_current_volume(
+                    dosing_event,
+                    current_volume_ml=current_state["current_volume_ml"],
+                    efflux_tube_volume_ml=current_state["efflux_tube_volume_ml"],
+                ),
+                "cumulative_media_added_ml": calculate_updated_cumulative_volume(
+                    "cumulative_media_added_ml",
+                    dosing_event,
+                    current_state["cumulative_media_added_ml"],
+                ),
+                "cumulative_alt_media_added_ml": calculate_updated_cumulative_volume(
+                    "cumulative_alt_media_added_ml",
+                    dosing_event,
+                    current_state["cumulative_alt_media_added_ml"],
+                ),
+                "cumulative_waste_removed_ml": calculate_updated_cumulative_volume(
+                    "cumulative_waste_removed_ml",
+                    dosing_event,
+                    current_state["cumulative_waste_removed_ml"],
+                ),
+            }
 
-    updated_alt_media_fraction = set_bioreactor_value(
-        experiment,
-        "alt_media_fraction",
-        updated_alt_media_fraction,
-    )
-    updated_current_volume_ml = set_bioreactor_value(
-        experiment,
-        "current_volume_ml",
-        updated_current_volume_ml,
-    )
-    updated_cumulative_media_added_ml = set_bioreactor_value(
-        experiment,
-        "cumulative_media_added_ml",
-        updated_cumulative_media_added_ml,
-    )
-    updated_cumulative_alt_media_added_ml = set_bioreactor_value(
-        experiment,
-        "cumulative_alt_media_added_ml",
-        updated_cumulative_alt_media_added_ml,
-    )
-    updated_cumulative_waste_removed_ml = set_bioreactor_value(
-        experiment,
-        "cumulative_waste_removed_ml",
-        updated_cumulative_waste_removed_ml,
-    )
+            for variable_name, updated_value in updated_state.items():
+                if updated_value != current_state[variable_name]:
+                    cache[(experiment, variable_name)] = updated_value
 
-    _publish_updated_bioreactor_value(
-        unit,
-        experiment,
-        "alt_media_fraction",
-        updated_alt_media_fraction,
-        mqtt_client=mqtt_client,
-    )
-    _publish_updated_bioreactor_value(
-        unit,
-        experiment,
-        "current_volume_ml",
-        updated_current_volume_ml,
-        mqtt_client=mqtt_client,
-    )
-    _publish_updated_bioreactor_value(
-        unit,
-        experiment,
-        "cumulative_media_added_ml",
-        updated_cumulative_media_added_ml,
-        mqtt_client=mqtt_client,
-    )
-    _publish_updated_bioreactor_value(
-        unit,
-        experiment,
-        "cumulative_alt_media_added_ml",
-        updated_cumulative_alt_media_added_ml,
-        mqtt_client=mqtt_client,
-    )
-    _publish_updated_bioreactor_value(
-        unit,
-        experiment,
-        "cumulative_waste_removed_ml",
-        updated_cumulative_waste_removed_ml,
-        mqtt_client=mqtt_client,
-    )
+            cache.conn.commit()
+        except Exception:
+            cache.conn.rollback()
+            raise
 
-    return {
-        "alt_media_fraction": updated_alt_media_fraction,
-        "current_volume_ml": updated_current_volume_ml,
-        "cumulative_media_added_ml": updated_cumulative_media_added_ml,
-        "cumulative_alt_media_added_ml": updated_cumulative_alt_media_added_ml,
-        "cumulative_waste_removed_ml": updated_cumulative_waste_removed_ml,
-    }
+    if mqtt_client is None:
+        for variable_name, updated_value in updated_state.items():
+            _publish_updated_bioreactor_value(
+                unit,
+                experiment,
+                variable_name,
+                updated_value,
+                mqtt_client=None,
+            )
+        return updated_state
+
+    publications = []
+    for variable_name, updated_value in updated_state.items():
+        topic = get_bioreactor_topic(unit, experiment, variable_name)
+        publications.append(
+            (
+                topic,
+                mqtt_client.publish(
+                    topic,
+                    updated_value,
+                    qos=QOS.EXACTLY_ONCE,
+                    retain=True,
+                ),
+            )
+        )
+
+    deadline = monotonic() + 10.0
+    unacknowledged_topics: list[str] = []
+    for topic, message_info in publications:
+        try:
+            message_info.wait_for_publish(timeout=max(deadline - monotonic(), 0.0))
+        except (RuntimeError, ValueError):
+            unacknowledged_topics.append(topic)
+            continue
+
+        if not message_info.is_published():
+            unacknowledged_topics.append(topic)
+
+    if unacknowledged_topics:
+        raise RuntimeError(
+            "Unable to confirm retained bioreactor state publication for: " + ", ".join(unacknowledged_topics)
+        )
+
+    return updated_state
 
 
 def _calculate_alt_media_fraction_after_addition(

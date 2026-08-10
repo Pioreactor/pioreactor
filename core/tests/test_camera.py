@@ -17,6 +17,7 @@ from msgspec.json import decode as json_decode
 from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.actions.led_intensity import lock_leds_temporarily
+from pioreactor.camera import apply_camera_still_retention
 from pioreactor.camera import camera_auto_capture_is_enabled
 from pioreactor.camera import camera_capture_lock
 from pioreactor.camera import camera_focus_preview_path
@@ -246,6 +247,69 @@ def test_load_latest_camera_still_metadata_returns_none_without_an_image(
     assert load_latest_camera_still_metadata("unit-a") is None
 
 
+@pytest.mark.parametrize("experiment", ["experiment-a", None])
+@pytest.mark.parametrize("scheduled_still_count", [1, 2], ids=["below-cap", "at-cap"])
+def test_store_camera_still_retention_skips_full_cohort_at_or_below_cap(
+    experiment: str | None,
+    scheduled_still_count: int,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+    full_cohort_scan = MagicMock(side_effect=AssertionError("full camera still cohort was loaded"))
+    monkeypatch.setattr("pioreactor.camera.list_camera_still_metadata", full_cohort_scan)
+
+    for i in range(scheduled_still_count):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment=experiment,
+            captured_at=datetime(2026, 6, 10, 12, i, tzinfo=UTC),
+            image_id=f"image-{i}",
+            retention_count=2,
+        )
+
+    full_cohort_scan.assert_not_called()
+
+
+def test_store_camera_still_retention_counts_missing_capture_reason_as_scheduled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    stills_root = dot_pioreactor / "storage" / "camera_stills"
+    stills_root.mkdir(parents=True)
+
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        for i in range(3):
+            image_id = f"image-{i}"
+            storage[image_id] = (
+                f'{{"experiment":"experiment-a","captured_at":"2026-06-10T12:0{i}:00Z",'
+                f'"image_id":"{image_id}"}}'
+            ).encode()
+            write_source_image(stills_root / f"{image_id}.jpg")
+
+    apply_camera_still_retention(
+        "unit-a",
+        experiment="experiment-a",
+        retention_count=2,
+        dot_pioreactor=dot_pioreactor,
+    )
+
+    assert [
+        metadata.image_id
+        for metadata in list_camera_still_metadata(
+            "unit-a",
+            experiment="experiment-a",
+            dot_pioreactor=dot_pioreactor,
+        )
+    ] == ["image-2", "image-0"]
+
+
 def test_store_camera_still_retention_preserves_first_and_latest_stills(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -306,6 +370,8 @@ def test_store_camera_still_retention_never_deletes_user_requested_stills(
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     source_image_path = tmp_path / "capture.jpg"
     write_source_image(source_image_path)
+    full_cohort_scan = MagicMock(wraps=list_camera_still_metadata)
+    monkeypatch.setattr("pioreactor.camera.list_camera_still_metadata", full_cohort_scan)
 
     for image_id, minute, capture_reason in (
         ("automatic-0", 0, "scheduled"),
@@ -323,6 +389,7 @@ def test_store_camera_still_retention_never_deletes_user_requested_stills(
             retention_count=2,
         )
 
+    assert full_cohort_scan.call_count == 1
     assert [metadata.image_id for metadata in list_camera_still_metadata("unit-a")] == [
         "automatic-10",
         "protected-1",
@@ -330,6 +397,80 @@ def test_store_camera_still_retention_never_deletes_user_requested_stills(
     ]
     assert not (dot_pioreactor / "storage" / "camera_stills" / "automatic-2.jpg").exists()
     assert (dot_pioreactor / "storage" / "camera_stills" / "protected-1.jpg").exists()
+
+
+def test_store_camera_still_retention_keeps_none_experiment_isolated_from_named_experiments(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+
+    for i in range(3):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment="experiment-a",
+            captured_at=datetime(2026, 6, 10, 12, i, tzinfo=UTC),
+            image_id=f"named-image-{i}",
+            retention_count=3,
+        )
+
+    full_cohort_scan = MagicMock(side_effect=AssertionError("full camera still cohort was loaded"))
+    monkeypatch.setattr("pioreactor.camera.list_camera_still_metadata", full_cohort_scan)
+    for i in range(2):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment=None,
+            captured_at=datetime(2026, 6, 10, 13, i, tzinfo=UTC),
+            image_id=f"unassigned-image-{i}",
+            retention_count=2,
+        )
+
+    full_cohort_scan.assert_not_called()
+
+
+def test_store_camera_still_retention_ignores_stale_metadata_for_missing_images(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+
+    for image_id, minute, capture_reason in (
+        ("automatic-0", 0, "scheduled"),
+        ("missing-1", 1, "scheduled"),
+        ("protected-2", 2, "manual"),
+        ("automatic-3", 3, "scheduled"),
+    ):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment="experiment-a",
+            captured_at=datetime(2026, 6, 10, 12, minute, tzinfo=UTC),
+            image_id=image_id,
+            capture_reason=capture_reason,
+            retention_count=4,
+        )
+
+    (dot_pioreactor / "storage" / "camera_stills" / "missing-1.jpg").unlink()
+    apply_camera_still_retention(
+        "unit-a",
+        experiment="experiment-a",
+        retention_count=2,
+        dot_pioreactor=dot_pioreactor,
+    )
+
+    assert (dot_pioreactor / "storage" / "camera_stills" / "automatic-0.jpg").exists()
+    assert (dot_pioreactor / "storage" / "camera_stills" / "protected-2.jpg").exists()
+    assert (dot_pioreactor / "storage" / "camera_stills" / "automatic-3.jpg").exists()
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        assert "missing-1" in storage
 
 
 def test_store_camera_still_retention_is_scoped_to_each_experiment(

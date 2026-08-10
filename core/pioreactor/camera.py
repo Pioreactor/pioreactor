@@ -974,6 +974,34 @@ def apply_camera_still_retention(
     This is an online, irreversible approximation: an evicted image cannot be reconsidered as the
     experiment grows. ``experiment=None`` is treated as its own retention cohort.
     """
+    if not camera_storage_name_is_safe(unit):
+        raise ValueError(f"Unsafe camera unit name: {unit}")
+
+    # Metadata written before capture_reason was added decodes as scheduled.
+    count_query = f"""
+        SELECT COUNT(*)
+        FROM cache_{CAMERA_STILLS_CACHE_NAME}
+        WHERE (
+            json_extract(value, '$.capture_reason') = 'scheduled'
+            OR json_type(value, '$.capture_reason') IS NULL
+        )
+          AND json_extract(value, '$.experiment')
+    """
+    params: tuple[pt.Experiment, ...]
+    if experiment is None:
+        count_query += " IS NULL"
+        params = ()
+    else:
+        count_query += " = ?"
+        params = (experiment,)
+
+    with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+        initialize_camera_stills_metadata_storage(storage)
+        scheduled_metadata_count = storage.cursor.execute(count_query, params).fetchone()[0]
+
+    if scheduled_metadata_count <= retention_count:
+        return
+
     if experiment is None:
         stills = [
             still

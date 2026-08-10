@@ -11,14 +11,26 @@ from pioreactor import structs
 
 
 class FakeMQTTMessageInfo:
-    def __init__(self, wait_error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        wait_error: Exception | None = None,
+        published: bool = True,
+        on_wait: Callable[[float | None], Any] | None = None,
+    ) -> None:
         self.wait_error = wait_error
+        self.published = published
+        self.on_wait = on_wait
         self.wait_calls: list[float | None] = []
 
     def wait_for_publish(self, timeout: float | None = None) -> None:
         self.wait_calls.append(timeout)
+        if self.on_wait is not None:
+            self.on_wait(timeout)
         if self.wait_error is not None:
             raise self.wait_error
+
+    def is_published(self) -> bool:
+        return self.published
 
 
 class FakeMQTTClient:
@@ -32,6 +44,7 @@ class FakeMQTTClient:
         self.message_info_factory = message_info_factory or FakeMQTTMessageInfo
         self.published: list[tuple[str, Any, bool]] = []
         self.publish_calls: list[dict[str, Any]] = []
+        self.message_infos: list[FakeMQTTMessageInfo] = []
         self.callbacks: dict[str, object] = {}
         self.subscriptions: list[str] = []
         self.unsubscribed: list[str] = []
@@ -57,7 +70,9 @@ class FakeMQTTClient:
         )
         if self.on_publish is not None:
             self.on_publish(topic, payload, **kwargs)
-        return self.message_info_factory()
+        message_info = self.message_info_factory()
+        self.message_infos.append(message_info)
+        return message_info
 
     def message_callback_add(self, topic: str, callback: object) -> None:
         self.callbacks[topic] = callback
