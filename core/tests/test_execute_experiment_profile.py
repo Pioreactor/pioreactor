@@ -8,10 +8,12 @@ from msgspec.json import encode
 from msgspec.yaml import decode
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
 from pioreactor.actions.leader.experiment_profile import check_plugins
+from pioreactor.actions.leader.experiment_profile import evaluate_options
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.actions.leader.experiment_profile import seconds_to_hours
 from pioreactor.actions.leader.experiment_profile import time_to_seconds
+from pioreactor.actions.leader.experiment_profile import update_job
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
@@ -562,6 +564,154 @@ def test_execute_experiment_update_automation(mock__load_experiment_profile) -> 
     mock__load_experiment_profile.return_value = profile
 
     execute_experiment_profile("profile.yaml", experiment)
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {},
+        {"target_rpm": 500},
+        {"target_rpm": 500, "duration": 2.5},
+    ],
+)
+def test_update_job_batches_settings_into_one_request(options: dict[str, object]) -> None:
+    logger = MagicMock()
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.check_if_job_running",
+            return_value=True,
+        ) as mock_check_if_job_running,
+        patch("pioreactor.actions.leader.experiment_profile.patch_into_leader") as mock_patch,
+    ):
+        update_job(
+            "unit1",
+            "_testing_experiment",
+            MagicMock(),
+            "stirring",
+            False,
+            True,
+            {},
+            logger,
+            MagicMock(),
+            options,
+        )()
+
+    if options:
+        mock_check_if_job_running.assert_called_once_with("unit1", "stirring")
+        mock_patch.assert_called_once_with(
+            "/api/workers/unit1/jobs/update/job_name/stirring/experiments/_testing_experiment",
+            json={"settings": options},
+        )
+        assert list(mock_patch.call_args.kwargs["json"]["settings"]) == list(options)
+    else:
+        mock_check_if_job_running.assert_not_called()
+        mock_patch.assert_not_called()
+
+
+def test_update_job_evaluates_dry_run_settings_once_without_http() -> None:
+    logger = MagicMock()
+    action_metrics = MagicMock()
+    action_metrics.increment.return_value = 1
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.evaluate_options",
+            wraps=evaluate_options,
+        ) as mock_evaluate_options,
+        patch(
+            "pioreactor.actions.leader.experiment_profile.check_if_job_running"
+        ) as mock_check_if_job_running,
+        patch("pioreactor.actions.leader.experiment_profile.patch_into_leader") as mock_patch,
+    ):
+        update_job(
+            "unit1",
+            "_testing_experiment",
+            MagicMock(),
+            "stirring",
+            True,
+            True,
+            {"rpm": 400},
+            logger,
+            action_metrics,
+            {"target_rpm": "${{rpm + 100}}", "duration": 2.5},
+        )()
+
+    mock_evaluate_options.assert_called_once()
+    assert [call.args[0] for call in logger.info.call_args_list] == [
+        "1. Dry-run: Updating target_rpm to 500.0 in stirring on unit1.",
+        "1. Dry-run: Updating duration to 2.5 in stirring on unit1.",
+    ]
+    mock_check_if_job_running.assert_not_called()
+    mock_patch.assert_not_called()
+
+
+def test_update_job_checks_non_running_job_once() -> None:
+    logger = MagicMock()
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.check_if_job_running",
+            return_value=False,
+        ) as mock_check_if_job_running,
+        patch("pioreactor.actions.leader.experiment_profile.patch_into_leader") as mock_patch,
+    ):
+        update_job(
+            "unit1",
+            "_testing_experiment",
+            MagicMock(),
+            "stirring",
+            False,
+            True,
+            {},
+            logger,
+            MagicMock(),
+            {"target_rpm": 500, "duration": 2.5},
+        )()
+
+    mock_check_if_job_running.assert_called_once_with("unit1", "stirring")
+    mock_patch.assert_not_called()
+    assert (
+        sum(call.args == ("Job stirring not running on unit1.",) for call in logger.debug.call_args_list) == 1
+    )
+
+
+def test_update_job_reports_one_error_for_batched_request() -> None:
+    logger = MagicMock()
+    response = MagicMock(ok=False)
+
+    with (
+        patch(
+            "pioreactor.actions.leader.experiment_profile.check_if_job_running",
+            return_value=True,
+        ),
+        patch(
+            "pioreactor.actions.leader.experiment_profile.patch_into_leader",
+            return_value=response,
+        ) as mock_patch,
+        patch(
+            "pioreactor.actions.leader.experiment_profile.summarize_error_response",
+            return_value="HTTP 500: unable to update settings",
+        ),
+    ):
+        update_job(
+            "unit1",
+            "_testing_experiment",
+            MagicMock(),
+            "stirring",
+            False,
+            True,
+            {},
+            logger,
+            MagicMock(),
+            {"target_rpm": 500, "duration": 2.5},
+        )()
+
+    mock_patch.assert_called_once_with(
+        "/api/workers/unit1/jobs/update/job_name/stirring/experiments/_testing_experiment",
+        json={"settings": {"target_rpm": 500, "duration": 2.5}},
+    )
+    logger.error.assert_called_once_with("Error in action: HTTP 500: unable to update settings")
 
 
 @pytest.mark.slow

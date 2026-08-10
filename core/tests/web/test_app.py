@@ -1378,6 +1378,57 @@ def test_get_config_for_broadcast_uses_worker_merged_config(
     }
 
 
+def test_get_config_for_broadcast_limits_fanout_to_requested_registered_units(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    captured_units: list[str] = []
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.get_all_units",
+        lambda: ["unit1", "unit2", "offline-unassigned-unit"],
+    )
+
+    def fake_multicast_get_with_leader_cache(
+        _cache_namespace: str,
+        _endpoint: str,
+        units: list[str],
+        *,
+        timeout: float,
+    ) -> dict[str, dict[str, object]]:
+        captured_units.extend(units)
+        return {unit: {"ok": True, "unit": unit, "value": {"shared": {"value": unit}}} for unit in units}
+
+    monkeypatch.setattr(
+        "pioreactor.web.cache.multicast_get_with_leader_cache",
+        fake_multicast_get_with_leader_cache,
+    )
+
+    response = client.get("/api/config/units/$broadcast?unit=unit1&unit=unit2")
+
+    assert response.status_code == 200
+    assert captured_units == ["unit1", "unit2"]
+    assert set(response.get_json()["configs"]) == {"unit1", "unit2"}
+
+
+def test_get_config_for_broadcast_rejects_unregistered_requested_unit(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    monkeypatch.setattr("pioreactor.web.api.get_all_units", lambda: ["unit1", "unit2"])
+
+    def fail_multicast_get(*_args, **_kwargs) -> None:
+        raise AssertionError("an invalid subset must not start config fanout")
+
+    monkeypatch.setattr(
+        "pioreactor.web.cache.multicast_get_with_leader_cache",
+        fail_multicast_get,
+    )
+
+    response = client.get("/api/config/units/$broadcast?unit=unit1&unit=unknown-unit")
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Unknown Pioreactor unit: unknown-unit"
+
+
 def test_get_config_for_worker_unwraps_merged_config(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "pioreactor.web.cache.multicast_get_with_leader_cache",

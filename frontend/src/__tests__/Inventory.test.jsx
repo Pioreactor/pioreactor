@@ -5,9 +5,12 @@ import { TextDecoder, TextEncoder } from "util";
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+let mockMQTTClient = {};
+const mockSubscribeToTopic = jest.fn();
+
 jest.mock("../providers/MQTTContext", () => ({
   useMQTT: () => ({
-    client: {},
+    client: mockMQTTClient,
     subscribeToTopic: mockSubscribeToTopic,
     unsubscribeFromTopic: jest.fn(),
   }),
@@ -28,9 +31,8 @@ jest.mock("react-router", () => ({
   useNavigate: () => jest.fn(),
 }));
 
-const { AddNewPioreactor, Blink, WorkerCard } = require("../Inventory");
-
-const mockSubscribeToTopic = jest.fn();
+const { AddNewPioreactor, Blink, WorkerCard, default: Inventory } = require("../Inventory");
+const { resetDescriptorCaches } = require("../utils/jobs");
 
 const modelsResponse = {
   models: [
@@ -38,6 +40,7 @@ const modelsResponse = {
       model_name: "pioreactor_40ml",
       model_version: "1.5",
       display_name: "Pioreactor 40ml v1.5",
+      reactor_capacity_ml: 40,
       is_contrib: false,
       is_legacy: false,
     },
@@ -95,6 +98,116 @@ function getSetupRequestBody() {
   const setupCall = global.fetch.mock.calls.find(([url]) => url === "/api/workers/setup");
   return JSON.parse(setupCall[1].body);
 }
+
+function setupInventoryFetchMocks({failedEndpoint = null} = {}) {
+  const workers = [
+    {
+      pioreactor_unit: "unit1",
+      is_active: true,
+      model_name: "pioreactor_40ml",
+      model_version: "1.5",
+      ipv4_address: "192.168.1.10",
+    },
+    {
+      pioreactor_unit: "unit2",
+      is_active: true,
+      model_name: "pioreactor_40ml",
+      model_version: "1.5",
+      ipv4_address: "192.168.1.11",
+    },
+  ];
+
+  global.fetch = jest.fn((url, options = {}) => {
+    if (url === "/api/workers") {
+      return Promise.resolve({ ok: true, json: async () => workers });
+    }
+    if (url === "/api/models") {
+      if (failedEndpoint === url) {
+        return Promise.resolve({ ok: false, statusText: "Unavailable" });
+      }
+      return Promise.resolve({ ok: true, json: async () => modelsResponse });
+    }
+    if (url === "/api/workers/assignments") {
+      if (failedEndpoint === url) {
+        return Promise.resolve({ ok: false, statusText: "Unavailable" });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [
+          { pioreactor_unit: "unit1", experiment: "experiment-a", is_active: 1 },
+          { pioreactor_unit: "unit2", experiment: null, is_active: 1 },
+        ],
+      });
+    }
+    if (url === "/api/config/shared") {
+      return Promise.resolve({ ok: true, text: async () => "[cluster.topology]\nleader_hostname=leader\n" });
+    }
+    if (url === "/api/jobs/descriptors") {
+      return Promise.resolve({ ok: true, json: async () => [] });
+    }
+    if (url === "/api/experiments/experiment-a/workers/unit1" && options.method === "DELETE") {
+      return Promise.resolve({ ok: true });
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+}
+
+describe("Inventory bootstrap", () => {
+  beforeEach(() => {
+    mockMQTTClient = null;
+    mockSubscribeToTopic.mockReset();
+    resetDescriptorCaches();
+    setupInventoryFetchMocks();
+  });
+
+  afterEach(() => {
+    mockMQTTClient = {};
+    jest.restoreAllMocks();
+  });
+
+  test("loads models and assignments once for multiple workers without MQTT", async () => {
+    render(<Inventory title="Inventory" />);
+
+    expect(await screen.findByText("experiment-a")).toBeInTheDocument();
+    expect(screen.getAllByText("Pioreactor 40ml v1.5")).toHaveLength(2);
+    expect(screen.getAllByText("40")).toHaveLength(2);
+
+    const requestedUrls = global.fetch.mock.calls.map(([url]) => url);
+    expect(requestedUrls.filter((url) => url === "/api/models")).toHaveLength(1);
+    expect(requestedUrls.filter((url) => url === "/api/workers/assignments")).toHaveLength(1);
+    expect(requestedUrls.some((url) => /\/api\/workers\/[^/]+\/experiment$/.test(url))).toBe(false);
+    expect(mockSubscribeToTopic).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["models", "/api/models", "experiment-a"],
+    ["assignments", "/api/workers/assignments", "Pioreactor 40ml v1.5"],
+  ])("keeps workers and successful %s data when one bootstrap request fails", async (_name, failedEndpoint, successfulText) => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setupInventoryFetchMocks({failedEndpoint});
+
+    render(<Inventory title="Inventory" />);
+
+    expect(await screen.findByText("unit1")).toBeInTheDocument();
+    expect(screen.getByText("unit2")).toBeInTheDocument();
+    expect(await screen.findAllByText(successfulText)).not.toHaveLength(0);
+  });
+
+  test("updates the affected card after unassigning without a page reload", async () => {
+    render(<Inventory title="Inventory" />);
+
+    expect(await screen.findByText("experiment-a")).toBeInTheDocument();
+    const unassignButtons = screen.getAllByRole("button", {name: "Unassign"});
+    fireEvent.click(unassignButtons[0]);
+
+    await waitFor(() => expect(screen.queryByText("experiment-a")).not.toBeInTheDocument());
+    expect(screen.getAllByText("Unassigned")).toHaveLength(2);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/experiments/experiment-a/workers/unit1",
+      {method: "DELETE"},
+    );
+  });
+});
 
 describe("AddNewPioreactor", () => {
   beforeEach(() => {
@@ -216,6 +329,27 @@ describe("WorkerCard", () => {
     );
 
     await screen.findByText("192.168.1.10");
+  });
+
+  test("does not fetch its assignment when MQTT is connected", async () => {
+    render(
+      <WorkerCard
+        worker={{
+          pioreactor_unit: "unit1",
+          is_active: true,
+          model_name: "pioreactor_40ml",
+          model_version: "1.5",
+          ipv4_address: "192.168.1.10",
+        }}
+        config={{ "cluster.topology": { leader_hostname: "leader" } }}
+        leaderVersion={null}
+        availableModels={modelsResponse.models}
+        experimentAssigned="experiment-a"
+      />,
+    );
+
+    expect(await screen.findByText("experiment-a")).toBeInTheDocument();
+    expect(global.fetch.mock.calls.some(([url]) => url === "/api/workers/unit1/experiment")).toBe(false);
   });
 
   test("shows an inline error when no model is selected", async () => {

@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 import sqlite3
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from pathlib import Path
 from time import sleep
 
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
+from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.automations import temperature  # noqa: F401
 from pioreactor.background_jobs.base import BackgroundJob
@@ -160,6 +164,30 @@ def test_dosing_events_land_in_db() -> None:
     cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()
     assert len(results) == 2
+
+
+def test_parse_dosing_events_normalizes_timestamp_for_text_comparison() -> None:
+    payload = encode(
+        structs.DosingEvent(
+            volume_change=1.0,
+            event="add_media",
+            source_of_event="test_suite",
+            timestamp=datetime(
+                2026,
+                1,
+                1,
+                12,
+                0,
+                0,
+                123456,
+                tzinfo=timezone(timedelta(hours=-5)),
+            ),
+        )
+    )
+
+    row = m2db.parse_dosing_events("pioreactor/unit/experiment/dosing_events", payload)
+
+    assert row["timestamp"] == "2026-01-01T17:00:00.123Z"
 
 
 def test_bioreactor_topics_land_in_db() -> None:

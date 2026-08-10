@@ -52,16 +52,32 @@ function ChangeAutomationsDialog(props) {
   const hasValidationErrors = hasAutomationFormErrors(selectedAutomation?.fields, algoSettings)
 
   useEffect(() => {
+    if (!props.open) {
+      return
+    }
+
+    let ignore = false
+
     setIsLoading(true)
     getAutomationDescriptors(props.unit, automationType)
       .then((listOfAuto) => {
+        if (ignore) {
+          return
+        }
+
         setAutomations(Object.assign({}, ...listOfAuto.map(auto => ({ [auto.automation_name]: auto}))))
         setIsLoading(false)
       })
       .catch((_error) => {
-        setIsLoading(false)
+        if (!ignore) {
+          setIsLoading(false)
+        }
       })
-  }, [automationType, props.unit])
+
+    return () => {
+      ignore = true
+    }
+  }, [props.open, automationType, props.unit])
 
   useEffect(() => {
     if (!props.open || Object.keys(automations).length === 0) {

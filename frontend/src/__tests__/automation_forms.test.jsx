@@ -231,6 +231,70 @@ describe("automation forms", () => {
     expect(input).toHaveDisplayValue("");
   });
 
+  test("ChangeAutomationsDialog waits until it opens to load automation descriptors", async () => {
+    const { rerender } = renderWithSnackbar(
+      <ChangeAutomationsDialog
+        open={false}
+        onFinished={jest.fn()}
+        unit="unit-1"
+        experiment="exp-1"
+        automationType="temperature"
+      />,
+    );
+
+    expect(getAutomationDescriptors).not.toHaveBeenCalled();
+
+    rerender(
+      <SnackbarProvider>
+        <ChangeAutomationsDialog
+          open
+          onFinished={jest.fn()}
+          unit="unit-1"
+          experiment="exp-1"
+          automationType="temperature"
+        />
+      </SnackbarProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText("Target temperature")).toHaveValue(37));
+    expect(getAutomationDescriptors).toHaveBeenCalledTimes(1);
+  });
+
+  test("ChangeDosingAutomationsDialog waits until it opens to load automation descriptors", async () => {
+    const { rerender } = renderWithSnackbar(
+      <ChangeDosingAutomationsDialog
+        open={false}
+        onFinished={jest.fn()}
+        unit="unit-1"
+        experiment="exp-1"
+        maxVolume={16}
+        liquidVolume={14}
+        capacity={20}
+        threshold={18}
+      />,
+    );
+
+    expect(getAutomationDescriptors).not.toHaveBeenCalled();
+
+    rerender(
+      <SnackbarProvider>
+        <ChangeDosingAutomationsDialog
+          open
+          onFinished={jest.fn()}
+          unit="unit-1"
+          experiment="exp-1"
+          maxVolume={16}
+          liquidVolume={14}
+          capacity={20}
+          threshold={18}
+        />
+      </SnackbarProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText("Current volume")).toHaveValue(14));
+    expect(getAutomationDescriptors).toHaveBeenCalledTimes(1);
+  });
+
   test("ChangeAutomationsDialog initializes defaults in the parent before start", async () => {
     renderWithSnackbar(
       <ChangeAutomationsDialog

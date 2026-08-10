@@ -54,17 +54,6 @@ import { getJobDescriptor } from "./utils/jobs";
 
 import { useExperiment } from './providers/ExperimentContext';
 
-// Hook to fetch available models from backend
-const useAvailableModels = () => {
-  const [models, setModels] = useState([]);
-  useEffect(() => {
-    fetch('/api/models')
-      .then((r) => r.json())
-      .then((data) => setModels(data.models || []));
-  }, []);
-  return models;
-};
-
 function useSelfTestJobDefinition() {
   const [definition, setDefinition] = useState(null);
 
@@ -114,7 +103,7 @@ function Header(props) {
           </Box>
         </Typography>
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <AddNewPioreactor setWorkers={props.setWorkers}/>
+          <AddNewPioreactor setWorkers={props.setWorkers} availableModels={props.availableModels}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageInventoryMenu showSyncClocks leaderHostname={leaderHostname}/>
         </Box>
@@ -149,7 +138,7 @@ function formatWorkerSetupErrorMessage({error, cause, remediation}) {
   ].filter(Boolean).join(" ");
 }
 
-function AddNewPioreactor({setWorkers}){
+function AddNewPioreactor({setWorkers, availableModels = []}){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [ipv4Address, setIpv4Address] = useState("");
@@ -167,8 +156,6 @@ function AddNewPioreactor({setWorkers}){
   // Discovery state for auto-detected workers
   const [discoveredWorkers, setDiscoveredWorkers] = useState([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
-  const availableModels = useAvailableModels();
-
   const loadDiscoveredWorkers = useCallback(() => {
     setIsDiscovering(true);
     fetch('/api/workers/discover')
@@ -419,9 +406,14 @@ function AddNewPioreactor({setWorkers}){
   );}
 
 
-function WorkerCard({worker, config, leaderVersion}) {
-
-  const availableModels = useAvailableModels();
+function WorkerCard({
+  worker,
+  config,
+  leaderVersion,
+  availableModels = [],
+  experimentAssigned = null,
+  onExperimentAssignmentChange = () => {},
+}) {
   const unit = worker.pioreactor_unit
   const isLeader = (config['cluster.topology']?.leader_hostname === unit)
   const [activeStatus, setActiveStatus] = React.useState(worker.is_active ? "active" : "inactive")
@@ -435,7 +427,6 @@ function WorkerCard({worker, config, leaderVersion}) {
   const modelBadgeContent = model[0]?.endsWith("XR") ? "XR" : currentModelCapacity;
 
 
-  const [experimentAssigned, setExperimentAssigned] = React.useState(null)
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const selfTestDefinition = useSelfTestJobDefinition();
   const [state, setState] = React.useState(null)
@@ -629,21 +620,6 @@ function WorkerCard({worker, config, leaderVersion}) {
     }
     const topic = `pioreactor/${unit}/$experiment/monitor/+`;
     subscribeToTopic(topic, onMonitorData, "WorkerCard");
-
-    const fetchExperiment = async () => {
-      try {
-        const response = await fetch(`/api/workers/${unit}/experiment`);
-        if (!response.ok) {
-          throw new Error(`No experiment found.`);
-        }
-        const json = await response.json();
-        setExperimentAssigned(json['experiment']);
-      } catch (error) {
-        return
-      }
-    };
-
-    fetchExperiment();
 
     return () => {
       unsubscribeFromTopic(topic, "WorkerCard");
@@ -893,7 +869,11 @@ function WorkerCard({worker, config, leaderVersion}) {
             selfTestState={selfTestJob ? selfTestJob.state : null}
             selfTestTests={selfTestJob}
           />
-          <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
+          <Unassign
+            unit={unit}
+            experimentAssigned={experimentAssigned}
+            onAssignmentChange={(experiment) => onExperimentAssignmentChange(unit, experiment)}
+          />
         </Box>
         <Box>
           <ManagePioreactorMenu unit={unit} isLeader={isLeader} showSnackbar={showSnackbar} />
@@ -930,13 +910,13 @@ function Blink({unit}){
 )}
 
 
-function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
+function Unassign({unit, experimentAssigned, onAssignmentChange}) {
 
   const unassignWorker = () => {
     fetch(`/api/experiments/${experimentPathSegment(experimentAssigned)}/workers/${unit}`, {method: "DELETE"})
     .then((res) => {
       if (res.ok){
-        setExperimentAssigned(null)
+        onAssignmentChange(null)
       }
     })
   };
@@ -949,7 +929,14 @@ function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
 
 
 
-function InventoryDisplay({isLoading, workers, config}){
+function InventoryDisplay({
+  isLoading,
+  workers,
+  config,
+  availableModels,
+  assignmentsByWorker,
+  onExperimentAssignmentChange,
+}){
   const [leaderVersion, setLeaderVersion] = React.useState(null)
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const leaderHostname = config['cluster.topology']?.leader_hostname;
@@ -989,7 +976,14 @@ function InventoryDisplay({isLoading, workers, config}){
               <Grid
                 key={worker.pioreactor_unit}
                 size={{ md: 6, xs: 12, sm: 12 }}>
-                <WorkerCard worker={worker} config={config} leaderVersion={leaderVersion}/>
+                <WorkerCard
+                  worker={worker}
+                  config={config}
+                  leaderVersion={leaderVersion}
+                  availableModels={availableModels}
+                  experimentAssigned={assignmentsByWorker[worker.pioreactor_unit] ?? null}
+                  onExperimentAssignmentChange={onExperimentAssignmentChange}
+                />
               </Grid>
             )}
             <Grid key="add-new" size={{ md: 6, xs: 12, sm: 12 }}>
@@ -1022,35 +1016,99 @@ function InventoryDisplay({isLoading, workers, config}){
 
 function Inventory({title}) {
   const [workers, setWorkers] = useState([]);
+  const [availableModels, setAvailableModels] = useState([]);
+  const [assignmentsByWorker, setAssignmentsByWorker] = useState({});
   const [config, setConfig] = useState({})
   const [isLoading, setIsLoading] = useState(true);
+  const locallyChangedAssignments = React.useRef(new Set());
 
   useEffect(() => {
     document.title = title;
   }, [title]);
 
   useEffect(() => {
-    getConfig(setConfig)
+    let isActive = true;
+
+    getConfig((loadedConfig) => {
+      if (isActive) {
+        setConfig(loadedConfig);
+      }
+    });
+
+    const fetchWorkers = async () => {
+      try {
+        const response = await fetch(`/api/workers`);
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+        const data = await response.json();
+        if (isActive) {
+          setWorkers(data);
+        }
+      } catch (error) {
+        console.error('Error fetching workers:', error);
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const fetchAvailableModels = async () => {
+      try {
+        const response = await fetch('/api/models');
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+        const data = await response.json();
+        if (isActive) {
+          setAvailableModels(data.models || []);
+        }
+      } catch (error) {
+        console.error('Error fetching models:', error);
+      }
+    };
+
+    const fetchAssignments = async () => {
+      try {
+        const response = await fetch('/api/workers/assignments');
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+        const data = await response.json();
+        if (isActive) {
+          setAssignmentsByWorker((currentAssignments) => {
+            const nextAssignments = {...currentAssignments};
+            for (const {pioreactor_unit: unit, experiment} of data) {
+              if (!locallyChangedAssignments.current.has(unit)) {
+                nextAssignments[unit] = experiment;
+              }
+            }
+            return nextAssignments;
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching worker assignments:', error);
+      }
+    };
+
     fetchWorkers();
+    fetchAvailableModels();
+    fetchAssignments();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
+  const handleExperimentAssignmentChange = useCallback((unit, experiment) => {
+    locallyChangedAssignments.current.add(unit);
+    setAssignmentsByWorker((currentAssignments) => ({
+      ...currentAssignments,
+      [unit]: experiment,
+    }));
+  }, []);
 
-  const fetchWorkers = async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/workers`);
-      if (response.ok) {
-        const data = await response.json();
-        setWorkers(data);
-      } else {
-        console.error('Failed to fetch workers:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching workers:', error);
-    } finally {
-      setIsLoading(false)
-    }
-  };
   return (
     <>
       <Grid container spacing={2} >
@@ -1059,8 +1117,15 @@ function Inventory({title}) {
             md: 12,
             xs: 12
           }}>
-          <Header setWorkers={setWorkers} config={config}/>
-          <InventoryDisplay isLoading={isLoading} workers={workers} config={config} />
+          <Header setWorkers={setWorkers} config={config} availableModels={availableModels}/>
+          <InventoryDisplay
+            isLoading={isLoading}
+            workers={workers}
+            config={config}
+            availableModels={availableModels}
+            assignmentsByWorker={assignmentsByWorker}
+            onExperimentAssignmentChange={handleExperimentAssignmentChange}
+          />
           <Grid size={12}>
             <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</Box>
           </Grid>

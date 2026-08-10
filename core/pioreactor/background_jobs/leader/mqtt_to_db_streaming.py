@@ -270,7 +270,7 @@ def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSql
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": dosing_event.timestamp,
+        "timestamp": to_iso_format(dosing_event.timestamp.astimezone(datetime.timezone.utc)),
         "volume_change_ml": dosing_event.volume_change,
         "event": dosing_event.event,
         "source_of_event": dosing_event.source_of_event,

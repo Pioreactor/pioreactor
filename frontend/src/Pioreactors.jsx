@@ -3263,30 +3263,46 @@ function Pioreactors({title}) {
     getConfig(setSharedConfig)
   }, [title]);
 
-  const fetchWorkers = useCallback(async () => {
-    if (!experimentMetadata.experiment) {
-      return;
-    }
-
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/experiments/${experimentPathSegment(experimentMetadata.experiment)}/workers`);
-      if (response.ok) {
-        const data = await response.json();
-        setWorkers(data);
-      } else {
-        console.error('Failed to fetch workers:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching workers:', error);
-    } finally {
-      setIsLoading(false)
-    }
-  }, [experimentMetadata.experiment]);
-
   useEffect(() => {
-    fetchWorkers();
-  }, [fetchWorkers]);
+    let isCancelled = false;
+
+    if (!experimentMetadata.experiment) {
+      setWorkers([]);
+      setIsLoading(false);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    setIsLoading(true);
+    setWorkers([]);
+    fetch(`/api/experiments/${experimentPathSegment(experimentMetadata.experiment)}/workers`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch workers: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!isCancelled) {
+          setWorkers(data);
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          console.error("Fetching workers failed:", error);
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [experimentMetadata.experiment]);
 
   useEffect(() => {
     fetch('/api/models')
@@ -3304,43 +3320,41 @@ function Pioreactors({title}) {
       };
     }
 
-    const unitNames = workers
+    const unitNames = [...new Set(workers
       .map((worker) => worker.pioreactor_unit || worker.pioreactor_name)
-      .filter(Boolean);
+      .filter(Boolean))];
+    const query = new URLSearchParams(unitNames.map((unitName) => ["unit", unitName]));
 
-    Promise.allSettled(
-      unitNames.map((unitName) =>
-        fetch(`/api/config/units/${unitName}`)
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`Failed to fetch config for ${unitName}: ${response.statusText}`);
-            }
-            return response.json();
-          })
-      )
-    )
-      .then((results) => {
+    fetch(`/api/config/units/$broadcast?${query}`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch unit configurations: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
         if (isCancelled) {
           return;
         }
 
         const nextUnitConfigs = {};
-
-        for (const result of results) {
-          if (result.status !== "fulfilled") {
-            console.error("Fetching unit configuration failed:", result.reason);
-            continue;
+        for (const unitName of unitNames) {
+          if (data.configs?.[unitName]) {
+            nextUnitConfigs[unitName] = data.configs[unitName];
           }
-
-          Object.assign(nextUnitConfigs, result.value?.configs || {});
+          if (data.errors?.[unitName]) {
+            console.error(`Fetching unit configuration failed for ${unitName}:`, data.errors[unitName]);
+          }
         }
 
         setUnitConfigs(nextUnitConfigs);
       })
       .catch((error) => {
-        if (!isCancelled) {
-          setUnitConfigs({});
+        if (isCancelled) {
+          return;
         }
+
+        setUnitConfigs({});
         console.error("Fetching unit configurations failed:", error);
       });
 

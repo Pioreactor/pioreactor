@@ -182,9 +182,10 @@ def query_time_series_from_database(
     for unit, channel in series:
         channel_filter = "AND channel=?" if partition_by_channel else ""
         channel_args: tuple[t.Any, ...] = (channel,) if partition_by_channel else ()
-        timestamps = query_app_db(
+        probe_rows = query_app_db(
             f"""
-            SELECT timestamp
+            SELECT timestamp,
+                   round({value_column}, ?) AS y
             FROM {data_source} INDEXED BY {index}
             WHERE experiment=?
               AND pioreactor_unit=?
@@ -195,6 +196,7 @@ def query_time_series_from_database(
             LIMIT ?
             """,
             (
+                rounding_digits,
                 experiment,
                 unit,
                 *channel_args,
@@ -203,36 +205,13 @@ def query_time_series_from_database(
                 target_points + 1,
             ),
         )
-        assert isinstance(timestamps, list)
+        assert isinstance(probe_rows, list)
 
-        if not timestamps:
+        if not probe_rows:
             continue
 
-        if len(timestamps) <= target_points:
-            rows = query_app_db(
-                f"""
-                SELECT timestamp,
-                       round({value_column}, ?) AS y
-                FROM {data_source} INDEXED BY {index}
-                WHERE experiment=?
-                  AND pioreactor_unit=?
-                  {channel_filter}
-                  AND timestamp > ?
-                  AND timestamp <= ?
-                ORDER BY timestamp, rowid
-                LIMIT ?
-                """,
-                (
-                    rounding_digits,
-                    experiment,
-                    unit,
-                    *channel_args,
-                    cutoff_timestamp,
-                    end_timestamp,
-                    target_points,
-                ),
-            )
-            assert isinstance(rows, list)
+        if len(probe_rows) <= target_points:
+            rows = probe_rows
         else:
             last_row = query_app_db(
                 f"""
@@ -262,7 +241,7 @@ def query_time_series_from_database(
             if target_points == 1:
                 rows = [last_row]
             else:
-                rows = query_app_db(
+                sampled_rows = query_app_db(
                     f"""
                     WITH RECURSIVE targets(i, target_timestamp) AS (
                         SELECT 0, ?
@@ -306,12 +285,12 @@ def query_time_series_from_database(
                     ORDER BY unique_chosen.i
                     """,
                     (
-                        timestamps[0]["timestamp"],
+                        probe_rows[0]["timestamp"],
                         target_points,
                         last_row["timestamp"],
-                        timestamps[0]["timestamp"],
+                        probe_rows[0]["timestamp"],
                         last_row["timestamp"],
-                        timestamps[0]["timestamp"],
+                        probe_rows[0]["timestamp"],
                         target_points,
                         target_points,
                         experiment,
@@ -321,7 +300,8 @@ def query_time_series_from_database(
                         rounding_digits,
                     ),
                 )
-                assert isinstance(rows, list)
+                assert isinstance(sampled_rows, list)
+                rows = sampled_rows
 
         response_series.append(f"{unit}-{channel}" if partition_by_channel else unit)
         response_data.append([{"x": row["timestamp"], "y": row["y"]} for row in rows])
@@ -1971,9 +1951,8 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
     Shows amount of added media per unit. Note that it only consider values from a dosing automation (i.e. not manual dosing, which includes continously dose)
 
     """
-    ## this one confusing
-
     try:
+        media_rate_window_start = to_iso_format(current_utc_datetime() - timedelta(hours=3))
         rows = query_app_db(
             """
             SELECT
@@ -1982,12 +1961,12 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
                 SUM(CASE WHEN event='add_alt_media' THEN volume_change_ml ELSE 0 END) / 3 AS altMediaRate
             FROM dosing_events AS d
             WHERE
-                datetime(d.timestamp) >= datetime('now', '-3 hours') AND
+                d.timestamp >= ? AND
                 event IN ('add_alt_media', 'add_media') AND
                 experiment = ?
             GROUP BY d.pioreactor_unit;
             """,
-            (experiment,),
+            (media_rate_window_start, experiment),
         )
         assert isinstance(rows, list)
         json_result: dict[str, dict[str, float]] = {}
@@ -3663,9 +3642,22 @@ def get_shared_config_history() -> ResponseReturnValue:
 
 @api_bp.route("/config/units/<pioreactor_unit>", methods=["GET"])
 def get_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
-    """get merged config for a pioreactor unit"""
+    """Get merged configs, optionally limiting $broadcast with repeated ``unit`` query parameters."""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        pioreactor_units = get_all_units()
+        all_units = get_all_units()
+        requested_units = request.args.getlist("unit")
+        if requested_units:
+            unknown_units = [unit for unit in requested_units if unit not in all_units]
+            if unknown_units:
+                abort_with(
+                    400,
+                    f"Unknown Pioreactor unit: {unknown_units[0]}",
+                    cause="The requested unit is not registered in this cluster.",
+                    remediation="Choose the leader or a Pioreactor unit from inventory.",
+                )
+            pioreactor_units = list(dict.fromkeys(requested_units))
+        else:
+            pioreactor_units = all_units
     else:
         pioreactor_units = _single_registered_unit(pioreactor_unit)
 

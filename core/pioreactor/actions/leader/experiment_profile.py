@@ -939,23 +939,30 @@ def update_job(
         if not _should_execute_action(if_, env, logger):
             return
 
+        evaluated_options = evaluate_options(options, env)
+
         if dry_run:
-            for setting, value in options.items():
+            for setting, value in evaluated_options.items():
                 logger.info(
                     f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on {unit}."
                 )
+            return
+
+        if not evaluated_options:
+            return
+
+        for setting, value in evaluated_options.items():
+            logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
+
+        if check_if_job_running(unit, job_name):
+            response = patch_into_leader(
+                f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                json={"settings": evaluated_options},
+            )
+            if not response.ok:
+                raise HTTPException(summarize_error_response(response))
         else:
-            for setting, value in evaluate_options(options, env).items():
-                logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
-                if check_if_job_running(unit, job_name):
-                    response = patch_into_leader(
-                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                        json={"settings": {setting: value}},
-                    )
-                    if not response.ok:
-                        raise HTTPException(summarize_error_response(response))
-                else:
-                    logger.debug(f"Job {job_name} not running on {unit}.")
+            logger.debug(f"Job {job_name} not running on {unit}.")
 
     return wrap_in_try_except(_callable, logger)
 
