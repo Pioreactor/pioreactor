@@ -1,13 +1,12 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
 jest.mock("../providers/ExperimentContext", () => ({
-  useExperiment: () => ({
-    updateExperiment: jest.fn(),
-  }),
+  useExperiment: jest.fn(),
 }));
 
+const { useExperiment } = require("../providers/ExperimentContext");
 const StartNewExperiment = require("../StartNewExperiment").default;
 
 const experiments = [
@@ -39,12 +38,11 @@ const experiments = [
 
 describe("Start new experiment", () => {
   beforeEach(() => {
-    global.fetch = jest.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(experiments),
-      }),
-    );
+    global.fetch = jest.fn();
+    useExperiment.mockReturnValue({
+      allExperiments: experiments,
+      updateExperiment: jest.fn(),
+    });
   });
 
   afterEach(() => {
@@ -61,7 +59,6 @@ describe("Start new experiment", () => {
     const populateButton = await screen.findByRole("button", {
       name: "Populate from previous experiment",
     });
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/experiments"));
     const experimentNameInput = screen.getByRole("textbox", { name: /Experiment name/ });
     const descriptionInput = screen.getByRole("textbox", {
       name: "Description (optional - can be edited later)",
@@ -80,6 +77,7 @@ describe("Start new experiment", () => {
     fireEvent.click(populateButton);
     expect(experimentNameInput).toHaveValue("third-exp");
     expect(descriptionInput).toHaveValue("");
+    expect(global.fetch).not.toHaveBeenCalled();
     expect(screen.getByText("third-tag")).toBeTruthy();
 
     fireEvent.click(populateButton);
@@ -96,7 +94,6 @@ describe("Start new experiment", () => {
         </MemoryRouter>,
       );
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/experiments"));
       fireEvent.change(screen.getByRole("textbox", { name: /Experiment name/ }), {
         target: { value: `bad${invalidCharacter}name` },
       });

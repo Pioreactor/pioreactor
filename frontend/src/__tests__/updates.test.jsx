@@ -84,6 +84,32 @@ describe("Updates page", () => {
     expect(screen.getByText("26.3.0")).toBeTruthy();
   });
 
+  test("offers internet updates without a connectivity preflight", async () => {
+    const user = userEvent.setup();
+
+    render(<Updates title="Pioreactor ~ Updates" />);
+
+    const updateFromArchiveButton = screen.getByRole("button", {
+      name: /update from zip file/i,
+    });
+    const menuButton = updateFromArchiveButton.parentElement.querySelectorAll("button")[1];
+    await user.click(menuButton);
+
+    const internetOption = await screen.findByRole("option", {
+      name: /update over internet/i,
+    });
+    expect(internetOption).not.toHaveAttribute("aria-disabled", "true");
+
+    await user.click(internetOption);
+    expect(
+      screen.getByRole("button", { name: /update over internet/i }),
+    ).toBeEnabled();
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/www\.google\.com\/favicon\.ico/),
+      expect.anything(),
+    );
+  });
+
   test("accepts a valid dropped release archive in the update dialog", async () => {
     const user = userEvent.setup();
     global.fetch = jest.fn((url) => {

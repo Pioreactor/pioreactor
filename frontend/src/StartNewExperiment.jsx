@@ -49,52 +49,34 @@ function normalizeTagList(tags) {
 
 
 function ExperimentSummaryForm(props) {
-  const { updateExperiment } = useExperiment();
+  const { allExperiments, updateExperiment } = useExperiment();
   const timestamp = dayjs.utc()
   const [formError, setFormError] = React.useState(false);
   const [helperText, setHelperText] = React.useState(" ");
   const [expName, setExpName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [tags, setTags] = React.useState([]);
-  const [tagOptions, setTagOptions] = React.useState([]);
   const [tagInputValue, setTagInputValue] = React.useState("");
-  const [historicalExperiments, setHistoricalExperiments] = React.useState({});
-  const [historicalExperimentList, setHistoricalExperimentList] = React.useState([]);
   const [lastPopulatedExperimentIndex, setLastPopulatedExperimentIndex] = React.useState(-1);
   const [loading, setLoading] = React.useState(false);
+  const historicalExperimentList = allExperiments;
+  const historicalExperiments = React.useMemo(
+    () => historicalExperimentList.reduce((acc, {experiment}) => {
+      acc[experiment] = 1;
+      return acc;
+    }, {}),
+    [historicalExperimentList],
+  );
+  const tagOptions = React.useMemo(
+    () => [...new Set(historicalExperimentList.flatMap(({tags = []}) => tags))]
+      .filter((tag) => typeof tag === "string" && tag.trim())
+      .sort((left, right) => left.localeCompare(right)),
+    [historicalExperimentList],
+  );
   const trimmedExpName = expName.trim();
   const hasInvalidCharacters = /[#$%&+\/=?\\]/.test(trimmedExpName);
   const nameAlreadyUsed = trimmedExpName in historicalExperiments;
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
-
-  React.useEffect(() => {
-    async function getHistoricalExperiments() {
-      try {
-        const response = await fetch("/api/experiments");
-        if (!response.ok) {
-          return;
-        }
-
-        const experiments = await response.json();
-        setHistoricalExperimentList(experiments);
-        setHistoricalExperiments(
-          experiments.reduce((acc, {experiment}) => {
-            acc[experiment] = 1;
-            return acc;
-          }, {}),
-        );
-        setTagOptions(
-          [...new Set(experiments.flatMap(({tags = []}) => tags))]
-            .filter((tag) => typeof tag === "string" && tag.trim())
-            .sort((left, right) => left.localeCompare(right)),
-        );
-      } catch (error) {
-        console.error("Failed to fetch experiments:", error);
-      }
-    }
-
-    getHistoricalExperiments();
-  }, [])
 
 
   function populateFields(){

@@ -44,22 +44,47 @@ const ActiveOrNotCheckBox = ({ onlyActive, setOnlyActive }) => {
 
 function EstimatorCard() {
   const { pathname } = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [rawData, setRawData] = useState(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchData = async () => {
+      try {
+        const data = await fetchTaskResult('/api/workers/$broadcast/estimators');
+        if (!ignore) {
+          setRawData(data);
+        }
+      } catch (err) {
+        console.error('Error fetching estimator data', err);
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <Card>
       <CardContent sx={{ p: 2 }}>
-        <EstimatorData key={pathname} />
+        <EstimatorData key={pathname} loading={loading} rawData={rawData} />
       </CardContent>
     </Card>
   );
 }
 
 
-function EstimatorData() {
+function EstimatorData({ loading, rawData }) {
   const { pioreactorUnit, device } = useParams();
 
-  const [loading, setLoading] = useState(true);
-  const [rawData, setRawData] = useState(null);
   const [devices, setDevices] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [estimatorDataByDevice, setEstimatorDataByDevice] = useState({});
@@ -68,21 +93,6 @@ function EstimatorData() {
   const [onlyActive, setOnlyActive] = useState(false);
   const hasMultipleWorkers = workers.length > 1;
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await fetchTaskResult('/api/workers/$broadcast/estimators');
-        setRawData(data);
-      } catch (err) {
-        console.error('Error fetching estimator data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   useEffect(() => {
     if (!rawData || rawData.status !== 'succeeded') {

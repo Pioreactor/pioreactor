@@ -568,23 +568,8 @@ function UpdateSoftwareConfirmDialog() {
   const [showArchiveConfirm, setShowArchiveConfirm] = React.useState(false);
   const [showInternetConfirm, setShowInternetConfirm] = React.useState(false);
   const [showUsbConfirm, setShowUsbConfirm] = React.useState(false);
-  const [internetAccess, setInternetAccess] = React.useState(false);
   const [usbName, setUsbName] = React.useState("");
   const [usbReleaseArchives, setUsbReleaseArchives] = React.useState([]);
-
-  React.useEffect(() => {
-    const checkConnectivity = () => {
-      fetch(`https://www.google.com/favicon.ico?${new Date().getTime()}`, {method: 'GET', mode: 'no-cors'})
-        .then(() => {
-          setInternetAccess(true);
-        })
-        .catch(() => {
-          setInternetAccess(false);
-        })
-    };
-    // Check connectivity on mount
-  checkConnectivity();
-  }, []);
 
   React.useEffect(() => {
     let isActive = true
@@ -712,7 +697,7 @@ function UpdateSoftwareConfirmDialog() {
         disabled={updating}
         endIcon={getIcon()}
       >
-        <MenuItem disabled={!internetAccess} value={"latest"}>Update over internet</MenuItem>
+        <MenuItem value={"latest"}>Update over internet</MenuItem>
         <MenuItem value={"archive"}>Update from zip file</MenuItem>
         {usbReleaseArchives.length > 0 &&
           <MenuItem value={"usb"}>Update from USB</MenuItem>

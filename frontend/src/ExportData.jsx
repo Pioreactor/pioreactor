@@ -23,6 +23,7 @@ import { useLocation } from "react-router";
 import { fetchTaskResult } from "./utils/tasks";
 import Snackbar from './components/Snackbar';
 import SelectButton from "./components/SelectButton";
+import { useExperiment } from './providers/ExperimentContext';
 
 
 const datasetDescription = {
@@ -143,27 +144,11 @@ function SingleExperimentSelect({availableValues, parentHandleChange, value}) {
 
 function ExperimentSelection(props) {
   const { experimentSelection, handleChange } = props;
-
-  const [experiments, setExperiments] = React.useState([])
-
-  React.useEffect(() => {
-    async function getData() {
-      try {
-        const response = await fetch("/api/experiments");
-        const data = await response.json();
-        const experimentNames = data
-          .map((e) => e.experiment)
-          .filter((name) => name !== "$experiment");
-
-        // Ensure "<System>" is always available and at the bottom.
-        setExperiments([...experimentNames, SYSTEM_EXPERIMENT_LABEL]);
-      } catch (error) {
-        console.error("Failed to fetch experiments:", error);
-      }
-    }
-
-    getData();
-  }, []);
+  const { allExperiments } = useExperiment();
+  const experimentNames = allExperiments
+    .map((experimentMetadata) => experimentMetadata.experiment)
+    .filter((name) => name !== "$experiment");
+  const experiments = [...experimentNames, SYSTEM_EXPERIMENT_LABEL];
 
 
   return (

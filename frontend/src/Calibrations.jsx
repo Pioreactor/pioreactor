@@ -335,12 +335,39 @@ export function UploadCalibrationDialog({
 
 function CalibrationCard(){
   const { pathname } = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [rawData, setRawData] = useState(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchData = async () => {
+      try {
+        const data = await fetchTaskResult('/api/workers/$broadcast/calibrations');
+        if (!ignore) {
+          setRawData(data);
+        }
+      } catch (err) {
+        console.error('Error fetching calibration data', err);
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
 
     <Card>
       <CardContent sx={{p: 2}}>
-        <CalibrationData key={pathname}/>
+        <CalibrationData key={pathname} loading={loading} rawData={rawData}/>
       </CardContent>
     </Card>
   )
@@ -359,11 +386,9 @@ const ActiveOrNotCheckBox = ({onlyActive, setOnlyActive}) => {
 )}
 
 
-function CalibrationData() {
+function CalibrationData({ loading, rawData }) {
   const { pioreactorUnit, device } = useParams();
 
-  const [loading, setLoading] = useState(true);
-  const [rawData, setRawData] = useState(null);
   const [devices, setDevices] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [calibrationDataByDevice, setCalibrationDataByDevice] = useState({});
@@ -379,22 +404,6 @@ function CalibrationData() {
   const hasMultipleWorkers = workers.length > 1;
   const getCalibrationKey = React.useCallback((unit, calibrationName) => `${unit}::${calibrationName}`, []);
   const navigate = useNavigate()
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Replace the URL below with your actual endpoint or route
-        const data = await fetchTaskResult('/api/workers/$broadcast/calibrations');
-        setRawData(data);
-      } catch (err) {
-        console.error('Error fetching calibration data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   useEffect(() => {
     if (!rawData || rawData.status !== 'succeeded') {

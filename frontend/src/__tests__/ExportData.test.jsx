@@ -8,8 +8,12 @@ global.TextDecoder = TextDecoder;
 jest.mock("../utils/tasks", () => ({
   fetchTaskResult: jest.fn(),
 }));
+jest.mock("../providers/ExperimentContext", () => ({
+  useExperiment: jest.fn(),
+}));
 
 const { MemoryRouter, Route, Routes } = require("react-router");
+const { useExperiment } = require("../providers/ExperimentContext");
 const { fetchTaskResult } = require("../utils/tasks");
 const ExportData = require("../ExportData").default;
 
@@ -29,15 +33,11 @@ describe("ExportData", () => {
   beforeEach(() => {
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     fetchTaskResult.mockReset();
+    useExperiment.mockReturnValue({
+      allExperiments: [{ experiment: "exp-1" }, { experiment: "$experiment" }],
+    });
 
     global.fetch = jest.fn((url) => {
-      if (url === "/api/experiments") {
-        return Promise.resolve({
-          ok: true,
-          json: async () => [{ experiment: "exp-1" }],
-        });
-      }
-
       if (url === "/api/datasets/exportable") {
         return Promise.resolve({
           ok: false,
@@ -60,17 +60,25 @@ describe("ExportData", () => {
     expect(await screen.findByText("Could not read exportable datasets.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^export$/i })).toBeDisabled();
     expect(consoleErrorSpy).toHaveBeenCalled();
+    expect(global.fetch.mock.calls.some(([url]) => url === "/api/experiments")).toBe(false);
+  });
+
+  test("renders the experiments already loaded by the experiment provider", async () => {
+    renderExportData();
+
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+
+    expect(await screen.findByRole("option", { name: "exp-1" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "<System>" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "$experiment" })).not.toBeInTheDocument();
+    expect(global.fetch.mock.calls.some(([url]) => url === "/api/experiments")).toBe(false);
   });
 
   test("preserves a comma-containing experiment from the URL", async () => {
+    useExperiment.mockReturnValue({
+      allExperiments: [{ experiment: "E coli, 37C" }],
+    });
     global.fetch = jest.fn((url) => {
-      if (url === "/api/experiments") {
-        return Promise.resolve({
-          ok: true,
-          json: async () => [{ experiment: "E coli, 37C" }],
-        });
-      }
-
       if (url === "/api/datasets/exportable") {
         return Promise.resolve({
           ok: false,
@@ -91,13 +99,6 @@ describe("ExportData", () => {
 
   test("shows a durable success alert when USB export completes", async () => {
     global.fetch = jest.fn((url) => {
-      if (url === "/api/experiments") {
-        return Promise.resolve({
-          ok: true,
-          json: async () => [{ experiment: "exp-1" }],
-        });
-      }
-
       if (url === "/api/datasets/exportable") {
         return Promise.resolve({
           ok: true,
@@ -147,13 +148,6 @@ describe("ExportData", () => {
 
   test("downloads a completed browser export with the returned filename", async () => {
     global.fetch = jest.fn((url) => {
-      if (url === "/api/experiments") {
-        return Promise.resolve({
-          ok: true,
-          json: async () => [{ experiment: "exp-1" }],
-        });
-      }
-
       if (url === "/api/datasets/exportable") {
         return Promise.resolve({
           ok: true,
@@ -200,13 +194,6 @@ describe("ExportData", () => {
 
   test("converts local time filters to UTC before exporting", async () => {
     global.fetch = jest.fn((url) => {
-      if (url === "/api/experiments") {
-        return Promise.resolve({
-          ok: true,
-          json: async () => [{ experiment: "exp-1" }],
-        });
-      }
-
       if (url === "/api/datasets/exportable") {
         return Promise.resolve({
           ok: true,

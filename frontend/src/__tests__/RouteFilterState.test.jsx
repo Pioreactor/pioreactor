@@ -132,6 +132,10 @@ describe("route-backed collection filters", () => {
 
     await user.click(screen.getByRole("button", { name: "Forward" }));
     expect(await screen.findByText("calibration-unit-2-stirring")).toBeInTheDocument();
+    expect(fetchTaskResult).toHaveBeenCalledTimes(1);
+    expect(fetchTaskResult).toHaveBeenCalledWith(
+      "/api/workers/$broadcast/calibrations",
+    );
   });
 
   test("estimators follows route history", async () => {
@@ -148,5 +152,9 @@ describe("route-backed collection filters", () => {
 
     await user.click(screen.getByRole("button", { name: "Forward" }));
     expect(await screen.findByText("calibration-unit-2-stirring")).toBeInTheDocument();
+    expect(fetchTaskResult).toHaveBeenCalledTimes(1);
+    expect(fetchTaskResult).toHaveBeenCalledWith(
+      "/api/workers/$broadcast/estimators",
+    );
   });
 });
