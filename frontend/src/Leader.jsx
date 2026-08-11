@@ -42,13 +42,13 @@ import Snackbar from './components/Snackbar';
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
-export const stateDisplay = {
+const stateDisplay = {
   "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
   "disconnected":  {display: "Off", color: lostRed, backgroundColor: "#fbeae9"},
 }
 
 
-export function StateTypography({ state, isDisabled=false }) {
+function StateTypography({ state, isDisabled=false }) {
   const style = {
     color: isDisabled ? disabledColor : stateDisplay[state].color,
     px: "9px",

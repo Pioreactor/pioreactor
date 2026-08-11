@@ -50,10 +50,8 @@ describe("jobs utils", () => {
           ],
         },
       ],
-      { includeMonitor: true },
     );
 
-    expect(jobs.monitor).toEqual(createMonitorJobState());
     expect(jobs.worker_plugin.publishedSettings.enabled.value).toBe(false);
     expect(jobs.worker_plugin.publishedSettings.enabled.editable).toBe(false);
   });
@@ -93,25 +91,17 @@ describe("jobs utils", () => {
         },
       ],
       {
-        includeMonitor: true,
         existingJobs: {
           monitor: {
             ...createMonitorJobState(),
             state: "ready",
-            publishedSettings: {
-              ...createMonitorJobState().publishedSettings,
-              ipv4: {
-                ...createMonitorJobState().publishedSettings.ipv4,
-                value: "192.168.1.50",
-              },
-            },
           },
         },
       },
     );
 
     expect(jobs.monitor.state).toBe("ready");
-    expect(jobs.monitor.publishedSettings.ipv4.value).toBe("192.168.1.50");
+    expect(jobs.monitor.publishedSettings).toEqual({});
     expect(jobs.worker_plugin.state).toBe("disconnected");
   });
 
@@ -234,16 +224,19 @@ describe("jobs utils", () => {
   });
 
   test("published settings signature builds stable MQTT topics", () => {
-    const collections = buildJobsStateFromDescriptors([
-      {
-        job_name: "stirring",
-        display_name: "Stirring",
-        display: true,
-        published_settings: [
-          { key: "target_rpm", type: "numeric", display: true },
-        ],
-      },
-    ], { includeMonitor: true });
+    const collections = buildJobsStateFromDescriptors(
+      [
+        {
+          job_name: "stirring",
+          display_name: "Stirring",
+          display: true,
+          published_settings: [
+            { key: "target_rpm", type: "numeric", display: true },
+          ],
+        },
+      ],
+      { existingJobs: { monitor: createMonitorJobState() } },
+    );
     const signature = getPublishedSettingsSignature(collections, { excludeKeys: ["monitor"] });
 
     expect(getPublishedSettingsTopicsFromSignature(signature, {

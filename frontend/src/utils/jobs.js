@@ -72,9 +72,6 @@ function runJobPatch(endpoint, body) {
         return;
       }
       throw new Error(`Error ${response.status}.`);
-    })
-    .catch((error) => {
-      throw error;
     });
 }
 
@@ -90,35 +87,15 @@ export function createMonitorJobState() {
   return {
     state: null,
     metadata: { display: false },
-    publishedSettings: {
-      versions: {
-        value: null, label: null, type: "json", unit: null, display: false, description: null, editable: false,
-      },
-      voltage_on_pwm_rail: {
-        value: null, label: null, type: "json", unit: null, display: false, description: null, editable: false,
-      },
-      ipv4: {
-        value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
-      },
-      wlan_mac_address: {
-        value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
-      },
-      eth_mac_address: {
-        value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
-      },
-    },
+    publishedSettings: {},
   };
 }
 
 export function buildJobsStateFromDescriptors(
   descriptors,
-  { includeMonitor = false, initialState = "disconnected", existingJobs = null } = {},
+  { initialState = "disconnected", existingJobs = null } = {},
 ) {
   const jobs = { ...(existingJobs || {}) };
-
-  if (includeMonitor && !jobs.monitor) {
-    jobs.monitor = createMonitorJobState();
-  }
 
   for (const job of descriptors || []) {
     const existingJob = jobs[job.job_name];

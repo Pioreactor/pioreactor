@@ -724,6 +724,60 @@ def test_get_recent_logs_excludes_universal_experiment(client) -> None:
     assert all(row["experiment"] == "exp1" for row in data)
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/experiments/lines-test/recent_logs?lines=2",
+        "/api/workers/unit1/experiments/lines-test/recent_logs?lines=2",
+    ],
+)
+def test_get_recent_logs_honors_lines(client: FlaskClient, path: str) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    for index in range(3):
+        modify_app_db(
+            "INSERT INTO logs (experiment, pioreactor_unit, timestamp, message, source, level, task) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                "lines-test",
+                "unit1",
+                now,
+                f"Event {index}",
+                "app",
+                "INFO",
+                "app",
+            ),
+        )
+
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert len(response.get_json()) == 2
+
+
+@pytest.mark.parametrize(
+    ("path", "parameter"),
+    [
+        ("/api/logs?skip=not-an-int", "skip"),
+        ("/api/logs?skip=-1", "skip"),
+        ("/api/experiments/exp1/recent_logs?lines=0", "lines"),
+        ("/api/experiments/exp1/recent_logs?lines=101", "lines"),
+        ("/api/experiments/exp1/recent_logs?lines=not-an-int", "lines"),
+        ("/api/experiments/exp1/logs?min_level=verbose", "min_level"),
+    ],
+)
+def test_log_query_parameter_validation_returns_structured_400(
+    client: FlaskClient, path: str, parameter: str
+) -> None:
+    response = client.get(path)
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert parameter in payload["error"]
+    assert payload["cause"]
+    assert payload["remediation"]
+
+
 def test_get_experiment_logs_filters_by_min_level_and_orders_by_timestamp(client) -> None:
     from pioreactor.web.app import modify_app_db
 
@@ -778,6 +832,66 @@ def test_experiment_logs_query_uses_experiment_level_timestamp_index() -> None:
 def test_time_series_target_points_validation_returns_400(client, path: str) -> None:
     response = client.get(f"{path}?target_points=0")
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/experiments/exp1/time_series/liquid-_volumes/liquid_volume",
+        "/api/experiments/exp1/time_series/liquid_volumes/liquid-_volume",
+        "/api/workers/unit1/experiments/exp1/time_series/liquid-_volumes/liquid_volume",
+        "/api/workers/unit1/experiments/exp1/time_series/liquid_volumes/liquid-_volume",
+    ],
+)
+def test_fallback_time_series_rejects_invalid_sql_identifiers(client: FlaskClient, path: str) -> None:
+    response = client.get(path)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"].startswith("Invalid SQLite identifier")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/experiments/exp1/time_series/liquid_volumes/liquid_volume",
+        "/api/workers/unit1/experiments/exp1/time_series/liquid_volumes/liquid_volume",
+    ],
+)
+def test_fallback_time_series_accepts_valid_sql_identifiers(client: FlaskClient, path: str) -> None:
+    response = client.get(path)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("query", "parameter"),
+    [
+        ("lookback=0", "lookback"),
+        ("lookback=-1", "lookback"),
+        ("lookback=nan", "lookback"),
+        ("lookback=not-a-number", "lookback"),
+        ("target_points=1000001", "target_points"),
+        ("target_points=not-an-int", "target_points"),
+    ],
+)
+def test_time_series_query_parameter_validation_returns_structured_400(
+    client: FlaskClient, query: str, parameter: str
+) -> None:
+    response = client.get(f"/api/experiments/exp1/time_series/growth_rates?{query}")
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert parameter in payload["error"]
+    assert payload["cause"]
+    assert payload["remediation"]
+
+
+def test_time_series_accepts_frontend_raw_point_limit(client: FlaskClient) -> None:
+    response = client.get(
+        "/api/experiments/no-data/time_series/growth_rates?lookback=4&target_points=1000000"
+    )
+
+    assert response.status_code == 200
 
 
 def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
@@ -2841,7 +2955,10 @@ table: experiments
     response = client.get(f"/api/datasets/exportable/test_dataset/preview?n_rows={n_rows}")
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Invalid n_rows"
+    payload = response.get_json()
+    assert payload["error"] == "Invalid n_rows"
+    assert payload["cause"]
+    assert payload["remediation"]
 
 
 def test_update_app_from_release_archive_requires_json_object(client: FlaskClient) -> None:

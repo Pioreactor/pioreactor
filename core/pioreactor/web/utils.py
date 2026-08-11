@@ -148,12 +148,16 @@ def create_task_response(task: t.Any) -> DelayedResponseReturnValue:
     )
 
 
-def scrub_to_valid(value: str) -> str:
-    if value is None:
-        raise ValueError()
-    elif value.startswith("sqlite_"):
-        raise ValueError()
-    return "".join(chr for chr in value if (chr.isalnum() or chr == "_"))
+def validate_sqlite_identifier(value: str) -> str:
+    """Return an unchanged identifier that is safe to interpolate into SQLite SQL."""
+    if not value.isascii() or not value.isidentifier():
+        raise ValueError(
+            f"Invalid SQLite identifier {value!r}: use only ASCII letters, digits, and underscores, "
+            "starting with a letter or underscore."
+        )
+    if value.lower().startswith("sqlite_"):
+        raise ValueError(f"Invalid SQLite identifier {value!r}: names beginning with 'sqlite_' are reserved.")
+    return value
 
 
 def is_rate_limited(job: str, expire_time_seconds: float = 1.0) -> bool:

@@ -2432,7 +2432,6 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
         }
         setJobs((previous) =>
           buildJobsStateFromDescriptors(jobDescriptors, {
-            includeMonitor: true,
             existingJobs: previous,
           }),
         )
@@ -2451,9 +2450,6 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
         if (isCancelled) {
           return
         }
-        setJobs({ monitor: createMonitorJobState() })
-        setPassiveSettingsCollections({})
-        setBioreactorDescriptors([])
         setJobDescriptorsErrorText(error.message || "Job controls unavailable.")
         setJobDescriptorsStatus("error")
       })
@@ -2524,17 +2520,12 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
     }
   }, []);
 
-  const monitorSettingsSignature = Object.keys(jobs.monitor?.publishedSettings || {})
-    .sort()
-    .join(TOPIC_SIGNATURE_SEPARATOR);
-
   const monitorTopics = useMemo(() => {
     return getPioreactorCardMonitorTopics({
       unit,
       experiment,
-      monitorSettingsSignature,
     });
-  }, [experiment, monitorSettingsSignature, unit]);
+  }, [experiment, unit]);
 
   useEffect(() => {
     if (!isUnitActive) {

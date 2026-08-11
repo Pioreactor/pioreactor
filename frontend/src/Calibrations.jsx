@@ -44,7 +44,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import ChecklistRtlOutlinedIcon from '@mui/icons-material/ChecklistRtlOutlined';
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
 
-export function sanitizeDeviceName(raw) {
+function sanitizeDeviceName(raw) {
   const cleaned = raw
     .replace(/\s+/g, "_")          // spaces, tabs, line‑breaks → “_”
     .replace(/[^A-Za-z0-9_-]/g, "") // drop everything else (only allow these chars)

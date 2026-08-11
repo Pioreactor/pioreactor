@@ -388,6 +388,31 @@ describe("PioreactorCard live-update flash", () => {
     jest.resetAllMocks();
   });
 
+  test("subscribes only to monitor state telemetry", async () => {
+    render(
+      <ThemeProvider theme={createTheme()}>
+        <MemoryRouter>
+          <PioreactorCard
+            unit="unit-1"
+            experiment="experiment-1"
+            isUnitActive={true}
+            config={{ PWM: {}, leds: {} }}
+            initialLabel="Unit 1"
+          />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(mockSubscribeToTopic.mock.calls.some((call) => call[2] === "PioreactorCardMonitor")).toBe(true);
+    });
+    const monitorSubscription = mockSubscribeToTopic.mock.calls.find(
+      (call) => call[2] === "PioreactorCardMonitor",
+    );
+
+    expect(monitorSubscription[0]).toEqual(["pioreactor/unit-1/$experiment/monitor/$state"]);
+  });
+
   test("keeps hydration and rounded repeats quiet, then flashes visible live changes", async () => {
     render(
       <ThemeProvider theme={createTheme()}>

@@ -49,26 +49,12 @@ import { experimentPathSegment } from "../utils/url";
 export const TOPIC_SIGNATURE_SEPARATOR = "\u0000";
 export const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
-export function getPioreactorCardMonitorTopics({
-  unit,
-  experiment,
-  monitorSettingsSignature,
-}) {
+export function getPioreactorCardMonitorTopics({ unit, experiment }) {
   if (!unit || !experiment) {
     return [];
   }
 
-  const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
-  const monitorSettings = monitorSettingsSignature
-    ? monitorSettingsSignature.split(TOPIC_SIGNATURE_SEPARATOR)
-    : [];
-
-  for (const setting of monitorSettings) {
-    if (setting) {
-      topics.push(["pioreactor", unit, "$experiment", "monitor", setting].join("/"));
-    }
-  }
-  return topics;
+  return [`pioreactor/${unit}/$experiment/monitor/$state`];
 }
 
 export function getPioreactorCardPublishedSettingsTopics(signature, {
@@ -419,7 +405,7 @@ export function CalibrateDialog({
   );
 }
 
-export const DisplaySettingsTable = styled("span")(() => ({
+const DisplaySettingsTable = styled("span")(() => ({
   width: "55px",
   display: "inline-block",
 }));
@@ -438,7 +424,7 @@ export const RowOfUnitSettingDisplayBox = styled(Box)(() => ({
   alignContent: "stretch",
 }));
 
-export const getFauxChipHoverSx = (isInteractive) => ({
+const getFauxChipHoverSx = (isInteractive) => ({
   transition: (theme) => theme.transitions.create(["background-color", "box-shadow"], {
     duration: theme.transitions.duration.shortest,
   }),

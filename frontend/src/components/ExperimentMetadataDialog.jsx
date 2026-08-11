@@ -14,7 +14,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 
-export function normalizeExperimentTagList(tags) {
+function normalizeExperimentTagList(tags) {
   const normalizedTags = [];
   const seenTags = new Set();
 

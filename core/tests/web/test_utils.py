@@ -9,29 +9,31 @@ from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import load_settings_collection_descriptors
-from pioreactor.web.utils import scrub_to_valid
+from pioreactor.web.utils import validate_sqlite_identifier
 
 
-def test_none_input_raises() -> None:
-    with pytest.raises(ValueError):
-        scrub_to_valid(None)  # type: ignore[arg-type]
-
-
-def test_sqlite_prefixed_input_rejected() -> None:
-    with pytest.raises(ValueError):
-        scrub_to_valid("sqlite_master")
+@pytest.mark.parametrize("identifier", ["growth_rates", "liquid_volume", "_private"])
+def test_valid_sqlite_identifiers_are_returned_unchanged(identifier: str) -> None:
+    assert validate_sqlite_identifier(identifier) == identifier
 
 
 @pytest.mark.parametrize(
-    "dangerous,expected",
+    "identifier",
     [
-        ("users; DROP TABLE users;--", "usersDROPTABLEusers"),
-        ("../etc/passwd", "etcpasswd"),
-        ("name\x00../../etc/passwd", "nameetcpasswd"),
+        "",
+        "123_table",
+        "liquid-_volumes",
+        "users; DROP TABLE users;--",
+        "../etc/passwd",
+        "name\x00../../etc/passwd",
+        "sqlite_master",
+        "SQLITE_MASTER",
+        "µrates",
     ],
 )
-def test_dangerous_inputs_are_scrubbed(dangerous, expected) -> None:
-    assert scrub_to_valid(dangerous) == expected
+def test_invalid_sqlite_identifiers_are_rejected(identifier: str) -> None:
+    with pytest.raises(ValueError, match="Invalid SQLite identifier"):
+        validate_sqlite_identifier(identifier)
 
 
 @pytest.mark.parametrize(

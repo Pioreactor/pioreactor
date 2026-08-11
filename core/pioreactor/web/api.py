@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import configparser
 import ipaddress
+import math
 import os
 import re
 import shutil
@@ -84,7 +85,7 @@ from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import load_automation_descriptors
 from pioreactor.web.utils import load_background_job_descriptors
 from pioreactor.web.utils import load_settings_collection_descriptors
-from pioreactor.web.utils import scrub_to_valid
+from pioreactor.web.utils import validate_sqlite_identifier
 from pioreactor.web.utils import wait_for_bool_task_result
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -101,6 +102,9 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
+MAX_RECENT_LOG_LINES = 100
+MAX_TIME_SERIES_LOOKBACK_HOURS = 24 * 365 * 100
+MAX_TIME_SERIES_TARGET_POINTS = 1_000_000
 
 TimeSeriesDataSource = t.Literal[
     "growth_rates",
@@ -1349,8 +1353,121 @@ LOG_LEVELS_BY_THRESHOLD: dict[str, tuple[str, ...]] = {
 }
 
 
+def parse_integer_query_parameter(
+    name: str,
+    default: int,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    raw_value = request.args.get(name)
+    if raw_value is None:
+        return default
+
+    try:
+        value = int(raw_value)
+    except ValueError:
+        abort_with(
+            400,
+            f"Invalid {name}",
+            cause=f"{name} must be an integer.",
+            remediation=f"Provide {name} as a whole number.",
+        )
+
+    if minimum is not None and value < minimum:
+        abort_with(
+            400,
+            f"Invalid {name}",
+            cause=f"{name} must be at least {minimum}.",
+            remediation=f"Provide {name} as an integer greater than or equal to {minimum}.",
+        )
+
+    if maximum is not None and value > maximum:
+        abort_with(
+            400,
+            f"Invalid {name}",
+            cause=f"{name} must be at most {maximum}.",
+            remediation=f"Provide {name} as an integer less than or equal to {maximum}.",
+        )
+
+    return value
+
+
+def parse_float_query_parameter(
+    name: str,
+    default: float,
+    *,
+    minimum_exclusive: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    raw_value = request.args.get(name)
+    if raw_value is None:
+        return default
+
+    try:
+        value = float(raw_value)
+    except ValueError:
+        abort_with(
+            400,
+            f"Invalid {name}",
+            cause=f"{name} must be a number.",
+            remediation=f"Provide {name} as a finite number.",
+        )
+
+    if not math.isfinite(value):
+        abort_with(
+            400,
+            f"Invalid {name}",
+            cause=f"{name} must be finite.",
+            remediation=f"Provide {name} as a finite number.",
+        )
+
+    if minimum_exclusive is not None and value <= minimum_exclusive:
+        abort_with(
+            400,
+            f"Invalid {name}",
+            cause=f"{name} must be greater than {minimum_exclusive:g}.",
+            remediation=f"Provide {name} as a number greater than {minimum_exclusive:g}.",
+        )
+
+    if maximum is not None and value > maximum:
+        abort_with(
+            400,
+            f"Invalid {name}",
+            cause=f"{name} must be at most {maximum:g}.",
+            remediation=f"Provide {name} as a number less than or equal to {maximum:g}.",
+        )
+
+    return value
+
+
+def parse_time_series_query_parameters() -> tuple[float, int]:
+    lookback = parse_float_query_parameter(
+        "lookback",
+        4.0,
+        minimum_exclusive=0.0,
+        maximum=MAX_TIME_SERIES_LOOKBACK_HOURS,
+    )
+    target_points = parse_integer_query_parameter(
+        "target_points",
+        720,
+        minimum=1,
+        maximum=MAX_TIME_SERIES_TARGET_POINTS,
+    )
+    return lookback, target_points
+
+
 def get_levels_for_min_level(min_level: str) -> tuple[str, ...]:
-    return LOG_LEVELS_BY_THRESHOLD.get(min_level.upper(), LOG_LEVELS_BY_THRESHOLD["INFO"])
+    normalized_level = min_level.upper()
+    if normalized_level not in LOG_LEVELS_BY_THRESHOLD:
+        valid_levels = ", ".join(LOG_LEVELS_BY_THRESHOLD)
+        abort_with(
+            400,
+            "Invalid min_level query parameter",
+            cause=f"min_level must be one of: {valid_levels}.",
+            remediation=f"Provide min_level as one of: {valid_levels}.",
+        )
+    return LOG_LEVELS_BY_THRESHOLD[normalized_level]
 
 
 def get_level_filter(min_level: str) -> tuple[str, tuple[str, ...]]:
@@ -1390,6 +1507,7 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
     """Shows recent event logs from all units"""
 
     min_level = request.args.get("min_level", "INFO")
+    lines = parse_integer_query_parameter("lines", 50, minimum=1, maximum=MAX_RECENT_LOG_LINES)
     level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
@@ -1401,8 +1519,8 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
                     STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'),
                     COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'))
                 )
-            ORDER BY l.timestamp DESC LIMIT 50;""",
-        (experiment, *level_params, experiment),
+            ORDER BY l.timestamp DESC LIMIT ?;""",
+        (experiment, *level_params, experiment, lines),
     )
 
     return jsonify(recent_logs)
@@ -1412,7 +1530,7 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
 def get_logs() -> ResponseReturnValue:
     """Shows event logs from all units, uses pagination."""
 
-    skip = int(request.args.get("skip", 0))
+    skip = parse_integer_query_parameter("skip", 0, minimum=0)
     min_level = request.args.get("min_level", "INFO")
     level_filter, level_params = get_level_filter(min_level)
 
@@ -1431,7 +1549,7 @@ def get_logs() -> ResponseReturnValue:
 def get_exp_logs(experiment: str) -> ResponseReturnValue:
     """Shows event logs from all units, uses pagination."""
 
-    skip = int(request.args.get("skip", 0))
+    skip = parse_integer_query_parameter("skip", 0, minimum=0)
     min_level = request.args.get("min_level", "INFO")
     levels = get_levels_for_min_level(min_level)
     query_args = tuple(arg for level in levels for arg in (experiment, level)) + (skip,)
@@ -1449,6 +1567,7 @@ def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: st
     """Shows event logs for a specific unit within an experiment. This is for the single-page Pioreactor ui"""
 
     min_level = request.args.get("min_level", "INFO")
+    lines = parse_integer_query_parameter("lines", 50, minimum=1, maximum=MAX_RECENT_LOG_LINES)
     level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
@@ -1461,7 +1580,7 @@ def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: st
                     STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'),
                     COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'))
                 )
-            ORDER BY l.timestamp DESC LIMIT 50;""",
+            ORDER BY l.timestamp DESC LIMIT ?;""",
         (
             experiment,
             UNIVERSAL_EXPERIMENT,
@@ -1469,6 +1588,7 @@ def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: st
             UNIVERSAL_IDENTIFIER,
             *level_params,
             experiment,
+            lines,
         ),
     )
 
@@ -1479,7 +1599,7 @@ def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: st
 def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     """Shows event logs from specific unit and experiment, uses pagination."""
 
-    skip = int(request.args.get("skip", 0))
+    skip = parse_integer_query_parameter("skip", 0, minimum=0)
     min_level = request.args.get("min_level", "INFO")
     level_filter, level_params = get_level_filter(min_level)
 
@@ -1507,7 +1627,7 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
 def get_system_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """Shows system logs from specific unit uses pagination."""
 
-    skip = int(request.args.get("skip", 0))
+    skip = parse_integer_query_parameter("skip", 0, minimum=0)
     min_level = request.args.get("min_level", "INFO")
     level_filter, level_params = get_level_filter(min_level)
 
@@ -1528,7 +1648,7 @@ def get_system_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
 def get_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """Shows event logs from all units, uses pagination."""
 
-    skip = int(request.args.get("skip", 0))
+    skip = parse_integer_query_parameter("skip", 0, minimum=0)
     min_level = request.args.get("min_level", "INFO")
     level_filter, level_params = get_level_filter(min_level)
 
@@ -1604,11 +1724,7 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
 @api_bp.route("/experiments/<experiment>/time_series/growth_rates", methods=["GET"])
 def get_growth_rates(experiment: str) -> ResponseReturnValue:
     """Gets growth rates for all units"""
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     growth_rates = query_time_series_from_database(
         experiment,
@@ -1623,11 +1739,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
 @api_bp.route("/experiments/<experiment>/time_series/temperature_readings", methods=["GET"])
 def get_temperature_readings(experiment: str) -> ResponseReturnValue:
     """Gets temperature readings for all units"""
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     temperature_readings = query_time_series_from_database(
         experiment,
@@ -1642,11 +1754,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
 @api_bp.route("/experiments/<experiment>/time_series/od_readings_filtered", methods=["GET"])
 def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     """Gets normalized od for all units"""
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     filtered_od_readings = query_time_series_from_database(
         experiment,
@@ -1661,11 +1769,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
 @api_bp.route("/experiments/<experiment>/time_series/od_readings", methods=["GET"])
 def get_od_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     raw_od_readings = query_time_series_from_database(
         experiment,
@@ -1679,11 +1783,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
 
 @api_bp.route("/experiments/<experiment>/time_series/od_readings_fused", methods=["GET"])
 def get_od_readings_fused(experiment: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     fused_od_readings = query_time_series_from_database(
         experiment,
@@ -1698,11 +1798,7 @@ def get_od_readings_fused(experiment: str) -> ResponseReturnValue:
 @api_bp.route("/experiments/<experiment>/time_series/raw_od_readings", methods=["GET"])
 def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     raw_od_readings = query_time_series_from_database(
         experiment,
@@ -1716,15 +1812,11 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
 
 @api_bp.route("/experiments/<experiment>/time_series/<data_source>/<column>", methods=["GET"])
 def get_fallback_time_series(experiment: str, data_source: str, column: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     try:
-        data_source = scrub_to_valid(data_source)
-        column = scrub_to_valid(column)
+        data_source = validate_sqlite_identifier(data_source)
+        column = validate_sqlite_identifier(column)
         r = query_app_db(
             f"""
                 WITH numbered AS (
@@ -1769,11 +1861,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
 
 @api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/growth_rates", methods=["GET"])
 def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     growth_rates = query_time_series_from_database(
         experiment,
@@ -1790,11 +1878,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
     methods=["GET"],
 )
 def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     temperature_readings = query_time_series_from_database(
         experiment,
@@ -1811,11 +1895,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
     methods=["GET"],
 )
 def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     filtered_od_readings = query_time_series_from_database(
         experiment,
@@ -1829,11 +1909,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
 
 @api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/od_readings", methods=["GET"])
 def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     raw_od_readings = query_time_series_from_database(
         experiment,
@@ -1850,11 +1926,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
     methods=["GET"],
 )
 def get_od_readings_fused_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     fused_od_readings = query_time_series_from_database(
         experiment,
@@ -1871,11 +1943,7 @@ def get_od_readings_fused_per_unit(pioreactor_unit: str, experiment: str) -> Res
     methods=["GET"],
 )
 def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     raw_od_readings = query_time_series_from_database(
         experiment,
@@ -1894,15 +1962,11 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
 def get_fallback_time_series_per_unit(
     pioreactor_unit: str, experiment: str, data_source: str, column: str
 ) -> ResponseReturnValue:
-    args = request.args
-    lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 720))
-    if not target_points or target_points <= 0:
-        abort_with(400, "target_points must be > 0")
+    lookback, target_points = parse_time_series_query_parameters()
 
     try:
-        data_source = scrub_to_valid(data_source)
-        column = scrub_to_valid(column)
+        data_source = validate_sqlite_identifier(data_source)
+        column = validate_sqlite_identifier(column)
         r = query_app_db(
             f"""
                 WITH numbered AS (
@@ -3150,24 +3214,12 @@ def preview_exportable_dataset(target_dataset: str) -> ResponseReturnValue:
     plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
     default_preview_rows = 5
     max_preview_rows = 100
-
-    try:
-        n_rows = int(request.args.get("n_rows", default_preview_rows))
-    except ValueError:
-        abort_with(
-            400,
-            "Invalid n_rows",
-            cause="n_rows must be an integer.",
-            remediation=(f"Provide n_rows as an integer from 1 to {max_preview_rows}."),
-        )
-
-    if n_rows < 1 or n_rows > max_preview_rows:
-        abort_with(
-            400,
-            "Invalid n_rows",
-            cause=f"n_rows must be between 1 and {max_preview_rows}.",
-            remediation=(f"Provide n_rows as an integer from 1 to {max_preview_rows}."),
-        )
+    n_rows = parse_integer_query_parameter(
+        "n_rows",
+        default_preview_rows,
+        minimum=1,
+        maximum=max_preview_rows,
+    )
 
     for file in builtins + plugins:
         try:

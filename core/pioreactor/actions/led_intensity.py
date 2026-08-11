@@ -147,9 +147,6 @@ def led_intensity(
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
 
-    if not is_active(unit):
-        return False
-
     logger = create_logger("led_intensity", experiment=experiment, unit=unit, pub_client=pubsub_client)
     updated_successfully = True
     dac = None
@@ -297,6 +294,9 @@ def click_led_intensity(
     """
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
+
+    if not is_active(unit):
+        return False
 
     state: LEDsToIntensityMapping = {}
     if a is not None:
