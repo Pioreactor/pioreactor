@@ -145,7 +145,7 @@ def test_start_camera_warmer_uses_persistent_signal_mode(
 
     assert start_camera_warmer() is True
 
-    pid_path, image_path, latest_path = camera_warmer_runtime_paths()
+    pid_path, image_path, latest_path, metadata_path = camera_warmer_runtime_paths()
     assert pid_path.read_text(encoding="utf-8") == "123"
     assert len(popen_calls) == 1
     arguments, _ = popen_calls[0]
@@ -153,6 +153,7 @@ def test_start_camera_warmer_uses_persistent_signal_mode(
     assert "--signal" in arguments
     assert arguments[arguments.index("--timeout") + 1] == "0"
     assert arguments[arguments.index("--latest") + 1] == latest_path.as_posix()
+    assert arguments[arguments.index("--metadata") + 1] == metadata_path.as_posix()
     assert arguments[arguments.index("-o") + 1] == image_path.as_posix()
     assert "--immediate" not in arguments
 
@@ -165,7 +166,7 @@ def test_stop_camera_warmer_requests_exit_without_capturing(
     monkeypatch.setattr(camera, "CAMERA_WARMER_RUNTIME_DIR", tmp_path)
     monkeypatch.setattr(camera, "camera_capture_lock", nullcontext)
     monkeypatch.setattr(camera, "camera_warmer_pid", lambda: 123)
-    pid_path, _, _ = camera_warmer_runtime_paths()
+    pid_path, _, _, _ = camera_warmer_runtime_paths()
     pid_path.write_text("123", encoding="utf-8")
     signals: list[tuple[int, int]] = []
     waited: list[float] = []
@@ -806,9 +807,10 @@ def test_rpicam_backend_uses_persistent_process_and_stores_normal_still(
 
     def signal_camera(pid: int, sig: int) -> None:
         signals.append((pid, sig))
-        _, image_path, latest_path = camera_warmer_runtime_paths()
+        _, image_path, latest_path, metadata_path = camera_warmer_runtime_paths()
         image_path.write_bytes(b"persistent camera still")
         latest_path.symlink_to(image_path)
+        metadata_path.write_text('{"FocusFoM": 1234}', encoding="utf-8")
 
     monkeypatch.setattr(camera.os, "kill", signal_camera)
 
@@ -1243,13 +1245,13 @@ def test_camera_focus_preview_overwrites_one_ephemeral_file_without_still_metada
     source_image = source_dir / "still-1.jpg"
     source_image.write_bytes(b"first preview")
 
-    first_path = capture_camera_focus_preview(
+    first_path, first_focus_score = capture_camera_focus_preview(
         "unit-a",
         "session-a",
         dot_pioreactor=dot_pioreactor,
     )
     source_image.write_bytes(b"second preview")
-    second_path = capture_camera_focus_preview(
+    second_path, second_focus_score = capture_camera_focus_preview(
         "unit-a",
         "session-a",
         dot_pioreactor=dot_pioreactor,
@@ -1257,5 +1259,39 @@ def test_camera_focus_preview_overwrites_one_ephemeral_file_without_still_metada
 
     assert first_path == second_path == camera_focus_preview_path("session-a", dot_pioreactor)
     assert second_path.read_bytes() == b"second preview"
+    assert first_focus_score is None
+    assert second_focus_score is None
     assert stat.S_IMODE(second_path.stat().st_mode) == 0o664
     assert list_camera_still_metadata("unit-a", dot_pioreactor=dot_pioreactor) == []
+
+
+def test_rpicam_focus_preview_returns_focus_score_from_capture_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pioreactor import camera
+
+    configure_camera_backend(
+        monkeypatch,
+        capture_backend="rpicam",
+        keep_camera_active="0",
+        ir_led_intensity="80",
+    )
+    monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/rpicam-still")
+    monkeypatch.setattr(camera, "led_intensity", lambda *_args, **_kwargs: True)
+
+    def capture(arguments: list[str], **_kwargs: object) -> None:
+        Path(arguments[-1]).write_bytes(b"camera focus preview")
+        metadata_path = Path(arguments[arguments.index("--metadata") + 1])
+        metadata_path.write_text('{"FocusFoM": 1750}', encoding="utf-8")
+
+    monkeypatch.setattr(camera.subprocess, "run", capture)
+
+    preview_path, focus_score = capture_camera_focus_preview(
+        "unit-a",
+        "session-a",
+        dot_pioreactor=tmp_path / ".pioreactor",
+    )
+
+    assert preview_path.read_bytes() == b"camera focus preview"
+    assert focus_score == 1750

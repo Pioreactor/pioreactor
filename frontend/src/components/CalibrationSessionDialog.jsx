@@ -21,6 +21,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import CloseIcon from "@mui/icons-material/Close";
 import TuneIcon from "@mui/icons-material/Tune";
 import EstimatorIcon from "./EstimatorIcon";
@@ -147,6 +148,10 @@ export default function CalibrationSessionDialog({
     ? sessionStep.metadata.actions
     : [];
   const stepImage = sessionStep?.metadata?.image;
+  const focusGuidance =
+    typeof sessionStep?.metadata?.focus_guidance?.message === "string"
+      ? sessionStep.metadata.focus_guidance
+      : null;
   const loadingImages = Array.isArray(sessionStep?.metadata?.loading_images)
     ? sessionStep.metadata.loading_images
     : [];
@@ -542,6 +547,29 @@ export default function CalibrationSessionDialog({
             )}
           </Box>
         ) : null}
+        {focusGuidance && (
+          <Box
+            aria-live="polite"
+            sx={{
+              minHeight: 64,
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              px: 1.5,
+              py: 1,
+              borderRadius: 1,
+              backgroundColor: "action.hover",
+            }}
+          >
+            <CenterFocusStrongIcon color="action" />
+            <Box>
+              <Typography variant="subtitle2">Focus guidance</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {focusGuidance.message}
+              </Typography>
+            </Box>
+          </Box>
+        )}
         {chartPayload && !(showLoading && loadingImages.length > 0) && (
           <Box>
             <CalibrationSessionChart chart={chartPayload} />

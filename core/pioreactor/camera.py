@@ -21,6 +21,7 @@ from typing import cast
 from typing import Iterator
 from typing import Literal
 
+from msgspec import DecodeError
 from msgspec import Meta
 from msgspec import Struct
 from msgspec import to_builtins
@@ -205,16 +206,17 @@ def get_rpicam_still_arguments(command: str, camera_index: int) -> list[str]:
     ]
 
 
-def camera_warmer_runtime_paths() -> tuple[Path, Path, Path]:
+def camera_warmer_runtime_paths() -> tuple[Path, Path, Path, Path]:
     return (
         CAMERA_WARMER_RUNTIME_DIR / "camera-warmer.pid",
         CAMERA_WARMER_RUNTIME_DIR / "camera-warmer.jpg",
         CAMERA_WARMER_RUNTIME_DIR / "camera-warmer-latest.jpg",
+        CAMERA_WARMER_RUNTIME_DIR / "camera-warmer-metadata.json",
     )
 
 
 def camera_warmer_pid() -> int | None:
-    pid_path, _, _ = camera_warmer_runtime_paths()
+    pid_path, _, _, _ = camera_warmer_runtime_paths()
     if not pid_path.exists():
         return None
 
@@ -256,10 +258,11 @@ def start_camera_warmer() -> bool:
         if camera_warmer_pid() is not None:
             return True
 
-        pid_path, image_path, latest_path = camera_warmer_runtime_paths()
+        pid_path, image_path, latest_path, metadata_path = camera_warmer_runtime_paths()
         CAMERA_WARMER_RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
         image_path.unlink(missing_ok=True)
         latest_path.unlink(missing_ok=True)
+        metadata_path.unlink(missing_ok=True)
 
         try:
             process = subprocess.Popen(
@@ -270,6 +273,10 @@ def start_camera_warmer() -> bool:
                     "0",
                     "--latest",
                     latest_path.as_posix(),
+                    "--metadata",
+                    metadata_path.as_posix(),
+                    "--metadata-format",
+                    "json",
                     "-o",
                     image_path.as_posix(),
                 ],
@@ -313,9 +320,15 @@ def stop_camera_warmer() -> None:
         camera_warmer_process = None
 
 
-def capture_camera_still_using_warmer(pid: int, timeout: float) -> Path:
-    _, _, latest_path = camera_warmer_runtime_paths()
+def capture_camera_still_using_warmer(
+    pid: int,
+    timeout: float,
+    capture_focus_score: bool,
+) -> tuple[Path, int | None]:
+    _, _, latest_path, metadata_path = camera_warmer_runtime_paths()
     latest_path.unlink(missing_ok=True)
+    if capture_focus_score:
+        metadata_path.unlink(missing_ok=True)
 
     try:
         os.kill(pid, signal.SIGUSR1)
@@ -324,8 +337,18 @@ def capture_camera_still_using_warmer(pid: int, timeout: float) -> Path:
 
     deadline = monotonic() + timeout
     while monotonic() < deadline:
-        if latest_path.exists():
-            return latest_path
+        if latest_path.exists() and not capture_focus_score:
+            return latest_path, None
+
+        if latest_path.exists() and metadata_path.exists():
+            try:
+                camera_metadata = json_decode(metadata_path.read_bytes())
+            except DecodeError:
+                sleep(CAMERA_WARMER_POLL_SECONDS)
+                continue
+
+            focus_score = camera_metadata.get("FocusFoM") if isinstance(camera_metadata, dict) else None
+            return latest_path, focus_score if isinstance(focus_score, int) else None
         sleep(CAMERA_WARMER_POLL_SECONDS)
 
     raise CameraCaptureError("The persistent camera process timed out during capture.")
@@ -574,9 +597,10 @@ def camera_captured_image(
     unit: pt.Unit,
     *,
     experiment: pt.Experiment | None,
+    capture_focus_score: bool,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
-) -> Iterator[Path]:
+) -> Iterator[tuple[Path, int | None]]:
     backend = get_camera_capture_backend()
     camera_index = get_camera_index() if backend == "rpicam" else None
     device_path = get_camera_device_path() if backend == "v4l2" else None
@@ -588,7 +612,7 @@ def camera_captured_image(
         if source_paths:
             index = len(list_camera_still_metadata(unit, dot_pioreactor=dot_pioreactor)) % len(source_paths)
             with camera_capture_lock(dot_pioreactor):
-                yield source_paths[index]
+                yield source_paths[index], None
             return
 
         raise CameraUnavailableError(f"No capture command is installed for camera backend '{backend}'.")
@@ -596,14 +620,23 @@ def camera_captured_image(
     with tempfile.NamedTemporaryFile(prefix="pioreactor-camera-", suffix=".jpg", delete=False) as tmp:
         tmp_path = Path(tmp.name)
 
+    metadata_path: Path | None = None
     try:
         if backend == "rpicam":
             assert camera_index is not None
-            capture_arguments = get_rpicam_still_arguments(command, camera_index) + [
-                "--immediate",
-                "-o",
-                tmp_path.as_posix(),
-            ]
+            capture_arguments = get_rpicam_still_arguments(command, camera_index) + ["--immediate"]
+            if capture_focus_score:
+                with tempfile.NamedTemporaryFile(
+                    prefix="pioreactor-camera-", suffix=".json", delete=False
+                ) as metadata_file:
+                    metadata_path = Path(metadata_file.name)
+                capture_arguments += [
+                    "--metadata",
+                    metadata_path.as_posix(),
+                    "--metadata-format",
+                    "json",
+                ]
+            capture_arguments += ["-o", tmp_path.as_posix()]
         else:
             assert device_path is not None
             capture_arguments = [
@@ -648,8 +681,13 @@ def camera_captured_image(
                     if remaining_capture_time <= 0:
                         raise CameraCaptureError("Camera capture timed out before taking a photo.")
 
+                    focus_score: int | None = None
                     if keep_camera_active and (pid := camera_warmer_pid()) is not None:
-                        captured_image_path = capture_camera_still_using_warmer(pid, remaining_capture_time)
+                        captured_image_path, focus_score = capture_camera_still_using_warmer(
+                            pid,
+                            remaining_capture_time,
+                            capture_focus_score,
+                        )
                     else:
                         subprocess.run(
                             capture_arguments,
@@ -658,6 +696,15 @@ def camera_captured_image(
                             check=True,
                         )
                         captured_image_path = tmp_path
+                        if metadata_path is not None and metadata_path.stat().st_size > 0:
+                            try:
+                                camera_metadata = json_decode(metadata_path.read_bytes())
+                            except DecodeError:
+                                camera_metadata = None
+                            raw_focus_score = (
+                                camera_metadata.get("FocusFoM") if isinstance(camera_metadata, dict) else None
+                            )
+                            focus_score = raw_focus_score if isinstance(raw_focus_score, int) else None
                 finally:
                     # OD may have acquired IR while the command ran. A locked channel is OD's cleanup
                     # responsibility; otherwise camera restores the shared idle invariant of IR=0%.
@@ -670,7 +717,7 @@ def camera_captured_image(
                             verbose=False,
                         )
 
-                yield captured_image_path
+                yield captured_image_path, focus_score
         except subprocess.CalledProcessError as error:
             stderr = error.stderr.decode("utf-8", errors="replace").strip()
             stdout = error.stdout.decode("utf-8", errors="replace").strip()
@@ -679,6 +726,8 @@ def camera_captured_image(
     finally:
         if tmp_path.exists():
             tmp_path.unlink()
+        if metadata_path is not None:
+            metadata_path.unlink(missing_ok=True)
         if keep_camera_active:
             start_camera_warmer()
 
@@ -694,9 +743,10 @@ def capture_camera_still(
     with camera_captured_image(
         unit,
         experiment=experiment,
+        capture_focus_score=False,
         timeout=timeout,
         dot_pioreactor=dot_pioreactor,
-    ) as captured_image_path:
+    ) as (captured_image_path, _focus_score):
         return store_camera_still(
             captured_image_path,
             unit,
@@ -719,16 +769,17 @@ def capture_camera_focus_preview(
     *,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
-) -> Path:
+) -> tuple[Path, int | None]:
     preview_path = camera_focus_preview_path(session_id, dot_pioreactor)
     preview_path.parent.mkdir(parents=True, exist_ok=True)
 
     with camera_captured_image(
         unit,
         experiment="$experiment",
+        capture_focus_score=True,
         timeout=timeout,
         dot_pioreactor=dot_pioreactor,
-    ) as captured_image_path:
+    ) as (captured_image_path, focus_score):
         with tempfile.NamedTemporaryFile(
             prefix=f"{session_id}-",
             suffix=".jpg",
@@ -744,7 +795,7 @@ def capture_camera_focus_preview(
         finally:
             temporary_preview_path.unlink(missing_ok=True)
 
-    return preview_path
+    return preview_path, focus_score
 
 
 def delete_camera_focus_preview(session_id: str, dot_pioreactor: Path | None = None) -> bool:

@@ -163,4 +163,80 @@ describe("CalibrationSessionDialog", () => {
       "/calibrations/unit-1/alt_media_pump/alt_media_pump-2026-04-13",
     );
   });
+
+  test("shows score-free focus guidance and updates it after another snapshot", async () => {
+    const focusStep = (status, message, snapshotCount) => ({
+      step_id: "focus_camera",
+      step_type: "info",
+      title: "Adjust the camera focus",
+      body: "Turn the camera's focus control until fine details look sharp.",
+      fields: [],
+      metadata: {
+        image: {
+          src: `/api/workers/unit-1/camera/focus_sessions/session-1/preview.jpg?v=${snapshotCount}`,
+          alt: "Camera focus snapshot from unit-1.",
+          caption: `Focus snapshot ${snapshotCount}`,
+        },
+        actions: [{ label: "Take another snapshot", inputs: { action: "retake" } }],
+        focus_guidance: { status, message },
+        primary_action_label: "Focus is complete",
+      },
+    });
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              step: focusStep(
+                "same",
+                "About the same — changes this small don't matter.",
+                1,
+              ),
+            }),
+        });
+      }
+
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1/inputs") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              step: focusStep("softer", "Softer — turn back slightly.", 2),
+            }),
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <CalibrationSessionDialog
+          open
+          protocol={{ title: "Manual camera focus", protocol_name: "manual_focus", target_device: "camera" }}
+          unit="unit-1"
+          sessionId="session-1"
+        />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("About the same — changes this small don't matter.");
+    expect(screen.getByText("Focus guidance").closest("[aria-live='polite']")).toBeTruthy();
+    expect(screen.queryByText(/FocusFoM/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/best this session/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Take another snapshot" }));
+
+    await screen.findByText("Softer — turn back slightly.");
+    expect(screen.queryByText("About the same — changes this small don't matter.")).not.toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/workers/unit-1/calibrations/sessions/session-1/inputs",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ inputs: { action: "retake" } }),
+      }),
+    );
+  });
 });

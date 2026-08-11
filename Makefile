@@ -15,6 +15,7 @@ PIP_FLAGS    ?=
 NODE_DIR     ?= frontend
 API_DIR      ?= core/pioreactor/web
 CORE_DIR     ?= core
+HUEY_DEV_STATUS_FILE ?= $(patsubst %/,%,$(if $(RUN_PIOREACTOR),$(RUN_PIOREACTOR),/tmp))/huey-dev.status
 
 # environment variables expected to come from .envrc or elsewhere
 ENV_REQUIRED ?= GLOBAL_CONFIG DOT_PIOREACTOR RUN_PIOREACTOR PLUGINS_DEV PIO_EXECUTABLE PIOS_EXECUTABLE HARDWARE FIRMWARE BLINKA_FORCECHIP BLINKA_FORCEBOARD MODEL_NAME MODEL_VERSION
@@ -129,12 +130,14 @@ frontend-dev:  ## Run React dev server on :3000
 	cd $(NODE_DIR) && npm start
 
 dev-status:  ## Show whether the usual dev services are already running
-	@scripts/dev_services_status.sh
+	@HUEY_DEV_STATUS_FILE="$(HUEY_DEV_STATUS_FILE)" scripts/dev_services_status.sh
 
 # --- background task queue ----------------------------------------------------
+# The open status file is the liveness marker read by dev-status.
 huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 	@$(ACTIVATE) && cd $(API_DIR) && \
-	huey_consumer pioreactor.web.tasks.huey -w 8 -f -C -d 0.01
+	exec 9>"$(HUEY_DEV_STATUS_FILE)" && \
+	exec huey_consumer pioreactor.web.tasks.huey -w 8 -f -C -d 0.01
 
 # --- clean-up -----------------------------------------------------------------
 clean:  ## Delete bytecode, build artefacts, node deps

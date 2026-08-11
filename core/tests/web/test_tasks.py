@@ -370,15 +370,15 @@ def test_camera_focus_preview_task_captures_without_experiment_metadata(
     _clear_lock("camera-lock")
     captured: list[tuple[str, str]] = []
 
-    monkeypatch.setattr(
-        tasks,
-        "capture_camera_focus_preview",
-        lambda unit, session_id: captured.append((unit, session_id)),
-    )
+    def fake_capture(unit: str, session_id: str) -> tuple[Path, int]:
+        captured.append((unit, session_id))
+        return Path("/tmp/preview.jpg"), 1750
+
+    monkeypatch.setattr(tasks, "capture_camera_focus_preview", fake_capture)
 
     result = tasks.capture_camera_focus_preview_task.call_local("unit-a", "session-a")
 
-    assert result == {"captured": True}
+    assert result == {"captured": True, "focus_score": 1750}
     assert captured == [("unit-a", "session-a")]
 
 
@@ -433,7 +433,11 @@ def test_camera_focus_tasks_publish_results_when_huey_is_not_immediate(
         "storage",
         SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"),
     )
-    monkeypatch.setattr(tasks, "capture_camera_focus_preview", lambda unit, session_id: None)
+    monkeypatch.setattr(
+        tasks,
+        "capture_camera_focus_preview",
+        lambda unit, session_id: (Path("/tmp/preview.jpg"), 1750),
+    )
     monkeypatch.setattr(tasks, "delete_camera_focus_preview", lambda session_id: True)
 
     capture_result = tasks.capture_camera_focus_preview_task("unit-a", "session-a")
@@ -441,7 +445,10 @@ def test_camera_focus_tasks_publish_results_when_huey_is_not_immediate(
     assert capture_task is not None
     tasks.huey.execute(capture_task)
 
-    assert capture_result.get(blocking=True, timeout=0.1) == {"captured": True}
+    assert capture_result.get(blocking=True, timeout=0.1) == {
+        "captured": True,
+        "focus_score": 1750,
+    }
 
     cleanup_result = tasks.delete_camera_focus_preview_task("unit-a", "session-a")
     cleanup_task = tasks.huey.dequeue()

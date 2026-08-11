@@ -163,10 +163,10 @@ def capture_camera_still_task(
 def capture_camera_focus_preview_task(
     unit: str,
     session_id: str,
-) -> dict[str, bool]:
-    capture_camera_focus_preview(unit, session_id)
+) -> dict[str, bool | int | None]:
+    _, focus_score = capture_camera_focus_preview(unit, session_id)
     logger.debug(f"User requested a manual-focus camera preview on {unit} for session `{session_id}`.")
-    return {"captured": True}
+    return {"captured": True, "focus_score": focus_score}
 
 
 @huey.task(priority=20)

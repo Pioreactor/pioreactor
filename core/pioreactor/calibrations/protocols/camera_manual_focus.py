@@ -19,6 +19,9 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.whoami import get_unit_name
 
 
+FOCUS_SCORE_TOLERANCE = 0.05
+
+
 def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationSession:
     session_id = str(uuid.uuid4())
     now = utc_iso_timestamp()
@@ -28,7 +31,13 @@ def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationS
         target_device=target_device,
         status="in_progress",
         step_id="take_snapshot",
-        data={"unit": get_unit_name(), "snapshot_count": 0},
+        data={
+            "unit": get_unit_name(),
+            "snapshot_count": 0,
+            "focus_score": None,
+            "previous_focus_score": None,
+            "best_focus_score": None,
+        },
         created_at=now,
         updated_at=now,
     )
@@ -38,13 +47,22 @@ def capture_focus_snapshot(ctx: SessionContext) -> None:
     if ctx.mode != "ui" or ctx.executor is None:
         raise ValueError("Manual camera focus is only available in the Pioreactor UI.")
 
-    ctx.executor(
+    result = ctx.executor(
         "camera_focus_capture",
         {
             "unit": ctx.data["unit"],
             "session_id": ctx.session.session_id,
         },
     )
+    focus_score = result.get("focus_score")
+    if not isinstance(focus_score, int):
+        focus_score = None
+
+    ctx.data["previous_focus_score"] = ctx.data.get("focus_score")
+    ctx.data["focus_score"] = focus_score
+    best_focus_score = ctx.data.get("best_focus_score")
+    if focus_score is not None and (not isinstance(best_focus_score, int) or focus_score > best_focus_score):
+        ctx.data["best_focus_score"] = focus_score
     ctx.data["snapshot_count"] = int(ctx.data.get("snapshot_count", 0)) + 1
 
 
@@ -87,6 +105,43 @@ class FocusCamera(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         unit = str(ctx.data["unit"])
         snapshot_count = int(ctx.data["snapshot_count"])
+
+        focus_score = ctx.data.get("focus_score")
+        previous_focus_score = ctx.data.get("previous_focus_score")
+        best_focus_score = ctx.data.get("best_focus_score")
+
+        if not isinstance(focus_score, int):
+            guidance_status = "unavailable"
+            guidance = "Automatic focus guidance isn't available for this camera. Compare snapshots visually."
+        elif not isinstance(previous_focus_score, int):
+            guidance_status = "initial"
+            guidance = "Adjust the focus slightly, then take another snapshot."
+        else:
+            current_is_in_sharpest_range = isinstance(best_focus_score, int) and focus_score >= (
+                best_focus_score * (1 - FOCUS_SCORE_TOLERANCE)
+            )
+            previous_was_outside_sharpest_range = isinstance(
+                best_focus_score, int
+            ) and previous_focus_score < (best_focus_score * (1 - FOCUS_SCORE_TOLERANCE))
+
+            if (
+                isinstance(best_focus_score, int)
+                and focus_score < best_focus_score
+                and current_is_in_sharpest_range
+                and previous_was_outside_sharpest_range
+            ):
+                guidance_status = "sharpest"
+                guidance = "You're in the sharpest range found. You can finish focusing."
+            elif focus_score > previous_focus_score * (1 + FOCUS_SCORE_TOLERANCE):
+                guidance_status = "sharper"
+                guidance = "Sharper — keep turning in the same direction."
+            elif focus_score < previous_focus_score * (1 - FOCUS_SCORE_TOLERANCE):
+                guidance_status = "softer"
+                guidance = "Softer — turn back slightly."
+            else:
+                guidance_status = "same"
+                guidance = "About the same — changes this small don't matter."
+
         step = steps.info(
             "Adjust the camera focus",
             "Turn the camera's focus control until fine details look sharp. Take another snapshot to "
@@ -104,6 +159,10 @@ class FocusCamera(SessionStep):
             "actions": [
                 {"label": "Take another snapshot", "inputs": {"action": "retake"}},
             ],
+            "focus_guidance": {
+                "status": guidance_status,
+                "message": guidance,
+            },
             "primary_action_label": "Focus is complete",
         }
         return step
