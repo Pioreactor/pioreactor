@@ -41,10 +41,14 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
         f"/api/workers/unit-a/camera/focus_sessions/{session.session_id}/preview.jpg?v=1"
     )
     assert first_focus_step.metadata["actions"] == [
-        {"label": "Take another snapshot", "inputs": {"action": "retake"}}
+        {
+            "label": "Take another snapshot",
+            "inputs": {"action": "retake"},
+            "updates_image": True,
+        }
     ]
     assert first_focus_step.metadata["primary_action_label"] == "Focus is complete"
-    assert first_focus_step.metadata["image"]["max_height"] == 520
+    assert first_focus_step.metadata["image"]["max_height"] == 300
     assert first_focus_step.metadata["image"]["aspect_ratio"] == "4 / 3"
     assert first_focus_step.metadata["dialog"] == {
         "max_width": "md",
@@ -63,9 +67,10 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
     assert second_focus_step.metadata["guidance"] == {
         "title": "Focus guidance",
         "status": "same",
-        "message": "About the same — changes this small don't matter.",
+        "message": "No clear change yet — keep turning a little in the same direction.",
     }
     assert session.data["snapshot_count"] == 2
+    assert session.data["focus_scores"] == [1000, 1050]
     assert calls == [
         (
             "camera_focus_capture",
@@ -78,7 +83,38 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
     ]
 
 
-def test_manual_focus_coach_uses_a_five_percent_tolerance_around_the_hidden_peak(
+def test_manual_focus_coach_accumulates_small_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(camera_manual_focus, "get_unit_name", lambda: "unit-a")
+    focus_scores = iter([1000, 1030, 1060])
+
+    def executor(action: str, _payload: dict[str, object]) -> dict[str, object]:
+        assert action == "camera_focus_capture"
+        return {"focus_score": next(focus_scores)}
+
+    session = start_manual_focus_session("camera")
+    engine = SessionEngine(
+        step_registry=with_terminal_steps(ManualCameraFocusProtocol.step_registry),
+        session=session,
+        mode="ui",
+        executor=executor,
+    )
+
+    steps = [
+        engine.advance({}),
+        engine.advance({"action": "retake"}),
+        engine.advance({"action": "retake"}),
+    ]
+
+    assert [step.metadata["guidance"]["status"] for step in steps] == [
+        "initial",
+        "same",
+        "sharper",
+    ]
+
+
+def test_manual_focus_coach_uses_global_best_and_five_percent_tolerance(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(camera_manual_focus, "get_unit_name", lambda: "unit-a")
@@ -109,15 +145,19 @@ def test_manual_focus_coach_uses_a_five_percent_tolerance_around_the_hidden_peak
         "initial",
         "same",
         "sharper",
-        "same",
-        "softer",
+        "sharpest",
+        "blurrier",
         "sharpest",
     ]
+    assert steps[3].metadata["guidance"]["message"] == (
+        "You're in the sharpest range found. You can finish focusing."
+    )
+    assert steps[4].metadata["guidance"]["message"] == "Blurrier — turn back slightly."
     assert steps[-1].metadata["guidance"]["message"] == (
         "You're in the sharpest range found. You can finish focusing."
     )
 
-    assert session.data["best_focus_score"] == 1103
+    assert session.data["focus_scores"] == [1000, 1050, 1103, 1048, 990, 1050]
     assert "1103" not in str(engine.get_step())
 
 

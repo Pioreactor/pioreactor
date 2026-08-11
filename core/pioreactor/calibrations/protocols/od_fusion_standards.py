@@ -36,6 +36,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
+MINIMUM_STANDARDS = 4
 SAMPLES_PER_STANDARD = 4
 
 
@@ -245,7 +246,7 @@ class Intro(SessionStep):
                 "This protocol fits a OD model using fusing together 45°, 90°, and 135° signals into a single measurement."
                 "You will need:\n\n"
                 "1. A Pioreactor XR.\n"
-                "2. At least four OD600 standards in Pioreactor vials, with stir bars.\n\n\u00a0\u00a0\u00a0\u00a0- It helps to number them 1, 2, ... N.\n\u00a0\u00a0\u00a0\u00a0- You don't need one of the standard vials to be a blank.\n\n\u00a0\u00a0\u00a0\u00a0- It's helpful if the dilutions span orders of magnitude.\n"
+                f"2. At least {MINIMUM_STANDARDS} OD600 standards in Pioreactor vials, with stir bars.\n\n\u00a0\u00a0\u00a0\u00a0- It helps to number them 1, 2, ... N.\n\u00a0\u00a0\u00a0\u00a0- You don't need one of the standard vials to be a blank.\n\n\u00a0\u00a0\u00a0\u00a0- It's helpful if the dilutions span orders of magnitude.\n"
             ),
         )
 
@@ -437,6 +438,10 @@ class RemoveObservation(SessionStep):
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
+        if len(ctx.data["standards"]) < MINIMUM_STANDARDS:
+            ctx.data["standard_index"] = int(ctx.data.get("standard_index", 1)) + 1
+            return PlaceStandard()
+
         return AnotherStandard()
 
 
@@ -506,7 +511,7 @@ class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]
     description = "Fit an OD model by fusing the 45°, 90°, and 135° sensor readings into a single measurement"
     requirements = (
         "Requires XR model with 45°, 90°, and 135° sensors.",
-        "At least four vials containing standards with known OD value",
+        f"At least {MINIMUM_STANDARDS} vials containing standards with known OD value",
         "Stir bars",
     )
     step_registry = _FUSION_STEPS

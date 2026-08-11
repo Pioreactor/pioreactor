@@ -3,6 +3,7 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -136,6 +137,8 @@ export default function CalibrationSessionDialog({
   const [showLoading, setShowLoading] = React.useState(false);
   const [sessionValues, setSessionValues] = React.useState({});
   const [loadingImageIndex, setLoadingImageIndex] = React.useState(0);
+  const [loadedStepImageSrc, setLoadedStepImageSrc] = React.useState(null);
+  const [imageActionPending, setImageActionPending] = React.useState(false);
   const startInFlightRef = React.useRef(false);
   const loadingDelayTimerRef = React.useRef(null);
   const loadingImageTimerRef = React.useRef(null);
@@ -158,6 +161,9 @@ export default function CalibrationSessionDialog({
   const displayedLoadingImage =
     showLoading && loadingImages.length > 0 ? loadingImages[loadingImageIndex] : null;
   const displayedImage = displayedLoadingImage || stepImage;
+  const stepImageIsLoading =
+    !displayedLoadingImage && Boolean(stepImage?.src) && loadedStepImageSrc !== stepImage.src;
+  const showImageLoading = !displayedLoadingImage && (imageActionPending || stepImageIsLoading);
   const tableColumns = Array.isArray(tablePayload?.columns) ? tablePayload.columns : [];
   const tableRows = Array.isArray(tablePayload?.rows) ? tablePayload.rows : [];
   const tableTitle = typeof tablePayload?.title === "string" ? tablePayload.title : "";
@@ -177,6 +183,8 @@ export default function CalibrationSessionDialog({
     setSessionError("");
     setSessionLoading(false);
     setSessionValues({});
+    setLoadedStepImageSrc(null);
+    setImageActionPending(false);
     startInFlightRef.current = false;
   }, []);
 
@@ -285,7 +293,7 @@ export default function CalibrationSessionDialog({
     }
   }, [effectiveSessionId, open, unit]);
 
-  const advanceSession = React.useCallback(async (overrideInputs) => {
+  const advanceSession = React.useCallback(async (overrideInputs, imageUpdateExpected) => {
     if (!unit || !effectiveSessionId) {
       return;
     }
@@ -293,6 +301,7 @@ export default function CalibrationSessionDialog({
       overrideInputs = null;
     }
     setSessionLoading(true);
+    setImageActionPending(imageUpdateExpected === true);
     setSessionError("");
     try {
       const inputs = overrideInputs ?? formatInputs(sessionStep, sessionValues);
@@ -322,6 +331,7 @@ export default function CalibrationSessionDialog({
     } catch (err) {
       setSessionError(err.message || "Failed to advance session.");
     } finally {
+      setImageActionPending(false);
       setSessionLoading(false);
     }
   }, [effectiveSessionId, sessionStep, sessionValues, unit]);
@@ -531,8 +541,14 @@ export default function CalibrationSessionDialog({
               src={displayedImage.src}
               alt={displayedImage.alt || ""}
               decoding="async"
+              onLoad={() => {
+                if (!displayedLoadingImage && stepImage?.src) {
+                  setLoadedStepImageSrc(stepImage.src);
+                }
+              }}
               onError={() => {
-                if (!displayedLoadingImage) {
+                if (!displayedLoadingImage && stepImage?.src) {
+                  setLoadedStepImageSrc(stepImage.src);
                   setSessionError("Image could not be loaded. Try again.");
                 }
               }}
@@ -553,6 +569,28 @@ export default function CalibrationSessionDialog({
                 {displayedImage.caption}
               </Typography>
             )}
+          </Box>
+        ) : null}
+        {!displayedLoadingImage && stepImage ? (
+          <Box
+            aria-live="polite"
+            aria-busy={showImageLoading}
+            sx={{
+              minHeight: 32,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1,
+            }}
+          >
+            {showImageLoading ? (
+              <>
+                <CircularProgress size={20} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading image…
+                </Typography>
+              </>
+            ) : null}
           </Box>
         ) : null}
         {stepGuidance && (
@@ -768,7 +806,7 @@ export default function CalibrationSessionDialog({
               <Button
                 key={action.label}
                 variant="text"
-                onClick={() => advanceSession(action.inputs)}
+                onClick={() => advanceSession(action.inputs, action.updates_image === true)}
                 sx={{ textTransform: "none" }}
                 disabled={sessionLoading}
               >

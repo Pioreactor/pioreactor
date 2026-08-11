@@ -252,7 +252,7 @@ export default function CameraStills({ title }) {
 
       {error && (
         <Alert severity="error">
-          {error} {stills.length > 0 ? "Existing snapshots remain available below." : "Retry in a moment."}
+          {error}
         </Alert>
       )}
 

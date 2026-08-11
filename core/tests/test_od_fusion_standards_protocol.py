@@ -144,6 +144,34 @@ def test_record_observation_uses_shared_stir_loading_images() -> None:
     }
 
 
+def test_remove_observation_only_offers_optional_standards_after_minimum() -> None:
+    minimum = od_fusion_standards.MINIMUM_STANDARDS
+    session = CalibrationSession(
+        session_id="session-1",
+        protocol_name="od_fusion_standards",
+        target_device=pt.OD_FUSED_DEVICE,
+        status="in_progress",
+        step_id="remove_observation",
+        data={"standard_index": minimum - 1, "standards": [{} for _ in range(minimum - 1)]},
+        created_at=utc_iso_timestamp(),
+        updated_at=utc_iso_timestamp(),
+    )
+    ctx = SessionContext(
+        session=session,
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+    )
+
+    assert isinstance(od_fusion_standards.RemoveObservation().advance(ctx), od_fusion_standards.PlaceStandard)
+    assert ctx.data["standard_index"] == minimum
+
+    ctx.data["standards"].append({})
+    assert isinstance(
+        od_fusion_standards.RemoveObservation().advance(ctx), od_fusion_standards.AnotherStandard
+    )
+
+
 def test_start_fusion_session_seeds_expected_session_data(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         od_fusion_standards,

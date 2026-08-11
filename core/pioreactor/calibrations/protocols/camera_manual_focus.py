@@ -19,7 +19,52 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.whoami import get_unit_name
 
 
-FOCUS_SCORE_TOLERANCE = 0.03
+FOCUS_SCORE_TOLERANCE = 0.05
+
+
+def focus_guidance_from_scores(focus_scores: list[int | None]) -> tuple[str, str]:
+    """Return guidance from the full sequence of focus measurements."""
+    if not focus_scores or focus_scores[-1] is None:
+        return (
+            "unavailable",
+            "Automatic focus guidance isn't available for this camera. Compare snapshots visually.",
+        )
+
+    valid_focus_scores = [score for score in focus_scores if score is not None]
+    if len(valid_focus_scores) == 1:
+        return "initial", "Adjust the focus slightly, then take another snapshot."
+
+    comparison_focus_score = valid_focus_scores[0]
+    best_focus_score = valid_focus_scores[0]
+    guidance_status = "initial"
+    guidance = "Adjust the focus slightly, then take another snapshot."
+
+    for index, focus_score in enumerate(valid_focus_scores[1:], start=1):
+        # Wait for three usable captures before suggesting that the user can finish.
+        if (
+            index >= 2
+            and focus_score <= best_focus_score
+            and focus_score >= best_focus_score * (1 - FOCUS_SCORE_TOLERANCE)
+        ):
+            guidance_status = "sharpest"
+            guidance = "You're in the sharpest range found. You can finish focusing."
+            comparison_focus_score = focus_score
+        elif focus_score > comparison_focus_score * (1 + FOCUS_SCORE_TOLERANCE):
+            guidance_status = "sharper"
+            guidance = "Sharper — keep turning in the same direction."
+            comparison_focus_score = focus_score
+        elif focus_score < comparison_focus_score * (1 - FOCUS_SCORE_TOLERANCE):
+            guidance_status = "blurrier"
+            guidance = "Blurrier — turn back slightly."
+            comparison_focus_score = focus_score
+        else:
+            # Keep the comparison point fixed so individually small changes accumulate.
+            guidance_status = "same"
+            guidance = "No clear change yet — keep turning a little in the same direction."
+
+        best_focus_score = max(best_focus_score, focus_score)
+
+    return guidance_status, guidance
 
 
 def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationSession:
@@ -34,9 +79,7 @@ def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationS
         data={
             "unit": get_unit_name(),
             "snapshot_count": 0,
-            "focus_score": None,
-            "previous_focus_score": None,
-            "best_focus_score": None,
+            "focus_scores": [],
         },
         created_at=now,
         updated_at=now,
@@ -58,11 +101,7 @@ def capture_focus_snapshot(ctx: SessionContext) -> None:
     if not isinstance(focus_score, int):
         focus_score = None
 
-    ctx.data["previous_focus_score"] = ctx.data.get("focus_score")
-    ctx.data["focus_score"] = focus_score
-    best_focus_score = ctx.data.get("best_focus_score")
-    if focus_score is not None and (not isinstance(best_focus_score, int) or focus_score > best_focus_score):
-        ctx.data["best_focus_score"] = focus_score
+    ctx.data["focus_scores"].append(focus_score)
     ctx.data["snapshot_count"] = int(ctx.data.get("snapshot_count", 0)) + 1
 
 
@@ -112,41 +151,7 @@ class FocusCamera(SessionStep):
         unit = str(ctx.data["unit"])
         snapshot_count = int(ctx.data["snapshot_count"])
 
-        focus_score = ctx.data.get("focus_score")
-        previous_focus_score = ctx.data.get("previous_focus_score")
-        best_focus_score = ctx.data.get("best_focus_score")
-
-        if not isinstance(focus_score, int):
-            guidance_status = "unavailable"
-            guidance = "Automatic focus guidance isn't available for this camera. Compare snapshots visually."
-        elif not isinstance(previous_focus_score, int):
-            guidance_status = "initial"
-            guidance = "Adjust the focus slightly, then take another snapshot."
-        else:
-            current_is_in_sharpest_range = isinstance(best_focus_score, int) and focus_score >= (
-                best_focus_score * (1 - FOCUS_SCORE_TOLERANCE)
-            )
-            previous_was_outside_sharpest_range = isinstance(
-                best_focus_score, int
-            ) and previous_focus_score < (best_focus_score * (1 - FOCUS_SCORE_TOLERANCE))
-
-            if (
-                isinstance(best_focus_score, int)
-                and focus_score < best_focus_score
-                and current_is_in_sharpest_range
-                and previous_was_outside_sharpest_range
-            ):
-                guidance_status = "sharpest"
-                guidance = "You're in the sharpest range found. You can finish focusing."
-            elif focus_score > previous_focus_score * (1 + FOCUS_SCORE_TOLERANCE):
-                guidance_status = "sharper"
-                guidance = "Sharper — keep turning in the same direction."
-            elif focus_score < previous_focus_score * (1 - FOCUS_SCORE_TOLERANCE):
-                guidance_status = "softer"
-                guidance = "Softer — turn back slightly."
-            else:
-                guidance_status = "same"
-                guidance = "About the same — changes this small don't matter."
+        guidance_status, guidance = focus_guidance_from_scores(ctx.data["focus_scores"])
 
         step = steps.info(
             "Adjust the camera focus",
@@ -161,11 +166,15 @@ class FocusCamera(SessionStep):
                 ),
                 "alt": f"Camera focus snapshot from {unit}.",
                 "caption": f"Focus snapshot {snapshot_count}",
-                "max_height": 520,
+                "max_height": 300,
                 "aspect_ratio": "4 / 3",
             },
             "actions": [
-                {"label": "Take another snapshot", "inputs": {"action": "retake"}},
+                {
+                    "label": "Take another snapshot",
+                    "inputs": {"action": "retake"},
+                    "updates_image": True,
+                },
             ],
             "dialog": {
                 "max_width": "md",
