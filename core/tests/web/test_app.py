@@ -2178,31 +2178,54 @@ def test_unscoped_latest_camera_still_proxy_is_not_available(client) -> None:
 
 def test_camera_focus_preview_proxy_preserves_image_content_type(client, monkeypatch: MonkeyPatch) -> None:
     import pioreactor.web.api as mod
-    from pioreactor.mureq import Response as MureqResponse
+    from http.client import HTTPMessage
 
-    captured: dict[str, str] = {}
+    captured: dict[str, object] = {"context_closed": False, "read_sizes": []}
 
-    def fake_get_from(address: str, endpoint: str, **kwargs: object) -> MureqResponse:
-        captured["address"] = address
-        captured["endpoint"] = endpoint
-        return MureqResponse(
-            f"http://{address}{endpoint}",
-            200,
-            {"Content-Type": "image/jpeg"},
-            b"focus preview",
-        )
+    class FakeStreamingResponse:
+        url = "http://unit1.local/unit_api/camera/focus_sessions/session-a/preview.jpg"
+        status = 200
+        headers = HTTPMessage()
+        chunks = iter((b"focus ", b"preview", b""))
+
+        def read(self, size: int) -> bytes:
+            captured["read_sizes"].append(size)
+            return next(self.chunks)
+
+    class FakeStreamingResponseContext:
+        def __enter__(self) -> FakeStreamingResponse:
+            return FakeStreamingResponse()
+
+        def __exit__(self, *_args: object) -> None:
+            captured["context_closed"] = True
+            return None
+
+    FakeStreamingResponse.headers["Content-Type"] = "image/jpeg"
+    FakeStreamingResponse.headers["Content-Length"] = "13"
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr(
+        mod,
+        "yield_response",
+        lambda method, url, **kwargs: (
+            captured.update({"method": method, "url": url, "timeout": kwargs["timeout"]})
+            or FakeStreamingResponseContext()
+        ),
+    )
 
     response = client.get("/api/workers/unit1/camera/focus_sessions/session-a/preview.jpg?v=2")
 
     assert response.status_code == 200
+    assert response.is_streamed
     assert response.data == b"focus preview"
     assert response.content_type == "image/jpeg"
+    assert response.headers["Content-Length"] == "13"
     assert captured == {
-        "address": "unit1.local",
-        "endpoint": "/unit_api/camera/focus_sessions/session-a/preview.jpg",
+        "context_closed": True,
+        "method": "GET",
+        "read_sizes": [64 * 1024, 64 * 1024, 64 * 1024],
+        "timeout": 20,
+        "url": "http://unit1.local:80/unit_api/camera/focus_sessions/session-a/preview.jpg",
     }
 
 

@@ -38,3 +38,22 @@ def test_build_duration_chart_metadata_uses_min_length() -> None:
     series = cast(list[dict[str, object]], metadata["series"])
     points = cast(list[dict[str, float]], series[0]["points"])
     assert points == [{"x": 1.0, "y": 0.5}]
+
+
+def test_pump_actions_have_specific_primary_action_labels() -> None:
+    assert (
+        pump_duration_based.PrimePumpDuration().render(_make_context()).metadata["primary_action_label"]
+        == "Prime pump"
+    )
+    assert (
+        pump_duration_based.TracerRun()
+        .render(_make_context({"tracer_duration_s": 1.0}))
+        .metadata["primary_action_label"]
+        == "Run pump"
+    )
+    assert (
+        pump_duration_based.TestRun()
+        .render(_make_context({"durations_to_test": [1.0], "test_index": 0, "results": []}))
+        .metadata["primary_action_label"]
+        == "Run pump"
+    )

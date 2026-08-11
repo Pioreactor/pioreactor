@@ -7,6 +7,8 @@ from threading import Event
 
 import pytest
 from pioreactor.calibrations.protocols import stirring_dc_based
+from pioreactor.calibrations.session_flow import SessionContext
+from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
@@ -63,6 +65,19 @@ def _dummy_session() -> CalibrationSession:
         data={},
         created_at=now,
         updated_at=now,
+    )
+
+
+def test_run_calibration_has_specific_primary_action_label() -> None:
+    ctx = SessionContext(
+        session=_dummy_session(),
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+    )
+
+    assert (
+        stirring_dc_based.RunCalibration().render(ctx).metadata["primary_action_label"] == "Run calibration"
     )
 
 

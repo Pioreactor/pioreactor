@@ -780,13 +780,57 @@ def get_camera_focus_preview_for_worker(pioreactor_unit: str, session_id: str) -
             remediation="Specify a concrete pioreactor_unit in the URL.",
         )
 
-    return get_camera_worker_response(
-        pioreactor_unit,
-        f"/unit_api/camera/focus_sessions/{session_id}/preview.jpg",
-        timeout=20,
-        error_message=f"Fetching camera focus preview failed on {pioreactor_unit}.",
-        default_content_type="image/jpeg",
+    response_stack = ExitStack()
+    error_response: MureqResponse | None = None
+
+    try:
+        worker_response = response_stack.enter_context(
+            yield_response(
+                "GET",
+                create_webserver_path(
+                    resolve_registered_worker_address(pioreactor_unit),
+                    f"/unit_api/camera/focus_sessions/{session_id}/preview.jpg",
+                ),
+                timeout=20,
+            )
+        )
+        if 400 <= worker_response.status < 600:
+            error_response = MureqResponse(
+                worker_response.url,
+                worker_response.status,
+                worker_response.headers,
+                worker_response.read(1_048_576),
+            )
+            raise HTTPErrorStatus(worker_response.status)
+    except (HTTPErrorStatus, HTTPException):
+        response_stack.close()
+        abort_with_worker_error(
+            error_response,
+            f"Fetching camera focus preview failed on {pioreactor_unit}.",
+        )
+    except Exception:
+        response_stack.close()
+        raise
+
+    def stream_worker_preview() -> t.Iterator[bytes]:
+        try:
+            while chunk := worker_response.read(64 * 1024):
+                yield chunk
+        finally:
+            response_stack.close()
+
+    response_headers = {}
+    if content_length := worker_response.headers.get("Content-Length"):
+        response_headers["Content-Length"] = content_length
+
+    streaming_response = Response(
+        stream_worker_preview(),
+        status=worker_response.status,
+        content_type=worker_response.headers.get("Content-Type", "image/jpeg"),
+        headers=response_headers,
     )
+    streaming_response.call_on_close(response_stack.close)
+    return streaming_response
 
 
 @api_bp.route("/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills", methods=["GET"])

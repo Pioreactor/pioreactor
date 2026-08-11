@@ -7,6 +7,8 @@ from typing import Iterator
 
 import pytest
 from pioreactor.calibrations.protocols import od_standards
+from pioreactor.calibrations.session_flow import SessionContext
+from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
@@ -97,6 +99,26 @@ def _dummy_session() -> CalibrationSession:
         created_at=now,
         updated_at=now,
     )
+
+
+def test_measurement_steps_have_specific_primary_action_labels() -> None:
+    session = _dummy_session()
+    session.data.update(
+        {
+            "channel_angle_map": {"1": "90"},
+            "od600_values": [],
+            "voltages_by_channel": {"1": []},
+        }
+    )
+    ctx = SessionContext(
+        session=session,
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+    )
+
+    assert od_standards.MeasureStandard().render(ctx).metadata["primary_action_label"] == "Measure standard"
+    assert od_standards.MeasureBlank().render(ctx).metadata["primary_action_label"] == "Measure blank"
 
 
 def test_on_session_abort_requests_od_job_cleanup(monkeypatch: pytest.MonkeyPatch) -> None:

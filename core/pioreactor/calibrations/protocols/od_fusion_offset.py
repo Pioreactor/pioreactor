@@ -392,10 +392,11 @@ class RecordObservation(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
             f"Record OD reading for standard {standard_index} of {STANDARDS_REQUIRED}",
-            "Press Continue to take OD readings for the standard vial.",
+            "Press Take OD readings to measure the standard vial.",
         )
         step.metadata = {
             "loading_images": _od_fusion_stir_loading_images(),
+            "primary_action_label": "Take OD readings",
         }
         return step
 

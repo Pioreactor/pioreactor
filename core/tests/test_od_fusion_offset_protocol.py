@@ -144,4 +144,5 @@ def test_record_observation_uses_shared_stir_loading_images() -> None:
 
     assert step.metadata == {
         "loading_images": od_fusion_standards._od_fusion_stir_loading_images(),
+        "primary_action_label": "Take OD readings",
     }

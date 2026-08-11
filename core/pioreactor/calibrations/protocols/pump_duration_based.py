@@ -348,6 +348,7 @@ class PrimePumpDuration(SessionStep):
             [fields.float("prime_duration_s", label="Prime duration (seconds)", default=15.0, minimum=5)],
         )
         step.metadata = {
+            "primary_action_label": "Prime pump",
             "image": {
                 "src": "/static/svgs/tubing-ends-in-water.svg",
                 "alt": "Place both ends of the tubing into the larger water container.",
@@ -399,11 +400,12 @@ class TracerRun(SessionStep):
             ),
         )
         step.metadata = {
+            "primary_action_label": "Run pump",
             "image": {
                 "src": "/static/svgs/pump-measure-volume.svg",
                 "alt": "Run the pump briefly and measure the volume expelled using a scale.",
                 "caption": "Measure the volume expelled on a scale or graduated cylinder.",
-            }
+            },
         }
         return step
 
@@ -468,6 +470,7 @@ class TestRun(SessionStep):
                     "caption": "Measure the volume expelled on a scale or graduated cylinder.",
                 }
             }
+        step.metadata["primary_action_label"] = "Run pump"
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:

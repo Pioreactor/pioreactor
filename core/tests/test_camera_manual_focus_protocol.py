@@ -29,6 +29,10 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
     take_snapshot_step = engine.get_step()
     assert take_snapshot_step.step_id == "take_snapshot"
     assert take_snapshot_step.metadata["primary_action_label"] == "Take snapshot"
+    assert take_snapshot_step.metadata["dialog"] == {
+        "max_width": "md",
+        "height": "min(90vh, 860px)",
+    }
 
     first_focus_step = engine.advance({})
 
@@ -40,7 +44,14 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
         {"label": "Take another snapshot", "inputs": {"action": "retake"}}
     ]
     assert first_focus_step.metadata["primary_action_label"] == "Focus is complete"
-    assert first_focus_step.metadata["focus_guidance"] == {
+    assert first_focus_step.metadata["image"]["max_height"] == 520
+    assert first_focus_step.metadata["image"]["aspect_ratio"] == "4 / 3"
+    assert first_focus_step.metadata["dialog"] == {
+        "max_width": "md",
+        "height": "min(90vh, 860px)",
+    }
+    assert first_focus_step.metadata["guidance"] == {
+        "title": "Focus guidance",
         "status": "initial",
         "message": "Adjust the focus slightly, then take another snapshot.",
     }
@@ -49,7 +60,8 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
 
     assert second_focus_step.metadata["image"]["src"].endswith("/preview.jpg?v=2")
     assert second_focus_step.metadata["image"]["caption"] == "Focus snapshot 2"
-    assert second_focus_step.metadata["focus_guidance"] == {
+    assert second_focus_step.metadata["guidance"] == {
+        "title": "Focus guidance",
         "status": "same",
         "message": "About the same — changes this small don't matter.",
     }
@@ -93,7 +105,7 @@ def test_manual_focus_coach_uses_a_five_percent_tolerance_around_the_hidden_peak
         engine.advance({"action": "retake"}),
     ]
 
-    assert [step.metadata["focus_guidance"]["status"] for step in steps] == [
+    assert [step.metadata["guidance"]["status"] for step in steps] == [
         "initial",
         "same",
         "sharper",
@@ -101,7 +113,7 @@ def test_manual_focus_coach_uses_a_five_percent_tolerance_around_the_hidden_peak
         "softer",
         "sharpest",
     ]
-    assert steps[-1].metadata["focus_guidance"]["message"] == (
+    assert steps[-1].metadata["guidance"]["message"] == (
         "You're in the sharpest range found. You can finish focusing."
     )
 
@@ -127,7 +139,8 @@ def test_manual_focus_coach_falls_back_to_visual_guidance_without_a_focus_score(
 
     step = engine.advance({})
 
-    assert step.metadata["focus_guidance"] == {
+    assert step.metadata["guidance"] == {
+        "title": "Focus guidance",
         "status": "unavailable",
         "message": "Automatic focus guidance isn't available for this camera. Compare snapshots visually.",
     }

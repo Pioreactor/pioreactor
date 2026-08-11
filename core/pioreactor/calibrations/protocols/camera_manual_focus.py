@@ -91,7 +91,13 @@ class TakeSnapshot(SessionStep):
             "Point the camera at a detailed object near the intended vial position, then press Take snapshot "
             "to take a snapshot.",
         )
-        step.metadata = {"primary_action_label": "Take snapshot"}
+        step.metadata = {
+            "dialog": {
+                "max_width": "md",
+                "height": "min(90vh, 860px)",
+            },
+            "primary_action_label": "Take snapshot",
+        }
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -155,11 +161,18 @@ class FocusCamera(SessionStep):
                 ),
                 "alt": f"Camera focus snapshot from {unit}.",
                 "caption": f"Focus snapshot {snapshot_count}",
+                "max_height": 520,
+                "aspect_ratio": "4 / 3",
             },
             "actions": [
                 {"label": "Take another snapshot", "inputs": {"action": "retake"}},
             ],
-            "focus_guidance": {
+            "dialog": {
+                "max_width": "md",
+                "height": "min(90vh, 860px)",
+            },
+            "guidance": {
+                "title": "Focus guidance",
                 "status": guidance_status,
                 "message": guidance,
             },

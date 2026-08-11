@@ -3,6 +3,7 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -21,7 +22,6 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import CloseIcon from "@mui/icons-material/Close";
 import TuneIcon from "@mui/icons-material/Tune";
 import EstimatorIcon from "./EstimatorIcon";
@@ -137,6 +137,7 @@ export default function CalibrationSessionDialog({
   const [showLoading, setShowLoading] = React.useState(false);
   const [sessionValues, setSessionValues] = React.useState({});
   const [loadingImageIndex, setLoadingImageIndex] = React.useState(0);
+  const [loadedStepImageSrc, setLoadedStepImageSrc] = React.useState(null);
   const startInFlightRef = React.useRef(false);
   const loadingDelayTimerRef = React.useRef(null);
   const loadingImageTimerRef = React.useRef(null);
@@ -148,13 +149,19 @@ export default function CalibrationSessionDialog({
     ? sessionStep.metadata.actions
     : [];
   const stepImage = sessionStep?.metadata?.image;
-  const focusGuidance =
-    typeof sessionStep?.metadata?.focus_guidance?.message === "string"
-      ? sessionStep.metadata.focus_guidance
+  const dialogPresentation = sessionStep?.metadata?.dialog;
+  const stepGuidance =
+    typeof sessionStep?.metadata?.guidance?.message === "string"
+      ? sessionStep.metadata.guidance
       : null;
   const loadingImages = Array.isArray(sessionStep?.metadata?.loading_images)
     ? sessionStep.metadata.loading_images
     : [];
+  const displayedLoadingImage =
+    showLoading && loadingImages.length > 0 ? loadingImages[loadingImageIndex] : null;
+  const displayedImage = displayedLoadingImage || stepImage;
+  const stepImageIsLoading =
+    !displayedLoadingImage && Boolean(stepImage?.src) && loadedStepImageSrc !== stepImage.src;
   const tableColumns = Array.isArray(tablePayload?.columns) ? tablePayload.columns : [];
   const tableRows = Array.isArray(tablePayload?.rows) ? tablePayload.rows : [];
   const tableTitle = typeof tablePayload?.title === "string" ? tablePayload.title : "";
@@ -174,6 +181,7 @@ export default function CalibrationSessionDialog({
     setSessionError("");
     setSessionLoading(false);
     setSessionValues({});
+    setLoadedStepImageSrc(null);
     startInFlightRef.current = false;
   }, []);
 
@@ -450,9 +458,15 @@ export default function CalibrationSessionDialog({
           onClose();
         }
       }}
-      maxWidth="sm"
+      maxWidth={dialogPresentation?.max_width || "sm"}
       fullWidth
-      slotProps={{ paper: { sx: { height: 620 } } }}
+      slotProps={{
+        paper: {
+          sx: {
+            height: dialogPresentation?.height || 620,
+          },
+        },
+      }}
     >
       <DialogTitle>
         {protocol?.title || "Calibration session"}
@@ -475,7 +489,6 @@ export default function CalibrationSessionDialog({
           display: "flex",
           flexDirection: "column",
           gap: 1,
-          maxHeight: 520,
           overflowY: "auto",
         }}
       >
@@ -510,44 +523,70 @@ export default function CalibrationSessionDialog({
         ) : (
           <></>
         )}
-        {(showLoading && loadingImages.length > 0) || stepImage ? (
-          <Box>
+        {displayedImage ? (
+          <Box
+            aria-busy={stepImageIsLoading}
+            sx={{
+              position: "relative",
+              width: "100%",
+              borderRadius: 1,
+              backgroundColor: "action.hover",
+              overflow: "hidden",
+            }}
+          >
             <Box
               component="img"
-              src={
-                showLoading && loadingImages.length > 0
-                  ? loadingImages[loadingImageIndex]?.src
-                  : stepImage?.src
-              }
-              alt={
-                showLoading && loadingImages.length > 0
-                  ? loadingImages[loadingImageIndex]?.alt || ""
-                  : stepImage?.alt || ""
-              }
+              src={displayedImage.src}
+              alt={displayedImage.alt || ""}
+              decoding="async"
+              onLoad={() => {
+                if (!displayedLoadingImage && stepImage?.src) {
+                  setLoadedStepImageSrc(stepImage.src);
+                }
+              }}
+              onError={() => {
+                if (!displayedLoadingImage && stepImage?.src) {
+                  setLoadedStepImageSrc(stepImage.src);
+                  setSessionError("Camera snapshot could not be loaded. Take another snapshot to retry.");
+                }
+              }}
               sx={{
                 width: "100%",
-                maxHeight: 220,
+                maxHeight: displayedImage.max_height || 220,
+                aspectRatio: displayedImage.aspect_ratio || "auto",
+                display: "block",
                 objectFit: "contain",
-                borderRadius: 1,
-                backgroundColor: "action.hover",
               }}
             />
-            {((showLoading && loadingImages.length > 0)
-              ? loadingImages[loadingImageIndex]?.caption
-              : stepImage?.caption) && (
+            {stepImageIsLoading && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 1,
+                  backgroundColor: "action.hover",
+                }}
+              >
+                <CircularProgress size={24} />
+                <Typography variant="body2">Loading snapshot…</Typography>
+              </Box>
+            )}
+            {displayedImage.caption && (
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ textAlign: "center", display: "block", width: "100%" }}
               >
-                {showLoading && loadingImages.length > 0
-                  ? loadingImages[loadingImageIndex].caption
-                  : stepImage.caption}
+                {displayedImage.caption}
               </Typography>
             )}
           </Box>
         ) : null}
-        {focusGuidance && (
+        {stepGuidance && (
           <Box
             aria-live="polite"
             sx={{
@@ -561,11 +600,12 @@ export default function CalibrationSessionDialog({
               backgroundColor: "action.hover",
             }}
           >
-            <CenterFocusStrongIcon color="action" />
             <Box>
-              <Typography variant="subtitle2">Focus guidance</Typography>
+              {stepGuidance.title && (
+                <Typography variant="subtitle2">{stepGuidance.title}</Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
-                {focusGuidance.message}
+                {stepGuidance.message}
               </Typography>
             </Box>
           </Box>

@@ -410,10 +410,12 @@ class MeasureStandard(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.form(
             f"Record standard {standard_index}",
-            f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Continue to start stirring and take an OD reading for this standard.",
+            f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Measure standard "
+            "to start stirring and take an OD reading.",
             [fields.float("od600_value", label="OD600 value", minimum=0)],
         )
         step.metadata = {
+            "primary_action_label": "Measure standard",
             "loading_images": [
                 {
                     "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
@@ -421,7 +423,7 @@ class MeasureStandard(SessionStep):
                     "caption": "One moment please...",
                 }
                 for i in range(1, n_frames + 1, 2)
-            ]
+            ],
         }
         od600_values = ctx.data.get("od600_values", [])
         if isinstance(od600_values, list) and od600_values:
@@ -535,10 +537,11 @@ class MeasureBlank(SessionStep):
         n_frames = 12
         step = steps.form(
             "Record blank",
-            "Enter the OD600 measurement for the blank.",
+            "Enter the OD600 measurement for the blank, then press Measure blank to take an OD reading.",
             [fields.float("od600_blank", label="Blank OD600 value", minimum=0)],
         )
         step.metadata = {
+            "primary_action_label": "Measure blank",
             "loading_images": [
                 {
                     "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
@@ -546,7 +549,7 @@ class MeasureBlank(SessionStep):
                     "caption": "One moment please...",
                 }
                 for i in range(1, n_frames + 1, 2)
-            ]
+            ],
         }
         od600_values = ctx.data.get("od600_values", [])
         if isinstance(od600_values, list) and od600_values:
