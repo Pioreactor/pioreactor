@@ -229,13 +229,6 @@ describe("CalibrationSessionDialog", () => {
     const firstImage = screen.getByRole("img", { name: "Camera focus snapshot from unit-1." });
     expect(screen.getByRole("dialog")).toHaveClass("MuiDialog-paperWidthMd");
     expect(firstImage).toHaveStyle({ maxHeight: "520px" });
-    expect(screen.getByText("Loading snapshot…")).toBeInTheDocument();
-    expect(firstImage.parentElement).toHaveAttribute("aria-busy", "true");
-
-    fireEvent.load(firstImage);
-
-    expect(screen.queryByText("Loading snapshot…")).not.toBeInTheDocument();
-    expect(firstImage.parentElement).toHaveAttribute("aria-busy", "false");
     expect(screen.getByText("Focus guidance").closest("[aria-live='polite']")).toBeTruthy();
     expect(screen.queryByText(/FocusFoM/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/best this session/i)).not.toBeInTheDocument();
@@ -248,11 +241,6 @@ describe("CalibrationSessionDialog", () => {
       "src",
       "/api/workers/unit-1/camera/focus_sessions/session-1/preview.jpg?v=2",
     );
-    expect(screen.getByText("Loading snapshot…")).toBeInTheDocument();
-
-    fireEvent.load(secondImage);
-
-    expect(screen.queryByText("Loading snapshot…")).not.toBeInTheDocument();
     expect(screen.queryByText("About the same — changes this small don't matter.")).not.toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/workers/unit-1/calibrations/sessions/session-1/inputs",

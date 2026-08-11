@@ -19,7 +19,7 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.whoami import get_unit_name
 
 
-FOCUS_SCORE_TOLERANCE = 0.05
+FOCUS_SCORE_TOLERANCE = 0.03
 
 
 def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationSession:

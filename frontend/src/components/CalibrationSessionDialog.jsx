@@ -3,7 +3,6 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -137,7 +136,6 @@ export default function CalibrationSessionDialog({
   const [showLoading, setShowLoading] = React.useState(false);
   const [sessionValues, setSessionValues] = React.useState({});
   const [loadingImageIndex, setLoadingImageIndex] = React.useState(0);
-  const [loadedStepImageSrc, setLoadedStepImageSrc] = React.useState(null);
   const startInFlightRef = React.useRef(false);
   const loadingDelayTimerRef = React.useRef(null);
   const loadingImageTimerRef = React.useRef(null);
@@ -160,8 +158,6 @@ export default function CalibrationSessionDialog({
   const displayedLoadingImage =
     showLoading && loadingImages.length > 0 ? loadingImages[loadingImageIndex] : null;
   const displayedImage = displayedLoadingImage || stepImage;
-  const stepImageIsLoading =
-    !displayedLoadingImage && Boolean(stepImage?.src) && loadedStepImageSrc !== stepImage.src;
   const tableColumns = Array.isArray(tablePayload?.columns) ? tablePayload.columns : [];
   const tableRows = Array.isArray(tablePayload?.rows) ? tablePayload.rows : [];
   const tableTitle = typeof tablePayload?.title === "string" ? tablePayload.title : "";
@@ -181,7 +177,6 @@ export default function CalibrationSessionDialog({
     setSessionError("");
     setSessionLoading(false);
     setSessionValues({});
-    setLoadedStepImageSrc(null);
     startInFlightRef.current = false;
   }, []);
 
@@ -525,13 +520,10 @@ export default function CalibrationSessionDialog({
         )}
         {displayedImage ? (
           <Box
-            aria-busy={stepImageIsLoading}
             sx={{
-              position: "relative",
               width: "100%",
               borderRadius: 1,
               backgroundColor: "action.hover",
-              overflow: "hidden",
             }}
           >
             <Box
@@ -539,15 +531,9 @@ export default function CalibrationSessionDialog({
               src={displayedImage.src}
               alt={displayedImage.alt || ""}
               decoding="async"
-              onLoad={() => {
-                if (!displayedLoadingImage && stepImage?.src) {
-                  setLoadedStepImageSrc(stepImage.src);
-                }
-              }}
               onError={() => {
-                if (!displayedLoadingImage && stepImage?.src) {
-                  setLoadedStepImageSrc(stepImage.src);
-                  setSessionError("Camera snapshot could not be loaded. Take another snapshot to retry.");
+                if (!displayedLoadingImage) {
+                  setSessionError("Image could not be loaded. Try again.");
                 }
               }}
               sx={{
@@ -558,23 +544,6 @@ export default function CalibrationSessionDialog({
                 objectFit: "contain",
               }}
             />
-            {stepImageIsLoading && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  zIndex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 1,
-                  backgroundColor: "action.hover",
-                }}
-              >
-                <CircularProgress size={24} />
-                <Typography variant="body2">Loading snapshot…</Typography>
-              </Box>
-            )}
             {displayedImage.caption && (
               <Typography
                 variant="caption"
