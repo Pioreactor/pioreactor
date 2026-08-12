@@ -66,7 +66,9 @@ def focus_guidance_from_scores(focus_scores: list[int | None]) -> tuple[str, str
             has_observed_meaningful_focus_change = True
         elif focus_score < comparison_focus_score * (1 - FOCUS_SCORE_TOLERANCE):
             guidance_status = "blurrier"
-            guidance = "Blurrier — turn back slightly."
+            guidance = (
+                "Blurrier — reverse your last adjustment and turn the lens back toward its previous position."
+            )
             comparison_focus_score = focus_score
             has_observed_meaningful_focus_change = True
         else:

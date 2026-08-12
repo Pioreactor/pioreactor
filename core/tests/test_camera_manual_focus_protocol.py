@@ -179,7 +179,9 @@ def test_manual_focus_coach_uses_global_best_and_five_percent_tolerance(
     assert steps[3].metadata["guidance"]["message"] == (
         "Back in the sharpest range measured — compare the image visually."
     )
-    assert steps[4].metadata["guidance"]["message"] == "Blurrier — turn back slightly."
+    assert steps[4].metadata["guidance"]["message"] == (
+        "Blurrier — reverse your last adjustment and turn the lens back toward its previous position."
+    )
     assert steps[-1].metadata["guidance"]["message"] == (
         "Back in the sharpest range measured — compare the image visually."
     )
