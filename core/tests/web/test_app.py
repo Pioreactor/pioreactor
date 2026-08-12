@@ -2225,7 +2225,7 @@ def test_camera_focus_preview_proxy_preserves_image_content_type(client, monkeyp
         "method": "GET",
         "read_sizes": [64 * 1024, 64 * 1024, 64 * 1024],
         "timeout": 20,
-        "url": "http://unit1.local:80/unit_api/camera/focus_sessions/session-a/preview.jpg",
+        "url": "http://unit1.local:4999/unit_api/camera/focus_sessions/session-a/preview.jpg",
     }
 
 

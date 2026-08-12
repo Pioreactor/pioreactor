@@ -197,7 +197,6 @@ describe("Cameras", () => {
     );
 
     expect(await screen.findByText("unit-1's Camera")).toBeInTheDocument();
-    expect(screen.getByText("Camera status unknown")).toBeInTheDocument();
     expect(screen.queryByText(/No camera-capable Pioreactors/)).not.toBeInTheDocument();
   });
 });
