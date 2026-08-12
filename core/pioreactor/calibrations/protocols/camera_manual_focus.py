@@ -32,14 +32,14 @@ def focus_guidance_from_scores(focus_scores: list[int | None]) -> tuple[str, str
 
     valid_focus_scores = [score for score in focus_scores if score is not None]
     if len(valid_focus_scores) == 1:
-        return "initial", "Adjust the focus slightly, then take another snapshot."
+        return "initial", "Adjust the focus slightly using the focus tool, then take another snapshot."
 
     comparison_focus_score = valid_focus_scores[0]
     best_focus_score = valid_focus_scores[0]
     best_was_established_after_initial_snapshot = False
     has_observed_meaningful_focus_change = False
     guidance_status = "initial"
-    guidance = "Adjust the focus slightly, then take another snapshot."
+    guidance = "Adjust the focus slightly using the focus tool, then take another snapshot."
 
     for index, focus_score in enumerate(valid_focus_scores[1:], start=1):
         # Don't suggest finishing until the user has moved far enough to demonstrate a focus change.

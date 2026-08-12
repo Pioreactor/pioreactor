@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180">
+<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 180">
   <defs>
     <g id="camera-side" stroke="#404040" stroke-width="3.6" stroke-linejoin="round">
       <path
@@ -36,11 +36,13 @@
   </g>
 
   <!-- Rotate while seated -->
-  <use href="#focus-tool" transform="translate(218 34) scale(0.7)" />
-  <use href="#camera-side" transform="translate(270 90)" />
-  <g fill="none" stroke="#111111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M365 53C397 59 397 121 365 127" />
-    <polyline points="376,50 365,53 373,62" />
-    <polyline points="373,118 365,127 376,130" />
+  <g transform="translate(40 0)">
+    <use href="#focus-tool" transform="translate(218 34) scale(0.7)" />
+    <use href="#camera-side" transform="translate(270 90)" />
+    <g fill="none" stroke="#111111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M365 53C397 59 397 121 365 127" />
+      <polyline points="376,50 365,53 373,62" />
+      <polyline points="373,118 365,127 376,130" />
+    </g>
   </g>
 </svg>
