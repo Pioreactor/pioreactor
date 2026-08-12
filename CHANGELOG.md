@@ -3,8 +3,6 @@
 #### Breaking changes
 
  - Removed the deprecated `pioreactor.whoami.get_latest_experiment_name()` helper. Use `get_assigned_experiment_name(get_unit_name())` instead.
- - Changed the specific-job stop endpoints to always return an async task response with a `result_url_path` instead of sometimes returning `{ "status": "accepted" }` after publishing to MQTT. Stops now run through each Pioreactor's job manager, so API clients should poll the returned task result.
- - Added strict validation and bounds to log, dataset-preview, and time-series query parameters. Invalid, non-finite, or out-of-range values now return `400` instead of being silently coerced.
 
 #### Enhancements
 
@@ -25,7 +23,6 @@
  - Improved calibration sessions with action-specific button labels, protocol images and guidance, progress tables, and direct links to completed calibrations and estimators.
  - Reduced duplicate browser and leader requests on Inventory, Pioreactors, Export Data, calibration, estimator, experiment-creation, and automation screens by reusing loaded data and batching Pioreactor configuration reads.
  - Added clearer author, version, and package-type metadata to installed, suggested, and USB plugins.
- - Increased the maximum `pio run stirring --target-rpm` value from 1500 to 2000 RPM.
  - Software updates now set `gpu_mem=32` in the Raspberry Pi boot configuration on every Pioreactor.
 
 #### Bug fixes

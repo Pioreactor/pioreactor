@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import contextlib
 import re
+from collections.abc import Generator
 from unittest.mock import MagicMock
 from unittest.mock import patch
 from urllib.parse import urlparse
@@ -20,28 +21,22 @@ def _clear_test_artifacts(test_name: str) -> None:
     from pioreactor.utils.job_manager import JobManager
 
     with local_intermittent_storage("pwm_dc") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_intermittent_storage("led_locks") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_intermittent_storage("pwm_locks") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_intermittent_storage("leds") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_persistent_storage("active_calibrations") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_persistent_storage("active_estimators") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_persistent_storage("alt_media_fraction") as c:
         c.pop(test_name)
@@ -50,12 +45,10 @@ def _clear_test_artifacts(test_name: str) -> None:
         c.pop(test_name)
 
     with local_persistent_storage("bioreactor") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_persistent_storage("camera_stills") as cache:
-        for key in list(cache.iterkeys()):
-            del cache[key]
+        cache.empty()
 
     with local_persistent_storage("camera_settings") as cache:
         cache.empty()
@@ -66,14 +59,17 @@ def _clear_test_artifacts(test_name: str) -> None:
         job_manager.clear()
 
 
-@pytest.fixture(autouse=True)
-def run_around_tests(request):
-    test_name = request.node.name
-    _clear_test_artifacts(test_name)
+@pytest.fixture(scope="session", autouse=True)
+def start_test_session_with_clean_artifacts(request: pytest.FixtureRequest) -> None:
+    if request.session.items:
+        _clear_test_artifacts(request.session.items[0].name)
 
+
+@pytest.fixture(autouse=True)
+def clean_test_artifacts_after_test(request: pytest.FixtureRequest) -> Generator[None, None, None]:
     yield
 
-    _clear_test_artifacts(test_name)
+    _clear_test_artifacts(request.node.name)
 
 
 @pytest.fixture()

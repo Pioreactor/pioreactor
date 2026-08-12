@@ -143,9 +143,10 @@ def use_expected_alt_media_pwm_channel():
 
 
 def setup_function() -> None:
+    # Pump timing is covered in test_pumps.py; dosing tests only need realistic pump results.
     cal = structs.SimplePeristalticPumpCalibration(
-        calibration_name="setup_function",
-        curve_data_=structs.PolyFitCoefficients(coefficients=[1.0, 0.0]),
+        calibration_name="fast_dosing_test_calibration_10ml_s",
+        curve_data_=structs.PolyFitCoefficients(coefficients=[10.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,
@@ -1314,6 +1315,7 @@ def test_execute_io_action_updates_alt_media_fraction_from_dosing_results() -> N
             assert wait_for(lambda: close(ca.alt_media_fraction, 0.0006688099108144436), timeout=5.0)
 
 
+@pytest.mark.usefixtures("fast_dosing_timers")
 def test_execute_io_action_reports_requested_pump_volumes() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs1"
@@ -1325,6 +1327,7 @@ def test_execute_io_action_reports_requested_pump_volumes() -> None:
         assert result["waste_ml"] == 1.26
 
 
+@pytest.mark.usefixtures("fast_dosing_timers")
 def test_execute_io_action_preserves_requested_waste_despite_float_rounding() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs1"
@@ -2607,6 +2610,7 @@ def test_custom_dosing_automation_without_duration_setting_does_not_publish_dura
         assert msg is None
 
 
+@pytest.mark.usefixtures("fast_dosing_timers")
 def test_dosing_automation_initial_values_for_volumes() -> None:
     exp = "test_dosing_automation_initial_values_for_volumes"
 

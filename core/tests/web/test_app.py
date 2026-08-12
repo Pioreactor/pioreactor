@@ -5,6 +5,7 @@ import sqlite3
 import zipfile
 from datetime import datetime
 from datetime import UTC
+from email.message import Message
 from io import BytesIO
 from pathlib import Path
 
@@ -371,7 +372,8 @@ def test_get_workers_for_experiment(client) -> None:
 
 def test_add_worker_to_experiment(client) -> None:
     # Add unit4 to exp1
-    response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit4"})
+    with capture_requests():
+        response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit4"})
     assert response.status_code == 200
 
     # Verify unit4 is now assigned to exp1
@@ -391,7 +393,8 @@ def test_add_worker_to_experiment_publishes_retained_assignment(
 
     monkeypatch.setattr("pioreactor.web.api.publish", capture_publish)
 
-    response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit4"})
+    with capture_requests():
+        response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit4"})
 
     assert response.status_code == 200
     assert len(published) == 1
@@ -489,7 +492,8 @@ def test_reassign_worker_to_experiment_stops_jobs_from_previous_experiment(
 
 def test_remove_worker_from_experiment(client) -> None:
     # Remove unit2 from exp1
-    response = client.delete("/api/experiments/exp1/workers/unit2")
+    with capture_requests():
+        response = client.delete("/api/experiments/exp1/workers/unit2")
     assert response.status_code == 200
 
     # Verify unit2 is no longer assigned to exp1
@@ -505,7 +509,8 @@ def test_all_workers_ever_assigned_to_experiment_includes_unassigned_workers(cli
 
     assert set(get_all_workers_ever_assigned_to_experiment("exp1")) == {"unit1", "unit2"}
 
-    response = client.delete("/api/experiments/exp1/workers/unit2")
+    with capture_requests():
+        response = client.delete("/api/experiments/exp1/workers/unit2")
 
     assert response.status_code == 200
     modify_app_db(
@@ -530,7 +535,8 @@ def test_remove_worker_from_experiment_publishes_retained_unassignment(
 
     monkeypatch.setattr("pioreactor.web.api.publish", capture_publish)
 
-    response = client.delete("/api/experiments/exp1/workers/unit2")
+    with capture_requests():
+        response = client.delete("/api/experiments/exp1/workers/unit2")
 
     assert response.status_code == 200
     assert len(published) == 1
@@ -564,7 +570,8 @@ def test_get_assignment_count(client) -> None:
 
 def test_change_worker_status(client) -> None:
     # Deactivate unit3
-    response = client.put("/api/workers/unit3/is_active", json={"is_active": 0})
+    with capture_requests():
+        response = client.put("/api/workers/unit3/is_active", json={"is_active": 0})
     assert response.status_code == 200
 
     # Verify the status change
@@ -2046,7 +2053,8 @@ def test_broadcast_in_manage_all(client) -> None:
     }
 
     # Remove unit2 from exp1
-    client.delete("/api/experiments/exp1/workers/unit2")
+    with capture_requests():
+        client.delete("/api/experiments/exp1/workers/unit2")
 
     with capture_requests() as bucket:
         client.post("/api/workers/$broadcast/jobs/run/job_name/stirring/experiments/exp1", json={})
@@ -2513,11 +2521,6 @@ def test_run_job(client) -> None:
         },
     }
 
-    # stop job now
-    client.post(
-        "/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1",
-    )
-
     # wrong experiment!
     with capture_requests() as bucket:
         client.post(
@@ -2590,19 +2593,14 @@ def test_run_job_with_job_source(client) -> None:
         },
     }
 
-    # stop job now
-    client.post(
-        "/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1",
-    )
 
-
-@pytest.mark.slow
 def test_run_job_response(client) -> None:
     # regression test
-    run_post_response = client.post(
-        "/api/workers/unit1/jobs/run/job_name/stirring/experiments/exp1",
-        json={"options": {"target_rpm": 10}},
-    )
+    with capture_requests():
+        run_post_response = client.post(
+            "/api/workers/unit1/jobs/run/job_name/stirring/experiments/exp1",
+            json={"options": {"target_rpm": 10}},
+        )
     assert run_post_response.status_code == 202
     task_data = run_post_response.get_json()
 
@@ -2610,11 +2608,6 @@ def test_run_job_response(client) -> None:
     assert multicast_task_query_response.status_code == 200
     multicast_task_data = multicast_task_query_response.get_json()
     assert multicast_task_data["status"] == "succeeded"
-
-    # stop job now
-    client.post(
-        "/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1",
-    )
 
 
 def test_stop_specific_job_uses_worker_job_manager(client, monkeypatch) -> None:
@@ -3160,27 +3153,42 @@ def test_get_settings_unit_api(client) -> None:
         r.json["target_rpm"] == "500.0"
 
 
-@pytest.mark.slow
-@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
-def test_get_settings_api(client) -> None:
-    from pioreactor.background_jobs.stirring import start_stirring
+def test_get_settings_api(client, monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.mureq import Response as MureqResponse
 
-    with start_stirring(unit="unit1", experiment="exp1"):
-        r = client.get("/api/workers/$broadcast/jobs/settings/job_name/stirring/experiments/exp1")
-        # follow the task
-        r = client.get(r.json["result_url_path"])
-        settings_per_unit = r.json["result"]
-        assert settings_per_unit["unit2"]["ok"] is False
-        assert settings_per_unit["unit1"]["ok"] is True
-        assert settings_per_unit["unit1"]["value"]["settings"]["target_rpm"] == 500.0
+    headers = Message()
+    headers["Content-Type"] = "application/json"
 
-        # next api
-        r = client.get("/api/workers/unit1/jobs/settings/job_name/stirring/experiments/exp1")
-        # follow the task
-        r = client.get(r.json["result_url_path"])
-        settings_per_unit = r.json["result"]
-        assert settings_per_unit["unit1"]["ok"] is True
-        assert settings_per_unit["unit1"]["value"]["settings"]["target_rpm"] == 500.0
+    def fake_get_from(address: str, endpoint: str, **_kwargs: object) -> MureqResponse:
+        if address == "unit1":
+            return MureqResponse(
+                f"http://{address}{endpoint}",
+                200,
+                headers,
+                b'{"settings":{"$state":"ready","target_rpm":500.0}}',
+            )
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            404,
+            headers,
+            b'{"error":"No settings found for job."}',
+        )
+
+    monkeypatch.setattr("pioreactor.web.tasks.resolve_to_address", lambda unit: unit)
+    monkeypatch.setattr("pioreactor.web.tasks.get_from", fake_get_from)
+
+    r = client.get("/api/workers/$broadcast/jobs/settings/job_name/stirring/experiments/exp1")
+    r = client.get(r.json["result_url_path"])
+    settings_per_unit = r.json["result"]
+    assert settings_per_unit["unit2"]["ok"] is False
+    assert settings_per_unit["unit1"]["ok"] is True
+    assert settings_per_unit["unit1"]["value"]["settings"]["target_rpm"] == 500.0
+
+    r = client.get("/api/workers/unit1/jobs/settings/job_name/stirring/experiments/exp1")
+    r = client.get(r.json["result_url_path"])
+    settings_per_unit = r.json["result"]
+    assert settings_per_unit["unit1"]["ok"] is True
+    assert settings_per_unit["unit1"]["value"]["settings"]["target_rpm"] == 500.0
 
 
 def test_get_settings_descriptors(client) -> None:
