@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 180">
+<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="-20 40 180 180">
   <defs>
     <g id="camera-side" stroke="#404040" stroke-width="3.6" stroke-linejoin="round">
       <path
@@ -13,36 +13,62 @@
     </g>
     <g
       id="focus-tool"
-      fill="#616161"
       stroke="#404040"
-      stroke-width="5.1"
+      stroke-width="4.6"
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      <path d="M60 67H96L112 49H184C193 49 200 56 200 65V95C200 104 193 111 184 111H112L96 93H60Z" />
-      <path d="M96 67V93M112 49V111" fill="none" />
-      <path d="M125 62H181C186 62 189 65 189 69" fill="none" />
-      <path d="M125 80H189" fill="none" />
-      <path d="M125 98H181C186 98 189 95 189 91" fill="none" />
+      <!-- Small male boss on the underside of the tool. -->
+      <rect x="78" y="74" width="12" height="12" rx="2" fill="#ffffff" />
+
+      <!-- Strict side profile of the shallow, knurled focusing tool. -->
+      <path
+        d="M92 50H112C118 50 122 54 122 60V100C122 106 118 110 112 110H92C90 110 88 107 88 103V57C88 53 90 50 92 50Z"
+        fill="#ffffff"
+      />
+      <path d="M94 54V106" fill="none" />
+      <path
+        d="M96 56H113M95 62H116M94 68H117M94 74H118M94 80H118M94 86H118M94 92H118M95 98H117M96 104H115"
+        fill="none"
+        stroke-width="2.4"
+      />
+    </g>
+    <g
+      id="rotation-arrow"
+      fill="none"
+      stroke="#111111"
+      stroke-width="25"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path
+        d="M33.13 71.24C24.52 71.24 17.9 55.54 17.9 36.2C17.9 16.88 24.52 1.17 33.13 1.17C41.3 1.17 48.31 16.8 48.35 38.7"
+        vector-effect="non-scaling-stroke"
+      />
+      <polyline
+        points="41.37,33.29 48.35,40.28 55.34,33.29"
+        vector-effect="non-scaling-stroke"
+      />
     </g>
   </defs>
 
   <!-- Align and insert -->
   <use href="#camera-side" transform="translate(62 90)" />
-  <use href="#focus-tool" transform="translate(75 34) scale(0.7)" />
+  <use href="#focus-tool" transform="translate(51 34) scale(0.7)" />
   <g fill="none" stroke="#111111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-    <line x1="106" y1="90" x2="70" y2="90" />
+    <line x1="98" y1="90" x2="70" y2="90" />
     <polyline points="78,84 70,90 78,96" />
   </g>
 
   <!-- Rotate while seated -->
-  <g transform="translate(40 0)">
-    <use href="#focus-tool" transform="translate(218 34) scale(0.7)" />
+  <g transform="translate(-208.592 80.767)">
+    <use href="#rotation-arrow" transform="translate(260.74 53.7786) scale(1.0232)" />
+    <use href="#focus-tool" transform="translate(205 34) scale(0.7)" />
     <use href="#camera-side" transform="translate(270 90)" />
-    <g fill="none" stroke="#111111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M365 53C397 59 397 121 365 127" />
-      <polyline points="376,50 365,53 373,62" />
-      <polyline points="373,118 365,127 376,130" />
-    </g>
+    <use
+      href="#rotation-arrow"
+      opacity="0.35"
+      transform="translate(277.881 126.906) scale(1.0232 -1.0232)"
+    />
   </g>
 </svg>
