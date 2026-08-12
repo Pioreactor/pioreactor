@@ -74,7 +74,7 @@ function ExperimentSummaryForm(props) {
     [historicalExperimentList],
   );
   const trimmedExpName = expName.trim();
-  const hasInvalidCharacters = /[#$%&+\/=?\\]/.test(trimmedExpName);
+  const hasInvalidCharacters = /[#$%+\/?\\]/.test(trimmedExpName);
   const nameAlreadyUsed = trimmedExpName in historicalExperiments;
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
 
@@ -111,7 +111,7 @@ function ExperimentSummaryForm(props) {
     }
     else if (hasInvalidCharacters) {
       setFormError(true)
-      setHelperText("Can't use $, %, #, &, \\, /, +, = or ? characters in experiment name.")
+      setHelperText("Can't use $, %, #, \\, /, + or ? characters in experiment name.")
       setLoading(false)
       return
     }

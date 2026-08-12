@@ -339,6 +339,19 @@ def test_python_plugin_uninstall_continues_when_pre_uninstall_hook_fails(
     assert "pip uninstall -y pioreactor-demo-plugin" in command_log
 
 
+def test_python_plugin_uninstall_continues_when_package_directory_is_missing(
+    plugin_package_environment: PluginPackageEnvironment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_package_environment.install_folder.rmdir()
+
+    result = plugin_package_environment.run_python_uninstall(monkeypatch)
+
+    assert result.returncode == 0, result.stderr
+    command_log = plugin_package_environment.command_log.read_text(encoding="utf-8")
+    assert "pip uninstall -y pioreactor-demo-plugin" in command_log
+
+
 def test_install_plugin_skips_assets_when_leader_only_package_is_not_installed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

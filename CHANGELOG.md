@@ -1,32 +1,47 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Removed the deprecated `pioreactor.whoami.get_latest_experiment_name()` helper. Use `get_assigned_experiment_name(get_unit_name())` instead.
+ - Changed the specific-job stop endpoints to always return an async task response with a `result_url_path` instead of sometimes returning `{ "status": "accepted" }` after publishing to MQTT. Stops now run through each Pioreactor's job manager, so API clients should poll the returned task result.
+ - Added strict validation and bounds to log, dataset-preview, and time-series query parameters. Invalid, non-finite, or out-of-range values now return `400` instead of being silently coerced.
+
 #### Enhancements
 
- - bump MCP support to 2026-07-28.
- - Adding experimental support for cameras. More docs coming soon.
-```
-[camera]
-enabled=1
-# whole minutes between automatic still captures during an assigned experiment.
-# Set to 0 to disable automatic capture.
-snapshot_interval_minutes=5
-# IR illumination used for real camera captures. Must be between 70 and 100, inclusive.
-ir_led_intensity=80
-# rpicam uses a camera available to rpicam-still. v4l2 uses a video device with fswebcam.
-capture_backend=rpicam
-# camera_index is used by the rpicam backend.
-camera_index=0
-# device_path is used by the v4l2 backend. Prefer a stable /dev/v4l/by-id path when available.
-device_path=/dev/video0
-```
+ - lots of minor performance improvements
+ - Added experimental camera support for Raspberry Pi and V4L2/USB cameras. The UI can take manual or scheduled snapshots, show live snapshot status, browse, download, and delete experiment history, toggle automatic captures per Pioreactor, and guide users through manual focus. Manual captures are also available with `pio run camera_snapshot`. Camera pages are disabled by default; enable and configure them in the shared `config.ini`:
+
+   ```ini
+   [camera]
+   enabled=1
+   snapshot_interval_minutes=5
+   keep_camera_active=0
+   ir_led_intensity=80
+   capture_backend=rpicam
+   camera_index=0
+   device_path=/dev/video0
+   ```
+ - Updated MCP support to the 2026-07-28 specification.
+ - Improved calibration sessions with action-specific button labels, protocol images and guidance, progress tables, and direct links to completed calibrations and estimators.
+ - Reduced duplicate browser and leader requests on Inventory, Pioreactors, Export Data, calibration, estimator, experiment-creation, and automation screens by reusing loaded data and batching Pioreactor configuration reads.
+ - Added clearer author, version, and package-type metadata to installed, suggested, and USB plugins.
+ - Increased the maximum `pio run stirring --target-rpm` value from 1500 to 2000 RPM.
  - Software updates now set `gpu_mem=32` in the Raspberry Pi boot configuration on every Pioreactor.
 
 #### Bug fixes
 
  - Prevented the Blanks UI from starting a per-experiment OD blank while an OD calibration or fused OD estimator is active, avoiding an incompatible setup that blocks OD reading. Existing blanks can still be cleared.
- - Fixed duplicate stirring starts so they report that stirring is already running before trying to claim the Hall-sensor GPIO, avoiding misleading hardware errors.
+ - Prevented OD reading from publishing a negative signal when the stored blank is higher than the measured signal, and added guidance to clear or recreate the blank.
+ - Enforced the advertised minimum of four standards before fitting a fused OD calibration.
+ - Made worker registration and experiment assignment retries idempotent, stopped jobs from the previous experiment during reassignment, and deleted stored camera snapshots from every Pioreactor that had been assigned when deleting an experiment.
+ - Fixed adding a Pioreactor from a previous cluster by removing stale leader topology overrides from its `unit_config.ini` before syncing the new cluster configuration.
+ - Fixed experiment-profile stop actions so they can terminate matching jobs that finish starting after the stop action begins.
+ - Made bioreactor dosing-state updates atomic and normalized dosing-event database timestamps to UTC, preventing concurrent events from losing cumulative volumes and keeping recent media-rate calculations consistent.
+ - Rejected invalid boolean MQTT job-setting payloads instead of silently treating them as `false`.
  - Fixed packaged plugins so `ui.*` settings, such as Overview chart visibility, are installed into the leader's shared configuration instead of a Pioreactor's `unit_config.ini`. Existing misplaced settings are migrated automatically during upgrade without overriding operator choices.
  - Fixed packaged plugins with different distribution and Python package names so their bundled install hooks, configuration, UI assets, and exportable datasets are discovered and applied correctly, with debug logging for hook execution.
+ - Fixed plugin uninstall requests for packages that are already absent so they report the missing package cleanly instead of failing during asset cleanup.
+ - Fixed "duplicate setting" in 50_self_test.yaml.
 
 
 ### 26.7.2

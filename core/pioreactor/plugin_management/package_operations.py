@@ -171,6 +171,11 @@ def uninstall_plugin_assets(
     except metadata.PackageNotFoundError:
         logger.debug(f"Distribution metadata for plugin {plugin_name} was not found; skipping asset cleanup.")
         return
+    except FileNotFoundError:
+        logger.debug(
+            f"Plugin package directory for plugin {plugin_name} was not found; skipping asset cleanup."
+        )
+        return
 
     logger.debug(f"Resolved plugin {plugin_name} package directory to {install_folder}.")
 

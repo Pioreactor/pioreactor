@@ -439,6 +439,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def on_ready_to_sleeping(self) -> None:
         pass
 
+    def on_ready_to_lost(self) -> None:
+        pass
+
+    def on_sleeping_to_lost(self) -> None:
+        pass
+
+    def on_init_to_lost(self) -> None:
+        pass
+
+    def on_disconnected_to_lost(self) -> None:
+        pass
+
     def on_sleeping_to_ready(self) -> None:
         pass
 

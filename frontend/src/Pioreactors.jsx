@@ -477,9 +477,8 @@ export function AssignPioreactors({ experiment, variant="text" }) {
             onClick={updateAssignments}
             disabled={assignmentDeltaCount === 0 || isSubmittingAssignments}
             sx={{ textTransform: "none" }}
-            startIcon={isSubmittingAssignments ? <CircularProgress color="inherit" size={16} /> : null}
           >
-            {isSubmittingAssignments ? "Updating" : assignmentDeltaLabel}
+            {assignmentDeltaLabel}
           </Button>
         </DialogActions>
       </Dialog>
