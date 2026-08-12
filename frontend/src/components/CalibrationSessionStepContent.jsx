@@ -155,7 +155,6 @@ export default function CalibrationSessionStepContent({
         <Box
           aria-live="polite"
           sx={{
-            minHeight: 64,
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
             alignItems: "center",
@@ -175,7 +174,7 @@ export default function CalibrationSessionStepContent({
               sx={{
                 width: { xs: "100%", sm: 280 },
                 maxWidth: "100%",
-                maxHeight: 120,
+                maxHeight: 100,
                 objectFit: "contain",
                 flexShrink: 0,
               }}
