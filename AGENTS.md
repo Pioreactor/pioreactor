@@ -139,7 +139,6 @@ Available commands are listed in the `Makefile`.
   ```
  - For Python formatting and linting, treat `.pre-commit-config.yaml` as the source of truth:
    - use Black for formatting
-   - use flake8 for linting
    - do not use Ruff
 
 ---

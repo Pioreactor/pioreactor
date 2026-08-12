@@ -36,33 +36,47 @@ def focus_guidance_from_scores(focus_scores: list[int | None]) -> tuple[str, str
 
     comparison_focus_score = valid_focus_scores[0]
     best_focus_score = valid_focus_scores[0]
+    best_was_established_after_initial_snapshot = False
+    has_observed_meaningful_focus_change = False
     guidance_status = "initial"
     guidance = "Adjust the focus slightly, then take another snapshot."
 
     for index, focus_score in enumerate(valid_focus_scores[1:], start=1):
-        # Wait for three usable captures before suggesting that the user can finish.
+        # Don't suggest finishing until the user has moved far enough to demonstrate a focus change.
         if (
             index >= 2
+            and has_observed_meaningful_focus_change
             and focus_score <= best_focus_score
             and focus_score >= best_focus_score * (1 - FOCUS_SCORE_TOLERANCE)
         ):
-            guidance_status = "sharpest"
-            guidance = "You're in the sharpest range found. You can finish focusing."
+            if best_was_established_after_initial_snapshot:
+                guidance_status = "sharpest"
+                guidance = "Back in the sharpest range measured — compare the image visually."
+            else:
+                guidance_status = "same"
+                guidance = (
+                    "Back near your starting sharpness — compare the image, or keep turning a little "
+                    "farther to look for improvement."
+                )
             comparison_focus_score = focus_score
         elif focus_score > comparison_focus_score * (1 + FOCUS_SCORE_TOLERANCE):
             guidance_status = "sharper"
             guidance = "Sharper — keep turning in the same direction."
             comparison_focus_score = focus_score
+            has_observed_meaningful_focus_change = True
         elif focus_score < comparison_focus_score * (1 - FOCUS_SCORE_TOLERANCE):
             guidance_status = "blurrier"
             guidance = "Blurrier — turn back slightly."
             comparison_focus_score = focus_score
+            has_observed_meaningful_focus_change = True
         else:
             # Keep the comparison point fixed so individually small changes accumulate.
             guidance_status = "same"
             guidance = "No clear change yet — keep turning a little in the same direction."
 
-        best_focus_score = max(best_focus_score, focus_score)
+        if focus_score > best_focus_score:
+            best_focus_score = focus_score
+            best_was_established_after_initial_snapshot = True
 
     return guidance_status, guidance
 

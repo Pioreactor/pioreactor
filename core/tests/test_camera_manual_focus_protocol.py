@@ -114,6 +114,26 @@ def test_manual_focus_coach_accumulates_small_changes(
     ]
 
 
+def test_manual_focus_coach_does_not_call_unchanged_scores_sharpest() -> None:
+    assert camera_manual_focus.focus_guidance_from_scores([100, 100, 100]) == (
+        "same",
+        "No clear change yet — keep turning a little in the same direction.",
+    )
+
+
+def test_manual_focus_coach_distinguishes_starting_range_from_later_best() -> None:
+    assert camera_manual_focus.focus_guidance_from_scores([662, 461, 558, 658]) == (
+        "same",
+        "Back near your starting sharpness — compare the image, or keep turning a little farther "
+        "to look for improvement.",
+    )
+
+    assert camera_manual_focus.focus_guidance_from_scores([662, 461, 558, 658, 750, 900, 1000, 900, 980]) == (
+        "sharpest",
+        "Back in the sharpest range measured — compare the image visually.",
+    )
+
+
 def test_manual_focus_coach_uses_global_best_and_five_percent_tolerance(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -150,11 +170,11 @@ def test_manual_focus_coach_uses_global_best_and_five_percent_tolerance(
         "sharpest",
     ]
     assert steps[3].metadata["guidance"]["message"] == (
-        "You're in the sharpest range found. You can finish focusing."
+        "Back in the sharpest range measured — compare the image visually."
     )
     assert steps[4].metadata["guidance"]["message"] == "Blurrier — turn back slightly."
     assert steps[-1].metadata["guidance"]["message"] == (
-        "You're in the sharpest range found. You can finish focusing."
+        "Back in the sharpest range measured — compare the image visually."
     )
 
     assert session.data["focus_scores"] == [1000, 1050, 1103, 1048, 990, 1050]
