@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -178,6 +178,7 @@ describe("CalibrationSessionDialog", () => {
           caption: `Focus snapshot ${snapshotCount}`,
           max_height: 520,
           aspect_ratio: "4 / 3",
+          enlargeable: true,
         },
         actions: [
           {
@@ -257,6 +258,24 @@ describe("CalibrationSessionDialog", () => {
     fireEvent.load(firstImage);
 
     expect(screen.queryByText("Loading image…")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enlarge image: Focus snapshot 1" }));
+
+    const enlargedImageDialog = screen.getByRole("dialog", { name: "Focus snapshot 1" });
+    expect(
+      within(enlargedImageDialog).getByRole("img", {
+        name: "Camera focus snapshot from unit-1.",
+      }),
+    ).toHaveAttribute(
+      "src",
+      "/api/workers/unit-1/camera/focus_sessions/session-1/preview.jpg?v=1",
+    );
+
+    fireEvent.click(within(enlargedImageDialog).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog", { name: "Focus snapshot 1" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Take another snapshot" })).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Take another snapshot" }));
 

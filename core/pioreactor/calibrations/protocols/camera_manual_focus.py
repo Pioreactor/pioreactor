@@ -193,6 +193,7 @@ class FocusCamera(SessionStep):
                 "caption": f"Focus snapshot {snapshot_count}",
                 "max_height": 300,
                 "aspect_ratio": "4 / 3",
+                "enlargeable": True,
             },
             "actions": [
                 {

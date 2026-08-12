@@ -1,12 +1,17 @@
 import React from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import CloseIcon from "@mui/icons-material/Close";
 import CalibrationSessionChart from "./CalibrationSessionChart";
 
 
@@ -20,6 +25,8 @@ export default function CalibrationSessionStepContent({
   onStepImageLoad,
   onStepImageError,
 }) {
+  const [enlargedImage, setEnlargedImage] = React.useState(null);
+
   if (!step) {
     return null;
   }
@@ -33,6 +40,8 @@ export default function CalibrationSessionStepContent({
   const displayedLoadingImage =
     showLoading && loadingImages.length > 0 ? loadingImages[loadingImageIndex] : null;
   const displayedImage = displayedLoadingImage || stepImage;
+  const stepImageCanBeEnlarged =
+    !displayedLoadingImage && stepImage?.enlargeable === true;
   const stepImageIsLoading =
     !displayedLoadingImage && Boolean(stepImage?.src) && loadedStepImageSrc !== stepImage.src;
   const showImageLoading =
@@ -43,6 +52,31 @@ export default function CalibrationSessionStepContent({
   const tableTitle = typeof table?.title === "string" ? table.title : "";
   const tableEmptyMessage =
     typeof table?.empty_message === "string" ? table.empty_message : "No entries yet.";
+  const displayedImageElement = displayedImage ? (
+    <Box
+      component="img"
+      src={displayedImage.src}
+      alt={displayedImage.alt || ""}
+      decoding="async"
+      onLoad={() => {
+        if (!displayedLoadingImage && stepImage?.src) {
+          onStepImageLoad(stepImage.src);
+        }
+      }}
+      onError={() => {
+        if (!displayedLoadingImage && stepImage?.src) {
+          onStepImageError(stepImage.src);
+        }
+      }}
+      sx={{
+        width: "100%",
+        maxHeight: displayedImage.max_height || 220,
+        aspectRatio: displayedImage.aspect_ratio || "auto",
+        display: "block",
+        objectFit: "contain",
+      }}
+    />
+  ) : null;
 
   return (
     <>
@@ -59,29 +93,31 @@ export default function CalibrationSessionStepContent({
             backgroundColor: "action.hover",
           }}
         >
-          <Box
-            component="img"
-            src={displayedImage.src}
-            alt={displayedImage.alt || ""}
-            decoding="async"
-            onLoad={() => {
-              if (!displayedLoadingImage && stepImage?.src) {
-                onStepImageLoad(stepImage.src);
-              }
-            }}
-            onError={() => {
-              if (!displayedLoadingImage && stepImage?.src) {
-                onStepImageError(stepImage.src);
-              }
-            }}
-            sx={{
-              width: "100%",
-              maxHeight: displayedImage.max_height || 220,
-              aspectRatio: displayedImage.aspect_ratio || "auto",
-              display: "block",
-              objectFit: "contain",
-            }}
-          />
+          {stepImageCanBeEnlarged ? (
+            <Box
+              component="button"
+              type="button"
+              aria-label={`Enlarge image: ${stepImage.caption || stepImage.alt || "Calibration step image"}`}
+              onClick={() => setEnlargedImage(stepImage)}
+              sx={{
+                display: "block",
+                width: "100%",
+                p: 0,
+                border: 0,
+                backgroundColor: "transparent",
+                cursor: "zoom-in",
+                "&:focus-visible": {
+                  outline: "2px solid",
+                  outlineColor: "primary.main",
+                  outlineOffset: "-2px",
+                },
+              }}
+            >
+              {displayedImageElement}
+            </Box>
+          ) : (
+            displayedImageElement
+          )}
           {displayedImage.caption && (
             <Typography
               variant="caption"
@@ -207,6 +243,41 @@ export default function CalibrationSessionStepContent({
           {step.body}
         </Typography>
       )}
+      <Dialog
+        open={Boolean(enlargedImage)}
+        onClose={() => setEnlargedImage(null)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle sx={{ pr: 6 }}>
+          {enlargedImage?.caption || step.title || "Calibration step image"}
+          <IconButton
+            aria-label="Close"
+            onClick={() => setEnlargedImage(null)}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {enlargedImage && (
+            <Box sx={{ backgroundColor: "action.hover", borderRadius: 1, overflow: "hidden" }}>
+              <Box
+                component="img"
+                src={enlargedImage.src}
+                alt={enlargedImage.alt || ""}
+                decoding="async"
+                sx={{
+                  display: "block",
+                  width: "100%",
+                  aspectRatio: enlargedImage.aspect_ratio || "auto",
+                  objectFit: "contain",
+                }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

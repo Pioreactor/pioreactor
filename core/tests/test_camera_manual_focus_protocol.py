@@ -57,6 +57,7 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
     assert first_focus_step.metadata["primary_action_label"] == "Focus is complete"
     assert first_focus_step.metadata["image"]["max_height"] == 300
     assert first_focus_step.metadata["image"]["aspect_ratio"] == "4 / 3"
+    assert first_focus_step.metadata["image"]["enlargeable"] is True
     assert first_focus_step.metadata["dialog"] == {
         "max_width": "md",
         "height": "min(90vh, 860px)",
