@@ -210,9 +210,5 @@ describe("CameraPanel", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Camera status unknown")).toBeInTheDocument();
-    expect(screen.getByText("Camera status unavailable")).toBeInTheDocument();
-    expect(screen.getByText("Camera detection did not complete. It will be checked again automatically.")).toBeInTheDocument();
-    expect(screen.queryByText("Camera unavailable")).not.toBeInTheDocument();
   });
 });

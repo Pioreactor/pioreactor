@@ -64,7 +64,7 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
     assert first_focus_step.metadata["guidance"] == {
         "title": "Focus guidance",
         "status": "initial",
-        "message": "Adjust the focus slightly, then take another snapshot.",
+        "message": "Adjust the focus slightly using the focus tool, then take another snapshot.",
         "image": {
             "src": "/static/svgs/camera-focus-tool-concept-02-sequence.svg",
             "alt": "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
@@ -80,8 +80,10 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
         "status": "same",
         "message": "No clear change yet — keep turning a little in the same direction.",
     }
-    assert session.data["snapshot_count"] == 2
-    assert session.data["focus_scores"] == [1000, 1050]
+    assert session.data == {
+        "unit": "unit-a",
+        "focus_scores": [1000, 1050],
+    }
     assert calls == [
         (
             "camera_focus_capture",
@@ -246,7 +248,7 @@ def test_manual_focus_session_completes_without_creating_a_calibration(
     assert session.status == "complete"
     assert session.result == {"title": "Camera focus complete"}
     assert engine.ctx.collected_calibrations == []
-    assert session.data["snapshot_count"] == 1
+    assert session.data["focus_scores"] == [1000]
     assert calls[-1] == (
         "camera_focus_cleanup",
         {
@@ -279,7 +281,7 @@ def test_manual_focus_session_deletes_snapshots_when_aborted(
 
     ManualCameraFocusProtocol.on_session_abort(session, executor)
 
-    assert session.data["snapshot_count"] == 1
+    assert session.data["focus_scores"] == [1000]
     assert calls[-1] == (
         "camera_focus_cleanup",
         {
@@ -289,7 +291,7 @@ def test_manual_focus_session_deletes_snapshots_when_aborted(
     )
 
 
-def test_manual_focus_session_attempts_cleanup_when_snapshot_count_is_zero(
+def test_manual_focus_session_attempts_cleanup_without_a_recorded_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(camera_manual_focus, "get_unit_name", lambda: "unit-a")
@@ -303,7 +305,7 @@ def test_manual_focus_session_attempts_cleanup_when_snapshot_count_is_zero(
 
     ManualCameraFocusProtocol.on_session_abort(session, executor)
 
-    assert session.data["snapshot_count"] == 0
+    assert session.data["focus_scores"] == []
     assert calls == [
         (
             "camera_focus_cleanup",

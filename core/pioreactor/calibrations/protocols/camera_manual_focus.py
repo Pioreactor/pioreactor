@@ -34,53 +34,49 @@ def focus_guidance_from_scores(focus_scores: list[int | None]) -> tuple[str, str
     if len(valid_focus_scores) == 1:
         return "initial", "Adjust the focus slightly using the focus tool, then take another snapshot."
 
-    comparison_focus_score = valid_focus_scores[0]
-    best_focus_score = valid_focus_scores[0]
-    best_was_established_after_initial_snapshot = False
+    initial_focus_score = valid_focus_scores[0]
+    comparison_focus_score = initial_focus_score
+    best_focus_score = initial_focus_score
     has_observed_meaningful_focus_change = False
-    guidance_status = "initial"
-    guidance = "Adjust the focus slightly using the focus tool, then take another snapshot."
+    guidance: tuple[str, str]
 
     for index, focus_score in enumerate(valid_focus_scores[1:], start=1):
         # Don't suggest finishing until the user has moved far enough to demonstrate a focus change.
         if (
             index >= 2
             and has_observed_meaningful_focus_change
-            and focus_score <= best_focus_score
-            and focus_score >= best_focus_score * (1 - FOCUS_SCORE_TOLERANCE)
+            and best_focus_score * (1 - FOCUS_SCORE_TOLERANCE) <= focus_score <= best_focus_score
         ):
-            if best_was_established_after_initial_snapshot:
-                guidance_status = "sharpest"
-                guidance = "Back in the sharpest range measured — compare the image visually."
-            else:
-                guidance_status = "same"
+            if best_focus_score > initial_focus_score:
                 guidance = (
+                    "sharpest",
+                    "Back in the sharpest range measured — compare the image visually.",
+                )
+            else:
+                guidance = (
+                    "same",
                     "Back near your starting sharpness — compare the image, or keep turning a little "
-                    "farther to look for improvement."
+                    "farther to look for improvement.",
                 )
             comparison_focus_score = focus_score
         elif focus_score > comparison_focus_score * (1 + FOCUS_SCORE_TOLERANCE):
-            guidance_status = "sharper"
-            guidance = "Sharper — keep turning in the same direction."
+            guidance = ("sharper", "Sharper — keep turning in the same direction.")
             comparison_focus_score = focus_score
             has_observed_meaningful_focus_change = True
         elif focus_score < comparison_focus_score * (1 - FOCUS_SCORE_TOLERANCE):
-            guidance_status = "blurrier"
             guidance = (
-                "Blurrier — reverse your last adjustment and turn the lens back toward its previous position."
+                "blurrier",
+                "Blurrier — reverse your last adjustment and turn the lens back toward its previous position.",
             )
             comparison_focus_score = focus_score
             has_observed_meaningful_focus_change = True
         else:
             # Keep the comparison point fixed so individually small changes accumulate.
-            guidance_status = "same"
-            guidance = "No clear change yet — keep turning a little in the same direction."
+            guidance = ("same", "No clear change yet — keep turning a little in the same direction.")
 
-        if focus_score > best_focus_score:
-            best_focus_score = focus_score
-            best_was_established_after_initial_snapshot = True
+        best_focus_score = max(best_focus_score, focus_score)
 
-    return guidance_status, guidance
+    return guidance
 
 
 def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationSession:
@@ -94,7 +90,6 @@ def start_manual_focus_session(target_device: Literal["camera"]) -> CalibrationS
         step_id="take_snapshot",
         data={
             "unit": get_unit_name(),
-            "snapshot_count": 0,
             "focus_scores": [],
         },
         created_at=now,
@@ -118,7 +113,6 @@ def capture_focus_snapshot(ctx: SessionContext) -> None:
         focus_score = None
 
     ctx.data["focus_scores"].append(focus_score)
-    ctx.data["snapshot_count"] = int(ctx.data.get("snapshot_count", 0)) + 1
 
 
 def cleanup_focus_snapshots(
@@ -170,7 +164,7 @@ class FocusCamera(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         unit = str(ctx.data["unit"])
-        snapshot_count = int(ctx.data["snapshot_count"])
+        snapshot_count = len(ctx.data["focus_scores"])
 
         guidance_status, guidance = focus_guidance_from_scores(ctx.data["focus_scores"])
         guidance_metadata: dict[str, object] = {

@@ -2,31 +2,17 @@ import React from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import FormControl from "@mui/material/FormControl";
-import FormLabel from "@mui/material/FormLabel";
 import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
-import TuneIcon from "@mui/icons-material/Tune";
-import EstimatorIcon from "./EstimatorIcon";
-import { Link } from "react-router";
-import CalibrationSessionChart from "./CalibrationSessionChart";
+import CalibrationSessionFields from "./CalibrationSessionFields";
+import CalibrationSessionResultLinks from "./CalibrationSessionResultLinks";
+import CalibrationSessionStepContent from "./CalibrationSessionStepContent";
 
 const sessionStartEndpoint = (unit) =>
   `/api/workers/${unit}/calibrations/sessions`;
@@ -144,38 +130,13 @@ export default function CalibrationSessionDialog({
   const loadingImageTimerRef = React.useRef(null);
 
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
-  const chartPayload = sessionStep?.metadata?.chart;
-  const tablePayload = sessionStep?.metadata?.table;
   const inlineActions = Array.isArray(sessionStep?.metadata?.actions)
     ? sessionStep.metadata.actions
     : [];
-  const stepImage = sessionStep?.metadata?.image;
   const dialogPresentation = sessionStep?.metadata?.dialog;
-  const stepGuidance =
-    typeof sessionStep?.metadata?.guidance?.message === "string"
-      ? sessionStep.metadata.guidance
-      : null;
-  const guidanceImage =
-    typeof stepGuidance?.image?.src === "string" ? stepGuidance.image : null;
   const loadingImages = Array.isArray(sessionStep?.metadata?.loading_images)
     ? sessionStep.metadata.loading_images
     : [];
-  const displayedLoadingImage =
-    showLoading && loadingImages.length > 0 ? loadingImages[loadingImageIndex] : null;
-  const displayedImage = displayedLoadingImage || stepImage;
-  const stepImageIsLoading =
-    !displayedLoadingImage && Boolean(stepImage?.src) && loadedStepImageSrc !== stepImage.src;
-  const showImageLoading = !displayedLoadingImage && (imageActionPending || stepImageIsLoading);
-  const tableColumns = Array.isArray(tablePayload?.columns) ? tablePayload.columns : [];
-  const tableRows = Array.isArray(tablePayload?.rows) ? tablePayload.rows : [];
-  const tableTitle = typeof tablePayload?.title === "string" ? tablePayload.title : "";
-  const tableEmptyMessage =
-    typeof tablePayload?.empty_message === "string" ? tablePayload.empty_message : "No entries yet.";
-  const protocolTargetDevice = protocol?.target_device;
-  const completedCalibrationDevice =
-    sessionResult?.calibration?.device || sessionResult?.device || protocolTargetDevice;
-  const completedEstimatorDevice =
-    sessionResult?.device || sessionResult?.calibration?.device || protocolTargetDevice;
   const primaryActionLabel =
     sessionResult ? "Done" : sessionStep?.metadata?.primary_action_label || "Continue";
 
@@ -198,6 +159,10 @@ export default function CalibrationSessionDialog({
   }, [sessionIdProp]);
 
   const effectiveSessionId = sessionIdProp ?? sessionId;
+
+  const updateSessionValue = React.useCallback((fieldName, value) => {
+    setSessionValues((previousValues) => ({ ...previousValues, [fieldName]: value }));
+  }, []);
 
   const startSession = React.useCallback(async () => {
     if (!open || !protocol || !unit) {
@@ -521,304 +486,34 @@ export default function CalibrationSessionDialog({
             />
           </Box>
         )}
-        {sessionStep ? (
-          <Box sx={{mb: 1.5}}>
-            <Typography variant="subtitle1" component="h2">
-              {sessionStep.title || "Calibration step"}
-            </Typography>
-          </Box>
-        ) : (
-          <></>
-        )}
-        {displayedImage ? (
-          <Box
-            sx={{
-              width: "100%",
-              borderRadius: 1,
-              backgroundColor: "action.hover",
-            }}
-          >
-            <Box
-              component="img"
-              src={displayedImage.src}
-              alt={displayedImage.alt || ""}
-              decoding="async"
-              onLoad={() => {
-                if (!displayedLoadingImage && stepImage?.src) {
-                  setLoadedStepImageSrc(stepImage.src);
-                }
-              }}
-              onError={() => {
-                if (!displayedLoadingImage && stepImage?.src) {
-                  setLoadedStepImageSrc(stepImage.src);
-                  setSessionError("Image could not be loaded. Try again.");
-                }
-              }}
-              sx={{
-                width: "100%",
-                maxHeight: displayedImage.max_height || 220,
-                aspectRatio: displayedImage.aspect_ratio || "auto",
-                display: "block",
-                objectFit: "contain",
-              }}
-            />
-            {displayedImage.caption && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ textAlign: "center", display: "block", width: "100%" }}
-              >
-                {displayedImage.caption}
-              </Typography>
-            )}
-          </Box>
-        ) : null}
-        {!displayedLoadingImage && stepImage ? (
-          <Box
-            aria-live="polite"
-            aria-busy={showImageLoading}
-            sx={{
-              minHeight: 32,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 1,
-            }}
-          >
-            {showImageLoading ? (
-              <>
-                <CircularProgress size={20} />
-                <Typography variant="body2" color="text.secondary">
-                  Loading image…
-                </Typography>
-              </>
-            ) : null}
-          </Box>
-        ) : null}
-        {stepGuidance && (
-          <Box
-            aria-live="polite"
-            sx={{
-              minHeight: 64,
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: "center",
-              gap: 1.5,
-              px: 1.5,
-              py: 1,
-              borderRadius: 1,
-              backgroundColor: "action.hover",
-            }}
-          >
-            {guidanceImage && (
-              <Box
-                component="img"
-                src={guidanceImage.src}
-                alt={guidanceImage.alt || ""}
-                decoding="async"
-                sx={{
-                  width: { xs: "100%", sm: 280 },
-                  maxWidth: "100%",
-                  maxHeight: 120,
-                  objectFit: "contain",
-                  flexShrink: 0,
-                }}
-              />
-            )}
-            <Box sx={{ minWidth: 0 }}>
-              {stepGuidance.title && (
-                <Typography variant="subtitle2">{stepGuidance.title}</Typography>
-              )}
-              <Typography variant="body2" color="text.secondary">
-                {stepGuidance.message}
-              </Typography>
-            </Box>
-          </Box>
-        )}
-        {chartPayload && !(showLoading && loadingImages.length > 0) && (
-          <Box>
-            <CalibrationSessionChart chart={chartPayload} />
-          </Box>
-        )}
-        {tablePayload && !(showLoading && loadingImages.length > 0) && (
-          <Box sx={{ width: "70%", mx: "auto", mt: 2, mb: 4 }}>
-            {tableTitle && (
-              <Typography variant="subtitle2" color="text.secondary">
-                {tableTitle}
-              </Typography>
-            )}
-            {tableRows.length > 0 ? (
-              <Table size="small" sx={{ "& th, & td": { px: 1 } }}>
-                {tableColumns.length > 0 && (
-                  <TableHead>
-                    <TableRow>
-                      {tableColumns.map((column, index) => (
-                        <TableCell key={`${column}-${index}`} align={index === 0 ? "left" : "right"}>
-                          {column}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                )}
-                <TableBody>
-                  {tableRows.map((row, rowIndex) => {
-                    const cells = Array.isArray(row) ? row : Object.values(row || {});
-                    return (
-                      <TableRow key={`row-${rowIndex}`}>
-                        {cells.map((cell, cellIndex) => (
-                          <TableCell key={`cell-${rowIndex}-${cellIndex}`} align={cellIndex === 0 ? "left" : "right"}>
-                            {cell}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <Typography variant="caption" color="text.secondary">
-                {tableEmptyMessage}
-              </Typography>
-            )}
-          </Box>
-        )}
-        {sessionStep && (sessionStep.body) && (
-          <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-            {sessionStep.body}
-          </Typography>
-        )}
-        <Box sx={{width: "75%", mt: 1}}>
-          {sessionStep && Array.isArray(sessionStep.fields) && sessionStep.fields.length > 0 && (
-            <Stack spacing={1}>
-              {sessionStep.fields.map((field) => {
-                if (
-                  sessionStep.step_type === "action" &&
-                  field.field_type === "bool" &&
-                  field.name === "confirm"
-                ) {
-                  return null;
-                }
-                if (field.field_type === "bool" && field.name === "confirmed") {
-                  return null;
-                }
-                if (field.field_type === "bool") {
-                  const selectValue = sessionValues[field.name] ?? "no";
-                  return (
-                    <FormControl key={field.name} fullWidth size="small">
-                      <FormLabel>{field.label}</FormLabel>
-                      <Select
-                        value={selectValue}
-                        onChange={(event) =>
-                          setSessionValues((prev) => ({
-                            ...prev,
-                            [field.name]: event.target.value,
-                          }))
-                        }
-                      >
-                        {((field.options && field.options.length > 0)
-                          ? field.options
-                          : ["yes", "no"]
-                        ).map((option) => (
-                          <MenuItem key={option} value={option}>
-                            {option}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  );
-                }
-                if (field.field_type === "choice") {
-                  return (
-                    <FormControl key={field.name} fullWidth size="small">
-                      <FormLabel>{field.label}</FormLabel>
-                      <Select
-                        value={sessionValues[field.name] ?? ""}
-                        onChange={(event) =>
-                          setSessionValues((prev) => ({
-                            ...prev,
-                            [field.name]: event.target.value,
-                          }))
-                        }
-                      >
-                        {(field.options || []).map((option) => (
-                          <MenuItem key={option} value={option}>
-                            {option}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  );
-                }
-                const helperText =
-                  field.field_type === "float_list" ? "Comma-separated values" : field.help_text;
-                return (
-                  <TextField
-                    key={field.name}
-                    fullWidth
-                    size="small"
-                    label={field.label}
-                    value={sessionValues[field.name] ?? ""}
-                    helperText={helperText || " "}
-                    onChange={(event) =>
-                      setSessionValues((prev) => ({
-                        ...prev,
-                        [field.name]: event.target.value,
-                      }))
-                    }
-                  />
-                );
-              })}
-            </Stack>
-          )}
-          {sessionResult?.calibrations && Array.isArray(sessionResult.calibrations) && unit && (
-            <Stack direction="column" spacing={0} sx={{ flexWrap: "wrap" }}>
-
-              {sessionResult.calibrations.map((calibration) => (
-                <Box> View <Chip
-                  key={`${calibration.device}-${calibration.calibration_name}`}
-                  size="small"
-                  icon={<TuneIcon />}
-                  clickable
-                  component={Link}
-                  sx={{my: 1}}
-                  to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}
-                  label={`${calibration.calibration_name}`}
-                  />
-                </Box>
-              ))}
-            </Stack>
-          )}
-          {sessionResult?.calibration?.calibration_name &&
-            !sessionResult?.calibrations &&
-            completedCalibrationDevice &&
-            unit && (
-              <Chip
-                size="small"
-                icon={<TuneIcon />}
-                clickable
-                component={Link}
-                to={`/calibrations/${unit}/${completedCalibrationDevice}/${sessionResult.calibration.calibration_name}`}
-                label={sessionResult.calibration.calibration_name}
-              />
-            )}
-          {sessionResult?.estimator_name && completedEstimatorDevice && unit && (
-            <Box sx={{ mt: 1 }}>
-              View{" "}
-              <Chip
-                size="small"
-                icon={<EstimatorIcon />}
-                clickable
-                component={Link}
-                sx={{ my: 1 }}
-                to={`/estimators/${unit}/${completedEstimatorDevice}/${sessionResult.estimator_name}`}
-                label={sessionResult.estimator_name}
-              />
-            </Box>
-          )}
+        <CalibrationSessionStepContent
+          step={sessionStep}
+          showLoading={showLoading}
+          loadingImages={loadingImages}
+          loadingImageIndex={loadingImageIndex}
+          loadedStepImageSrc={loadedStepImageSrc}
+          imageActionPending={imageActionPending}
+          onStepImageLoad={setLoadedStepImageSrc}
+          onStepImageError={(imageSrc) => {
+            setLoadedStepImageSrc(imageSrc);
+            setSessionError("Image could not be loaded. Try again.");
+          }}
+        />
+        <Box sx={{ width: "75%", mt: 1 }}>
+          <CalibrationSessionFields
+            step={sessionStep}
+            values={sessionValues}
+            onFieldChange={updateSessionValue}
+          />
+          <CalibrationSessionResultLinks
+            result={sessionResult}
+            protocolTargetDevice={protocol?.target_device}
+            unit={unit}
+          />
         </Box>
       </DialogContent>
       <DialogActions sx={{ justifyContent: "right", alignItems: "center" }}>
-        {inlineActions.length > 0 ? (
+        {inlineActions.length > 0 && (
           <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", pl: 1 }}>
             {inlineActions.map((action) => (
               <Button
@@ -832,8 +527,6 @@ export default function CalibrationSessionDialog({
               </Button>
             ))}
           </Stack>
-        ) : (
-          <span />
         )}
         {!sessionResult && (
           <Button

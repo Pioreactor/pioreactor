@@ -102,7 +102,7 @@ function CameraMedia({ unit, status, imageUrl, onOpenViewer, onMissingImage }) {
       return (
         <CameraEmptyState
           title="Camera status unavailable"
-          detail="Camera detection did not complete. It will be checked again automatically."
+          detail="Camera detection did not complete."
           icon={<HelpOutlineOutlinedIcon color="action" sx={{ fontSize: 40 }} />}
         />
       );
@@ -257,14 +257,6 @@ export default function CameraPanel({
                     variant="outlined"
                     icon={<ImageNotSupportedOutlinedIcon />}
                     label="Camera unavailable"
-                  />
-                )}
-                {status?.detection_status === "unknown" && (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    icon={<HelpOutlineOutlinedIcon />}
-                    label="Camera status unknown"
                   />
                 )}
               </Stack>
