@@ -447,7 +447,8 @@ class Stirrer(BackgroundJobWithDodging):
 
     def start_stirring(self) -> None:
         self.set_duty_cycle(100)  # get momentum to start
-        sleep(0.5)
+        if not is_testing_env():
+            sleep(0.5)
         self.set_duty_cycle(self._estimate_duty_cycle)
         self.rpm_check_repeated_timer.unpause()
 
@@ -634,7 +635,8 @@ class Stirrer(BackgroundJobWithDodging):
             with catchtime() as time_waiting:
                 if should_exit():
                     return False
-                sleep(2)  # On init, the stirring is too fast from the initial "kick"
+                if not is_testing_env():
+                    sleep(2)  # On init, the stirring is too fast from the initial "kick"
 
                 with self.duty_cycle_lock:
                     if should_exit():

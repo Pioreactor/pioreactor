@@ -149,6 +149,24 @@ def test_duplicate_start_od_reading_fails_before_adc_reader_construction(
             start_od_reading({"1": "90"}, interval=10.0, fake_data=True, experiment=experiment)
 
 
+def test_fake_data_sampling_does_not_wait_for_hardware_timing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_sleep(_seconds: float) -> None:
+        raise AssertionError("Fake ADC sampling should not wait for hardware anti-aliasing timing.")
+
+    monkeypatch.setattr(od_reading_module, "sleep", fail_sleep)
+
+    with start_od_reading(
+        make_channels("90", "REF"),
+        interval=None,
+        fake_data=True,
+        calibration=False,
+        estimator=False,
+    ) as od:
+        assert od.record_from_adc() is not None
+
+
 def test_sin_regression_exactly_50hz() -> None:
     freq = 50
     N = 32
@@ -926,7 +944,7 @@ def test_simple_API() -> None:
 def test_ability_to_be_iterated() -> None:
     od_stream = start_od_reading(
         make_channels("90", "REF"),
-        interval=1.0,
+        interval=0.01,
         fake_data=True,
         experiment="test_ability_to_be_iterated",
         calibration=False,
@@ -952,12 +970,8 @@ def test_add_pre_read_callback() -> None:
 
     ODReader.add_pre_read_callback(cb)
 
-    od = start_od_reading(make_channels("45", "REF"), interval=1, fake_data=True)
-    pause()
-    pause()
-    pause()
-    pause()
-    assert od.ir_led_intensity == 15
+    od = start_od_reading(make_channels("45", "REF"), interval=0.01, fake_data=True)
+    assert wait_for(lambda: od.ir_led_intensity == 15, timeout=1.0)
     od.clean_up()
 
     # clear it again.
@@ -1451,9 +1465,6 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
 
         voltage = 0.5
         assert od.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
-        pause()
-        pause()
-        pause()
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment=experiment) as bucket:
             voltage = 10.0
             assert od.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
@@ -1502,7 +1513,6 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
             voltage = 12.0
             assert voltage > maximum_voltage
 
-            pause()
             assert od.calibration_transformer.models["2"](voltage) == 0.0
             assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
             assert any("suggested" in log["message"] for log in bucket)
@@ -2354,13 +2364,13 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
 
     with start_od_reading(
         make_channels("REF", "90"),
-        interval=2,
+        interval=None,
         fake_data=True,
         experiment=experiment,
         calibration=calibration,
         ir_led_intensity=70,
     ) as od_job:
-        next(od_job)
+        od_job.record_from_adc()
         assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
         assert od_job.ods is not None
         assert od_job.od2 is not None
@@ -2369,9 +2379,13 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
 
     # if no calibration is used:
     with start_od_reading(
-        make_channels("REF", "90"), interval=2, fake_data=True, experiment=experiment, calibration=False
+        make_channels("REF", "90"),
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        calibration=False,
     ) as od_job:
-        next(od_job)
+        od_job.record_from_adc()
         assert isinstance(od_job.calibration_transformer, NullCalibrationTransformer)
         assert od_job.ods is not None
         assert od_job.od2 is not None
@@ -2395,13 +2409,13 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
 
     with start_od_reading(
         make_channels("REF", "90"),
-        interval=2,
+        interval=None,
         fake_data=True,
         experiment=experiment,
         calibration=calibration,
         ir_led_intensity=50,
     ) as od_job:
-        pause(6)
+        od_job.record_from_adc()
         assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
         assert od_job.raw_od2 is not None  # here!
 

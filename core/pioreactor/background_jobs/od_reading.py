@@ -282,17 +282,18 @@ class ADCReader(LoggerMixin):
                         timestamps[pd_channel][counter] = time_since_start()
                         aggregated_signals[pd_channel][counter] = self.adcs[pd_channel].read_from_channel()
 
-                sleep(
-                    max(
-                        0,
-                        -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                        + 0.25
-                        / (SAMPLES - 1)
-                        * (
-                            (counter * 0.618034) % 1
-                        ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
+                if not self.fake_data:
+                    sleep(
+                        max(
+                            0,
+                            -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
+                            + 0.25
+                            / (SAMPLES - 1)
+                            * (
+                                (counter * 0.618034) % 1
+                            ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
+                        )
                     )
-                )
 
         if os.environ.get("DEBUG") is not None:
             self.logger.debug(f"TUNE STEP: {timestamps=}")
@@ -560,17 +561,18 @@ class ADCReader(LoggerMixin):
                                 pd_channel
                             ].read_from_channel()
 
-                    sleep(
-                        max(
-                            0,
-                            -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.85
-                            / (self.oversampling_count - 1)  # aim for 0.85s per read
-                            * (
-                                (counter * 0.618034) % 1
-                            ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
+                    if not self.fake_data:
+                        sleep(
+                            max(
+                                0,
+                                -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
+                                + 0.85
+                                / (self.oversampling_count - 1)  # aim for 0.85s per read
+                                * (
+                                    (counter * 0.618034) % 1
+                                ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
+                            )
                         )
-                    )
 
             batched_estimates_: PdChannelToVoltage = {}
 
@@ -1384,7 +1386,8 @@ class ODReader(BackgroundJob):
 
                     # IR led is on
                     self.start_ir_led(lock_owner)
-                    sleep(0.125)
+                    if not self.adc_reader.fake_data:
+                        sleep(0.125)
 
                     on_reading = (
                         self.adc_reader.tune_adc_with_ir_on()

@@ -18,19 +18,7 @@ from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
 
-
-def pause(n=1) -> None:
-    # to avoid race conditions when updating state
-    time.sleep(n * 0.5)
-
-
-def wait_for(predicate: Callable[[], bool], timeout: float = 5.0, check_interval: float = 0.01) -> bool:
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if predicate():
-            return True
-        time.sleep(check_interval)
-    return False
+from .utils import wait_for
 
 
 def make_general_reading_payload(reading_kind: str) -> bytes:
@@ -61,37 +49,41 @@ def make_general_reading_payload(reading_kind: str) -> bytes:
 
 def test_silent() -> None:
     experiment = "test_silent"
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+        encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
+        retain=True,
+    )
+
     with Silent(duration=60, unit=unit, experiment=experiment) as ld:
-        pause()
-        pause()
-        pause()
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
+        assert wait_for(lambda: ld.latest_normalized_od == 1.0, timeout=1.0)
+        assert wait_for(lambda: ld.latest_growth_rate == 0.01, timeout=1.0)
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/led_automation/automation_name",
+            timeout=0.5,
         )
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
-        )
-        pause()
-        pause()
-        r = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/led_automation/automation_name", timeout=1)
         assert r is not None
         assert r.payload.decode() == "silent"
         assert ld.latest_normalized_od == 1.0
         assert ld.latest_growth_rate == 0.01
 
 
-def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
+def test_we_respect_any_locks_on_leds_we_want_to_modify(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     experiment = "test_we_respect_any_locks_on_leds_we_want_to_modify"
+    monkeypatch.setattr("pioreactor.background_jobs.led_automation.time.sleep", lambda _: None)
+
     with local_intermittent_storage("led_locks") as cache:
         for c in cache.iterkeys():
             cache.pop(c)
 
     with Silent(duration=1, unit=unit, experiment=experiment) as ld:
-        pause()
-        pause()
-
         assert ld.set_led_intensity("B", 1)
 
         # someone else locks channel B

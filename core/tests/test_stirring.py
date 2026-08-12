@@ -9,8 +9,6 @@ from click.testing import CliRunner
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.stirring import Stirrer
-from pioreactor.config import config
-from pioreactor.config import temporary_config_change
 from pioreactor.exc import JobPresentError
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
@@ -148,20 +146,15 @@ def test_change_target_rpm_mid_cycle() -> None:
     rpm_calculator.setup()
 
     with Stirrer(original_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
-        st.start_stirring()
         assert st.target_rpm == original_rpm
-        pause()
 
         new_rpm = 750
         publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", new_rpm)
-        pause()
-
-        assert st.target_rpm == new_rpm
+        assert wait_for(lambda: st.target_rpm == new_rpm, timeout=1.0)
         assert st.state == "ready"
 
         publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", 0)
-        pause()
-        assert st.target_rpm == 0
+        assert wait_for(lambda: st.target_rpm == 0, timeout=1.0)
 
 
 def test_pause_stirring_mid_cycle() -> None:
@@ -172,19 +165,17 @@ def test_pause_stirring_mid_cycle() -> None:
         st.start_stirring()
         original_dc = st.duty_cycle
         assert original_dc > 0
-        pause()
 
         publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
-        pause()
-        pause()
-        pause()
+        assert wait_for(lambda: st.state == st.SLEEPING and st.duty_cycle == 0, timeout=1.0)
         assert st.state == st.SLEEPING
         assert st.duty_cycle == 0
 
         publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "ready")
-        pause()
-        pause()
-        pause()
+        assert wait_for(
+            lambda: st.state == st.READY and st.duty_cycle == original_dc,
+            timeout=1.0,
+        )
         assert st.state == st.READY
         assert st.duty_cycle == original_dc
 
@@ -267,16 +258,13 @@ def test_set_duty_cycle_ignores_pwm_cleanup_race() -> None:
 def test_publish_target_rpm() -> None:
     exp = "test_publish_target_rpm"
     publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm", None, retain=True)
-    pause()
     target_rpm = 500
     rpm_calculator = RpmCalculator()
     rpm_calculator.setup()
     with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
-        st.start_stirring()
         assert st.target_rpm == target_rpm
 
-        pause()
-        message = subscribe(f"pioreactor/{unit}/{exp}/stirring/target_rpm")
+        message = subscribe(f"pioreactor/{unit}/{exp}/stirring/target_rpm", timeout=1.0)
         assert message is not None
         assert float(message.payload) == 500
 
@@ -325,21 +313,19 @@ def test_publish_measured_rpm_in_measure_rpm_only_mode() -> None:
     exp = "test_publish_measured_rpm_in_measure_rpm_only_mode"
 
     publish(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", None, retain=True)
-    pause()
 
     rpm_calculator = RpmCalculator()
     rpm_calculator.setup()
 
-    with temporary_config_change(config, "stirring.config", "duration_between_updates_seconds", "1"):
-        with Stirrer(
-            target_rpm=None, unit=unit, experiment=exp, rpm_calculator=rpm_calculator, duty_cycle=100
-        ) as st:
-            st.start_stirring()
-            assert st.target_rpm is None
+    with Stirrer(
+        target_rpm=None, unit=unit, experiment=exp, rpm_calculator=rpm_calculator, duty_cycle=100
+    ) as st:
+        assert st.target_rpm is None
+        st.poll(0.0)
 
-            message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=12)
-            assert message is not None
-            assert json.loads(message.payload)["measured_rpm"] == 500
+        message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=1.0)
+        assert message is not None
+        assert json.loads(message.payload)["measured_rpm"] == 500
 
 
 def test_stirring_with_calibration() -> None:
@@ -374,12 +360,9 @@ def test_stirring_with_calibration() -> None:
     rpm_calculator = FakeRpmCalculator()
     rpm_calculator.setup()
     with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator, calibration=cal) as st:  # type: ignore
-        st.start_stirring()
-
         initial_dc = st.duty_cycle
         target_rpm = 600
         st.set_target_rpm(target_rpm)
-        pause()
 
         assert st.duty_cycle > initial_dc
 

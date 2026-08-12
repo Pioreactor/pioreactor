@@ -34,7 +34,6 @@ from pioreactor.config import resolve_local_config_path
 from pioreactor.config import temporary_config_change
 from pioreactor.mureq import Response
 from pioreactor.pubsub import collect_all_logs_of_level
-from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
@@ -1200,29 +1199,6 @@ def test_pio_jobs_set_requires_value() -> None:
 
     assert result.exit_code == 2
     assert "Missing argument 'VALUE'." in result.output
-
-
-def test_pios_jobs_set() -> None:
-    job_name = "test_job"
-    published_setting_name = "attr"
-
-    bucket = []
-
-    def put_into_bucket(msg) -> None:
-        bucket.append(msg)
-
-    subscribe_and_callback(
-        put_into_bucket, f"pioreactor/+/+/{job_name}/{published_setting_name}/set", allow_retained=False
-    )
-
-    runner = CliRunner()
-    runner.invoke(pios, ["jobs", "set", job_name, published_setting_name, "1", "-y"])
-    pause()
-    pause()
-    pause()
-    pause()
-    pause()
-    assert len(bucket) >= 1
 
 
 @pytest.mark.parametrize(

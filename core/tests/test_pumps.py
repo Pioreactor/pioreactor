@@ -27,12 +27,14 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
 from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import get_unit_name
 from tests.utils import FakeMQTTClient
+from tests.utils import wait_for
 
 unit = get_unit_name()
 
@@ -184,15 +186,15 @@ def setup_function():
 
 def test_pump_io() -> None:
     exp = "test_pump_io"
-    ml = 0.1
+    ml = 0.01
     assert ml == add_media(ml=ml, unit=unit, experiment=exp)
     assert ml == add_alt_media(ml=ml, unit=unit, experiment=exp)
     assert ml == remove_waste(ml=ml, unit=unit, experiment=exp)
 
-    ml = 1.0
-    assert ml == add_media(duration=ml, unit=unit, experiment=exp)
-    assert ml == add_alt_media(duration=ml, unit=unit, experiment=exp)
-    assert ml == remove_waste(duration=ml, unit=unit, experiment=exp)
+    duration = 0.01
+    assert duration == add_media(duration=duration, unit=unit, experiment=exp)
+    assert duration == add_alt_media(duration=duration, unit=unit, experiment=exp)
+    assert duration == remove_waste(duration=duration, unit=unit, experiment=exp)
 
 
 def test_publish_async_uses_exactly_once_when_requested(monkeypatch) -> None:
@@ -329,23 +331,18 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     t = ThreadWithReturnValue(target=add_media, args=(unit, exp, expected_ml), daemon=True)
     t.start()
 
-    pause()
-    pause()
-    time.sleep(0.1)
+    assert wait_for(lambda: is_pio_job_running("add_media"), timeout=1.0)
+    assert wait_for(lambda: len(volume_updates) > 0, timeout=1.0)
     publish(
         f"pioreactor/{unit}/{exp}/add_media/$state/set",
         b"disconnected",
         qos=QOS.AT_LEAST_ONCE,
     )
-    pause()
-    pause()
-
-    pause()
-
     resulting_ml = t.join()
 
     assert resulting_ml < expected_ml
 
+    assert wait_for(lambda: len(volume_updates) >= 2, timeout=1.0)
     assert volume_updates[0]["volume_change"] > 0
     assert -expected_ml < volume_updates[-1]["volume_change"] < 0  # fire off a negative volume change
 
@@ -379,8 +376,8 @@ def test_continuously_running_waste_pump_will_disconnect_via_mqtt() -> None:
     )
     t.start()
 
-    pause()
-    pause()
+    assert wait_for(lambda: is_pio_job_running("remove_waste"), timeout=1.0)
+    assert wait_for(lambda: len(volume_updates) > 0, timeout=1.0)
     pin = _get_pin("waste_pump")
     with local_intermittent_storage("pwm_dc") as cache:
         assert cache[pin] > 0
@@ -482,8 +479,8 @@ def test_continuous_media_rechecks_safe_headroom_while_running(monkeypatch) -> N
 def test_pump_publishes_to_state() -> None:
     exp = "test_pump_publishes_to_state"
 
-    add_media(ml=1, unit=unit, experiment=exp)
-    r = subscribe(f"pioreactor/{unit}/{exp}/add_media/$state", timeout=3)
+    add_media(ml=0.01, unit=unit, experiment=exp)
+    r = subscribe(f"pioreactor/{unit}/{exp}/add_media/$state", timeout=1.0)
     if r is not None:
         assert r.payload.decode() == "disconnected"
     else:
@@ -505,32 +502,28 @@ def test_pump_can_be_interrupted() -> None:
 
     with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
         p.continuously(block=False)
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache[13] == 100
 
         p.stop()
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
 
         p.by_duration(seconds=100, block=False)
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
+            assert wait_for(lambda: cache.get(13, 0) == 100, timeout=1.0)
             assert cache[13] == 100
 
         p.stop()
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
 
         p.by_volume(ml=100, block=False)
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
+            assert wait_for(lambda: cache.get(13, 0) == 100, timeout=1.0)
             assert cache[13] == 100
 
         p.stop()
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
 
@@ -550,7 +543,6 @@ def test_pump_stop_is_safe_after_pwm_cleanup() -> None:
 
     pump = PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration)
     pump.continuously(block=False)
-    pause()
 
     pump.clean_up()
     pump.stop()
@@ -572,10 +564,10 @@ def test_add_media_publishes_single_empty_pwm_payload_on_shutdown() -> None:
 
     subscribe_and_callback(collect, f"pioreactor/{unit}/{experiment}/pwms/dc", allow_retained=False)
 
-    moved_ml = add_media(ml=1.0, unit=unit, experiment=experiment)
-    pause()
+    moved_ml = add_media(ml=0.01, unit=unit, experiment=experiment)
 
-    assert moved_ml == pytest.approx(1.0)
+    assert moved_ml == pytest.approx(0.01)
+    assert wait_for(lambda: bool(mqtt_items) and mqtt_items[-1] == {}, timeout=1.0)
     assert mqtt_items[-1] == {}
     assert sum(payload == {} for payload in mqtt_items) == 1
 
@@ -810,19 +802,18 @@ def test_pumps_can_run_in_background() -> None:
             assert cache.get(13, 0) == 0
 
         p.by_volume(ml=100, block=False)
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
+            assert wait_for(lambda: cache.get(13, 0) == 60, timeout=1.0)
             assert cache.get(13, 0) == 60
 
         p.stop()
-        pause()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
 
 
 def test_media_circulation() -> None:
     exp = "test_media_circulation"
-    media_added, waste_removed = circulate_media(5, unit, exp)
+    media_added, waste_removed = circulate_media(1, unit, exp)
     assert waste_removed > media_added
 
 
@@ -886,12 +877,12 @@ def test_media_circulation_cant_run_when_waste_pump_is_running() -> None:
     from threading import Thread
 
     exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
-    t = Thread(target=remove_waste, kwargs={"duration": 3.0, "experiment": exp, "unit": unit})
+    t = Thread(target=remove_waste, kwargs={"duration": 0.5, "experiment": exp, "unit": unit})
     t.start()
-    time.sleep(0.1)
+    assert wait_for(lambda: is_pio_job_running("remove_waste"), timeout=1.0)
 
     with pytest.raises(PWMError):
-        circulate_media(5.0, unit, exp)
+        circulate_media(1.0, unit, exp)
 
     t.join()
 
@@ -900,11 +891,11 @@ def test_waste_pump_cant_run_when_media_circulation_is_running() -> None:
     from threading import Thread
 
     exp = "test_waste_pump_cant_run_when_media_circulation_is_running"
-    t = Thread(target=circulate_media, kwargs={"duration": 3.0, "experiment": exp, "unit": unit})
+    t = Thread(target=circulate_media, kwargs={"duration": 0.1, "experiment": exp, "unit": unit})
     t.start()
-    time.sleep(0.1)
+    assert wait_for(lambda: is_pio_job_running("circulate_media"), timeout=1.0)
 
-    assert remove_waste(unit, exp, duration=5.0) == 0
+    assert remove_waste(unit, exp, duration=1.0) == 0
 
     t.join()
 
@@ -933,7 +924,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
         calibrated_on_pioreactor_unit=unit,
     ).set_as_active_calibration_for_device("waste_pump")
 
-    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    media_added, waste_removed = circulate_media(1.0, unit, exp)
     assert (waste_removed - 2) >= media_added
 
 
@@ -962,7 +953,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
         calibrated_on_pioreactor_unit=unit,
     ).set_as_active_calibration_for_device("waste_pump")
 
-    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    media_added, waste_removed = circulate_media(1.0, unit, exp)
     assert (waste_removed - 2) >= media_added
 
 
@@ -974,7 +965,7 @@ def test_media_circulation_works_without_calibration_since_we_are_entering_durat
         c.pop("alt_media_pump")
         c.pop("waste_pump")
 
-    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    media_added, waste_removed = circulate_media(1.0, unit, exp)
     assert waste_removed >= media_added
 
 
@@ -1006,7 +997,10 @@ def test_published_mqtt_data_is_the_same_as_requested() -> None:
 def test_can_provide_mqtt_client() -> None:
     experiment = "test_can_provide_mqtt_client"
     client = create_client(hostname="localhost")
-    time.sleep(4)
-    add_media(ml=1.0, unit=unit, experiment=experiment, mqtt_client=client)
-    info = client.publish(topic="test_can_provide_mqtt_client", payload="hello!")
-    info.wait_for_publish()
+    try:
+        assert wait_for(client.is_connected, timeout=1.0)
+        add_media(ml=0.01, unit=unit, experiment=experiment, mqtt_client=client)
+        info = client.publish(topic="test_can_provide_mqtt_client", payload="hello!")
+        info.wait_for_publish()
+    finally:
+        client.shutdown()

@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import time
-
 import pytest
 from pioreactor import pubsub
 from pioreactor import structs
@@ -9,36 +7,30 @@ from pioreactor.automations.temperature import Thermostat
 from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 from pioreactor.whoami import get_unit_name
 
+from .utils import wait_for
+
 unit = get_unit_name()
-
-
-def pause(n=1) -> None:
-    # to avoid race conditions when updating state
-    time.sleep(n)
 
 
 @pytest.mark.slow
 def test_thermostat_automation() -> None:
     experiment = "test_thermostat_automation"
     with Thermostat(target_temperature=50, unit=unit, experiment=experiment) as automation_job:
-        pause(2)
-
         # 85 is too high - clamps to MAX_TARGET_TEMP
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set",
             85,
         )
-        pause(2)
-
-        assert automation_job.target_temperature == automation_job.MAX_TARGET_TEMP
+        assert wait_for(
+            lambda: automation_job.target_temperature == automation_job.MAX_TARGET_TEMP,
+            timeout=1.0,
+        )
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set",
             35,
         )
-        pause(2)
-
-        assert automation_job.target_temperature == 35
+        assert wait_for(lambda: automation_job.target_temperature == 35, timeout=1.0)
 
 
 def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
@@ -49,13 +41,9 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
             "get_temperature",
             lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1,
         )
-        pause()
         t._update_heater(50)
-        pause()
         assert t.heater_duty_cycle == 50
-        pause()
         t.read_external_temperature()
-        pause()
 
         assert 0 < t.heater_duty_cycle < 50
 
@@ -72,7 +60,6 @@ def test_static_values_can_be_edited() -> None:
 def test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
     experiment = "test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature"
     with Thermostat(unit=unit, experiment=experiment, target_temperature=20) as t:
-        pause(3)
         assert t.state == "ready"
         assert t.heater_duty_cycle == 0
 
@@ -90,15 +77,9 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
             "get_temperature",
             lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1,
         )
-        pause()
-        pause()
         t._update_heater(50)
         assert t.heater_duty_cycle == 50
-        pause()
-        pause()
         t.read_external_temperature()
-        pause()
-        pause()
 
         assert t.heater_duty_cycle == 0
 
@@ -215,7 +196,6 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
     experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
     with Thermostat(unit=unit, experiment=experiment, target_temperature=35) as t:
-        pause(3)
         assert t.state == "ready"
         assert t.heater_duty_cycle > 0
 
@@ -224,7 +204,6 @@ def test_setting_heat_is_turned_off_when_paused() -> None:
     # this test tries to replicate what a user does in the UI
     experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
     with Thermostat(unit=unit, experiment=experiment, target_temperature=35) as t:
-        pause(2)
         assert t.state == t.READY
         assert t.heater_duty_cycle > 0
 
@@ -286,7 +265,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
             10,
         )
 
-        pause(1)
+        assert wait_for(lambda: len(dc_msgs) > 0, timeout=1.0)
 
     assert len(dc_msgs) > 0
 
@@ -324,9 +303,6 @@ def test_using_external_thermocouple() -> None:
         experiment=experiment,
         using_third_party_thermocouple=True,
     ) as tc:
-        pause()
-        pause()
-        pause()
         assert tc.automation_name == "_test_my_super_simple_automation"
 
         # start publishing from our external temperature

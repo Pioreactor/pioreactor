@@ -51,28 +51,23 @@ def test_states() -> None:
     exp = "test_states"
 
     bj = BackgroundJob(unit=unit, experiment=exp)
-    pause()
     assert bj.state == "ready"
 
     publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "sleeping")
-    pause()
-    assert bj.state == "sleeping"
+    assert wait_for(lambda: bj.state == "sleeping", timeout=1.0)
 
     publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "ready")
-    pause()
-    assert bj.state == "ready"
+    assert wait_for(lambda: bj.state == "ready", timeout=1.0)
 
     publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "init")
-    pause()
-    assert bj.state == "init"
+    assert wait_for(lambda: bj.state == "init", timeout=1.0)
 
     # it's kinda an antipattern to use this disconnect method from the main
     # thread. Better, if in the main thread and able to, to call bj.clean_up().
     # There's no 100% guarantee that this cleans up properly since it is called
     # in the sub thread, which means it's cleaning itself up?? Not clear!
     publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "disconnected")
-    pause()
-    assert bj.state == bj.DISCONNECTED
+    assert wait_for(lambda: bj.state == bj.DISCONNECTED, timeout=1.0)
     bj.clean_up()
 
 
@@ -143,7 +138,6 @@ def test_back_to_back_qos1_state_commands_retain_disconnected_after_cleanup() ->
 
     try:
         with BackgroundJob(unit=unit, experiment=experiment) as job:
-            pause()
             sleeping = control_client.publish(
                 f"{state_topic}/set",
                 job.SLEEPING,
@@ -228,9 +222,9 @@ def test_init_state_is_sent_to_mqtt() -> None:
     )
 
     with BackgroundJob(unit=unit, experiment=exp):
-        pause()
-        pause()
+        pass
 
+    assert wait_for(lambda: len(states) == 3, timeout=1.0)
     assert len(states) == 3
     assert states == ["init", "ready", "disconnected"]
 
@@ -276,12 +270,8 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
 
     with collect_all_logs_of_level("ERROR", get_unit_name(), experiment) as error_logs:
         with TestJob(unit=get_unit_name(), experiment=experiment):
-            pause()
-            pause()
             publish("pioreactor/testing/subscription", "test", retain=False)
-            pause()
-            pause()
-            pause()
+            assert wait_for(lambda: len(error_logs) > 0, timeout=1.0)
 
     assert len(error_logs) > 0
     assert "division by zero" in error_logs[0]["message"]
@@ -313,8 +303,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
         with TestJob(unit="unit", experiment=exp):
             pass
 
-    pause()
-    assert state[-1] == "disconnected"
+    assert wait_for(lambda: bool(state) and state[-1] == "disconnected", timeout=1.0)
     assert not is_pio_job_running("testjob")
 
 
@@ -339,8 +328,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_dont_catch() -> None:
         with TestJob(unit="unit", experiment=exp):
             pass
 
-    pause()
-    assert state[-1] == "disconnected"
+    assert wait_for(lambda: bool(state) and state[-1] == "disconnected", timeout=1.0)
     assert not is_pio_job_running("testjob")
 
 
@@ -381,18 +369,13 @@ def test_state_transition_callbacks() -> None:
         assert tj.called_on_init_to_ready
         assert tj.called_on_ready
         publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.SLEEPING)
-        pause()
-        pause()
-        pause()
-        pause()
+        assert wait_for(lambda: tj.called_on_ready_to_sleeping, timeout=1.0)
+        assert wait_for(lambda: tj.called_on_sleeping, timeout=1.0)
         assert tj.called_on_ready_to_sleeping
         assert tj.called_on_sleeping
 
         publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.READY)
-        pause()
-        pause()
-        pause()
-        pause()
+        assert wait_for(lambda: tj.called_on_sleeping_to_ready, timeout=1.0)
         assert tj.called_on_sleeping_to_ready
 
 
@@ -539,20 +522,18 @@ def test_persist_in_published_settings() -> None:
     exp = "test_persist_in_published_settings"
 
     with TestJob(unit=get_unit_name(), experiment=exp):
-        pause()
-        pause()
+        pass
 
-    pause()
     msg = subscribe(
         f"pioreactor/{get_unit_name()}/{exp}/test_job/persist_this",
-        timeout=2,
+        timeout=0.5,
     )
     assert msg is not None
     assert msg.payload.decode() == "persist_this"
 
     msg = subscribe(
         f"pioreactor/{get_unit_name()}/{exp}/test_job/dont_persist_this",
-        timeout=2,
+        timeout=0.5,
     )
     assert msg is None
 
@@ -602,8 +583,6 @@ def test_cleans_up_mqtt() -> None:
         msg = subscribe(f"pioreactor/+/{exp}/job/$state", timeout=0.5)
         assert msg is not None
 
-        pause()
-
     msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr", timeout=0.5)
     assert msg is None
 
@@ -642,7 +621,7 @@ def test_clear_caches_doesnt_unpublish_settings_without_values(monkeypatch) -> N
     unit = get_unit_name()
 
     with OptionalSettingJob(unit=unit, experiment=exp) as job:
-        pause()
+        pass
 
     assert "optional_setting" not in job.unpublished_settings
     assert all(setting != "optional_setting" for setting, _ in recorded_upserts)
@@ -656,7 +635,6 @@ def test_duplicate_job_cannot_start_while_existing_instance_is_running() -> None
     unit = get_unit_name()
 
     with DuplicateJob(unit=unit, experiment=exp):
-        pause()
         with pytest.raises(JobPresentError):
             DuplicateJob(unit=unit, experiment=exp)
 
@@ -673,7 +651,6 @@ def test_clean_up_still_disconnects_when_ready_to_disconnected_hook_errors() -> 
 
     job = TestJob(unit=unit, experiment=exp)
     job.clean_up()
-    pause()
 
     state_msg = subscribe(
         f"pioreactor/{unit}/{exp}/{job.job_name}/$state",
