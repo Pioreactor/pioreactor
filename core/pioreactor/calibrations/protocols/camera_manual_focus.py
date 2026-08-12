@@ -140,11 +140,16 @@ class TakeSnapshot(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         step = steps.action(
-            "Prepare the focus target",
-            "Point the camera at a detailed object near the intended vial position, then press Take snapshot "
+            "Prepare the vial and camera",
+            "Fill the vial half-way with a slightly turbid solution. Place the camera into the camera holder on the vial cap, then press Take snapshot "
             "to take a snapshot.",
         )
         step.metadata = {
+            "image": {
+                "src": "/static/svgs/camera-manual-focus-setup.svg",
+                "alt": "Place the camera in the holder on a capped, half-filled vial with a stir bar.",
+                "caption": "Prepare a half-filled, slightly turbid vial with a stir bar, then place the camera in the cap holder.",
+            },
             "dialog": {
                 "max_width": "md",
                 "height": "min(90vh, 860px)",

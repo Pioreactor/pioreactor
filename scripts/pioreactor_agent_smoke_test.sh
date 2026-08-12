@@ -40,6 +40,7 @@ declare -a TEST_SEQUENCE=(
   check_registered_target_validation
   check_usb_status_surface
   check_descriptor_endpoints
+  check_camera_contract
   check_unit_api_job_history
   check_blink
   check_pio_run_latency
@@ -675,6 +676,8 @@ if status in {"pending", "running"}:
     print(status)
 elif status == "succeeded" and payload.get("result") is True:
     print("succeeded_true")
+elif status == "succeeded" and payload.get("result") is not False:
+    print("succeeded")
 elif status == "succeeded":
     print("succeeded_false")
 elif status == "failed":
@@ -685,7 +688,7 @@ PY
 )"
 
     case "$task_state" in
-      succeeded_true)
+      succeeded|succeeded_true)
         ok "$description task succeeded"
         return 0
         ;;
@@ -997,7 +1000,11 @@ check_unit_api_core() {
     curl_check \
     http://localhost/unit_api/system/ipv4 \
     '.ipv4_address | type=="string" and length>0 and (split(",") | all(test("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$")))'
-  run_step "Checking /unit_api/calibration_protocols" curl_check http://localhost/unit_api/calibration_protocols
+  run_step \
+    "Checking camera manual-focus protocol registration" \
+    curl_check \
+    http://localhost/unit_api/calibration_protocols \
+    'type=="array" and any(.target_device=="camera" and .protocol_name=="manual_focus")'
   run_step "Checking /unit_api/calibrations" curl_check http://localhost/unit_api/calibrations
   run_step "Checking /unit_api/active_calibrations" curl_check http://localhost/unit_api/active_calibrations
 }
@@ -1070,7 +1077,7 @@ check_descriptor_endpoints() {
     "Checking /unit_api/jobs/descriptors" \
     curl_check \
     http://localhost/unit_api/jobs/descriptors \
-    'type=="array" and any(.job_name=="stirring") and any(.job_name=="self_test")'
+    'type=="array" and any(.job_name=="stirring") and any(.job_name=="self_test" and any(.published_settings[]; .key=="test_dark_offset_correction_is_effective"))'
   run_step \
     "Checking /unit_api/automations/descriptors/dosing" \
     curl_check \
@@ -1086,6 +1093,251 @@ check_descriptor_endpoints() {
     curl_check \
     http://localhost/api/automations/descriptors/dosing \
     'type=="array" and any(.automation_name=="chemostat")'
+}
+
+check_camera_contract() {
+  local hostname camera_enabled snapshot_interval probe_experiment
+  local status_file listing_file archive_file dispatch_file task_result_file
+  local initial_auto_capture_enabled auto_capture_setting_was_persisted=false target
+  local -a auto_capture_targets
+  hostname="$(hostname)"
+  probe_experiment="agent-smoke-camera-${hostname}-$(date +%s)-$$"
+  status_file="$(mktemp)"
+  listing_file="$(mktemp)"
+  archive_file="$(mktemp)"
+  dispatch_file="$(mktemp)"
+  task_result_file="$(mktemp)"
+
+  info "Testing camera configuration and API contract"
+  if ! camera_enabled="$(pio config get camera enabled 2>/dev/null)" || \
+     ! snapshot_interval="$(pio config get camera snapshot_interval_minutes 2>/dev/null)"; then
+    fail "camera config was not installed into the merged configuration"
+    rm -f "$status_file" "$listing_file" "$archive_file" "$dispatch_file" "$task_result_file"
+    return
+  fi
+  camera_enabled="${camera_enabled//[[:space:]]/}"
+  snapshot_interval="${snapshot_interval//[[:space:]]/}"
+  if [[ "$camera_enabled" =~ ^[01]$ && "$snapshot_interval" =~ ^[0-9]+$ ]]; then
+    ok "camera config is installed (enabled=$camera_enabled, interval=$snapshot_interval)"
+  else
+    fail "camera config contains invalid enabled or snapshot interval values"
+  fi
+
+  if ! python3_available; then
+    warn "python3 not available; skipping structured camera contract checks"
+    rm -f "$status_file" "$listing_file" "$archive_file" "$dispatch_file" "$task_result_file"
+    return
+  fi
+
+  if curl -fsS \
+    "http://localhost/api/workers/$hostname/camera/experiments/$probe_experiment/status" \
+    > "$status_file" && \
+    curl -fsS \
+    "http://localhost/api/workers/$hostname/camera/experiments/$probe_experiment/stills" \
+    > "$listing_file" && \
+    curl -fsS \
+    "http://localhost/api/workers/$hostname/camera/experiments/$probe_experiment/stills.zip" \
+    > "$archive_file" && \
+    python3 - "$status_file" "$listing_file" "$archive_file" "$hostname" "$probe_experiment" <<'PY'
+import json
+import pathlib
+import sys
+import zipfile
+
+status_path, listing_path, archive_path, unit, experiment = sys.argv[1:]
+status = json.loads(pathlib.Path(status_path).read_text(encoding="utf-8"))
+assert status["unit"] == unit
+assert status["detection_status"] in {"detected", "configured_camera_not_detected", "unknown"}
+assert isinstance(status["runtime_available"], bool)
+assert isinstance(status["auto_capture_enabled"], bool)
+assert isinstance(status["snapshot_interval_minutes"], int)
+assert status["snapshot_interval_minutes"] >= 0
+
+expected_listing = {"unit": unit, "experiment": experiment, "stills": []}
+assert json.loads(pathlib.Path(listing_path).read_text(encoding="utf-8")) == expected_listing
+with zipfile.ZipFile(archive_path) as archive:
+    assert archive.namelist() == ["camera_stills_manifest.json"]
+    assert json.loads(archive.read("camera_stills_manifest.json")) == expected_listing
+PY
+  then
+    ok "camera status, listing, and ZIP proxy contracts are valid"
+  else
+    fail "camera status, listing, or ZIP proxy contract is invalid"
+    print_prefixed_file_excerpt "camera status response: " "$status_file" 2000
+    rm -f "$status_file" "$listing_file" "$archive_file" "$dispatch_file" "$task_result_file"
+    return
+  fi
+
+  initial_auto_capture_enabled="$(python3 - "$status_file" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+print("true" if payload["auto_capture_enabled"] else "false")
+PY
+)"
+  if pio cache view camera_settings auto_capture_enabled 2>/dev/null | \
+    grep -q 'auto_capture_enabled'; then
+    auto_capture_setting_was_persisted=true
+  fi
+  if [[ "$initial_auto_capture_enabled" == "true" ]]; then
+    auto_capture_targets=(false true)
+  else
+    # Don't briefly enable scheduled captures when an operator has disabled them.
+    auto_capture_targets=(false)
+  fi
+
+  for target in "${auto_capture_targets[@]}"; do
+    if curl -fsS \
+      -X PATCH \
+      -H "Content-Type: application/json" \
+      -d "{\"auto_capture_enabled\":$target}" \
+      "http://localhost/api/workers/$hostname/camera/settings" \
+      > "$dispatch_file" && \
+      wait_for_worker_task_success \
+        http://localhost "$dispatch_file" "$task_result_file" "camera auto-capture=$target" 30 1 10 && \
+      curl -fsS \
+        "http://localhost/api/workers/$hostname/camera/experiments/$probe_experiment/status" \
+        > "$status_file" && \
+      python3 - "$status_file" "$target" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["auto_capture_enabled"] is (sys.argv[2] == "true")
+PY
+    then
+      ok "camera auto-capture setting round-tripped as $target"
+    else
+      fail "camera auto-capture setting did not round-trip as $target"
+    fi
+  done
+
+  if ! curl -fsS \
+    "http://localhost/api/workers/$hostname/camera/experiments/$probe_experiment/status" \
+    > "$status_file" || \
+    ! python3 - "$status_file" "$initial_auto_capture_enabled" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["auto_capture_enabled"] is (sys.argv[2] == "true")
+PY
+  then
+    warn "camera setting was not restored through the leader; attempting local cleanup"
+    curl -fsS \
+      -X PATCH \
+      -H "Content-Type: application/json" \
+      -d "{\"auto_capture_enabled\":$initial_auto_capture_enabled}" \
+      http://localhost/unit_api/camera/settings \
+      >/dev/null || fail "unable to restore the original camera auto-capture setting"
+  fi
+  if [[ "$auto_capture_setting_was_persisted" == false ]]; then
+    pio cache purge camera_settings auto_capture_enabled >/dev/null || \
+      fail "unable to restore the camera setting's original default-backed state"
+  fi
+
+  if [[ "$camera_enabled" == "1" ]]; then
+    local camera_experiment camera_experiment_path before_capture_file after_capture_file
+    local capture_output captured_image_id image_file
+    if ! python3 - "$status_file" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["runtime_available"] is True
+assert payload["detection_status"] == "detected"
+PY
+    then
+      fail "camera is enabled but its configured hardware is not detected"
+    elif ! camera_experiment="$(get_worker_experiment_assignment "$hostname")"; then
+      fail "unable to determine the current experiment assignment for camera capture"
+    elif [[ -z "$camera_experiment" ]]; then
+      warn "camera is available but no experiment is assigned; skipping physical capture"
+    else
+      camera_experiment_path="$(python3 - "$camera_experiment" <<'PY'
+import sys
+from urllib.parse import quote
+
+print(quote(sys.argv[1], safe=""))
+PY
+)"
+      before_capture_file="$(mktemp)"
+      after_capture_file="$(mktemp)"
+      image_file="$(mktemp)"
+      if ! curl -fsS \
+        "http://localhost/api/workers/$hostname/camera/experiments/$camera_experiment_path/stills" \
+        > "$before_capture_file"; then
+        fail "unable to list camera stills before capture"
+      elif capture_output="$(pio run camera_snapshot 2>/dev/null)"; then
+        captured_image_id="$(sed -n 's/^Captured camera snapshot \([^.]\{1,\}\)\.$/\1/p' <<< "$capture_output" | tail -n 1)"
+        curl -fsS \
+          "http://localhost/api/workers/$hostname/camera/experiments/$camera_experiment_path/stills" \
+          > "$after_capture_file"
+        if [[ -z "$captured_image_id" ]]; then
+          captured_image_id="$(python3 - "$before_capture_file" "$after_capture_file" <<'PY'
+import json
+import pathlib
+import sys
+
+before = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+after = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
+before_ids = {still["image_id"] for still in before["stills"]}
+new_ids = [still["image_id"] for still in after["stills"] if still["image_id"] not in before_ids]
+if len(new_ids) == 1:
+    print(new_ids[0])
+PY
+)"
+        fi
+
+        if [[ -n "$captured_image_id" ]] && \
+          curl -fsS \
+            "http://localhost/api/workers/$hostname/camera/experiments/$camera_experiment_path/stills/$captured_image_id.jpg" \
+            > "$image_file" && \
+          python3 - "$after_capture_file" "$image_file" "$captured_image_id" <<'PY'
+import json
+import pathlib
+import sys
+
+listing = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert any(still["image_id"] == sys.argv[3] for still in listing["stills"])
+image = pathlib.Path(sys.argv[2]).read_bytes()
+assert len(image) > 100 and image.startswith(b"\xff\xd8")
+PY
+        then
+          ok "camera_snapshot produced a listed JPEG through the leader proxy"
+        else
+          fail "camera_snapshot did not produce a retrievable experiment still"
+        fi
+      else
+        fail "pio run camera_snapshot failed"
+      fi
+
+      if [[ -n "${captured_image_id:-}" ]]; then
+        curl -fsS \
+          -X DELETE \
+          -H "Content-Length: 0" \
+          "http://localhost/api/workers/$hostname/camera/experiments/$camera_experiment_path/stills/$captured_image_id.jpg" \
+          >/dev/null || {
+            fail "unable to delete camera smoke-test still through the leader proxy"
+            curl -fsS \
+              -X DELETE \
+              -H "Content-Length: 0" \
+              "http://localhost/unit_api/camera/experiments/$camera_experiment_path/stills/$captured_image_id.jpg" \
+              >/dev/null || fail "unable to clean up camera smoke-test still $captured_image_id"
+          }
+      fi
+      rm -f "$before_capture_file" "$after_capture_file" "$image_file"
+    fi
+  else
+    warn "camera feature is disabled; skipping physical capture"
+  fi
+
+  rm -f "$status_file" "$listing_file" "$archive_file" "$dispatch_file" "$task_result_file"
 }
 
 check_unit_api_job_history() {
@@ -1829,23 +2081,72 @@ check_pump_actions() {
 }
 
 check_plugin_install_cycle() {
-  info "Testing plugin pioreactor-logs2slack install cycle"
-  if pio plugins install pioreactor-logs2slack >/dev/null; then
-    ok "installed pioreactor-logs2slack"
+  # This distribution intentionally keeps its assets under the differently named
+  # `oled_status_display` entry-point package.
+  local plugin_name="pioreactor-oled-status-display-plugin"
+  local descriptor_file="$HOME/.pioreactor/plugins/ui/jobs/oled_status_display.yaml"
+  local installed_by_smoke_test=false
+
+  info "Testing packaged plugin asset install cycle with $plugin_name"
+  if pio plugins list | grep -Eq 'pioreactor[-_]oled[-_]status[-_]display[-_]plugin'; then
+    warn "$plugin_name was already installed; it will be left installed"
+  elif pio plugins install "$plugin_name" >/dev/null; then
+    installed_by_smoke_test=true
+    ok "installed $plugin_name"
   else
-    fail "plugin install failed"
+    fail "$plugin_name install failed"
+    return
   fi
 
-  if pio plugins list | grep -Eq 'pioreactor[-_]logs2slack'; then
-    ok "pioreactor-logs2slack listed"
+  if pio plugins list | grep -Eq 'pioreactor[-_]oled[-_]status[-_]display[-_]plugin'; then
+    ok "$plugin_name listed"
   else
-    fail "plugin not listed after install"
+    fail "$plugin_name not listed after install"
   fi
 
-  if pio plugins uninstall pioreactor-logs2slack >/dev/null; then
-    ok "uninstalled pioreactor-logs2slack"
+  if [[ -s "$descriptor_file" ]] && grep -q '^job_name: oled_status_display$' "$descriptor_file"; then
+    ok "$plugin_name UI descriptor installed from its entry-point package"
   else
-    fail "plugin uninstall failed"
+    fail "$plugin_name UI descriptor was not installed"
+  fi
+
+  if crudini --get \
+    "$HOME/.pioreactor/unit_config.ini" \
+    oled_status_display.config \
+    refresh_interval_seconds \
+    >/dev/null 2>&1; then
+    ok "$plugin_name additional config installed from its entry-point package"
+  else
+    fail "$plugin_name additional config was not installed"
+  fi
+
+  if http_json_ok \
+    http://localhost/unit_api/jobs/descriptors \
+    'type=="array" and any(.job_name=="oled_status_display")'; then
+    ok "$plugin_name descriptor is available through the unit API"
+  else
+    fail "$plugin_name descriptor is missing from the unit API"
+  fi
+
+  if [[ "$installed_by_smoke_test" == true ]]; then
+    if pio plugins uninstall "$plugin_name" >/dev/null; then
+      ok "uninstalled $plugin_name"
+    else
+      fail "$plugin_name uninstall failed"
+      return
+    fi
+
+    if pio plugins list | grep -Eq 'pioreactor[-_]oled[-_]status[-_]display[-_]plugin'; then
+      fail "$plugin_name still listed after uninstall"
+    else
+      ok "$plugin_name absent from plugin list after uninstall"
+    fi
+
+    if [[ -e "$descriptor_file" ]]; then
+      fail "$plugin_name UI descriptor remains after uninstall"
+    else
+      ok "$plugin_name UI descriptor removed before package uninstall"
+    fi
   fi
 }
 

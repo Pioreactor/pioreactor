@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -51,6 +51,7 @@ describe("Cameras", () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.resetAllMocks();
   });
 
@@ -62,6 +63,37 @@ describe("Cameras", () => {
     );
 
     expect(await screen.findByText("1.5 h")).toBeInTheDocument();
+  });
+
+  test("surfaces camera-list failures and recovers on the scheduled refresh", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "Timed out fetching camera statuses." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ cameras: {} }),
+      });
+
+    render(
+      <MemoryRouter>
+        <Cameras title="Cameras" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/Timed out fetching camera statuses/)).toBeInTheDocument();
+    expect(screen.queryByText("No assigned Pioreactors were found.")).not.toBeInTheDocument();
+
+    await act(async () => {
+      jest.advanceTimersByTime(5 * 60 * 1000);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("No assigned Pioreactors were found.")).toBeInTheDocument();
+    expect(screen.queryByText(/Timed out fetching camera statuses/)).not.toBeInTheDocument();
   });
 
   test("keeps stored camera snapshots visible when camera hardware is unavailable", async () => {

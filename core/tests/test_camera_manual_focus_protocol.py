@@ -29,6 +29,13 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
     take_snapshot_step = engine.get_step()
     assert take_snapshot_step.step_id == "take_snapshot"
     assert take_snapshot_step.metadata["primary_action_label"] == "Take snapshot"
+    assert take_snapshot_step.metadata["image"] == {
+        "src": "/static/svgs/camera-manual-focus-setup.svg",
+        "alt": "Place the camera in the holder on a capped, half-filled vial with a stir bar.",
+        "caption": (
+            "Prepare a half-filled, slightly turbid vial with a stir bar, then place the camera in the cap holder."
+        ),
+    }
     assert take_snapshot_step.metadata["dialog"] == {
         "max_width": "md",
         "height": "min(90vh, 860px)",
