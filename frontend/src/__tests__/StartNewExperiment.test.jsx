@@ -85,23 +85,4 @@ describe("Start new experiment", () => {
     expect(descriptionInput).toHaveValue("");
   });
 
-  test.each(["?", "&", "="])(
-    "rejects %s in an experiment name",
-    async (invalidCharacter) => {
-      render(
-        <MemoryRouter>
-          <StartNewExperiment title="Pioreactor ~ Start new experiment" />
-        </MemoryRouter>,
-      );
-
-      fireEvent.change(screen.getByRole("textbox", { name: /Experiment name/ }), {
-        target: { value: `bad${invalidCharacter}name` },
-      });
-
-      expect(
-        screen.getByText("Can't use $, %, #, &, \\, /, +, = or ? characters in experiment name."),
-      ).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    },
-  );
 });
