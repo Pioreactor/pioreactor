@@ -65,6 +65,10 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
         "title": "Focus guidance",
         "status": "initial",
         "message": "Adjust the focus slightly, then take another snapshot.",
+        "image": {
+            "src": "/static/svgs/camera-focus-tool-concept-02-sequence.svg",
+            "alt": "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
+        },
     }
 
     second_focus_step = engine.advance({"action": "retake"})

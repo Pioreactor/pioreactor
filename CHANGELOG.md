@@ -19,6 +19,7 @@ camera_index=0
 # device_path is used by the v4l2 backend. Prefer a stable /dev/v4l/by-id path when available.
 device_path=/dev/video0
 ```
+ - Software updates now set `gpu_mem=32` in the Raspberry Pi boot configuration on every Pioreactor.
 
 #### Bug fixes
 

@@ -165,7 +165,7 @@ describe("CalibrationSessionDialog", () => {
   });
 
   test("shows score-free focus guidance and updates it after another snapshot", async () => {
-    const focusStep = (status, message, snapshotCount) => ({
+    const focusStep = (status, message, snapshotCount, guidanceImage) => ({
       step_id: "focus_camera",
       step_type: "info",
       title: "Adjust the camera focus",
@@ -187,7 +187,12 @@ describe("CalibrationSessionDialog", () => {
           },
         ],
         dialog: { max_width: "md", height: "min(90vh, 860px)" },
-        guidance: { title: "Focus guidance", status, message },
+        guidance: {
+          title: "Focus guidance",
+          status,
+          message,
+          ...(guidanceImage ? { image: guidanceImage } : {}),
+        },
         primary_action_label: "Focus is complete",
       },
     });
@@ -199,9 +204,13 @@ describe("CalibrationSessionDialog", () => {
           json: () =>
             Promise.resolve({
               step: focusStep(
-                "same",
-                "No clear change yet — keep turning a little in the same direction.",
+                "initial",
+                "Adjust the focus slightly, then take another snapshot.",
                 1,
+                {
+                  src: "/static/svgs/camera-focus-tool-concept-02-sequence.svg",
+                  alt: "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
+                },
               ),
             }),
         });
@@ -231,8 +240,13 @@ describe("CalibrationSessionDialog", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("No clear change yet — keep turning a little in the same direction.");
+    await screen.findByText("Adjust the focus slightly, then take another snapshot.");
     const firstImage = screen.getByRole("img", { name: "Camera focus snapshot from unit-1." });
+    expect(
+      screen.getByRole("img", {
+        name: "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
+      }),
+    ).toHaveAttribute("src", "/static/svgs/camera-focus-tool-concept-02-sequence.svg");
     expect(screen.getByRole("dialog")).toHaveClass("MuiDialog-paperWidthMd");
     expect(firstImage).toHaveStyle({ maxHeight: "520px" });
     expect(screen.getByText("Focus guidance").closest("[aria-live='polite']")).toBeTruthy();
@@ -249,6 +263,11 @@ describe("CalibrationSessionDialog", () => {
     expect(screen.getByText("Loading image…")).toBeInTheDocument();
 
     await screen.findByText("Blurrier — turn back slightly.");
+    expect(
+      screen.queryByRole("img", {
+        name: "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
+      }),
+    ).not.toBeInTheDocument();
     const secondImage = screen.getByRole("img", { name: "Camera focus snapshot from unit-1." });
     expect(secondImage).toHaveAttribute(
       "src",
@@ -260,7 +279,7 @@ describe("CalibrationSessionDialog", () => {
 
     expect(screen.queryByText("Loading image…")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("No clear change yet — keep turning a little in the same direction."),
+      screen.queryByText("Adjust the focus slightly, then take another snapshot."),
     ).not.toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/workers/unit-1/calibrations/sessions/session-1/inputs",

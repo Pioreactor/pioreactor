@@ -155,6 +155,8 @@ export default function CalibrationSessionDialog({
     typeof sessionStep?.metadata?.guidance?.message === "string"
       ? sessionStep.metadata.guidance
       : null;
+  const guidanceImage =
+    typeof stepGuidance?.image?.src === "string" ? stepGuidance.image : null;
   const loadingImages = Array.isArray(sessionStep?.metadata?.loading_images)
     ? sessionStep.metadata.loading_images
     : [];
@@ -599,6 +601,7 @@ export default function CalibrationSessionDialog({
             sx={{
               minHeight: 64,
               display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
               alignItems: "center",
               gap: 1.5,
               px: 1.5,
@@ -607,7 +610,22 @@ export default function CalibrationSessionDialog({
               backgroundColor: "action.hover",
             }}
           >
-            <Box>
+            {guidanceImage && (
+              <Box
+                component="img"
+                src={guidanceImage.src}
+                alt={guidanceImage.alt || ""}
+                decoding="async"
+                sx={{
+                  width: { xs: "100%", sm: 280 },
+                  maxWidth: "100%",
+                  maxHeight: 120,
+                  objectFit: "contain",
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            <Box sx={{ minWidth: 0 }}>
               {stepGuidance.title && (
                 <Typography variant="subtitle2">{stepGuidance.title}</Typography>
               )}

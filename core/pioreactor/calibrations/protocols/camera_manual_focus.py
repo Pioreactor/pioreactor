@@ -173,6 +173,16 @@ class FocusCamera(SessionStep):
         snapshot_count = int(ctx.data["snapshot_count"])
 
         guidance_status, guidance = focus_guidance_from_scores(ctx.data["focus_scores"])
+        guidance_metadata: dict[str, object] = {
+            "title": "Focus guidance",
+            "status": guidance_status,
+            "message": guidance,
+        }
+        if guidance_status == "initial":
+            guidance_metadata["image"] = {
+                "src": "/static/svgs/camera-focus-tool-concept-02-sequence.svg",
+                "alt": "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
+            }
 
         step = steps.info(
             "Adjust the camera focus",
@@ -201,11 +211,7 @@ class FocusCamera(SessionStep):
                 "max_width": "md",
                 "height": "min(90vh, 860px)",
             },
-            "guidance": {
-                "title": "Focus guidance",
-                "status": guidance_status,
-                "message": guidance,
-            },
+            "guidance": guidance_metadata,
             "primary_action_label": "Focus is complete",
         }
         return step

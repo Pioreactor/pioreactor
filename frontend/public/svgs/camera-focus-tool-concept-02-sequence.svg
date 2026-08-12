@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180">
+  <defs>
+    <g id="camera-side" stroke="#404040" stroke-width="3.6" stroke-linejoin="round">
+      <path
+        d="M-27 -5C-39 -8 -42 -22 -56 -25"
+        fill="none"
+        stroke="#c3a074"
+        stroke-width="3"
+        stroke-linecap="round"
+      />
+      <rect x="-28" y="-14" width="20" height="28" rx="3" fill="#616161" />
+    </g>
+    <g
+      id="focus-tool"
+      fill="#616161"
+      stroke="#404040"
+      stroke-width="5.1"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M60 67H96L112 49H184C193 49 200 56 200 65V95C200 104 193 111 184 111H112L96 93H60Z" />
+      <path d="M96 67V93M112 49V111" fill="none" />
+      <path d="M125 62H181C186 62 189 65 189 69" fill="none" />
+      <path d="M125 80H189" fill="none" />
+      <path d="M125 98H181C186 98 189 95 189 91" fill="none" />
+    </g>
+  </defs>
+
+  <!-- Align and insert -->
+  <use href="#camera-side" transform="translate(62 90)" />
+  <use href="#focus-tool" transform="translate(75 34) scale(0.7)" />
+  <g fill="none" stroke="#111111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="106" y1="90" x2="70" y2="90" />
+    <polyline points="78,84 70,90 78,96" />
+  </g>
+
+  <!-- Rotate while seated -->
+  <use href="#focus-tool" transform="translate(218 34) scale(0.7)" />
+  <use href="#camera-side" transform="translate(270 90)" />
+  <g fill="none" stroke="#111111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M365 53C397 59 397 121 365 127" />
+    <polyline points="376,50 365,53 373,62" />
+    <polyline points="373,118 365,127 376,130" />
+  </g>
+</svg>
