@@ -32,7 +32,7 @@ CORE_REQUIREMENTS = [
 
 
 LEADER_REQUIREMENTS: list[str] = [
-    "mcp-utils-msgspec==3.0.0",
+    "mcp-utils-msgspec==3.0.1",
 ]
 
 
