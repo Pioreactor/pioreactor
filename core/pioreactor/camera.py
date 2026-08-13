@@ -47,6 +47,9 @@ RPICAM_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
 CAMERA_WARMER_RUNTIME_DIR = Path("/run/pioreactor")
 CAMERA_WARMER_STARTUP_GRACE_SECONDS = 1.0
 CAMERA_WARMER_POLL_SECONDS = 0.01
+RPICAM_AE_SETTLE_SECONDS = 1.0
+# Bound AE to 200 ms and 8x gain so clear samples brighten without holding shared IR for seconds.
+RPICAM_TUNING_FILE = Path(__file__).parent / "assets" / "ov5647_noir_200ms.json"
 
 type DefinitiveCameraDetectionStatus = Literal[
     "detected",
@@ -174,7 +177,7 @@ def get_rpicam_still_arguments(command: str, camera_index: int) -> list[str]:
         str(camera_index),
         "--nopreview",
         "--tuning-file",
-        "/usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json",
+        RPICAM_TUNING_FILE.as_posix(),
         "--mode",
         "2592:1944:10:P",
         "--width",
@@ -185,10 +188,8 @@ def get_rpicam_still_arguments(command: str, camera_index: int) -> list[str]:
         "2",
         "--framerate",
         "0",
-        "--shutter",
-        "180000",
-        "--gain",
-        "1",
+        "--metering",
+        "spot",
         "--awbgains",
         "1,1",
         "--brightness",
@@ -330,12 +331,20 @@ def capture_camera_still_using_warmer(
     if capture_focus_score:
         metadata_path.unlink(missing_ok=True)
 
+    if timeout <= RPICAM_AE_SETTLE_SECONDS:
+        raise CameraCaptureError("The persistent camera process timed out before adjusting exposure.")
+
+    deadline = monotonic() + timeout
+    # The warmer meters darkness while IR is idle, so let it read illuminated frames before capture.
+    sleep(RPICAM_AE_SETTLE_SECONDS)
+    if monotonic() >= deadline:
+        raise CameraCaptureError("The persistent camera process timed out while adjusting exposure.")
+
     try:
         os.kill(pid, signal.SIGUSR1)
     except ProcessLookupError as error:
         raise CameraCaptureError("The persistent camera process stopped before capture.") from error
 
-    deadline = monotonic() + timeout
     while monotonic() < deadline:
         if latest_path.exists() and not capture_focus_score:
             return latest_path, None
@@ -624,7 +633,10 @@ def camera_captured_image(
     try:
         if backend == "rpicam":
             assert camera_index is not None
-            capture_arguments = get_rpicam_still_arguments(command, camera_index) + ["--immediate"]
+            capture_arguments = get_rpicam_still_arguments(command, camera_index) + [
+                "--timeout",
+                f"{RPICAM_AE_SETTLE_SECONDS:g}sec",
+            ]
             if capture_focus_score:
                 with tempfile.NamedTemporaryFile(
                     prefix="pioreactor-camera-", suffix=".json", delete=False

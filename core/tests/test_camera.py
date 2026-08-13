@@ -37,6 +37,7 @@ from pioreactor.camera import dev_camera_stills_path
 from pioreactor.camera import get_camera_ir_led_intensity
 from pioreactor.camera import get_camera_status
 from pioreactor.camera import get_rpicam_camera_detection_status
+from pioreactor.camera import get_rpicam_still_arguments
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
@@ -110,6 +111,23 @@ def test_keep_camera_active_defaults_off_and_only_applies_to_rpicam(
 
     configure_camera_backend(monkeypatch, capture_backend="rpicam", keep_camera_active="1")
     assert camera_should_be_kept_active() is True
+
+
+def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure() -> None:
+    arguments = get_rpicam_still_arguments("/usr/bin/rpicam-still", 0)
+
+    assert "--shutter" not in arguments
+    assert "--gain" not in arguments
+    assert arguments[arguments.index("--metering") + 1] == "spot"
+
+    tuning_file = Path(arguments[arguments.index("--tuning-file") + 1])
+    tuning = json_decode(tuning_file.read_bytes())
+    agc = next(algorithm["rpi.agc"] for algorithm in tuning["algorithms"] if "rpi.agc" in algorithm)
+
+    assert agc["exposure_modes"]["normal"] == {
+        "shutter": [100, 10000, 30000, 60000, 120000, 160000, 200000],
+        "gain": [1, 1, 1, 1, 2, 4, 8],
+    }
 
 
 def test_start_camera_warmer_uses_persistent_signal_mode(
@@ -797,6 +815,8 @@ def test_rpicam_backend_uses_persistent_process_and_stores_normal_still(
         lambda *_args, **_kwargs: pytest.fail("persistent capture must not launch another process"),
     )
     monkeypatch.setattr(camera, "start_camera_warmer", lambda: True)
+    settle_delays: list[float] = []
+    monkeypatch.setattr(camera, "sleep", lambda seconds: settle_delays.append(seconds))
     led_states: list[dict[str, float]] = []
     monkeypatch.setattr(
         camera,
@@ -822,8 +842,34 @@ def test_rpicam_backend_uses_persistent_process_and_stores_normal_still(
     )
 
     assert signals == [(123, signal.SIGUSR1)]
+    assert settle_delays == [camera.RPICAM_AE_SETTLE_SECONDS]
     assert led_states == [{"A": 80.0}, {"A": 0.0}]
     assert camera_still_image_path(metadata, dot_pioreactor).read_bytes() == b"persistent camera still"
+
+
+def test_persistent_rpicam_capture_respects_timeout_before_adjusting_exposure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    monkeypatch.setattr(camera, "CAMERA_WARMER_RUNTIME_DIR", tmp_path)
+    monkeypatch.setattr(
+        camera,
+        "sleep",
+        lambda _seconds: pytest.fail("capture must not exceed its timeout while settling AE"),
+    )
+    monkeypatch.setattr(
+        camera.os,
+        "kill",
+        lambda _pid, _signal: pytest.fail("capture must not signal before AE can settle"),
+    )
+
+    with pytest.raises(CameraCaptureError, match="timed out before adjusting exposure"):
+        camera.capture_camera_still_using_warmer(
+            123,
+            camera.RPICAM_AE_SETTLE_SECONDS,
+            capture_focus_score=False,
+        )
 
 
 def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
@@ -853,7 +899,8 @@ def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
     )
 
     assert len(capture_commands) == 1
-    assert "--immediate" in capture_commands[0]
+    assert "--immediate" not in capture_commands[0]
+    assert capture_commands[0][capture_commands[0].index("--timeout") + 1] == "1sec"
     assert warmer_starts == [True]
     assert (
         camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"one-shot camera still"

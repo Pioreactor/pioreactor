@@ -78,10 +78,14 @@ setup(
     install_requires=CORE_REQUIREMENTS,
     include_package_data=True,
     package_data={
+        "pioreactor.assets": [
+            "*.json",
+            "*.LICENSE",
+        ],
         "pioreactor": [
             "web/static/*",
             "web/static/**/*",
-        ]
+        ],
     },
     zip_safe=False,
     packages=find_packages(exclude=["tests", "tests.*"]),
