@@ -16,6 +16,7 @@ from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
+from pioreactor.utils import is_pio_job_running
 from pioreactor.whoami import get_unit_name
 
 
@@ -135,6 +136,10 @@ class TakeSnapshot(SessionStep):
     step_id = "take_snapshot"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+
+        if any(is_pio_job_running(["od_reading", "stirring", "dosing_automation", "led_automation"])):
+            raise ValueError("Turn off any running jobs before starting this calibration.")
+
         step = steps.action(
             "Prepare the vial and camera",
             "Fill the vial half-way with a slightly turbid solution. Place the camera into the camera holder on the vial cap, then press Take snapshot "
