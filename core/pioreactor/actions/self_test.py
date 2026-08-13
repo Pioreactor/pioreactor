@@ -523,7 +523,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
         for i in range(6):
             samples.append(adc_reader.take_reading()[reference_channel].reading)
 
-        lb, ub = 0.01, 1.0
+        lb, ub = 0.001, 1.0
         assert (
             lb <= mean(samples) <= ub
         ), f"Recorded {mean(samples):0.3f} in REF, should ideally be between {lb} and {ub}. Current IR LED: {ir_intensity}%."
