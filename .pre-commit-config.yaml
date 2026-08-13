@@ -3,6 +3,8 @@ repos:
     rev: v4.4.0
     hooks:
     -   id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: ^core/pioreactor/web/static/
     -   id: check-ast
     -   id: check-json
     -   id: check-merge-conflict

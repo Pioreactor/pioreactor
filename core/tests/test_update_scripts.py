@@ -52,6 +52,24 @@ def test_pio_commands() -> None:
     assert not error_msgs, "\n".join(error_msgs)
 
 
+def test_pios_commands_do_not_fail_for_offline_workers() -> None:
+    error_msgs = []
+    pios_command_pattern = re.compile(r"\bpios(?:\s|$)")
+
+    for script in SCRIPT_DIRECTORY.rglob("*.sh"):
+        for line_number, line in enumerate(script.read_text().splitlines(), start=1):
+            if line.lstrip().startswith("#"):  # comment
+                continue
+
+            if pios_command_pattern.search(line) and not line.rstrip().endswith("|| :"):
+                error_msgs.append(
+                    f"Error in {script} at line {line_number}: 'pios' commands must end with '|| :' "
+                    "so offline workers do not abort the update."
+                )
+
+    assert not error_msgs, "\n".join(error_msgs)
+
+
 def test_sql_scripts_start_with_our_PRAGMA() -> None:
     scripts = find_sql_scripts(SCRIPT_DIRECTORY)
     error_msgs = []
