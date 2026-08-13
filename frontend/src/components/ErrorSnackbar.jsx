@@ -208,7 +208,7 @@ function ErrorSnackbar() {
     const count = (previousAlert?.count ?? 0) + 1;
     const showLogsHelper = ["ERROR", "WARNING"].includes(alertLevel);
     const logsRoute = getLogsRoute(unit, experiment);
-    const logsLabel = experiment === "$experiment" ? "View System Logs" : "View Experiment Logs";
+    const logsLabel = experiment === "$experiment" ? "View system logs" : "View experiment logs";
     const alertTitle = getAlertTitle(task, alertLevel, displayUnit);
 
     if (previousAlert) {

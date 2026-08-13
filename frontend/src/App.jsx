@@ -176,8 +176,8 @@ function MainSite() {
                     ) : null}
                     <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                     <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
-                    <Route path="/logs" element={<Logs title="Pioreactor ~ Logs"/>}/>
-                    <Route path="/logs/:pioreactorUnit" element={<Logs title="Pioreactor ~ Logs"/>}/>
+                    <Route path="/logs" element={<Logs title="Pioreactor ~ Experiment logs"/>}/>
+                    <Route path="/logs/:pioreactorUnit" element={<Logs title="Pioreactor ~ Experiment logs"/>}/>
                     <Route path="/system-logs" element={<SystemLogs title="Pioreactor ~ System Logs"/>}/>
                     <Route path="/system-logs/:pioreactorUnit" element={<SystemLogs title="Pioreactor ~ System Logs"/>}/>
                     <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>

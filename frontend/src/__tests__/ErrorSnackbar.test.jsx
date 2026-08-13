@@ -112,7 +112,7 @@ describe("ErrorSnackbar", () => {
     const firstCallOptions = mockEnqueueSnackbar.mock.calls[0][1];
     render(<MemoryRouter>{firstCallOptions.content("snackbar-1")}</MemoryRouter>);
 
-    expect(screen.getByRole("link", { name: "View Experiment Logs" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "View experiment logs" })).toHaveAttribute(
       "href",
       "/logs/xr1",
     );
@@ -131,7 +131,7 @@ describe("ErrorSnackbar", () => {
     const firstCallOptions = mockEnqueueSnackbar.mock.calls[0][1];
     render(<MemoryRouter>{firstCallOptions.content("snackbar-1")}</MemoryRouter>);
 
-    expect(screen.getByRole("link", { name: "View System Logs" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "View system logs" })).toHaveAttribute(
       "href",
       "/system-logs/xr1",
     );

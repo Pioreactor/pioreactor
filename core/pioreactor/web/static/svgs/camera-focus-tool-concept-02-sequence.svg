@@ -37,17 +37,15 @@
       id="rotation-arrow"
       fill="none"
       stroke="#111111"
-      stroke-width="25"
+      stroke-width="3.2"
       stroke-linecap="round"
       stroke-linejoin="round"
     >
       <path
         d="M33.13 71.24C24.52 71.24 17.9 55.54 17.9 36.2C17.9 16.88 24.52 1.17 33.13 1.17C41.3 1.17 48.31 16.8 48.35 38.7"
-        vector-effect="non-scaling-stroke"
       />
       <polyline
         points="41.37,33.29 48.35,40.28 55.34,33.29"
-        vector-effect="non-scaling-stroke"
       />
     </g>
   </defs>
@@ -61,7 +59,7 @@
   </g>
 
   <!-- Rotate while seated -->
-  <g transform="translate(-208.592 80.767)">
+  <g transform="translate(-208.592 68.767)">
     <use href="#rotation-arrow" transform="translate(260.74 53.7786) scale(1.0232)" />
     <use href="#focus-tool" transform="translate(205 34) scale(0.7)" />
     <use href="#camera-side" transform="translate(270 90)" />

@@ -435,7 +435,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 active={isSelected("/logs")}
                 icon={<ListAltOutlinedIcon  sx={{fontSize: "23px"}}/>}
                 >
-                Event logs
+                Experiment logs
               </MenuItem>
 
               <MenuItem

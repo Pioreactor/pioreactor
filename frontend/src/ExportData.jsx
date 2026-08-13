@@ -671,10 +671,6 @@ function ExportDataContainer() {
                         }
                       />
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
-                      Times use this browser&apos;s time zone. During daylight-saving fall-back,
-                      a repeated time uses its earlier occurrence.
-                    </Typography>
                   </AccordionDetails>
                 </Accordion>
               </Grid>

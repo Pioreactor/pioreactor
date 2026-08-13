@@ -120,7 +120,7 @@ function Logs(props) {
                   <MenuItem value="INFO" >= Standard </MenuItem>
                   <MenuItem value="DEBUG">≡ Detailed </MenuItem>
                 </Select>
-                <Box component="span" sx={{mr: "4px"}}> event logs for</Box>
+                <Box component="span" sx={{mr: "4px"}}> experiment logs for</Box>
                 <Select
                   labelId="configSelect"
                   variant="standard"
