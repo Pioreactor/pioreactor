@@ -27,6 +27,7 @@
 
 #### Bug fixes
 
+ - Added automatic recovery for Raspberry Pi Wi-Fi SDIO failures that previously left a Pioreactor powered on but unreachable until rebooted.
  - Prevented the Blanks UI from starting a per-experiment OD blank while an OD calibration or fused OD estimator is active, avoiding an incompatible setup that blocks OD reading. Existing blanks can still be cleared.
  - Prevented OD reading from publishing a negative signal when the stored blank is higher than the measured signal, and added guidance to clear or recreate the blank.
  - Enforced the advertised minimum of four standards before fitting a fused OD calibration.

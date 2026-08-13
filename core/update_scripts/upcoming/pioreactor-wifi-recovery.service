@@ -1,0 +1,9 @@
+[Unit]
+Description=Recover a wedged Pioreactor Wi-Fi SDIO device
+Wants=NetworkManager.service
+After=NetworkManager.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pioreactor-wifi-recovery.sh
+TimeoutStartSec=2min

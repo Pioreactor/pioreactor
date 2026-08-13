@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically check for a wedged Pioreactor Wi-Fi SDIO device
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=1min
+AccuracySec=15s
+Unit=pioreactor-wifi-recovery.service
+
+[Install]
+WantedBy=timers.target

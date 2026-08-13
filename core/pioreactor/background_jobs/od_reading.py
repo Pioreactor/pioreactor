@@ -1748,7 +1748,7 @@ class ODReader(BackgroundJob):
         return raw_od_readings
 
     def _log_relative_intensity_of_ir_led(self) -> None:
-        if random.random() < config.getfloat(
+        if random.random() <= config.getfloat(
             "od_reading.config", "sample_relative_intensity_fraction", fallback=0.2
         ):
             self.relative_intensity_of_ir_led = {
