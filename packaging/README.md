@@ -4,7 +4,7 @@ This directory contains files used to build or install Pioreactor outside the no
 
 ## Directories
 
-- `shared-assets/`: one-time provisioning seed data shared by Linux installs and CustoPiZer image builds, including SQL, config, export datasets, UI descriptors, and example experiment profiles.
+- `shared-assets/`: one-time provisioning seed data shared by Linux installs and CustoPiZer image builds, including SQL, config, camera tuning, export datasets, UI descriptors, and example experiment profiles.
 - `runtime-files/`: shared Linux runtime files consumed by both the generic Linux installer and CustoPiZer Raspberry Pi images, including lighttpd config, common systemd web units, logrotate config, tmpfiles config, helper scripts, and `/etc/pioreactor.env`.
 - **EXPERIMENTAL** `linux-leader/`: installer scaffold and leader-only service templates for a Debian 13 Linux workstation.
 

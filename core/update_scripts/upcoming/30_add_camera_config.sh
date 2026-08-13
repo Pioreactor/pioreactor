@@ -25,4 +25,8 @@ camera_index 0
 device_path /dev/video0
 EOF
 
+if ! sudo -u pioreactor -i pio config get od_reading.config sample_relative_intensity_fraction --shared >/dev/null 2>&1; then
+    sudo -u pioreactor -i pio config set od_reading.config sample_relative_intensity_fraction 0.2 --shared
+fi
+
 sudo -u pioreactor -i pios sync-configs

@@ -92,10 +92,11 @@ If you already have the repo, start from its root directory.
 The app expects a Pioreactor data root with config, storage, plugins, and export directories. For local development, keep that under the repo as `.pioreactor`.
 
 ```bash
-mkdir -p .pioreactor/storage .pioreactor/cache .pioreactor/exports .pioreactor/plugins .pioreactor/experiment_profiles .pioreactor/exportable_datasets .pioreactor/ui plugins_dev
+mkdir -p .pioreactor/storage .pioreactor/cache .pioreactor/exports .pioreactor/plugins .pioreactor/experiment_profiles .pioreactor/exportable_datasets .pioreactor/ui .pioreactor/camera plugins_dev
 cp -n config.dev.ini .pioreactor/config.ini
 touch .pioreactor/unit_config.ini
 cp -R packaging/shared-assets/pioreactor/ui/. .pioreactor/ui/
+cp -R packaging/shared-assets/pioreactor/camera/. .pioreactor/camera/
 cp packaging/shared-assets/pioreactor/exportable_datasets/*.yaml .pioreactor/exportable_datasets/
 cp -n packaging/shared-assets/pioreactor/experiment_profiles/*.yaml .pioreactor/experiment_profiles/
 sqlite3 .pioreactor/storage/pioreactor.sqlite < packaging/shared-assets/sql/create_tables.sql

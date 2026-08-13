@@ -22,3 +22,4 @@ fi
 bash "$SCRIPT_DIR/20_install_libtiff_runtime.sh"
 bash "$SCRIPT_DIR/30_add_camera_config.sh"
 bash "$SCRIPT_DIR/40_install_self_test_ui_job.sh"
+bash "$SCRIPT_DIR/45_install_camera_tuning.sh"

@@ -48,8 +48,6 @@ CAMERA_WARMER_RUNTIME_DIR = Path("/run/pioreactor")
 CAMERA_WARMER_STARTUP_GRACE_SECONDS = 1.0
 CAMERA_WARMER_POLL_SECONDS = 0.01
 RPICAM_AE_SETTLE_SECONDS = 1.0
-# Bound AE to 200 ms and 8x gain so clear samples brighten without holding shared IR for seconds.
-RPICAM_TUNING_FILE = Path(__file__).parent / "assets" / "ov5647_noir_200ms.json"
 
 type DefinitiveCameraDetectionStatus = Literal[
     "detected",
@@ -170,14 +168,24 @@ def find_camera_capture_command(backend: Literal["rpicam", "v4l2"]) -> str | Non
     return None
 
 
-def get_rpicam_still_arguments(command: str, camera_index: int) -> list[str]:
+def get_rpicam_still_arguments(
+    command: str,
+    camera_index: int,
+    dot_pioreactor: Path | None,
+) -> list[str]:
+    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
+    # Bound AE to 200 ms and 8x gain so clear samples brighten without holding shared IR for seconds.
+    tuning_file = root / "camera" / "ov5647_noir_200ms.json"
+    if not tuning_file.exists():
+        raise CameraUnavailableError(f"Camera tuning file is missing: {tuning_file}")
+
     return [
         command,
         "--camera",
         str(camera_index),
         "--nopreview",
         "--tuning-file",
-        RPICAM_TUNING_FILE.as_posix(),
+        tuning_file.as_posix(),
         "--mode",
         "2592:1944:10:P",
         "--width",
@@ -267,7 +275,7 @@ def start_camera_warmer() -> bool:
 
         try:
             process = subprocess.Popen(
-                get_rpicam_still_arguments(command, get_camera_index())
+                get_rpicam_still_arguments(command, get_camera_index(), None)
                 + [
                     "--signal",
                     "--timeout",
@@ -633,7 +641,7 @@ def camera_captured_image(
     try:
         if backend == "rpicam":
             assert camera_index is not None
-            capture_arguments = get_rpicam_still_arguments(command, camera_index) + [
+            capture_arguments = get_rpicam_still_arguments(command, camera_index, dot_pioreactor) + [
                 "--timeout",
                 f"{RPICAM_AE_SETTLE_SECONDS:g}sec",
             ]

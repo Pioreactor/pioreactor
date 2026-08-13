@@ -28,6 +28,7 @@ from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
 from pioreactor.camera import camera_warmer_runtime_paths
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillMetadata
+from pioreactor.camera import CameraUnavailableError
 from pioreactor.camera import capture_camera_focus_preview
 from pioreactor.camera import capture_camera_still
 from pioreactor.camera import clear_camera_hardware_detection_cache
@@ -113,8 +114,22 @@ def test_keep_camera_active_defaults_off_and_only_applies_to_rpicam(
     assert camera_should_be_kept_active() is True
 
 
-def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure() -> None:
-    arguments = get_rpicam_still_arguments("/usr/bin/rpicam-still", 0)
+def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure(tmp_path: Path) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    tuning_file = dot_pioreactor / "camera" / "ov5647_noir_200ms.json"
+    tuning_file.parent.mkdir(parents=True)
+    tuning_file.write_bytes(
+        (
+            Path(__file__).resolve().parents[2]
+            / "packaging"
+            / "shared-assets"
+            / "pioreactor"
+            / "camera"
+            / "ov5647_noir_200ms.json"
+        ).read_bytes()
+    )
+
+    arguments = get_rpicam_still_arguments("/usr/bin/rpicam-still", 0, dot_pioreactor)
 
     assert "--shutter" not in arguments
     assert "--gain" not in arguments
@@ -130,6 +145,13 @@ def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure() -> None:
     }
 
 
+def test_rpicam_arguments_require_the_filesystem_tuning_file(tmp_path: Path) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+
+    with pytest.raises(CameraUnavailableError, match="Camera tuning file is missing"):
+        get_rpicam_still_arguments("/usr/bin/rpicam-still", 0, dot_pioreactor)
+
+
 def test_start_camera_warmer_uses_persistent_signal_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -141,6 +163,10 @@ def test_start_camera_warmer_uses_persistent_signal_mode(
         camera_index="1",
         keep_camera_active="1",
     )
+    tuning_file = tmp_path / "camera" / "ov5647_noir_200ms.json"
+    tuning_file.parent.mkdir()
+    tuning_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
     monkeypatch.setattr(camera, "CAMERA_WARMER_RUNTIME_DIR", tmp_path)
     monkeypatch.setattr(camera, "camera_capture_lock", nullcontext)
     monkeypatch.setattr(camera, "camera_warmer_pid", lambda: None)
@@ -800,6 +826,9 @@ def test_rpicam_backend_uses_persistent_process_and_stores_normal_still(
     dot_pioreactor = tmp_path / ".pioreactor"
     runtime_dir = tmp_path / "run"
     runtime_dir.mkdir()
+    tuning_file = dot_pioreactor / "camera" / "ov5647_noir_200ms.json"
+    tuning_file.parent.mkdir(parents=True)
+    tuning_file.write_text("{}", encoding="utf-8")
     configure_camera_backend(
         monkeypatch,
         capture_backend="rpicam",
@@ -877,6 +906,10 @@ def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
 ) -> None:
     from pioreactor import camera
 
+    dot_pioreactor = tmp_path / ".pioreactor"
+    tuning_file = dot_pioreactor / "camera" / "ov5647_noir_200ms.json"
+    tuning_file.parent.mkdir(parents=True)
+    tuning_file.write_text("{}", encoding="utf-8")
     configure_camera_backend(monkeypatch, capture_backend="rpicam", keep_camera_active="1")
     monkeypatch.setattr(camera, "camera_warmer_pid", lambda: None)
     monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/rpicam-still")
@@ -895,16 +928,14 @@ def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
         "unit-a",
         experiment="experiment-a",
         capture_reason="scheduled",
-        dot_pioreactor=tmp_path / ".pioreactor",
+        dot_pioreactor=dot_pioreactor,
     )
 
     assert len(capture_commands) == 1
     assert "--immediate" not in capture_commands[0]
     assert capture_commands[0][capture_commands[0].index("--timeout") + 1] == "1sec"
     assert warmer_starts == [True]
-    assert (
-        camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"one-shot camera still"
-    )
+    assert camera_still_image_path(metadata, dot_pioreactor).read_bytes() == b"one-shot camera still"
 
 
 def test_camera_ir_led_intensity_defaults_to_80(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1318,6 +1349,10 @@ def test_rpicam_focus_preview_returns_focus_score_from_capture_metadata(
 ) -> None:
     from pioreactor import camera
 
+    dot_pioreactor = tmp_path / ".pioreactor"
+    tuning_file = dot_pioreactor / "camera" / "ov5647_noir_200ms.json"
+    tuning_file.parent.mkdir(parents=True)
+    tuning_file.write_text("{}", encoding="utf-8")
     configure_camera_backend(
         monkeypatch,
         capture_backend="rpicam",
@@ -1337,7 +1372,7 @@ def test_rpicam_focus_preview_returns_focus_score_from_capture_metadata(
     preview_path, focus_score = capture_camera_focus_preview(
         "unit-a",
         "session-a",
-        dot_pioreactor=tmp_path / ".pioreactor",
+        dot_pioreactor=dot_pioreactor,
     )
 
     assert preview_path.read_bytes() == b"camera focus preview"
