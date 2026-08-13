@@ -70,11 +70,9 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import publish
-from pioreactor.pubsub import subscribe
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
 from pioreactor.structs import subclass_union
-from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import usb as usb_utils
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
@@ -222,17 +220,6 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
     camera_status = get_camera_status(unit, experiment=experiment)
     if camera_status["detection_status"] == "configured_camera_not_detected":
         return {"captured": False, "reason": "camera_unavailable"}
-
-    # OD publishes ods only after completing its measurement and turning IR off.
-    if is_pio_job_running("od_reading"):
-        od_reading_message = subscribe(
-            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            timeout=CAMERA_OD_ALIGNMENT_TIMEOUT_SECONDS,
-            allow_retained=False,
-            name="scheduled-camera",
-        )
-        if od_reading_message is None:
-            return {"captured": False, "reason": "od_alignment_timeout"}
 
     try:
         metadata = capture_camera_still(

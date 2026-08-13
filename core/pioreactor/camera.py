@@ -139,7 +139,7 @@ def get_camera_device_path() -> Path:
 
 
 def get_camera_ir_led_intensity() -> float:
-    intensity = float(config.get("camera", "ir_led_intensity", fallback="80"))
+    intensity = float(config.get("camera", "ir_led_intensity", fallback="10"))
     if not 0.0 <= intensity <= 100.0:
         raise ValueError("camera.ir_led_intensity must be between 0 and 100, inclusive")
 
