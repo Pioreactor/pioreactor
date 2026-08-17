@@ -503,11 +503,11 @@ def test_remove_worker_from_experiment(client) -> None:
     assert "unit2" not in units
 
 
-def test_all_workers_ever_assigned_to_experiment_includes_unassigned_workers(client) -> None:
-    from pioreactor.web.app import get_all_workers_ever_assigned_to_experiment
+def test_all_existing_workers_ever_assigned_to_experiment_includes_unassigned_workers(client) -> None:
+    from pioreactor.web.app import get_all_existing_workers_ever_assigned_to_experiment
     from pioreactor.web.app import modify_app_db
 
-    assert set(get_all_workers_ever_assigned_to_experiment("exp1")) == {"unit1", "unit2"}
+    assert set(get_all_existing_workers_ever_assigned_to_experiment("exp1")) == {"unit1", "unit2"}
 
     with capture_requests():
         response = client.delete("/api/experiments/exp1/workers/unit2")
@@ -521,8 +521,13 @@ def test_all_workers_ever_assigned_to_experiment_includes_unassigned_workers(cli
         """,
         ("unit2", "exp1", "2026-06-01T00:00:00Z", "2026-06-01T01:00:00Z"),
     )
-    assert set(get_all_workers_ever_assigned_to_experiment("exp1")) == {"unit1", "unit2"}
-    assert set(get_all_workers_ever_assigned_to_experiment("$experiment")) >= {"unit1", "unit2"}
+    assert set(get_all_existing_workers_ever_assigned_to_experiment("exp1")) == {"unit1", "unit2"}
+    assert set(get_all_existing_workers_ever_assigned_to_experiment("$experiment")) >= {"unit1", "unit2"}
+
+    modify_app_db("DELETE FROM workers WHERE pioreactor_unit = ?", ("unit2",))
+
+    assert get_all_existing_workers_ever_assigned_to_experiment("exp1") == ["unit1"]
+    assert "unit2" not in get_all_existing_workers_ever_assigned_to_experiment("$experiment")
 
 
 def test_remove_worker_from_experiment_publishes_retained_unassignment(
@@ -2087,7 +2092,7 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
 
     captured: dict[str, object] = {}
 
-    def fake_broadcast_get_across_workers_ever_assigned_to_experiment(
+    def fake_broadcast_get_across_existing_workers_ever_assigned_to_experiment(
         endpoint: str, experiment: str, timeout: float
     ) -> FakeTaskResult:
         _, connection, path = _prepare_request("GET", create_webserver_path("unit1.local", endpoint))
@@ -2099,8 +2104,8 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
         return FakeTaskResult()
 
     monkeypatch.setattr(
-        "pioreactor.web.api.fanout.broadcast_get_across_workers_ever_assigned_to_experiment",
-        fake_broadcast_get_across_workers_ever_assigned_to_experiment,
+        "pioreactor.web.api.fanout.broadcast_get_across_existing_workers_ever_assigned_to_experiment",
+        fake_broadcast_get_across_existing_workers_ever_assigned_to_experiment,
     )
 
     response = client.get("/api/experiments/experiment%20a/cameras")
@@ -2691,6 +2696,10 @@ def test_export_datasets_returns_async_task_response(
 
     monkeypatch.setenv("RUN_PIOREACTOR", tmp_path.as_posix())
     monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 8, 17, 14, 47, 59, tzinfo=UTC),
+    )
+    monkeypatch.setattr(
         "pioreactor.web.api.tasks.export_experiment_data_task", fake_export_experiment_data_task
     )
 
@@ -2698,7 +2707,7 @@ def test_export_datasets_returns_async_task_response(
         "/api/datasets/exportable/export",
         json={
             "datasets": ["od_readings"],
-            "experiment": "exp1",
+            "experiment": "my-experiment-name",
             "partition_by_unit": True,
             "partition_by_experiment": False,
             "start_time": "2025-11-02T01:30:00-05:00",
@@ -2710,12 +2719,11 @@ def test_export_datasets_returns_async_task_response(
     data = response.get_json()
     assert data["task_id"] == "export-task"
     assert data["result_url_path"] == "/unit_api/task_results/export-task"
-    assert captured["experiment"] == "exp1"
+    assert captured["experiment"] == "my-experiment-name"
     assert captured["dataset_names"] == ["od_readings"]
     output_path = Path(str(captured["output"]))
     assert output_path.parent == tmp_path / "exports"
-    assert output_path.name.startswith("export_")
-    assert output_path.name.endswith(".zip")
+    assert output_path.name == "export_my-experiment-name_20260817144759.zip"
     assert captured["start_time"] == "2025-11-02T06:30:00.000Z"
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
@@ -2783,6 +2791,10 @@ def test_export_datasets_to_usb_returns_async_task_response(
         return DummyTask()
 
     monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 8, 17, 14, 47, 59, tzinfo=UTC),
+    )
+    monkeypatch.setattr(
         "pioreactor.web.api.tasks.export_experiment_data_to_usb_task",
         fake_export_experiment_data_to_usb_task,
     )
@@ -2804,8 +2816,7 @@ def test_export_datasets_to_usb_returns_async_task_response(
     assert data["task_id"] == "usb-export-task"
     assert captured["experiment"] == "exp1"
     assert captured["dataset_names"] == ["od_readings"]
-    assert str(captured["filename"]).startswith("export_")
-    assert str(captured["filename"]).endswith(".zip")
+    assert captured["filename"] == "export_exp1_20260817144759.zip"
     assert captured["start_time"] == "2026-01-01T00:00:00.000Z"
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True

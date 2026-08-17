@@ -2,9 +2,9 @@
 import typing as t
 
 from pioreactor.web import tasks
+from pioreactor.web.app import get_all_existing_workers_ever_assigned_to_experiment
 from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
-from pioreactor.web.app import get_all_workers_ever_assigned_to_experiment
 from pioreactor.web.app import get_all_workers_in_experiment
 
 
@@ -58,13 +58,13 @@ def broadcast_get_across_workers_in_experiment(
     )
 
 
-def broadcast_get_across_workers_ever_assigned_to_experiment(
+def broadcast_get_across_existing_workers_ever_assigned_to_experiment(
     endpoint: str, experiment: str, timeout: float = 5.0, return_raw: bool = False
 ) -> t.Any:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
         endpoint=endpoint,
-        units=get_all_workers_ever_assigned_to_experiment(experiment),
+        units=get_all_existing_workers_ever_assigned_to_experiment(experiment),
         timeout=timeout,
         return_raw=return_raw,
     )

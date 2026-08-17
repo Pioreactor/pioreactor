@@ -61,9 +61,9 @@ from pioreactor.utils.timing import to_iso_format
 from pioreactor.web import cache
 from pioreactor.web import fanout
 from pioreactor.web import tasks
+from pioreactor.web.app import get_all_existing_workers_ever_assigned_to_experiment
 from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
-from pioreactor.web.app import get_all_workers_ever_assigned_to_experiment
 from pioreactor.web.app import get_all_workers_in_experiment
 from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import logger
@@ -709,7 +709,7 @@ def get_camera_worker_response(
 
 @api_bp.route("/experiments/<experiment>/cameras", methods=["GET"])
 def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
-    task = fanout.broadcast_get_across_workers_ever_assigned_to_experiment(
+    task = fanout.broadcast_get_across_existing_workers_ever_assigned_to_experiment(
         f"/unit_api/camera/experiments/{experiment}/status",
         experiment=experiment,
         timeout=5,
@@ -3303,7 +3303,7 @@ def export_exportable_datasets() -> ResponseReturnValue:
     body = decode_request_body(structs.ExportDatasetsRequest)
 
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
-    filename = f"export_{timestamp}.zip"
+    filename = f"export_{secure_filename(body.experiment) or 'experiment'}_{timestamp}.zip"
 
     filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
     task = tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
@@ -3343,7 +3343,7 @@ def export_exportable_datasets_to_usb() -> ResponseReturnValue:
     body = decode_request_body(structs.ExportDatasetsRequest)
 
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
-    filename = f"export_{timestamp}.zip"
+    filename = f"export_{secure_filename(body.experiment) or 'experiment'}_{timestamp}.zip"
 
     task = tasks.export_experiment_data_to_usb_task(
         body.experiment,
@@ -3452,7 +3452,7 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
             remediation="List experiments and choose a valid experiment name.",
         )
 
-    workers = get_all_workers_ever_assigned_to_experiment(experiment)
+    workers = get_all_existing_workers_ever_assigned_to_experiment(experiment)
     fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
     task = tasks.delete_experiment_task(experiment, workers)
     return create_task_response(task)

@@ -1,1 +1,0 @@
-import{j as e,Q as i}from"./index-2AUykdAo.js";function s(n){const t=n.title;return e.jsx(i,{title:t,placement:"top-start",children:e.jsx("span",{className:t?"underlineSpan":"",children:n.children})})}export{s as U};
