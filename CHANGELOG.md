@@ -6,7 +6,7 @@
 
 #### Enhancements
 
- - lots of minor performance improvements
+ - Lots of minor performance improvements
  - Added experimental camera support for Raspberry Pi and V4L2/USB cameras. The UI can take manual or scheduled snapshots, show live snapshot status, browse, download, and delete experiment history, toggle automatic captures per Pioreactor, and guide users through manual focus. Manual captures are also available with `pio run camera_snapshot`. Camera pages are disabled by default; enable and configure them in the shared `config.ini`:
 
    ```ini
@@ -14,7 +14,7 @@
    enabled=1
    snapshot_interval_minutes=5
    keep_camera_active=0
-   ir_led_intensity=80
+   ir_led_intensity=25
    capture_backend=rpicam
    camera_index=0
    device_path=/dev/video0
