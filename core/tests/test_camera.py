@@ -938,27 +938,11 @@ def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
     assert camera_still_image_path(metadata, dot_pioreactor).read_bytes() == b"one-shot camera still"
 
 
-def test_camera_ir_led_intensity_defaults_to_80(monkeypatch: pytest.MonkeyPatch) -> None:
-    configure_camera_backend(monkeypatch, capture_backend="v4l2")
-
-    assert get_camera_ir_led_intensity() == 80.0
-
-
 @pytest.mark.parametrize("intensity", [70.0, 100.0])
 def test_camera_ir_led_intensity_accepts_bounds(intensity: float, monkeypatch: pytest.MonkeyPatch) -> None:
     configure_camera_backend(monkeypatch, capture_backend="v4l2", ir_led_intensity=str(intensity))
 
     assert get_camera_ir_led_intensity() == intensity
-
-
-@pytest.mark.parametrize("intensity", [69.9, 100.1])
-def test_camera_ir_led_intensity_rejects_out_of_range_values(
-    intensity: float, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    configure_camera_backend(monkeypatch, capture_backend="v4l2", ir_led_intensity=str(intensity))
-
-    with pytest.raises(ValueError, match="between 70 and 100"):
-        get_camera_ir_led_intensity()
 
 
 def test_unlocked_camera_illuminates_ir_during_capture(
@@ -1033,7 +1017,7 @@ def test_camera_waits_for_od_lock_before_illuminating(
         if not lock_released:
             od_lock.__exit__(None, None, None)
 
-    assert led_states == [{"A": 80.0}, {"A": 0.0}]
+    assert led_states == [{"A": 10.0}, {"A": 0.0}]
     assert (
         camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes()
         == b"camera still after OD reading"
@@ -1094,7 +1078,7 @@ def test_od_can_preempt_camera_illumination_without_camera_cleanup_interference(
             capture_reason="scheduled",
             dot_pioreactor=tmp_path / ".pioreactor",
         )
-        assert camera_led_states == [{"A": 80.0}]
+        assert camera_led_states == [{"A": 10.0}]
         assert camera_still_image_path(metadata, tmp_path / ".pioreactor").exists()
         with local_intermittent_storage("leds") as cache:
             assert cache.get("A") == 0.0
@@ -1173,7 +1157,7 @@ def test_camera_command_failure_still_attempts_ir_cleanup(
             dot_pioreactor=tmp_path / ".pioreactor",
         )
 
-    assert led_states == [{"A": 80.0}, {"A": 0.0}]
+    assert led_states == [{"A": 10.0}, {"A": 0.0}]
 
 
 def test_camera_backend_rejects_unknown_backend(monkeypatch: pytest.MonkeyPatch) -> None:

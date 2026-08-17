@@ -93,7 +93,6 @@ FanoutResult = dict[str, Any]
 # Registry of calibration action -> handler that returns a Huey task, label, and normalizer.
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
 MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
-CAMERA_OD_ALIGNMENT_TIMEOUT_SECONDS = 10.0
 periodic_task = getattr(huey, "periodic_task")
 on_shutdown = getattr(huey, "on_shutdown")
 crontab = getattr(huey_api, "crontab")
