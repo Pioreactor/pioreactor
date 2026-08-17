@@ -10,6 +10,7 @@ from contextlib import nullcontext
 from datetime import datetime
 from datetime import UTC
 from pathlib import Path
+from typing import Literal
 from unittest.mock import MagicMock
 
 import pytest
@@ -47,8 +48,10 @@ from pioreactor.camera import start_camera_warmer
 from pioreactor.camera import stop_camera_warmer
 from pioreactor.camera import store_camera_still
 from pioreactor.config import ConfigParserMod
+from pioreactor.states import JobState
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.job_manager import JobManager
 
 
 def write_source_image(path: Path, contents: bytes = b"fake jpeg") -> None:
@@ -976,6 +979,126 @@ def test_unlocked_camera_illuminates_ir_during_capture(
 
     assert led_states == [{"A": 80.0}, {"A": 0.0}]
     assert camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"camera still"
+
+
+@pytest.mark.parametrize(
+    ("initial_od_state", "od_event_kind", "capture_reason", "capture_experiment"),
+    [
+        (JobState.READY, "ods", "scheduled", "experiment-a"),
+        (JobState.READY, "sleeping", "manual", None),
+        (JobState.SLEEPING, None, "scheduled", "experiment-a"),
+    ],
+)
+def test_camera_aligns_capture_after_od_when_applicable(
+    initial_od_state: JobState,
+    od_event_kind: Literal["ods", "sleeping"] | None,
+    capture_reason: Literal["scheduled", "manual"],
+    capture_experiment: str | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pioreactor import camera
+
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/fswebcam")
+    events: list[str] = []
+
+    with JobManager() as job_manager:
+        od_job_id = job_manager.register_and_set_running(
+            unit="unit-a",
+            experiment="experiment-a",
+            job_name="od_reading",
+            job_source="test",
+            pid=1,
+            leader="unit-a",
+            is_long_running_job=True,
+        )
+        job_manager.upsert_setting(od_job_id, "$state", initial_od_state)
+        job_manager.upsert_setting(od_job_id, "interval", 30.0)
+
+    def observe_od_reading_or_state_change(
+        topics: list[str], *, timeout: float, allow_retained: bool, name: str
+    ) -> MagicMock:
+        if od_event_kind is None:
+            pytest.fail("sleeping OD must not delay the camera")
+        assert topics == [
+            "pioreactor/unit-a/experiment-a/od_reading/ods",
+            "pioreactor/unit-a/experiment-a/od_reading/$state",
+        ]
+        assert 34.0 < timeout <= 35.0
+        assert allow_retained is False
+        assert name == "camera"
+        events.append("od_event")
+        if od_event_kind == "ods":
+            return MagicMock(topic=topics[0], payload=b"fresh OD reading")
+        return MagicMock(topic=topics[1], payload=JobState.SLEEPING.value.encode())
+
+    def set_leds(desired_state: dict[str, float], **_kwargs: object) -> bool:
+        events.append(f"led:{desired_state['A']:g}")
+        return True
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        events.append("camera")
+        Path(command[-1]).write_bytes(b"camera still")
+
+    monkeypatch.setattr(camera, "subscribe", observe_od_reading_or_state_change)
+    monkeypatch.setattr(camera, "led_intensity", set_leds)
+    monkeypatch.setattr(camera.subprocess, "run", capture)
+
+    metadata = capture_camera_still(
+        "unit-a",
+        experiment=capture_experiment,
+        capture_reason=capture_reason,
+        dot_pioreactor=tmp_path / ".pioreactor",
+    )
+
+    expected_events = ["led:10", "camera", "led:0"]
+    if od_event_kind is not None:
+        expected_events.insert(0, "od_event")
+    assert events == expected_events
+    assert camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"camera still"
+
+
+def test_camera_fails_if_ready_od_reading_does_not_publish(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    configure_camera_backend(monkeypatch, capture_backend="v4l2", device_path="/dev/video0")
+    monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/fswebcam")
+
+    with JobManager() as job_manager:
+        od_job_id = job_manager.register_and_set_running(
+            unit="unit-a",
+            experiment="experiment-a",
+            job_name="od_reading",
+            job_source="test",
+            pid=1,
+            leader="unit-a",
+            is_long_running_job=True,
+        )
+        job_manager.upsert_setting(od_job_id, "$state", JobState.READY)
+        job_manager.upsert_setting(od_job_id, "interval", 5.0)
+
+    monkeypatch.setattr(camera, "subscribe", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        camera,
+        "led_intensity",
+        lambda *_args, **_kwargs: pytest.fail("camera must not illuminate without OD alignment"),
+    )
+    monkeypatch.setattr(
+        camera.subprocess,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("camera must not capture without OD alignment"),
+    )
+
+    with pytest.raises(CameraCaptureError, match="timed out waiting for a fresh OD reading"):
+        capture_camera_still(
+            "unit-a",
+            experiment="experiment-a",
+            capture_reason="scheduled",
+            dot_pioreactor=tmp_path / ".pioreactor",
+        )
 
 
 def test_camera_waits_for_od_lock_before_illuminating(
