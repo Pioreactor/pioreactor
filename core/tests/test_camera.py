@@ -137,6 +137,7 @@ def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure(tmp_path: 
     assert "--shutter" not in arguments
     assert "--gain" not in arguments
     assert arguments[arguments.index("--metering") + 1] == "spot"
+    assert arguments[arguments.index("--quality") + 1] == "75"
 
     tuning_file = Path(arguments[arguments.index("--tuning-file") + 1])
     tuning = json_decode(tuning_file.read_bytes())

@@ -215,7 +215,7 @@ def get_rpicam_still_arguments(
         "--denoise",
         "cdn_hq",
         "--quality",
-        "95",
+        "75",
     ]
 
 
