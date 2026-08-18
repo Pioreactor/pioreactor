@@ -245,24 +245,6 @@ def _read_mem_available_bytes(meminfo_path: Path = Path("/proc/meminfo")) -> int
     return None
 
 
-def _deduplicate_existing_paths(paths: Sequence[Path]) -> list[Path]:
-    deduplicated_paths: list[Path] = []
-    seen: set[Path] = set()
-
-    for path in paths:
-        if path.exists():
-            resolved_path = path.resolve()
-        else:
-            resolved_path = path.absolute()
-
-        if resolved_path in seen:
-            continue
-        seen.add(resolved_path)
-        deduplicated_paths.append(path)
-
-    return deduplicated_paths
-
-
 def _get_sqlite_temp_directory() -> Path:
     # Keep this in SQLite's Unix temp-directory search order. We intentionally
     # do not mutate SQLite's deprecated process-global temp directory at runtime.
@@ -295,7 +277,7 @@ def _check_export_resources(output_path: Path, database_path: Path) -> None:
             f"Export stopped because available memory is low. {required_mb} MB required, {available_mb} MB available."
         )
 
-    for path in _deduplicate_existing_paths([output_path.parent, _get_sqlite_temp_directory()]):
+    for path in [output_path.parent, _get_sqlite_temp_directory()]:
         free_bytes = shutil.disk_usage(path).free
         if free_bytes < MINIMUM_EXPORT_FREE_BYTES:
             free_mb = free_bytes // (1024 * 1024)
