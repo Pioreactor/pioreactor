@@ -9,6 +9,7 @@ User=pioreactor
 ExecStart=/opt/pioreactor/venv/bin/pio run %I
 Restart=on-failure
 EnvironmentFile=/etc/pioreactor.env
+Environment="JOB_SOURCE=system"
 
 [Install]
 WantedBy=multi-user.target

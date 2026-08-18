@@ -286,7 +286,7 @@ class JobManager:
 
     def list_job_history(
         self, running_only: bool = False
-    ) -> list[tuple[int, str, str, str | None, str, str, str | None]]:
+    ) -> list[tuple[int, str, str, str | None, str, str, str | None, int]]:
         where_clause = "WHERE ended_at IS NULL" if running_only else ""
         select_query = f"""
             SELECT
@@ -296,7 +296,8 @@ class JobManager:
                 job_source,
                 unit,
                 started_at,
-                ended_at
+                ended_at,
+                pid
             FROM pio_job_metadata
             {where_clause}
             ORDER BY started_at DESC

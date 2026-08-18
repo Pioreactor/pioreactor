@@ -943,6 +943,7 @@ def _format_job_history_line(
     unit: str,
     started_at: str,
     ended_at: str | None,
+    pid: int,
 ) -> str:
     job_source_display = job_source or "unknown"
     ended_at_display = _format_timestamp_to_seconds(ended_at) or "still running"
@@ -954,7 +955,7 @@ def _format_job_history_line(
 
     return (
         f"{job_id_label} {job_name_label} "
-        f"experiment={experiment}, source={job_source_display}, "
+        f"experiment={experiment}, source={job_source_display}, pid={pid},"
         f"started_at={_format_timestamp_to_seconds(started_at)}, ended_at={ended_at_label}"
     )
 
@@ -1044,7 +1045,9 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
     ) = job
 
     click.echo(
-        _format_job_history_line(found_job_id, job_name, experiment, job_source, unit, started_at, ended_at)
+        _format_job_history_line(
+            found_job_id, job_name, experiment, job_source, unit, started_at, ended_at, pid
+        )
     )
 
     status_label = (
