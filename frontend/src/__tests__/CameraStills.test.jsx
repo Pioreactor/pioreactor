@@ -104,20 +104,60 @@ describe("CameraStills", () => {
     expect(screen.getByRole("separator")).toBeInTheDocument();
   });
 
-  test("uses the native browser download path for all snapshots", async () => {
+  test("shows progress while downloading all snapshots", async () => {
+    const user = userEvent.setup();
+    const archive = new Blob(["camera archive"], { type: "application/zip" });
+    let finishDownload;
+    const createObjectURL = jest.fn(() => "blob:camera-snapshots");
+    const revokeObjectURL = jest.fn();
+    const clickDownloadLink = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    Object.defineProperty(window.URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(window.URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL,
+    });
+    global.fetch = jest.fn((url) => {
+      if (url.endsWith("stills.zip")) {
+        return new Promise((resolve) => {
+          finishDownload = () => resolve({
+            ok: true,
+            blob: () => Promise.resolve(archive),
+          });
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          snapshot_interval_minutes: 0,
+          stills: cameraStills,
+        }),
+      });
+    });
     renderCameraStills();
 
-    const downloadLink = await screen.findByRole("link", { name: "Download all" });
+    const downloadButton = await screen.findByRole("button", { name: "Download all" });
+    await user.click(downloadButton);
 
-    expect(downloadLink).toHaveAttribute(
-      "href",
+    expect(global.fetch).toHaveBeenLastCalledWith(
       "/api/workers/unit-1/camera/experiments/experiment%20a/stills.zip",
     );
-    expect(downloadLink).toHaveAttribute(
+    expect(downloadButton).toBeDisabled();
+    expect(within(downloadButton).getByRole("progressbar")).toBeInTheDocument();
+
+    finishDownload();
+
+    await waitFor(() => expect(downloadButton).not.toBeDisabled());
+    expect(createObjectURL).toHaveBeenCalledWith(archive);
+    expect(clickDownloadLink).toHaveBeenCalledTimes(1);
+    expect(clickDownloadLink.mock.instances[0]).toHaveAttribute(
       "download",
       "unit-1_experiment a_camera_snapshots.zip",
     );
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:camera-snapshots");
   });
 
   test("confirms and removes a deleted snapshot from the timeline", async () => {
