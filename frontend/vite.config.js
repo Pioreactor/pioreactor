@@ -60,5 +60,18 @@ export default defineConfig(({ command }) => ({
   build: {
     assetsDir: "static",
     outDir: "build",
+    rollupOptions: {
+      onwarn(warning, defaultHandler) {
+        const source = warning.id?.replaceAll("\\", "/");
+        const isKnownLegacyChartEval =
+          warning.code === "EVAL" &&
+          (source?.endsWith("/src/ExperimentOverview.jsx") ||
+            source?.endsWith("/src/Pioreactor.jsx"));
+
+        if (!isKnownLegacyChartEval) {
+          defaultHandler(warning);
+        }
+      },
+    },
   },
 }));

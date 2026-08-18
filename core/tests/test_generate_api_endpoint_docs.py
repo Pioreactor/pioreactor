@@ -14,6 +14,8 @@ SPEC.loader.exec_module(generate_api_endpoint_docs)
 parse_routes = generate_api_endpoint_docs.parse_routes
 request_body_example = generate_api_endpoint_docs.request_body_example
 render_markdown = generate_api_endpoint_docs.render_markdown
+path_param_example = generate_api_endpoint_docs.path_param_example
+LiveSampler = generate_api_endpoint_docs.LiveSampler
 
 
 def get_route(method: str, route: str) -> Any:
@@ -165,3 +167,26 @@ def test_endpoint_index_links_handler_to_github_source_line() -> None:
         f"(https://github.com/Pioreactor/pioreactor/blob/master/"
         f"core/pioreactor/web/api.py#L{route.lineno})"
     ) in markdown
+
+
+def test_endpoint_index_links_path_to_endpoint_description() -> None:
+    source_path = REPO_ROOT / "core/pioreactor/web/api.py"
+    route = get_leader_route("GET", "/api/automations/descriptors/<automation_type>")
+
+    markdown = render_markdown(
+        "Pioreactor Leader API",
+        source_path,
+        [route],
+        None,
+        "/api",
+    )
+
+    anchor = "endpoint-get-api-automations-descriptors-automation-type"
+    assert f"[`/api/automations/descriptors/{{automation_type}}`](#{anchor})" in markdown
+    assert f"## Get Automation Descriptors {{#{anchor}}}" in markdown
+
+
+def test_live_sampler_uses_localhost_for_unit_path_parameters() -> None:
+    sampler = LiveSampler("http://127.0.0.1:4999")
+
+    assert path_param_example("pioreactor_unit", sampler) == "localhost"

@@ -144,7 +144,6 @@ class LiveSampler:
     def __init__(self, base_url: str, timeout_seconds: float = 1.5) -> None:
         self.base_url = base_url
         self.timeout_seconds = timeout_seconds
-        self.workers: list[str] = []
         self.experiments: list[str] = []
 
 
@@ -720,6 +719,10 @@ def render_markdown(
     url_prefix: str,
 ) -> str:
     relative_source_path = source_path.relative_to(REPO_ROOT).as_posix()
+    route_anchors = [
+        "endpoint-" + re.sub(r"[^a-z0-9]+", "-", f"{route.method}-{route.route}".lower()).strip("-")
+        for route in routes
+    ]
     lines = frontmatter_and_conventions(url_prefix)
     lines.extend(
         [
@@ -737,16 +740,16 @@ def render_markdown(
             "| ------ | ---- | ------- |",
         ]
     )
-    for route in routes:
+    for route, anchor in zip(routes, route_anchors, strict=True):
         source_url = f"{GITHUB_SOURCE_BASE_URL}/{relative_source_path}#L{route.lineno}"
         lines.append(
-            f"| `{route.method}` | `{flask_route_to_docs_route(route.route)}` "
+            f"| `{route.method}` | [`{flask_route_to_docs_route(route.route)}`](#{anchor}) "
             f"| [`{route.function_name}`]({source_url}) |"
         )
     lines.append("")
 
-    for route in routes:
-        lines.extend(render_route(route, sampler))
+    for route, anchor in zip(routes, route_anchors, strict=True):
+        lines.extend(render_route(route, sampler, anchor))
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -818,10 +821,10 @@ def frontmatter_and_conventions(url_prefix: str) -> list[str]:
     return []
 
 
-def render_route(route: RouteInfo, sampler: LiveSampler | None) -> list[str]:
+def render_route(route: RouteInfo, sampler: LiveSampler | None, anchor: str) -> list[str]:
     title = humanize_function_name(route.function_name)
     lines = [
-        f"## {title}",
+        f"## {title} {{#{anchor}}}",
         "",
         route_description(route, title),
         "",
@@ -1205,14 +1208,6 @@ def build_live_sampler(base_url: str, timeout_seconds: float) -> LiveSampler | N
     if fetch_json(sampler, "/api/health") is None and fetch_json(sampler, "/unit_api/health") is None:
         return None
 
-    workers = fetch_json(sampler, "/api/workers")
-    if isinstance(workers, list):
-        sampler.workers = [
-            row["pioreactor_unit"]
-            for row in workers
-            if isinstance(row, dict) and isinstance(row.get("pioreactor_unit"), str)
-        ]
-
     latest_experiment = fetch_json(sampler, "/api/experiments/latest")
     if isinstance(latest_experiment, dict) and isinstance(latest_experiment.get("experiment"), str):
         sampler.experiments = [latest_experiment["experiment"]]
@@ -1277,8 +1272,8 @@ def route_with_examples(route: str, sampler: LiveSampler) -> str:
 
 
 def path_param_example(name: str, sampler: LiveSampler) -> str:
-    if name == "pioreactor_unit" and sampler.workers:
-        return sampler.workers[0]
+    if name == "pioreactor_unit":
+        return "localhost"
     if name == "experiment" and sampler.experiments:
         return sampler.experiments[0]
     return PATH_PARAM_EXAMPLES.get(name, f"example_{name}")
