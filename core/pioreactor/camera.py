@@ -811,6 +811,7 @@ def capture_camera_still(
     *,
     experiment: pt.Experiment | None,
     capture_reason: CameraCaptureReason,
+    image_id: str | None = None,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
 ) -> CameraStillMetadata:
@@ -826,6 +827,7 @@ def capture_camera_still(
             unit,
             experiment=experiment,
             capture_reason=capture_reason,
+            image_id=image_id,
             dot_pioreactor=dot_pioreactor,
         )
 

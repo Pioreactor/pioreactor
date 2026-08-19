@@ -1142,11 +1142,18 @@ def test_camera_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
         captured_at=datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
         image_id="image-a",
     )
-    monkeypatch.setattr(camera_snapshot, "camera_snapshot", lambda: metadata)
+    supplied_names: list[str | None] = []
 
-    result = CliRunner().invoke(pio, ["run", "camera_snapshot"])
+    def capture(name: str | None) -> CameraStillMetadata:
+        supplied_names.append(name)
+        return metadata
+
+    monkeypatch.setattr(camera_snapshot, "camera_snapshot", capture)
+
+    result = CliRunner().invoke(pio, ["run", "camera_snapshot", "--name", "inoculation"])
 
     assert result.exit_code == 0
+    assert supplied_names == ["inoculation"]
     expected_path = camera_snapshot.camera_still_image_path(metadata)
     assert result.output == f"Captured camera snapshot image-a, at {expected_path}\n"
 
@@ -1155,7 +1162,7 @@ def test_camera_snapshot_reports_capture_error(monkeypatch: pytest.MonkeyPatch) 
     from pioreactor.actions import camera_snapshot
     from pioreactor.camera import CameraUnavailableError
 
-    def raise_camera_unavailable() -> None:
+    def raise_camera_unavailable(name: str | None) -> None:
         raise CameraUnavailableError("No camera detected.")
 
     monkeypatch.setattr(camera_snapshot, "camera_snapshot", raise_camera_unavailable)
