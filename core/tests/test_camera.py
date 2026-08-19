@@ -1053,7 +1053,7 @@ def test_camera_aligns_capture_after_od_when_applicable(
         dot_pioreactor=tmp_path / ".pioreactor",
     )
 
-    expected_events = ["led:10", "camera", "led:0"]
+    expected_events = ["led:25", "camera", "led:0"]
     if od_event_kind is not None:
         expected_events.insert(0, "od_event")
     assert events == expected_events
@@ -1141,7 +1141,7 @@ def test_camera_waits_for_od_lock_before_illuminating(
         if not lock_released:
             od_lock.__exit__(None, None, None)
 
-    assert led_states == [{"A": 10.0}, {"A": 0.0}]
+    assert led_states == [{"A": 25.0}, {"A": 0.0}]
     assert (
         camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes()
         == b"camera still after OD reading"
@@ -1202,7 +1202,7 @@ def test_od_can_preempt_camera_illumination_without_camera_cleanup_interference(
             capture_reason="scheduled",
             dot_pioreactor=tmp_path / ".pioreactor",
         )
-        assert camera_led_states == [{"A": 10.0}]
+        assert camera_led_states == [{"A": 25.0}]
         assert camera_still_image_path(metadata, tmp_path / ".pioreactor").exists()
         with local_intermittent_storage("leds") as cache:
             assert cache.get("A") == 0.0
@@ -1281,7 +1281,7 @@ def test_camera_command_failure_still_attempts_ir_cleanup(
             dot_pioreactor=tmp_path / ".pioreactor",
         )
 
-    assert led_states == [{"A": 10.0}, {"A": 0.0}]
+    assert led_states == [{"A": 25.0}, {"A": 0.0}]
 
 
 def test_camera_backend_rejects_unknown_backend(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1147,7 +1147,8 @@ def test_camera_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
     result = CliRunner().invoke(pio, ["run", "camera_snapshot"])
 
     assert result.exit_code == 0
-    assert result.output == "Captured camera snapshot image-a.\n"
+    expected_path = camera_snapshot.camera_still_image_path(metadata)
+    assert result.output == f"Captured camera snapshot image-a, at {expected_path}\n"
 
 
 def test_camera_snapshot_reports_capture_error(monkeypatch: pytest.MonkeyPatch) -> None:
