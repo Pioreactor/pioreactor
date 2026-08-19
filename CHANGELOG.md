@@ -3,6 +3,12 @@
 #### Enhancements
 
  - Added `pioreactor.paths` with `get_dot_pioreactor_path()`, `get_run_pioreactor_path()`, and `get_pio_venv_path()` so core jobs, plugins, exports, and update commands consistently respect customized `DOT_PIOREACTOR`, `RUN_PIOREACTOR`, and `PIO_VENV` locations.
+ - Reduced Raspberry Pi camera snapshot file sizes and storage I/O by lowering JPEG quality from 95 to 75 while preserving image dimensions.
+ - Better UX for populating an experiment from a previous experiment.
+
+#### Bug fixes
+
+ - Fix "All-time" time selector on the UI.
 
 
 ### 26.8.0

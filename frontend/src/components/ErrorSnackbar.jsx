@@ -6,7 +6,9 @@ import { useSnackbar } from "notistack";
 import { Link as RouterLink } from 'react-router';
 import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
-import { Box } from "@mui/material";
+import { Box, Chip } from "@mui/material";
+import PioreactorIcon from "./PioreactorIcon";
+import PioreactorsIcon from "./PioreactorsIcon";
 
 const HEAD_LINE_COUNT = 2;
 const TAIL_LINE_COUNT = 5;
@@ -68,18 +70,18 @@ function formatLogMessage(msg) {
   return [...head, "...", ...tail].join("\n");
 }
 
-function getAlertTitle(taskName, alertLevel, unitName) {
-  if (!taskName || !alertLevel || !unitName) return "";
+function getAlertTitle(taskName, alertLevel) {
+  if (!taskName || !alertLevel) return "";
 
   switch (alertLevel) {
     case "ERROR":
-      return `${taskName} failed in ${unitName}`;
+      return `${taskName} failed in`;
     case "WARNING":
-      return `${taskName} needs attention in ${unitName}`;
+      return `${taskName} needs attention in`;
     case "SUCCESS":
-      return `${taskName} update in ${unitName}`;
+      return `${taskName} update in`;
     default:
-      return `${taskName} update in ${unitName}`;
+      return `${taskName} update in`;
   }
 }
 
@@ -104,6 +106,8 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
   closeSnackbar,
   alertLevel,
   alertTitle,
+  unit,
+  displayUnit,
   formattedMessage,
   showLogsHelper,
   logsRoute,
@@ -125,7 +129,18 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
         severity={alertLevel.toLowerCase()}
         onClose={() => closeSnackbar(snackbarKey)}
       >
-        <AlertTitle sx={{fontSize: 15}}>{alertTitle}</AlertTitle>
+        <AlertTitle sx={{fontSize: 15}}>
+          {alertTitle}{" "}
+          <Chip
+            size="small"
+            icon={unit === "$broadcast" ? <PioreactorsIcon /> : <PioreactorIcon />}
+            label={displayUnit}
+            clickable
+            component={RouterLink}
+            to={unit === "$broadcast" ? "/pioreactors" : `/pioreactors/${unit}`}
+            {...(unit === "$broadcast" ? {} : { "data-pioreactor-unit": unit })}
+          />
+        </AlertTitle>
         <Box component="span"
           sx={{
             whiteSpace: "pre-wrap",
@@ -209,7 +224,7 @@ function ErrorSnackbar() {
     const showLogsHelper = ["ERROR", "WARNING"].includes(alertLevel);
     const logsRoute = getLogsRoute(unit, experiment);
     const logsLabel = experiment === "$experiment" ? "View system logs" : "View experiment logs";
-    const alertTitle = getAlertTitle(task, alertLevel, displayUnit);
+    const alertTitle = getAlertTitle(task, alertLevel);
 
     if (previousAlert) {
       if (previousAlert.timeoutId !== null) {
@@ -232,6 +247,8 @@ function ErrorSnackbar() {
           closeSnackbar={closeSnackbar}
           alertLevel={alertLevel}
           alertTitle={alertTitle}
+          unit={unit}
+          displayUnit={displayUnit}
           formattedMessage={formattedMessage}
           showLogsHelper={showLogsHelper}
           logsRoute={logsRoute}

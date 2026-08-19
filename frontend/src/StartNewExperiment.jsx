@@ -8,13 +8,17 @@ import FormGroup from '@mui/material/FormGroup';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
 import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import {useNavigate } from 'react-router';
 import SaveIcon from '@mui/icons-material/Save';
-import RestoreIcon from '@mui/icons-material/Restore';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { useExperiment } from './providers/ExperimentContext';
+import SelectButton from './components/SelectButton';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -57,7 +61,7 @@ function ExperimentSummaryForm(props) {
   const [description, setDescription] = React.useState("");
   const [tags, setTags] = React.useState([]);
   const [tagInputValue, setTagInputValue] = React.useState("");
-  const [lastPopulatedExperimentIndex, setLastPopulatedExperimentIndex] = React.useState(-1);
+  const [selectedPopulateExperimentName, setSelectedPopulateExperimentName] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const historicalExperimentList = allExperiments;
   const historicalExperiments = React.useMemo(
@@ -77,25 +81,22 @@ function ExperimentSummaryForm(props) {
   const hasInvalidCharacters = /[#$%+\/?\\]/.test(trimmedExpName);
   const nameAlreadyUsed = trimmedExpName in historicalExperiments;
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
+  const populateExperimentName = selectedPopulateExperimentName || historicalExperimentList[0]?.experiment || "";
 
 
-  function populateFields(){
-    if (historicalExperimentList.length === 0) {
+  function populateFields(experimentName){
+    const experimentToPopulate = historicalExperimentList.find(
+      ({experiment}) => experiment === experimentName,
+    );
+
+    if (!experimentToPopulate) {
       return;
     }
-
-    const currentExperimentIndex = historicalExperimentList.findIndex(({experiment}) => experiment === expName);
-    const proposedExperimentIndex = currentExperimentIndex === -1
-      ? lastPopulatedExperimentIndex + 1
-      : currentExperimentIndex + 1;
-    const nextExperimentIndex = Math.min(proposedExperimentIndex, historicalExperimentList.length - 1);
-    const experimentToPopulate = historicalExperimentList[nextExperimentIndex];
 
     setExpName(experimentToPopulate.experiment)
     setDescription(experimentToPopulate.description ?? "")
     setTags(Array.isArray(experimentToPopulate.tags) ? experimentToPopulate.tags : [])
     setTagInputValue("")
-    setLastPopulatedExperimentIndex(historicalExperimentList.indexOf(experimentToPopulate))
   }
 
 
@@ -287,7 +288,38 @@ function ExperimentSummaryForm(props) {
               md: 8
             }}>
             <Box sx={{display: "flex", justifyContent: "flex-end"}}>
-              <Button sx={{mr: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}> <RestoreIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> Populate from previous experiment</Button>
+              {historicalExperimentList.length > 0 && (
+                <Box sx={{mr: 1}}>
+                  <SelectButton
+                    variant="text"
+                    color="primary"
+                    value={populateExperimentName}
+                    textPrefix={(
+                      <React.Fragment>
+                        <ContentCopyIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}} />
+                        {"Populate from "}
+                      </React.Fragment>
+                    )}
+                    renderValue={(experiment) => (
+                      <Chip
+                        component="span"
+                        size="small"
+                        icon={<PlayCircleOutlinedIcon />}
+                        label={experiment}
+                        data-experiment-name={experiment}
+                        sx={{ml: 0.5, pointerEvents: "none"}}
+                      />
+                    )}
+                    menuButtonAriaLabel="Choose a previous experiment"
+                    onChange={({target: {value}}) => setSelectedPopulateExperimentName(value)}
+                    onClick={({target: {value}}) => populateFields(value)}
+                  >
+                    {historicalExperimentList.map(({experiment}) => (
+                      <MenuItem key={experiment} value={experiment}>{experiment}</MenuItem>
+                    ))}
+                  </SelectButton>
+                </Box>
+              )}
               <Button
                 color="primary"
                 variant="contained"

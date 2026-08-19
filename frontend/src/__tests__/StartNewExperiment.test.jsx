@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
 jest.mock("../providers/ExperimentContext", () => ({
@@ -49,7 +49,7 @@ describe("Start new experiment", () => {
     jest.resetAllMocks();
   });
 
-  test("repeated populate clicks walk backward through previous experiments", async () => {
+  test("populates fields from the latest experiment", async () => {
     render(
       <MemoryRouter>
         <StartNewExperiment title="Pioreactor ~ Start new experiment" />
@@ -57,8 +57,13 @@ describe("Start new experiment", () => {
     );
 
     const populateButton = await screen.findByRole("button", {
-      name: "Populate from previous experiment",
+      name: "Populate from latest-exp",
     });
+    expect(within(populateButton).getByTestId("PlayCircleOutlinedIcon")).toBeTruthy();
+    expect(within(populateButton).getByText("latest-exp").closest("[data-experiment-name]")).toHaveAttribute(
+      "data-experiment-name",
+      "latest-exp",
+    );
     const experimentNameInput = screen.getByRole("textbox", { name: /Experiment name/ });
     const descriptionInput = screen.getByRole("textbox", {
       name: "Description (optional - can be edited later)",
@@ -68,21 +73,30 @@ describe("Start new experiment", () => {
     expect(experimentNameInput).toHaveValue("latest-exp");
     expect(descriptionInput).toHaveValue("Latest description");
     expect(screen.getByText("latest-tag")).toBeTruthy();
+  });
 
-    fireEvent.click(populateButton);
+  test("allows choosing which previous experiment to populate from", async () => {
+    render(
+      <MemoryRouter>
+        <StartNewExperiment title="Pioreactor ~ Start new experiment" />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", {name: "Choose a previous experiment"}));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByText("Search all experiments…")).toBeNull();
+    fireEvent.click(within(menu).getByRole("option", {name: /second-exp/}));
+
+    const populateButton = screen.getByRole("button", {name: "Populate from second-exp"});
+    fireEvent.click(within(populateButton).getByText("second-exp"));
+    const experimentNameInput = screen.getByRole("textbox", { name: /Experiment name/ });
+    const descriptionInput = screen.getByRole("textbox", {
+      name: "Description (optional - can be edited later)",
+    });
     expect(experimentNameInput).toHaveValue("second-exp");
     expect(descriptionInput).toHaveValue("Second description");
     expect(screen.getByText("second-tag")).toBeTruthy();
-
-    fireEvent.click(populateButton);
-    expect(experimentNameInput).toHaveValue("third-exp");
-    expect(descriptionInput).toHaveValue("");
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(screen.getByText("third-tag")).toBeTruthy();
-
-    fireEvent.click(populateButton);
-    expect(experimentNameInput).toHaveValue("third-exp");
-    expect(descriptionInput).toHaveValue("");
   });
 
 });

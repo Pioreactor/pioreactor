@@ -8,8 +8,25 @@ import CheckIcon from '@mui/icons-material/Check';
 import Icon from '@mui/material/Icon';
 
 const SelectButton = React.forwardRef((props, _ref) => {
-  const { textPrefix, onChange = () => {}, onClick = () => {}, value: initialValue, children, buttonStyle, disabled, endIcon, loading, loadingPosition } = props;
+  const {
+    textPrefix,
+    onChange = () => {},
+    onClick = () => {},
+    value: initialValue,
+    children,
+    buttonStyle,
+    disabled,
+    endIcon,
+    loading,
+    loadingPosition,
+    variant = 'contained',
+    color = 'primary',
+    menuButtonAriaLabel = 'Choose another option',
+    renderValue,
+  } = props;
   const anchorRef = React.useRef(null);
+  const menuButtonId = React.useId();
+  const menuId = `${menuButtonId}-menu`;
   const [isOpen, setOpen] = React.useState(false);
   const valueRef = React.useRef(initialValue);
 
@@ -65,7 +82,7 @@ const SelectButton = React.forwardRef((props, _ref) => {
   };
 
   return <>
-    <ButtonGroup variant='contained' ref={anchorRef}>
+    <ButtonGroup variant={variant} color={color} ref={anchorRef}>
       <Button
         onClick={handleButtonClick}
         endIcon={endIcon}
@@ -81,13 +98,18 @@ const SelectButton = React.forwardRef((props, _ref) => {
           }
         }}
       >
-        {textPrefix}{displayName(valueRef.current)}
+        {textPrefix}
+        {renderValue ? renderValue(valueRef.current) : displayName(valueRef.current)}
       </Button>
       <Button
+        id={menuButtonId}
         size='small'
         onClick={() => setOpen(true)}
         disabled={disabled}
-        role="button"
+        aria-label={menuButtonAriaLabel}
+        aria-controls={isOpen ? menuId : undefined}
+        aria-expanded={isOpen ? 'true' : undefined}
+        aria-haspopup="menu"
         sx={{
           textTransform: 'none',
           p: 0,
@@ -102,12 +124,13 @@ const SelectButton = React.forwardRef((props, _ref) => {
       </Button>
     </ButtonGroup>
     <Menu
+      id={menuId}
       open={isOpen}
       onClose={() => setOpen(false)}
-      getContentAnchorEl={null}
       anchorEl={anchorRef.current}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      slotProps={{ list: { 'aria-labelledby': menuButtonId } }}
     >
       {items}
     </Menu>

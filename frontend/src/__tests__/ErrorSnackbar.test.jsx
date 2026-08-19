@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 
 global.TextEncoder = TextEncoder;
@@ -116,6 +116,13 @@ describe("ErrorSnackbar", () => {
       "href",
       "/logs/xr1",
     );
+    const unitLink = screen.getByRole("link", { name: "xr1" });
+    expect(unitLink).toHaveAttribute(
+      "href",
+      "/pioreactors/xr1",
+    );
+    fireEvent.click(unitLink);
+    expect(mockCloseSnackbar).not.toHaveBeenCalled();
   });
 
   test("links system log alerts to the unit-specific system logs page", () => {
@@ -153,7 +160,7 @@ describe("ErrorSnackbar", () => {
     expect(mockEnqueueSnackbar).toHaveBeenCalledTimes(1);
     expect(mockCloseSnackbar).not.toHaveBeenCalled();
     expect(screen.getByText(/Repeated 2x/)).toBeInTheDocument();
-    expect(screen.getByText(/experiment_profile\/1 failed in unit-1/)).not.toHaveTextContent("Repeated");
+    expect(screen.getByText("experiment_profile/1 failed in")).not.toHaveTextContent("Repeated");
 
     unmount();
   });

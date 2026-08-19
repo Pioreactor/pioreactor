@@ -104,7 +104,7 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 EXPERIMENT_TAG_SEPARATOR = "\x1f"
 STAGED_RELEASE_ARCHIVE_PREFIX = "pioreactor_update_archive_"
 MAX_RECENT_LOG_LINES = 100
-MAX_TIME_SERIES_LOOKBACK_HOURS = 24 * 365 * 100
+MAX_TIME_SERIES_LOOKBACK_HOURS = 1_000_000
 MAX_TIME_SERIES_TARGET_POINTS = 1_000_000
 
 TimeSeriesDataSource = t.Literal[
