@@ -20,6 +20,8 @@ from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import replace_or_append_config_entry
+from pioreactor.paths import get_dot_pioreactor_path
+from pioreactor.paths import get_pio_venv_path
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -107,8 +109,7 @@ def build_staged_release_archive_location(release_filename: str) -> str:
 
 
 def get_dot_pioreactor_root() -> Path:
-    configured_root = os.environ.get("DOT_PIOREACTOR", "/home/pioreactor/.pioreactor")
-    return Path(configured_root)
+    return get_dot_pioreactor_path()
 
 
 def get_expected_dot_pioreactor_uid_gid() -> tuple[int | None, int | None, str]:
@@ -377,6 +378,8 @@ def get_update_app_commands(
     from pioreactor.mureq import HTTPException
     from pioreactor.utils.networking import is_using_local_access_point
 
+    pio_venv_bin = get_pio_venv_path() / "bin"
+
     def get_install_extra_for_this_unit() -> str:
         if whoami.am_I_leader():
             return "leader_worker" if whoami.am_I_a_worker() else "leader"
@@ -426,7 +429,7 @@ def get_update_app_commands(
         release_commands.append(
             update_command(
                 [
-                    "/opt/pioreactor/venv/bin/pip",
+                    str(pio_venv_bin / "pip"),
                     "install",
                     "--no-index",
                     f"--find-links={tmp_rls_dir}/wheels/",
@@ -439,7 +442,7 @@ def get_update_app_commands(
         release_commands.append(
             update_command(
                 [
-                    "/opt/pioreactor/venv/bin/pio",
+                    str(pio_venv_bin / "pio"),
                     "repair",
                 ],
                 99,
@@ -479,7 +482,7 @@ def get_update_app_commands(
             commands_and_priority.append(
                 update_command(
                     [
-                        "/opt/pioreactor/venv/bin/pip",
+                        str(pio_venv_bin / "pip"),
                         "install",
                         "--force-reinstall",
                         "--no-index",
@@ -506,7 +509,7 @@ def get_update_app_commands(
         commands_and_priority.append(
             update_command(
                 [
-                    "/opt/pioreactor/venv/bin/pip",
+                    str(pio_venv_bin / "pip"),
                     "install",
                     "--force-reinstall",
                     *no_deps_args,

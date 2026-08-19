@@ -15,6 +15,7 @@ from msgspec.yaml import decode as yaml_decode
 from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.models import get_registered_models
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
 from pioreactor.version import tuple_to_text
@@ -94,7 +95,7 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
     Later layer (model) overrides earlier (hat). Files are optional; missing
     keys will be caught when materializing constants below.
     """
-    base = Path(environ["DOT_PIOREACTOR"]) / "hardware"
+    base = get_dot_pioreactor_path() / "hardware"
 
     if hardware_version_info is None:
         raise exc.HardwareNotFoundError("HAT not found")
@@ -120,7 +121,7 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
 
 def get_layered_mod_config_for_model(mod: str, model_name: str, model_version: str) -> dict[str, Any]:
     """Load one mod's YAML by layering hats -> provided model."""
-    base = Path(environ["DOT_PIOREACTOR"]) / "hardware"
+    base = get_dot_pioreactor_path() / "hardware"
 
     if hardware_version_info is None:
         raise exc.HardwareNotFoundError("HAT not found")

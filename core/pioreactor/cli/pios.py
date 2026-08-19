@@ -2,12 +2,10 @@
 """
 CLI for running the commands on workers, or otherwise interacting with the workers.
 """
-import os
 import re
 import typing as t
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 from shlex import quote
 from typing import Any
 
@@ -30,6 +28,7 @@ from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.utils.job_manager import ClusterJobManager
@@ -393,7 +392,7 @@ if am_I_leader() or is_testing_env():
         sql = "INSERT INTO config_files_histories(timestamp,filename,data) VALUES(?,?,?)"
 
         if shared:
-            with (Path(os.environ["DOT_PIOREACTOR"]) / "config.ini").open(encoding="utf-8") as f:
+            with (get_dot_pioreactor_path() / "config.ini").open(encoding="utf-8") as f:
                 cur.execute(sql, (timestamp, "config.ini", f.read()))
 
         conn.commit()
@@ -403,7 +402,7 @@ if am_I_leader() or is_testing_env():
         import sqlite3
 
         if unit == get_leader_hostname():
-            path = Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini"
+            path = get_dot_pioreactor_path() / "unit_config.ini"
             if path.exists():
                 contents = path.read_text(encoding="utf-8")
             else:
@@ -437,8 +436,8 @@ if am_I_leader() or is_testing_env():
         # move the global config.ini
         # there was a bug where if the leader == unit, the config.ini would get wiped
         if shared and unit != get_leader_hostname():
-            localpath = str(Path(os.environ["DOT_PIOREACTOR"]) / "config.ini")
-            remotepath = str(Path(os.environ["DOT_PIOREACTOR"]) / "config.ini")
+            localpath = str(get_dot_pioreactor_path() / "config.ini")
+            remotepath = str(get_dot_pioreactor_path() / "config.ini")
             cp_file_across_cluster(unit, localpath, remotepath, timeout=15)
 
         if specific:

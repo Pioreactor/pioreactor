@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.whoami import is_testing_env
 
 
@@ -14,7 +15,7 @@ def discover_plugins_in_local_folder() -> list[Path]:
 
         MODULE_DIR = Path(os.environ["PLUGINS_DEV"])
     else:
-        MODULE_DIR = Path("/home/pioreactor/.pioreactor/plugins")
+        MODULE_DIR = get_dot_pioreactor_path() / "plugins"
 
     # Python searches in the directories in sys.path for module resolution.
     # the first element is "", which represents the local dir

@@ -56,6 +56,7 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -578,11 +579,11 @@ def build_pio_update_app_args(body: structs.ArgsOptionsEnvs) -> tuple[str, ...]:
 
 
 def _get_shared_config_path() -> Path:
-    return Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
+    return get_dot_pioreactor_path() / "config.ini"
 
 
 def _get_unit_specific_config_path() -> Path:
-    return Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini"
+    return get_dot_pioreactor_path() / "unit_config.ini"
 
 
 def _normalize_ini_text(code: str) -> str:
@@ -969,8 +970,8 @@ def remove_file() -> DelayedResponseReturnValue:
     }
     """
     task_name = "remove_file"
-    disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
-    if os.path.isfile(disallow_file):
+    disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
+    if disallow_file.is_file():
         publish_to_error_log(f"Delete blocked because {disallow_file} is present", task_name)
         abort_with(
             403,
@@ -981,7 +982,7 @@ def remove_file() -> DelayedResponseReturnValue:
 
     filepath = decode_request_body(structs.RemoveFileRequest).filepath
 
-    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    base_dir = get_dot_pioreactor_path().resolve()
     candidate_path = Path(filepath).expanduser()
     if not candidate_path.is_absolute():
         candidate_path = (base_dir / candidate_path).resolve()
@@ -1059,7 +1060,7 @@ def set_clock_time() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/system/path/", defaults={"req_path": ""})
 @unit_api_bp.route("/system/path/<path:req_path>")
 def list_system_path(req_path: str) -> ResponseReturnValue:
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM").is_file():
         abort_with(
             403,
             "DISALLOW_UI_FILE_SYSTEM is present",
@@ -1067,7 +1068,7 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or browse locally via SSH.",
         )
 
-    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    base_dir = get_dot_pioreactor_path().resolve()
     requested_path = base_dir / req_path
 
     # Check if the path actually exists
@@ -1430,7 +1431,7 @@ def get_job_descriptors() -> ResponseReturnValue:
     """
     try:
         descriptors = load_background_job_descriptors(
-            Path(os.environ["DOT_PIOREACTOR"]),
+            get_dot_pioreactor_path(),
             report_error=lambda message: publish_to_error_log(message, "unit_api.get_job_descriptors"),
         )
         return attach_cache_control(jsonify(descriptors))
@@ -1448,7 +1449,7 @@ def get_settings_descriptors() -> ResponseReturnValue:
     `DOT_PIOREACTOR/plugins/ui/settings/` for plugin-provided settings collections.
     """
     descriptors = load_settings_collection_descriptors(
-        Path(os.environ["DOT_PIOREACTOR"]),
+        get_dot_pioreactor_path(),
         report_error=lambda message: publish_to_error_log(message, "unit_api.get_settings_descriptors"),
     )
     return attach_cache_control(jsonify(to_builtins(descriptors)))
@@ -1498,7 +1499,7 @@ def get_installed_plugin(filename: str) -> ResponseReturnValue:
         if Path(file).suffix != ".py":
             raise IOError("must provide a .py file")
 
-        specific_plugin_path = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / file
+        specific_plugin_path = get_dot_pioreactor_path() / "plugins" / file
         return attach_cache_control(
             Response(
                 response=specific_plugin_path.read_text(),
@@ -1535,7 +1536,7 @@ def install_plugin() -> DelayedResponseReturnValue:
     """
 
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(
             403,
             "DISALLOW_UI_INSTALLS is present",
@@ -1589,7 +1590,7 @@ def install_plugin_from_usb() -> DelayedResponseReturnValue:
       "filepath": "/run/pioreactor/usb/.../pioreactor_foo-1.0.0-py3-none-any.whl"
     }
     """
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(
             403,
             "DISALLOW_UI_INSTALLS is present",
@@ -1612,7 +1613,7 @@ def install_python_plugin_file_from_leader_copy() -> DelayedResponseReturnValue:
       "filename": "my_plugin.py"
     }
     """
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(
             403,
             "DISALLOW_UI_INSTALLS is present",
@@ -1644,7 +1645,7 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
       "args": ["my_plugin_name"]
     }
     """
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(
             403,
             "DISALLOW_UI_INSTALLS is present",
@@ -1682,7 +1683,7 @@ def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
 
     try:
         descriptors = load_automation_descriptors(
-            Path(os.environ["DOT_PIOREACTOR"]),
+            get_dot_pioreactor_path(),
             automation_type,
             report_error=lambda message: publish_to_error_log(message, "unit_get_automation_descriptors"),
         )
@@ -1964,7 +1965,7 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
     - Uses a temp file on disk to avoid holding large zips in memory.
     - Zips all contents recursively with paths relative to DOT_PIOREACTOR.
     """
-    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM").is_file():
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM").is_file():
         abort_with(
             403,
             "DISALLOW_UI_FILE_SYSTEM is present",
@@ -1972,7 +1973,7 @@ def get_zipped_dot_pioreactor() -> ResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or export files locally via SSH.",
         )
 
-    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    base_dir = get_dot_pioreactor_path().resolve()
 
     tmp = NamedTemporaryFile(prefix=f"{HOSTNAME}_dot_pioreactor_", suffix=".zip", delete=False)
     tmp_path = Path(tmp.name)
@@ -2047,7 +2048,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     if whoami.is_testing_env():
         return Response(status=202)
 
-    disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
+    disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
     if disallow_file.is_file():
         publish_to_error_log(f"Import blocked because {disallow_file} is present", task_name)
         abort_with(
@@ -2124,7 +2125,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
             "DEBUG",
         )
 
-    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    base_dir = get_dot_pioreactor_path().resolve()
     publish_to_log(f"Resolved DOT_PIOREACTOR base directory to {base_dir}", task_name, "DEBUG")
 
     try:

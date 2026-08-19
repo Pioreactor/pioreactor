@@ -1456,6 +1456,8 @@ def test_pio_update_app_runs_argv_without_shell(monkeypatch: pytest.MonkeyPatch)
     runner = CliRunner()
     run_calls: list[tuple[list[str], dict[str, object]]] = []
 
+    monkeypatch.setenv("PIO_VENV", "/opt/pioreactor/venv")
+
     class FakeCompletedProcess:
         returncode = 0
         stdout = ""

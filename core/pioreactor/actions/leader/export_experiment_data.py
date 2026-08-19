@@ -24,10 +24,10 @@ from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.structs import Dataset
 from pioreactor.utils.timing import to_iso_format
 from pioreactor.version import __version__
-from pioreactor.whoami import is_testing_env
 
 
 MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
@@ -86,12 +86,9 @@ def generate_timestamp_to_relative_time_clause(default_order_by: str) -> str:
 
 
 def load_exportable_datasets() -> dict[str, Dataset]:
-    if is_testing_env():
-        builtins = sorted(Path(".pioreactor/exportable_datasets").glob("*.y*ml"))
-        plugins = sorted(Path(".pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
-    else:
-        builtins = sorted(Path("/home/pioreactor/.pioreactor/exportable_datasets").glob("*.y*ml"))
-        plugins = sorted(Path("/home/pioreactor/.pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
+    dot_pioreactor = get_dot_pioreactor_path()
+    builtins = sorted((dot_pioreactor / "exportable_datasets").glob("*.y*ml"))
+    plugins = sorted((dot_pioreactor / "plugins" / "exportable_datasets").glob("*.y*ml"))
     parsed_yaml = {}
     for file in builtins + plugins:
         try:

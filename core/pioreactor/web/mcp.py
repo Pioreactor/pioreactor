@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
-import os
 import sys
 from functools import wraps
 from pathlib import Path
@@ -22,6 +21,7 @@ from mcp_utils.core import MCPServer
 from mcp_utils.schema import MCPErrorResponse
 from pioreactor.config import get_leader_hostname
 from pioreactor.mureq import HTTPException
+from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.pubsub import delete_from_leader as _delete_from_leader
 from pioreactor.pubsub import get_from_leader as _get_from_leader
 from pioreactor.pubsub import patch_into_leader as _patch_into_leader
@@ -97,7 +97,7 @@ def _normalize_options(
 
 
 def _get_exports_dir() -> Path:
-    return Path(os.environ["RUN_PIOREACTOR"]) / "exports"
+    return get_run_pioreactor_path() / "exports"
 
 
 def _build_export_artifact_response(filename: str) -> dict[str, Any]:

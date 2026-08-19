@@ -10,9 +10,10 @@ from pathlib import Path
 from typing import Any
 
 import msgspec
+from pioreactor.paths import get_run_pioreactor_path
 
 
-USB_MOUNT_ROOT = Path(os.environ.get("PIOREACTOR_USB_MOUNT_ROOT", "/run/pioreactor/usb"))
+USB_MOUNT_ROOT = Path(os.environ.get("PIOREACTOR_USB_MOUNT_ROOT", get_run_pioreactor_path() / "usb"))
 DEV_USB_MOUNTPOINT = USB_MOUNT_ROOT / "DEV_USB"
 SUPPORTED_FILESYSTEMS = {"exfat", "vfat", "ext4"}
 UPDATE_ARCHIVE_PATTERN = re.compile(r"^release_(?P<version>\d{2}\.\d{1,2}\.\d+\w{0,6})\.zip$")

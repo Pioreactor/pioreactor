@@ -3,17 +3,16 @@
 this contains shared data for both huey and the flask app
 
 """
-import os
 import sqlite3
-from pathlib import Path
 
 from dotenv import load_dotenv
 from huey.api import SqliteHuey
+from pioreactor.paths import get_run_pioreactor_path
 
 
 load_dotenv()
 
-CACHE_DIR = Path(os.environ["RUN_PIOREACTOR"]) / "cache"
+CACHE_DIR = get_run_pioreactor_path() / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
 
 try:

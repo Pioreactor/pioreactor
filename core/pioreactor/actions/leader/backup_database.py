@@ -9,6 +9,7 @@ from pioreactor.config import config
 from pioreactor.exc import RsyncError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import long_running_managed_lifecycle
@@ -160,7 +161,10 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
 
 @click.command(name="backup_database")
-@click.option("--output", default="/home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup")
+@click.option(
+    "--output",
+    default=str(get_dot_pioreactor_path() / "storage" / "pioreactor.sqlite.backup"),
+)
 @click.option("--force", is_flag=True, help="force backing up")
 @click.option("--backup-to-workers", help="back up db to N workers", type=int)
 def click_backup_database(output: str, force: bool, backup_to_workers: int | None) -> None:

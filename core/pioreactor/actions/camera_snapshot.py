@@ -2,6 +2,7 @@
 import click
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import CameraUnavailableError
@@ -29,4 +30,5 @@ def click_camera_snapshot() -> None:
     except (CameraUnavailableError, CameraCaptureError, ValueError) as error:
         raise click.ClickException(str(error)) from error
 
-    click.echo(f"Captured camera snapshot {metadata.image_id}.")
+    path = camera_still_image_path(metadata)
+    click.echo(f"Captured camera snapshot {metadata.image_id}, at {path}")

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_config
 from pioreactor.config import replace_or_append_config_entry
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.whoami import am_I_leader
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def get_site_packages_dir() -> Path:
 
 
 def get_dot_pioreactor_dir() -> Path:
-    return Path("/home/pioreactor/.pioreactor")
+    return get_dot_pioreactor_path()
 
 
 def get_pioreactor_database_path() -> Path:

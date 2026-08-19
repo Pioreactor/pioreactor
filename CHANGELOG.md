@@ -1,3 +1,10 @@
+### Upcoming
+
+#### Enhancements
+
+ - Added `pioreactor.paths` with `get_dot_pioreactor_path()`, `get_run_pioreactor_path()`, and `get_pio_venv_path()` so core jobs, plugins, exports, and update commands consistently respect customized `DOT_PIOREACTOR`, `RUN_PIOREACTOR`, and `PIO_VENV` locations.
+
+
 ### 26.8.0
 
 #### Breaking changes

@@ -32,12 +32,13 @@ from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.paths import get_dot_pioreactor_path
+from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.pubsub import subscribe
 from pioreactor.states import JobState
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.sqlite_cache import cache as SqliteCache
-from pioreactor.whoami import is_testing_env
 
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
@@ -47,7 +48,7 @@ CAMERA_STILLS_CACHE_NAME = "camera_stills"
 CAMERA_SETTINGS_CACHE_NAME = "camera_settings"
 AUTO_CAPTURE_ENABLED_KEY = "auto_capture_enabled"
 RPICAM_CAPTURE_COMMANDS = ("rpicam-still", "libcamera-still")
-CAMERA_WARMER_RUNTIME_DIR = Path("/run/pioreactor")
+CAMERA_WARMER_RUNTIME_DIR = get_run_pioreactor_path()
 CAMERA_WARMER_STARTUP_GRACE_SECONDS = 1.0
 CAMERA_WARMER_POLL_SECONDS = 0.01
 CAMERA_OD_ALIGNMENT_GRACE_SECONDS = 5.0
@@ -80,23 +81,13 @@ class CameraCaptureError(RuntimeError):
     pass
 
 
-def resolve_dot_pioreactor_path() -> Path:
-    if "DOT_PIOREACTOR" in os.environ:
-        return Path(os.environ["DOT_PIOREACTOR"])
-
-    if is_testing_env():
-        return Path(".pioreactor")
-
-    return Path("/home/pioreactor/.pioreactor")
-
-
 def camera_stills_root_path(dot_pioreactor: Path | None = None) -> Path:
-    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
+    root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
     return root / CAMERA_STILLS_RELATIVE_DIR
 
 
 def camera_focus_previews_root_path(dot_pioreactor: Path | None = None) -> Path:
-    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
+    root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
     return root / "storage" / "camera_focus_previews"
 
 
@@ -177,7 +168,7 @@ def get_rpicam_still_arguments(
     camera_index: int,
     dot_pioreactor: Path | None,
 ) -> list[str]:
-    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
+    root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
     # Bound AE to 200 ms and 8x gain so clear samples brighten without holding shared IR for seconds.
     tuning_file = root / "camera" / "ov5647_noir_200ms.json"
     if not tuning_file.exists():
@@ -927,7 +918,7 @@ def store_camera_still(
     shutil.copyfile(source_image_path, destination_image_path)
     destination_image_path.chmod(0o664)  # Huey writes; www-data serves.
 
-    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
+    root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
     metadata = CameraStillMetadata(
         experiment=experiment,
         captured_at=captured_at,
@@ -1059,7 +1050,7 @@ def delete_camera_stills_for_experiment(
 
 
 def camera_still_image_path(metadata: CameraStillMetadata, dot_pioreactor: Path | None = None) -> Path:
-    root = dot_pioreactor if dot_pioreactor is not None else resolve_dot_pioreactor_path()
+    root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
     return root / CAMERA_STILLS_RELATIVE_DIR / camera_still_filename(metadata.image_id)
 
 

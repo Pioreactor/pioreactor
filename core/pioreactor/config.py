@@ -11,6 +11,8 @@ from typing import Final
 from typing import Mapping
 from typing import TYPE_CHECKING
 
+from pioreactor.paths import get_dot_pioreactor_path
+
 if TYPE_CHECKING:
     from configparser import _SectionName as _ConfigSectionName
 else:
@@ -229,15 +231,7 @@ def resolve_config_file_path(explicit_env_var: str, filename: str) -> Path:
     if explicit_env_var in os.environ:
         return Path(os.environ[explicit_env_var])
 
-    if "DOT_PIOREACTOR" in os.environ:
-        return Path(os.environ["DOT_PIOREACTOR"]) / filename
-
-    from pioreactor.whoami import is_testing_env
-
-    if is_testing_env():
-        return Path(".pioreactor") / filename
-
-    return Path("/home/pioreactor/.pioreactor") / filename
+    return get_dot_pioreactor_path() / filename
 
 
 def resolve_global_config_path() -> Path:
@@ -298,9 +292,7 @@ def get_config() -> ConfigParserMod:
         # on the leader (as worker) Rpi, the unit_config.ini is malformed. When leader_config.ini is fixed in the UI
         # pios sync tries to run, it uses a malformed unit_config.ini and hence the leader_config.ini can't be deployed
         # to replace the malformed unit_config.ini.
-        print(
-            "Bad config state. Check /home/pioreactor/.pioreactor/unit_config.ini on leader for malformed configuration?"
-        )
+        print(f"Bad config state. Check {local_config_path} on leader for malformed configuration?")
         raise e
     except configparser.DuplicateSectionError as e:
         print(e)

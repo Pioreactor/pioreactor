@@ -64,6 +64,8 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
+from pioreactor.paths import get_dot_pioreactor_path
+from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.plugin_management import get_plugins
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
@@ -1459,7 +1461,7 @@ def install_python_plugin_file_from_leader_copy_task(filename: str) -> bool:
 
 
 def install_python_plugin_file(source: Path) -> str:
-    plugin_dir = Path(os.environ["DOT_PIOREACTOR"]) / "plugins"
+    plugin_dir = get_dot_pioreactor_path() / "plugins"
     plugin_dir.mkdir(parents=True, exist_ok=True)
     target = plugin_dir / source.name
     shutil.copy2(source, target)
@@ -1512,7 +1514,7 @@ def sync_clock() -> bool:
 def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
     hostname = get_unit_name()
     archive_path = Path(uploaded_zip_path)
-    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    base_dir = get_dot_pioreactor_path().resolve()
     extraction_root = Path(mkdtemp(prefix="dot_pioreactor_import_"))
     backup_dir = Path(os.environ["TMPDIR"]) / f"{hostname}_dot_pioreactor_backup_{current_utc_timestamp()}"
 
@@ -1566,9 +1568,9 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
             cfg = configparser.ConfigParser()
             cfg.read(config_path)
             cfg.setdefault("storage", {})
-            cfg["storage"][
-                "temporary_cache"
-            ] = "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite"
+            cfg["storage"]["temporary_cache"] = str(
+                get_run_pioreactor_path() / "cache" / "local_intermittent_pioreactor_metadata.sqlite"
+            )
             with config_path.open("w") as fh:
                 cfg.write(fh, space_around_delimiters=False)
 

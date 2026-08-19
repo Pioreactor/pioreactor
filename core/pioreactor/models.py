@@ -2,12 +2,10 @@
 """
 Registry of built-in and user-provided Pioreactor models.
 """
-import os
-from pathlib import Path
-
 from msgspec import ValidationError
 from msgspec.structs import replace
 from msgspec.yaml import decode as yaml_decode
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.structs import Model
 
 
@@ -110,7 +108,7 @@ CORE_MODELS = (
 def load_contrib_model_definitions() -> list[Model]:
     """Load all model definitions from YAML files under MODEL_DEFINITIONS_PATH."""
 
-    MODEL_DEFINITIONS_PATH = Path(os.environ["DOT_PIOREACTOR"]) / "models"
+    MODEL_DEFINITIONS_PATH = get_dot_pioreactor_path() / "models"
 
     models: list[Model] = []
     if not MODEL_DEFINITIONS_PATH.is_dir():

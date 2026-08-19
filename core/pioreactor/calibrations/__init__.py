@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
-from pathlib import Path
 from typing import Literal
 from typing import overload
 from typing import TypeVar
@@ -12,15 +10,12 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.calibrations.registry import CalibrationProtocol  # re-export
 from pioreactor.calibrations.registry import get_calibration_protocols  # re-export
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.structs import artifact_path_component
 from pioreactor.utils import local_persistent_storage
-from pioreactor.whoami import is_testing_env
 
 
-if not is_testing_env():
-    CALIBRATION_PATH = Path("/home/pioreactor/.pioreactor/storage/calibrations/")
-else:
-    CALIBRATION_PATH = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
+CALIBRATION_PATH = get_dot_pioreactor_path() / "storage" / "calibrations"
 
 Device = TypeVar("Device", bound=str)
 

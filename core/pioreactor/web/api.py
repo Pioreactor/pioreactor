@@ -2,7 +2,6 @@
 import configparser
 import ipaddress
 import math
-import os
 import re
 import shutil
 import sqlite3
@@ -42,6 +41,8 @@ from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response as MureqResponse
 from pioreactor.mureq import yield_response
+from pioreactor.paths import get_dot_pioreactor_path
+from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import create_webserver_path
 from pioreactor.pubsub import delete_from
@@ -492,11 +493,11 @@ UNIT_CONFIG_HISTORY_PREFIX = "unit_config.ini::"
 
 
 def _get_shared_config_path() -> Path:
-    return Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
+    return get_dot_pioreactor_path() / "config.ini"
 
 
 def _get_leader_unit_specific_config_path() -> Path:
-    return Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini"
+    return get_dot_pioreactor_path() / "unit_config.ini"
 
 
 def _normalize_ini_text(code: str) -> str:
@@ -2743,7 +2744,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
     }
     """
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
-    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "Not UI installed allowed.")
 
     cache.invalidate_plugins_installed_cache(pioreactor_unit)
@@ -2772,7 +2773,7 @@ def install_plugin_from_leader_usb_on_machine(pioreactor_unit: str) -> DelayedRe
       "filepath": "/run/pioreactor/usb/.../pioreactor_foo-1.0.0-py3-none-any.whl"
     }
     """
-    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "Not UI installed allowed.")
 
     filepath = decode_request_body(structs.InstallPluginFromUsbRequest).filepath
@@ -2803,7 +2804,7 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
       "args": ["my_plugin_name"]
     }
     """
-    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "No UI uninstall allowed")
 
     cache.invalidate_plugins_installed_cache(pioreactor_unit)
@@ -2897,7 +2898,7 @@ def upload_system_file() -> ResponseReturnValue:
     Multipart form-data body:
     - `file`: file to upload. The complete request must be smaller than 60 MB.
     """
-    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS").is_file():
+    if (get_dot_pioreactor_path() / "DISALLOW_UI_UPLOADS").is_file():
         abort_with(403, "No UI uploads allowed")
 
     max_system_upload_request_bytes = 60_000_000
@@ -2969,7 +2970,7 @@ def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
 
     try:
         descriptors = load_automation_descriptors(
-            Path(os.environ["DOT_PIOREACTOR"]),
+            get_dot_pioreactor_path(),
             automation_type,
             report_error=lambda message: publish_to_error_log(message, "get_automation_descriptors"),
         )
@@ -3034,7 +3035,7 @@ def get_job_descriptors() -> ResponseReturnValue:
     """
     try:
         descriptors = load_background_job_descriptors(
-            Path(os.environ["DOT_PIOREACTOR"]),
+            get_dot_pioreactor_path(),
             report_error=lambda message: publish_to_error_log(message, "get_job_descriptors"),
         )
         return attach_cache_control(jsonify(descriptors))
@@ -3089,7 +3090,7 @@ def get_settings_descriptors() -> ResponseReturnValue:
     worker's own `DOT_PIOREACTOR`.
     """
     descriptors = load_settings_collection_descriptors(
-        Path(os.environ["DOT_PIOREACTOR"]),
+        get_dot_pioreactor_path(),
         report_error=lambda message: publish_to_error_log(message, "get_settings_descriptors"),
     )
     return attach_cache_control(jsonify(to_builtins(descriptors)))
@@ -3138,8 +3139,8 @@ def get_chart_descriptors() -> ResponseReturnValue:
     `DOT_PIOREACTOR/plugins/ui/charts/` for plugin-provided charts.
     """
     try:
-        chart_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "charts"
-        chart_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "charts"
+        chart_path_builtins = get_dot_pioreactor_path() / "ui" / "charts"
+        chart_path_plugins = get_dot_pioreactor_path() / "plugins" / "ui" / "charts"
         files = sorted(chart_path_builtins.glob("*.y*ml")) + sorted(chart_path_plugins.glob("*.y*ml"))
 
         # we dedup based on chart 'chart_key'.
@@ -3233,10 +3234,8 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
 @api_bp.route("/datasets/exportable", methods=["GET"])
 def get_exportable_datasets() -> ResponseReturnValue:
     try:
-        builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
-        plugins = sorted(
-            (Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml")
-        )
+        builtins = sorted((get_dot_pioreactor_path() / "exportable_datasets").glob("*.y*ml"))
+        plugins = sorted((get_dot_pioreactor_path() / "plugins" / "exportable_datasets").glob("*.y*ml"))
         parsed_yaml = []
         for file in builtins + plugins:
             try:
@@ -3254,8 +3253,8 @@ def get_exportable_datasets() -> ResponseReturnValue:
 
 @api_bp.route("/datasets/exportable/<target_dataset>/preview", methods=["GET"])
 def preview_exportable_dataset(target_dataset: str) -> ResponseReturnValue:
-    builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
-    plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
+    builtins = sorted((get_dot_pioreactor_path() / "exportable_datasets").glob("*.y*ml"))
+    plugins = sorted((get_dot_pioreactor_path() / "plugins" / "exportable_datasets").glob("*.y*ml"))
     default_preview_rows = 5
     max_preview_rows = 100
     n_rows = parse_integer_query_parameter(
@@ -3305,7 +3304,7 @@ def export_exportable_datasets() -> ResponseReturnValue:
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
     filename = f"export_{secure_filename(body.experiment) or 'experiment'}_{timestamp}.zip"
 
-    filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
+    filename_with_path = get_run_pioreactor_path() / "exports" / filename
     task = tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
         body.experiment,
         body.datasets,
@@ -4017,7 +4016,7 @@ def create_experiment_profile() -> ResponseReturnValue:
         # publish_to_error_log(msg, "create_experiment_profile")
         abort_with(400, msg)
 
-    filepath = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
+    filepath = get_dot_pioreactor_path() / "experiment_profiles" / experiment_profile_filename
 
     # check if exists
     if filepath.exists():
@@ -4071,7 +4070,7 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
         # publish_to_error_log(msg, "create_experiment_profile")
         abort_with(400, str(e))
 
-    filepath = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
+    filepath = get_dot_pioreactor_path() / "experiment_profiles" / experiment_profile_filename
 
     # save file to disk
     save_task = tasks.save_file(
@@ -4087,7 +4086,7 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
 @api_bp.route("/experiment_profiles", methods=["GET"])
 def get_experiment_profiles() -> ResponseReturnValue:
     try:
-        profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles"
+        profile_path = get_dot_pioreactor_path() / "experiment_profiles"
         files = sorted(profile_path.glob("*.y*ml"), key=lambda f: f.stat().st_mtime, reverse=True)
 
         parsed_yaml = []
@@ -4130,7 +4129,7 @@ def get_experiment_profile(filename: str) -> ResponseReturnValue:
         if not (Path(file).suffix == ".yaml" or Path(file).suffix == ".yml"):
             raise IOError("must provide a YAML file")
 
-        specific_profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / file
+        specific_profile_path = get_dot_pioreactor_path() / "experiment_profiles" / file
         return Response(
             response=specific_profile_path.read_text(),
             status=200,
@@ -4148,7 +4147,7 @@ def delete_experiment_profile(filename: str) -> ResponseReturnValue:
         if Path(file).suffix not in (".yaml", ".yml"):
             raise IOError("must provide a YAML file")
 
-        specific_profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / file
+        specific_profile_path = get_dot_pioreactor_path() / "experiment_profiles" / file
         if not specific_profile_path.exists():
             raise IOError(f"{file} does not exist.")
 
@@ -4324,7 +4323,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
             tasks.multicast_post(
                 "/unit_api/system/remove_file",
                 _single_unit(pioreactor_unit),
-                json={"filepath": str(Path(os.environ["DOT_PIOREACTOR"]) / "config.ini")},
+                json={"filepath": str(get_dot_pioreactor_path() / "config.ini")},
             )
 
         cache.invalidate_merged_config_cache(pioreactor_unit)

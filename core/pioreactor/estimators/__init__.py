@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import cast
 from typing import overload
@@ -11,12 +10,12 @@ from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.structs import artifact_path_component
 from pioreactor.utils import local_persistent_storage
-from pioreactor.whoami import is_testing_env
 
 
-ESTIMATOR_PATH = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "estimators"
+ESTIMATOR_PATH = get_dot_pioreactor_path() / "storage" / "estimators"
 
 Device = TypeVar("Device", bound=str)
 
