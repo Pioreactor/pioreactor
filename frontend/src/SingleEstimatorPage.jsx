@@ -36,6 +36,7 @@ import DisplaySourceCode from "./components/DisplaySourceCode";
 import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
 
+const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function formatSplineType(curveData) {
   if (!curveData || Array.isArray(curveData)) {
@@ -110,8 +111,8 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
         description: 'Deleting this estimator will remove it from disk. This is irreversible. Do you wish to continue?',
         title: `Delete estimator ${estimatorName}?`,
         confirmationText: "Confirm",
-        confirmationButtonProps: { color: "primary", sx: { textTransform: 'none' }, variant: "contained" },
-        cancellationButtonProps: { color: "secondary", sx: { textTransform: 'none' } },
+        confirmationButtonProps: { color: "primary", variant: "contained" },
+        cancellationButtonProps: { color: "secondary" },
       });
       confirmed = true;
 
@@ -133,7 +134,7 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
   };
 
   return (
-    <Button sx={{ textTransform: 'none', mr: "0px", float: "right" }} color="secondary" onClick={deleteEstimator}>
+    <Button sx={{  mr: "0px" }} color="secondary" onClick={deleteEstimator}>
       <DeleteOutlineIcon fontSize="small" /> Delete
     </Button>
   );
@@ -159,7 +160,6 @@ function ViewYamlSource({ estimatorName, estimator, disabled }) {
   return (
     <>
       <Button
-        sx={{ textTransform: 'none', float: 'right' }}
         disabled={disabled}
         onClick={openAndLoad}
       >
@@ -178,7 +178,7 @@ function ViewYamlSource({ estimatorName, estimator, disabled }) {
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large">
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -186,7 +186,7 @@ function ViewYamlSource({ estimatorName, estimator, disabled }) {
           <DisplaySourceCode sourceCode={yamlText} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ textTransform: 'none' }} autoFocus>Close</Button>
+          <Button onClick={handleClose} autoFocus>Close</Button>
         </DialogActions>
       </Dialog>
     </>
@@ -215,7 +215,7 @@ function DownloadEstimatorYaml({ estimatorName, estimator, disabled, onError }) 
 
   return (
     <Button
-      sx={{ textTransform: "none", mr: "12px", float: "right" }}
+      sx={{  mr: "12px" }}
       disabled={disabled}
       onClick={downloadEstimator}
     >
@@ -310,16 +310,16 @@ function SingleEstimatorPage(props) {
   return (
     <>
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
           <Typography variant="h5" component="h1">
             <Box sx={{ display: "inline" }}>
-              <Button component={Link} to="/estimators" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none' }}>
-                All estimators
+              <Button component={Link} to="/estimators">
+                <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to estimators
               </Button>
             </Box>
           </Typography>
 
-          <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap", alignItems: "center" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             <ViewYamlSource
               estimatorName={estimatorName}
               estimator={estimator}
@@ -339,13 +339,15 @@ function SingleEstimatorPage(props) {
             />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Button
-              startIcon={isActive ? <DoNotDisturbOnOutlinedIcon /> : <CheckCircleOutlineOutlinedIcon />}
               variant={isActive ? "text" : "contained"}
               color="primary"
               disabled={loading || !estimator}
               onClick={isActive ? handleRemoveActive : handleSetActive}
-              sx={{ textTransform: "none", ml: 1, mr: 1 }}
+              sx={{  ml: 1, mr: 1 }}
             >
+              {isActive
+                ? <DoNotDisturbOnOutlinedIcon fontSize="small" sx={textIcon} />
+                : <CheckCircleOutlineOutlinedIcon fontSize="small" sx={textIcon} />}
               {isActive ? "Set inactive" : "Set active"}
             </Button>
           </Box>

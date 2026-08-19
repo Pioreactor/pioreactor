@@ -91,7 +91,6 @@ const SelectButton = React.forwardRef((props, _ref) => {
         disabled={disabled}
         sx={{
           ...buttonStyle,
-          textTransform: 'none',
           ':last-child': {
             borderTopLeftRadius: 0,
             borderBottomLeftRadius: 0
@@ -111,7 +110,6 @@ const SelectButton = React.forwardRef((props, _ref) => {
         aria-expanded={isOpen ? 'true' : undefined}
         aria-haspopup="menu"
         sx={{
-          textTransform: 'none',
           p: 0,
           minWidth: 32,
           ':first-of-type': {

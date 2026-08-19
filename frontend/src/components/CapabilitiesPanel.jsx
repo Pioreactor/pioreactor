@@ -243,7 +243,7 @@ export default function CapabilitiesPanel() {
         </Typography>
         <TextField
           size="small"
-          placeholder="Search jobs, automations, help…"
+          placeholder="Search jobs, automations, help..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           fullWidth

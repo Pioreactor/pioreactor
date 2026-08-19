@@ -190,9 +190,10 @@ function ClusterClockDialog({open, onClose, leaderHostname}) {
             }}
           />
           <Button
-            variant="text"
+            variant="contained"
+            color="primary"
             loading={updatingClock}
-            sx={{ ml: 2, textTransform: "none" }}
+            sx={{ ml: 2 }}
             onClick={handlePostTimestamp}
           >
             Update clocks

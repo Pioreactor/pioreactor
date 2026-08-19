@@ -104,8 +104,8 @@ function RunExperimentProfilesContent({
       title: `Are you sure you wish to delete this profile?`,
       description: "This action is permanent.",
       confirmationText: "Delete",
-      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" }, variant: "contained" },
-      cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
+      confirmationButtonProps: { color: "primary", variant: "contained" },
+      cancellationButtonProps: { color: "secondary" },
     })
       .then(() => {
         fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
@@ -172,7 +172,6 @@ function RunExperimentProfilesContent({
             aria-label="view source code"
             disabled={selectedExperimentProfile === ""}
             onClick={getSourceAndView}
-            sx={{ textTransform: "none" }}
           >
             <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
             {viewSource ? "View preview" : "View source"}
@@ -182,7 +181,6 @@ function RunExperimentProfilesContent({
             size="small"
             color="primary"
             aria-label="edit source code"
-            sx={{ textTransform: "none" }}
             to={`/experiment-profiles/${(selectedExperimentProfile || "")}/edit`}
             component={Link}
             disabled={ selectedExperimentProfile === ''}
@@ -196,7 +194,7 @@ function RunExperimentProfilesContent({
             color="primary"
             aria-label="duplicate profile"
             onClick={duplicate}
-            sx={{ mr: "5px", textTransform: "none" }}
+            sx={{ mr: "5px" }}
             disabled={selectedExperimentProfile === '' || selectedProfileDetail.loading || !!selectedProfileDetail.error}
           >
             <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
@@ -208,7 +206,7 @@ function RunExperimentProfilesContent({
             color="secondary"
             aria-label="delete profile"
             onClick={deleteProfile}
-            sx={{ mr: "5px", textTransform: "none" }}
+            sx={{ mr: "5px" }}
             disabled={selectedExperimentProfile === ''}
           >
             <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
@@ -294,11 +292,11 @@ function RunningProfilesContainer() {
 
   const onStop = (job_id) => {
     confirm({
-      description: 'Stopping this profile early will stop executing new actions end all actions started by it.',
+      description: 'Stopping this profile early will stop executing new actions and end all actions started by it.',
       title: 'Stop profile?',
       confirmationText: 'Stop profile',
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
     })
       .then(() => stopProfile(job_id))
       .catch(() => {});
@@ -347,7 +345,7 @@ function RunningProfilesContainer() {
                         {dayjs().diff(dayjs(element.settings.start_time_utc), 'hour', true).toFixed(1)} h
                       </TableCell>
                       <TableCell align="right" sx={{ width: "100px", px: 0 }}>
-                        <Button color="secondary" sx={{ textTransform: "none", p: 0 }} onClick={() => onStop(element.job_id)}>
+                        <Button color="secondary" sx={{  p: 0 }} onClick={() => onStop(element.job_id)}>
                           Stop
                         </Button>
                       </TableCell>
@@ -578,17 +576,17 @@ function Profiles(props) {
             xs: 12
           }}>
           <Box>
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
               <Typography variant="h5" component="h2">
                 <Box sx={{ fontWeight: "fontWeightBold" }}>
-                  Experiment Profiles
+                  Experiment profiles
                 </Box>
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                 <Button
                   to={`/experiment-profiles/new`}
                   component={Link}
-                  sx={{ textTransform: 'none', mr: "0px", float: "right" }}
+                  sx={{  mr: "0px" }}
                   color="primary"
                 >
                   <AddIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>

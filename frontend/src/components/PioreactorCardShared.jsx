@@ -97,15 +97,15 @@ export function ButtonStopProcess({ experiment, unit = "$broadcast", disabled = 
       description,
       title: unit === "$broadcast" ? "Stop all activities in all assigned Pioreactors?" : `Stop all activities in ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: { autoFocus: true, variant: "contained", color: "primary", sx: { textTransform: "none" } },
-      cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
+      confirmationButtonProps: { autoFocus: true, variant: "contained", color: "primary" },
+      cancellationButtonProps: { color: "secondary" },
     }).then(() =>
       fetch(`/api/workers/${unit}/jobs/stop/experiments/${experimentPathSegment(experiment)}`, { method: "POST" })
     ).catch(() => {});
   };
 
   return (
-    <Button sx={{ textTransform: "none", float: "right" }} color="secondary" disabled={disabled} onClick={handleClick}>
+    <Button color="secondary" disabled={disabled} onClick={handleClick}>
       <CancelIcon fontSize="small" sx={textIcon} /> {unit === "$broadcast" ? "Stop all Pioreactors" : "Stop"}
     </Button>
   );
@@ -218,7 +218,7 @@ export function CalibrateDialog({
 
   return (
     <React.Fragment>
-      <Button sx={{ textTransform: "none", float: "right" }} color="primary" disabled={disabled} onClick={handleClickOpen}>
+      <Button color="primary" disabled={disabled} onClick={handleClickOpen}>
         <TuneIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon} /> Calibrate
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
@@ -232,9 +232,9 @@ export function CalibrateDialog({
             indicatorColor="primary"
             textColor="primary"
           >
-            <Tab sx={{ textTransform: "none" }} label="Calibrations" />
-            <Tab sx={{ textTransform: "none" }} label="Estimators" />
-            <Tab sx={{ textTransform: "none" }} label="Blanks" />
+            <Tab label="Calibrations" />
+            <Tab label="Estimators" />
+            <Tab label="Blanks" />
           </Tabs>
           <IconButton
             aria-label="close"
@@ -245,7 +245,6 @@ export function CalibrateDialog({
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large"
           >
             <CloseIcon />
           </IconButton>
@@ -917,7 +916,7 @@ export function SettingTextField({
         color="primary"
         disabled={!activeSubmit}
         onClick={onSubmit}
-        sx={{ textTransform: "none", mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
+        sx={{  mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
       >
         Update
       </Button>
@@ -1077,7 +1076,7 @@ export function SettingNumericField({
         color="primary"
         disabled={!activeSubmit || error}
         onClick={onSubmit}
-        sx={{ textTransform: "none", mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
+        sx={{  mt: "15px", ml: "7px", display: disabled ? "none" : undefined }}
       >
         Update
       </Button>

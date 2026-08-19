@@ -253,11 +253,11 @@ describe("CalibrationSessionDialog", () => {
     expect(screen.getByText("Focus guidance").closest("[aria-live='polite']")).toBeTruthy();
     expect(screen.queryByText(/FocusFoM/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/best this session/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Loading image…")).toBeInTheDocument();
+    expect(screen.getByText("Loading image...")).toBeInTheDocument();
 
     fireEvent.load(firstImage);
 
-    expect(screen.queryByText("Loading image…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading image...")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Enlarge image: Focus snapshot 1" }));
 
@@ -279,7 +279,7 @@ describe("CalibrationSessionDialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Take another snapshot" }));
 
-    expect(screen.getByText("Loading image…")).toBeInTheDocument();
+    expect(screen.getByText("Loading image...")).toBeInTheDocument();
 
     await screen.findByText("Blurrier — turn back slightly.");
     expect(
@@ -292,11 +292,11 @@ describe("CalibrationSessionDialog", () => {
       "src",
       "/api/workers/unit-1/camera/focus_sessions/session-1/preview.jpg?v=2",
     );
-    expect(screen.getByText("Loading image…")).toBeInTheDocument();
+    expect(screen.getByText("Loading image...")).toBeInTheDocument();
 
     fireEvent.load(secondImage);
 
-    expect(screen.queryByText("Loading image…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading image...")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Adjust the focus slightly, then take another snapshot."),
     ).not.toBeInTheDocument();

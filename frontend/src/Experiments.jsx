@@ -258,8 +258,8 @@ function ExperimentsContainer(props) {
         "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?",
       title: "End experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" }, variant: "contained" },
-      cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
+      confirmationButtonProps: { color: "primary", variant: "contained" },
+      cancellationButtonProps: { color: "secondary" },
     });
 
     setBusyExperimentName(experiment.experiment);
@@ -284,8 +284,8 @@ function ExperimentsContainer(props) {
         "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?",
       title: "Delete experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: { color: "primary", sx: { textTransform: "none" }, variant: "contained" },
-      cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
+      confirmationButtonProps: { color: "primary", variant: "contained" },
+      cancellationButtonProps: { color: "secondary" },
     });
 
     setBusyExperimentName(experiment.experiment);
@@ -316,7 +316,7 @@ function ExperimentsContainer(props) {
 
   return (
     <React.Fragment>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, gap: 2, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, gap: 2, flexWrap: "wrap" }}>
         <Typography variant="h5" component="h1">
           <Box sx={{ fontWeight: "fontWeightBold" }}>Experiments</Box>
         </Typography>
@@ -324,9 +324,8 @@ function ExperimentsContainer(props) {
           variant="text"
           component={Link}
           to="/start-new-experiment"
-          sx={{ textTransform: "none" }}
         >
-          <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> New experiment
+          <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Create new experiment
         </Button>
       </Box>
       <Divider sx={{mt: 0, mb: "15px"}} />
@@ -352,13 +351,13 @@ function ExperimentsContainer(props) {
                 }
               }}
             >
-              <ToggleButton value="all" sx={{ textTransform: "none" }}>
+              <ToggleButton value="all">
                 all
               </ToggleButton>
-              <ToggleButton value="active" sx={{ textTransform: "none" }}>
+              <ToggleButton value="active">
                 active
               </ToggleButton>
-              <ToggleButton value="inactive" sx={{ textTransform: "none" }}>
+              <ToggleButton value="inactive">
                 inactive
               </ToggleButton>
             </ToggleButtonGroup>

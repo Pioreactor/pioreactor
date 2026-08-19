@@ -69,7 +69,7 @@ describe("Logs", () => {
     const { rerender } = renderLogs();
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    await user.click(screen.getByRole("button", { name: /record new event/i }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
     await user.click(within(screen.getByRole("dialog")).getAllByRole("combobox")[0]);
     await user.click(await screen.findByRole("option", { name: "unit-1" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -83,9 +83,9 @@ describe("Logs", () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole("button", { name: /record new event/i }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
     await user.type(screen.getByRole("textbox", { name: /message/i }), "Fresh event");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
 
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(

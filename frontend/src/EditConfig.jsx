@@ -359,7 +359,7 @@ function EditableCodeDiv() {
       <Box sx={{ display: "flex", justifyContent: "space-between" }}>
         <div>
           <Button
-            sx={{ m: "5px 12px 5px 12px", textTransform: 'none' }}
+            sx={{ m: "5px 12px 5px 12px" }}
             color="primary"
             variant="contained"
             onClick={saveCurrentCode}
@@ -433,7 +433,7 @@ function EditConfigContainer(){
             Configuration
           </Typography>
           <Button
-            sx={{ textTransform: "none", mr: "0px", float: "right" }}
+            sx={{  mr: "0px" }}
             color="primary"
             onClick={handleDownloadConfigurations}
             loading={downloading}

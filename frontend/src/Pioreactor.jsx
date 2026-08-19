@@ -219,15 +219,15 @@ function PioreactorHeader({assignedExperiment, isActive, selectExperiment, model
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
         <Typography variant="h5" component="h1">
           <Box sx={{display:"inline"}}>
-            <Button component={Link} to="/pioreactors" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none' }}>
-              All assigned Pioreactors
+            <Button component={Link} to="/pioreactors">
+              <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to Pioreactors
             </Button>
           </Box>
         </Typography>
-        <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           {/* <ButtonStopProcess experiment={assignedExperiment} unit={unit}/> */}
           {/* <Divider orientation="vertical" flexItem variant="middle"/> */}
           {/* <ControlPioreactorMenu experiment={experiment} unit={unit}/> */}
@@ -635,11 +635,11 @@ function SettingsActionsDialog(props) {
     setSelfTestStartPending(true);
     runPioreactorJob(props.unit, selfTestExperiment, "self_test")
       .then(() => {
-        setSnackbarMessage(`Starting self test on ${props.unit}`);
+        setSnackbarMessage(`Starting self-test on ${props.unit}`);
         setSnackbarOpen(true);
       })
       .catch(() => {
-        setSnackbarMessage(`Failed to start self test on ${props.unit}`);
+        setSnackbarMessage(`Failed to start self-test on ${props.unit}`);
         setSnackbarOpen(true);
       })
       .finally(() => {
@@ -649,7 +649,7 @@ function SettingsActionsDialog(props) {
 
   return (
     <div>
-    <Button sx={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
+    <Button disabled={props.disabled} onClick={handleClickOpen} color="primary">
       <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} slotProps={{
@@ -673,7 +673,7 @@ function SettingsActionsDialog(props) {
             top: 8,
             color: (theme) => theme.palette.grey[500],
           }}
-          size="large">
+        >
           <CloseIcon />
         </IconButton>
       <Tabs
@@ -685,11 +685,11 @@ function SettingsActionsDialog(props) {
         scrollButtons
         allowScrollButtonsMobile
         >
-        <Tab sx={{textTransform: 'none'}} label="Activities"/>
-        <Tab sx={{textTransform: 'none'}} label="Settings"/>
-        <Tab sx={{textTransform: 'none'}} label="Dosing"/>
-        <Tab sx={{textTransform: 'none'}} label="LEDs"/>
-        <Tab sx={{textTransform: 'none'}} label="Self-test"/>
+        <Tab label="Activities"/>
+        <Tab label="Settings"/>
+        <Tab label="Dosing"/>
+        <Tab label="LEDs"/>
+        <Tab label="Self-test"/>
       </Tabs>
       </DialogTitle>
       <DialogContent>
@@ -1131,7 +1131,6 @@ function SettingsActionsDialog(props) {
               endIcon={<PlayArrowIcon />}
               disabled={isSelfTestRunning || selfTestStartPending }
               onClick={handleRunSelfTest}
-              sx={{textTransform: "none"}}
             >
               {isSelfTestRunning ? "Running" : "Start"}
             </Button>
@@ -1237,7 +1236,6 @@ function FlashLEDButton(props){
 
   return (
     <Button
-      sx={{textTransform: 'none', float: "right"}}
       className={flashing ? 'blinkled' : ''}
       disabled={props.disabled}
       onClick={onClick}

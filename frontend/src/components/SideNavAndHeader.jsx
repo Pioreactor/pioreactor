@@ -210,7 +210,7 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
         >
           <MenuItemMUI value={null} component={Link} to="/start-new-experiment">
             <AddIcon sx={{ verticalAlign: 'middle', m: '0px 3px 0px 0px', fontSize: "21px"}} />
-            New experiment
+            Create new experiment
           </MenuItemMUI>
           <Divider />
           <ListSubheader>Active</ListSubheader>
@@ -623,24 +623,24 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
               <div>
                 { lap &&
-                  <Button color="inherit" sx={{textTransform: "none"}}  component={Link}  to={{pathname: "/inventory"}}>
+                  <Button color="inherit" component={Link} to={{pathname: "/inventory"}}>
                     <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
                   </Button>
                 }
                 {shouldShowDiskSpaceWarning(diskSpace) &&
-                  <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader"}}>
+                  <Button color="inherit" component={Link} to={{pathname: "/leader"}}>
                     <div
                       className="indicator-dot"
                       style={{
                         boxShadow: `0 0 2px red, inset 0 0 12px red`,
                       }}
                     />
-                    Disk Space Low
+                    Disk space low
                   </Button>
                 }
 
                 {shouldShowUsbNavStatus(usbStatus) &&
-                  <Button color="inherit" sx={{textTransform: "none"}} component={Link} to={{pathname: "/leader", hash: "#usb-card"}}>
+                  <Button color="inherit" component={Link} to={{pathname: "/leader", hash: "#usb-card"}}>
                     <div
                       aria-label={getUsbNavLabel(usbStatus)}
                       className="indicator-dot"
@@ -651,7 +651,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                     {getUsbNavLabel(usbStatus)}
                   </Button>
                 }
-                <Button onClick={openHelpDialog} color="inherit" sx={{textTransform: "none"}}>
+                <Button onClick={openHelpDialog} color="inherit">
                   <HelpOutlineIcon sx={{ fontSize: 18, verticalAlign: "middle", mr: "3px" }}/>Help
                 </Button>
               </div>

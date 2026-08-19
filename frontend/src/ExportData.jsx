@@ -545,13 +545,13 @@ function ExportDataContainer() {
   return (
     <React.Fragment>
       <Box>
-        <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box sx={{ fontWeight: "fontWeightBold" }}>
               Export data
             </Box>
           </Typography>
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             {hasWritableUsb ? (
               <SelectButton
                 value={exportDestination}
@@ -579,7 +579,6 @@ function ExportDataContainer() {
                   onClick={onSubmit}
                   endIcon={<DownloadIcon />}
                   disabled={isRunning || (selectedDatasetsCount === 0) || !hasExperimentSelection}
-                  sx={{textTransform: 'none'}}
                 >
                   Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
               </Button>

@@ -8,6 +8,7 @@ global.TextDecoder = TextDecoder;
 
 jest.mock("../utils/tasks", () => ({
   fetchTaskResult: jest.fn(),
+  getSuccessfulUnitTaskResults: jest.fn((payload) => payload?.result ?? {}),
 }));
 
 jest.mock("react-simple-code-editor", () => ({
@@ -22,8 +23,9 @@ jest.mock("react-simple-code-editor", () => ({
 }));
 
 const { MemoryRouter, Route, Routes } = require("react-router");
-const { fetchTaskResult } = require("../utils/tasks");
+const { fetchTaskResult, getSuccessfulUnitTaskResults } = require("../utils/tasks");
 const {
+  default: Calibrations,
   UploadCalibrationDialog,
   buildCalibrationUploadFailureMessage,
   getFailedCalibrationUploadUnits,
@@ -79,7 +81,7 @@ describe("UploadCalibrationDialog", () => {
 
     await user.type(screen.getByPlaceholderText("e.g. od, media_pump"), "od");
     await user.type(screen.getByLabelText("YAML description"), "calibration_name: test");
-    await user.click(screen.getByRole("button", { name: "Upload" }));
+    await user.click(screen.getByRole("button", { name: "Upload calibration" }));
 
     await waitFor(() =>
       expect(fetchTaskResult).toHaveBeenCalledWith(
@@ -130,7 +132,7 @@ describe("UploadCalibrationDialog", () => {
     await user.type(screen.getByPlaceholderText("e.g. od, media_pump"), "od");
     const yamlEditor = screen.getByLabelText("YAML description");
     await user.type(yamlEditor, "calibration_name: test");
-    await user.click(screen.getByRole("button", { name: "Upload" }));
+    await user.click(screen.getByRole("button", { name: "Upload calibration" }));
 
     expect(
       await screen.findByText(/Calibration sent to Pioreactor\(s\)/),
@@ -163,7 +165,7 @@ describe("UploadCalibrationDialog", () => {
 
     await user.type(screen.getByPlaceholderText("e.g. od, media_pump"), "od");
     await user.type(screen.getByLabelText("YAML description"), "calibration_name: test");
-    const uploadButton = screen.getByRole("button", { name: "Upload" });
+    const uploadButton = screen.getByRole("button", { name: "Upload calibration" });
     await user.click(uploadButton);
 
     await waitFor(() => expect(uploadButton).toBeDisabled());
@@ -204,5 +206,62 @@ describe("calibration upload helpers", () => {
     expect(buildCalibrationUploadFailureMessage(["xr1", "xr3"])).toBe(
       "Calibration upload failed for units: xr1, xr3.",
     );
+  });
+});
+
+describe("calibration downloads", () => {
+  beforeEach(() => {
+    getSuccessfulUnitTaskResults.mockReturnValue({ xr1: {} });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.resetAllMocks();
+  });
+
+  test("shows pending and failure feedback while downloading all calibrations", async () => {
+    const user = userEvent.setup();
+    let resolveDownload;
+    const downloadPromise = new Promise((resolve) => {
+      resolveDownload = resolve;
+    });
+
+    fetchTaskResult.mockResolvedValue({ status: "succeeded", result: {} });
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/workers") {
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }
+      if (url === "/api/workers/$broadcast/zipped_calibrations") {
+        return downloadPromise;
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(
+      <MemoryRouter initialEntries={["/calibrations"]}>
+        <Calibrations title="Calibrations" />
+      </MemoryRouter>,
+    );
+
+    const downloadButton = await screen.findByRole("button", {
+      name: "Download all calibrations",
+    });
+    await user.click(downloadButton);
+
+    await waitFor(() => expect(downloadButton).toBeDisabled());
+
+    await act(async () => {
+      resolveDownload({ ok: false, status: 503 });
+      await downloadPromise;
+    });
+
+    expect(
+      await screen.findByText(
+        "Could not download calibrations. Check that the Pioreactors are online and try again.",
+      ),
+    ).toBeInTheDocument();
+    expect(downloadButton).toBeEnabled();
   });
 });

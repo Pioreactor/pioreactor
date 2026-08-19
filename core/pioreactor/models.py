@@ -58,7 +58,7 @@ PIOREACTOR_40ml__v1_0 = replace(
     display_name="Pioreactor 40ml, v1.0",
     model_name="pioreactor_40ml",
     reactor_capacity_ml=40.0,
-    reactor_max_fill_volume_ml=36.0,
+    reactor_max_fill_volume_ml=33.0,
     is_legacy=True,
 )
 

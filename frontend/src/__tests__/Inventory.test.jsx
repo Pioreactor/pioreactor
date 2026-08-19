@@ -220,7 +220,7 @@ describe("AddNewPioreactor", () => {
     fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
     fireEvent.change(await screen.findByRole("textbox", { name: /hostname/i }), { target: { value: "new-unit" } });
     fireEvent.change(screen.getByRole("textbox", { name: /ipv4 address/i }), { target: { value: "192.168.1.22" } });
-    fireEvent.click(screen.getByRole("button", { name: /^add pioreactor$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/workers/setup", expect.any(Object)));
     expect(getSetupRequestBody()).toMatchObject({
@@ -236,7 +236,7 @@ describe("AddNewPioreactor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
     fireEvent.change(await screen.findByRole("textbox", { name: /hostname/i }), { target: { value: "new-unit" } });
-    fireEvent.click(screen.getByRole("button", { name: /^add pioreactor$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/workers/setup", expect.any(Object)));
     expect(getSetupRequestBody()).toEqual({
@@ -252,7 +252,7 @@ describe("AddNewPioreactor", () => {
     fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
     fireEvent.change(await screen.findByRole("textbox", { name: /hostname/i }), { target: { value: "new-unit" } });
     fireEvent.change(screen.getByRole("textbox", { name: /ipv4 address/i }), { target: { value: "999.168.1.22" } });
-    fireEvent.click(screen.getByRole("button", { name: /^add pioreactor$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
 
     await screen.findByText("Provide a valid IPv4 address, or leave the IPv4 field blank.");
     expect(global.fetch.mock.calls.some(([url]) => url === "/api/workers/setup")).toBe(false);
@@ -298,7 +298,7 @@ describe("AddNewPioreactor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
     fireEvent.change(await screen.findByRole("textbox", { name: /hostname/i }), { target: { value: "new-unit" } });
-    fireEvent.click(screen.getByRole("button", { name: /^add pioreactor$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
 
     await screen.findByText(
       "Unable to complete connection. Failed to add worker new-unit. Cause: ssh connection refused Remediation: Check the Pioreactor logs for the full worker setup command output.",

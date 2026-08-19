@@ -201,8 +201,8 @@ export default function CameraStills({ title }) {
         title: "Delete this camera snapshot?",
         description: `The image captured at ${formatCaptureTime(still)} will be permanently deleted.`,
         confirmationText: "Delete",
-        confirmationButtonProps: { color: "primary", sx: { textTransform: "none"}, variant: 'contained'},
-        cancellationButtonProps: { color: "secondary", sx: { textTransform: "none" } },
+        confirmationButtonProps: { color: "primary", variant: 'contained'},
+        cancellationButtonProps: { color: "secondary" },
       });
     } catch (_error) {
       return;
@@ -248,14 +248,14 @@ export default function CameraStills({ title }) {
             mb: 1,
           }}
         >
-          <Button component={Link} to="/cameras" startIcon={<ArrowBackIcon />} sx={{ textTransform: "none" }}>
-            All cameras
+          <Button component={Link} to="/cameras">
+            <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to cameras
           </Button>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             <Button
               onClick={takeSnapshotAndRefreshTimeline}
               disabled={loading || takingSnapshot || !experiment}
-              sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
+              sx={{  whiteSpace: "nowrap"  }}
             >
               {takingSnapshot ? <CircularProgress  fontSize="small" color="inherit" size={18} sx={textIcon} /> : <LocalSeeIcon fontSize="small" sx={textIcon} />}
               Capture snapshot
@@ -264,9 +264,9 @@ export default function CameraStills({ title }) {
             <Button
               onClick={downloadAllStills}
               disabled={!experiment || stills.length === 0 || downloadingStills}
-              sx={{ textTransform: "none", whiteSpace: "nowrap", float: "right"  }}
+              sx={{  whiteSpace: "nowrap"  }}
             >
-              {downloadingStills ? <CircularProgress color="inherit" size={18} sx={textIcon} /> : <DownloadIcon fontSize="small" sx={textIcon}/>} Download all
+              {downloadingStills ? <CircularProgress color="inherit" size={18} sx={textIcon} /> : <DownloadIcon fontSize="small" sx={textIcon}/>} Download all snapshots
             </Button>
           </Box>
         </Box>
@@ -408,7 +408,6 @@ export default function CameraStills({ title }) {
                   resourceKey,
                   visibleStillCount: visibleStillCount + CAMERA_STILLS_PAGE_SIZE,
                 })}
-                sx={{ textTransform: "none" }}
               >
                 Load earlier
               </Button>

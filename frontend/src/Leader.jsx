@@ -140,8 +140,8 @@ function ManageLeaderMenu({unit}) {
       description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
       title: `Reboot ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
     }).then(() => {
       handleClose();
       fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
@@ -153,8 +153,8 @@ function ManageLeaderMenu({unit}) {
       description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
       title: `Shutdown ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
     }).then(() => {
       handleClose();
       fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
@@ -168,8 +168,8 @@ function ManageLeaderMenu({unit}) {
         description: `Repair file permissions on ${unit} and run a system status check. This does not reboot the Pioreactor or stop running jobs.`,
         title: `Repair system on ${unit}?`,
         confirmationText: "Repair system",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", variant: "contained"},
+        cancellationButtonProps: {color: "secondary"},
       });
     } catch (_) {
       return;
@@ -210,7 +210,6 @@ function ManageLeaderMenu({unit}) {
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        sx={{textTransform: "none"}}
       >
         Manage leader <ArrowDropDownIcon/>
       </Button>
@@ -380,8 +379,8 @@ function DirectoryNavigatorCard({leaderHostname}) {
         description: <><p>Import a previously exported system archive and overwrite this Pioreactor's DOT_PIOREACTOR data (including configuration, calibration, estimator, plugin, and other unit data). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing DOT_PIOREACTOR data on {leaderHostname}.</Alert></>,
         title: `Import a system archive into ${leaderHostname}?`,
         confirmationText: "Select system archive file",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", variant: "contained"},
+        cancellationButtonProps: {color: "secondary"},
       });
     } catch (_) {
       return;
@@ -515,7 +514,6 @@ function DirectoryNavigatorCard({leaderHostname}) {
           size="small"
           onClick={handleExport}
 
-          sx={{textTransform: "none"}}
         >
           <DownloadIcon fontSize="small" sx={textIcon} /> Export system archive
         </Button>
@@ -523,7 +521,6 @@ function DirectoryNavigatorCard({leaderHostname}) {
           size="small"
           disabled={isImporting}
           onClick={handleImportClick}
-          sx={{textTransform: "none"}}
         >
           <UploadIcon fontSize="small" sx={textIcon} /> Import system archive
         </Button>
@@ -1086,13 +1083,13 @@ function LeaderContainer({config}) {
   return (
     <React.Fragment>
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box sx={{ fontWeight: "fontWeightBold" }}>
               Leader
             </Box>
           </Typography>
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             <ManageInventoryMenu/>
           </Box>
         </Box>

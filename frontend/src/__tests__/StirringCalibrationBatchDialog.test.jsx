@@ -13,6 +13,29 @@ describe("StirringCalibrationBatchDialog", () => {
     jest.resetAllMocks();
   });
 
+  test("closes from the title-bar close button before a batch starts", () => {
+    const onClose = jest.fn();
+
+    render(
+      <MemoryRouter>
+        <StirringCalibrationBatchDialog
+          open
+          protocol={{
+            title: "DC-based stirring calibration",
+            protocol_name: "dc_based",
+            target_device: "stirring",
+          }}
+          units={["unit-1"]}
+          onClose={onClose}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId("CloseIcon").closest("button"));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   test("starts a stirring batch and shows unit results", async () => {
     global.fetch = jest.fn((url, options) => {
       if (url === "/api/workers/unit-1/calibrations/sessions") {

@@ -38,6 +38,7 @@ import DisplaySourceCode from "./components/DisplaySourceCode";
 import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
 
+const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function formatPolynomial(coefficients) {
     const superscripts = {
@@ -159,8 +160,8 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
         description: 'Deleting this calibration will remove it from disk. This is irreversible. Do you wish to continue?',
         title: `Delete calibration ${calibrationName}?`,
         confirmationText: "Confirm",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", variant: "contained"},
+        cancellationButtonProps: {color: "secondary"},
       });
       confirmed = true;
 
@@ -182,7 +183,7 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
   };
 
   return (
-    <Button sx={{textTransform: 'none', mr: "0px", float: "right"}} color="secondary" onClick={deleteCalibration}>
+    <Button sx={{ mr: "0px"}} color="secondary" onClick={deleteCalibration}>
        <DeleteOutlineIcon fontSize="small"/> Delete
     </Button>
 )}
@@ -207,7 +208,6 @@ function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled
   return (
     <>
       <Button
-        sx={{ textTransform: 'none', float: 'right' }}
         disabled={disabled}
         onClick={openAndLoad}
       >
@@ -226,7 +226,7 @@ function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large">
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -234,7 +234,7 @@ function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled
           <DisplaySourceCode sourceCode={yamlText} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} sx={{ textTransform: 'none' }} autoFocus>Close</Button>
+          <Button onClick={handleClose} autoFocus>Close</Button>
         </DialogActions>
       </Dialog>
     </>
@@ -263,7 +263,6 @@ function DownloadCalibrationYaml({ pioreactorUnit, calibrationName, calibration,
 
   return (
     <Button
-      sx={{ textTransform: "none", float: "right" }}
       disabled={disabled}
       onClick={downloadCalibration}
     >
@@ -359,17 +358,17 @@ function SingleCalibrationPage(props) {
   return (
       <>
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
 
           <Typography variant="h5" component="h1">
             <Box sx={{display:"inline"}}>
-              <Button component={Link} to="/calibrations" startIcon={<ArrowBackIcon />} sx={{ textTransform: 'none' }}>
-                All calibrations
+              <Button component={Link} to="/calibrations">
+                <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
               </Button>
             </Box>
           </Typography>
 
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap", alignItems: "center"}}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             <ViewYamlSource
               pioreactorUnit={pioreactorUnit}
               calibrationName={calibrationName}
@@ -391,13 +390,15 @@ function SingleCalibrationPage(props) {
             />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Button
-              startIcon={isActive ? <DoNotDisturbOnOutlinedIcon/> : <CheckCircleOutlineOutlinedIcon />}
               variant={isActive ? "text" : "contained"}
               color="primary"
               disabled={loading || !calibration}
               onClick={isActive ? handleRemoveActive : handleSetActive}
-              sx={{ textTransform: "none",  ml: 1, mr: 1 }}
+              sx={{   ml: 1, mr: 1 }}
             >
+              {isActive
+                ? <DoNotDisturbOnOutlinedIcon fontSize="small" sx={textIcon} />
+                : <CheckCircleOutlineOutlinedIcon fontSize="small" sx={textIcon} />}
               {isActive ? "Set inactive" : "Set active"}
             </Button>
           </Box>

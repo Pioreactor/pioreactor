@@ -209,26 +209,6 @@ def led_intensity(
             retain=True,
         )
 
-        # this is a hack to deal with there _not_ being a process that controls LEDs when run from the command line with `pio run` (tip: maybe that changes...)
-        # If `pio run led_intensity` is run, it's given a unique pid. This pid won't exist in the DB, so
-        # we register it with the job manager. Later, when we run `pio kill x`, we run `pio run led_intensity --A 0..` in LEDKill(), which trips the second condition, so we don't
-        # end up re-adding it.
-        # if something like OD reading starts led_intensity, it's pid exists, so we don't register it.
-        with JobManager() as jm:
-            if jm.does_pid_exist(os.getpid()) or new_state == {"A": 0, "B": 0, "C": 0, "D": 0}:
-                # part of a larger job, or turning off LEDs as part of LEDKill()
-                pass
-            else:
-                jm.register_and_set_running(
-                    unit,
-                    experiment,
-                    "led_intensity",
-                    source_of_event or os.environ.get("JOB_SOURCE", "user"),
-                    os.getpid(),
-                    "",
-                    False,
-                )
-
         if verbose:
             timestamp_of_change = current_utc_datetime()
 
@@ -315,4 +295,26 @@ def click_led_intensity(
         experiment=experiment,
         verbose=not no_log,
     )
+
+    # Only the standalone CLI command represents persistent LED state as a running job.
+    # Internal callers such as camera and OD reading share their host process and must not
+    # create a synthetic job-manager entry for it.
+    if status:
+        with local_intermittent_storage("leds") as cache:
+            all_leds_are_off = all(
+                cache.getfloat(channel, fallback=0.0) == 0.0 for channel in ALL_LED_CHANNELS
+            )
+
+        with JobManager() as job_manager:
+            if not all_leds_are_off and not job_manager.does_pid_exist(os.getpid()):
+                job_manager.register_and_set_running(
+                    unit,
+                    experiment,
+                    "led_intensity",
+                    source_of_event or os.environ.get("JOB_SOURCE", "user"),
+                    os.getpid(),
+                    "",
+                    False,
+                )
+
     return status

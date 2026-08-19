@@ -145,7 +145,7 @@ export default function CalibrationSessionStepContent({
             <>
               <CircularProgress size={20} />
               <Typography variant="body2" color="text.secondary">
-                Loading image…
+                Loading image...
               </Typography>
             </>
           )}

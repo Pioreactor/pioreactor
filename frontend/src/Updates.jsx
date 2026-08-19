@@ -219,7 +219,7 @@ function UploadArchiveAndConfirm(props) {
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large">
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -289,8 +289,8 @@ function UploadArchiveAndConfirm(props) {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
-          <Button variant="contained" loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}  sx={{textTransform: "None"}}>Update</Button>
+          <Button onClick={handleClose} color="secondary">Cancel</Button>
+          <Button variant="contained" loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}>Update</Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>
@@ -374,7 +374,7 @@ export function UpdateFromInternetAndConfirm(props) {
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large">
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -405,7 +405,7 @@ export function UpdateFromInternetAndConfirm(props) {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
+          <Button onClick={handleClose} color="secondary">Cancel</Button>
           <Button
             variant="contained"
             loading={isUpdating}
@@ -414,7 +414,6 @@ export function UpdateFromInternetAndConfirm(props) {
                 runUpdate(selectedUnits);
               });
             }}
-            sx={{textTransform: "None"}}
           >
             Update
           </Button>
@@ -503,7 +502,7 @@ function UpdateFromUsbAndConfirm(props) {
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large">
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -552,8 +551,8 @@ function UpdateFromUsbAndConfirm(props) {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
-          <Button variant="contained" loading={isUpdating} disabled={!selectedArchivePath} onClick={handleUpdate} sx={{textTransform: "None"}}>Update</Button>
+          <Button onClick={handleClose} color="secondary">Cancel</Button>
+          <Button variant="contained" loading={isUpdating} disabled={!selectedArchivePath} onClick={handleUpdate}>Update</Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>
@@ -688,7 +687,7 @@ function UpdateSoftwareConfirmDialog() {
   return (
     <React.Fragment>
       <SelectButton
-        buttonStyle={{textTransform: 'none'}}
+        buttonStyle={{}}
         value={installOption}
         onClick={handleClick}
         onChange={({ target: { value } }) =>
@@ -801,7 +800,7 @@ function PageHeader() {
 
   return (
     <Box>
-      <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
         <Typography variant="h5" component="h1">
           <Box sx={{ fontWeight: "fontWeightBold" }}>
             Updates
@@ -812,7 +811,7 @@ function PageHeader() {
             <UpdateSoftwareConfirmDialog />
           </Box>
           <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
-            <Button sx={{textTransform: 'none', float: "right", mr: "0px"}} color="primary">
+            <Button sx={{  mr: "0px"}} color="primary">
               <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> View latest release
             </Button>
           </Link>

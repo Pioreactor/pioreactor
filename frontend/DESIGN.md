@@ -72,8 +72,29 @@ Even row: #FFFFFF
   choosing a heading level for its default size.
 - Supporting metadata uses `body2` or `subtitle2` with `text.secondary`.
 - Button and navigation labels use sentence case. Do not uppercase labels.
+- `Button`, `Tab`, and `ToggleButton` sentence case is owned by the MUI theme.
+  Do not repeat `textTransform: "none"` in component-level styles.
 - A heading contains text, not form controls. Filters and selectors belong
   below the heading or in an adjacent toolbar.
+
+### UI copy
+
+- Page titles, section headings, dialog titles, and warning labels use sentence
+  case. Preserve capitalization only for proper names such as Pioreactor.
+- Write the product term as `Self-test` at the start of a label or title and
+  `self-test` within a sentence. Use `self-tests` for the plural.
+- Back-navigation labels use `Back to [destination]`, such as `Back to
+  calibrations` or `Back to experiment profiles`. Avoid bare `Back` and
+  collection labels such as `All calibrations` for the same action.
+- Use `Create new [thing]` for a record created in the application and `Add new
+  [thing]` for an entity being attached to an existing collection or system.
+- Action labels name their object, destination, or status. Prefer `View
+  homepage`, `Calibration status`, and `Download all snapshots` over bare
+  `View`, `Status`, or `Download all`.
+- Table column headings use a singular noun when each row contains one entity,
+  such as `Pioreactor` rather than `Pioreactors`.
+- Progress labels use three ASCII periods, such as `Loading...` and
+  `Saving...`. Do not mix in the Unicode ellipsis character.
 
 ### Spacing
 
@@ -173,7 +194,7 @@ named record.
     }}
   >
     <Button component={Link} to="/calibrations">
-      <ArrowBackIcon fontSize="small" sx={textIcon} /> All calibrations
+      <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
     </Button>
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
       {actions}
@@ -215,8 +236,13 @@ locations:
 - A compact toolbar or `Card` immediately below the page header.
 - A section toolbar immediately above the content they affect.
 
-Do not embed `Select`, `Autocomplete`, or other form controls inside the page
-title. The title must remain a stable description of the route.
+Normally, do not embed `Select`, `Autocomplete`, or other form controls inside
+the page title. The title must remain a stable description of the route.
+
+Logs and System logs are an approved exception: their heading is a readable
+sentence whose inline `Select` controls complete the log level and Pioreactor
+scope. Keep the sentence structure and control sizing aligned across both
+pages. Do not generalize this exception to unrelated page filters.
 
 ## Entity labels and Chips
 
@@ -266,6 +292,9 @@ Rules:
 - Keep labels selectable in copy-heavy tables such as logs.
 - Use the singular `PioreactorIcon` for one unit and `PioreactorsIcon` for an
   aggregate target.
+- When a raw entity icon and label appear together, the icon precedes the
+  label. This applies to aggregate labels such as `PioreactorsIcon` followed by
+  `All assigned Pioreactors`.
 - Do not use a Chip for arbitrary prose.
 - Tags use small `variant="outlined"` Chips and do not need entity icons.
 
@@ -432,6 +461,11 @@ const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 Reuse one local `textIcon` style object when a file has multiple text-button
 icons. Do not use MUI's `startIcon` for this pattern.
 
+Contained primary page actions may use MUI's `endIcon` for a conventional
+commit or launch icon, such as Save, Export, Upload, Update, or Run. This
+exception does not apply to text-button navigation or secondary toolbar
+actions, whose icons remain inline before the label.
+
 ### Hierarchy
 
 - **Contained primary:** the main commit action, such as Save, Start, Export,
@@ -446,8 +480,16 @@ Rules:
 
 - Use sentence case.
 - Use an icon plus a text label for unfamiliar or consequential actions.
+- Omit an action when its destination or capability does not exist, such as a
+  plugin without a homepage. Use a disabled action for a real action that is
+  temporarily unavailable or waiting on a prerequisite.
+- In setup and discovery flows, prefer a labeled action such as `Refresh` over
+  an icon-only action with a tooltip.
 - Disable an async action immediately after activation and show progress in or
   beside the control.
+- A pending spinner replaces the action's normal icon and occupies the same
+  side of the label. Do not show a Play, Save, Delete, or other stale action
+  icon alongside a spinner after the action has started.
 - If a disabled action's reason is not obvious, explain the unmet condition.
 - Confirm destructive actions using the shared confirmation flow.
 - Do not use color as the only indication that an action is destructive.
@@ -469,17 +511,28 @@ Rules:
 
 - Every dialog must have a visible close `IconButton` in the top-right corner.
   The icon must be MUI's `CloseIcon`.
-- Standard MUI Escape and backdrop dismissal should remain enabled.
+- The close `IconButton` uses MUI's default size. Do not set `size="large"` on
+  ordinary dialog close controls.
+- Standard MUI Escape and backdrop dismissal should remain enabled unless the
+  flow deliberately requires an explicit decision or an active operation must
+  be aborted safely.
+- A mandatory flow may disable implicit Escape and backdrop dismissal while
+  retaining an explicit Close action when leaving the flow is supported.
+- During an active operation that can only end through Abort, keep title and
+  footer close controls visible but disabled, and leave the Abort action
+  available.
 - A destructive confirmation may restrict backdrop dismissal, but must still
   present explicit Cancel and Confirm actions.
 - The dialog title is Typography, not a Chip.
 - Optional Pioreactor context may appear as a small icon and secondary text
   above the dialog title.
-- Dialog actions place Cancel before the primary action.
+- Dialog actions place Cancel before the primary action. Cancel uses
+  `color="secondary"`; the primary commit uses the contained primary
+  treatment.
 - Calls to the shared confirmation flow that set `confirmationButtonProps`
-  must include `{ color: "primary", sx: { textTransform: "none" }, variant: "contained" }`.
+  must include `{ color: "primary", variant: "contained" }`.
 - Calls to the shared confirmation flow that set `cancellationButtonProps`
-  must include `{ color: "secondary", sx: { textTransform: "none" } }`.
+  must include `{ color: "secondary" }`.
 - Long-running work must show immediate progress and prevent duplicate
   submission.
 
@@ -563,12 +616,9 @@ These are design debt, not alternate approved patterns.
 | Area | Intended rule | Current inconsistency |
 | --- | --- | --- |
 | Page heading semantics | One `h1` per route page | Calibrations, Estimators, Plugins, Protocols, Export data, Leader, Logs, System logs, Experiment Profiles, and the experiment profile create/edit pages use `component="h2"` for the top-level title in at least one route state. |
-| Header divider | Every normal page header ends with a divider | Experiment profile create/edit, Logs, and System logs omit the standard divider. |
-| Header location | Page title sits outside content Cards | Start new experiment places its page title inside the form Card. |
+| Header divider | Every normal page header ends with a divider | Logs and System logs omit the standard divider. |
 | Detail headers | Back navigation is separate from the record `h1` | Single calibration and single estimator pages mark the back button container as the `h1`; the actual record title is an `h2` inside the Card. |
-| Stable page titles | Filters are below or adjacent to the title | Logs and System logs place two `Select` controls inside the heading, making the title visually and semantically unstable. |
 | Header spacing | One responsive title/action layout | Header margins currently vary between `5px`, `mb: 1`, `mb: 2`, and omitted spacing; action wrapping is inconsistent. |
-| Zebra logs | Non-clickable log rows alternate `#F7F7F7` and `#FFFFFF` | `LogTable.jsx` and `LogTableByUnit.jsx` set normal cells to white, unlike `PaginatedLogsTable.jsx`, so embedded recent-log tables are not zebra striped. |
 | Clickable row accessibility | Whole-row navigation has focus and keyboard activation | Calibration and estimator rows have `onClick` and pointer hover but are not keyboard-focusable and do not handle Enter or Space. |
 | Row color tokens | Zebra and hover colors come from one shared rule | `#F7F7F7` is repeated independently in Experiments, Plugins, logs, Calibrations, and Estimators. |
 | Pioreactor labels | Pioreactor references in content use a small icon Chip | `MissingWorkerModelModal.jsx` and some operational lists use raw icon-plus-text labels outside title or Select contexts. |

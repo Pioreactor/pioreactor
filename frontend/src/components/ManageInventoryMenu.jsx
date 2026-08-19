@@ -30,8 +30,8 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
       description: 'This will halt running activities in worker Pioreactors and reboot them. Do you wish to continue?',
       title: "Reboot all workers?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: "none"}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: "none"}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
         fetch('/api/units/$broadcast/system/reboot', {method: "POST"})
@@ -44,8 +44,8 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
       description: 'This will halt running activities in worker Pioreactors and shut them down. A physical power-cycle is required to restart them. Do you wish to continue?',
       title: "Shutdown all workers?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: "none"}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: "none"}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
         fetch('/api/units/$broadcast/system/shutdown', {method: "POST"})
@@ -56,8 +56,8 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
       description: 'Unassign all workers from active experiments. This will also halt all activities in worker Pioreactors. Do you wish to continue?',
       title: "Unassign all workers?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: "none"}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: "none"}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
         fetch('/api/workers/assignments', {method: "DELETE"})
@@ -77,7 +77,6 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        sx={{textTransform: "None"}}
       >
         Manage inventory <ArrowDropDownIcon/>
       </Button>

@@ -115,8 +115,8 @@ export default function ManageExperimentMenu({experiment}){
       description: 'This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?',
       title: "End experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
         fetch(`/api/experiments/${encodeURIComponent(experiment)}/workers`, {method: "DELETE"})
@@ -132,8 +132,8 @@ export default function ManageExperimentMenu({experiment}){
         description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. This may take a while if your database is larger, too. Do you wish to continue?',
         title: "Delete experiment?",
         confirmationText: "Confirm",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", variant: "contained"},
+        cancellationButtonProps: {color: "secondary"},
       });
     } catch (_) {
       return;
@@ -169,7 +169,6 @@ export default function ManageExperimentMenu({experiment}){
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        sx={{textTransform: "None"}}
       >
         Manage experiment <ArrowDropDownIcon/>
       </Button>

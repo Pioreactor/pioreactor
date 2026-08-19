@@ -12,6 +12,7 @@ from pioreactor.actions.led_intensity import LedChannel
 from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.exc import HardwareNotFoundError
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.job_manager import JobManager
 from pioreactor.whoami import get_unit_name
 
 
@@ -163,6 +164,19 @@ def test_led_intensity_can_be_killed_by_pio_kill() -> None:
 
     result = runner.invoke(kill, ["--job-name", "led_intensity"])
     assert result.output.strip() == "Killed 1 job."
+
+
+def test_internal_led_intensity_call_is_not_registered_as_a_running_job() -> None:
+    assert led_intensity(
+        {"A": 25.0},
+        unit=get_unit_name(),
+        experiment="test_internal_led_intensity_call",
+        source_of_event="camera",
+        verbose=False,
+    )
+
+    with JobManager() as job_manager:
+        assert not job_manager.is_job_running("led_intensity")
 
 
 def test_invalid_channel_leaves_state_unchanged_and_returns_false() -> None:

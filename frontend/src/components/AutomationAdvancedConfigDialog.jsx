@@ -134,7 +134,7 @@ export default function AutomationAdvancedConfigButton({
 
   return (
     <>
-      <Button size="small" variant="text" disabled={disabled} onClick={handleOpen} sx={{textTransform: 'none', float: "right", mr: 0}}>
+      <Button size="small" variant="text" disabled={disabled} onClick={handleOpen} sx={{  mr: 0}}>
         <ExpandMoreIcon sx={{width: 21, mb: 0.25, mr: .25}} /> Advanced
       </Button>
 
@@ -150,7 +150,6 @@ export default function AutomationAdvancedConfigButton({
             aria-label="close"
             onClick={handleClose}
             sx={{ position: "absolute", right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
-            size="large"
           >
             <CloseIcon />
           </IconButton>

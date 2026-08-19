@@ -692,7 +692,7 @@ export const DisplayProfile = ({ data, comments = {} }) => {
         <ParametersSection parameters={data?.inputs} comments={comments} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
-          <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 2px 0px 0px"}} /> do:</Typography>
+          <Typography variant="subtitle2"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 2px 0px 0px"}} /> All assigned Pioreactors do:</Typography>
           <JobSection jobs={data?.common?.jobs} comments={comments} jobsPath="common.jobs" />
           </>
         }

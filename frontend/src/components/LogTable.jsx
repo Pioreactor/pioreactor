@@ -35,7 +35,7 @@ const StyledTableCell = styled(TableCell)(({ level }) => ({
   backgroundColor:
     level === "ERROR"   ? ERROR_COLOR   :
     level === "WARNING" ? WARNING_COLOR :
-    level === "NOTICE"  ? NOTICE_COLOR  : "white",
+    level === "NOTICE"  ? NOTICE_COLOR  : "inherit",
   whiteSpace: "normal"
 }));
 
@@ -52,7 +52,7 @@ const StyledTimeTableCell = styled(TableCell)(({ level }) => ({
   backgroundColor:
     level === "ERROR"   ? ERROR_COLOR   :
     level === "WARNING" ? WARNING_COLOR :
-    level === "NOTICE"  ? NOTICE_COLOR  : "white",
+    level === "NOTICE"  ? NOTICE_COLOR  : "inherit",
   whiteSpace: "pre"
 }));
 
@@ -242,7 +242,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
             to={`/logs`}
             component={Link}
             color="primary"
-            sx={{ textTransform: 'none', verticalAlign: 'middle', m: '0px 3px' }}
+            sx={{  verticalAlign: 'middle', m: '0px 3px' }}
           >
             <ListAltOutlinedIcon sx={{ fontSize: 17, m: '0px 3px' }} color="primary" /> View experiment logs
           </Button>

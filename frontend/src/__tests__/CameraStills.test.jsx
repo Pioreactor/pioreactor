@@ -100,7 +100,7 @@ describe("CameraStills", () => {
     renderCameraStills();
 
     expect(await screen.findByRole("heading", { level: 1, name: "Camera snapshots on unit-1" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "All cameras" })).toHaveAttribute("href", "/cameras");
+    expect(screen.getByRole("link", { name: "Back to cameras" })).toHaveAttribute("href", "/cameras");
     expect(screen.getByRole("separator")).toBeInTheDocument();
   });
 
@@ -139,7 +139,7 @@ describe("CameraStills", () => {
     });
     renderCameraStills();
 
-    const downloadButton = await screen.findByRole("button", { name: "Download all" });
+    const downloadButton = await screen.findByRole("button", { name: "Download all snapshots" });
     await user.click(downloadButton);
 
     expect(global.fetch).toHaveBeenLastCalledWith(

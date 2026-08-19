@@ -341,7 +341,7 @@ export function AssignPioreactors({ experiment, variant="text" }) {
   const assignmentDeltaLabel = getAssignmentDeltaLabel(assignmentDelta);
   return (
     <React.Fragment>
-      <Button variant={variant} sx={{ textTransform: "none" }} onClick={handleClickOpen}>
+      <Button variant={variant} onClick={handleClickOpen}>
         <LibraryAddCheckOutlinedIcon
           fontSize="small"
           sx={{ verticalAlign: "middle", m: "0px 3px" }}
@@ -365,7 +365,6 @@ export function AssignPioreactors({ experiment, variant="text" }) {
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large"
           >
             <CloseIcon />
           </IconButton>
@@ -476,7 +475,6 @@ export function AssignPioreactors({ experiment, variant="text" }) {
             variant="contained"
             onClick={updateAssignments}
             disabled={assignmentDeltaCount === 0 || isSubmittingAssignments}
-            sx={{ textTransform: "none" }}
           >
             {assignmentDeltaLabel}
           </Button>
@@ -489,13 +487,13 @@ export function AssignPioreactors({ experiment, variant="text" }) {
 function PioreactorHeader({experiment, config, units}) {
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
         <Typography variant="h5" component="h1">
           <Box sx={{ fontWeight: "fontWeightBold" }}>
             Pioreactors
           </Box>
         </Typography>
-        <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <ButtonStopProcess experiment={experiment}/>
           <AssignPioreactors experiment={experiment}/>
           <SettingsActionsDialogAll experiment={experiment} config={config} units={units}/>
@@ -904,11 +902,11 @@ function SettingsActionsDialog({
     setSelfTestStartPending(true);
     runPioreactorJob(unit, selfTestExperiment, "self_test")
       .then(() => {
-        setSnackbarMessage(`Starting self test on ${unit}`);
+        setSnackbarMessage(`Starting self-test on ${unit}`);
         setSnackbarOpen(true);
       })
       .catch(() => {
-        setSnackbarMessage(`Failed to start self test on ${unit}`);
+        setSnackbarMessage(`Failed to start self-test on ${unit}`);
         setSnackbarOpen(true);
       })
       .finally(() => {
@@ -918,7 +916,7 @@ function SettingsActionsDialog({
 
   return (
     <div>
-    <Button sx={{textTransform: 'none', float: "right" }} disabled={disabled} onClick={handleClickOpen} color="primary">
+    <Button disabled={disabled} onClick={handleClickOpen} color="primary">
       <SettingsIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} slotProps={{
@@ -942,7 +940,7 @@ function SettingsActionsDialog({
             top: 8,
             color: (theme) => theme.palette.grey[500],
           }}
-          size="large">
+        >
           <CloseIcon />
         </IconButton>
       <Tabs
@@ -954,11 +952,11 @@ function SettingsActionsDialog({
         scrollButtons
         allowScrollButtonsMobile
         >
-        <Tab sx={{textTransform: 'none'}} label="Activities"/>
-        <Tab sx={{textTransform: 'none'}} label="Settings"/>
-        <Tab sx={{textTransform: 'none'}} label="Dosing"/>
-        <Tab sx={{textTransform: 'none'}} label="LEDs"/>
-        <Tab sx={{textTransform: 'none'}} label="Self-test"/>
+        <Tab label="Activities"/>
+        <Tab label="Settings"/>
+        <Tab label="Dosing"/>
+        <Tab label="LEDs"/>
+        <Tab label="Self-test"/>
       </Tabs>
       </DialogTitle>
       <DialogContent>
@@ -1399,7 +1397,6 @@ function SettingsActionsDialog({
               endIcon={<PlayArrowIcon />}
               disabled={isSelfTestRunning || selfTestStartPending || !selfTestSettings}
               onClick={handleRunSelfTest}
-              sx={{textTransform: "none"}}
             >
               {isSelfTestRunning ? "Running" : "Start"}
             </Button>
@@ -1924,10 +1921,10 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     setSelfTestStartPending(true);
     runPioreactorJob(broadcastUnit, experiment, "self_test")
       .then(() => {
-        handleRunPioreactorJobResponse("self test");
+        handleRunPioreactorJobResponse("self-test");
       })
       .catch(() => {
-        setSnackbarMessage("Failed to start self test on all assigned Pioreactors");
+        setSnackbarMessage("Failed to start self-test on all assigned Pioreactors");
         setSnackbarOpen(true);
       })
       .finally(() => {
@@ -1937,7 +1934,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
   return (
     <React.Fragment>
-    <Button sx={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
+    <Button onClick={handleClickOpen} color="primary">
       <SettingsIcon fontSize="small" sx={textIcon}/> Control all Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{
@@ -1949,7 +1946,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
     }}>
       <DialogTitle sx={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
         <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
-          <PioreactorsIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> <b>All assigned & active Pioreactors</b>
+          <PioreactorsIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> <b>All assigned and active Pioreactors</b>
         </Typography>
         <IconButton
           aria-label="close"
@@ -1960,7 +1957,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
             top: 8,
             color: (theme) => theme.palette.grey[600],
           }}
-          size="large">
+        >
           <CloseIcon />
         </IconButton>
       <Tabs
@@ -1972,11 +1969,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         scrollButtons
         allowScrollButtonsMobile
       >
-        <Tab sx={{textTransform: 'none'}} label="Activities"/>
-        <Tab sx={{textTransform: 'none'}} label="Settings"/>
-        <Tab sx={{textTransform: 'none'}} label="Dosing"/>
-        <Tab sx={{textTransform: 'none'}} label="LEDs"/>
-        <Tab sx={{textTransform: 'none'}} label="Self-test"/>
+        <Tab label="Activities"/>
+        <Tab label="Settings"/>
+        <Tab label="Dosing"/>
+        <Tab label="LEDs"/>
+        <Tab label="Self-test"/>
       </Tabs>
       </DialogTitle>
       <DialogContent>
@@ -2225,7 +2222,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
               endIcon={<PlayArrowIcon />}
               disabled={isSelfTestRunning || selfTestStartPending || assignedUnitNames.length === 0 || !selfTestDefinition}
               onClick={handleRunSelfTestAll}
-              sx={{textTransform: "none"}}
             >
               {isSelfTestRunning ? "Running" : "Start"}
             </Button>
@@ -2372,7 +2368,6 @@ function FlashLEDButton({ unit, disabled }){
   }
   return (
     <Button
-      sx={{textTransform: 'none', float: "right"}}
       className={flashing ? 'blinkled' : ''}
       disabled={disabled}
       onClick={onClick}
@@ -2904,8 +2899,8 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
                 gutterBottom>
                 {(label ) ? label : unit }
               </Typography>
-              <Button disabled={!isUnitActive} component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", mb: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>
-                View details <ArrowForwardIcon sx={{ verticalAlign: "middle", ml: 0.5 }} fontSize="small"/>
+              <Button component={Link} to={`/pioreactors/${unit}`} sx={{ padding: "0px 8px", mb: "7px", ml: 1 }}>
+                <ArrowForwardIcon fontSize="small" sx={textIcon} /> View details
               </Button>
             </Box>
             <Box sx={{

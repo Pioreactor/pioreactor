@@ -22,6 +22,7 @@ import CapabilitiesPanel from "./components/CapabilitiesPanel";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
@@ -268,7 +269,7 @@ export function ExperimentProfileEditorContent({
               <Button
                 variant="contained"
                 color="primary"
-                sx={{ ml: "5px", textTransform: "none" }}
+                sx={{ ml: "5px" }}
                 onClick={() => {
                   React.startTransition(() => {
                     saveCurrentCode({ code, filename });
@@ -299,13 +300,13 @@ export function ExperimentProfileEditorContent({
 function getPageCopy(mode) {
   if (mode === "edit") {
     return {
-      heading: "Edit Experiment Profile",
+      heading: "Edit experiment profile",
       docsSentence: "Learn more about editing",
     };
   }
 
   return {
-    heading: "Create Experiment Profile",
+    heading: "Create experiment profile",
     docsSentence: "Learn more about creating",
   };
 }
@@ -388,19 +389,20 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
           xs: 12,
         }}
       >
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
           <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
             {pageCopy.heading}
           </Typography>
           <Box>
-            <Button sx={{ textTransform: "none", mr: 1 }} variant="text" onClick={() => setOpenCapabilities(true)}>
+            <Button sx={{  mr: 1 }} variant="text" onClick={() => setOpenCapabilities(true)}>
               <SearchIcon fontSize="small" sx={textIcon}/> Search jobs and automations
             </Button>
-            <Button component={Link} to="/experiment-profiles" sx={{ textTransform: "none" }}>
-              <ArrowBackIcon fontSize="small" sx={textIcon}/> Back
+            <Button component={Link} to="/experiment-profiles">
+              <ArrowBackIcon fontSize="small" sx={textIcon}/> Back to experiment profiles
             </Button>
           </Box>
         </Box>
+        <Divider />
 
         <Card sx={{ mt: 2 }}>
           <CardContent sx={{ p: 2 }}>
@@ -455,7 +457,6 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
                 top: 8,
                 color: (theme) => theme.palette.grey[500],
               }}
-              size="large"
             >
               <CloseIcon />
             </IconButton>

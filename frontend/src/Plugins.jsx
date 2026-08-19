@@ -31,6 +31,7 @@ const PLUGIN_ROW_ACTION_SX = {
   display: { xs: "contents", md: "block" },
   right: { md: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)` },
 };
+const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 const ListItemStyled = styled(ListItem)(() => ({
   "&:nth-of-type(odd)": {
@@ -46,7 +47,7 @@ const ListItemStyled = styled(ListItem)(() => ({
 function PageHeader() {
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
         <Typography variant="h5" component="h2">
           <Box sx={{ fontWeight: "fontWeightBold" }}>Plugins</Box>
         </Typography>
@@ -163,9 +164,9 @@ function InstallButton({
       aria-label={ariaLabel}
       onClick={() => onInstall(pluginName)}
       disabled={disabled}
-      sx={{ ml: "3px", textTransform: "none", minWidth: 92 }}
-      startIcon={isRunning ? <CircularProgress color="inherit" size={14} /> : undefined}
+      sx={{ ml: "3px",  minWidth: 92 }}
     >
+      {isRunning && <CircularProgress color="inherit" size={14} sx={textIcon} />}
       {buttonText}
     </Button>
   );
@@ -297,21 +298,22 @@ function ListSuggestedPlugins({
                       ariaLabel="install"
                     />
 
-                    <Button
-                      component={Link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      to={plugin.homepage}
-                      variant="text"
-                      size="small"
-                      color="primary"
-                      aria-label="view homepage"
-                      disabled={!plugin.homepage || plugin.homepage === "Unknown"}
-                      endIcon={<OpenInNewIcon />}
-                      sx={{ ml: "15px", textTransform: "none" }}
-                    >
-                      View
-                    </Button>
+                    {plugin.homepage && plugin.homepage !== "Unknown" && (
+                      <Button
+                        component={Link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        to={plugin.homepage}
+                        variant="text"
+                        size="small"
+                        color="primary"
+                        aria-label="view homepage"
+                        endIcon={<OpenInNewIcon />}
+                        sx={{ ml: "15px" }}
+                      >
+                        View homepage
+                      </Button>
+                    )}
                   </ListItemSecondaryAction>
                 </ListItemStyled>
               );
@@ -400,26 +402,29 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                   color="secondary"
                   aria-label={`uninstall ${plugin.name}`}
                   disabled={isRunning}
-                  endIcon={isRunning ? <CircularProgress color="inherit" size={14} /> : <DeleteIcon />}
-                  sx={{ ml: "3px", textTransform: "none" }}
+                  sx={{ ml: "3px" }}
                 >
+                  {isRunning
+                    ? <CircularProgress color="inherit" size={14} sx={textIcon} />
+                    : <DeleteIcon fontSize="small" sx={textIcon} />}
                   {isRunning ? "Uninstalling" : task?.status === "failed" ? "Retry" : "Uninstall"}
                 </Button>
-                <Button
-                  component={Link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  to={homepage}
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  aria-label="view homepage"
-                  disabled={!homepage || homepage === "Unknown"}
-                  endIcon={<OpenInNewIcon />}
-                  sx={{ ml: "15px", textTransform: "none" }}
-                >
-                  View
-                </Button>
+                {homepage && homepage !== "Unknown" && (
+                  <Button
+                    component={Link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    to={homepage}
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    aria-label="view homepage"
+                    endIcon={<OpenInNewIcon />}
+                    sx={{ ml: "15px" }}
+                  >
+                    View homepage
+                  </Button>
+                )}
               </ListItemSecondaryAction>
             </ListItemStyled>
           );
@@ -590,17 +595,6 @@ function ListUsbPlugins({
                     onInstall={() => onInstall(plugin)}
                     ariaLabel="install USB plugin"
                   />
-                  <Button
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    aria-label="view homepage"
-                    disabled
-                    endIcon={<OpenInNewIcon />}
-                    sx={{ ml: "15px", textTransform: "none" }}
-                  >
-                    View
-                  </Button>
                 </ListItemSecondaryAction>
               </ListItemStyled>
             );

@@ -210,7 +210,7 @@ export function UploadCalibrationDialog({
             top: 8,
             color: (theme) => theme.palette.grey[500],
           }}
-          size="large">
+        >
           <CloseIcon />
         </IconButton>
 
@@ -320,10 +320,10 @@ export function UploadCalibrationDialog({
             }}
             variant="contained"
             loading={uploadPending}
-            sx={{mt: "10px", textTransform: 'none'}}
+            sx={{mt: "10px"}}
             disabled={!selectedDevice || !calibrationYaml || !selectedWorker}
           >
-            Upload
+            Upload calibration
           </Button>
         </Box>
       </DialogContent>
@@ -718,8 +718,13 @@ function CalibrationData({ loading, rawData }) {
 function CalibrationsContainer() {
 
   const [openUploadDialog, setOpenUploadDialog] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
 
   const handleDownloadCalibrations = async () => {
+    setDownloading(true);
+    setDownloadError("");
+
     try {
       // Request the ZIP as binary data
       const response = await fetch('/api/workers/$broadcast/zipped_calibrations');
@@ -743,6 +748,9 @@ function CalibrationsContainer() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download failed:', error);
+      setDownloadError("Could not download calibrations. Check that the Pioreactors are online and try again.");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -750,29 +758,29 @@ function CalibrationsContainer() {
   return (
     <React.Fragment>
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box sx={{ fontWeight: "fontWeightBold" }}>
               Calibrations
             </Box>
           </Typography>
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             <Button
-              sx={{textTransform: 'none', mr: "0px", float: "right"}}
+              sx={{ mr: "0px"}}
               color="primary"
               component={Link}
               to="/calibration-coverage"
             >
               <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
-              Status
+              Calibration status
             </Button>
-            <Button sx={{textTransform: 'none', mr: "0px", float: "right"}}
+            <Button sx={{ mr: "0px"}}
                     color="primary"
                     onClick={() => setOpenUploadDialog(true)}
             >
               <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Upload calibration
             </Button>
-            <Button sx={{textTransform: 'none', mr: "0px", float: "right"}} color="primary" onClick={handleDownloadCalibrations}>
+            <Button color="primary" onClick={handleDownloadCalibrations} loading={downloading}>
               <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all calibrations
             </Button>
           </Box>
@@ -780,6 +788,8 @@ function CalibrationsContainer() {
         <Divider sx={{mt: "0px", mb: "15px"}} />
 
       </Box>
+
+      {downloadError && <Alert severity="error" sx={{ mb: 2 }}>{downloadError}</Alert>}
       <UploadCalibrationDialog
         open={openUploadDialog}
         onClose={() => setOpenUploadDialog(false)}

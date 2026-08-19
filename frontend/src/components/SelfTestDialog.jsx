@@ -77,9 +77,8 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
             variant="contained"
             loading={true}
             loadingPosition="start"
-            endIcon={<PlayArrowIcon />}
             disabled={true}
-            sx={{mt: "5px", height: "31px", textTransform: "none"}}
+            sx={{mt: "5px", height: "31px"}}
            >
             Running
            </Button>
@@ -94,7 +93,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
             loadingPosition="start"
             endIcon={<PlayArrowIcon />}
             onClick={() => runPioreactorJob(unit, experiment, "self_test")}
-            sx={{mt: "5px", height: "31px", textTransform: "none"}}
+            sx={{mt: "5px", height: "31px"}}
            >
             Start
            </Button>
@@ -121,15 +120,15 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
   return (
     <React.Fragment>
-      <Button sx={{textTransform: 'none'}} color="primary" disabled={disabled} onClick={handleClickOpen}>
-        {Icon()} Self test
+      <Button color="primary" disabled={disabled} onClick={handleClickOpen}>
+        {Icon()} Self-test
       </Button>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} gutterBottom>
             <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> {label ? `${label} / ${unit}` : `${unit}`}
           </Typography>
-           Self test
+           Self-test
           <IconButton
             aria-label="close"
             onClick={handleClose}
@@ -139,7 +138,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large">
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -163,7 +162,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
               <Box sx={{display: "inline-block"}}>
                <Button
-                sx={{mt: "5px", height: "31px", ml: '3px', textTransform: "None"}}
+                sx={{mt: "5px", height: "31px", ml: '3px'}}
                 color="primary"
                 variant="text"
                 disabled={!(selfTestTests?.publishedSettings.all_tests_passed.value === false) || ["init", "ready"].includes(selfTestState)}
@@ -287,7 +286,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
           <ManageDivider/>
           <Typography variant="body2" component="p" gutterBottom>
-            Learn more about self tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/self-test-reference">what to do if a test fails.</a>
+            Learn more about self-tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/self-test-reference">what to do if a test fails.</a>
           </Typography>
         </DialogContent>
       </Dialog>

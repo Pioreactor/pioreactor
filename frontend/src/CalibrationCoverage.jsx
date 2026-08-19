@@ -51,6 +51,7 @@ const HIGHLIGHTABLE_CHIP_SX = {
     WebkitUserSelect: "text",
   },
 };
+const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function CoverageCell({ cell, onNavigate }) {
   const hasLink = Boolean(cell?.detailPath);
@@ -134,7 +135,7 @@ function CalibrationCoverage(props) {
   return (
     <React.Fragment>
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, alignItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box sx={{ fontWeight: "fontWeightBold" }}>
               Calibration status
@@ -142,11 +143,9 @@ function CalibrationCoverage(props) {
           </Typography>
           <Button
             color="primary"
-            sx={{ textTransform: "none" }}
             onClick={() => navigate("/calibrations")}
-            startIcon={<ArrowBackIcon />}
           >
-            Back to calibrations
+            <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
           </Button>
         </Box>
         <Divider sx={{ mt: "0px", mb: "15px" }} />

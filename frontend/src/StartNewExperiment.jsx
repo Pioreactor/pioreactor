@@ -9,6 +9,7 @@ import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
 import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
 import MenuItem from '@mui/material/MenuItem';
@@ -325,7 +326,6 @@ function ExperimentSummaryForm(props) {
                 variant="contained"
                 onClick={onSubmit}
                 endIcon={<SaveIcon />}
-                sx={{textTransform: 'none'}}
                 disabled={hasBlockingValidationError}
                 loading={loading}
                 loadingPosition="end"
@@ -343,63 +343,24 @@ function ExperimentSummaryForm(props) {
 
 
 function StartNewExperimentContainer() {
-  const [activeStep, setActiveStep] = React.useState(0);
-  const [skipped, setSkipped] = React.useState(new Set());
   const navigate = useNavigate();
 
-
-  const getStepContent = (index) => {
-    return steps[index].content
-  }
-  const isStepSkipped = (step) => {
-    return skipped.has(step);
-  };
-
-  const handleNext = () => {
-    if (activeStep === steps.length - 1){
-      navigate('/overview') // change to location
-    } else {
-
-      let newSkipped = skipped;
-      if (isStepSkipped(activeStep)) {
-        newSkipped = new Set(newSkipped.values());
-        newSkipped.delete(activeStep);
-      }
-
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
-      setSkipped(newSkipped);
-      window.scrollTo({top: 0})
-    }
-  };
-
-
-  const steps = [
-    {title: 'Experiment summary', content: <ExperimentSummaryForm  handleNext={handleNext}/>, optional: false},
-  ]
-
-
   return (
-    <Card sx={{mt: "15px"}}>
-      <CardContent sx={{p: 2}}>
-        <Typography variant="h5" component="h1">
+    <React.Fragment>
+      <Box component="header" sx={{ mb: 2 }}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
           Start a new experiment
         </Typography>
-        <Box>
-          <Box>
-            <Box sx={{mt: 2, mb: 4, ml: "auto", mr: "auto", width: "70%"}}>{getStepContent(activeStep)}</Box>
-            <Box>
-            {(activeStep !== 0) && (
-              <Box>
-                <Button color="inherit" onClick={handleNext} sx={{ mr: 1, float: "right" }}>
-                  Skip / Next
-                </Button>
-              </Box>
-              )}
-            </Box>
+        <Divider />
+      </Box>
+      <Card>
+        <CardContent sx={{ p: 2 }}>
+          <Box sx={{ my: 2, mx: "auto", width: "70%" }}>
+            <ExperimentSummaryForm handleNext={() => navigate('/overview')} />
           </Box>
-        </Box>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </React.Fragment>
   )
 }
 

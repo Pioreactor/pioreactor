@@ -100,7 +100,6 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
             aria-label="close"
             onClick={handleClose}
             sx={{ position: "absolute", right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
-            size="large"
           >
             <CloseIcon />
           </IconButton>
@@ -188,7 +187,7 @@ export default function AdvancedConfigButton({ jobName, displayName, unit, exper
 
   return (
     <>
-      <Button  size="small" variant="text" disabled={disabled} onClick={handleOpen} sx={{textTransform: 'none', float: "right", mr: "0px"}}>
+      <Button  size="small" variant="text" disabled={disabled} onClick={handleOpen} sx={{  mr: "0px"}}>
        <ExpandMoreIcon sx={{width: "21px", mb: 0.25, mr: .25}} /> Advanced
       </Button>
       <AdvancedConfigDialog

@@ -234,7 +234,7 @@ const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
               top: 8,
               color: (theme) => theme.palette.grey[500],
             }}
-            size="large">
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -311,7 +311,6 @@ const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {isSubmitting && <CircularProgress size={24} sx={{ mr: 2 }} />}
               <Button
-                sx={{textTransform: 'none', }}
                 color="primary"
                 variant="contained"
                 onClick={handleSubmit}

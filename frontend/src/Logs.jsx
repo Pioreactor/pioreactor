@@ -97,7 +97,7 @@ function Logs(props) {
     <Fragment>
       <Grid container spacing={2} >
         <Grid size={{md: 12, lg: 7}}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
               <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
 
                 <Select
@@ -145,7 +145,7 @@ function Logs(props) {
             </Box>
           </Grid>
           <Grid size={{ md: 12, lg: 5}}>
-            <Box sx={{display: "flex", justifyContent: "flex-end", flexFlow: "wrap"}}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1, flexWrap: "wrap" }}>
               <RecordEventLogDialog
                 key={eventLogTargetKey}
                 defaultPioreactor={pioreactorUnit || ''}
@@ -153,7 +153,7 @@ function Logs(props) {
                 availableUnits={assignedUnits}
                 onSubmit={handleSubmitDialog}
               />
-              <Button to={exportLogsHref} component={Link} sx={{textTransform: 'none', mr: "0px", float: "right"}} color="primary">
+              <Button to={exportLogsHref} component={Link} sx={{ mr: "0px"}} color="primary">
                 <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Export logs
               </Button>
               <Divider orientation="vertical" flexItem variant="middle"/>

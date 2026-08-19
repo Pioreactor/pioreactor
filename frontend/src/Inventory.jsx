@@ -96,13 +96,13 @@ function Header(props) {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
         <Typography variant="h5" component="h1">
           <Box sx={{ fontWeight: "fontWeightBold" }}>
             Inventory
           </Box>
         </Typography>
-        <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <AddNewPioreactor setWorkers={props.setWorkers} availableModels={props.availableModels}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageInventoryMenu showSyncClocks leaderHostname={leaderHostname}/>
@@ -254,7 +254,7 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
     <Button
       id="add-new-pioreactor-button"
       onClick={handleClickOpen}
-      sx={{ textTransform: 'none', float: 'right', mr: 0 }}
+      sx={{   mr: 0 }}
       color="primary"
     >
       <AddIcon fontSize="small" sx={textIcon}/> Add new Pioreactor
@@ -271,39 +271,35 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
             top: 8,
             color: (theme) => theme.palette.grey[500],
           }}
-          size="large">
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
       <DialogContent>
         <p>First, follow the instructions <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">here</a> to set up your new Pioreactor's worker software.</p>
 
-        <div>After,
-
+        <Typography component="p">Before continuing, confirm that:</Typography>
         <ol>
-         <li> worker image installation is complete and,</li>
-         <li> the new worker is powered on and, </li>
-         <li> the new worker is displaying a blue light, </li>
+          <li>The worker image installation is complete.</li>
+          <li>The new worker is powered on.</li>
+          <li>The new worker is displaying a blue light.</li>
         </ol>
-
-        provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</div>
+        <Typography component="p">
+          Provide the hostname used when installing the Pioreactor image and select the Pioreactor model. You can change the model later.
+        </Typography>
         <Box sx={{ mt: 2, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
             <Typography variant="subtitle1" sx={{ mr: 1 }}>Discovered available workers:</Typography>
-            <Tooltip title="Refresh discovered workers">
-              <span>
-                <IconButton size="small" onClick={loadDiscoveredWorkers} disabled={isDiscovering}>
-                  {isDiscovering ? <CircularProgress size={16} /> : <RefreshIcon fontSize="small" />}
-                </IconButton>
-              </span>
-            </Tooltip>
+            <Button size="small" onClick={loadDiscoveredWorkers} loading={isDiscovering}>
+              <RefreshIcon fontSize="small" sx={textIcon} /> Refresh
+            </Button>
           </Box>
           {isDiscovering ? (
             <CircularProgress size={20} sx={{ mt: 1 }} />
           ) : discoveredWorkers.length === 0 ? (
-            <Typography variant="body2" component="p" color="textSecondary">No workers found. This discovery process isn't guaranteed however.</Typography>
+            <Typography variant="body2" component="p" color="textSecondary">No workers found. Discovery may not find every Pioreactor.</Typography>
           ) : <>
-              <Typography variant="body2" component="p" color="textSecondary" gutterBottom>This discovery process isn't guaranteed to find all units.</Typography>
+              <Typography variant="body2" component="p" color="textSecondary" gutterBottom>Discovery may not find every Pioreactor.</Typography>
               {discoveredWorkers.map((w) => (
                 <Chip
                   icon={<PioreactorIcon/>}
@@ -388,15 +384,13 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
           <Button
             variant="contained"
             color="primary"
-            sx={{mt: "10px", textTransform: 'none'}}
+            sx={{mt: "10px"}}
             onClick={onSubmit}
             type="submit"
             loading={isRunning}
             disabled={!name || !model}
-            endIcon={ <PioreactorIcon /> }
-
           >
-            Add Pioreactor
+            <PioreactorIcon fontSize="small" sx={textIcon} /> Add new Pioreactor
           </Button>
         </Box>
 
@@ -904,7 +898,7 @@ function Blink({unit}){
   }
 
   return (
-    <Button sx={{textTransform: 'none'}} className={flashing ? 'blinkled' : ''} onClick={onClick} onAnimationEnd={() => setFlashing(false)} color="primary">
+    <Button className={flashing ? 'blinkled' : ''} onClick={onClick} onAnimationEnd={() => setFlashing(false)} color="primary">
       <FlareIcon color="primary" fontSize="small" sx={textIcon}/> Identify
     </Button>
 )}
@@ -922,7 +916,7 @@ function Unassign({unit, experimentAssigned, onAssignmentChange}) {
   };
 
   return (
-      <Button disabled={!experimentAssigned} sx={{textTransform: "none"}} size="small" onClick={unassignWorker}>
+      <Button disabled={!experimentAssigned} size="small" onClick={unassignWorker}>
         <RemoveCircleOutlineRoundedIcon fontSize="small" sx={textIcon} />Unassign
       </Button>
 )}
@@ -1157,8 +1151,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
       title: `Reboot ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
     }).then(() => {
       fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
     }).catch(() => {});
@@ -1169,8 +1163,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
       title: `Shutdown ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
     }).then(() => {
       fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
     }).catch(() => {});
@@ -1183,8 +1177,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         description: `Repair file permissions on ${unit} and run a system status check. This does not reboot the Pioreactor or stop running jobs.`,
         title: `Repair system on ${unit}?`,
         confirmationText: "Repair system",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", variant: "contained"},
+        cancellationButtonProps: {color: "secondary"},
       });
     } catch (_) {
       return;
@@ -1224,8 +1218,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         description: 'Export an archive containing this Pioreactor\'s DOT_PIOREACTOR data, including configuration, calibration, estimator, plugin, and other unit data, so you can back up or migrate it.',
         title: `Export system archive from ${unit}?`,
         confirmationText: "Export",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", variant: "contained"},
+        cancellationButtonProps: {color: "secondary"},
       });
     } catch (_) {
       return;
@@ -1306,8 +1300,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         description: <><p>Import a previously exported system archive and overwrite this Pioreactor's DOT_PIOREACTOR data (including configuration, calibration, estimator, plugin, and other unit data). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing DOT_PIOREACTOR data on {unit}.</Alert></>,
         title: `Import a system archive into ${unit}?`,
         confirmationText: "Select system archive file",
-        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+        confirmationButtonProps: {color: "primary", variant: "contained"},
+        cancellationButtonProps: {color: "secondary"},
       });
     } catch (_) {
       return;
@@ -1329,8 +1323,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove its inventory record and shared configuration. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}, variant: "contained"},
-      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {color: "primary", variant: "contained"},
+      cancellationButtonProps: {color: "secondary"},
     }).then(() => {
       fetch(`/api/workers/${unit}`, {method: "DELETE"})
       .then((response) => {
@@ -1348,7 +1342,6 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        sx={{textTransform: "none"}}
       >
         Manage Pioreactor <ArrowDropDownIcon/>
       </Button>

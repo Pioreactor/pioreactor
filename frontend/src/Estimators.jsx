@@ -363,7 +363,7 @@ function EstimatorsContainer() {
   return (
     <React.Fragment>
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box sx={{ fontWeight: "fontWeightBold" }}>Estimators</Box>
           </Typography>

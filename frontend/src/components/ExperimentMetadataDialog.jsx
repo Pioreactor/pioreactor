@@ -147,14 +147,13 @@ export default function ExperimentMetadataDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={isSaving} sx={{ textTransform: "none" }}>
+        <Button onClick={onClose} disabled={isSaving}>
           Cancel
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
           disabled={isSaving}
-          sx={{ textTransform: "none" }}
         >
           Save
         </Button>

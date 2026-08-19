@@ -151,16 +151,15 @@ function ProtocolCard({
               endIcon={<PlayArrowIcon />}
               onClick={() => onRun(protocol)}
               disabled={!selectedUnit}
-              sx={{ textTransform: "none" }}
             >
               {showResume ? "Resume protocol" : runLabel || "Run protocol"}
             </Button>
             {showResume && (
               <Button
                 variant="text"
+                color="secondary"
                 onClick={() => onAbort(protocol)}
                 disabled={!selectedUnit || isAborting}
-                sx={{ textTransform: "none", color: "error.main" }}
               >
                 Abort protocol
               </Button>
@@ -436,7 +435,7 @@ function Protocols(props) {
 
   return (
     <React.Fragment>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
         <Typography variant="h5" component="h2">
           <Box sx={{ fontWeight: "fontWeightBold" }}>Protocols</Box>
         </Typography>

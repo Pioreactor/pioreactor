@@ -451,7 +451,6 @@ export default function CalibrationSessionDialog({
             top: 8,
             color: (theme) => theme.palette.grey[500],
           }}
-          size="large"
         >
           <CloseIcon />
         </IconButton>
@@ -520,7 +519,6 @@ export default function CalibrationSessionDialog({
                 key={action.label}
                 variant="text"
                 onClick={() => advanceSession(action.inputs, action.updates_image === true)}
-                sx={{ textTransform: "none" }}
                 disabled={sessionLoading}
               >
                 {action.label}
@@ -532,7 +530,6 @@ export default function CalibrationSessionDialog({
           <Button
             onClick={() => abortSession(true)}
             color="secondary"
-            sx={{ textTransform: "none" }}
           >
             Abort
           </Button>
@@ -541,7 +538,6 @@ export default function CalibrationSessionDialog({
           variant="contained"
           onClick={sessionResult ? () => abortSession(false) : advanceSession}
           disabled={!sessionStep || sessionLoading}
-          sx={{ textTransform: "none" }}
         >
           {primaryActionLabel}
         </Button>

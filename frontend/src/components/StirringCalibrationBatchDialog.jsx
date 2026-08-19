@@ -8,6 +8,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
@@ -20,6 +21,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import TuneIcon from "@mui/icons-material/Tune";
+import CloseIcon from "@mui/icons-material/Close";
 import { Link as RouterLink } from "react-router";
 
 const START_SESSION_ENDPOINT = (unit) => `/api/workers/${unit}/calibrations/sessions`;
@@ -352,7 +354,17 @@ export default function StirringCalibrationBatchDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle>{protocol?.title}</DialogTitle>
+      <DialogTitle sx={{ pr: 6 }}>
+        {protocol?.title}
+        <IconButton
+          aria-label="Close"
+          onClick={onClose}
+          disabled={isStarting || isRunning || isAborting}
+          sx={{ position: "absolute", right: 8, top: 8 }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
         {batchError && <Alert severity="error">{batchError}</Alert>}
 
@@ -444,7 +456,7 @@ export default function StirringCalibrationBatchDialog({
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Pioreactors</TableCell>
+                    <TableCell>Pioreactor</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Calibration</TableCell>
                     <TableCell>Error</TableCell>
@@ -467,7 +479,7 @@ export default function StirringCalibrationBatchDialog({
       </DialogContent>
       <DialogActions>
         {isRunning && (
-          <Button onClick={handleAbort} color="secondary" disabled={isAborting} sx={{ textTransform: "none" }}>
+          <Button onClick={handleAbort} color="secondary" disabled={isAborting}>
             Abort
           </Button>
         )}
@@ -476,7 +488,6 @@ export default function StirringCalibrationBatchDialog({
             onClick={handleStart}
             variant="contained"
             disabled={isStarting || selectedUnits.length === 0}
-            sx={{ textTransform: "none" }}
           >
             Continue
           </Button>
@@ -484,7 +495,6 @@ export default function StirringCalibrationBatchDialog({
         <Button
           onClick={onClose}
           disabled={isStarting || isRunning || isAborting}
-          sx={{ textTransform: "none" }}
         >
           {batch?.status === "complete" ? "Done" : "Close"}
         </Button>

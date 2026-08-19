@@ -80,15 +80,15 @@ function RecordEventLogDialog({
   return (
     <>
     <Button
-      sx={{textTransform: 'none', mr: "0px", float: "right"}}
+      sx={{ mr: "0px"}}
       color="primary"
       onClick={handleOpenDialog}
     >
-      <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}} /> Record new event
+      <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}} /> Record event
     </Button>
     <Dialog open={openDialog} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle sx={{ mb: 2 }}>
-        Record a new event log
+        Record event
         <IconButton
           aria-label="close"
           onClick={onClose}
@@ -98,14 +98,13 @@ function RecordEventLogDialog({
             top: 8,
             color: (theme) => theme.palette.grey[500],
           }}
-          size="large"
         >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 3 }}>
-          Add a new event log manually.
+          Record an event manually.
         </Typography>
         {submitError && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -173,16 +172,15 @@ function RecordEventLogDialog({
         </Box>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} sx={{ textTransform: "none" }}>
+        <Button onClick={onClose} color="secondary">
           Cancel
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
-          sx={{ textTransform: "none" }}
           disabled={isSubmitting || message === "" || selectedExperiment === "" || selectedPioreactor === ""}
         >
-          {isSubmitting ? "Submitting..." : "Submit"}
+          {isSubmitting ? "Recording..." : "Record event"}
         </Button>
       </DialogActions>
     </Dialog>

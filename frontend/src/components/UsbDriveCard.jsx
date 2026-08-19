@@ -344,7 +344,6 @@ export default function UsbDriveCard({unit}) {
           loading={isRefreshing}
           loadingPosition="start"
           startIcon={<RefreshIcon fontSize="small" />}
-          sx={{textTransform: "none"}}
         >
           Refresh
         </Button>

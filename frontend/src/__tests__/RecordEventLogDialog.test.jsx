@@ -22,10 +22,10 @@ describe("RecordEventLogDialog", () => {
 
     renderRecordEventLogDialog(onSubmit);
 
-    await user.click(screen.getByRole("button", { name: /record new event/i }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
     await user.type(screen.getByRole("textbox", { name: /message/i }), "Added fresh media");
     await user.type(screen.getByRole("textbox", { name: /source/i }), "manual");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith(
@@ -42,7 +42,7 @@ describe("RecordEventLogDialog", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /record new event/i }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
     expect(screen.getByRole("textbox", { name: /message/i })).toHaveValue("");
     expect(screen.getByRole("textbox", { name: /source/i })).toHaveValue("");
   });
@@ -53,16 +53,16 @@ describe("RecordEventLogDialog", () => {
 
     renderRecordEventLogDialog(onSubmit);
 
-    await user.click(screen.getByRole("button", { name: /record new event/i }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
     await user.type(screen.getByRole("textbox", { name: /message/i }), "Do not lose this");
     await user.type(screen.getByRole("textbox", { name: /source/i }), "operator");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
 
     expect(await screen.findByText("Worker is unreachable.")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /message/i })).toHaveValue("Do not lose this");
     expect(screen.getByRole("textbox", { name: /source/i })).toHaveValue("operator");
-    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Record event" })).toBeEnabled();
   });
 
   test("does not allow a second submit while the first request is in flight", async () => {
@@ -77,11 +77,11 @@ describe("RecordEventLogDialog", () => {
 
     renderRecordEventLogDialog(onSubmit);
 
-    await user.click(screen.getByRole("button", { name: /record new event/i }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
     await user.type(screen.getByRole("textbox", { name: /message/i }), "Only submit once");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Record event" }));
 
-    expect(screen.getByRole("button", { name: "Submitting..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recording..." })).toBeDisabled();
     expect(onSubmit).toHaveBeenCalledTimes(1);
     await act(async () => {
       resolveSubmit();

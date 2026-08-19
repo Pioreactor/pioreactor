@@ -35,7 +35,7 @@ class ErrorBoundary extends React.Component {
             <Button
               variant="contained"
               onClick={() => window.location.reload()}
-              sx={{ mb: 2, textTransform: "none" }}
+              sx={{ mb: 2 }}
             >
               Reload Pioreactor UI
             </Button>

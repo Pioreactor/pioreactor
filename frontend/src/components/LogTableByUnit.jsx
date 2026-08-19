@@ -35,7 +35,7 @@ const StyledTableCell = styled(TableCell)(({ level }) => {
     fontSize: 13,
     backgroundColor: level === "ERROR" ? ERROR_COLOR :
                       level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : "white",
+                      level === "NOTICE" ? NOTICE_COLOR : "inherit",
     whiteSpace: "normal"
   };
 });
@@ -54,7 +54,7 @@ const StyledTimeTableCell = styled(TableCell)(({ level }) => {
     fontSize: 13,
     backgroundColor: level === "ERROR" ? ERROR_COLOR :
                       level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : "white",
+                      level === "NOTICE" ? NOTICE_COLOR : "inherit",
     whiteSpace: "pre"
   };
 });
@@ -235,7 +235,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
             to={(experiment === "$experiment") ? `/system-logs/${unit}` :  `/logs/${unit}`}
             component={Link}
             color="primary"
-            sx={{ textTransform: 'none', verticalAlign: 'middle', m: '0px 3px' }}
+            sx={{  verticalAlign: 'middle', m: '0px 3px' }}
           >
             <ListAltOutlinedIcon sx={{ fontSize: 17, m: '0px 3px' }} color="primary" /> {experiment === "$experiment" ? "View system logs" : "View experiment logs"}
           </Button>
