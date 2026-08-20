@@ -41,11 +41,14 @@ from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import CAMERA_STILL_CONTENT_TYPE
 from pioreactor.camera import camera_still_filename
 from pioreactor.camera import camera_still_image_path
+from pioreactor.camera import camera_storage_name_is_safe
+from pioreactor.camera import CameraStillAlreadyExistsError
 from pioreactor.camera import delete_camera_still
 from pioreactor.camera import delete_camera_stills_for_experiment
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
+from pioreactor.camera import rename_camera_still
 from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
@@ -342,6 +345,54 @@ def delete_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
         )
 
     logger.debug(f"User deleted camera snapshot {image_id} on {HOSTNAME} for experiment {experiment}.")
+    tasks.enqueue_latest_camera_still_publication(
+        HOSTNAME,
+        experiment,
+        load_latest_camera_still_metadata(HOSTNAME, experiment=experiment),
+    )
+    return jsonify(to_builtins(metadata))
+
+
+@unit_api_bp.route("/camera/experiments/<experiment>/stills/<image_id>.jpg", methods=["PATCH"])
+def rename_camera_still_for_experiment(experiment: str, image_id: str) -> ResponseReturnValue:
+    new_image_id = decode_request_body(structs.RenameCameraStillRequest).new_image_id
+    if not camera_storage_name_is_safe(new_image_id) or new_image_id.lower().endswith(".jpg"):
+        abort_with(
+            400,
+            "Invalid camera image name.",
+            cause="Photo names may contain only letters, digits, dots, dashes, and underscores.",
+            remediation="Choose a photo name without spaces or the .jpg extension.",
+        )
+
+    try:
+        metadata = rename_camera_still(HOSTNAME, experiment, image_id, new_image_id)
+    except CameraStillAlreadyExistsError:
+        abort_with(
+            409,
+            "A camera image with that name already exists.",
+            cause=f"The photo name '{new_image_id}' is already in use on this Pioreactor.",
+            remediation="Choose a different photo name.",
+        )
+    except ValueError:
+        abort_with(
+            404,
+            "Camera still image was not found.",
+            cause="The requested camera still image id is not valid.",
+            remediation="Choose an image from the experiment camera stills list.",
+        )
+
+    if metadata is None:
+        abort_with(
+            404,
+            "Camera still image was not found.",
+            cause="No stored camera still matches this unit, experiment, and image id.",
+            remediation="Refresh the experiment camera stills list.",
+        )
+
+    logger.debug(
+        f"User renamed camera snapshot {image_id} to {new_image_id} on {HOSTNAME} "
+        f"for experiment {experiment}."
+    )
     tasks.enqueue_latest_camera_still_publication(
         HOSTNAME,
         experiment,

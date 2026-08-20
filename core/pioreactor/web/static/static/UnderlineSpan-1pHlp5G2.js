@@ -1,0 +1,1 @@
+import{j as e,U as i}from"./index-DrCMp6m7.js";function s(n){const t=n.title;return e.jsx(i,{title:t,placement:"top-start",children:e.jsx("span",{className:t?"underlineSpan":"",children:n.children})})}export{s as U};

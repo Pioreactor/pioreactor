@@ -14,6 +14,7 @@ from flask import Flask
 from flask import g
 from flask.testing import FlaskClient
 from huey.exceptions import TaskException
+from pioreactor import structs
 from pioreactor.web.config import huey
 from pytest import MonkeyPatch
 
@@ -2419,6 +2420,48 @@ def test_delete_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
         "endpoint": "/unit_api/camera/experiments/experiment a/stills/image 1.jpg",
         "path": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
     }
+
+
+def test_rename_camera_still_proxy_forwards_to_worker(client, monkeypatch: MonkeyPatch) -> None:
+    import pioreactor.web.api as mod
+    from pioreactor.mureq import _prepare_request
+    from pioreactor.mureq import Response as MureqResponse
+    from pioreactor.pubsub import create_webserver_path
+
+    captured: dict[str, object] = {}
+
+    def fake_patch_into(
+        address: str,
+        endpoint: str,
+        **kwargs: object,
+    ) -> MureqResponse:
+        _, connection, path = _prepare_request("PATCH", create_webserver_path(address, endpoint))
+        connection.close()
+        captured["address"] = address
+        captured["endpoint"] = endpoint
+        captured["path"] = path
+        captured["body"] = kwargs["json"]
+        return MureqResponse(
+            f"http://{address}{endpoint}",
+            200,
+            {"Content-Type": "application/json"},
+            b'{"image_id":"inoculation"}',
+        )
+
+    monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(mod, "patch_into", fake_patch_into)
+
+    response = client.patch(
+        "/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg",
+        json={"new_image_id": "inoculation"},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"image_id": "inoculation"}
+    assert captured["address"] == "unit1.local"
+    assert captured["endpoint"] == "/unit_api/camera/experiments/experiment a/stills/image 1.jpg"
+    assert captured["path"] == "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg"
+    assert captured["body"] == structs.RenameCameraStillRequest(new_image_id="inoculation")
 
 
 def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypatch: MonkeyPatch) -> None:

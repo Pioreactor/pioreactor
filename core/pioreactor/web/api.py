@@ -47,6 +47,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import create_webserver_path
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
+from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import put_into
@@ -922,6 +923,41 @@ def delete_camera_still_for_worker_experiment(
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
         abort_with_worker_error(response, f"Deleting camera still failed on {pioreactor_unit}.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route(
+    "/workers/<pioreactor_unit>/camera/experiments/<experiment>/stills/<image_id>.jpg",
+    methods=["PATCH"],
+)
+def rename_camera_still_for_worker_experiment(
+    pioreactor_unit: str, experiment: str, image_id: str
+) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort_with(
+            400,
+            "Cannot rename camera stills with $broadcast; choose a specific Pioreactor.",
+            cause="Camera media routes require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
+
+    body = decode_request_body(structs.RenameCameraStillRequest)
+    response: MureqResponse | None = None
+    try:
+        response = patch_into(
+            resolve_registered_worker_address(pioreactor_unit),
+            f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+            json=body,
+            timeout=20,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(response, f"Renaming camera still failed on {pioreactor_unit}.")
 
     return Response(
         response.content,

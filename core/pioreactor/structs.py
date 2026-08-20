@@ -739,6 +739,10 @@ class UpdateCameraSettingsRequest(Struct, forbid_unknown_fields=True):
     auto_capture_enabled: bool
 
 
+class RenameCameraStillRequest(Struct, forbid_unknown_fields=True):
+    new_image_id: str
+
+
 class CodePatch(Struct, forbid_unknown_fields=True):
     code: str
 

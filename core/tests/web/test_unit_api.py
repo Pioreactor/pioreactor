@@ -280,6 +280,64 @@ def test_delete_camera_still_for_experiment_requires_matching_experiment(
     assert client.get("/unit_api/camera/experiments/experiment-a/stills/image-a.jpg").status_code == 200
 
 
+def test_rename_camera_still_for_experiment_moves_the_photo(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    store_camera_still(
+        source_image_path,
+        HOSTNAME,
+        experiment="experiment-a",
+        image_id="image-a",
+    )
+
+    response = client.patch(
+        "/unit_api/camera/experiments/experiment-a/stills/image-a.jpg",
+        json={"new_image_id": "inoculation"},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["image_id"] == "inoculation"
+    assert client.get("/unit_api/camera/experiments/experiment-a/stills/image-a.jpg").status_code == 404
+    renamed_response = client.get("/unit_api/camera/experiments/experiment-a/stills/inoculation.jpg")
+    assert renamed_response.status_code == 200
+    assert renamed_response.data == b"fake jpeg"
+
+
+def test_rename_camera_still_for_experiment_rejects_duplicate_and_invalid_names(
+    client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    source_image_path.write_bytes(b"fake jpeg")
+    for image_id in ("image-a", "image-b"):
+        store_camera_still(
+            source_image_path,
+            HOSTNAME,
+            experiment="experiment-a",
+            image_id=image_id,
+        )
+
+    duplicate_response = client.patch(
+        "/unit_api/camera/experiments/experiment-a/stills/image-a.jpg",
+        json={"new_image_id": "image-b"},
+    )
+    invalid_response = client.patch(
+        "/unit_api/camera/experiments/experiment-a/stills/image-a.jpg",
+        json={"new_image_id": "new-name.jpg"},
+    )
+
+    assert duplicate_response.status_code == 409
+    assert duplicate_response.get_json()["error"] == "A camera image with that name already exists."
+    assert invalid_response.status_code == 400
+    assert client.get("/unit_api/camera/experiments/experiment-a/stills/image-a.jpg").status_code == 200
+    assert client.get("/unit_api/camera/experiments/experiment-a/stills/image-b.jpg").status_code == 200
+
+
 def test_delete_all_camera_stills_for_experiment_preserves_other_experiments(
     client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

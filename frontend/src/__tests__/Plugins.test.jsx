@@ -79,11 +79,13 @@ describe("Plugins", () => {
     });
     await waitFor(() => expect(targetSelect).toBeEnabled());
     expect(within(heading).getByText("unit-1")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Installed plugins on unit-1" })).toBeVisible();
 
     await user.click(targetSelect);
     await user.click(screen.getByRole("option", { name: "unit-2" }));
 
     expect(mockNavigate).toHaveBeenCalledWith("/plugins/unit-2");
+    expect(screen.getByRole("heading", { name: "Installed plugins on unit-2" })).toBeVisible();
     await waitFor(() =>
       expect(mockFetchTaskResult).toHaveBeenCalledWith(
         "/api/units/unit-2/plugins/installed",

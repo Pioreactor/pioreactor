@@ -1,1 +1,0 @@
-import{j as n,A as c}from"./index-DDlJiACu.js";function x(e){const{sx:r,children:t,...s}=e,o={backgroundColor:"grey.100",borderColor:"grey.300",borderStyle:"solid",borderWidth:"1px",color:"grey.700",mt:1,mb:1,"& .MuiAlert-icon":{color:"grey.600"}},i=Array.isArray(r)?[o,...r]:[o,r];return n.jsx(c,{severity:"info",sx:i,...s,children:t})}export{x as R};

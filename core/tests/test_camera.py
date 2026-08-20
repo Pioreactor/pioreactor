@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import fcntl
 import signal
+import sqlite3
 import stat
 import subprocess
 from collections.abc import Generator
@@ -28,6 +29,7 @@ from pioreactor.camera import camera_still_image_path
 from pioreactor.camera import CAMERA_STILLS_CACHE_NAME
 from pioreactor.camera import camera_warmer_runtime_paths
 from pioreactor.camera import CameraCaptureError
+from pioreactor.camera import CameraStillAlreadyExistsError
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.camera import CameraUnavailableError
 from pioreactor.camera import capture_camera_focus_preview
@@ -43,6 +45,7 @@ from pioreactor.camera import get_rpicam_still_arguments
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import load_camera_still_metadata
 from pioreactor.camera import load_latest_camera_still_metadata
+from pioreactor.camera import rename_camera_still
 from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.camera import start_camera_warmer
 from pioreactor.camera import stop_camera_warmer
@@ -52,6 +55,7 @@ from pioreactor.states import JobState
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
+from pioreactor.utils.sqlite_cache import cache as SqliteCache
 
 
 def write_source_image(path: Path, contents: bytes = b"fake jpeg") -> None:
@@ -275,6 +279,33 @@ def test_camera_still_metadata_without_capture_reason_defaults_to_scheduled() ->
     )
 
     assert metadata.capture_reason == "scheduled"
+
+
+def test_store_camera_still_rejects_an_existing_image_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path, b"original jpeg")
+    original_metadata = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-1",
+    )
+    write_source_image(source_image_path, b"replacement jpeg")
+
+    with pytest.raises(CameraStillAlreadyExistsError, match="already exists"):
+        store_camera_still(
+            source_image_path,
+            "unit-a",
+            experiment="experiment-a",
+            image_id="image-1",
+        )
+
+    assert camera_still_image_path(original_metadata).read_bytes() == b"original jpeg"
+    assert load_camera_still_metadata("unit-a", "experiment-a", "image-1") == original_metadata
 
 
 def test_load_latest_camera_still_metadata_returns_none_without_an_image(
@@ -653,6 +684,98 @@ def test_delete_camera_still_requires_matching_experiment(
 
     assert delete_camera_still("unit-a", "experiment-b", "image-a") is None
     assert camera_still_image_path(metadata).exists()
+    assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") == metadata
+
+
+def test_rename_camera_still_moves_image_and_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+    metadata = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-a",
+        capture_reason="manual",
+    )
+
+    renamed_metadata = rename_camera_still(
+        "unit-a",
+        "experiment-a",
+        "image-a",
+        "inoculation",
+    )
+
+    assert renamed_metadata == CameraStillMetadata(
+        experiment=metadata.experiment,
+        captured_at=metadata.captured_at,
+        image_id="inoculation",
+        capture_reason="manual",
+    )
+    assert not camera_still_image_path(metadata).exists()
+    assert camera_still_image_path(renamed_metadata).read_bytes() == b"fake jpeg"
+    assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") is None
+    assert load_camera_still_metadata("unit-a", "experiment-a", "inoculation") == renamed_metadata
+
+
+def test_rename_camera_still_rejects_an_existing_name_without_changing_either_photo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+    first = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-a",
+    )
+    second = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-b",
+    )
+
+    with pytest.raises(CameraStillAlreadyExistsError, match="already exists"):
+        rename_camera_still("unit-a", "experiment-a", "image-a", "image-b")
+
+    assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") == first
+    assert load_camera_still_metadata("unit-a", "experiment-a", "image-b") == second
+    assert camera_still_image_path(first).exists()
+    assert camera_still_image_path(second).exists()
+
+
+def test_rename_camera_still_restores_the_image_when_metadata_update_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    source_image_path = tmp_path / "capture.jpg"
+    write_source_image(source_image_path)
+    metadata = store_camera_still(
+        source_image_path,
+        "unit-a",
+        experiment="experiment-a",
+        image_id="image-a",
+    )
+    original_setitem = SqliteCache.__setitem__
+
+    def fail_renamed_metadata_write(storage: SqliteCache, key: object, value: object) -> None:
+        if key == "inoculation":
+            raise sqlite3.OperationalError("metadata write failed")
+        original_setitem(storage, key, value)
+
+    monkeypatch.setattr(SqliteCache, "__setitem__", fail_renamed_metadata_write)
+
+    with pytest.raises(sqlite3.OperationalError, match="metadata write failed"):
+        rename_camera_still("unit-a", "experiment-a", "image-a", "inoculation")
+
+    assert camera_still_image_path(metadata).read_bytes() == b"fake jpeg"
     assert load_camera_still_metadata("unit-a", "experiment-a", "image-a") == metadata
 
 

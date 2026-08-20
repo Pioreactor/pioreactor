@@ -82,6 +82,15 @@ describe("CameraStills", () => {
         });
       }
 
+      if (options.method === "PATCH") {
+        const { new_image_id: newImageId } = JSON.parse(options.body);
+        const originalStill = cameraStills.find((still) => url.includes(`${still.image_id}.jpg`));
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ...originalStill, image_id: newImageId }),
+        });
+      }
+
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
@@ -235,17 +244,82 @@ describe("CameraStills", () => {
     const deleteButton = await screen.findByRole("button", {
       name: /Delete camera snapshot captured at/,
     });
+    const renameButton = screen.getByRole("button", { name: "Rename photo image-1" });
     const openImageLink = screen.getByRole("link", { name: "Open image" });
     expect(within(deleteButton).getByTestId("DeleteOutlinedIcon")).toBeInTheDocument();
+    expect(within(renameButton).getByTestId("EditIcon")).toBeInTheDocument();
     expect(within(openImageLink).getByTestId("FullscreenIcon")).toBeInTheDocument();
     expect(deleteButton).not.toHaveTextContent("Delete");
+    expect(renameButton).not.toHaveTextContent("Rename");
     expect(openImageLink).not.toHaveTextContent("Open image");
 
+    await user.hover(renameButton);
+    expect(await screen.findByRole("tooltip", { name: "Rename photo" })).toBeInTheDocument();
+    await user.unhover(renameButton);
     await user.hover(deleteButton);
     expect(await screen.findByRole("tooltip", { name: "Delete snapshot" })).toBeInTheDocument();
     await user.unhover(deleteButton);
     await user.hover(openImageLink);
     expect(await screen.findByRole("tooltip", { name: "Open image" })).toBeInTheDocument();
+  });
+
+  test("renames a photo from its small card", async () => {
+    const user = userEvent.setup();
+    renderCameraStills();
+
+    await user.click(await screen.findByRole("button", { name: "Rename photo image-1" }));
+
+    const renameDialog = screen.getByRole("dialog", { name: "Rename photo" });
+    const nameInput = within(renameDialog).getByRole("textbox", { name: "Photo name" });
+    expect(nameInput).toHaveValue("image-1");
+    expect(within(renameDialog).getByRole("button", { name: "Rename" })).toBeDisabled();
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "inoculation");
+    await user.click(within(renameDialog).getByRole("button", { name: "Rename" }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      "/api/workers/unit-1/camera/experiments/experiment%20a/stills/image-1.jpg",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_image_id: "inoculation" }),
+      },
+    ));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Rename photo" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Rename photo inoculation" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Camera snapshot from unit-1/ })).toHaveAttribute(
+      "src",
+      expect.stringContaining("inoculation.jpg"),
+    );
+  });
+
+  test("preserves the entered name when renaming fails", async () => {
+    const user = userEvent.setup();
+    global.fetch = jest.fn((url, options = {}) => {
+      if (options.method === "PATCH") {
+        return Promise.resolve({
+          ok: false,
+          json: () => Promise.resolve({ error: "A camera image with that name already exists." }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ stills: cameraStills }),
+      });
+    });
+    renderCameraStills();
+
+    await user.click(await screen.findByRole("button", { name: "Rename photo image-1" }));
+    const nameInput = screen.getByRole("textbox", { name: "Photo name" });
+    await user.clear(nameInput);
+    await user.type(nameInput, "inoculation");
+    await user.click(screen.getByRole("button", { name: "Rename" }));
+
+    expect(await screen.findByText(/A camera image with that name already exists/)).toBeInTheDocument();
+    expect(nameInput).toHaveValue("inoculation");
+    expect(screen.getByRole("dialog", { name: "Rename photo" })).toBeInTheDocument();
   });
 
   test("enlarges snapshots and navigates through them with the arrow keys", async () => {
@@ -271,6 +345,13 @@ describe("CameraStills", () => {
       "src",
       expect.stringContaining("image-2.jpg"),
     );
+    expect(within(dialog).getByText("image-2")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /Rename photo/ })).not.toBeInTheDocument();
+    const manualIcon = within(dialog).getByRole("img", { name: "Manual snapshot" });
+    expect(manualIcon).toHaveAttribute("data-testid", "LocalSeeIcon");
+    await user.hover(manualIcon);
+    expect(await screen.findByRole("tooltip", { name: "Manual snapshot" })).toBeInTheDocument();
+    await user.unhover(manualIcon);
     expect(within(dialog).queryByRole("button", { name: "Previous snapshot" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Next snapshot" })).not.toBeInTheDocument();
 
@@ -279,6 +360,11 @@ describe("CameraStills", () => {
     expect(within(dialog).getByRole("img", { name: /Enlarged camera snapshot/ })).toHaveAttribute(
       "src",
       expect.stringContaining("image-1.jpg"),
+    );
+    expect(within(dialog).getByText("image-1")).toBeInTheDocument();
+    expect(within(dialog).getByRole("img", { name: "Scheduled snapshot" })).toHaveAttribute(
+      "data-testid",
+      "ScheduleIcon",
     );
 
     await user.keyboard("{ArrowLeft}");

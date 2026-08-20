@@ -27,6 +27,7 @@ from msgspec import Struct
 from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
+from msgspec.structs import replace
 from pioreactor import types as pt
 from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.actions.led_intensity import led_intensity
@@ -78,6 +79,10 @@ class CameraUnavailableError(RuntimeError):
 
 
 class CameraCaptureError(RuntimeError):
+    pass
+
+
+class CameraStillAlreadyExistsError(ValueError):
     pass
 
 
@@ -917,9 +922,6 @@ def store_camera_still(
 
     filename = camera_still_filename(image_id)
     destination_image_path = stills_root / filename
-    shutil.copyfile(source_image_path, destination_image_path)
-    destination_image_path.chmod(0o664)  # Huey writes; www-data serves.
-
     root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
     metadata = CameraStillMetadata(
         experiment=experiment,
@@ -928,14 +930,17 @@ def store_camera_still(
         capture_reason=capture_reason,
     )
 
-    metadata_bytes = json_encode(metadata)
+    if destination_image_path.exists():
+        raise CameraStillAlreadyExistsError(f"Camera image name '{image_id}' already exists.")
+
     try:
+        shutil.copyfile(source_image_path, destination_image_path)
+        destination_image_path.chmod(0o664)  # Huey writes; www-data serves.
         with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
             initialize_camera_stills_metadata_storage(storage)
-            storage[image_id] = metadata_bytes
-    except sqlite3.Error:
-        if destination_image_path.exists():
-            destination_image_path.unlink()
+            storage[image_id] = json_encode(metadata)
+    except (OSError, sqlite3.Error):
+        destination_image_path.unlink(missing_ok=True)
         raise
 
     apply_camera_still_retention(
@@ -1009,6 +1014,47 @@ def delete_camera_still(
         storage.pop(image_id, None)
 
     return metadata
+
+
+def rename_camera_still(
+    unit: pt.Unit,
+    experiment: pt.Experiment,
+    image_id: str,
+    new_image_id: str,
+    dot_pioreactor: Path | None = None,
+) -> CameraStillMetadata | None:
+    if not camera_storage_name_is_safe(new_image_id):
+        raise ValueError(f"Unsafe camera image id: {new_image_id}")
+
+    metadata = load_camera_still_metadata(unit, experiment, image_id, dot_pioreactor)
+    if metadata is None:
+        return None
+
+    if new_image_id == image_id:
+        return metadata
+
+    renamed_metadata = replace(metadata, image_id=new_image_id)
+    source_image_path = camera_still_image_path(metadata, dot_pioreactor)
+    destination_image_path = camera_still_image_path(renamed_metadata, dot_pioreactor)
+    if destination_image_path.exists():
+        raise CameraStillAlreadyExistsError(f"Camera image name '{new_image_id}' already exists.")
+
+    source_image_path.rename(destination_image_path)
+    try:
+        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
+            storage.cursor.execute("BEGIN IMMEDIATE")
+            try:
+                storage[new_image_id] = json_encode(renamed_metadata)
+                storage.pop(image_id)
+                storage.conn.commit()
+            except Exception:
+                storage.conn.rollback()
+                raise
+    except Exception:
+        destination_image_path.rename(source_image_path)
+        raise
+
+    return renamed_metadata
 
 
 def delete_camera_stills_for_experiment(

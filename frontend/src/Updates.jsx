@@ -226,9 +226,8 @@ function UploadArchiveAndConfirm(props) {
         <DialogContent>
           <DialogContentText id="alert-dialog-description" component="div">
             {props.description}
-            <p>You can update the Pioreactor software from our pre-built zip files. First download the <code>release_*.zip</code> file from our <a href="https://github.com/Pioreactor/pioreactor/releases?q=prerelease%3Afalse&expanded=true" target="_blank" rel="noopener noreferrer" >Releases page</a>, and then upload the file.</p>
-            <p>To avoid possible data interruptions, we suggest updating between running experiments.
-            Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer">updating from a zip file</a>.</p>
+            <p>You can update the Pioreactor software from our pre-built zip files. First download the <code>release_*.zip</code> file from our <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer" >Releases page</a>, and then upload the file.</p>
+            <p>To avoid possible data interruptions, we suggest updating between running experiments.</p>
 
             {units.length > 1 &&
             <Box sx={{my: 2}}>

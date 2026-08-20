@@ -556,7 +556,7 @@ function ListUsbPlugins({
         USB Device
       </Typography>
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
-        <p>
+        <Typography variant="body2" component="p" color="text.secondary">
            You can attach a USB with Pioreactor plugins to install them on your cluster. Learn more about {" "}
           <a
             href="https://docs.pioreactor.com/user-guide/using-usb-drives#install-plugins-from-usb"
@@ -565,7 +565,7 @@ function ListUsbPlugins({
           >
            USB-sourced plugins
           </a>.
-        </p>
+        </Typography>
       </Box>
     </>
     )
@@ -967,7 +967,7 @@ function PluginContainer() {
           </p>
 
           <Typography variant="h6" component="h2">
-           Installed plugins
+            {targetIsRealUnit ? `Installed plugins on ${selectedTarget}` : "Installed plugins"}
           </Typography>
 
           {!isFetchComplete && targetIsRealUnit && (

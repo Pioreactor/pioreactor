@@ -8,12 +8,14 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
@@ -21,6 +23,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
+import EditIcon from "@mui/icons-material/Edit";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import LocalSeeIcon from "@mui/icons-material/LocalSee";
 import ScheduleIcon from "@mui/icons-material/Schedule";
@@ -98,6 +101,10 @@ export default function CameraStills({ title }) {
   });
   const [deletingImageId, setDeletingImageId] = React.useState(null);
   const [downloadingStills, setDownloadingStills] = React.useState(false);
+  const [renameDialogImageId, setRenameDialogImageId] = React.useState(null);
+  const [renameDraft, setRenameDraft] = React.useState("");
+  const [renameError, setRenameError] = React.useState(null);
+  const [renameRequestPending, setRenameRequestPending] = React.useState(false);
   const [takingSnapshot, setTakingSnapshot] = React.useState(false);
   const resourceKey = `${pioreactorUnit || ""}:${experiment || ""}`;
   const [pagination, setPagination] = React.useState({
@@ -120,6 +127,17 @@ export default function CameraStills({ title }) {
     (still) => still.image_id === selectedStillImageId,
   );
   const selectedStill = selectedStillIndex >= 0 ? orderedStills[selectedStillIndex] : null;
+  const selectedStillIsScheduled = selectedStill?.capture_reason !== "manual";
+  const selectedStillCaptureReasonLabel = selectedStillIsScheduled
+    ? "Scheduled snapshot"
+    : "Manual snapshot";
+  const SelectedStillCaptureReasonIcon = selectedStillIsScheduled ? ScheduleIcon : LocalSeeIcon;
+  let renameHelperText = "Use letters, numbers, dots, dashes, or underscores. Leave off .jpg.";
+  if (renameError) {
+    renameHelperText = renameError;
+  } else if (renameDraft === renameDialogImageId) {
+    renameHelperText = "Change the current name to enable Rename.";
+  }
 
   const moveSelectedStill = (offset) => {
     setSelectedStillImageId((currentImageId) => {
@@ -235,6 +253,66 @@ export default function CameraStills({ title }) {
     }
   }, [confirm, deletingImageId, experiment, pioreactorUnit, setError, setStills]);
 
+  const openRenameDialog = (still) => {
+    setRenameDialogImageId(still.image_id);
+    setRenameDraft(still.image_id);
+    setRenameError(null);
+  };
+
+  const closeRenameDialog = () => {
+    if (renameRequestPending) {
+      return;
+    }
+
+    setRenameDialogImageId(null);
+    setRenameError(null);
+  };
+
+  const renameStill = async () => {
+    if (
+      !pioreactorUnit
+      || !experiment
+      || renameRequestPending
+      || !renameDialogImageId
+      || !renameDraft
+      || renameDraft === renameDialogImageId
+    ) {
+      return;
+    }
+
+    const originalImageId = renameDialogImageId;
+    setRenameRequestPending(true);
+    setRenameError(null);
+
+    try {
+      const response = await fetch(
+        workerExperimentCameraPath(
+          pioreactorUnit,
+          experiment,
+          `stills/${encodeURIComponent(originalImageId)}.jpg`,
+        ),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_image_id: renameDraft }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not rename the camera photo.");
+      }
+
+      setStills((currentStills) => currentStills.map((still) => (
+        still.image_id === originalImageId ? payload : still
+      )));
+      setRenameDialogImageId(null);
+    } catch (error) {
+      setRenameError(`${error.message} Check the name and retry.`);
+    } finally {
+      setRenameRequestPending(false);
+    }
+  };
+
   return (
     <Stack spacing={2}>
       <Box component="header">
@@ -345,7 +423,13 @@ export default function CameraStills({ title }) {
                     <Stack
                       direction="row"
                       spacing={1}
-                      sx={{ alignItems: "center", justifyContent: "space-between", px: 1.5, py: 1 }}
+                      sx={{
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        px: 1.5,
+                        py: 1,
+                      }}
                     >
                       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", minWidth: 0 }}>
                         <Tooltip title={captureReasonLabel}>
@@ -364,7 +448,16 @@ export default function CameraStills({ title }) {
                           </Typography>
                         </Box>
                       </Stack>
-                      <Stack direction="row" spacing={0.5}>
+                      <Stack direction="row" spacing={0.5} sx={{ ml: "auto" }}>
+                        <Tooltip title="Rename photo">
+                          <IconButton
+                            aria-label={`Rename photo ${still.image_id}`}
+                            onClick={() => openRenameDialog(still)}
+                            sx={{ minHeight: 44, minWidth: 44 }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Delete snapshot">
                           <span>
                             <IconButton
@@ -420,6 +513,69 @@ export default function CameraStills({ title }) {
       )}
 
       <Dialog
+        open={renameDialogImageId !== null}
+        onClose={closeRenameDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ pr: 6 }}>
+          Rename photo
+          <IconButton
+            aria-label="Close"
+            disabled={renameRequestPending}
+            onClick={closeRenameDialog}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <Box
+          component="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            renameStill();
+          }}
+        >
+          <DialogContent>
+            <TextField
+              autoFocus
+              fullWidth
+              required
+              label="Photo name"
+              value={renameDraft}
+              error={Boolean(renameError)}
+              helperText={renameHelperText}
+              disabled={renameRequestPending}
+              onChange={(event) => {
+                setRenameDraft(event.target.value);
+                setRenameError(null);
+              }}
+              slotProps={{ htmlInput: { autoComplete: "off", spellCheck: false } }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button color="secondary" disabled={renameRequestPending} onClick={closeRenameDialog}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={
+                renameRequestPending
+                || !renameDraft
+                || renameDraft === renameDialogImageId
+              }
+            >
+              {renameRequestPending && (
+                <CircularProgress color="inherit" size={18} sx={textIcon} />
+              )}
+              Rename
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      <Dialog
         open={selectedStill !== null}
         onClose={() => setSelectedStillImageId(null)}
         onKeyDown={(event) => {
@@ -435,7 +591,30 @@ export default function CameraStills({ title }) {
         fullWidth
       >
         <DialogTitle sx={{ pr: 6 }}>
-          {selectedStill ? formatCaptureTime(selectedStill) : "Camera snapshot"}
+          {selectedStill ? (
+            <>
+              <Typography variant="h6" component="div">
+                {formatCaptureTime(selectedStill)}
+              </Typography>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", minWidth: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  sx={{ overflowWrap: "anywhere" }}
+                >
+                  {selectedStill.image_id}
+                </Typography>
+                <Tooltip title={selectedStillCaptureReasonLabel}>
+                  <SelectedStillCaptureReasonIcon
+                    role="img"
+                    titleAccess={selectedStillCaptureReasonLabel}
+                    fontSize="small"
+                    sx={{ color: "text.secondary", flexShrink: 0 }}
+                  />
+                </Tooltip>
+              </Stack>
+            </>
+          ) : "Camera snapshot"}
           <IconButton
             aria-label="Close"
             onClick={() => setSelectedStillImageId(null)}
