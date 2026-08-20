@@ -925,7 +925,6 @@ def test_fallback_time_series_accepts_valid_sql_identifiers(client: FlaskClient,
 @pytest.mark.parametrize(
     ("query", "parameter"),
     [
-        ("lookback=0", "lookback"),
         ("lookback=-1", "lookback"),
         ("lookback=nan", "lookback"),
         ("lookback=not-a-number", "lookback"),
@@ -949,6 +948,12 @@ def test_time_series_accepts_frontend_raw_point_limit(client: FlaskClient) -> No
     response = client.get(
         "/api/experiments/no-data/time_series/growth_rates?lookback=4&target_points=1000000"
     )
+
+    assert response.status_code == 200
+
+
+def test_time_series_accepts_zero_lookback(client: FlaskClient) -> None:
+    response = client.get("/api/experiments/no-data/time_series/growth_rates?lookback=0")
 
     assert response.status_code == 200
 

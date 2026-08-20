@@ -599,6 +599,7 @@ export default function CameraStills({ title }) {
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", minWidth: 0 }}>
                 <Typography
                   variant="subtitle2"
+                  component="div"
                   color="text.secondary"
                   sx={{ overflowWrap: "anywhere" }}
                 >

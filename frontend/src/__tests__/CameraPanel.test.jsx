@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
 import dayjs from "dayjs";
 
@@ -39,7 +39,7 @@ describe("CameraPanel", () => {
     jest.resetAllMocks();
   });
 
-  test("shows latest capture time since the experiment began with the timestamp in a tooltip", () => {
+  test("shows the latest photo metadata in the enlarged viewer", async () => {
     render(
       <MemoryRouter>
         <CameraPanel
@@ -51,6 +51,7 @@ describe("CameraPanel", () => {
             latest_still: {
               image_id: "image-1",
               captured_at: "2026-06-11T12:00:00Z",
+              capture_reason: "manual",
               experiment: "experiment-a",
             },
           }}
@@ -62,6 +63,19 @@ describe("CameraPanel", () => {
       "aria-label",
       dayjs("2026-06-11T12:00:00Z").format("YYYY-MM-DD HH:mm:ss"),
     );
+
+    fireEvent.click(screen.getByRole("button", { name: "Latest camera snapshot for unit-1" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("unit-1")).toBeInTheDocument();
+    expect(within(dialog).getByText("image-1")).toBeInTheDocument();
+    expect(within(dialog).getByText(
+      dayjs("2026-06-11T12:00:00Z").format("YYYY-MM-DD HH:mm:ss"),
+    )).toBeInTheDocument();
+    const captureReasonIcon = within(dialog).getByRole("img", { name: "Manual snapshot" });
+    expect(captureReasonIcon).toHaveAttribute("data-testid", "LocalSeeIcon");
+    fireEvent.mouseOver(captureReasonIcon);
+    expect(await screen.findByRole("tooltip", { name: "Manual snapshot" })).toBeInTheDocument();
   });
 
   test("loads status and the latest snapshot from the selected experiment", async () => {

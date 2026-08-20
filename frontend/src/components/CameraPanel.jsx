@@ -22,7 +22,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupportedOutlined";
+import LocalSeeIcon from "@mui/icons-material/LocalSee";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 
 import PioreactorIcon from "./PioreactorIcon";
 import UnderlineSpan from "./UnderlineSpan";
@@ -179,6 +181,11 @@ export default function CameraPanel({
   const snapshotIntervalMinutes = status?.snapshot_interval_minutes;
 
   const hasLatestStill = Boolean(status?.latest_still);
+  const latestStillIsScheduled = status?.latest_still?.capture_reason !== "manual";
+  const latestStillCaptureReasonLabel = latestStillIsScheduled
+    ? "Scheduled snapshot"
+    : "Manual snapshot";
+  const LatestStillCaptureReasonIcon = latestStillIsScheduled ? ScheduleIcon : LocalSeeIcon;
   const openMediaUrl = status?.latest_still
     ? experimentStillUrl(unit, experiment, status.latest_still.image_id)
     : null;
@@ -362,7 +369,34 @@ export default function CameraPanel({
 
       <Dialog open={viewerOpen} onClose={() => setViewerOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle sx={{ pr: 6 }}>
-          {unit}
+          <Typography variant="h6" component="div">
+            {unit}
+          </Typography>
+          {status?.latest_still && (
+            <>
+              <Typography variant="subtitle2" component="div" color="text.secondary">
+                {formatCaptureTime(status.latest_still)}
+              </Typography>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", minWidth: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  component="div"
+                  color="text.secondary"
+                  sx={{ overflowWrap: "anywhere" }}
+                >
+                  {status.latest_still.image_id}
+                </Typography>
+                <Tooltip title={latestStillCaptureReasonLabel}>
+                  <LatestStillCaptureReasonIcon
+                    role="img"
+                    titleAccess={latestStillCaptureReasonLabel}
+                    fontSize="small"
+                    sx={{ color: "text.secondary", flexShrink: 0 }}
+                  />
+                </Tooltip>
+              </Stack>
+            </>
+          )}
           <IconButton
             aria-label="Close"
             onClick={() => setViewerOpen(false)}

@@ -1475,61 +1475,41 @@ def parse_integer_query_parameter(
     return value
 
 
-def parse_float_query_parameter(
-    name: str,
-    default: float,
-    *,
-    minimum_exclusive: float | None = None,
-    maximum: float | None = None,
-) -> float:
-    raw_value = request.args.get(name)
-    if raw_value is None:
-        return default
-
+def parse_time_series_query_parameters() -> tuple[float, int]:
     try:
-        value = float(raw_value)
+        lookback = float(request.args.get("lookback", 4.0))
     except ValueError:
         abort_with(
             400,
-            f"Invalid {name}",
-            cause=f"{name} must be a number.",
-            remediation=f"Provide {name} as a finite number.",
+            "Invalid lookback",
+            cause="lookback must be a number.",
+            remediation="Provide lookback as a finite number.",
         )
 
-    if not math.isfinite(value):
+    if not math.isfinite(lookback):
         abort_with(
             400,
-            f"Invalid {name}",
-            cause=f"{name} must be finite.",
-            remediation=f"Provide {name} as a finite number.",
+            "Invalid lookback",
+            cause="lookback must be finite.",
+            remediation="Provide lookback as a finite number.",
         )
 
-    if minimum_exclusive is not None and value <= minimum_exclusive:
+    if lookback < 0:
         abort_with(
             400,
-            f"Invalid {name}",
-            cause=f"{name} must be greater than {minimum_exclusive:g}.",
-            remediation=f"Provide {name} as a number greater than {minimum_exclusive:g}.",
+            "Invalid lookback",
+            cause="lookback must be at least 0.",
+            remediation="Provide lookback as a number greater than or equal to 0.",
         )
 
-    if maximum is not None and value > maximum:
+    if lookback > MAX_TIME_SERIES_LOOKBACK_HOURS:
         abort_with(
             400,
-            f"Invalid {name}",
-            cause=f"{name} must be at most {maximum:g}.",
-            remediation=f"Provide {name} as a number less than or equal to {maximum:g}.",
+            "Invalid lookback",
+            cause=f"lookback must be at most {MAX_TIME_SERIES_LOOKBACK_HOURS:g}.",
+            remediation=f"Provide lookback as a number less than or equal to {MAX_TIME_SERIES_LOOKBACK_HOURS:g}.",
         )
 
-    return value
-
-
-def parse_time_series_query_parameters() -> tuple[float, int]:
-    lookback = parse_float_query_parameter(
-        "lookback",
-        4.0,
-        minimum_exclusive=0.0,
-        maximum=MAX_TIME_SERIES_LOOKBACK_HOURS,
-    )
     target_points = parse_integer_query_parameter(
         "target_points",
         720,
