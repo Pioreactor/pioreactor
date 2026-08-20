@@ -142,7 +142,7 @@ function EditableCodeDiv() {
 
     try {
       const res = await fetch(saveUrl, {
-        method: "PATCH",
+        method: "PUT",
         body: JSON.stringify({ code: state.code }),
         headers: {
           'Accept': 'application/json',

@@ -10,6 +10,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from flask import Flask
 from flask import g
 from flask.testing import FlaskClient
 from huey.exceptions import TaskException
@@ -45,6 +46,51 @@ def test_process_delayed_json_response_accepts_created_status() -> None:
         "unit1",
         {"ok": True, "unit": "unit1", "value": {"msg": "Calibration created successfully."}},
     )
+
+
+def test_canonical_http_methods_keep_compatibility_aliases(app: Flask) -> None:
+    methods_by_route: dict[str, set[str]] = {}
+    for rule in app.url_map.iter_rules():
+        methods_by_route.setdefault(rule.rule, set()).update(rule.methods or set())
+
+    command_routes_with_patch_compatibility = (
+        "/api/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
+        "/api/units/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
+        "/api/workers/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>",
+        "/api/units/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>",
+        "/api/workers/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>",
+        "/api/units/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>",
+        "/api/units/<pioreactor_unit>/plugins/install",
+        "/api/units/<pioreactor_unit>/plugins/install-from-leader-usb",
+        "/api/units/<pioreactor_unit>/plugins/uninstall",
+        "/unit_api/hardware/check",
+        "/unit_api/system/update/<target>",
+        "/unit_api/system/update",
+        "/unit_api/system/reboot",
+        "/unit_api/system/shutdown",
+        "/unit_api/system/web_server/restart",
+        "/unit_api/system/repair",
+        "/unit_api/system/remove_file",
+        "/unit_api/system/utc_clock",
+        "/unit_api/jobs/run/job_name/<job_name>",
+        "/unit_api/jobs/stop/all",
+        "/unit_api/jobs/stop",
+        "/unit_api/plugins/install",
+        "/unit_api/plugins/install-from-usb",
+        "/unit_api/plugins/install-python-file-from-leader-copy",
+        "/unit_api/plugins/uninstall",
+    )
+    for route in command_routes_with_patch_compatibility:
+        assert {"POST", "PATCH"} <= methods_by_route[route]
+
+    assert {"PUT", "PATCH"} <= methods_by_route["/api/config/shared"]
+    assert {"PUT", "PATCH"} <= methods_by_route["/api/config/units/<pioreactor_unit>/specific"]
+    assert {"PUT", "POST", "PATCH"} <= methods_by_route["/unit_api/config/specific"]
+
+    assert "PATCH" in methods_by_route["/unit_api/camera/settings"]
+    assert "POST" not in methods_by_route["/unit_api/camera/settings"]
+    assert "DELETE" in methods_by_route["/unit_api/calibrations/<device>/<calibration_name>"]
+    assert "POST" not in methods_by_route["/unit_api/calibrations/<device>/<calibration_name>"]
 
 
 def test_latest_experiment_endpoint(client) -> None:
@@ -1622,7 +1668,7 @@ def test_unit_api_specific_config_round_trip(
     assert response.status_code == 200
     assert response.data.decode("utf-8") == ""
 
-    response = client.patch("/unit_api/config/specific", json={"code": "[shared]\nvalue=unit-local\n"})
+    response = client.put("/unit_api/config/specific", json={"code": "[shared]\nvalue=unit-local\n"})
     assert response.status_code == 200
 
     response = client.get("/unit_api/config/specific")
@@ -1643,7 +1689,7 @@ def test_update_specific_config_for_worker_saves_snapshot(
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
         mod,
-        "post_into",
+        "put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             200,
@@ -1652,7 +1698,7 @@ def test_update_specific_config_for_worker_saves_snapshot(
         ),
     )
 
-    response = client.patch("/api/config/units/unit1/specific", json={"code": "[section]\nvalue=1\n"})
+    response = client.put("/api/config/units/unit1/specific", json={"code": "[section]\nvalue=1\n"})
     assert response.status_code == 200
 
     history_response = client.get("/api/config/units/unit1/specific/history")
@@ -1744,7 +1790,7 @@ def test_update_specific_config_for_worker_propagates_validation_error(
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
         mod,
-        "post_into",
+        "put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             400,
@@ -1758,7 +1804,7 @@ def test_update_specific_config_for_worker_propagates_validation_error(
         ),
     )
 
-    response = client.patch("/api/config/units/unit1/specific", json={"code": "[broken"})
+    response = client.put("/api/config/units/unit1/specific", json={"code": "[broken"})
     assert response.status_code == 400
     assert response.get_json() == {
         "error": "Incorrect syntax. Please fix and try again.",
@@ -1777,7 +1823,7 @@ def test_update_specific_config_for_worker_rejects_unstructured_worker_error(
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
         mod,
-        "post_into",
+        "put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             400,
@@ -1786,7 +1832,7 @@ def test_update_specific_config_for_worker_rejects_unstructured_worker_error(
         ),
     )
 
-    response = client.patch("/api/config/units/unit1/specific", json={"code": "[broken"})
+    response = client.put("/api/config/units/unit1/specific", json={"code": "[broken"})
 
     assert response.status_code == 502
     assert response.get_json() == {
@@ -1818,7 +1864,7 @@ def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
     [
         ("post", "/api/experiment_profiles", {}),
         ("patch", "/api/experiment_profiles/demo.yaml", {}),
-        ("patch", "/api/config/shared", {}),
+        ("put", "/api/config/shared", {}),
         ("post", "/api/datasets/exportable/export", {}),
         ("post", "/api/datasets/exportable/export-to-usb", {}),
         ("patch", "/api/workers/unit1/jobs/update/job_name/stirring/experiments/exp1", {}),
@@ -1829,7 +1875,7 @@ def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
         ("post", "/api/units/unit1/plugins/install-from-leader-usb", {}),
         ("post", "/api/system/update_from_archive", {}),
         ("post", "/api/workers/unit1/calibrations/sessions", {}),
-        ("patch", "/api/config/units/unit1/specific", {}),
+        ("put", "/api/config/units/unit1/specific", {}),
         ("post", "/api/experiments", {}),
         ("put", "/api/experiments/exp1/unit_labels", {}),
         ("post", "/api/workers/setup", {}),

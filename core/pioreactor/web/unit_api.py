@@ -649,7 +649,7 @@ def get_specific_config() -> ResponseReturnValue:
     )
 
 
-@unit_api_bp.route("/config/specific", methods=["POST", "PATCH"])
+@unit_api_bp.route("/config/specific", methods=["PUT", "POST", "PATCH"])
 def update_specific_config() -> ResponseReturnValue:
     """
     Replace this unit's unit-specific config text.
@@ -1017,8 +1017,8 @@ def get_clock_time() -> ResponseReturnValue:
         )
 
 
-# PATCH / POST to set clock time
-@unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
+# POST sets the clock; PATCH remains as a compatibility alias.
+@unit_api_bp.route("/system/utc_clock", methods=["POST", "PATCH"])
 def set_clock_time() -> DelayedResponseReturnValue:
     """
     Set or sync this unit's UTC clock.
@@ -1120,7 +1120,7 @@ def list_system_path(req_path: str) -> ResponseReturnValue:
 ## RUNNING JOBS CONTROL
 
 
-@unit_api_bp.route("/jobs/run/job_name/<job_name>", methods=["PATCH", "POST"])
+@unit_api_bp.route("/jobs/run/job_name/<job_name>", methods=["POST", "PATCH"])
 def run_job(job_name: str) -> DelayedResponseReturnValue:
     """
     Run a job on this unit.
@@ -1218,7 +1218,7 @@ def is_manual_dosing_volume_unsafe(
     return (current_volume_ml + addition_ml) >= safety_threshold_ml
 
 
-@unit_api_bp.route("/jobs/stop/all", methods=["PATCH", "POST"])
+@unit_api_bp.route("/jobs/stop/all", methods=["POST", "PATCH"])
 def stop_all_jobs() -> DelayedResponseReturnValue:
     """
     Stop all jobs running on this unit.
@@ -1229,7 +1229,7 @@ def stop_all_jobs() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api_bp.route("/jobs/stop", methods=["PATCH", "POST"])
+@unit_api_bp.route("/jobs/stop", methods=["POST", "PATCH"])
 def stop_jobs() -> DelayedResponseReturnValue:
     """
     Stop jobs matching at least one filter.

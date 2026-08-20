@@ -28,9 +28,10 @@ from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
-from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
+from pioreactor.pubsub import post_into
 from pioreactor.pubsub import post_into_leader
+from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import resolve_to_address
@@ -754,7 +755,7 @@ def start_job(
             address = resolve_to_address(unit)
             for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
                 try:
-                    response = patch_into(
+                    response = post_into(
                         address,
                         f"/unit_api/jobs/run/job_name/{job_name}",
                         json={
@@ -903,7 +904,7 @@ def stop_job(
             logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
         else:
             logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
-            response = patch_into(
+            response = post_into(
                 resolve_to_address(unit),
                 "/unit_api/jobs/stop",
                 json={"job_name": job_name, "experiment": experiment},
@@ -1001,7 +1002,7 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
 def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str]) -> None:
     try:
         for unit_name, label in labels_map.items():
-            response = patch_into_leader(
+            response = put_into_leader(
                 f"/api/experiments/{experiment}/unit_labels",
                 json={"unit": unit_name, "label": label},
             )

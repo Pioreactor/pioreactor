@@ -305,16 +305,17 @@ def click_led_intensity(
                 cache.getfloat(channel, fallback=0.0) == 0.0 for channel in ALL_LED_CHANNELS
             )
 
-        with JobManager() as job_manager:
-            if not all_leds_are_off and not job_manager.does_pid_exist(os.getpid()):
-                job_manager.register_and_set_running(
-                    unit,
-                    experiment,
-                    "led_intensity",
-                    source_of_event or os.environ.get("JOB_SOURCE", "user"),
-                    os.getpid(),
-                    "",
-                    False,
-                )
+        if not all_leds_are_off:
+            with JobManager() as job_manager:
+                if not job_manager.does_pid_exist(os.getpid()):
+                    job_manager.register_and_set_running(
+                        unit,
+                        experiment,
+                        "led_intensity",
+                        source_of_event or os.environ.get("JOB_SOURCE", "user"),
+                        os.getpid(),
+                        "",
+                        False,
+                    )
 
     return status

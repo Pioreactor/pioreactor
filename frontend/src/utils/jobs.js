@@ -58,9 +58,9 @@ function getCachedJson(cache, cacheKey, endpoint, options = {}) {
   return cache.get(cacheKey);
 }
 
-function runJobPatch(endpoint, body) {
+function runJob(endpoint, body) {
   return fetch(endpoint, {
-    method: "PATCH",
+    method: "POST",
     body: JSON.stringify(body),
     headers: {
       Accept: "application/json",
@@ -336,7 +336,7 @@ export function runPioreactorJob(
   options = {},
   configOverrides = [],
 ) {
-  return runJobPatch(
+  return runJob(
     `/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experimentPathSegment(experiment)}`,
     {
       args,
@@ -352,7 +352,7 @@ export async function runPioreactorJobViaUnitAPI(job, args = [], options = {}) {
     `/unit_api/jobs/run/job_name/${job}`,
     {
       fetchOptions: {
-        method: "PATCH",
+        method: "POST",
         body: JSON.stringify({ args, options }),
         headers: {
           Accept: "application/json",

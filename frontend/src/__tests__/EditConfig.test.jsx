@@ -95,4 +95,56 @@ describe("EditConfig downloads", () => {
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:configuration");
     });
   });
+
+  test("replaces configuration text with PUT", async () => {
+    global.fetch = jest.fn((url, options = {}) => {
+      if (url === "/api/config/shared" && options.method === "PUT") {
+        return Promise.resolve({ ok: true });
+      }
+
+      if (url === "/api/config/shared") {
+        return Promise.resolve({
+          ok: true,
+          text: async () => "[shared]\nvalue=global\n",
+        });
+      }
+
+      if (url === "/api/config/shared/history") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      }
+
+      if (url === "/api/units") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/config"]}>
+        <EditConfig title="Pioreactor ~ Configuration" />
+      </MemoryRouter>,
+    );
+
+    const editor = await screen.findByRole("textbox", { name: "Configuration editor" });
+    await userEvent.type(editor, "new-option=true");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/config/shared", {
+        method: "PUT",
+        body: JSON.stringify({ code: "[shared]\nvalue=global\nnew-option=true" }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+    });
+  });
 });

@@ -58,7 +58,7 @@ export function RunningProfilesProvider({ children, experiment }) {
     async (job_id) => {
       try {
         const response = await fetch(`/unit_api/jobs/stop`, {
-          method: 'PATCH',
+          method: 'POST',
           body: JSON.stringify({ job_id: job_id }),
           headers: {
             Accept: 'application/json',

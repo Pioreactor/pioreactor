@@ -81,7 +81,7 @@ export default function ActionPumpForm(props) {
   }
 
   function stopPump() {
-    fetch(`/api/workers/${unit}/jobs/stop/job_name/${action}/experiments/${experimentPathSegment(experiment)}`, {method: "PATCH"})
+    fetch(`/api/workers/${unit}/jobs/stop/job_name/${action}/experiments/${experimentPathSegment(experiment)}`, {method: "POST"})
     .catch(() => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)

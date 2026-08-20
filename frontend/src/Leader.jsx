@@ -898,7 +898,7 @@ function LeaderJobs(){
     setRestartingJob(jobName);
     try {
       const response = await fetch("/unit_api/jobs/stop", {
-        method: "PATCH",
+        method: "POST",
         body: JSON.stringify({ job_name: jobName }),
         headers: {
           Accept: 'application/json',

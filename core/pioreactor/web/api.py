@@ -49,6 +49,7 @@ from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import publish
+from pioreactor.pubsub import put_into
 from pioreactor.pubsub import QOS
 from pioreactor.release_archive import ReleaseArchiveVerificationError
 from pioreactor.release_archive import verify_release_archive
@@ -1055,11 +1056,11 @@ def stop_all_jobs_on_unit_for_experiment(pioreactor_unit: str, experiment: str) 
 
 @api_bp.route(
     "/workers/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>",
-    methods=["PATCH", "POST"],
+    methods=["POST", "PATCH"],
 )
 @api_bp.route(
     "/units/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>",
-    methods=["PATCH", "POST"],
+    methods=["POST", "PATCH"],
 )
 def stop_specific_job_on_unit(
     pioreactor_unit: str,
@@ -1089,11 +1090,11 @@ def stop_specific_job_on_unit(
 
 @api_bp.route(
     "/units/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>",
-    methods=["PATCH", "POST"],
+    methods=["POST", "PATCH"],
 )
 @api_bp.route(
     "/workers/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>",
-    methods=["PATCH", "POST"],
+    methods=["POST", "PATCH"],
 )
 def run_job_on_unit_in_experiment(
     pioreactor_unit: str,
@@ -3674,7 +3675,7 @@ def get_shared_config() -> ResponseReturnValue:
         abort_with(400, str(e))
 
 
-@api_bp.route("/config/shared", methods=["PATCH"])
+@api_bp.route("/config/shared", methods=["PUT", "PATCH"])
 def update_shared_config() -> ResponseReturnValue:
     body = decode_request_body(structs.CodePatch)
     code = body.code
@@ -3837,7 +3838,7 @@ def get_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseRet
     )
 
 
-@api_bp.route("/config/units/<pioreactor_unit>/specific", methods=["PATCH"])
+@api_bp.route("/config/units/<pioreactor_unit>/specific", methods=["PUT", "PATCH"])
 def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(
@@ -3857,7 +3858,7 @@ def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> Response
             build_config(_read_text(_get_shared_config_path()), code)
             _get_leader_unit_specific_config_path().write_text(code, encoding="utf-8")
         else:
-            response = post_into(
+            response = put_into(
                 resolve_registered_unit_address(pioreactor_unit),
                 "/unit_api/config/specific",
                 json={"code": code},

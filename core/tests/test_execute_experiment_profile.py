@@ -135,6 +135,8 @@ def test_execute_experiment_profile_order(
     assert bucket[3].path == "/unit_api/jobs/run/job_name/job2"
     assert bucket[4].url == "http://unit1.local:4999/unit_api/jobs/stop"
     assert bucket[4].json == {"job_name": "job2", "experiment": "_testing_experiment"}
+    assert bucket[0].method == "PUT"
+    assert all(request.method == "POST" for request in bucket[1:])
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -261,7 +263,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
     )
     mock__load_experiment_profile.return_value = profile
 
-    def fake_patch_into(address: str, endpoint: str, json: dict[str, object]) -> Response:
+    def fake_post_into(address: str, endpoint: str, json: dict[str, object]) -> Response:
         assert address == "unit1.local"
         assert endpoint == "/unit_api/jobs/run/job_name/circulate_alt_media"
         return Response(
@@ -294,8 +296,8 @@ def test_execute_experiment_profile_start_failure_is_logged(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.patch_into",
-            side_effect=fake_patch_into,
+            "pioreactor.actions.leader.experiment_profile.post_into",
+            side_effect=fake_post_into,
         ),
         patch(
             "pioreactor.actions.leader.experiment_profile.get_from",
@@ -328,7 +330,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.patch_into",
+            "pioreactor.actions.leader.experiment_profile.post_into",
             return_value=Response(
                 "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
                 409,
@@ -371,7 +373,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.patch_into",
+            "pioreactor.actions.leader.experiment_profile.post_into",
             side_effect=HTTPException("[Errno 101] Network is unreachable"),
         ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
@@ -404,7 +406,7 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.patch_into",
+            "pioreactor.actions.leader.experiment_profile.post_into",
             side_effect=[
                 HTTPException("[Errno 111] Connection refused"),
                 Response(
@@ -414,12 +416,12 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
                     encode({"result": {"ok": True}}),
                 ),
             ],
-        ) as mock_patch_into,
+        ) as mock_post_into,
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
     ):
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert mock_patch_into.call_count == 2
+    assert mock_post_into.call_count == 2
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -441,14 +443,14 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.patch_into",
+            "pioreactor.actions.leader.experiment_profile.post_into",
             return_value=Response(
                 "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
                 202,
                 {},
                 encode({"result_url_path": "/unit_api/task_results/task-1"}),
             ),
-        ) as mock_patch_into,
+        ) as mock_post_into,
         patch(
             "pioreactor.actions.leader.experiment_profile.get_from",
             side_effect=HTTPException("timed out"),
@@ -457,7 +459,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
     ):
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert mock_patch_into.call_count == 1
+    assert mock_post_into.call_count == 1
     assert (
         "Submitted start command for `circulate_alt_media` to unit1 at unit1.local, but couldn't read the task result. The job may still have started."
         in caplog.text

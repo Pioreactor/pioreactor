@@ -140,7 +140,7 @@ def test_ClusterJobManager_sends_requests() -> None:
 
     assert len(bucket) == len(workers)
     assert bucket[0].body is None
-    assert bucket[0].method == "PATCH"
+    assert bucket[0].method == "POST"
 
     for request, worker in zip(sorted(bucket, key=lambda item: item.url), sorted(workers)):
         assert request.url == f"http://{worker}.local:4999/unit_api/jobs/stop"

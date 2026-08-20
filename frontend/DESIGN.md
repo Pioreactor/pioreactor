@@ -233,16 +233,30 @@ Rules:
 Filters, target selectors, search, and sorting controls belong in one of these
 locations:
 
+- A sentence-style header when the controls complete a readable operational
+  heading.
 - A compact toolbar or `Card` immediately below the page header.
 - A section toolbar immediately above the content they affect.
 
-Normally, do not embed `Select`, `Autocomplete`, or other form controls inside
-the page title. The title must remain a stable description of the route.
+#### Sentence-style headers
 
-Logs and System logs are an approved exception: their heading is a readable
-sentence whose inline `Select` controls complete the log level and Pioreactor
-scope. Keep the sentence structure and control sizing aligned across both
-pages. Do not generalize this exception to unrelated page filters.
+Use a sentence-style header when one or more inline controls complete a
+readable operational heading. Logs, System logs, and Plugins are reference
+implementations: their `Select` controls complete the log level or Pioreactor
+scope described by the surrounding text.
+
+Sentence-style headers must:
+
+- read naturally with the current selections
+- keep the page's purpose recognizable as selections change
+- use compact standard-variant controls sized to match the heading
+- give each control an accessible name
+- wrap without overflowing on narrow screens
+- omit the header divider
+
+Use a separate toolbar when a filter does not form part of a readable heading,
+or when putting several controls inline would make the heading difficult to
+scan.
 
 ## Entity labels and Chips
 
@@ -606,6 +620,7 @@ unrelated drift:
 | Pioreactor entity Chip | `frontend/src/components/PaginatedLogsTable.jsx` |
 | Detail metadata Chips | `frontend/src/SingleCalibrationPage.jsx`, `frontend/src/SingleEstimatorPage.jsx` |
 | Title and actions header | `frontend/src/Inventory.jsx`, `frontend/src/Pioreactors.jsx` |
+| Sentence-style header | `frontend/src/Logs.jsx`, `frontend/src/SystemLogs.jsx`, `frontend/src/Plugins.jsx` |
 | Status colors | `frontend/src/utils/color.js` |
 | App palette and canvas | `frontend/src/App.jsx` |
 
@@ -616,7 +631,6 @@ These are design debt, not alternate approved patterns.
 | Area | Intended rule | Current inconsistency |
 | --- | --- | --- |
 | Page heading semantics | One `h1` per route page | Calibrations, Estimators, Plugins, Protocols, Export data, Leader, Logs, System logs, Experiment Profiles, and the experiment profile create/edit pages use `component="h2"` for the top-level title in at least one route state. |
-| Header divider | Every normal page header ends with a divider | Logs and System logs omit the standard divider. |
 | Detail headers | Back navigation is separate from the record `h1` | Single calibration and single estimator pages mark the back button container as the `h1`; the actual record title is an `h2` inside the Card. |
 | Header spacing | One responsive title/action layout | Header margins currently vary between `5px`, `mb: 1`, `mb: 2`, and omitted spacing; action wrapping is inconsistent. |
 | Clickable row accessibility | Whole-row navigation has focus and keyboard activation | Calibration and estimator rows have `onClick` and pointer hover but are not keyboard-focusable and do not handle Enter or Space. |

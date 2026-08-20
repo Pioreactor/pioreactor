@@ -10,6 +10,7 @@ import {
   getWorkerJobDescriptors,
   getWorkerSettingsDescriptors,
   resetDescriptorCaches,
+  runPioreactorJob,
   runPioreactorJobViaUnitAPI,
   updatePublishedSettingValue,
 } from "../utils/jobs";
@@ -445,7 +446,7 @@ describe("jobs utils", () => {
       1,
       "/unit_api/jobs/run/job_name/experiment_profile",
       {
-        method: "PATCH",
+        method: "POST",
         body: JSON.stringify({
           args: ["execute", "/tmp/profile.yaml", "exp-1"],
           options: {},
@@ -457,6 +458,29 @@ describe("jobs utils", () => {
       },
     );
     expect(global.fetch).toHaveBeenNthCalledWith(2, "/unit_api/task_results/task-1");
+  });
+
+  test("runPioreactorJob starts leader-routed jobs with POST", async () => {
+    global.fetch.mockResolvedValue({ ok: true });
+
+    await runPioreactorJob("unit-1", "exp-1", "stirring", [], { target_rpm: 500 });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/workers/unit-1/jobs/run/job_name/stirring/experiments/exp-1",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          args: [],
+          options: { target_rpm: 500 },
+          env: { EXPERIMENT: "exp-1", JOB_SOURCE: "user" },
+          config_overrides: [],
+        }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
+    );
   });
 
   test("runPioreactorJobViaUnitAPI surfaces a failed launch task", async () => {

@@ -736,15 +736,15 @@ def test_read_memory_stats_handles_missing_available_pages_sysconf(
 
 
 def test_set_clock_non_leader(client) -> None:
-    resp = client.patch("/unit_api/system/utc_clock", json={})
+    resp = client.post("/unit_api/system/utc_clock", json={})
     assert resp.status_code == 400  # need to provide clock data, else it errors
     data = resp.get_json()
     assert data.get("status") == 400
     assert isinstance(data.get("remediation"), str)
 
 
-def test_set_clock_time_sync_branch(client, monkeypatch) -> None:
-    """When not leader or no payload, sync_clock branch schedules a task."""
+def test_set_clock_time_patch_compatibility_alias(client, monkeypatch) -> None:
+    """The legacy PATCH alias schedules the same clock-sync task."""
     # Force non-leader behavior
     import pioreactor.web.unit_api as mod
 
@@ -924,7 +924,7 @@ def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, 
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
     )
 
-    response = client.patch(
+    response = client.post(
         "/unit_api/jobs/run/job_name/add_media",
         json={
             "args": [],
@@ -949,7 +949,7 @@ def test_run_job_rejects_unknown_request_fields(client, monkeypatch) -> None:
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
     )
 
-    response = client.patch(
+    response = client.post(
         "/unit_api/jobs/run/job_name/stirring",
         json={"optoins": {"target_rpm": 10}},
     )
@@ -969,7 +969,7 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
     monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
     monkeypatch.setattr(mod.tasks, "pio_run", lambda *_args, **_kwargs: DummyTask())
 
-    response = client.patch(
+    response = client.post(
         "/unit_api/jobs/run/job_name/add_media",
         json={
             "args": [],
@@ -992,7 +992,7 @@ def test_run_job_rejects_manual_add_media_for_unknown_model(client, monkeypatch)
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
     )
 
-    response = client.patch(
+    response = client.post(
         "/unit_api/jobs/run/job_name/add_media",
         json={
             "args": [],

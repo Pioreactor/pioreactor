@@ -18,6 +18,8 @@ Key modules:
 
 *   **`utils.py`** – Helper utilities for caching responses, rate limiting, validating filenames, and validating request payloads with msgspec structs.
 
+*   **`API_CONVENTIONS.md`** – Canonical HTTP method semantics and the compatibility policy for older method aliases.
+
 
 The repository also includes generated frontend build output in the `static/` directory and startup scripts (`fcgi.py`). Treat `static/` as generated output; do not inspect or edit it during normal code search.
 

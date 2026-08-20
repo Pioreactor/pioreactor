@@ -52,7 +52,7 @@ export default function ActionCirculatingForm(props) {
   }
 
   function stopPump() {
-    fetch(`/api/workers/${props.unit}/jobs/stop/job_name/${props.action}/experiments/${experimentPathSegment(props.experiment)}`, {method: "PATCH"})
+    fetch(`/api/workers/${props.unit}/jobs/stop/job_name/${props.action}/experiments/${experimentPathSegment(props.experiment)}`, {method: "POST"})
     .catch(() => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)

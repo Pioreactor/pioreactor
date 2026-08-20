@@ -1,6 +1,5 @@
 import Avatar from "boring-avatars";
 import React from "react";
-import Divider from "@mui/material/Divider";
 import UnderlineSpan from "./components/UnderlineSpan";
 
 import Select from "@mui/material/Select";
@@ -44,15 +43,41 @@ const ListItemStyled = styled(ListItem)(() => ({
   paddingRight: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)`,
 }));
 
-function PageHeader() {
+function PageHeader({ units, selectedTarget, onSelectionChange }) {
   return (
-    <Box>
+    <Box component="header" sx={{ mb: 2 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h2">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>Plugins</Box>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
+          <Box component="span" sx={{ mr: 0.5 }}>Manage plugins for</Box>
+          <Select
+            variant="standard"
+            value={selectedTarget}
+            onChange={onSelectionChange}
+            disabled={units.length === 0}
+            inputProps={{ "aria-label": "Pioreactor" }}
+            sx={{
+              "& .MuiSelect-select": {
+                paddingY: 0,
+              },
+              fontWeight: "bold",
+              fontSize: "inherit",
+              fontFamily: "inherit",
+            }}
+          >
+            {units.map((unit) => (
+              <MenuItem key={unit} value={unit}>
+                {unit}
+              </MenuItem>
+            ))}
+            {units.length > 1 && (
+              <MenuItem value={BROADCAST_TARGET}>
+                <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
+                All Pioreactors
+              </MenuItem>
+            )}
+          </Select>
         </Typography>
       </Box>
-      <Divider sx={{mt: "12px", mb: "15px"}} />
     </Box>
   );
 }
@@ -527,7 +552,7 @@ function ListUsbPlugins({
   if (usbPlugins.length === 0) {
     return (
     <>
-      <Typography variant="h6" component="h3">
+      <Typography variant="h6" component="h2">
         USB Device
       </Typography>
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
@@ -548,7 +573,7 @@ function ListUsbPlugins({
 
   return (
     <>
-      <Typography variant="h6" component="h3">
+      <Typography variant="h6" component="h2">
         Plugins found on USB device <UnderlineSpan title="Attached to leader">{usbName}</UnderlineSpan>
       </Typography>
 
@@ -928,6 +953,11 @@ function PluginContainer() {
 
   return (
     <>
+      <PageHeader
+        units={units}
+        selectedTarget={displayedSelectedTarget}
+        onSelectionChange={onSelectionChange}
+      />
       <Card>
         <CardContent sx={{ p: 2 }}>
           <p>
@@ -936,44 +966,7 @@ function PluginContainer() {
             necessary), or new automations to control dosing, temperature and LED tasks.
           </p>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, flexWrap: "wrap" }}>
-            <Typography variant="h5" component="h2" sx={{ fontWeight: "bold", my: 2}}>
-              Manage plugins for
-
-            <Select
-              labelId="pluginTargetSelect"
-              variant="standard"
-              value={displayedSelectedTarget}
-              onChange={onSelectionChange}
-              disabled={units.length === 0}
-              sx={{
-                "& .MuiSelect-select": {
-                  paddingY: 0,
-                },
-                fontWeight: 700,
-                fontSize: "24px",
-                letterSpacing: "0.15px",
-                fontFamily: "inherit",
-                lineHeight: "34.5px",
-                ml: "5px",
-              }}
-            >
-              {units.map((unit) => (
-                <MenuItem key={unit} value={unit}>
-                  {unit}
-                </MenuItem>
-              ))}
-              {units.length > 1 && (
-                <MenuItem value={BROADCAST_TARGET}>
-                  <PioreactorsIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
-                  All Pioreactors
-                </MenuItem>
-              )}
-            </Select>
-            </Typography>
-          </Box>
-
-          <Typography variant="h6" component="h3">
+          <Typography variant="h6" component="h2">
            Installed plugins
           </Typography>
 
@@ -1016,7 +1009,7 @@ function PluginContainer() {
             onInstall={installUsbPlugin}
           />
 
-          <Typography variant="h6" component="h3">
+          <Typography variant="h6" component="h2">
             Suggested plugins from the community
           </Typography>
 
@@ -1064,7 +1057,6 @@ function Plugins(props) {
           xs: 12,
         }}
       >
-        <PageHeader />
         <PluginContainer />
       </Grid>
     </Grid>
