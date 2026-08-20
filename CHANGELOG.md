@@ -1,3 +1,10 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Fix "Now" time selector on the UI.
+
+
 ### 26.8.1
 
 #### Enhancements
