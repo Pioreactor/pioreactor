@@ -572,7 +572,7 @@ def get_update_app_commands(
 @click.pass_context
 def pio(ctx: click.Context, show_version: bool) -> None:
     """
-    Execute commands on this Pioreactor.
+    Execute commands on this Pioreactor. See the "cluster" command `pios` too.
 
     Configuration available: /home/pioreactor/.pioreactor/config.ini
 

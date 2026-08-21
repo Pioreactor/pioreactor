@@ -1105,6 +1105,51 @@ def test_unlocked_camera_illuminates_ir_during_capture(
     assert camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"camera still"
 
 
+def test_camera_without_ir_ignores_od_and_led_coordination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor import camera
+
+    configure_camera_backend(
+        monkeypatch,
+        capture_backend="v4l2",
+        device_path="/dev/video0",
+        use_ir_led="0",
+    )
+    monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/fswebcam")
+    monkeypatch.setattr(
+        camera,
+        "JobManager",
+        lambda: pytest.fail("camera without IR must not inspect OD jobs"),
+    )
+    monkeypatch.setattr(
+        camera,
+        "is_led_channel_locked",
+        lambda _channel: pytest.fail("camera without IR must not inspect LED locks"),
+    )
+    monkeypatch.setattr(
+        camera,
+        "led_intensity",
+        lambda *_args, **_kwargs: pytest.fail("camera without IR must not change LEDs"),
+    )
+
+    def capture(command: list[str], **_kwargs: object) -> None:
+        Path(command[-1]).write_bytes(b"camera still without IR")
+
+    monkeypatch.setattr(camera.subprocess, "run", capture)
+
+    metadata = capture_camera_still(
+        "unit-a",
+        experiment="experiment-a",
+        capture_reason="scheduled",
+        dot_pioreactor=tmp_path / ".pioreactor",
+    )
+
+    assert (
+        camera_still_image_path(metadata, tmp_path / ".pioreactor").read_bytes() == b"camera still without IR"
+    )
+
+
 @pytest.mark.parametrize(
     ("initial_od_state", "od_event_kind", "capture_reason", "capture_experiment"),
     [

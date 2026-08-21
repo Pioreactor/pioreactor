@@ -50,6 +50,43 @@ def test_updates_cache() -> None:
     pwm12.clean_up()
 
 
+def test_change_duty_cycle_is_noop_when_rounded_value_is_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mqtt_client = FakeMQTTClient()
+    pwm = PWM(
+        12,
+        10,
+        experiment="test_change_duty_cycle_is_noop_when_rounded_value_is_unchanged",
+        unit=get_unit_name(),
+        pub_client=mqtt_client,
+    )
+
+    try:
+        pwm.start(12.345674)
+
+        assert pwm.duty_cycle == 12.34567
+        assert len(mqtt_client.published) == 1
+
+        initial_hardware_duty_cycle = pwm._pwm.dc
+        with monkeypatch.context() as patch:
+            patch.setattr(pwm, "_serialize", lambda: pytest.fail("PWM state should not be serialized"))
+
+            pwm.change_duty_cycle(12.345671)
+
+        assert pwm._pwm.dc == initial_hardware_duty_cycle
+        assert pwm.duty_cycle == 12.34567
+        assert len(mqtt_client.published) == 1
+
+        pwm.change_duty_cycle(12.345676)
+
+        assert pwm.duty_cycle == 12.34568
+        assert pwm._pwm.dc == 12.345676
+        assert len(mqtt_client.published) == 2
+    finally:
+        pwm.clean_up()
+
+
 def test_pwm_update_mqtt() -> None:
     exp = "test_pwm_update_mqtt"
     unit = get_unit_name()

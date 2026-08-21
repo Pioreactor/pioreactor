@@ -162,14 +162,18 @@ We make use a mosquitto MQTT. Try `pio mqtt` to get a feed, or subset with `pio 
 
 ## Search & navigation
 
-When searching the repo, exclude these directories:
+When doing global searches of the project, exclude these directories and files, as they are mostly irrelevant, temporary, or computer-generated:
 
 * `core/tests/data/`
 * `core/update_scripts/`
 * `core/experiments/`
 * `core/pioreactor/web/static/`
+* `pioreactor.log`
+* `mosquitto.log`
+* `CHANGELOG.md`
+* `scratch/`
 
-Also exclude `CHANGELOG.md`.
+However, you may search these if needed to accomplish a task.
 
 ---
 

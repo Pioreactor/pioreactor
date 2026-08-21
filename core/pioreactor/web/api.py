@@ -1318,14 +1318,18 @@ def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> 
     body = decode_request_body(structs.UpdateJobSettingsRequest)
     try:
         with create_client() as client:
+            messages = []
             for setting, value in body.settings.items():
-                # This request returns immediately after publishing, so wait for broker handoff per setting.
-                msg = client.publish(
-                    f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/{setting}/set",
-                    value,
-                    qos=QOS.AT_LEAST_ONCE,
+                messages.append(
+                    client.publish(
+                        f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/{setting}/set",
+                        value,
+                        qos=QOS.AT_LEAST_ONCE,
+                    )
                 )
-                msg.wait_for_publish(timeout=2.0)
+
+            for message in messages:
+                message.wait_for_publish(timeout=2)
     except Exception as e:
         publish_to_error_log(str(e), "update_job_on_unit")
         abort_with(400, str(e))
@@ -4250,8 +4254,8 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
         abort_with(
             400,
             "Invalid worker name",
-            cause="Worker names must be hostnames, not raw addresses or localhost.",
-            remediation="Use the Pioreactor hostname without a .local suffix.",
+            cause="Worker names must be alphanumeric hostnames.",
+            remediation="Use the Pioreactor hostname, without a .local suffix. Don't use the IP address, or any non-alphanumeric characters.",
         )
 
     if ipv4_address:
@@ -4302,8 +4306,8 @@ def add_worker() -> ResponseReturnValue:
         abort_with(
             400,
             "Invalid worker name",
-            cause="Worker names must be hostnames, not raw addresses or localhost.",
-            remediation="Use the Pioreactor hostname without a .local suffix.",
+            cause="Worker names must be alphanumeric hostnames.",
+            remediation="Use the Pioreactor hostname, without a .local suffix. Don't use the IP address, or any non-alphanumeric characters.",
         )
 
     nrows = modify_app_db(

@@ -343,10 +343,12 @@ class PWM:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
+        rounded_duty_cycle = round(float(duty_cycle), 5)
+        if rounded_duty_cycle == self.duty_cycle:
+            return
+
         self._pwm.dc = duty_cycle
-
-        self.duty_cycle = round(float(duty_cycle), 5)
-
+        self.duty_cycle = rounded_duty_cycle
         self._serialize()
 
     def _exit(self, reason: int | str, *args: Any) -> None:

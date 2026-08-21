@@ -229,18 +229,6 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | No
     return validate_check_syntax_of_bool_expression(bool_expression)
 
 
-def check_if_job_running(unit: pt.Unit, job: str) -> bool:
-    if is_testing_env():
-        return True
-    try:
-        r = get_from(resolve_to_address(unit), f"/unit_api/jobs/running/{job}")
-        r.raise_for_status()
-        return len(r.json()) > 0
-    except HTTPException:
-        # an http hiccup shouldn't stall commands
-        return True
-
-
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
     # treat it as one.
@@ -822,15 +810,12 @@ def pause_job(
             logger.info(f"{action_count}. Dry-run: Pausing {job_name} on {unit}.")
         else:
             logger.debug(f"{action_count}. Pausing {job_name} on {unit}.")
-            if check_if_job_running(unit, job_name):
-                response = patch_into_leader(
-                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                    json={"settings": {"$state": "sleeping"}},
-                )
-                if not response.ok:
-                    raise HTTPException(summarize_error_response(response))
-            else:
-                logger.debug(f"Job {job_name} not running on {unit}.")
+            response = patch_into_leader(
+                f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                json={"settings": {"$state": "sleeping"}},
+            )
+            if not response.ok:
+                raise HTTPException(summarize_error_response(response))
 
     return wrap_in_try_except(_callable, logger)
 
@@ -863,15 +848,12 @@ def resume_job(
             logger.info(f"{action_count}. Dry-run: Resuming {job_name} on {unit}.")
         else:
             logger.debug(f"{action_count}. Resuming {job_name} on {unit}.")
-            if check_if_job_running(unit, job_name):
-                response = patch_into_leader(
-                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                    json={"settings": {"$state": "ready"}},
-                )
-                if not response.ok:
-                    raise HTTPException(summarize_error_response(response))
-            else:
-                logger.debug(f"Job {job_name} not running on {unit}.")
+            response = patch_into_leader(
+                f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                json={"settings": {"$state": "ready"}},
+            )
+            if not response.ok:
+                raise HTTPException(summarize_error_response(response))
 
     return wrap_in_try_except(_callable, logger)
 
@@ -955,15 +937,12 @@ def update_job(
         for setting, value in evaluated_options.items():
             logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
 
-        if check_if_job_running(unit, job_name):
-            response = patch_into_leader(
-                f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                json={"settings": evaluated_options},
-            )
-            if not response.ok:
-                raise HTTPException(summarize_error_response(response))
-        else:
-            logger.debug(f"Job {job_name} not running on {unit}.")
+        response = patch_into_leader(
+            f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+            json={"settings": evaluated_options},
+        )
+        if not response.ok:
+            raise HTTPException(summarize_error_response(response))
 
     return wrap_in_try_except(_callable, logger)
 

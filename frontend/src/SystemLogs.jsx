@@ -64,7 +64,7 @@ function SystemLogs(props) {
   }
 
   const exportLogsQueryParams = new URLSearchParams();
-  exportLogsQueryParams.append("experiments", "$experiment");
+  exportLogsQueryParams.append("experiment", "$experiment");
   exportLogsQueryParams.append("datasets", "logs");
   exportLogsQueryParams.set("partition_by_unit", pioreactorUnit ? "true" : "false");
   const exportLogsHref = `/export-data?${exportLogsQueryParams.toString()}`;

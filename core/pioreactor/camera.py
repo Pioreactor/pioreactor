@@ -669,91 +669,98 @@ def camera_captured_image(
 
         try:
             with camera_capture_lock(dot_pioreactor):
-                ir_channel = cast(pt.LedChannel, config.get("leds_reverse", "IR"))
+                use_ir_led = config.getboolean("camera", "use_ir_led", fallback=True)
+                ir_channel: pt.LedChannel | None = None
 
-                with JobManager() as job_manager:
-                    od_job_id = job_manager.get_running_job_id("od_reading")
-                    od_job_info = job_manager.get_job_info(od_job_id) if od_job_id is not None else None
-                    od_settings = (
-                        {
-                            setting: value
-                            for setting, value, _created_at, _updated_at in job_manager.list_job_settings(
-                                od_job_id
+                if use_ir_led:
+                    ir_channel = cast(pt.LedChannel, config.get("leds_reverse", "IR"))
+
+                    with JobManager() as job_manager:
+                        od_job_id = job_manager.get_running_job_id("od_reading")
+                        od_job_info = job_manager.get_job_info(od_job_id) if od_job_id is not None else None
+                        od_settings = (
+                            {
+                                setting: value
+                                for setting, value, _created_at, _updated_at in job_manager.list_job_settings(
+                                    od_job_id
+                                )
+                            }
+                            if od_job_id is not None
+                            else {}
+                        )
+
+                    od_interval = od_settings.get("interval")
+                    if od_settings.get("$state") == JobState.READY and od_interval is not None:
+                        assert od_job_info is not None
+                        od_readings_topic = f"pioreactor/{od_job_info[4]}/{od_job_info[2]}/od_reading/ods"
+                        od_state_topic = f"pioreactor/{od_job_info[4]}/{od_job_info[2]}/od_reading/$state"
+                        od_alignment_deadline = (
+                            monotonic() + float(od_interval) + CAMERA_OD_ALIGNMENT_GRACE_SECONDS
+                        )
+
+                        # OD publishes `ods` only after turning IR off and releasing LED ownership.
+                        # Starting on that fresh edge gives the camera the full quiet interval.
+                        while True:
+                            remaining_alignment_time = od_alignment_deadline - monotonic()
+                            if remaining_alignment_time <= 0:
+                                raise CameraCaptureError(
+                                    "Camera capture timed out waiting for a fresh OD reading."
+                                )
+
+                            od_event = subscribe(
+                                [od_readings_topic, od_state_topic],
+                                timeout=remaining_alignment_time,
+                                allow_retained=False,
+                                name="camera",
                             )
-                        }
-                        if od_job_id is not None
-                        else {}
-                    )
+                            if od_event is not None:
+                                if od_event.topic == od_readings_topic:
+                                    break
+                                if od_event.payload.decode() != JobState.READY:
+                                    break
+                                continue
 
-                od_interval = od_settings.get("interval")
-                if od_settings.get("$state") == JobState.READY and od_interval is not None:
-                    assert od_job_info is not None
-                    od_readings_topic = f"pioreactor/{od_job_info[4]}/{od_job_info[2]}/od_reading/ods"
-                    od_state_topic = f"pioreactor/{od_job_info[4]}/{od_job_info[2]}/od_reading/$state"
-                    od_alignment_deadline = (
-                        monotonic() + float(od_interval) + CAMERA_OD_ALIGNMENT_GRACE_SECONDS
-                    )
+                            with JobManager() as job_manager:
+                                current_od_job_id = job_manager.get_running_job_id("od_reading")
+                                current_od_state = (
+                                    job_manager.get_setting_from_running_job("od_reading", "$state")
+                                    if current_od_job_id == od_job_id
+                                    else None
+                                )
 
-                    # OD publishes `ods` only after turning IR off and releasing LED ownership.
-                    # Starting on that fresh edge gives the camera the full quiet interval.
-                    while True:
-                        remaining_alignment_time = od_alignment_deadline - monotonic()
-                        if remaining_alignment_time <= 0:
+                            if current_od_job_id != od_job_id or current_od_state != JobState.READY:
+                                break
+
                             raise CameraCaptureError(
                                 "Camera capture timed out waiting for a fresh OD reading."
                             )
 
-                        od_event = subscribe(
-                            [od_readings_topic, od_state_topic],
-                            timeout=remaining_alignment_time,
-                            allow_retained=False,
-                            name="camera",
-                        )
-                        if od_event is not None:
-                            if od_event.topic == od_readings_topic:
-                                break
-                            if od_event.payload.decode() != JobState.READY:
-                                break
-                            continue
-
-                        with JobManager() as job_manager:
-                            current_od_job_id = job_manager.get_running_job_id("od_reading")
-                            current_od_state = (
-                                job_manager.get_setting_from_running_job("od_reading", "$state")
-                                if current_od_job_id == od_job_id
-                                else None
-                            )
-
-                        if current_od_job_id != od_job_id or current_od_state != JobState.READY:
-                            break
-
-                        raise CameraCaptureError("Camera capture timed out waiting for a fresh OD reading.")
-
                 capture_deadline = monotonic() + timeout
 
-                # OD owns IR while taking a reading. Wait for that short window to finish before
-                # starting the camera, but continue to let OD preempt a capture that is underway.
-                while True:
-                    if is_led_channel_locked(ir_channel):
-                        if monotonic() >= capture_deadline:
-                            raise CameraCaptureError(
-                                "Camera capture timed out waiting for OD reading to release IR illumination."
-                            )
-                        sleep(CAMERA_WARMER_POLL_SECONDS)
-                        continue
-
-                    if not led_intensity(
-                        {ir_channel: get_camera_ir_led_intensity()},
-                        unit=unit,
-                        experiment=experiment,
-                        source_of_event="camera",
-                        verbose=False,
-                    ):
-                        # OD may have acquired IR after the unlocked check above. Give it priority and retry.
+                if ir_channel is not None:
+                    # OD owns IR while taking a reading. Wait for that short window to finish before
+                    # starting the camera, but continue to let OD preempt a capture that is underway.
+                    while True:
                         if is_led_channel_locked(ir_channel):
+                            if monotonic() >= capture_deadline:
+                                raise CameraCaptureError(
+                                    "Camera capture timed out waiting for OD reading to release IR illumination."
+                                )
+                            sleep(CAMERA_WARMER_POLL_SECONDS)
                             continue
-                        raise CameraCaptureError("Camera IR illumination could not be started.")
-                    break
+
+                        if not led_intensity(
+                            {ir_channel: get_camera_ir_led_intensity()},
+                            unit=unit,
+                            experiment=experiment,
+                            source_of_event="camera",
+                            verbose=False,
+                        ):
+                            # OD may have acquired IR after the unlocked check above. Give it priority and retry.
+                            if is_led_channel_locked(ir_channel):
+                                continue
+                            raise CameraCaptureError("Camera IR illumination could not be started.")
+                        break
 
                 try:
                     remaining_capture_time = capture_deadline - monotonic()
@@ -787,7 +794,7 @@ def camera_captured_image(
                 finally:
                     # OD may have acquired IR while the command ran. A locked channel is OD's cleanup
                     # responsibility; otherwise camera restores the shared idle invariant of IR=0%.
-                    if not is_led_channel_locked(ir_channel):
+                    if ir_channel is not None and not is_led_channel_locked(ir_channel):
                         led_intensity(
                             {ir_channel: 0.0},
                             unit=unit,
