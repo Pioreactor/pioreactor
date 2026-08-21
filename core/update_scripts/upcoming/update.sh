@@ -4,6 +4,7 @@ set -xeu
 
 export LC_ALL=C
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE=/etc/pioreactor.env
 LARGE_TEMP_DIRECTORY=/var/tmp/pioreactor
 tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
@@ -57,3 +58,5 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     sudo -u pioreactor -i pios sync-configs || :
 fi
+
+bash "$SCRIPT_DIR/10_update_install_exportable_dataset_descriptors.sh"
