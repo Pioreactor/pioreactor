@@ -74,3 +74,4 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
 fi
 
 install_descriptor 04_experiments.yaml experiments
+install_descriptor 04_experiment_tags.yaml experiment_tags
