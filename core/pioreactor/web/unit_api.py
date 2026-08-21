@@ -411,6 +411,7 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
         prefix=f"{HOSTNAME}_camera_stills_",
         suffix=".zip",
         delete=False,
+        dir=os.environ.get("PIOREACTOR_LARGE_TMPDIR"),
     )
     archive_path = Path(archive_file.name)
     archive_file.close()
