@@ -27,6 +27,7 @@ from msgspec import DecodeError
 from msgspec import to_builtins
 from msgspec import UNSET
 from msgspec import ValidationError
+from msgspec.json import decode as json_decode
 from msgspec.json import encode
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
@@ -3151,6 +3152,23 @@ def get_settings_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnV
     )
 
 
+def load_chart_descriptors() -> list[structs.ChartDescriptor]:
+    """Load the leader-owned chart catalog, with plugin descriptors overriding built-ins."""
+    chart_path_builtins = get_dot_pioreactor_path() / "ui" / "charts"
+    chart_path_plugins = get_dot_pioreactor_path() / "plugins" / "ui" / "charts"
+    files = sorted(chart_path_builtins.glob("*.y*ml")) + sorted(chart_path_plugins.glob("*.y*ml"))
+
+    descriptors: dict[str, structs.ChartDescriptor] = {}
+    for file in files:
+        try:
+            descriptor = yaml_decode(file.read_bytes(), type=structs.ChartDescriptor)
+            descriptors[descriptor.chart_key] = descriptor
+        except (ValidationError, DecodeError) as e:
+            publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_chart_descriptors")
+
+    return list(descriptors.values())
+
+
 @api_bp.route("/charts/descriptors", methods=["GET"])
 def get_chart_descriptors() -> ResponseReturnValue:
     """
@@ -3160,21 +3178,7 @@ def get_chart_descriptors() -> ResponseReturnValue:
     `DOT_PIOREACTOR/plugins/ui/charts/` for plugin-provided charts.
     """
     try:
-        chart_path_builtins = get_dot_pioreactor_path() / "ui" / "charts"
-        chart_path_plugins = get_dot_pioreactor_path() / "plugins" / "ui" / "charts"
-        files = sorted(chart_path_builtins.glob("*.y*ml")) + sorted(chart_path_plugins.glob("*.y*ml"))
-
-        # we dedup based on chart 'chart_key'.
-        parsed_yaml = {}
-        for file in files:
-            try:
-                decoded_yaml = yaml_decode(file.read_bytes(), type=structs.ChartDescriptor)
-                parsed_yaml[decoded_yaml.chart_key] = decoded_yaml
-            except (ValidationError, DecodeError) as e:
-                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_chart_descriptors")
-
-        return attach_cache_control(jsonify(list(parsed_yaml.values())))
-
+        return attach_cache_control(jsonify(load_chart_descriptors()))
     except Exception as e:
         publish_to_error_log(str(e), "get_chart_descriptors")
         abort_with(400, str(e))
@@ -3606,6 +3610,110 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
         return jsonify(result)
     else:
         abort_with(404, f"Experiment {experiment} not found")
+
+
+def load_experiment_chart_preferences(experiment: str) -> dict[str, list[str] | None]:
+    row = query_app_db(
+        "SELECT overview_chart_keys, pioreactor_chart_keys FROM experiment_chart_preferences WHERE experiment = ?",
+        (experiment,),
+        one=True,
+    )
+    if row is None:
+        return {"overview_chart_keys": None, "pioreactor_chart_keys": None}
+
+    assert isinstance(row, dict)
+    return {
+        "overview_chart_keys": (
+            json_decode(row["overview_chart_keys"], type=list[str])
+            if row["overview_chart_keys"] is not None
+            else None
+        ),
+        "pioreactor_chart_keys": (
+            json_decode(row["pioreactor_chart_keys"], type=list[str])
+            if row["pioreactor_chart_keys"] is not None
+            else None
+        ),
+    }
+
+
+@api_bp.route("/experiments/<experiment>/chart_preferences", methods=["GET"])
+def get_experiment_chart_preferences(experiment: str) -> ResponseReturnValue:
+    if _get_experiment_metadata(experiment) is None:
+        abort_with(404, f"Experiment {experiment} not found")
+
+    return jsonify(load_experiment_chart_preferences(experiment))
+
+
+@api_bp.route("/experiments/<experiment>/chart_preferences", methods=["PATCH"])
+def update_experiment_chart_preferences(experiment: str) -> ResponseReturnValue:
+    body = decode_request_body(structs.UpdateExperimentChartPreferencesRequest)
+
+    if body.overview_chart_keys is UNSET and body.pioreactor_chart_keys is UNSET:
+        abort_with(
+            400,
+            "Missing chart preferences",
+            cause="No supported chart preference field was provided.",
+            remediation="Provide overview_chart_keys or pioreactor_chart_keys.",
+        )
+
+    if _get_experiment_metadata(experiment) is None:
+        abort_with(404, f"Experiment {experiment} not found")
+
+    available_chart_keys = {descriptor.chart_key for descriptor in load_chart_descriptors()}
+
+    for chart_keys in (body.overview_chart_keys, body.pioreactor_chart_keys):
+        if chart_keys is UNSET or chart_keys is None:
+            continue
+        if len(chart_keys) != len(set(chart_keys)):
+            abort_with(
+                400,
+                "Chart selections contain duplicates",
+                cause="A chart key was submitted more than once.",
+                remediation="Submit each chart key at most once.",
+            )
+        if unknown_chart_keys := set(chart_keys) - available_chart_keys:
+            abort_with(
+                400,
+                "Chart selection contains unavailable charts",
+                cause=f"Unknown chart keys: {', '.join(sorted(unknown_chart_keys))}.",
+                remediation="Refresh the chart catalog and choose from the available charts.",
+            )
+
+    if body.overview_chart_keys is not UNSET:
+        modify_app_db(
+            """
+            INSERT INTO experiment_chart_preferences (experiment, overview_chart_keys)
+            VALUES (?, ?)
+            ON CONFLICT(experiment) DO UPDATE SET overview_chart_keys = excluded.overview_chart_keys
+            """,
+            (
+                experiment,
+                (
+                    None
+                    if body.overview_chart_keys is None
+                    else encode(body.overview_chart_keys).decode("utf-8")
+                ),
+            ),
+        )
+
+    if body.pioreactor_chart_keys is not UNSET:
+        modify_app_db(
+            """
+            INSERT INTO experiment_chart_preferences (experiment, pioreactor_chart_keys)
+            VALUES (?, ?)
+            ON CONFLICT(experiment) DO UPDATE SET pioreactor_chart_keys = excluded.pioreactor_chart_keys
+            """,
+            (
+                experiment,
+                (
+                    None
+                    if body.pioreactor_chart_keys is None
+                    else encode(body.pioreactor_chart_keys).decode("utf-8")
+                ),
+            ),
+        )
+
+    return jsonify(load_experiment_chart_preferences(experiment))
 
 
 ## CONFIG CONTROL

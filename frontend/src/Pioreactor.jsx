@@ -58,6 +58,7 @@ import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import RequirementsAlert from "./components/RequirementsAlert";
 import BioreactorDiagram from "./components/BioreactorDiagram";
 import Chart from "./components/Chart";
+import ChartPreferencesControl from "./components/ChartPreferencesControl";
 import LogTableByUnit from "./components/LogTableByUnit";
 import CameraPanel from "./components/CameraPanel";
 import { useMQTT } from './providers/MQTTContext';
@@ -90,6 +91,7 @@ import {
   disabledColor,
 } from "./utils/color";
 import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
+import useExperimentChartPreferences from "./hooks/useExperimentChartPreferences";
 import {
   canQuickEditCardSetting,
   createPrimaryStateActionForState,
@@ -2082,25 +2084,45 @@ function evaluateChartTransformation(transformation) {
 
 
 function Charts(props) {
-  const [charts, setCharts] = useState({})
   const config = props.config
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const experiment = props.experimentMetadata.experiment;
+  const descriptorsByKey = new Map(
+    props.chartPreferences.descriptors.map((descriptor) => [descriptor.chart_key, descriptor]),
+  );
+  const charts = props.chartPreferences.selectedChartKeys
+    .map((chartKey) => descriptorsByKey.get(chartKey))
+    .filter(Boolean);
 
-  useEffect(() => {
-    fetch('/api/charts/descriptors')
-      .then((response) => response.json())
-      .then((data) => {
-        setCharts(Object.fromEntries(data.map((chart) => [chart.chart_key, chart])));
-      });
-  }, []);
+  if (props.chartPreferences.isLoading) {
+    return <CircularProgress aria-label="Loading charts" size={24} />;
+  }
+
+  if (props.chartPreferences.error) {
+    return (
+      <Alert
+        severity="error"
+        action={<Button onClick={() => props.chartPreferences.refresh()}>Retry</Button>}
+      >
+        {props.chartPreferences.error}
+      </Alert>
+    );
+  }
+
+  if (charts.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No charts are selected for this page. Use the settings to add one.
+      </Typography>
+    );
+  }
 
 
   return (
     <React.Fragment>
-      {Object.entries(charts)
-        .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
-        .map(([chart_key, chart]) =>
+      {charts.map((chart) => {
+        const chart_key = chart.chart_key;
+        return (
           <React.Fragment key={`grid-chart-${chart_key}`}>
             <Grid size={12}>
               <Card sx={{ maxHeight: "100%"}}>
@@ -2136,7 +2158,8 @@ function Charts(props) {
               </Card>
             </Grid>
           </React.Fragment>
-     )}
+        );
+      })}
     </React.Fragment>
   );}
 
@@ -2146,11 +2169,18 @@ function Charts(props) {
 function Pioreactor({title, cameraUIEnabled = false}) {
   const { experimentMetadata, selectExperiment } = useExperiment();
   const [unitConfig, setUnitConfig] = useState({})
+  const [unitConfigReady, setUnitConfigReady] = useState(false)
   const initialTimeScale = localStorage.getItem('timeScale') || 'hours';
   const storedTimeWindow = parseInt(localStorage.getItem('timeWindow'), 10);
   const initialTimeWindow = storedTimeWindow >= 0 ? storedTimeWindow : 1000000;
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
+  const chartPreferences = useExperimentChartPreferences({
+    chartPage: "pioreactor",
+    config: unitConfig,
+    configReady: unitConfigReady,
+    experiment: experimentMetadata.experiment,
+  });
 
   const {pioreactorUnit} = useParams();
   const unit = pioreactorUnit
@@ -2181,7 +2211,8 @@ function Pioreactor({title, cameraUIEnabled = false}) {
     .then((data) => setUnitConfig(data.configs[unit]))
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
-    });
+    })
+    .finally(() => setUnitConfigReady(true));
   }, [unit]);
 
   useEffect(() => {
@@ -2294,18 +2325,18 @@ function Pioreactor({title, cameraUIEnabled = false}) {
 
           <Grid
             container
-            spacing={2}
+            spacing={1}
             justifyContent="flex-start"
             sx={{height: "100%"}}
             size={{
               xs: 12,
               md: 7
             }}>
-            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
+            <Charts chartPreferences={chartPreferences} unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
           </Grid>
           <Grid
             container
-            spacing={2}
+            spacing={1}
             justifyContent="flex-end"
             sx={{height: "100%"}}
             size={{
@@ -2314,7 +2345,8 @@ function Pioreactor({title, cameraUIEnabled = false}) {
             }}>
             <Grid
               size={{
-                xs: 7,
+                xs: 12,
+                sm: 7,
                 md: 7
               }}>
               <Stack direction="row" sx={{ justifyContent: "start" }}>
@@ -2323,12 +2355,25 @@ function Pioreactor({title, cameraUIEnabled = false}) {
             </Grid>
             <Grid
               size={{
-                xs: 5,
-                md: 5
+                xs: 12,
+                sm: 4,
+                md: 4
               }}>
-              <Stack direction="row" sx={{ justifyContent: "end" }}>
+              <Stack direction="row" spacing={0.5} sx={{ justifyContent: "end", alignItems: "center" }}>
                 <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
               </Stack>
+            </Grid>
+            <Grid
+              size={{
+                xs: 1,
+                sm: 1,
+                md: 1
+              }}>
+              <ChartPreferencesControl
+                chartPageLabel="Pioreactor"
+                chartPreferences={chartPreferences}
+                experiment={experimentMetadata.experiment}
+              />
             </Grid>
             <Grid size={12}>
               <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.created_at}/>

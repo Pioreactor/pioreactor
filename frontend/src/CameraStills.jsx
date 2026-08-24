@@ -132,12 +132,6 @@ export default function CameraStills({ title }) {
     ? "Scheduled snapshot"
     : "Manual snapshot";
   const SelectedStillCaptureReasonIcon = selectedStillIsScheduled ? ScheduleIcon : LocalSeeIcon;
-  let renameHelperText = "Use letters, numbers, dots, dashes, or underscores. Leave off .jpg.";
-  if (renameError) {
-    renameHelperText = renameError;
-  } else if (renameDraft === renameDialogImageId) {
-    renameHelperText = "Change the current name to enable Rename.";
-  }
 
   const moveSelectedStill = (offset) => {
     setSelectedStillImageId((currentImageId) => {
@@ -544,7 +538,7 @@ export default function CameraStills({ title }) {
               label="Photo name"
               value={renameDraft}
               error={Boolean(renameError)}
-              helperText={renameHelperText}
+              helperText={renameError ? renameError : ""}
               disabled={renameRequestPending}
               onChange={(event) => {
                 setRenameDraft(event.target.value);

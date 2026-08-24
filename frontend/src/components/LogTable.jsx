@@ -29,6 +29,13 @@ import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
 // Activate the UTC plugin
 dayjs.extend(utc);
 
+const StyledTableHeaderCell = styled(TableCell)(({}) => ({
+  padding: "6px 6px 6px 10px",
+  fontSize: 13,
+  whiteSpace: "normal",
+  backgroundColor: "white"
+}));
+
 const StyledTableCell = styled(TableCell)(({ level }) => ({
   padding: "6px 6px 6px 10px",
   fontSize: 13,
@@ -183,10 +190,10 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
           <Table stickyHeader size="small" aria-label="log table">
             <TableHead>
               <TableRow>
-                <StyledTableCell>Time</StyledTableCell>
-                <StyledTableCell>Pioreactor</StyledTableCell>
-                <StyledTableCell>Source</StyledTableCell>
-                <StyledTableCell>Message</StyledTableCell>
+                <StyledTableHeaderCell>Time</StyledTableHeaderCell>
+                <StyledTableHeaderCell>Pioreactor</StyledTableHeaderCell>
+                <StyledTableHeaderCell>Source</StyledTableHeaderCell>
+                <StyledTableHeaderCell>Message</StyledTableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>

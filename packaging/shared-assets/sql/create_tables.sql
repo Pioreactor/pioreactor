@@ -207,6 +207,16 @@ ORDER BY rowid DESC
 LIMIT 1;
 
 
+CREATE TABLE IF NOT EXISTS experiment_chart_preferences (
+    experiment TEXT NOT NULL PRIMARY KEY,
+    overview_chart_keys TEXT,
+    pioreactor_chart_keys TEXT,
+    FOREIGN KEY (experiment) REFERENCES experiments (
+        experiment
+    ) ON DELETE CASCADE
+);
+
+
 CREATE TABLE IF NOT EXISTS dosing_automation_settings (
     experiment TEXT NOT NULL,
     pioreactor_unit TEXT NOT NULL,

@@ -1,8 +1,15 @@
 ### Upcoming
 
+
+#### Enhancements
+ - use `[camera].use_ir_led` to control whether the camera should work with the IR LED or not.
+ - adding _Experiment tags_ as an exportable dataset.
+
 #### Bug fixes
 
  - Fix "Now" time selector on the UI.
+ - Fix experiment filter in _Experiments_ database export.
+
 
 
 ### 26.8.1

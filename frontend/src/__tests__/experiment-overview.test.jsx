@@ -1,5 +1,5 @@
 import React from "react";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 jest.mock("../providers/ExperimentContext", () => ({
   useExperiment: jest.fn(),
@@ -10,19 +10,25 @@ jest.mock("../providers/MQTTContext", () => ({
 }));
 
 jest.mock("../utils/config", () => ({
-  getConfig: jest.fn((setCallback) =>
+  getConfig: jest.fn((setCallback) => {
     setCallback({
       "ui.overview.cards": {
         dosings: "1",
       },
-    }),
-  ),
+      "ui.overview.charts": {
+        optical_density: "1",
+        temperature: "1",
+      },
+    });
+    return Promise.resolve();
+  }),
   getRelabelMap: jest.fn((setCallback) => setCallback({})),
 }));
 
 jest.mock("../components/LogTable", () => () => null);
 jest.mock("../components/ExperimentSummary", () => () => null);
-jest.mock("../components/Chart", () => () => null);
+jest.mock("../components/Chart", () => ({ chartKey }) => <div data-testid="chart">{chartKey}</div>);
+jest.mock("../components/ChartPreferencesControl", () => () => null);
 jest.mock("../components/MediaCard", () => () => null);
 jest.mock("../Profiles", () => ({
   RunningProfilesContainer: () => null,
@@ -37,13 +43,23 @@ jest.mock("../components/TimeControls", () => ({
 
 const { useExperiment } = require("../providers/ExperimentContext");
 const { useMQTT } = require("../providers/MQTTContext");
-const { getRelabelMap } = require("../utils/config");
+const { getConfig, getRelabelMap } = require("../utils/config");
 const Overview = require("../ExperimentOverview").default;
 
 describe("ExperimentOverview", () => {
   let contextValue;
 
   beforeEach(() => {
+    getConfig.mockImplementation((setCallback) => {
+      setCallback({
+        "ui.overview.cards": { dosings: "1" },
+        "ui.overview.charts": {
+          optical_density: "1",
+          temperature: "1",
+        },
+      });
+      return Promise.resolve();
+    });
     contextValue = {
       experimentMetadata: {
         experiment: "exp1",
@@ -65,7 +81,26 @@ describe("ExperimentOverview", () => {
       if (url === "/api/charts/descriptors") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([]),
+          json: () => Promise.resolve([
+            {
+              chart_key: "optical_density",
+              title: "Optical density",
+            },
+            {
+              chart_key: "temperature",
+              title: "Temperature",
+            },
+          ]),
+        });
+      }
+
+      if (url === "/api/experiments/exp1/chart_preferences") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            overview_chart_keys: ["temperature", "optical_density"],
+            pioreactor_chart_keys: null,
+          }),
         });
       }
 
@@ -124,5 +159,15 @@ describe("ExperimentOverview", () => {
 
     expect(workerFetches).toHaveLength(1);
     expect(getRelabelMap).toHaveBeenCalledTimes(1);
+  });
+
+  test("renders charts in the saved experiment order", async () => {
+    render(<Overview title="Pioreactor ~ Overview" />);
+
+    await waitFor(() => expect(screen.getAllByTestId("chart")).toHaveLength(2));
+    expect(screen.getAllByTestId("chart").map((chart) => chart.textContent)).toEqual([
+      "temperature",
+      "optical_density",
+    ]);
   });
 });

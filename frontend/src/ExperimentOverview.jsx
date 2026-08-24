@@ -1,9 +1,14 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 
 import Grid from "@mui/material/Grid";
+import Alert from "@mui/material/Alert";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 import LogTable from "./components/LogTable";
 import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
+import ChartPreferencesControl from "./components/ChartPreferencesControl";
 import MediaCard from "./components/MediaCard";
 import {RunningProfilesContainer} from "./Profiles";
 import { RunningProfilesProvider} from './providers/RunningProfilesContext';
@@ -14,6 +19,7 @@ import Stack from "@mui/material/Stack";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
+import useExperimentChartPreferences from "./hooks/useExperimentChartPreferences";
 import { experimentPathSegment } from "./utils/url";
 
 function evaluateChartLookback(timeWindow, lookbackExpression) {
@@ -36,35 +42,45 @@ function evaluateChartTransformation(transformation) {
 
 
 function Charts(props) {
-  const [charts, setCharts] = useState({})
   const config = props.config
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
-  const enabledCharts = config['ui.overview.charts'] || {};
   const experiment = props.experimentMetadata.experiment;
+  const descriptorsByKey = new Map(
+    props.chartPreferences.descriptors.map((descriptor) => [descriptor.chart_key, descriptor]),
+  );
+  const charts = props.chartPreferences.selectedChartKeys
+    .map((chartKey) => descriptorsByKey.get(chartKey))
+    .filter(Boolean);
 
-  useEffect(() => {
-    const fetchCharts = async () => {
-      try {
-        const response = await fetch('/api/charts/descriptors');
-        if (!response.ok) {
-          throw new Error('Failed to fetch charts');
-        }
-        const data = await response.json();
-        setCharts(Object.fromEntries(data.map((chart) => [chart.chart_key, chart])));
-      } catch (err) {
-        console.error('Error loading charts:', err);
-      }
-    };
+  if (props.chartPreferences.isLoading) {
+    return <CircularProgress aria-label="Loading charts" size={24} />;
+  }
 
-    fetchCharts();
-  }, []);
+  if (props.chartPreferences.error) {
+    return (
+      <Alert
+        severity="error"
+        action={<Button onClick={() => props.chartPreferences.refresh()}>Retry</Button>}
+      >
+        {props.chartPreferences.error}
+      </Alert>
+    );
+  }
+
+  if (charts.length === 0) {
+    return (
+        <Typography variant="body2" color="text.secondary">
+        No charts are selected for this page. Use the settings to add one.
+        </Typography>
+    );
+  }
 
 
   return (
     <Fragment>
-      {Object.entries(charts)
-        .filter(([chart_key]) => enabledCharts[chart_key] === "1")
-        .map(([chart_key, chart]) =>
+      {charts.map((chart) => {
+        const chart_key = chart.chart_key;
+        return (
           <Fragment key={`grid-chart-${chart_key}`}>
             <Grid size={12}>
               <Card sx={{ maxHeight: "100%"}}>
@@ -98,7 +114,8 @@ function Charts(props) {
               </Card>
             </Grid>
           </Fragment>
-     )}
+        );
+      })}
     </Fragment>
   );}
 
@@ -107,6 +124,7 @@ function Overview(props) {
 
   const {experimentMetadata, updateExperiment} = useExperiment()
   const [config, setConfig] = useState({})
+  const [configReady, setConfigReady] = useState(false)
   const [relabelMap, setRelabelMap] = useState({})
 
   const initialTimeScale = localStorage.getItem('timeScale') || config['ui.overview.settings']?.['time_display_mode'] || 'hours';
@@ -117,11 +135,17 @@ function Overview(props) {
   const [hasFetchedUnits, setHasFetchedUnits] = useState(false)
   const unitsColorMap = useMemo(() => new ColorCycler(colors), [])
   const cardsConfig = config['ui.overview.cards'] || {};
+  const chartPreferences = useExperimentChartPreferences({
+    chartPage: "overview",
+    config,
+    configReady,
+    experiment: experimentMetadata.experiment,
+  });
 
 
   useEffect(() => {
     document.title = props.title;
-    getConfig(setConfig)
+    getConfig(setConfig).finally(() => setConfigReady(true))
   }, [props.title])
 
   useEffect(() => {
@@ -181,12 +205,12 @@ function Overview(props) {
             xs: 12,
             md: 7
           }}>
-          <Charts unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+          <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
         </Grid>
 
         <Grid
           container
-          spacing={2}
+          spacing={1}
           sx={{height: "100%",  justifyContent: "flex-end" }}
           size={{
             xs: 12,
@@ -195,7 +219,8 @@ function Overview(props) {
 
           <Grid
             size={{
-              xs: 7,
+              xs: 12,
+              sm: 7,
               md: 7
             }}>
             <Stack direction="row" sx={{ justifyContent: "start" }}>
@@ -204,12 +229,23 @@ function Overview(props) {
           </Grid>
           <Grid
             size={{
-              xs: 5,
-              md: 5
+              xs: 12,
+              sm: 4,
+              md: 4
             }}>
-            <Stack direction="row" sx={{ justifyContent: "end" }}>
               <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-            </Stack>
+          </Grid>
+          <Grid
+            size={{
+              xs: 1,
+              sm: 1,
+              md: 1
+            }}>
+              <ChartPreferencesControl
+                chartPageLabel="Overview"
+                chartPreferences={chartPreferences}
+                experiment={experimentMetadata.experiment}
+              />
           </Grid>
 
           {( cardsConfig['dosings'] === "1") &&

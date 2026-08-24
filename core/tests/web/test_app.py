@@ -1445,6 +1445,123 @@ def test_update_experiment_requires_a_supported_field(client) -> None:
     assert response.get_json()["error"] == "Missing description or tags"
 
 
+def test_experiment_chart_preferences_default_to_config(client) -> None:
+    response = client.get("/api/experiments/exp1/chart_preferences")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "overview_chart_keys": None,
+        "pioreactor_chart_keys": None,
+    }
+
+
+def test_update_experiment_chart_preferences(client, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.web.api.load_chart_descriptors",
+        lambda: [
+            structs.ChartDescriptor(
+                chart_key="optical_density",
+                data_source="od_readings",
+                title="Optical density",
+                source="app",
+                y_axis_label="Reading",
+                fixed_decimals=3,
+            ),
+            structs.ChartDescriptor(
+                chart_key="temperature",
+                data_source="temperature_readings",
+                title="Temperature",
+                source="app",
+                y_axis_label="Temperature",
+                fixed_decimals=1,
+            ),
+        ],
+    )
+
+    response = client.patch(
+        "/api/experiments/exp1/chart_preferences",
+        json={
+            "overview_chart_keys": ["optical_density", "temperature"],
+            "pioreactor_chart_keys": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "overview_chart_keys": ["optical_density", "temperature"],
+        "pioreactor_chart_keys": [],
+    }
+    assert client.get("/api/experiments/exp1/chart_preferences").get_json() == response.get_json()
+
+
+def test_reset_experiment_chart_preferences_to_config(client, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.web.api.load_chart_descriptors",
+        lambda: [
+            structs.ChartDescriptor(
+                chart_key="temperature",
+                data_source="temperature_readings",
+                title="Temperature",
+                source="app",
+                y_axis_label="Temperature",
+                fixed_decimals=1,
+            )
+        ],
+    )
+    client.patch(
+        "/api/experiments/exp1/chart_preferences",
+        json={"overview_chart_keys": ["temperature"]},
+    )
+
+    response = client.patch(
+        "/api/experiments/exp1/chart_preferences",
+        json={"overview_chart_keys": None},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["overview_chart_keys"] is None
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_error"),
+    [
+        ({}, "Missing chart preferences"),
+        (
+            {"overview_chart_keys": ["temperature", "temperature"]},
+            "Chart selections contain duplicates",
+        ),
+        (
+            {"overview_chart_keys": ["not-a-chart"]},
+            "Chart selection contains unavailable charts",
+        ),
+    ],
+)
+def test_reject_invalid_experiment_chart_preferences(
+    client,
+    monkeypatch: MonkeyPatch,
+    payload: dict[str, object],
+    expected_error: str,
+) -> None:
+    monkeypatch.setattr(
+        "pioreactor.web.api.load_chart_descriptors",
+        lambda: [
+            structs.ChartDescriptor(
+                chart_key="temperature",
+                data_source="temperature_readings",
+                title="Temperature",
+                source="app",
+                y_axis_label="Temperature",
+                fixed_decimals=1,
+            )
+        ],
+    )
+
+    response = client.patch("/api/experiments/exp1/chart_preferences", json=payload)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected_error
+
+
 def test_create_experiment_missing_fields(client) -> None:
     # Try to create an experiment without required fields
     response = client.post(

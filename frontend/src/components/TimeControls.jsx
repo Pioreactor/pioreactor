@@ -17,7 +17,7 @@ export function TimeFormatSwitch({ timeScale, setTimeScale }) {
       onChange={onChange}
       size="small"
     >
-      <ToggleButton value="hours">Elapsed time</ToggleButton>
+      <ToggleButton value="hours">Elapsed</ToggleButton>
       <ToggleButton value="clock_time">Timestamp</ToggleButton>
     </ToggleButtonGroup>
   );

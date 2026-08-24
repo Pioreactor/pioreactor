@@ -85,7 +85,7 @@ function ExperimentActionsMenu({
             onEdit();
           }}
         >
-          Edit
+          Edit details
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -105,6 +105,7 @@ function ExperimentActionsMenu({
             End experiment
           </MenuItem>
         )}
+        <Divider  />
         <MenuItem
           disabled={deleteDisabled}
           onClick={() => {

@@ -721,6 +721,11 @@ class UpdateExperimentRequest(Struct, forbid_unknown_fields=True):
     tags: list[str] | UnsetType = UNSET
 
 
+class UpdateExperimentChartPreferencesRequest(Struct, forbid_unknown_fields=True):
+    overview_chart_keys: list[str] | None | UnsetType = UNSET
+    pioreactor_chart_keys: list[str] | None | UnsetType = UNSET
+
+
 class UpsertUnitLabelRequest(Struct, forbid_unknown_fields=True):
     unit: str
     label: str
