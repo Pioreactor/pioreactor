@@ -551,6 +551,39 @@ def test_pump_stop_is_safe_after_pwm_cleanup() -> None:
         assert cache.get(13, 0) == 0
 
 
+def test_pump_context_exit_after_pwm_cleanup_stops_worker_without_republishing() -> None:
+    experiment = "test_pump_context_exit_after_pwm_cleanup_stops_worker_without_republishing"
+    calibration = structs.SimplePeristalticPumpCalibration(
+        calibration_name="setup_function",
+        curve_data_=_poly_curve([1.0, 0.0]),
+        recorded_data={"x": [], "y": []},
+        dc=100,
+        hz=100,
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        calibrated_on_pioreactor_unit=unit,
+    )
+    mqtt_items: list[dict[str, float]] = []
+
+    def collect(msg) -> None:
+        payload = msg.payload.decode()
+        if payload:
+            mqtt_items.append(json.loads(payload))
+
+    subscribe_and_callback(collect, f"pioreactor/{unit}/{experiment}/pwms/dc", allow_retained=False)
+
+    with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as pump:
+        pump.by_duration(seconds=100, block=False)
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert wait_for(lambda: cache.get(13, 0) == 100, timeout=1.0)
+        pump.clean_up()  # Simulate the PWM signal handler running before context teardown.
+        assert not pump.interrupt.is_set()
+
+    assert pump.interrupt.is_set()
+    assert wait_for(lambda: bool(mqtt_items) and mqtt_items[-1] == {}, timeout=1.0)
+    assert sum(payload == {} for payload in mqtt_items) == 1
+
+
 def test_add_media_publishes_single_empty_pwm_payload_on_shutdown() -> None:
     experiment = "test_add_media_publishes_single_empty_pwm_payload_on_shutdown"
 
