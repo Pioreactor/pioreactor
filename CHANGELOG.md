@@ -4,6 +4,7 @@
 #### Enhancements
  - use `[camera].use_ir_led` to control whether the camera should work with the IR LED or not.
  - adding _Experiment tags_ as an exportable dataset.
+ - Ability to select and reorder charts on the Experiment Overview and Pioreactors page.
 
 #### Bug fixes
 
