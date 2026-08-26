@@ -1133,7 +1133,15 @@ def test_led_intensity() -> None:
         assert float(cast(float, c["A"])) == 1.0
 
 
-def test_camera_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("supplied_name", "expected_image_id"),
+    [
+        ("inoculation", "inoculation"),
+        ("run.05", "run.05"),
+        ("run.05.jpg", "run.05.jpg"),
+    ],
+)
+def test_camera_snapshot(monkeypatch: pytest.MonkeyPatch, supplied_name: str, expected_image_id: str) -> None:
     from pioreactor.actions import camera_snapshot
     from pioreactor.camera import CameraStillMetadata
 
@@ -1150,10 +1158,10 @@ def test_camera_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(camera_snapshot, "camera_snapshot", capture)
 
-    result = CliRunner().invoke(pio, ["run", "camera_snapshot", "--name", "inoculation"])
+    result = CliRunner().invoke(pio, ["run", "camera_snapshot", "--name", supplied_name])
 
     assert result.exit_code == 0
-    assert supplied_names == ["inoculation"]
+    assert supplied_names == [expected_image_id]
     expected_path = camera_snapshot.camera_still_image_path(metadata)
     assert result.output == f"Captured camera snapshot image-a, at {expected_path}\n"
 

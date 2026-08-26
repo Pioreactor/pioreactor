@@ -7,6 +7,7 @@ from random import random
 from msgspec import DecodeError
 from msgspec.json import decode
 from pioreactor.exc import MQTTValueError
+from pioreactor.exc import NotActiveWorkerError
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import is_active

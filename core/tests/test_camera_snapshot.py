@@ -51,11 +51,17 @@ def test_camera_snapshot_uses_current_unit_and_experiment(monkeypatch: pytest.Mo
     lifecycle.assert_called_once_with("unit-a", "experiment-a", "camera_snapshot")
 
 
-def test_camera_snapshot_passes_name_as_image_id(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("name", "expected_image_id"),
+    [("inoculation", "inoculation"), ("run.05", "run.05"), ("run.05.jpg", "run.05")],
+)
+def test_camera_snapshot_passes_name_as_image_id(
+    monkeypatch: pytest.MonkeyPatch, name: str, expected_image_id: str
+) -> None:
     metadata = CameraStillMetadata(
         experiment="experiment-a",
         captured_at=datetime(2026, 7, 13, 12, 0, tzinfo=UTC),
-        image_id="inoculation",
+        image_id=expected_image_id,
     )
     captured: dict[str, str | None] = {}
 
@@ -73,8 +79,8 @@ def test_camera_snapshot_passes_name_as_image_id(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(camera_snapshot, "capture_camera_still", capture)
 
-    assert camera_snapshot.camera_snapshot("unit-a", "experiment-a", name="inoculation") == metadata
-    assert captured["image_id"] == "inoculation"
+    assert camera_snapshot.camera_snapshot("unit-a", "experiment-a", name=name) == metadata
+    assert captured["image_id"] == expected_image_id
 
 
 def test_camera_snapshot_rejects_unsafe_name_before_capture(monkeypatch: pytest.MonkeyPatch) -> None:

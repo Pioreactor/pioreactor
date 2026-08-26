@@ -1283,16 +1283,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     def _desired_dodging_mode(self, enable_dodging_od: bool, od_state: JobState | None) -> bool:
         """Return True if we should dodge based on enable flag and OD state."""
-        if not enable_dodging_od:
-            return False
-        # enable_dodging_od is true - user wants it on
-        if od_state is None:
-            return False
-        if od_state in {JobState.READY, JobState.SLEEPING, JobState.INIT}:
-            return True
-        if od_state in {JobState.LOST, JobState.DISCONNECTED}:
-            return False
-        return False
+        return enable_dodging_od and od_state in {JobState.INIT, JobState.READY, JobState.SLEEPING}
 
     def set_currently_dodging_od(self, value: bool) -> None:
         """

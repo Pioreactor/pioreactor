@@ -21,6 +21,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.states import JobState
 from pioreactor.types import MQTTMessage
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.job_manager import JobManager
@@ -738,6 +739,31 @@ def test_dodging_jobs_respect_inactive_worker_guard(monkeypatch) -> None:
                 pytest.fail("Expected dodging jobs to reject inactive workers.")
             finally:
                 job.clean_up()
+
+
+@pytest.mark.parametrize(
+    ("enable_dodging_od", "od_state", "expected"),
+    [
+        (False, None, False),
+        (False, JobState.INIT, False),
+        (False, JobState.READY, False),
+        (False, JobState.SLEEPING, False),
+        (False, JobState.LOST, False),
+        (False, JobState.DISCONNECTED, False),
+        (True, None, False),
+        (True, JobState.INIT, True),
+        (True, JobState.READY, True),
+        (True, JobState.SLEEPING, True),
+        (True, JobState.LOST, False),
+        (True, JobState.DISCONNECTED, False),
+    ],
+)
+def test_desired_dodging_mode_matches_od_state_invariant(
+    enable_dodging_od: bool, od_state: JobState | None, expected: bool
+) -> None:
+    job = object.__new__(BackgroundJobWithDodging)
+
+    assert job._desired_dodging_mode(enable_dodging_od, od_state) is expected
 
 
 def test_dodging_persists_when_second_od_reader_start_fails() -> None:

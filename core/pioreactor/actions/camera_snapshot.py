@@ -17,8 +17,9 @@ def camera_snapshot(
     name: str | None = None,
 ) -> CameraStillMetadata:
     """Capture and store a still for the unit's assigned experiment."""
-    if name is not None and not camera_storage_name_is_safe(name):
-        raise ValueError(f"Unsafe camera image name: {name}")
+    image_id = name.removesuffix(".jpg") if name is not None else None
+    if image_id is not None and not camera_storage_name_is_safe(image_id):
+        raise ValueError(f"Unsafe camera image name: {image_id}")
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
@@ -28,7 +29,7 @@ def camera_snapshot(
             unit,
             experiment=experiment,
             capture_reason="manual",
-            image_id=name,
+            image_id=image_id,
         )
 
 
