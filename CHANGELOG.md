@@ -5,11 +5,14 @@
  - use `[camera].use_ir_led` to control whether the camera should work with the IR LED or not.
  - adding _Experiment tags_ as an exportable dataset.
  - Ability to select and reorder charts on the Experiment Overview and Pioreactors page.
+ - Added the ability to name camera snapshots when capturing them and rename existing photos from the Camera Stills page.
 
 #### Bug fixes
 
  - Fix "Now" time selector on the UI.
  - Fix experiment filter in _Experiments_ database export.
+ - Fixed experiment-profile pause, resume, and setting updates so they still reach jobs that start while the action is running.
+ - Fixed PWM pumps not releasing their worker when interrupted, which could leave them running after a command was stopped.
 
 
 
