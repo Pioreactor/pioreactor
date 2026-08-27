@@ -4,6 +4,7 @@ import typing as t
 from base64 import b64decode
 from datetime import datetime
 from datetime import timezone
+from time import monotonic
 
 from flask import Flask
 from flask import g
@@ -27,6 +28,8 @@ from werkzeug.exceptions import HTTPException
 VERSION = __version__
 HOSTNAME = get_unit_name()
 NAME = f"pioreactor-{HOSTNAME}-api"
+APP_DATABASE_QUERY_TIMEOUT_SECONDS = 30.0
+APP_DATABASE_QUERY_PROGRESS_HANDLER_INSTRUCTIONS = 50_000
 
 
 # set up logging
@@ -232,12 +235,34 @@ def query_app_db(
 ) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
     assert am_I_leader()
     con = _get_app_db_connection()
+    cur: sqlite3.Cursor | None = None
+    query_deadline = monotonic() + APP_DATABASE_QUERY_TIMEOUT_SECONDS
+    query_timed_out = False
+
+    def query_exceeded_execution_deadline() -> int:
+        nonlocal query_timed_out
+        query_timed_out = monotonic() >= query_deadline
+        return int(query_timed_out)
+
     try:
         con.execute("PRAGMA query_only = 1")
+        con.set_progress_handler(
+            query_exceeded_execution_deadline,
+            APP_DATABASE_QUERY_PROGRESS_HANDLER_INSTRUCTIONS,
+        )
         cur = con.execute(query, args)
         rv = cur.fetchall()
-        cur.close()
+    except sqlite3.OperationalError as e:
+        if query_timed_out:
+            raise TimeoutError(
+                f"Database query exceeded {APP_DATABASE_QUERY_TIMEOUT_SECONDS:g} seconds."
+            ) from e
+        raise
     finally:
+        con.set_progress_handler(None, 0)
+        if cur is not None:
+            cur.close()
+
         # Restore to default to allow mutations via modify_app_db within same request
         try:
             con.execute("PRAGMA query_only = 0")

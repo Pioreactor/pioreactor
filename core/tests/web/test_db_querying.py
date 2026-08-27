@@ -50,6 +50,45 @@ def test_query_app_db_disallows_dml_via_query_only_pragma(app, tmp_path) -> None
     assert _count_rows(db_path) == 1
 
 
+def test_query_app_db_interrupts_queries_that_exceed_the_execution_deadline(app, monkeypatch) -> None:
+    from pioreactor.web import app as web_app
+
+    monkeypatch.setattr(web_app, "APP_DATABASE_QUERY_TIMEOUT_SECONDS", 0.0, raising=False)
+
+    with app.app_context():
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = web_app._make_dicts
+        g._app_database = connection
+
+        with pytest.raises(TimeoutError, match="Database query exceeded"):
+            web_app.query_app_db(
+                """
+                WITH RECURSIVE counter(value) AS (
+                    VALUES(0)
+                    UNION ALL
+                    SELECT value + 1 FROM counter WHERE value < 1000000
+                )
+                SELECT SUM(value) FROM counter
+                """
+            )
+
+        # The interrupted statement must release the connection and remove its
+        # progress handler so the same request can continue using SQLite.
+        result = connection.execute(
+            """
+            WITH RECURSIVE counter(value) AS (
+                VALUES(0)
+                UNION ALL
+                SELECT value + 1 FROM counter WHERE value < 100000
+            )
+            SELECT SUM(value) AS total FROM counter
+            """
+        ).fetchone()
+
+        assert result == {"total": 5000050000}
+        connection.execute("CREATE TABLE after_timeout (value INTEGER)")
+
+
 def test_modify_app_db_rolls_back_after_integrity_error(app, tmp_path) -> None:
     from pioreactor.web import app as web_app
 
