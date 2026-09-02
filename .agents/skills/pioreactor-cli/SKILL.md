@@ -38,14 +38,6 @@ Prefer the command's current `--help` output and the implementation in `core/pio
 - Test a job or command locally with `pio` before scaling it through `pios` when that is practical.
 - Remember that `pios` adds target selectors such as `--units` and `--experiments`; avoid relying on the default target set unless the user explicitly asked for all eligible workers.
 
-## Source Files
-
-- `core/pioreactor/cli/pio.py`: local CLI command group and many subcommands.
-- `core/pioreactor/cli/pios.py`: leader-to-workers orchestration CLI.
-- `core/pioreactor/cli/run.py`: `pio run` job discovery and launch behavior.
-- `core/pioreactor/web/tasks.py`: Huey-backed tasks used by some leader/web workflows.
-- `core/pioreactor/config.py`: config loading and override behavior.
-
 ## Safe Execution Rules
 
 - Do not run broad production-affecting commands unless the user explicitly asked for that scope. Examples: `pios kill --all-jobs -y`, `pios shutdown`, `pios reboot`, `pios update app`, `pios rm`, and cluster-wide plugin changes.
@@ -59,19 +51,19 @@ Prefer the command's current `--help` output and the implementation in `core/pio
 ### Inspect Current CLI Syntax
 
 ```bash
-.venv/bin/pio --help
-.venv/bin/pio <command> --help
-.venv/bin/pios --help
-.venv/bin/pios <command> --help
+pio --help
+pio <command> --help
+pios --help
+pios <command> --help
 ```
 
 ### Local Job Work
 
 ```bash
-.venv/bin/pio jobs running
-.venv/bin/pio run <job_name> [job options]
-.venv/bin/pio update-settings <job_name> [setting options]
-.venv/bin/pio kill --job-name <job_name>
+pio jobs running
+pio run <job_name> [job options]
+pio update-settings <job_name> [setting options]
+pio kill --job-name <job_name>
 ```
 
 Check `core/pioreactor/background_jobs/base.py` and the job implementation when lifecycle, published settings, MQTT topics, or cleanup behavior matter.
@@ -79,9 +71,9 @@ Check `core/pioreactor/background_jobs/base.py` and the job implementation when 
 ### Cluster Job Work
 
 ```bash
-.venv/bin/pios run <job_name> --units <unit> [job options]
-.venv/bin/pios update-settings <job_name> --units <unit> [setting options]
-.venv/bin/pios kill --job-name <job_name> --units <unit>
+pios run <job_name> --units <unit> [job options]
+pios update-settings <job_name> --units <unit> [setting options]
+pios kill --job-name <job_name> --units <unit>
 ```
 
 For worker-targeted failures, distinguish leader dispatch failures from worker-local failures. Inspect the `pios` implementation, leader API route, Huey task, and worker `/unit_api` route as appropriate.
@@ -96,8 +88,8 @@ For worker-targeted failures, distinguish leader dispatch failures from worker-l
 ### Logs and MQTT
 
 ```bash
-.venv/bin/pio logs -n 50
-.venv/bin/pio mqtt -t "pioreactor/<unit>/<experiment>/<job_name>/#"
+pio logs -n 50
+pio mqtt -t "pioreactor/<unit>/<experiment>/<job_name>/#"
 ```
 
 Use narrow MQTT topics when possible. Stop subscriptions before finalizing.
@@ -108,8 +100,8 @@ Use narrow MQTT topics when possible. Stop subscriptions before finalizing.
 - For command-syntax or discovery work, smoke check the current command:
 
 ```bash
-.venv/bin/pio <command> --help
-.venv/bin/pios <command> --help
+pio <command> --help
+pios <command> --help
 ```
 
 - For live cluster behavior, report exactly what was run, which unit or experiment was targeted, and any services or environment variables that mattered.

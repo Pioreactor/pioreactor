@@ -15,6 +15,7 @@ import pytest
 from pioreactor.cli.pio import get_update_app_commands
 from pioreactor.config import temporary_config_change
 from pioreactor.mureq import Response
+from pioreactor.paths import get_pio_venv_path
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +39,7 @@ def mock_release_metadata_response(tag_name: str, assets: list[dict[str, str]]) 
 
 def pip_install_app_from_git(repo: str, ref: str, extra: str = "leader_worker") -> list[str]:
     return [
-        "/opt/pioreactor/venv/bin/pip",
+        str(get_pio_venv_path() / "bin" / "pip"),
         "install",
         "--force-reinstall",
         "--index-url",
@@ -50,7 +51,13 @@ def pip_install_app_from_git(repo: str, ref: str, extra: str = "leader_worker") 
 
 
 def pip_install_app_from_wheel(source: str) -> list[str]:
-    return ["/opt/pioreactor/venv/bin/pip", "install", "--force-reinstall", "--no-index", source]
+    return [
+        str(get_pio_venv_path() / "bin" / "pip"),
+        "install",
+        "--force-reinstall",
+        "--no-index",
+        source,
+    ]
 
 
 def verify_release_archive_command(source: str, version: str) -> list[str]:
@@ -384,7 +391,7 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
         (["sudo", "rm", "-rf", tmp_rls_dir], 98),
         (
             [
-                "/opt/pioreactor/venv/bin/pip",
+                str(get_pio_venv_path() / "bin" / "pip"),
                 "install",
                 "--no-index",
                 f"--find-links={tmp_rls_dir}/wheels/",
@@ -394,7 +401,7 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
         ),
         (
             [
-                "/opt/pioreactor/venv/bin/pio",
+                str(get_pio_venv_path() / "bin" / "pio"),
                 "repair",
             ],
             99,
