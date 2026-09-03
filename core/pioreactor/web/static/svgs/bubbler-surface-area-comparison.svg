@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="80 236 1040 384" role="img" aria-labelledby="title description">
+  <title id="title">Small bubbles, more surface area</title>
+  <desc id="description">Two vessels contain equal total air volumes. The left has 32 spherical bubbles of diameter d. The right has 4 spherical bubbles of diameter 2d. The small bubbles provide twice the total liquid–air surface area. White circles represent air bubbles in blue liquid; their black outlines mark the liquid–air interface.</desc>
+
+  <!-- Identical vessels and liquid levels. All geometric outlines share a 5 px stroke. -->
+  <g stroke="#171717" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M100 286H528V583Q528 600 511 600H117Q100 600 100 583Z" fill="#9fd7f4" stroke="none" />
+    <path d="M672 286H1100V583Q1100 600 1083 600H689Q672 600 672 583Z" fill="#9fd7f4" stroke="none" />
+    <path d="M100 256V583Q100 600 117 600H511Q528 600 528 583V256M100 286H528" fill="none" />
+    <path d="M672 256V583Q672 600 689 600H1083Q1100 600 1100 583V256M672 286H1100" fill="none" />
+
+    <!-- 32 bubbles, radius 18: volume = 32 × (4π/3) × 18³. -->
+    <g id="small-bubbles" fill="#ffffff">
+      <circle cx="180" cy="330" r="18" />
+      <circle cx="246" cy="332" r="18" />
+      <circle cx="312" cy="328" r="18" />
+      <circle cx="378" cy="334" r="18" />
+      <circle cx="444" cy="330" r="18" />
+
+      <circle cx="148" cy="375" r="18" />
+      <circle cx="214" cy="380" r="18" />
+      <circle cx="280" cy="376" r="18" />
+      <circle cx="346" cy="382" r="18" />
+      <circle cx="412" cy="378" r="18" />
+      <circle cx="478" cy="375" r="18" />
+
+      <circle cx="178" cy="423" r="18" />
+      <circle cx="244" cy="428" r="18" />
+      <circle cx="310" cy="424" r="18" />
+      <circle cx="376" cy="427" r="18" />
+      <circle cx="442" cy="423" r="18" />
+
+      <circle cx="148" cy="468" r="18" />
+      <circle cx="214" cy="473" r="18" />
+      <circle cx="280" cy="470" r="18" />
+      <circle cx="346" cy="474" r="18" />
+      <circle cx="412" cy="470" r="18" />
+      <circle cx="478" cy="468" r="18" />
+
+      <circle cx="180" cy="516" r="18" />
+      <circle cx="246" cy="521" r="18" />
+      <circle cx="312" cy="517" r="18" />
+      <circle cx="378" cy="522" r="18" />
+      <circle cx="444" cy="516" r="18" />
+
+      <circle cx="148" cy="562" r="18" />
+      <circle cx="226" cy="565" r="18" />
+      <circle cx="310" cy="562" r="18" />
+      <circle cx="394" cy="566" r="18" />
+      <circle cx="478" cy="562" r="18" />
+    </g>
+
+    <!-- 4 bubbles, radius 36: equal volume; half the total spherical surface area. -->
+    <g id="large-bubbles" fill="#ffffff">
+      <circle cx="790" cy="365" r="36" />
+      <circle cx="964" cy="403" r="36" />
+      <circle cx="814" cy="487" r="36" />
+      <circle cx="986" cy="538" r="36" />
+    </g>
+  </g>
+</svg>

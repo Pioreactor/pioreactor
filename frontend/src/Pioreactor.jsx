@@ -56,7 +56,7 @@ import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import RequirementsAlert from "./components/RequirementsAlert";
-import BioreactorDiagram from "./components/BioreactorDiagram";
+import BioreactorDiagramPanel from "./components/BioreactorDiagramPanel";
 import Chart from "./components/Chart";
 import ChartPreferencesControl from "./components/ChartPreferencesControl";
 import LogTableByUnit from "./components/LogTableByUnit";
@@ -67,7 +67,6 @@ import PatientButton from './components/PatientButton';
 import {
   buildBioreactorSettingsCollection,
   getBioreactorConfirmedValue,
-  getBioreactorSubscriptionTopics,
   mergeSettingsCollections,
   parseNumericValue,
 } from "./utils/bioreactor";
@@ -122,79 +121,6 @@ import {
   textIcon,
   updateBioreactorSettingAndMirrorState,
 } from "./components/PioreactorCardShared";
-
-const DIAGRAM_BIOREACTOR_KEYS = ["current_volume_ml", "efflux_tube_volume_ml"];
-
-function BioreactorDiagramPanel({
-  unit,
-  experiment,
-  config,
-  modelDetails,
-  values,
-  onValuesChange,
-}) {
-  const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
-  const bioreactorValues = values || {};
-
-  const hasDiagram = Boolean(
-    modelDetails.model_name?.startsWith("pioreactor_20ml") || modelDetails.model_name?.startsWith("pioreactor_40ml")
-  );
-
-  const pushBioreactorValues = useCallback((nextValuesOrUpdater) => {
-    onValuesChange?.(nextValuesOrUpdater);
-  }, [onValuesChange]);
-
-  const onBioreactorMessage = useCallback((topic, message) => {
-    if (!topic || !message) {
-      return;
-    }
-
-    const parts = topic.toString().split("/");
-    const variableName = parts[4];
-    const parsedValue = parseNumericValue(message.toString());
-    if (!variableName || parsedValue === null) {
-      return;
-    }
-
-    pushBioreactorValues((previous) => ({
-      ...previous,
-      [variableName]: parsedValue,
-    }));
-  }, [pushBioreactorValues]);
-
-  useEffect(() => {
-    if (!client || !unit || !experiment) {
-      return undefined;
-    }
-
-    const topics = getBioreactorSubscriptionTopics(unit, experiment, DIAGRAM_BIOREACTOR_KEYS);
-
-    subscribeToTopic(topics, onBioreactorMessage, "BioreactorDiagramPanel");
-
-    return () => {
-      unsubscribeFromTopic(topics, "BioreactorDiagramPanel");
-    };
-  }, [client, experiment, onBioreactorMessage, subscribeToTopic, unsubscribeFromTopic, unit]);
-
-  return (
-    hasDiagram ? (
-      <BioreactorDiagram
-        experiment={experiment}
-        unit={unit}
-        config={config}
-        size={modelDetails.reactor_capacity_ml}
-        liquidVolume={getBioreactorConfirmedValue(bioreactorValues, config, "current_volume_ml")}
-        maxVolume={getBioreactorConfirmedValue(bioreactorValues, config, "efflux_tube_volume_ml")}
-      />
-    ) : (
-      <Box sx={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
-        <Typography variant="body2" component="p" color="textSecondary">
-          No diagram available for this model
-        </Typography>
-      </Box>
-    )
-  );
-}
 
 function ShieldCheckOutlineIcon(props) {
   return (
@@ -720,7 +646,7 @@ function SettingsActionsDialog(props) {
               <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
                 {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
               </Typography>
-              <Typography variant="body2" component="p" gutterBottom>
+              <Typography variant="body2" component="div" gutterBottom>
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>
 
@@ -748,7 +674,7 @@ function SettingsActionsDialog(props) {
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running temperature automation <Chip size="small" label={temperatureControlJob.publishedSettings.automation_name.value} />.
+                Currently running temperature automation <Chip component="span" size="small" label={temperatureControlJob.publishedSettings.automation_name.value} />.
                 </Typography>
                 {buttons[temperatureControlJob.metadata.key]}
                </React.Fragment>
@@ -814,7 +740,7 @@ function SettingsActionsDialog(props) {
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (dosingControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running dosing automation <Chip size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>.
+                Currently running dosing automation <Chip component="span" size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>.
                 </Typography>
                 {buttons[dosingControlJob.metadata.key]}
                </React.Fragment>
@@ -890,7 +816,7 @@ function SettingsActionsDialog(props) {
               {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (ledControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running LED automation <Chip size="small" label={ledControlJob.publishedSettings.automation_name.value}/>.
+                Currently running LED automation <Chip component="span" size="small" label={ledControlJob.publishedSettings.automation_name.value}/>.
                 </Typography>
                 {buttons[ledControlJob.metadata.key]}
                </React.Fragment>
@@ -1828,7 +1754,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2">
-          <Box sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
+            <Box component="span" sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
               Activities:
             </Box>
           </Typography>
@@ -1913,7 +1839,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         }}>
         <Box sx={{width: "100px", mt: "10px"}}>
           <Typography variant="body2">
-            <Box sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
+            <Box component="span" sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
               Settings:
             </Box>
           </Typography>
@@ -2326,8 +2252,7 @@ function Pioreactor({title, cameraUIEnabled = false}) {
           <Grid
             container
             spacing={1}
-            justifyContent="flex-start"
-            sx={{height: "100%"}}
+            sx={{height: "100%", justifyContent: "flex-start"}}
             size={{
               xs: 12,
               md: 7
@@ -2337,8 +2262,7 @@ function Pioreactor({title, cameraUIEnabled = false}) {
           <Grid
             container
             spacing={1}
-            justifyContent="flex-end"
-            sx={{height: "100%"}}
+            sx={{height: "100%", justifyContent: "flex-end"}}
             size={{
               xs: 12,
               md: 5

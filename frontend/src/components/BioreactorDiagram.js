@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import { useMQTT } from '../providers/MQTTContext';
+import { getBioreactorTubeLayout, getPwmDutyCyclesByLoad } from './bioreactorDiagramModel';
 
 function roundTo1(x) {
   return `${Math.round(x * 10) / 10}`;
@@ -31,14 +32,6 @@ const versionMap = {
   },
 };
 
-const PIN_TO_PWM = {
-  17: 1,
-  13: 2,
-  16: 3,
-  12: 4,
-  18: 5, // heater
-};
-
 function clampVolume(value, fallbackValue, size) {
   const parsedValue = parseFloat(value);
   if (Number.isFinite(parsedValue)) {
@@ -47,7 +40,7 @@ function clampVolume(value, fallbackValue, size) {
   return Math.min(fallbackValue, size);
 }
 
-const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVolume }) => {
+const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVolume, hasAirBubbler = false }) => {
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   const {
@@ -87,12 +80,20 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
 
   const canvasRef = useRef(null);
   const stirBarFrame = useRef(0);
-  const [rpm, setRpm] = useState(null);
+  const [dutyCyclesByPin, setDutyCyclesByPin] = useState({});
   const [temperature, setTemperature] = useState(null);
   const [nOD, setNOD] = useState(null);
   const [leds, setLeds] = useState({ A: 0, B: 0, C: 0, D: 0 });
-  const [pumps, setPumps] = useState(new Set());
-  const [heat, setHeat] = useState(false);
+  const dutyCyclesByLoad = useMemo(
+    () => getPwmDutyCyclesByLoad(dutyCyclesByPin, config?.PWM),
+    [dutyCyclesByPin, config],
+  );
+  const rpmEstimate = dutyCyclesByLoad.stirring * 26.66666667;
+  const rpm = Number.isFinite(rpmEstimate) && rpmEstimate > 0
+    ? Math.min(Math.max(rpmEstimate, 100), rpmClampMax)
+    : 0;
+  const heat = dutyCyclesByLoad.heating > 0;
+  const liquidPumpActive = ['media', 'alt_media', 'waste'].some(load => dutyCyclesByLoad[load] > 0);
 
   const defaultVolume = size === 20 ? 14 : 20;
   const volume = clampVolume(
@@ -105,6 +106,19 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     size,
     size,
   );
+  const { liquidHeight, liquidSurfaceY, wasteTubeTipY, tubes } = useMemo(() => {
+    const layout = getBioreactorTubeLayout({
+      bioreactor,
+      size,
+      volume,
+      maxVolume: cappedMaxVolume,
+      hasAirBubbler,
+    });
+    return {
+      ...layout,
+      tubes: layout.tubes.map(tube => ({ ...tube, active: dutyCyclesByLoad[tube.load] > 0 })),
+    };
+  }, [bioreactor, size, volume, cappedMaxVolume, dutyCyclesByLoad, hasAirBubbler]);
 
   const fps = 45;
   const fpsInterval = 1000 / fps;
@@ -116,47 +130,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     const messageString = message.toString();
 
     if (topicString.endsWith('pwms/dc')) {
-      const pumps_ = new Set();
-      let rpm_ = null;
-      let heat_ = false;
-
-      if (messageString === '') {
-        setPumps(pumps_);
-        setRpm(rpm_);
-        setHeat(heat_);
-        return;
-      }
-
-      const dcs = JSON.parse(messageString);
-      for (const pin of Object.keys(dcs)) {
-        const pwmOutput = PIN_TO_PWM[pin];
-        const load = config.PWM[pwmOutput];
-        switch (load) {
-          case 'stirring':
-            const rpmEstimate = parseFloat(dcs[pin]) * 26.66666667;
-            rpm_ = rpmEstimate > 0
-              ? Math.min(Math.max(rpmEstimate, 100), rpmClampMax)
-              : rpmEstimate;
-            break;
-          case 'media':
-            pumps_.add('media');
-            break;
-          case 'alt_media':
-            pumps_.add('alt-media');
-            break;
-          case 'waste':
-            pumps_.add('efflux');
-            break;
-          case 'heating':
-            heat_ = true;
-            break;
-          default:
-        }
-      }
-      setPumps(pumps_);
-      setRpm(rpm_);
-      setHeat(heat_);
-
+      setDutyCyclesByPin(messageString ? JSON.parse(messageString) : {});
     } else if (topicString.endsWith('temperature_automation/temperature')) {
       setTemperature(messageString ? JSON.parse(messageString).temperature : null);
     } else if (topicString.endsWith('growth_rate_calculating/od_filtered')) {
@@ -164,7 +138,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     } else if (topicString.endsWith('leds/intensity')) {
       setLeds(messageString ? JSON.parse(messageString) : { A: 0, B: 0, C: 0, D: 0 });
     }
-  }, [config, rpmClampMax]);
+  }, []);
 
   useEffect(() => {
     if (!client || !experiment || !config || Object.keys(config).length === 0) {
@@ -196,8 +170,6 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     const isAnimating = Number.isFinite(rpm) && rpm > 0;
     let now;
     let elapsed;
-    const liquidLevel = (volume / size) * bioreactor.height;
-    const bottomOfWasteTube = bioreactor.height - (cappedMaxVolume / size) * bioreactor.height + 53; // bioreactor.height - maxVolume / 40 * bioreactor.height + 20
 
     const ledsRects = [];
     const ledY = shiftedBaseLow - 20;
@@ -207,12 +179,6 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     ledsRects.push({ text: 'C', x: 310, y: ledY, width: 40, height: 30, radius: 3 });
 
     const heaterRec = [{ text: 'heat', x: 100, y: shiftedBaseHigh - 10, width: 200, height: 20, radius: 3 }];
-
-    const pumpsRects = [
-      { text: 'efflux', x: bioreactor.x + (bioreactor.width * 3) / 4, y: bioreactor.y - 53, width: 20, height: bottomOfWasteTube, radius: 3 },
-      { text: 'media', x: bioreactor.x + (bioreactor.width * 2) / 4, y: bioreactor.y - 53, width: 20, height: 100, radius: 3 },
-      { text: 'alt-media', x: bioreactor.x + bioreactor.width / 4, y: bioreactor.y - 53, width: 20, height: 100, radius: 3 },
-    ];
 
     const warningRects = [
       { text: '⚠ diagram above may not be an accurate\nrepresentation of the volume. Observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 3 },
@@ -225,9 +191,13 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     if (nOD) {
       dynamicRects.push({ text: `nOD: ${roundTo1(nOD)}`, x: 210, y: 260 + diagramYOffset, width: 80, height: 30, radius: 3 });
     }
-    if (volume) {
-      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: Math.max(bioreactor.y + bioreactor.height - liquidLevel - 35, 40), width: 90, height: 30, radius: 3 });
-    }
+    const volumeLabel = volume
+      ? {
+          text: `${roundTo1(volume)} mL`,
+          x: bioreactor.x + 100,
+          y: Math.max(liquidSurfaceY - 30, 40),
+        }
+      : null;
 
     function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle, lineWidth = 3) {
       ctx.lineWidth = lineWidth;
@@ -308,15 +278,36 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       labelsArray.forEach(label => {
-        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, '#fff', '#000');
+        ctx.save();
+        ctx.setLineDash(label.lineDash || []);
+        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, '#fff', label.strokeStyle || '#000', label.lineWidth);
         ctx.stroke();
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = label.textStyle || '#000';
         if (label.text.length > 60) {
           fillTextMultiLine(ctx, label.text, label.x + label.width / 2, label.y + label.height / 3);
         } else {
           ctx.fillText(label.text, label.x + label.width / 2, label.y + label.height / 2);
         }
+        ctx.restore();
       });
+    }
+
+    function drawVolumeLabel(label) {
+      ctx.save();
+      ctx.font = "13px 'Roboto'";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'grey';
+      ctx.fillText(label.text, label.x, label.y);
+
+      ctx.beginPath();
+      ctx.setLineDash([2, 3]);
+      ctx.strokeStyle = 'grey';
+      ctx.lineWidth = 1;
+      ctx.moveTo(label.x, label.y + 9);
+      ctx.lineTo(label.x, liquidSurfaceY);
+      ctx.stroke();
+      ctx.restore();
     }
 
     function drawWarning(labelsArray) {
@@ -349,20 +340,35 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       });
     }
 
-    function drawLabeledPumps(pumpsArray) {
+    function drawTubes(tubesArray) {
       ctx.lineWidth = 3;
       ctx.font = "13px 'Roboto'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      pumpsArray.forEach(label => {
-        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, pumps.has(label.text) ? '#EABC74' : '#fff', '#000');
+      tubesArray.forEach(tube => {
+        const height = tube.tipY - tube.y;
+        const activeLineWidth = tube.load === 'air_bubbler' && tube.active ? 5 : 3;
+        drawRoundedRect(tube.x, tube.y, tube.width, height, tube.radius, tube.active ? '#EABC74' : '#fff', '#000', activeLineWidth);
         ctx.stroke();
         ctx.save();
-        ctx.translate(label.x + label.width / 2, label.y + label.height / 2);
+        ctx.translate(tube.x + tube.width / 2, tube.y + height / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = '#000';
-        ctx.fillText(label.text, 0, 0);
+        ctx.fillText(tube.label, 0, 0);
         ctx.restore();
+
+        if (tube.airStone) {
+          drawRoundedRect(
+            tube.airStone.x,
+            tube.airStone.y,
+            tube.airStone.width,
+            tube.airStone.height,
+            tube.airStone.radius,
+            tube.active ? '#EABC74' : '#99999B',
+            '#000',
+            activeLineWidth,
+          );
+        }
       });
     }
 
@@ -386,9 +392,9 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       ctx.save();
       drawTurbidLiquid(
         bioreactor.x,
-        Math.max(bioreactor.y + bioreactor.height - liquidLevel, bioreactor.y),
+        Math.max(liquidSurfaceY, bioreactor.y),
         bioreactor.width,
-        Math.min(liquidLevel, bioreactor.height),
+        Math.min(liquidHeight, bioreactor.height),
         nOD
       );
 
@@ -397,8 +403,8 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       ctx.setLineDash([4, 3]);
       ctx.strokeStyle = 'grey';
       ctx.lineWidth = 1;
-      ctx.moveTo(bioreactor.x + 2, bioreactor.y + bottomOfWasteTube - 53);
-      ctx.lineTo(bioreactor.x + bioreactor.width - 2, bioreactor.y + bottomOfWasteTube - 53);
+      ctx.moveTo(bioreactor.x + 2, wasteTubeTipY);
+      ctx.lineTo(bioreactor.x + bioreactor.width - 2, wasteTubeTipY);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = 'grey';
@@ -408,7 +414,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       ctx.fillText(
         `${roundTo1(cappedMaxVolume)} mL`,
         bioreactor.x + bioreactor.width / 2 + 60,
-        bioreactor.y + bottomOfWasteTube - 30
+        wasteTubeTipY + 23
       );
       ctx.restore();
 
@@ -431,10 +437,11 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
         '#000'
       );
       drawLabeledLeds(ledsRects);
-      drawLabeledPumps(pumpsRects);
+      drawTubes(tubes);
       drawLabeledRectangles(dynamicRects);
+      if (volumeLabel) drawVolumeLabel(volumeLabel);
       drawLabeledHeat(heaterRec);
-      if (pumps.size) drawWarning(warningRects);
+      if (liquidPumpActive) drawWarning(warningRects);
     }
 
     if (!isAnimating) {
@@ -460,12 +467,14 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     }
     startAnimating();
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [bioreactor, canvasDim, cap, cappedMaxVolume, fpsInterval, frameFactor, heat, leds, nOD, pumps, rpm, shiftedBaseHigh, shiftedBaseLow, size, temperature, volume]);
+  }, [bioreactor, canvasDim, cap, cappedMaxVolume, fpsInterval, frameFactor, heat, leds, liquidHeight, liquidPumpActive, liquidSurfaceY, nOD, rpm, shiftedBaseHigh, shiftedBaseLow, temperature, tubes, volume, wasteTubeTipY]);
 
   return (
     <div>
       <Box
         component="canvas"
+        role="img"
+        aria-label={`Bioreactor diagram${hasAirBubbler ? `. Air bubbler is ${dutyCyclesByLoad.air_bubbler > 0 ? 'on' : 'off'}.` : '.'}`}
         sx={{ display: 'block', m: '0 auto' }}
         ref={canvasRef}
         width={canvasDim.width}

@@ -6,6 +6,7 @@
  - adding _Experiment tags_ as an exportable dataset.
  - Ability to select and reorder charts on the Experiment Overview and Pioreactors page.
  - Added the ability to name camera snapshots when capturing them and rename existing photos from the Camera Stills page.
+ - Added a labelled `air_bubbler` sparger to bioreactor diagrams when the `pioreactor-air-bubbler` plugin is configured, with highlighting while it is active.
 
 #### Bug fixes
 

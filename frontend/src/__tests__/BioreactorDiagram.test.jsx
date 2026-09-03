@@ -13,6 +13,10 @@ jest.mock("../providers/MQTTContext", () => ({
 }));
 
 const BioreactorDiagram = require("../components/BioreactorDiagram").default;
+const {
+  getBioreactorTubeLayout,
+  getPwmDutyCyclesByLoad,
+} = require("../components/bioreactorDiagramModel");
 
 const config = {
   PWM: {
@@ -27,11 +31,12 @@ const config = {
 };
 
 function makeCanvasContext() {
-  return {
+  const context = {
     beginPath: jest.fn(),
     clearRect: jest.fn(),
     closePath: jest.fn(),
-    fill: jest.fn(),
+    fill: jest.fn(() => context.fillStyles.push(context.fillStyle)),
+    fillStyles: [],
     fillText: jest.fn(),
     lineTo: jest.fn(),
     measureText: jest.fn(() => ({ width: 10 })),
@@ -44,7 +49,56 @@ function makeCanvasContext() {
     stroke: jest.fn(),
     translate: jest.fn(),
   };
+  return context;
 }
+
+describe("BioreactorDiagram model", () => {
+  test("maps active GPIO pins to configured load names", () => {
+    expect(getPwmDutyCyclesByLoad(
+      { 12: 35, 13: 20 },
+      { 2: "media", 4: "air_bubbler" },
+    )).toEqual({ air_bubbler: 35, media: 20 });
+  });
+
+  test.each([
+    [20, 400, 14],
+    [40, 500, 20],
+  ])("places a %i mL air stone below the liquid surface and inside the vial", (size, height, volume) => {
+    const bioreactor = { x: 100, y: 65, width: 200, height };
+    const layout = getBioreactorTubeLayout({
+      bioreactor,
+      size,
+      volume,
+      maxVolume: size,
+      hasAirBubbler: true,
+    });
+    const airTube = layout.tubes.find(tube => tube.id === "air");
+
+    expect(airTube.label).toBe("air_bubbler");
+    expect(airTube.load).toBe("air_bubbler");
+    expect(airTube.tipY).toBeGreaterThan(layout.liquidSurfaceY);
+    expect(airTube.airStone.y + airTube.airStone.height).toBeLessThan(
+      bioreactor.y + bioreactor.height,
+    );
+  });
+
+  test("leaves the spare tube unchanged without the air-bubbler plugin", () => {
+    const bioreactor = { x: 100, y: 65, width: 200, height: 400 };
+    const layout = getBioreactorTubeLayout({
+      bioreactor,
+      size: 20,
+      volume: 14,
+      maxVolume: 20,
+      hasAirBubbler: false,
+    });
+    const airTube = layout.tubes.find(tube => tube.id === "air");
+
+    expect(airTube.label).toBe("");
+    expect(airTube.load).toBeNull();
+    expect(airTube.airStone).toBeUndefined();
+    expect(airTube.tipY).toBe(112);
+  });
+});
 
 function renderDiagram(props = {}) {
   return render(
@@ -88,6 +142,9 @@ describe("BioreactorDiagram animation", () => {
 
     expect(canvasContext.clearRect).toHaveBeenCalledTimes(1);
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
+    expect(canvasContext.fillText).toHaveBeenCalledWith("14 mL", 110, 155);
+    expect(canvasContext.setLineDash).toHaveBeenCalledWith([2, 3]);
+    expect(canvasContext.lineTo).toHaveBeenCalledWith(110, 185);
   });
 
   test("animates positive RPM and cancels the active frame on unmount", () => {
@@ -164,5 +221,29 @@ describe("BioreactorDiagram animation", () => {
 
     expect(canvasContext.clearRect).toHaveBeenCalledTimes(2);
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
+  });
+
+  test("highlights an installed air bubbler without showing the liquid-pump warning", () => {
+    const diagram = renderDiagram({
+      hasAirBubbler: true,
+      config: {
+        ...config,
+        PWM: { ...config.PWM, 4: "air_bubbler" },
+      },
+    });
+    const canvas = diagram.getByRole("img", { name: /air bubbler is off/i });
+    const onMessage = mockSubscribeToTopic.mock.calls[0][1];
+
+    expect(canvasContext.fillStyles).toContain("#99999B");
+    expect(canvasContext.fillText).toHaveBeenCalledWith("air_bubbler", 0, 0);
+
+    canvasContext.fillStyles.length = 0;
+    act(() => {
+      onMessage("pioreactor/unit-1/experiment-1/pwms/dc", '{"12": 35}');
+    });
+
+    expect(canvas).toHaveAccessibleName(/air bubbler is on/i);
+    expect(canvasContext.fillStyles).toContain("#EABC74");
+    expect(canvasContext.fillStyles).not.toContain("rgb(255, 244, 229)");
   });
 });
