@@ -1180,8 +1180,8 @@ def click_experiment_profile() -> None:
 
 
 @click_experiment_profile.command(name="execute")
-@click.argument("filename", type=click.Path())
-@click.argument("experiment", type=str)
+@click.argument("filename", type=click.Path(), help="Path to the experiment profile YAML file.")
+@click.argument("experiment", type=str, help="Name of the experiment to run the profile in.")
 @click.option("--dry-run", is_flag=True, help="Don't actually execute, just print to screen")
 def click_execute_experiment_profile(filename: str, experiment: pt.Experiment, dry_run: bool) -> None:
     """

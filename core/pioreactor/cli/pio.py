@@ -692,8 +692,12 @@ def config_group() -> None:
 
 
 @config_group.command(name="get", short_help="show one effective config value")
-@click.argument("section_name", type=click.STRING)
-@click.argument("parameter_name", type=click.STRING)
+@click.argument(
+    "section_name", type=click.STRING, help="Config section without brackets, e.g. stirring.config."
+)
+@click.argument(
+    "parameter_name", type=click.STRING, help="Key within the section, e.g. target_rpm_outside_od_reading."
+)
 @click.option("--shared", is_flag=True, help="read from the shared config.ini only")
 @click.option("--specific", is_flag=True, help="read from the unit-specific unit_config.ini only")
 def get_config_value(section_name: str, parameter_name: str, shared: bool, specific: bool) -> None:
@@ -710,9 +714,13 @@ def get_config_value(section_name: str, parameter_name: str, shared: bool, speci
 
 
 @config_group.command(name="set", short_help="set one config value")
-@click.argument("section_name", type=click.STRING)
-@click.argument("parameter_name", type=click.STRING)
-@click.argument("value", type=click.STRING)
+@click.argument(
+    "section_name", type=click.STRING, help="Config section without brackets, e.g. stirring.config."
+)
+@click.argument(
+    "parameter_name", type=click.STRING, help="Key within the section, e.g. target_rpm_outside_od_reading."
+)
+@click.argument("value", type=click.STRING, help="Value to write, e.g. 500. Quote values containing spaces.")
 @click.option("--shared", is_flag=True, help="write to the shared config.ini")
 @click.option("--specific", is_flag=True, help="write to the unit-specific unit_config.ini")
 def set_config_value(

@@ -51,6 +51,7 @@ const Protocols = React.lazy(() => import("./Protocols"));
 
 
 const theme = createTheme({
+  focusVisible: true,
   palette: {
     background: {
       default: "#f6f6f7",

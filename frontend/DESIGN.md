@@ -589,6 +589,8 @@ Rules:
   spacing, visible keyboard focus, and must not be the only tiny target for a
   critical workflow.
 - Do not remove focus indicators.
+- The app theme enables MUI's `focusVisible` indicator with the default
+  primary-color outline. Use this shared treatment for supported MUI controls.
 - Anything available on hover must also be available through focus or tap.
 - Do not use color as the sole carrier of state.
 - Do not make an entire row clickable without keyboard activation and visible

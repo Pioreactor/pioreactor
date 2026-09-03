@@ -62,15 +62,21 @@ def _validate_and_parse_pump_args_callback(
     name="pumps",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@click.argument("pump_script", nargs=-1, callback=_validate_and_parse_pump_args_callback)
+@click.argument(
+    "pump_script",
+    nargs=-1,
+    callback=_validate_and_parse_pump_args_callback,
+    help="Sequence of action/value pairs: --media, --alt-media, or --waste followed by a volume in mL, "
+    "or --sleep followed by a duration in seconds. Actions run in the order given and may repeat.",
+)
 @click.pass_context
 def click_pumps(ctx: click.Context, pump_script: list[tuple[str, float]]) -> None:
     """
-    Run pumps in sequence. Accepts pairs of arguments where the first is the pump name (e.g., 'media', 'alt_media', 'waste') and the second is the volume in milliliters to pump.
-    Also accepts a "sleep" command (with the second arg being the number of seconds to sleep).
-    Example:
+    Run pumps in sequence.
 
-    pio run pumps --media 2 --waste 2 --media 1.5
+    \b
+    Example:
+      pio run pumps --media 2 --sleep 5 --waste 2 --media 1.5
 
     Use suffixed "_" to indicate the same pump multiple times for experiment profiles
 
