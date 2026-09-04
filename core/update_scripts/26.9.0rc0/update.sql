@@ -8,3 +8,4 @@ CREATE TABLE IF NOT EXISTS experiment_chart_preferences (
         experiment
     ) ON DELETE CASCADE
 );
+PRAGMA busy_timeout = 15000;
