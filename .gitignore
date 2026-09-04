@@ -12,6 +12,10 @@ jupyter_notebooks/
 plugins_dev
 scratch/
 subs/
+*.scad
+*.stl
+*.3mf
+*.pdf
 
 #
 # Local data and runtime artifacts
