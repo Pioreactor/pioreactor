@@ -17,24 +17,28 @@ export function getPwmDutyCyclesByLoad(dutyCyclesByPin, pwmConfig = {}) {
   return dutyCyclesByLoad;
 }
 
-export function getBioreactorTubeLayout({ bioreactor, size, volume, maxVolume, hasAirBubbler }) {
+export function getBioreactorTubeLayout({ bioreactor, size, volume, maxVolume, pwmConfig = {} }) {
   const vialBottomY = bioreactor.y + bioreactor.height;
   const liquidHeight = (volume / size) * bioreactor.height;
   const liquidSurfaceY = vialBottomY - liquidHeight;
   const wasteTubeTipY = vialBottomY - (maxVolume / size) * bioreactor.height;
   const tubeTopY = bioreactor.y - 53;
+  const configuredLoads = new Set(Object.values(pwmConfig));
+  // Use the PWM assignment as a fast proxy for plugin installation. This avoids the slow
+  // installed-plugins request, but a stale `air_bubbler` config entry could show the sparger.
+  const hasAirBubbler = configuredLoads.has('air_bubbler');
 
   // A tube's load is its config identity, never its displayed label.
   const tubes = [
-    { id: 'waste', label: 'efflux', load: 'waste', tipY: wasteTubeTipY },
-    { id: 'media', label: 'media', load: 'media', tipY: tubeTopY + 100 },
-    { id: 'alt_media', label: 'alt-media', load: 'alt_media', tipY: tubeTopY + 100 },
+    { id: 'waste', label: configuredLoads.has('waste') ? 'efflux' : '', load: 'waste', tipY: wasteTubeTipY },
+    { id: 'media', label: configuredLoads.has('media') ? 'media' : '', load: 'media', tipY: tubeTopY + 100 },
+    { id: 'alt_media', label: configuredLoads.has('alt_media') ? 'alt-media' : '', load: 'alt_media', tipY: tubeTopY + 100 },
     {
       id: 'air',
       label: hasAirBubbler ? 'air-bubbler' : '',
       load: hasAirBubbler ? 'air_bubbler' : null,
       tipY: hasAirBubbler
-        ? Math.min(liquidSurfaceY + 25, vialBottomY - 25)
+        ? vialBottomY - 100
         : tubeTopY + 100,
     },
   ].map((tube, index) => ({

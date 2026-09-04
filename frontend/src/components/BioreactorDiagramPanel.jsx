@@ -28,10 +28,6 @@ export default function BioreactorDiagramPanel({
       || modelDetails.model_name?.startsWith("pioreactor_40ml")
   );
 
-  const pushBioreactorValues = useCallback((nextValuesOrUpdater) => {
-    onValuesChange?.(nextValuesOrUpdater);
-  }, [onValuesChange]);
-
   const onBioreactorMessage = useCallback((topic, message) => {
     if (!topic || !message) {
       return;
@@ -44,11 +40,11 @@ export default function BioreactorDiagramPanel({
       return;
     }
 
-    pushBioreactorValues((previous) => ({
+    onValuesChange?.((previous) => ({
       ...previous,
       [variableName]: parsedValue,
     }));
-  }, [pushBioreactorValues]);
+  }, [onValuesChange]);
 
   useEffect(() => {
     if (!client || !unit || !experiment) {
@@ -73,10 +69,6 @@ export default function BioreactorDiagramPanel({
     );
   }
 
-  // Use the existing PWM assignment as a fast proxy for plugin installation. This avoids the
-  // slow installed-plugins request, but a stale `air_bubbler` config entry could show the sparger.
-  const hasAirBubbler = Object.values(config?.PWM || {}).includes("air_bubbler");
-
   return (
     <BioreactorDiagram
       key={`${unit}/${experiment}`}
@@ -86,7 +78,6 @@ export default function BioreactorDiagramPanel({
       size={modelDetails.reactor_capacity_ml}
       liquidVolume={getBioreactorConfirmedValue(bioreactorValues, config, "current_volume_ml")}
       maxVolume={getBioreactorConfirmedValue(bioreactorValues, config, "efflux_tube_volume_ml")}
-      hasAirBubbler={hasAirBubbler}
     />
   );
 }

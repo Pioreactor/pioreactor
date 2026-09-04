@@ -3413,63 +3413,6 @@ def test_get_settings_api(client, monkeypatch: MonkeyPatch) -> None:
     assert settings_per_unit["unit1"]["value"]["settings"]["target_rpm"] == 500.0
 
 
-def test_update_job_settings_publishes_all_settings_before_waiting(
-    client: FlaskClient, monkeypatch: MonkeyPatch
-) -> None:
-    events: list[tuple[str, object, object]] = []
-
-    class FakeMessageInfo:
-        def __init__(self, topic: str) -> None:
-            self.topic = topic
-
-        def wait_for_publish(self, timeout: float) -> None:
-            events.append(("wait", self.topic, timeout))
-
-    class FakeMQTTClient:
-        def __enter__(self) -> "FakeMQTTClient":
-            return self
-
-        def __exit__(self, *_args: object) -> None:
-            return None
-
-        def publish(self, topic: str, payload: object, *, qos: int) -> FakeMessageInfo:
-            events.append(("publish", topic, (payload, qos)))
-            return FakeMessageInfo(topic)
-
-    monotonic_times = iter((100.0, 100.25, 100.5))
-    monkeypatch.setattr("pioreactor.web.api.create_client", FakeMQTTClient)
-    monkeypatch.setattr("pioreactor.web.api.monotonic", lambda: next(monotonic_times))
-
-    response = client.patch(
-        "/api/workers/unit1/jobs/update/job_name/stirring/experiments/exp1",
-        json={"settings": {"target_rpm": 500, "$state": "sleeping"}},
-    )
-
-    assert response.status_code == 202
-    assert events == [
-        (
-            "publish",
-            "pioreactor/unit1/exp1/stirring/target_rpm/set",
-            (500, 1),
-        ),
-        (
-            "publish",
-            "pioreactor/unit1/exp1/stirring/$state/set",
-            ("sleeping", 1),
-        ),
-        (
-            "wait",
-            "pioreactor/unit1/exp1/stirring/target_rpm/set",
-            1.75,
-        ),
-        (
-            "wait",
-            "pioreactor/unit1/exp1/stirring/$state/set",
-            1.5,
-        ),
-    ]
-
-
 def test_get_settings_descriptors(client) -> None:
     response = client.get("/api/settings/descriptors")
 

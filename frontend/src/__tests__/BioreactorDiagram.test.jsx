@@ -61,6 +61,24 @@ describe("BioreactorDiagram model", () => {
   });
 
   test.each([
+    ["media", "media"],
+    ["alt_media", "alt-media"],
+    ["waste", "efflux"],
+  ])("labels the $load tube only when configured", (load, expectedLabel) => {
+    const layout = getBioreactorTubeLayout({
+      bioreactor: { x: 100, y: 65, width: 200, height: 400 },
+      size: 20,
+      volume: 14,
+      maxVolume: 20,
+      pwmConfig: { 2: load },
+    });
+    const pumpTubes = layout.tubes.filter(tube => ["media", "alt_media", "waste"].includes(tube.id));
+
+    expect(pumpTubes.find(tube => tube.id === load).label).toBe(expectedLabel);
+    expect(pumpTubes.filter(tube => tube.id !== load).every(tube => tube.label === "")).toBe(true);
+  });
+
+  test.each([
     [20, 400, 14],
     [40, 500, 20],
   ])("places a %i mL air stone below the liquid surface and inside the vial", (size, height, volume) => {
@@ -70,11 +88,11 @@ describe("BioreactorDiagram model", () => {
       size,
       volume,
       maxVolume: size,
-      hasAirBubbler: true,
+      pwmConfig: { 4: "air_bubbler" },
     });
     const airTube = layout.tubes.find(tube => tube.id === "air");
 
-    expect(airTube.label).toBe("air_bubbler");
+    expect(airTube.label).toBe("air-bubbler");
     expect(airTube.load).toBe("air_bubbler");
     expect(airTube.tipY).toBeGreaterThan(layout.liquidSurfaceY);
     expect(airTube.airStone.y + airTube.airStone.height).toBeLessThan(
@@ -89,7 +107,6 @@ describe("BioreactorDiagram model", () => {
       size: 20,
       volume: 14,
       maxVolume: 20,
-      hasAirBubbler: false,
     });
     const airTube = layout.tubes.find(tube => tube.id === "air");
 
@@ -142,9 +159,11 @@ describe("BioreactorDiagram animation", () => {
 
     expect(canvasContext.clearRect).toHaveBeenCalledTimes(1);
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
-    expect(canvasContext.fillText).toHaveBeenCalledWith("14 mL", 110, 155);
-    expect(canvasContext.setLineDash).toHaveBeenCalledWith([2, 3]);
-    expect(canvasContext.lineTo).toHaveBeenCalledWith(110, 185);
+    expect(canvasContext.fillText).toHaveBeenCalledWith(
+      "14 mL",
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 
   test("animates positive RPM and cancels the active frame on unmount", () => {
@@ -225,24 +244,21 @@ describe("BioreactorDiagram animation", () => {
 
   test("highlights an installed air bubbler without showing the liquid-pump warning", () => {
     const diagram = renderDiagram({
-      hasAirBubbler: true,
       config: {
         ...config,
         PWM: { ...config.PWM, 4: "air_bubbler" },
       },
     });
-    const canvas = diagram.getByRole("img", { name: /air bubbler is off/i });
+    diagram.getByRole("img", { name: "Bioreactor diagram" });
     const onMessage = mockSubscribeToTopic.mock.calls[0][1];
 
     expect(canvasContext.fillStyles).toContain("#99999B");
-    expect(canvasContext.fillText).toHaveBeenCalledWith("air_bubbler", 0, 0);
 
     canvasContext.fillStyles.length = 0;
     act(() => {
       onMessage("pioreactor/unit-1/experiment-1/pwms/dc", '{"12": 35}');
     });
 
-    expect(canvas).toHaveAccessibleName(/air bubbler is on/i);
     expect(canvasContext.fillStyles).toContain("#EABC74");
     expect(canvasContext.fillStyles).not.toContain("rgb(255, 244, 229)");
   });

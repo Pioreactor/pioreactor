@@ -40,7 +40,7 @@ function clampVolume(value, fallbackValue, size) {
   return Math.min(fallbackValue, size);
 }
 
-const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVolume, hasAirBubbler = false }) => {
+const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVolume }) => {
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   const {
@@ -84,9 +84,10 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
   const [temperature, setTemperature] = useState(null);
   const [nOD, setNOD] = useState(null);
   const [leds, setLeds] = useState({ A: 0, B: 0, C: 0, D: 0 });
+  const pwmConfig = config?.PWM;
   const dutyCyclesByLoad = useMemo(
-    () => getPwmDutyCyclesByLoad(dutyCyclesByPin, config?.PWM),
-    [dutyCyclesByPin, config],
+    () => getPwmDutyCyclesByLoad(dutyCyclesByPin, pwmConfig),
+    [dutyCyclesByPin, pwmConfig],
   );
   const rpmEstimate = dutyCyclesByLoad.stirring * 26.66666667;
   const rpm = Number.isFinite(rpmEstimate) && rpmEstimate > 0
@@ -112,13 +113,13 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       size,
       volume,
       maxVolume: cappedMaxVolume,
-      hasAirBubbler,
+      pwmConfig,
     });
     return {
       ...layout,
       tubes: layout.tubes.map(tube => ({ ...tube, active: dutyCyclesByLoad[tube.load] > 0 })),
     };
-  }, [bioreactor, size, volume, cappedMaxVolume, dutyCyclesByLoad, hasAirBubbler]);
+  }, [bioreactor, size, volume, cappedMaxVolume, dutyCyclesByLoad, pwmConfig]);
 
   const fps = 45;
   const fpsInterval = 1000 / fps;
@@ -347,7 +348,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       ctx.textBaseline = 'middle';
       tubesArray.forEach(tube => {
         const height = tube.tipY - tube.y;
-        const activeLineWidth = tube.load === 'air_bubbler' && tube.active ? 5 : 3;
+        const activeLineWidth = tube.active ? 4 : 3;
         drawRoundedRect(tube.x, tube.y, tube.width, height, tube.radius, tube.active ? '#EABC74' : '#fff', '#000', activeLineWidth);
         ctx.stroke();
         ctx.save();
@@ -474,7 +475,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       <Box
         component="canvas"
         role="img"
-        aria-label={`Bioreactor diagram${hasAirBubbler ? `. Air bubbler is ${dutyCyclesByLoad.air_bubbler > 0 ? 'on' : 'off'}.` : '.'}`}
+        aria-label="Bioreactor diagram"
         sx={{ display: 'block', m: '0 auto' }}
         ref={canvasRef}
         width={canvasDim.width}
