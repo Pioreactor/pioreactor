@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from configparser import NoOptionError
 from functools import partial
@@ -100,8 +101,10 @@ class PWMPump:
             self.start(self.calibration.dc)
 
     def stop(self) -> None:
-        self.pwm.stop()
-        self.interrupt.set()
+        try:
+            self.pwm.stop()
+        finally:
+            self.interrupt.set()
 
     def by_volume(self, ml: pt.mL, block: bool = True) -> None:
         if ml < 0:
@@ -112,19 +115,23 @@ class PWMPump:
         seconds = self.ml_to_duration(ml)
         self.by_duration(seconds, block=block)
 
-    def by_duration(self, seconds: pt.Seconds, block: bool = True) -> None:
+    def by_duration(self, seconds: pt.Seconds, block: bool = True) -> Future[None] | None:
         if seconds < 0:
             raise ValueError("seconds must be >= 0")
         if seconds == 0:
             self.stop()  # need to set the interrupt!
-            return
+            return None
         if block:
-            self.start(self.calibration.dc)
-            self.interrupt.wait(seconds)
-            self.stop()
+            try:
+                self.start(self.calibration.dc)
+                self.interrupt.wait(seconds)
+            finally:
+                # Starting PWM can fail during bookkeeping after the hardware is on.
+                self.stop()
         else:
             # Offload to thread pool to avoid blocking the caller
-            _thread_pool.submit(self.by_duration, seconds, True)
+            return cast(Future[None], _thread_pool.submit(self.by_duration, seconds, True))
+        return None
 
     def duration_to_ml(self, seconds: pt.Seconds) -> pt.mL:
         return self.calibration.duration_to_ml(seconds)
@@ -136,8 +143,10 @@ class PWMPump:
         return self
 
     def __exit__(self, *args: object) -> None:
-        self.stop()
-        self.clean_up()
+        try:
+            self.stop()
+        finally:
+            self.clean_up()
 
 
 def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
@@ -368,7 +377,7 @@ def _pump_action(
 
             pump_start_time = time.monotonic()
 
-            pump.by_duration(duration, block=False)  # start pump
+            pump_future = pump.by_duration(duration, block=False)  # start pump
 
             while not pump.interrupt.is_set():
                 sub_volume_moved_ml = 0.0
@@ -423,6 +432,9 @@ def _pump_action(
 
                     logger.info(f"Stopped {pump_device} early.")
                     return actual_volume_moved_ml
+
+            if pump_future is not None:
+                pump_future.result()  # Surface worker failures before reporting successful completion.
 
             # Current invariant: returned volume equals the total volume emitted in dosing events.
             # Reconcile only after normal completion. The PWM worker can finish

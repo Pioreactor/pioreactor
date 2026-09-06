@@ -551,6 +551,84 @@ def test_pump_stop_is_safe_after_pwm_cleanup() -> None:
         assert cache.get(13, 0) == 0
 
 
+@pytest.mark.parametrize("block", [True, False])
+@pytest.mark.parametrize("fail_on_start", [True, False])
+def test_timed_pump_stops_and_signals_after_serialization_failure(
+    mocker, block: bool, fail_on_start: bool
+) -> None:
+    with PWMPump(
+        unit=unit,
+        experiment="test_timed_pump_stops_and_signals_after_serialization_failure",
+        pin=13,
+        calibration=_linear_pump_calibration(),
+    ) as pump:
+        # Model hardware becoming active before PWM serializes its state.
+        mocker.patch.object(pump.pwm._pwm, "start", side_effect=lambda dc: setattr(pump.pwm._pwm, "dc", dc))
+        mocker.patch.object(
+            pump.pwm,
+            "_serialize",
+            side_effect=(
+                OSError("PWM bookkeeping failed")
+                if fail_on_start
+                else [None, OSError("PWM bookkeeping failed")]
+            ),
+        )
+
+        with pytest.raises(OSError, match="PWM bookkeeping failed"):
+            future = pump.by_duration(0.01, block=block)
+            if not block:
+                assert future is not None
+                future.result(timeout=1.0)
+
+        assert pump.pwm._pwm.dc == 0.0
+        assert pump.pwm.duty_cycle == 0.0
+        assert pump.interrupt.is_set()
+
+
+def test_pump_context_cleans_up_after_stop_serialization_failure(mocker) -> None:
+    pump = PWMPump(
+        unit=unit,
+        experiment="test_pump_context_cleans_up_after_stop_serialization_failure",
+        pin=13,
+        calibration=_linear_pump_calibration(),
+    )
+    with pytest.raises(OSError, match="PWM bookkeeping failed"):
+        with pump:
+            pump.continuously(block=False)
+            mocker.patch.object(pump.pwm, "_serialize", side_effect=OSError("PWM bookkeeping failed"))
+
+    assert pump.interrupt.is_set()
+    assert pump.pwm._is_cleaned_up
+    assert not pump.pwm.is_locked()
+
+
+@pytest.mark.timeout(5)
+def test_pump_action_surfaces_worker_serialization_failure(mocker, monkeypatch: pytest.MonkeyPatch) -> None:
+    experiment = "test_pump_action_surfaces_worker_serialization_failure"
+    mqtt_client = FakeMQTTClient()
+    pump = PWMPump(
+        unit=unit,
+        experiment=experiment,
+        pin=13,
+        calibration=_linear_pump_calibration(),
+        mqtt_client=cast(Any, mqtt_client),
+    )
+    monkeypatch.setattr("pioreactor.actions.pump.PWMPump", lambda *args, **kwargs: pump)
+    monkeypatch.setattr(
+        "pioreactor.actions.pump.utils.managed_lifecycle",
+        lambda *args, **kwargs: _FakeManagedLifecycle(mqtt_client, []),
+    )
+    mocker.patch.object(pump.pwm, "_serialize", side_effect=OSError("PWM bookkeeping failed"))
+
+    with pytest.raises(OSError, match="PWM bookkeeping failed"):
+        add_media(duration=0.01, unit=unit, experiment=experiment, calibration=pump.calibration)
+
+    assert pump.interrupt.is_set()
+    assert pump.pwm.duty_cycle == 0.0
+    assert pump.pwm._is_cleaned_up
+    assert not pump.pwm.is_locked()
+
+
 def test_pump_context_exit_after_pwm_cleanup_stops_worker_without_republishing() -> None:
     experiment = "test_pump_context_exit_after_pwm_cleanup_stops_worker_without_republishing"
     calibration = structs.SimplePeristalticPumpCalibration(
