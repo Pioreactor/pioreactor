@@ -49,16 +49,28 @@ def akima_fit(x: Sequence[float], y: Sequence[float]) -> structs.AkimaFitData:
     )
 
 
-def akima_eval(akima_data: structs.AkimaFitData, x: float) -> float:
-    knots, coefficients = _parse_akima_data(akima_data)
+def akima_eval(
+    akima_data: structs.AkimaFitData,
+    x: float,
+    *,
+    parsed_data: tuple[Any, Any] | None = None,
+) -> float:
+    # Repeated evaluations may reuse arrays already validated for this curve.
+    knots, coefficients = _parse_akima_data(akima_data) if parsed_data is None else parsed_data
     index = interval_index(knots, x)
     u = x - knots[index]
     a, b, c, d = coefficients[index]
     return float(a + b * u + c * u**2 + d * u**3)
 
 
-def akima_eval_derivative(akima_data: structs.AkimaFitData, x: float) -> float:
-    knots, coefficients = _parse_akima_data(akima_data)
+def akima_eval_derivative(
+    akima_data: structs.AkimaFitData,
+    x: float,
+    *,
+    parsed_data: tuple[Any, Any] | None = None,
+) -> float:
+    # Repeated evaluations may reuse arrays already validated for this curve.
+    knots, coefficients = _parse_akima_data(akima_data) if parsed_data is None else parsed_data
     index = interval_index(knots, x)
     u = x - knots[index]
     _, b, c, d = coefficients[index]

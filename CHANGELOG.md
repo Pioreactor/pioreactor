@@ -1,5 +1,11 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Renamed MCP tools `get_pioreactor_unit_capabilties` to `get_pioreactor_unit_capabilities` and `assign_workers_to_experiment` to `assign_worker_to_experiment`.
+ - Changed MCP job-launch `options` to require a JSON object with scalar values, such as `{"target-rpm": 500}`, instead of a JSON-encoded string. Stopping jobs now requires an explicit `pioreactor_unit`; use `"$broadcast"` to target all workers in the experiment.
+ - Removed the extra `{"result": ...}` wrapper from MCP list responses. Unavailable workers now return `null` in capability results instead of an empty list.
+ - Restricted MCP `db_query_db` to a single SELECT query and changed its response to `{rows, row_count, truncated}`. Queries return at most 100 rows by default; set `limit` up to 1,000. MCP log requests now require `lines` between 1 and 1,000.
 
 #### Enhancements
  - use `[camera].use_ir_led` to control whether the camera should work with the IR LED or not.
@@ -7,6 +13,7 @@
  - Ability to select and reorder charts on the Experiment Overview and Pioreactors page.
  - Added the ability to name camera snapshots when capturing them and rename existing photos from the Camera Stills page.
  - Added a labelled `air_bubbler` sparger to bioreactor diagrams when the `pioreactor-air-bubbler` plugin is configured, with highlighting while it is active.
+ - Improved MCP tool discovery with read-only annotations, clearer job-control guidance, and more detailed capability summaries. Added SQL query parameters for safely supplying values with `?` placeholders.
 
 #### Bug fixes
 
@@ -14,6 +21,7 @@
  - Fix experiment filter in _Experiments_ database export.
  - Fixed experiment-profile pause, resume, and setting updates so they still reach jobs that start while the action is running.
  - Fixed PWM pumps not releasing their worker when interrupted, which could leave them running after a command was stopped.
+ - Fixed MCP calls waiting indefinitely for background tasks by bounding polling and reporting when an operation may still be running. Improved API error details and handling of experiment names containing URL-reserved characters.
 
 
 

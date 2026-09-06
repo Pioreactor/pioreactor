@@ -142,7 +142,7 @@ function ChartPreferencesDialog({
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Select and rearrange charts for <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} />.
+          Select and rearrange charts for <Chip component="span" icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} />.
       </Typography>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <FormControl component="fieldset" variant="standard" fullWidth>

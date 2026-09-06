@@ -1137,6 +1137,45 @@ def test_install_plugin_rejects_not_allowlisted(client, monkeypatch) -> None:
     assert b"allowlist" in resp.data
 
 
+def test_install_plugin_forwards_version(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, str | None] = {}
+
+    class DummyTask:
+        id = "task-123"
+
+    def fake_install_plugin_task(
+        name: str, source: str | None = None, version: str | None = None
+    ) -> DummyTask:
+        captured.update(name=name, source=source, version=version)
+        return DummyTask()
+
+    monkeypatch.setattr("pioreactor.web.unit_api.tasks.install_plugin_task", fake_install_plugin_task)
+
+    response = client.post(
+        "/unit_api/plugins/install",
+        json={"args": ["pioreactor-air-bubbler"], "options": {"version": "0.12.1"}},
+    )
+
+    assert response.status_code == 202
+    assert captured == {
+        "name": "pioreactor-air-bubbler",
+        "source": None,
+        "version": "0.12.1",
+    }
+
+
+def test_install_plugin_rejects_source_with_version(client) -> None:
+    response = client.post(
+        "/unit_api/plugins/install",
+        json={
+            "args": ["pioreactor-air-bubbler"],
+            "options": {"source": "plugin.whl", "version": "0.12.1"},
+        },
+    )
+
+    assert response.status_code == 400
+
+
 @pytest.mark.xfail(reason="need to update task api with new plugin install task")
 def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     """API install should proceed for allowlisted plugins."""

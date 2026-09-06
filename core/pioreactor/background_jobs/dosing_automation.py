@@ -302,6 +302,13 @@ class DosingAutomationJob(AutomationJob):
                 )
                 briefer_pause()
 
+                if volumes_moved["waste_ml"] < waste_ml - 1e-9 and self.state == self.READY:
+                    # Abort the entire exchange before another recursive subdose can add media.
+                    self.set_state(self.SLEEPING)
+                    raise RuntimeError(
+                        f"Waste was under-removed. Expected to remove {waste_ml} ml, only removed {volumes_moved['waste_ml']} ml. Pausing dosing."
+                    )
+
             # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
             # check exit conditions again!
             if (

@@ -719,7 +719,9 @@ function Chart(props) {
     if (!client || !isLiveChart) {
       return undefined;
     }
-    const topicPaths = topics.map((topicName) => `pioreactor/+/${experiment}/${topicName}`);
+    const topicPaths = topics.map(
+      (topicName) => `pioreactor/${unit || "+"}/${experiment}/${topicName}`,
+    );
     topicPaths.forEach((topicPath) => {
       subscribeToTopic(topicPath, onMessage, "Chart");
     });
@@ -728,7 +730,7 @@ function Chart(props) {
         unsubscribeFromTopic(topicPath, "Chart");
       });
     };
-  }, [client, experiment, isLiveChart, onMessage, subscribeToTopic, topics, unsubscribeFromTopic]);
+  }, [client, experiment, isLiveChart, onMessage, subscribeToTopic, topics, unit, unsubscribeFromTopic]);
 
   const exportMenuOpen = Boolean(exportAnchorEl);
   const chartStateKey = names.join("-");

@@ -4,6 +4,7 @@ import signal as signal_module
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from threading import Event
 from typing import Any
 
 import numpy as np
@@ -37,6 +38,8 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.adcs import ADS1114_ADC
+from pioreactor.utils.adcs import ADS1115_ADC
 from pioreactor.utils.od_fusion import compute_fused_od
 from pioreactor.utils.od_fusion import fit_fusion_model
 from pioreactor.utils.od_fusion import FUSION_ANGLES
@@ -730,6 +733,29 @@ def test_simple_trimmed_mean_with_prior() -> None:
     assert adc_reader._simple_trimmed_mean_with_prior(y, prior_C=10.0, penalizer_C=3.0) == pytest.approx(
         expected
     )
+
+
+@pytest.mark.parametrize("adc_type", [ADS1114_ADC, ADS1115_ADC])
+@pytest.mark.parametrize("use_dark_offsets", [True, False])
+def test_dark_offset_preserves_voltage_across_gain_changes(
+    monkeypatch: pytest.MonkeyPatch,
+    adc_type: type[ADS1114_ADC] | type[ADS1115_ADC],
+    use_dark_offsets: bool,
+) -> None:
+    reader = ADCReader(channels=["1"], fake_data=True, dynamic_gain=False)
+    # Exercise real gain-dependent conversions without opening an I2C connection.
+    adc = object.__new__(adc_type)
+    adc.gain = 16.0
+    monkeypatch.setattr(adc, "read_from_channel", lambda: adc.from_voltage_to_raw_precise(0.11))
+    reader.adcs["1"] = adc
+    reader.most_appropriate_AC_hz = None
+
+    with temporary_config_change(config, "od_reading.config", "use_dark_offsets", str(use_dark_offsets)):
+        reader.set_offsets({"1": structs.RawPDReading(channel="1", reading=0.01)})
+
+    for gain in (16.0, 1.0, 4.0, 16.0):
+        adc.gain = gain
+        assert reader.take_reading()["1"].reading == pytest.approx(0.10 if use_dark_offsets else 0.11)
 
 
 def test_take_reading_uses_penalized_trimmed_mean_without_an_ac_frequency(
@@ -1795,6 +1821,46 @@ def test_PhotodiodeIrLedReferenceTrackerUnitInit_uses_cached_reference() -> None
                 del cache[experiment]
 
 
+@pytest.mark.parametrize("invalid_ref", [0.0, -0.1, float("nan"), float("inf")])
+def test_unit_reference_rejects_invalid_initial_reading_and_recovers(invalid_ref: float) -> None:
+    experiment = "test_unit_reference_rejects_invalid_initial_reading_and_recovers"
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        cache.pop(experiment)
+    try:
+        tracker = PhotodiodeIrLedReferenceTrackerUnitInit(channel="1", experiment=experiment)
+        with pytest.raises(ValueError, match="Initial IR reference must be positive and finite"):
+            tracker.update(invalid_ref)
+        assert tracker.initial_ref is None
+        with local_persistent_storage("ir_led_reference_normalization") as cache:
+            assert experiment not in cache
+
+        assert tracker.update(0.25)
+        assert tracker.transform(0.5) == pytest.approx(0.5)
+        restarted = PhotodiodeIrLedReferenceTrackerUnitInit(channel="1", experiment=experiment)
+        assert restarted.initial_ref == 0.25
+    finally:
+        with local_persistent_storage("ir_led_reference_normalization") as cache:
+            cache.pop(experiment)
+
+
+@pytest.mark.parametrize("invalid_ref", [0.0, -0.1, float("nan"), float("inf")])
+def test_unit_reference_recovers_from_invalid_cached_baseline(invalid_ref: float) -> None:
+    experiment = "test_unit_reference_recovers_from_invalid_cached_baseline"
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        cache.set(experiment, invalid_ref)
+    try:
+        # Simulate a restart after an older version persisted an unusable denominator.
+        tracker = PhotodiodeIrLedReferenceTrackerUnitInit(channel="1", experiment=experiment)
+        assert tracker.initial_ref is None
+        assert tracker.update(0.25)
+        assert tracker.transform(0.5) == pytest.approx(0.5)
+        with local_persistent_storage("ir_led_reference_normalization") as cache:
+            assert cache.getfloat(experiment) == 0.25
+    finally:
+        with local_persistent_storage("ir_led_reference_normalization") as cache:
+            cache.pop(experiment)
+
+
 def test_ref_normalization_unity_uses_unit_init() -> None:
     with temporary_config_change(config, "od_reading.config", "ref_normalization", "unity"):
         with start_od_reading(
@@ -2318,6 +2384,24 @@ def test_mandys_calibration() -> None:
 
 
 @pytest.mark.slow
+def test_setting_interval_while_sleeping_preserves_pause(monkeypatch: pytest.MonkeyPatch) -> None:
+    with start_od_reading(
+        make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
+    ) as od:
+        sampled = Event()
+        monkeypatch.setattr(od, "record_from_adc", sampled.set)
+        od.set_state(od.SLEEPING)
+        od.set_interval(0.02)
+        assert not sampled.wait(0.1)
+
+        # Replacing an already-paused timer must also preserve sleep.
+        od.set_interval(0.03)
+        assert not sampled.wait(0.1)
+        assert od.state == od.SLEEPING
+        od.set_state(od.READY)
+        assert sampled.wait(1.0)
+
+
 def test_setting_interval_after_starting() -> None:
     initial_interval = 2
     with start_od_reading(

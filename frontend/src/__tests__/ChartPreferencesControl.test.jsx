@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SnackbarProvider } from "notistack";
 
 import ChartPreferencesControl from "../components/ChartPreferencesControl";
@@ -39,6 +39,23 @@ function renderControl(overrides = {}) {
 }
 
 
+test("opens chart preferences without React warnings", () => {
+  const consoleError = jest.spyOn(console, "error");
+  const consoleWarn = jest.spyOn(console, "warn");
+  try {
+    renderControl();
+    fireEvent.click(screen.getByRole("button", { name: "Customize Overview charts for this experiment" }));
+
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(consoleWarn).not.toHaveBeenCalled();
+  } finally {
+    consoleError.mockRestore();
+    consoleWarn.mockRestore();
+  }
+});
+
+
 test("saves selected charts in the user-defined order", async () => {
   const { save } = renderControl();
   fireEvent.click(screen.getByRole("button", { name: "Customize Overview charts for this experiment" }));
@@ -71,7 +88,9 @@ test("reset restores config inheritance", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Customize Overview charts for this experiment" }));
 
   fireEvent.click(screen.getByRole("button", { name: "Use defaults" }));
-  expect(within(screen.getByRole("dialog")).getByText("Using chart defaults from the Pioreactor configuration.")).toBeTruthy();
+  expect(screen.getByRole("checkbox", { name: "Optical density" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Temperature" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Volume" })).not.toBeChecked();
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
   await waitFor(() => expect(save).toHaveBeenCalledWith(null));

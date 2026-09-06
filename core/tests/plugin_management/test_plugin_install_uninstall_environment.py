@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from click.testing import CliRunner
 from pioreactor.config import ConfigParserMod
 from pioreactor.plugin_management import install_plugin as install_plugin_module
 from pioreactor.plugin_management import package_operations
@@ -357,7 +358,7 @@ def test_install_plugin_skips_assets_when_leader_only_package_is_not_installed(
 ) -> None:
     calls: list[str] = []
 
-    monkeypatch.setattr(install_plugin_module, "install_plugin_package", lambda name, source: False)
+    monkeypatch.setattr(install_plugin_module, "install_plugin_package", lambda name, source, version: False)
     monkeypatch.setattr(
         install_plugin_module,
         "install_plugin_assets",
@@ -367,6 +368,46 @@ def test_install_plugin_skips_assets_when_leader_only_package_is_not_installed(
     install_plugin_module.install_plugin("pioreactor-leader-only")
 
     assert calls == []
+
+
+def test_install_plugin_package_pins_requested_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    pip_calls: list[list[str]] = []
+
+    monkeypatch.setattr(package_operations, "package_is_leader_only", lambda name, version: False)
+    monkeypatch.setattr(
+        package_operations,
+        "run_pip_as_pioreactor",
+        lambda arguments: pip_calls.append(arguments),
+    )
+
+    assert package_operations.install_plugin_package("pioreactor_demo_plugin", None, "1.2.3", is_leader=True)
+    assert pip_calls == [
+        [
+            "install",
+            "--upgrade",
+            "--force-reinstall",
+            "--ignore-installed",
+            "pioreactor-demo-plugin==1.2.3",
+        ]
+    ]
+
+
+def test_plugin_install_cli_accepts_exact_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str | None, str | None]] = []
+
+    monkeypatch.setattr(
+        install_plugin_module,
+        "install_plugin",
+        lambda name, source, version: calls.append((name, source, version)),
+    )
+
+    result = CliRunner().invoke(
+        install_plugin_module.click_install_plugin,
+        ["pioreactor-demo-plugin", "--version", "1.2.3"],
+    )
+
+    assert result.exit_code == 0
+    assert calls == [("pioreactor-demo-plugin", None, "1.2.3")]
 
 
 def test_uninstall_plugin_warns_when_package_is_not_installed(

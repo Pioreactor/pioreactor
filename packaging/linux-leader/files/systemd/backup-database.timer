@@ -1,10 +1,10 @@
 [Unit]
-Description=Weekly database backup
+Description=Monthly database backup
 
 [Timer]
-OnCalendar=Sun *-*-* 00:00:00
+OnCalendar=*-*-01 00:00:00
 RandomizedDelaySec=5m
-Persistent=true
+Persistent=false
 Unit=backup-database.service
 
 [Install]

@@ -1582,7 +1582,7 @@ def install_plugin() -> DelayedResponseReturnValue:
 
     JSON body:
     {
-      "options": {"source": "path-to-file-or-url"},
+      "options": {"source": "path-to-file-or-url", "version": "1.2.3"},
       "args": ["my_plugin_name"]
     }
     """
@@ -1628,7 +1628,16 @@ def install_plugin() -> DelayedResponseReturnValue:
     #    )
 
     source = body.options.get("source")
-    task = tasks.install_plugin_task(body.args[0], source=source)
+    version = body.options.get("version")
+    if source and version:
+        abort_with(
+            400,
+            "Plugin source and version cannot be used together",
+            cause="Both source and version were provided.",
+            remediation="Provide either source or version, not both.",
+        )
+
+    task = tasks.install_plugin_task(body.args[0], source=source, version=version)
     return create_task_response(task)
 
 

@@ -1,14 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
   <title>yeast cells</title>
-
-  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="170" cy="108" r="54" fill="#f5e5c8" />
-    <circle cx="226" cy="94" r="34" fill="#f7ead2" />
-    <circle cx="238" cy="130" r="20" fill="#f4e0bc" />
-
-    <circle cx="154" cy="122" r="10" fill="#f1d8ad" />
-    <circle cx="214" cy="84" r="8.5" fill="#f1d8ad" />
-    <circle cx="244" cy="122" r="5" fill="#f1d8ad" />
+  <g color="#252823" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="229" cy="79" rx="29" ry="32" fill="#f2e9cf" />
+    <ellipse cx="161" cy="111" rx="47" ry="51" transform="rotate(-12 161 111)" fill="#eee2bf" />
+    <circle cx="218" cy="140" r="22" fill="#e8d5a4" />
+    <ellipse cx="158" cy="118" rx="14" ry="17" fill="#e8d5a4" />
+    <circle cx="233" cy="76" r="9" fill="#eee2bf" />
+    <circle cx="220" cy="141" r="7" fill="#f2e9cf" />
   </g>
 </svg>

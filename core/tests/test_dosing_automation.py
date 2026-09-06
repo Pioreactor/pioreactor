@@ -2527,32 +2527,32 @@ def test_chemostat_pauses_when_current_volume_crosses_safety_threshold() -> None
         pause()
 
 
-@pytest.mark.flakey
 @pytest.mark.usefixtures("fast_dosing_timers")
-def test_warning_is_logged_when_less_waste_is_removed_than_requested() -> None:
-    unit = get_unit_name()
-    experiment = "test_warning_is_logged_if_under_remove_waste"
+@pytest.mark.parametrize("waste_fraction", [0.0, 0.5])
+def test_under_removed_waste_pauses_and_aborts_remaining_subdoses(
+    monkeypatch: pytest.MonkeyPatch, waste_fraction: float
+) -> None:
+    experiment = "test_under_removed_waste_pauses_and_aborts_remaining_subdoses"
+    additions: list[float] = []
+    removals: list[float] = []
 
-    class BadWasteRemoval(DosingAutomationJob):
-        automation_name = "_test_bad_waste_removal"
+    def add_media(**kwargs: Any) -> float:
+        additions.append(kwargs["ml"])
+        return kwargs["ml"]
 
-        def __init__(self, **kwargs) -> None:
-            duration = kwargs.pop("duration")
-            super().__init__(**kwargs)
-            self.run_every(duration, run_after_seconds=0.0)
+    def remove_waste(**kwargs: Any) -> float:
+        removals.append(kwargs["ml"])
+        return kwargs["ml"] * waste_fraction
 
-        def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client, logger):
-            return ml / 2
-
-        def execute(self):
-            self.execute_io_action(waste_ml=1.0, media_ml=1.0)
-            return
-
-    with pubsub.collect_all_logs_of_level("WARNING", unit, experiment) as bucket:
-        with BadWasteRemoval(unit=unit, experiment=experiment, duration=5):
-            assert wait_for(lambda: len(bucket) >= 1, timeout=6.0)
-
-        assert len(bucket) >= 1
+    with Silent(unit=unit, experiment=experiment, current_volume_ml=10.0) as job:
+        monkeypatch.setattr(job, "add_media_to_bioreactor", add_media)
+        monkeypatch.setattr(job, "remove_waste_from_bioreactor", remove_waste)
+        with temporary_config_change(config, "dosing_automation.config", "max_subdose", "1.0"):
+            with pytest.raises(RuntimeError, match="Waste was under-removed"):
+                job.execute_io_action(media_ml=3.0, waste_ml=3.0)
+        assert job.state == job.SLEEPING
+        assert additions == [0.75]
+        assert removals == [0.75]
 
 
 def test_failed_automation_start_clears_retained_duration_setting_from_mqtt() -> None:

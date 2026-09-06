@@ -685,12 +685,14 @@ if am_I_leader() or is_testing_env():
         type=str,
         help="Install from a url, ex: https://github.com/user/repository/archive/branch.zip, or wheel file",
     )
+    @click.option("--version", type=str, help="Install an exact plugin version, ex: 1.2.3")
     @which_units
     @confirmation
     @json_output
     def install_plugin(
         plugin: str,
         source: str | None,
+        version: str | None,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
         yes: bool,
@@ -705,6 +707,9 @@ if am_I_leader() or is_testing_env():
           pios plugins install /path/to/plugin.whl --units worker1
           pios plugins install pioreactor-foo --source https://example.com/release.zip
         """
+
+        if source and version:
+            raise click.UsageError("--source and --version cannot be used together")
 
         units = resolve_cluster_units_including_leader(units, experiments)
 
@@ -721,6 +726,8 @@ if am_I_leader() or is_testing_env():
 
         if source:
             commands["options"] = {"source": source}
+        elif version:
+            commands["options"] = {"version": version}
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:

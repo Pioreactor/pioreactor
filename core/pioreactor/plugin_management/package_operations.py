@@ -43,8 +43,17 @@ def get_pioreactor_database_path() -> Path:
     return Path(get_config().get("storage", "database"))
 
 
-def install_plugin_package(plugin_name: str, source: str | None, *, is_leader: bool | None = None) -> bool:
+def install_plugin_package(
+    plugin_name: str,
+    source: str | None,
+    version: str | None = None,
+    *,
+    is_leader: bool | None = None,
+) -> bool:
     pip_plugin_name = clean_plugin_name_for_pip(plugin_name)
+
+    if source and version:
+        raise ValueError("source and version cannot be used together")
 
     if source:
         run_pip_as_pioreactor(["install", "--force-reinstall", "--no-deps", source])
@@ -52,16 +61,17 @@ def install_plugin_package(plugin_name: str, source: str | None, *, is_leader: b
     else:
         is_leader = am_I_leader() if is_leader is None else is_leader
 
-        if package_is_leader_only(pip_plugin_name) and not is_leader:
+        if package_is_leader_only(pip_plugin_name, version) and not is_leader:
             return False
 
+        requirement = f"{pip_plugin_name}=={version}" if version else pip_plugin_name
         run_pip_as_pioreactor(
             [
                 "install",
                 "--upgrade",
                 "--force-reinstall",
                 "--ignore-installed",
-                pip_plugin_name,
+                requirement,
             ]
         )
         return True
@@ -78,9 +88,10 @@ def run_pip_as_pioreactor(
     )
 
 
-def package_is_leader_only(plugin_name: str) -> bool:
+def package_is_leader_only(plugin_name: str, version: str | None = None) -> bool:
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
+        requirement = f"{plugin_name}=={version}" if version else plugin_name
         run_pip_as_pioreactor(
             [
                 "download",
@@ -88,7 +99,7 @@ def package_is_leader_only(plugin_name: str) -> bool:
                 "--no-deps",
                 "--dest",
                 str(tmp_path),
-                plugin_name,
+                requirement,
             ]
         )
 

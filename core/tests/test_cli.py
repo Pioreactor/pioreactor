@@ -1194,6 +1194,57 @@ def test_list_plugins() -> None:
     assert "my-example-plugin==0.2.0" in result.output
 
 
+def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[tuple[str, str, dict[str, object]]] = []
+
+    class SuccessfulResponse:
+        ok = True
+
+        def json(self) -> dict[str, str]:
+            return {"unit": "unit1"}
+
+    def fake_post_into(address: str, endpoint: str, **kwargs: object) -> SuccessfulResponse:
+        requests.append((address, endpoint, kwargs))
+        return SuccessfulResponse()
+
+    monkeypatch.setattr("pioreactor.cli.pios.am_I_leader", lambda: True)
+    monkeypatch.setattr(
+        "pioreactor.cli.pios.resolve_cluster_units_including_leader",
+        lambda units, experiments: ["unit1"],
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: "unit1.local")
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+
+    result = CliRunner().invoke(
+        pios,
+        [
+            "plugins",
+            "install",
+            "pioreactor-air-bubbler",
+            "--version",
+            "0.12.1",
+            "--units",
+            "unit1",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert requests == [
+        (
+            "unit1.local",
+            "/unit_api/plugins/install",
+            {
+                "json": {
+                    "args": ["pioreactor-air-bubbler"],
+                    "options": {"version": "0.12.1"},
+                },
+                "timeout": 60,
+            },
+        )
+    ]
+
+
 @pytest.mark.flakey
 def test_pio_log() -> None:
     with collect_all_logs_of_level("DEBUG", whoami.get_unit_name(), whoami.UNIVERSAL_EXPERIMENT) as bucket:

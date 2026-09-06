@@ -1345,12 +1345,12 @@ def kill_jobs_task(
 
 @huey.task()
 @huey.lock_task("plugins-lock")
-def install_plugin_task(name: str, source: str | None = None) -> bool:
+def install_plugin_task(name: str, source: str | None = None, version: str | None = None) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
     logger.debug(f"Installing plugin {name}.")
     try:
-        install_plugin(name, source=source)
+        install_plugin(name, source=source, version=version)
         return True
     except Exception as exc:
         logger.debug(str(exc))

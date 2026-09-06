@@ -5,6 +5,7 @@ from math import exp
 from math import log
 from pathlib import Path
 from typing import cast
+from unittest.mock import patch
 
 import pytest
 from msgspec.yaml import decode as yaml_decode
@@ -393,3 +394,38 @@ def test_fit_fusion_model_derives_low_conc_scales_for_noncanonical_angle_sets() 
     assert set(fit.low_conc_scales) == set(angles)
     assert fit.low_conc_scales["90"] == pytest.approx(1.0)
     assert fit.low_conc_scales["45"] > fit.low_conc_scales["90"]
+
+
+@pytest.mark.parametrize("instrument", ["1", "2", "3", "5"])
+def test_fusion_preparsed_curves_match_uncached_evaluations(instrument: str) -> None:
+    from pioreactor.utils import od_fusion
+    from pioreactor.utils.akimas import akima_eval
+    from pioreactor.utils.akimas import akima_eval_derivative
+
+    estimator = _build_estimator_from_records(_records_for_instrument(instrument))
+    observations, _ = _aggregate_obs_for_instrument(instrument)
+    for observation in observations.values():
+        readings = {angle: sum(values) / len(values) for angle, values in observation.items()}
+        with patch.object(
+            od_fusion, "parse_piecewise_cubic_data", wraps=od_fusion.parse_piecewise_cubic_data
+        ) as parse:
+            cached = compute_fused_od(estimator, readings)
+        assert parse.call_count == 2 * len(estimator.angles)
+        with patch.object(
+            od_fusion, "akima_eval", side_effect=lambda curve, x, **kwargs: akima_eval(curve, x)
+        ), patch.object(
+            od_fusion,
+            "akima_eval_derivative",
+            side_effect=lambda curve, x, **kwargs: akima_eval_derivative(curve, x),
+        ):
+            assert compute_fused_od(estimator, readings) == cached
+
+
+def test_fusion_revalidates_curves_on_next_estimate() -> None:
+    estimator = _build_estimator_from_records(_records_for_instrument("1"))
+    readings: dict[pt.PdAngle, float] = {angle: 1.0 for angle in estimator.angles}
+    compute_fused_od(estimator, readings)
+    curve = estimator.mu_splines[estimator.angles[0]]
+    curve.knots[1] = curve.knots[0]
+    with pytest.raises(ValueError, match="strictly increasing"):
+        compute_fused_od(estimator, readings)

@@ -207,7 +207,7 @@ class ADCReader(LoggerMixin):
         self.unit = unit or whoami.get_unit_name()
         self.experiment = experiment or whoami.UNIVERSAL_EXPERIMENT
         self.channels: list[pt.PdChannel] = channels
-        self.adc_offsets: dict[pt.PdChannel, float] = {}
+        self.adc_offsets: dict[pt.PdChannel, pt.Voltage] = {}
         self.penalizer = penalizer
         self.oversampling_count = oversampling_count
         self.batched_readings: RawPDReadings = {}
@@ -328,16 +328,13 @@ class ADCReader(LoggerMixin):
 
         if config.getboolean("od_reading.config", "use_dark_offsets", fallback="true"):
             for channel, blank_reading in batched_readings.items():
-                self.adc_offsets[channel] = self.adcs[channel].from_voltage_to_raw_precise(
-                    blank_reading.reading
-                )
+                # Keep offsets in volts: tuning and later readings can change the ADC gain.
+                self.adc_offsets[channel] = blank_reading.reading
         else:
             for channel, _ in batched_readings.items():
                 self.adc_offsets[channel] = 0.0
 
-        self.logger.debug(
-            f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()} }"
-        )
+        self.logger.debug(f"ADC offsets in voltage: {self.adc_offsets}")
 
     def _check_if_over_max(self, value: pt.Voltage) -> None:
         if value > 3.2:
@@ -582,7 +579,8 @@ class ADCReader(LoggerMixin):
 
             for channel in self.channels:
                 shifted_signals = self._remove_offset_from_signal(
-                    aggregated_signals[channel], self.adc_offsets.get(channel, 0.0)
+                    aggregated_signals[channel],
+                    self.adcs[channel].from_voltage_to_raw_precise(self.adc_offsets.get(channel, 0.0)),
                 )
 
                 prior_C = (
@@ -807,12 +805,19 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
             if self.experiment not in cache:
                 return None
             try:
-                return cache.getfloat(self.experiment)
+                initial_ref = cache.getfloat(self.experiment)
             except (TypeError, ValueError):
                 return None
+            # Older runs could persist a zero reference; replace it with the next valid reading.
+            return initial_ref if math.isfinite(initial_ref) and initial_ref > 0.0 else None
 
     def update(self, ir_output_reading: pt.Voltage) -> bool:
         if self.initial_ref is None:
+            # The persisted normalization denominator must be finite and strictly positive.
+            if not math.isfinite(ir_output_reading) or ir_output_reading <= 0.0:
+                raise ValueError(
+                    "Initial IR reference must be positive and finite. Check the reference PD and IR LED."
+                )
             self.initial_ref = ir_output_reading
             with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
                 cache.set(self.experiment, self.initial_ref)
@@ -1508,7 +1513,11 @@ class ODReader(BackgroundJob):
                 job_name=self.job_name,
                 run_immediately=True,
                 logger=self.logger,
-            ).start()
+            )
+            # Preserve sleep before starting the thread, including its immediate first callback.
+            if self.state == self.SLEEPING:
+                self.record_from_adc_timer.pause()
+            self.record_from_adc_timer.start()
 
         else:
             if hasattr(self, "record_from_adc_timer"):

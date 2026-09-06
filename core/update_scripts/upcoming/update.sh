@@ -52,6 +52,18 @@ HOSTNAME=$(hostname)
 LEADER_HOSTNAME=$(sudo -u pioreactor -i pio config get cluster.topology leader_hostname)
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
+    BACKUP_TIMER=/etc/systemd/system/backup-database.timer
+    if [ -f "$BACKUP_TIMER" ]; then
+        # Back up monthly, without catching up on missed backups at startup.
+        sed -i \
+            -e 's/^Description=.*/Description=Monthly database backup/' \
+            -e 's/^OnCalendar=.*/OnCalendar=*-*-01 00:00:00/' \
+            -e 's/^Persistent=.*/Persistent=false/' \
+            "$BACKUP_TIMER"
+        systemctl daemon-reload
+        systemctl try-restart backup-database.timer
+    fi
+
     if ! sudo -u pioreactor -i pio config get camera use_ir_led --shared >/dev/null 2>&1; then
         sudo -u pioreactor -i pio config set camera use_ir_led 1 --shared
     fi

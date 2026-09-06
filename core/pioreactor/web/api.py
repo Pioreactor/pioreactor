@@ -2761,7 +2761,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 
     JSON body:
     {
-      "options": {"source": "path-to-file-or-url"},
+      "options": {"source": "path-to-file-or-url", "version": "1.2.3"},
       "args": ["my_plugin_name"]
     }
     """

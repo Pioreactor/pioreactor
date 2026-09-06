@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from math import isfinite
 from typing import Any
 from typing import Literal
 from typing import Sequence
@@ -45,16 +46,31 @@ def poly_fit(
 
 
 def poly_eval(poly_data: structs.PolyFitCoefficients, x: float) -> float:
+    # Pump calibrations are linear; avoid importing NumPy for scalar arithmetic.
+    if len(poly_data.coefficients) == 2:
+        a, b = poly_data.coefficients
+        if isfinite(a) and isfinite(b) and isfinite(x):
+            return float(a * x + b)
+
     import numpy as np
 
     return float(np.polyval(poly_data.coefficients, x))
 
 
 def poly_solve(poly_data: structs.PolyFitCoefficients, y: float) -> list[float]:
-    import numpy as np
-
     if len(poly_data.coefficients) == 0:
         raise ValueError("poly_data must not be empty.")
+
+    if len(poly_data.coefficients) == 2:
+        a, b = poly_data.coefficients
+        if isfinite(a) and isfinite(b) and isfinite(y) and isfinite(y - b):
+            if a == 0:
+                return []
+            root = (y - b) / a
+            if isfinite(root):
+                return [float(root)]
+
+    import numpy as np
 
     coef_shift = np.zeros_like(poly_data.coefficients, dtype=float)
     coef_shift[-1] = y

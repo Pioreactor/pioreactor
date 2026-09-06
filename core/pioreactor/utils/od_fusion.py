@@ -5,6 +5,7 @@ from math import log
 from math import log10
 from statistics import mean
 from statistics import median
+from typing import Any
 from typing import Callable
 from typing import Iterable
 from typing import Mapping
@@ -15,6 +16,7 @@ from pioreactor import types as pt
 from pioreactor.utils.akimas import akima_eval
 from pioreactor.utils.akimas import akima_eval_derivative
 from pioreactor.utils.akimas import akima_fit
+from pioreactor.utils.piecewise_cubics import parse_piecewise_cubic_data
 
 # Model: we fuse three angle-dependent channels into one scalar concentration estimate.
 # Each channel is treated as a noisy sensor of concentration with:
@@ -62,10 +64,6 @@ class FusionFitResult(Struct, frozen=True):
 
 def _curve_eval(curve: structs.AkimaFitData, x: float) -> float:
     return akima_eval(curve, x)
-
-
-def _curve_eval_derivative(curve: structs.AkimaFitData, x: float) -> float:
-    return akima_eval_derivative(curve, x)
 
 
 def _golden_section_minimize(
@@ -333,10 +331,11 @@ def _sigma_from_model(
     estimator: structs.ODFusionEstimator,
     angle: pt.PdAngle,
     logc: float,
+    parsed_data: tuple[Any, Any] | None = None,
 ) -> float:
     # sigma(logc) = exp( akima_eval( log_sigma_curve, logc ) )
     # Floor applied to avoid overconfident likelihood terms.
-    sigma_log = _curve_eval(estimator.sigma_splines_log[angle], logc)
+    sigma_log = akima_eval(estimator.sigma_splines_log[angle], logc, parsed_data=parsed_data)
     sigma = exp(sigma_log)
     return max(sigma, estimator.sigma_floor)
 
@@ -380,6 +379,19 @@ def compute_fused_od(
         scale = low_conc_scales.get(angle, 1.0)
         return 1.0 * (1.0 - t) + scale * t
 
+    # The curves are unchanged throughout this search. Validate and convert once,
+    # but keep the arrays local so the next estimate sees any estimator changes.
+    parsed_mu = {
+        angle: parse_piecewise_cubic_data(estimator.mu_splines[angle], structs.AkimaFitData, "akima_data")
+        for angle in estimator.angles
+    }
+    parsed_sigma = {
+        angle: parse_piecewise_cubic_data(
+            estimator.sigma_splines_log[angle], structs.AkimaFitData, "akima_data"
+        )
+        for angle in estimator.angles
+    }
+
     def nll(logc: float) -> float:
         # Negative log-likelihood assuming independent Gaussian residuals per angle:
         #   logy_obs = mu_angle(logc) + Normal(0, sigma_angle(logc)^2)
@@ -392,9 +404,11 @@ def compute_fused_od(
         huber_delta = 1.0
         total = 0.0
         for angle in estimator.angles:
-            mu = _curve_eval(estimator.mu_splines[angle], logc)
-            sigma = _sigma_from_model(estimator, angle, logc)
-            slope = abs(_curve_eval_derivative(estimator.mu_splines[angle], logc))
+            mu = akima_eval(estimator.mu_splines[angle], logc, parsed_data=parsed_mu[angle])
+            sigma = _sigma_from_model(estimator, angle, logc, parsed_sigma[angle])
+            slope = abs(
+                akima_eval_derivative(estimator.mu_splines[angle], logc, parsed_data=parsed_mu[angle])
+            )
             sigma_eff = sigma / max(slope, slope_floor)
             sigma_eff *= _angle_noise_scale(angle, logc)
             residual = log_obs[angle] - mu

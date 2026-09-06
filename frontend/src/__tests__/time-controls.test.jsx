@@ -15,7 +15,7 @@ describe("TimeControls", () => {
     );
 
     expect(setTimeScale).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Elapsed time" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Elapsed" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Timestamp" })).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(screen.getByRole("button", { name: "Timestamp" }));
@@ -25,7 +25,7 @@ describe("TimeControls", () => {
 
     rerender(<TimeFormatSwitch timeScale="clock_time" setTimeScale={setTimeScale} />);
 
-    expect(screen.getByRole("button", { name: "Elapsed time" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Elapsed" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: "Timestamp" })).toHaveAttribute("aria-pressed", "true");
   });
 
