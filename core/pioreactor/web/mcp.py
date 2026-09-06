@@ -27,9 +27,9 @@ from pioreactor.pubsub import get_from_leader as _get_from_leader
 from pioreactor.pubsub import patch_into_leader as _patch_into_leader
 from pioreactor.pubsub import post_into_leader as _post_into_leader
 from pioreactor.pubsub import put_into_leader as _put_into_leader
+from pioreactor.utils.files import is_valid_unix_filename
 from pioreactor.web.app import query_app_db
 from pioreactor.web.plugin_registry import registered_mcp_tools
-from pioreactor.web.utils import is_valid_unix_filename
 
 
 logger = logging.getLogger("mcp_utils")

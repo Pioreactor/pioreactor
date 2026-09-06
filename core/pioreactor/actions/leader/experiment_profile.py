@@ -9,7 +9,6 @@ from typing import Callable
 
 import click
 from msgspec.yaml import decode
-from pioreactor import cluster_management
 from pioreactor import types as pt
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
@@ -28,6 +27,7 @@ from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
+from pioreactor.pubsub import get_from_leader
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import post_into_leader
@@ -154,7 +154,7 @@ def _get_worker_env_for_start(
     }
 
     try:
-        response = cluster_management.get_from_leader(f"/api/workers/{unit}")
+        response = get_from_leader(f"/api/workers/{unit}")
         response.raise_for_status()
         worker = response.json()
     except HTTPException:
