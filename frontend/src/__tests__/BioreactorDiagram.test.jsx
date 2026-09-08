@@ -1,12 +1,13 @@
 import React from "react";
-import { act, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 
 const mockSubscribeToTopic = jest.fn();
 const mockUnsubscribeFromTopic = jest.fn();
+const mockClient = {};
 
 jest.mock("../providers/MQTTContext", () => ({
   useMQTT: () => ({
-    client: {},
+    client: mockClient,
     subscribeToTopic: mockSubscribeToTopic,
     unsubscribeFromTopic: mockUnsubscribeFromTopic,
   }),
@@ -29,28 +30,6 @@ const config = {
     efflux_tube_volume_ml: 18,
   },
 };
-
-function makeCanvasContext() {
-  const context = {
-    beginPath: jest.fn(),
-    clearRect: jest.fn(),
-    closePath: jest.fn(),
-    fill: jest.fn(() => context.fillStyles.push(context.fillStyle)),
-    fillStyles: [],
-    fillText: jest.fn(),
-    lineTo: jest.fn(),
-    measureText: jest.fn(() => ({ width: 10 })),
-    moveTo: jest.fn(),
-    quadraticCurveTo: jest.fn(),
-    restore: jest.fn(),
-    rotate: jest.fn(),
-    save: jest.fn(),
-    setLineDash: jest.fn(),
-    stroke: jest.fn(),
-    translate: jest.fn(),
-  };
-  return context;
-}
 
 describe("BioreactorDiagram model", () => {
   test("maps active GPIO pins to configured load names", () => {
@@ -129,137 +108,159 @@ function renderDiagram(props = {}) {
   );
 }
 
-describe("BioreactorDiagram animation", () => {
-  let canvasContext;
-  let getContextSpy;
+describe("BioreactorDiagram SVG", () => {
   let originalCancelAnimationFrame;
   let originalRequestAnimationFrame;
+  let originalMatchMedia;
+  let frames;
+  let nextFrameId;
 
   beforeEach(() => {
-    canvasContext = makeCanvasContext();
-    getContextSpy = jest
-      .spyOn(HTMLCanvasElement.prototype, "getContext")
-      .mockReturnValue(canvasContext);
-
     originalRequestAnimationFrame = window.requestAnimationFrame;
     originalCancelAnimationFrame = window.cancelAnimationFrame;
-    window.requestAnimationFrame = jest.fn(() => 1);
-    window.cancelAnimationFrame = jest.fn();
+    originalMatchMedia = window.matchMedia;
+    frames = new Map();
+    nextFrameId = 0;
+    window.requestAnimationFrame = jest.fn(callback => {
+      frames.set(++nextFrameId, callback);
+      return nextFrameId;
+    });
+    window.cancelAnimationFrame = jest.fn(id => frames.delete(id));
+    window.matchMedia = jest.fn(query => ({
+      matches: false,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    }));
   });
 
   afterEach(() => {
-    getContextSpy.mockRestore();
+    cleanup();
     window.requestAnimationFrame = originalRequestAnimationFrame;
     window.cancelAnimationFrame = originalCancelAnimationFrame;
+    window.matchMedia = originalMatchMedia;
     jest.clearAllMocks();
   });
 
-  test("draws once without scheduling an animation frame when RPM is absent", () => {
-    renderDiagram();
+  function sendTelemetry(setting, payload) {
+    act(() => {
+      mockSubscribeToTopic.mock.calls[0][1](
+        `pioreactor/unit-1/experiment-1/${setting}`,
+        JSON.stringify(payload),
+      );
+    });
+  }
 
-    expect(canvasContext.clearRect).toHaveBeenCalledTimes(1);
-    expect(window.requestAnimationFrame).not.toHaveBeenCalled();
-    expect(canvasContext.fillText).toHaveBeenCalledWith(
-      "14 mL",
-      expect.any(Number),
-      expect.any(Number),
-    );
+  function advanceFrame(timestamp) {
+    const [id, callback] = frames.entries().next().value;
+    frames.delete(id);
+    act(() => callback(timestamp));
+  }
+
+  test.each([[20, 510, 400], [40, 610, 500]])(
+    "renders the %i mL geometry with the efflux tip aligned to its marker",
+    (size, diagramHeight, vialHeight) => {
+      const diagram = renderDiagram({size, liquidVolume: 10, maxVolume: 15});
+      const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
+      expect(svg.tagName.toLowerCase()).toBe("svg");
+      expect(svg).toHaveAttribute("viewBox", `0 0 400 ${diagramHeight}`);
+      expect(diagram.getByText("10 mL")).toBeInTheDocument();
+      expect(diagram.getByText("15 mL")).toBeInTheDocument();
+      const tube = svg.querySelector('[data-tube="waste"] rect');
+      const marker = svg.querySelector('line[stroke-dasharray="4 3"]');
+      const expectedTip = 65 + vialHeight * (1 - 15 / size);
+      expect(Number(tube.getAttribute("y")) + Number(tube.getAttribute("height"))).toBe(expectedTip);
+      expect(Number(marker.getAttribute("y1"))).toBe(expectedTip);
+      expect(window.requestAnimationFrame).not.toHaveBeenCalled();
+    },
+  );
+
+  test("animates only the stir bar, then resets and stops when stirring stops", () => {
+    const diagram = renderDiagram();
+    const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
+    const stirBar = svg.querySelector('[data-part="stir-bar"]');
+    const liquid = svg.querySelector('rect[fill="#e0d0b5"]');
+    const liquidBefore = liquid.outerHTML;
+    sendTelemetry("pwms/dc", {17: 10});
+    advanceFrame(0);
+    advanceFrame(100);
+    expect(Number(stirBar.getAttribute("width"))).toBeLessThan(80);
+    expect(Number(stirBar.getAttribute("width"))).toBeGreaterThanOrEqual(10);
+    expect(Number(stirBar.getAttribute("x")) + Number(stirBar.getAttribute("width")) / 2).toBeCloseTo(200);
+    expect(liquid.outerHTML).toBe(liquidBefore);
+
+    // Unrelated telemetry must not restart the animation.
+    const scheduledFrames = window.requestAnimationFrame.mock.calls.length;
+    sendTelemetry("temperature_automation/temperature", {temperature: 31});
+    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(scheduledFrames);
+    expect(window.cancelAnimationFrame).not.toHaveBeenCalled();
+
+    sendTelemetry("pwms/dc", {17: 0});
+    expect(stirBar).toHaveAttribute("width", "80");
+    expect(stirBar).toHaveAttribute("x", "160");
+    expect(frames.size).toBe(0);
+    expect(svg.querySelector("desc")).toHaveTextContent("Stirring off");
   });
 
-  test("animates positive RPM and cancels the active frame on unmount", () => {
+  test("cancels the animation and unsubscribes on unmount", () => {
     const diagram = renderDiagram();
-    const onMessage = mockSubscribeToTopic.mock.calls[0][1];
-
-    act(() => {
-      onMessage("pioreactor/unit-1/experiment-1/pwms/dc", '{"17": 10}');
-    });
-
-    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
-
+    sendTelemetry("pwms/dc", {17: 10});
+    advanceFrame(0);
     diagram.unmount();
-
-    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
-  });
-
-  test("cancels positive-RPM animation and draws once when RPM becomes zero", () => {
-    renderDiagram();
-    const onMessage = mockSubscribeToTopic.mock.calls[0][1];
-
-    act(() => {
-      onMessage("pioreactor/unit-1/experiment-1/pwms/dc", '{"17": 10}');
-    });
-
-    act(() => {
-      onMessage("pioreactor/unit-1/experiment-1/pwms/dc", '{"17": 0}');
-    });
-
-    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
-    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
-    expect(canvasContext.clearRect).toHaveBeenCalledTimes(2);
-  });
-
-  test("redraws changing diagram state while idle without scheduling frames", () => {
-    const diagram = renderDiagram();
-    const onMessage = mockSubscribeToTopic.mock.calls[0][1];
-
-    const idleMessages = [
-      ["pioreactor/unit-1/experiment-1/leds/intensity", '{"A": 40, "B": 0, "C": 0, "D": 0}'],
-      ["pioreactor/unit-1/experiment-1/temperature_automation/temperature", '{"temperature": 31}'],
-      ["pioreactor/unit-1/experiment-1/growth_rate_calculating/od_filtered", '{"od_filtered": 0.8}'],
-      ["pioreactor/unit-1/experiment-1/pwms/dc", '{"13": 25, "18": 50}'],
-    ];
-
-    idleMessages.forEach(([topic, message], index) => {
-      act(() => {
-        onMessage(topic, message);
-      });
-      expect(canvasContext.clearRect).toHaveBeenCalledTimes(index + 2);
-    });
-
-    diagram.rerender(
-      <BioreactorDiagram
-        experiment="experiment-1"
-        unit="unit-1"
-        config={config}
-        size={20}
-        liquidVolume={15}
-      />,
+    expect(frames.size).toBe(0);
+    expect(mockUnsubscribeFromTopic).toHaveBeenCalledTimes(1);
+    expect(mockUnsubscribeFromTopic).toHaveBeenCalledWith(
+      mockSubscribeToTopic.mock.calls[0][0], "BioreactorDiagram",
     );
+  });
 
-    expect(canvasContext.clearRect).toHaveBeenCalledTimes(idleMessages.length + 2);
+  test("updates idle telemetry, liquid volume, and the liquid-pump warning without animation", () => {
+    const diagram = renderDiagram();
+    const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
+    sendTelemetry("leds/intensity", {A: 30, B: 0, C: 0, D: 0});
+    sendTelemetry("temperature_automation/temperature", {temperature: 31});
+    sendTelemetry("growth_rate_calculating/od_filtered", {od_filtered: 0.8});
+    sendTelemetry("pwms/dc", {13: 25, 18: 50});
+    expect(diagram.getByText("Temp: 31°C")).toBeInTheDocument();
+    expect(diagram.getByText("nOD: 0.8")).toBeInTheDocument();
+    expect(diagram.getByText(/diagram above may not be an accurate/)).toBeInTheDocument();
+    expect(svg.querySelector('[data-led="A"] rect')).toHaveAttribute("fill", "rgba(234, 188, 116, 0.5)");
+    expect(svg.querySelector('[data-part="heater"] rect')).toHaveAttribute("fill", "#D8A0A2");
+    expect(svg.querySelector('[data-tube="media"] rect')).toHaveAttribute("fill", "#EABC74");
+    expect(svg.querySelectorAll("polyline").length).toBeGreaterThan(0);
+    diagram.rerender(
+      <BioreactorDiagram experiment="experiment-1" unit="unit-1" config={config} size={20} liquidVolume={15} />,
+    );
+    expect(diagram.getByText("15 mL")).toBeInTheDocument();
+    expect(svg.querySelector('rect[fill="#e0d0b5"]')).toHaveAttribute("height", "300");
+    sendTelemetry("pwms/dc", {});
+    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
-  test("draws once without animation for a non-finite RPM estimate", () => {
+  test("does not animate a non-finite RPM estimate", () => {
     renderDiagram();
-    const onMessage = mockSubscribeToTopic.mock.calls[0][1];
-
-    act(() => {
-      onMessage("pioreactor/unit-1/experiment-1/pwms/dc", '{"17": "not-a-number"}');
-    });
-
-    expect(canvasContext.clearRect).toHaveBeenCalledTimes(2);
+    sendTelemetry("pwms/dc", {17: "not-a-number"});
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
+  });
+
+  test("honors reduced motion while still reporting stirring as on", () => {
+    window.matchMedia.mockImplementation(query => ({
+      matches: true, media: query, addEventListener: jest.fn(), removeEventListener: jest.fn(),
+    }));
+    const diagram = renderDiagram();
+    sendTelemetry("pwms/dc", {17: 10});
+    expect(window.requestAnimationFrame).not.toHaveBeenCalled();
+    expect(diagram.getByRole("img").querySelector("desc")).toHaveTextContent("Stirring on");
   });
 
   test("highlights an installed air bubbler without showing the liquid-pump warning", () => {
-    const diagram = renderDiagram({
-      config: {
-        ...config,
-        PWM: { ...config.PWM, 4: "air_bubbler" },
-      },
-    });
-    diagram.getByRole("img", { name: "Bioreactor diagram" });
-    const onMessage = mockSubscribeToTopic.mock.calls[0][1];
-
-    expect(canvasContext.fillStyles).toContain("#99999B");
-
-    canvasContext.fillStyles.length = 0;
-    act(() => {
-      onMessage("pioreactor/unit-1/experiment-1/pwms/dc", '{"12": 35}');
-    });
-
-    expect(canvasContext.fillStyles).toContain("#EABC74");
-    expect(canvasContext.fillStyles).not.toContain("rgb(255, 244, 229)");
+    const diagram = renderDiagram({config: {...config, PWM: {...config.PWM, 4: "air_bubbler"}}});
+    const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
+    const airStone = svg.querySelector('[data-tube="air"] rect:last-child');
+    expect(airStone).toHaveAttribute("fill", "#99999B");
+    sendTelemetry("pwms/dc", {12: 35});
+    expect(airStone).toHaveAttribute("fill", "#EABC74");
+    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
   });
 });

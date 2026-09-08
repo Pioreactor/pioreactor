@@ -1,0 +1,1 @@
+import{j as e,V as i}from"./index-BMQk145B.js";function s(n){const t=n.title;return e.jsx(i,{title:t,placement:"top-start",children:e.jsx("span",{className:t?"underlineSpan":"",children:n.children})})}export{s as U};

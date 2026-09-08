@@ -164,7 +164,7 @@ export default function CameraStills({ title }) {
       );
       await loadStills();
     } catch (error) {
-      setError(`Could not take a camera snapshot. ${error.message} Check that the camera is connected, then retry.`);
+      setError(`Could not take a camera snapshot. ${error.message}.`);
     } finally {
       setTakingSnapshot(false);
     }

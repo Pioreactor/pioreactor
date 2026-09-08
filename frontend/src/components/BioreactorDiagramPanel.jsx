@@ -8,7 +8,7 @@ import {
   getBioreactorSubscriptionTopics,
   parseNumericValue,
 } from "../utils/bioreactor";
-import BioreactorDiagram from "./BioreactorDiagram";
+import BioreactorDiagram from "./BioreactorDiagram.jsx";
 
 const DIAGRAM_BIOREACTOR_KEYS = ["current_volume_ml", "efflux_tube_volume_ml"];
 
