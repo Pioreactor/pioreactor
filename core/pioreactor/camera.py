@@ -595,8 +595,11 @@ def camera_captured_image(
     capture_focus_score: bool,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
+    capture_profile: Path | None = None,
 ) -> Iterator[tuple[Path, int | None]]:
     backend = get_camera_capture_backend()
+    if capture_profile is not None and backend != "rpicam":
+        raise ValueError("Capture config overrides require the rpicam backend.")
     camera_index = get_camera_index() if backend == "rpicam" else None
     device_path = get_camera_device_path() if backend == "v4l2" else None
     command = find_camera_capture_command(backend)
@@ -620,7 +623,9 @@ def camera_captured_image(
     try:
         if backend == "rpicam":
             assert camera_index is not None
-            capture_arguments = get_rpicam_still_arguments(command, camera_index, dot_pioreactor) + [
+            capture_arguments = get_rpicam_still_arguments(
+                command, camera_index, dot_pioreactor, capture_profile=capture_profile
+            ) + [
                 "--timeout",
                 f"{RPICAM_AE_SETTLE_SECONDS:g}sec",
             ]
@@ -649,6 +654,11 @@ def camera_captured_image(
 
         try:
             with camera_capture_lock(dot_pioreactor):
+                if capture_profile is not None and camera_warmer_pid() is not None:
+                    raise CameraCaptureError(
+                        "Cannot override the capture config while the camera warmer is running. "
+                        "Stop the camera warmer before using --config."
+                    )
                 use_ir_led = config.getboolean("camera", "use_ir_led", fallback=True)
                 ir_channel: pt.LedChannel | None = None
 
@@ -795,7 +805,7 @@ def camera_captured_image(
             tmp_path.unlink()
         if metadata_path is not None:
             metadata_path.unlink(missing_ok=True)
-        if keep_camera_active:
+        if keep_camera_active and capture_profile is None:
             start_camera_warmer()
 
 
@@ -807,11 +817,13 @@ def capture_camera_still(
     image_id: str | None = None,
     timeout: float = 20.0,
     dot_pioreactor: Path | None = None,
+    capture_profile: Path | None = None,
 ) -> CameraStillMetadata:
     with camera_captured_image(
         unit,
         experiment=experiment,
         capture_focus_score=False,
+        capture_profile=capture_profile,
         timeout=timeout,
         dot_pioreactor=dot_pioreactor,
     ) as (captured_image_path, _focus_score):

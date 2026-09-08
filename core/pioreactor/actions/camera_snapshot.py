@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from pathlib import Path
+
 import click
 from pioreactor import types as pt
 from pioreactor import whoami
@@ -15,6 +17,8 @@ def camera_snapshot(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
     name: str | None = None,
+    *,
+    capture_profile: Path | None = None,
 ) -> CameraStillMetadata:
     """Capture and store a still for the unit's assigned experiment."""
     image_id = name.removesuffix(".jpg") if name is not None else None
@@ -30,15 +34,22 @@ def camera_snapshot(
             experiment=experiment,
             capture_reason="manual",
             image_id=image_id,
+            capture_profile=capture_profile,
         )
 
 
 @click.command(name="camera_snapshot")
 @click.option("--name", help="Photo name without the .jpg extension.")
-def click_camera_snapshot(name: str | None) -> None:
+@click.option(
+    "--config",
+    "capture_profile",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Override the rpicam capture config for this snapshot. Requires the camera warmer to be stopped.",
+)
+def click_camera_snapshot(name: str | None, capture_profile: Path | None) -> None:
     """Take a camera snapshot for the current experiment."""
     try:
-        metadata = camera_snapshot(name=name)
+        metadata = camera_snapshot(name=name, capture_profile=capture_profile)
     except (CameraUnavailableError, CameraCaptureError, ValueError) as error:
         raise click.ClickException(str(error)) from error
 
