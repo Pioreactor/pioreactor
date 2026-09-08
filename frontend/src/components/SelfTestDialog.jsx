@@ -4,7 +4,6 @@ import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
-import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
 import Box from '@mui/material/Box';
 import IndeterminateCheckBoxOutlinedIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
@@ -48,7 +47,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
   function displayIcon(key, state){
     if (selfTestTests == null){
-      return <IndeterminateCheckBoxIcon />
+      return <IndeterminateCheckBoxOutlinedIcon />
     }
     else if (selfTestTests.publishedSettings[key]?.value === true){
       return <CheckIcon sx={{color: readyGreen}}/>
@@ -60,7 +59,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
       return <CircularProgress size={20} />
     }
     else {
-      return <IndeterminateCheckBoxIcon />
+      return <IndeterminateCheckBoxOutlinedIcon />
     }
   }
 

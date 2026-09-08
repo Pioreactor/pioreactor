@@ -20,7 +20,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import TuneIcon from "@mui/icons-material/Tune";
+import CalibrationIcon from "./CalibrationIcon";
 import CloseIcon from "@mui/icons-material/Close";
 import { Link as RouterLink } from "react-router";
 
@@ -76,7 +76,7 @@ function renderCalibrationLinks(unit, result) {
         <Chip
           key={`${unit}-${calibration.device}-${calibration.calibration_name}`}
           size="small"
-          icon={<TuneIcon />}
+          icon={<CalibrationIcon />}
           clickable
           component={RouterLink}
           to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}

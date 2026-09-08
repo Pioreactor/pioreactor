@@ -9,7 +9,6 @@ import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import PioreactorIcon from "./PioreactorIcon"
 import PioreactorsIcon from './PioreactorsIcon';
 import { Link } from 'react-router';
-import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import { getInlineCommentForPath } from "../utils/experimentProfilePreview";
 
 
@@ -684,7 +683,7 @@ export const DisplayProfile = ({ data, comments = {} }) => {
   return (
     <Card sx={DisplayProfileCard}>
       <CardContent sx={{ padding: '10px' }}>
-        <Typography variant="h6"><ViewTimelineOutlinedIcon sx={{verticalAlign: "middle", m:"0px 3px"}}/>{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
+        <Typography variant="h6">{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
         <AuthorSection author={data?.metadata?.author} comment={getInlineCommentForPath(comments, "metadata.author")} />
         <DescriptionSection description={data?.metadata?.description} comment={getInlineCommentForPath(comments, "metadata.description")} />
         <br/>

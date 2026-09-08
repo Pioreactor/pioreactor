@@ -269,9 +269,10 @@ from surrounding prose.
 | Pioreactor | `PioreactorIcon` |
 | All/multiple Pioreactors | `PioreactorsIcon` |
 | Experiment | `PlayCircleOutlinedIcon` |
-| Calibration | `TuneIcon` |
+| Experiment collection | `ExperimentsIcon` |
+| Calibration | `CalibrationIcon` |
 | Estimator | `EstimatorIcon` |
-| Experiment profile | `ViewTimelineOutlinedIcon` |
+| Experiment profile | `ExperimentProfileIcon` |
 
 Standard Pioreactor label:
 
@@ -458,7 +459,22 @@ Setting every normal cell to white hides the zebra pattern.
 
 ## Buttons and actions
 
+### Icon style
+
+- Prefer outlined MUI variants for object icons and secondary controls, including
+  cameras, settings, delete, files, cloud downloads, and save actions.
+- Use `CameraAltOutlined` for camera navigation, capture actions, and manual
+  snapshot metadata.
+- Unknown or untested status uses `IndeterminateCheckBoxOutlined` so it does not
+  visually outweigh successful or error states.
+- Simple filled action glyphs such as Play, Edit, Download, and Upload are
+  appropriate. Keep the filled `Cancel` icon for Stop actions and the filled
+  `CheckCircle` for update-file selection confirmation.
+
 ### Text-button icons
+
+Use `ControlIcon` for the Control and Control all Pioreactors actions that open
+the activity controls.
 
 Icons that are part of a text button label must be rendered inline immediately
 before the label. Use the small icon size, vertically center the icon against

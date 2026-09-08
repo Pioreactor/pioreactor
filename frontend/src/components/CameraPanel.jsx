@@ -22,7 +22,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupportedOutlined";
-import LocalSeeIcon from "@mui/icons-material/LocalSee";
+import LocalSeeIcon from "@mui/icons-material/CameraAltOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 

@@ -26,7 +26,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate, useParams } from 'react-router';
 import SelectButton from "./components/SelectButton";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
-import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
+import ExperimentProfileIcon from './components/ExperimentProfileIcon';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { useConfirm } from 'material-ui-confirm';
 import { useExperiment } from './providers/ExperimentContext';
@@ -333,7 +333,7 @@ function RunningProfilesContainer() {
                       <TableCell sx={{ padding: "6px 0px" }}>
                         <Chip
                           size="small"
-                          icon={<ViewTimelineOutlinedIcon/>}
+                          icon={<ExperimentProfileIcon/>}
                           label={element.settings.experiment_profile_name}
                           sx={{maxWidth: "210px"}}
                           clickable
@@ -665,7 +665,7 @@ function Profiles(props) {
                                 return (
                                   <Chip
                                     size="small"
-                                    icon={<ViewTimelineOutlinedIcon />}
+                                    icon={<ExperimentProfileIcon />}
                                     label={label}
                                     sx={{ maxWidth: "210px" }}
                                     clickable

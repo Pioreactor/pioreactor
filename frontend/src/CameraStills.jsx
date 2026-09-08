@@ -25,7 +25,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
-import LocalSeeIcon from "@mui/icons-material/LocalSee";
+import LocalSeeIcon from "@mui/icons-material/CameraAltOutlined";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 
 import { useExperiment } from "./providers/ExperimentContext";

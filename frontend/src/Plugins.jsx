@@ -17,7 +17,7 @@ import ListItem from "@mui/material/ListItem";
 import ListItemAvatar from "@mui/material/ListItemAvatar";
 import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import ListItemText from "@mui/material/ListItemText";
-import DeleteIcon from "@mui/icons-material/Delete";
+import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Link, useParams, useNavigate } from "react-router";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";

@@ -172,46 +172,21 @@ def get_rpicam_still_arguments(
     command: str,
     camera_index: int,
     dot_pioreactor: Path | None,
+    *,
+    capture_profile: Path | None = None,
 ) -> list[str]:
+    """Build invocation arguments; run with cwd set to the returned config path's parent."""
     root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
-    # Bound AE to 200 ms and 8x gain so clear samples brighten without holding shared IR for seconds.
-    tuning_file = root / "camera" / "ov5647_noir_200ms.json"
-    if not tuning_file.exists():
-        raise CameraUnavailableError(f"Camera tuning file is missing: {tuning_file}")
+    if capture_profile is None:
+        capture_profile = root / "camera" / "viewing.conf"
 
     return [
         command,
         "--camera",
         str(camera_index),
         "--nopreview",
-        "--tuning-file",
-        tuning_file.as_posix(),
-        "--mode",
-        "2592:1944:10:P",
-        "--width",
-        "2592",
-        "--height",
-        "1944",
-        "--buffer-count",
-        "2",
-        "--framerate",
-        "0",
-        "--metering",
-        "spot",
-        "--awbgains",
-        "1,1",
-        "--brightness",
-        "0",
-        "--contrast",
-        "1.1",
-        "--saturation",
-        "0",
-        "--sharpness",
-        "0",
-        "--denoise",
-        "cdn_hq",
-        "--quality",
-        "75",
+        "--config",
+        capture_profile.absolute().as_posix(),
     ]
 
 
@@ -273,9 +248,11 @@ def start_camera_warmer() -> bool:
         latest_path.unlink(missing_ok=True)
         metadata_path.unlink(missing_ok=True)
 
+        capture_arguments = get_rpicam_still_arguments(command, get_camera_index(), None)
+        capture_directory = Path(capture_arguments[capture_arguments.index("--config") + 1]).parent
         try:
             process = subprocess.Popen(
-                get_rpicam_still_arguments(command, get_camera_index(), None)
+                capture_arguments
                 + [
                     "--signal",
                     "--timeout",
@@ -289,6 +266,7 @@ def start_camera_warmer() -> bool:
                     "-o",
                     image_path.as_posix(),
                 ],
+                cwd=capture_directory,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -638,6 +616,7 @@ def camera_captured_image(
         tmp_path = Path(tmp.name)
 
     metadata_path: Path | None = None
+    capture_directory: Path | None = None
     try:
         if backend == "rpicam":
             assert camera_index is not None
@@ -645,6 +624,7 @@ def camera_captured_image(
                 "--timeout",
                 f"{RPICAM_AE_SETTLE_SECONDS:g}sec",
             ]
+            capture_directory = Path(capture_arguments[capture_arguments.index("--config") + 1]).parent
             if capture_focus_score:
                 with tempfile.NamedTemporaryFile(
                     prefix="pioreactor-camera-", suffix=".json", delete=False
@@ -777,6 +757,7 @@ def camera_captured_image(
                     else:
                         subprocess.run(
                             capture_arguments,
+                            cwd=capture_directory,
                             capture_output=True,
                             timeout=remaining_capture_time,
                             check=True,

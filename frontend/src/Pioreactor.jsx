@@ -36,8 +36,8 @@ import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FlareIcon from '@mui/icons-material/Flare';
-import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
-import SettingsIcon from '@mui/icons-material/Settings';
+import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
+import ControlIcon from './components/ControlIcon';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
@@ -578,7 +578,7 @@ function SettingsActionsDialog(props) {
   return (
     <div>
     <Button disabled={props.disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
+      <ControlIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} slotProps={{
       paper: {

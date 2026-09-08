@@ -29,16 +29,17 @@ import PioreactorsIcon from './PioreactorsIcon';
 import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
+import ExperimentProfileIcon from './ExperimentProfileIcon';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 import { Link, useLocation } from 'react-router';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import AddIcon from '@mui/icons-material/Add';
-import TuneIcon from '@mui/icons-material/Tune';
+import CalibrationIcon from './CalibrationIcon';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
+import ExperimentsIcon from './ExperimentsIcon';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import whiteLogo from '../assets/white_colour.png';
 import { disconnectedGrey } from '../utils/color';
@@ -440,7 +441,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
               <MenuItem
                 icon={
-                      <ViewTimelineOutlinedIcon  sx={{fontSize: "23px"}}/>
+                      <ExperimentProfileIcon  sx={{fontSize: "23px"}}/>
                   }
                 component={<Link to="/experiment-profiles" className="link" />}
                 active={isSelected("/experiment-profiles")}
@@ -534,7 +535,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                     pathnameMatchesAnySubmenu(location.pathname, ["calibrations", "protocols", "estimators"]) ||
                     isSelected("/calibration-coverage")
                   }
-                  icon={<TuneIcon sx={{fontSize: "23px"}}/> }
+                  icon={<CalibrationIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/calibrations" className="link" />}
                   active={isSelected("/calibrations") || isSelected("/estimators") || isSelected("/protocols") || isSelected("/calibration-coverage")}
 
@@ -556,7 +557,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 </SubMenu>
 
                 <MenuItem
-                  icon={<PlayCircleOutlinedIcon sx={{fontSize: "23px"}}/> }
+                  icon={<ExperimentsIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/experiments" className="link" />}
                   active={isSelected("/experiments")}
 

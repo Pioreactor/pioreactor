@@ -31,7 +31,6 @@ from pioreactor.camera import camera_warmer_runtime_paths
 from pioreactor.camera import CameraCaptureError
 from pioreactor.camera import CameraStillAlreadyExistsError
 from pioreactor.camera import CameraStillMetadata
-from pioreactor.camera import CameraUnavailableError
 from pioreactor.camera import capture_camera_focus_preview
 from pioreactor.camera import capture_camera_still
 from pioreactor.camera import clear_camera_hardware_detection_cache
@@ -136,14 +135,41 @@ def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure(tmp_path: 
         ).read_bytes()
     )
 
+    profile = tuning_file.with_name("viewing.conf")
+    profile.write_bytes(
+        (
+            Path(__file__).resolve().parents[2] / "packaging/shared-assets/pioreactor/camera/viewing.conf"
+        ).read_bytes()
+    )
     arguments = get_rpicam_still_arguments("/usr/bin/rpicam-still", 0, dot_pioreactor)
 
     assert "--shutter" not in arguments
     assert "--gain" not in arguments
-    assert arguments[arguments.index("--metering") + 1] == "spot"
-    assert arguments[arguments.index("--quality") + 1] == "75"
+    assert arguments[arguments.index("--config") + 1] == str(profile)
+    assert "--metering" not in arguments
+    assert "--quality" not in arguments
+    settings = dict(
+        line.split("=", 1) for line in profile.read_text().splitlines() if line and not line.startswith("#")
+    )
+    assert settings == {
+        "tuning-file": "ov5647_noir_200ms.json",
+        "mode": "2592:1944:10:P",
+        "width": "2592",
+        "height": "1944",
+        "buffer-count": "2",
+        "framerate": "0",
+        "metering": "spot",
+        "awbgains": "1,1",
+        "brightness": "0",
+        "contrast": "1.1",
+        "saturation": "0",
+        "sharpness": "0",
+        "denoise": "cdn_hq",
+        "quality": "75",
+    }
 
-    tuning_file = Path(arguments[arguments.index("--tuning-file") + 1])
+    assert "--tuning-file" not in arguments
+    tuning_file = profile.parent / settings["tuning-file"]
     tuning = json_decode(tuning_file.read_bytes())
     agc = next(algorithm["rpi.agc"] for algorithm in tuning["algorithms"] if "rpi.agc" in algorithm)
 
@@ -153,11 +179,20 @@ def test_rpicam_arguments_use_spot_metering_and_bounded_auto_exposure(tmp_path: 
     }
 
 
-def test_rpicam_arguments_require_the_filesystem_tuning_file(tmp_path: Path) -> None:
-    dot_pioreactor = tmp_path / ".pioreactor"
+def test_rpicam_arguments_allow_a_custom_profile_without_overriding_its_tuning(tmp_path: Path) -> None:
+    profile = tmp_path / "inference.conf"
+    profile.write_text("tuning-file=/custom/inference.json\nsaturation=1\n", encoding="utf-8")
 
-    with pytest.raises(CameraUnavailableError, match="Camera tuning file is missing"):
-        get_rpicam_still_arguments("/usr/bin/rpicam-still", 0, dot_pioreactor)
+    arguments = get_rpicam_still_arguments("/usr/bin/rpicam-still", 0, tmp_path, capture_profile=profile)
+
+    assert arguments[arguments.index("--config") + 1] == str(profile)
+    assert "--tuning-file" not in arguments
+    assert "--saturation" not in arguments
+    assert "--mode" not in arguments
+    assert "--width" not in arguments
+    assert "--height" not in arguments
+    assert "--buffer-count" not in arguments
+    assert "--framerate" not in arguments
 
 
 def test_start_camera_warmer_uses_persistent_signal_mode(
@@ -174,6 +209,7 @@ def test_start_camera_warmer_uses_persistent_signal_mode(
     tuning_file = tmp_path / "camera" / "ov5647_noir_200ms.json"
     tuning_file.parent.mkdir()
     tuning_file.write_text("{}", encoding="utf-8")
+    tuning_file.with_name("viewing.conf").write_text("quality=75\n", encoding="utf-8")
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
     monkeypatch.setattr(camera, "CAMERA_WARMER_RUNTIME_DIR", tmp_path)
     monkeypatch.setattr(camera, "camera_capture_lock", nullcontext)
@@ -200,7 +236,8 @@ def test_start_camera_warmer_uses_persistent_signal_mode(
     pid_path, image_path, latest_path, metadata_path = camera_warmer_runtime_paths()
     assert pid_path.read_text(encoding="utf-8") == "123"
     assert len(popen_calls) == 1
-    arguments, _ = popen_calls[0]
+    arguments, kwargs = popen_calls[0]
+    assert kwargs["cwd"] == tmp_path / "camera"
     assert arguments[0:3] == ["/usr/bin/rpicam-still", "--camera", "1"]
     assert "--signal" in arguments
     assert arguments[arguments.index("--timeout") + 1] == "0"
@@ -956,6 +993,7 @@ def test_rpicam_backend_uses_persistent_process_and_stores_normal_still(
     tuning_file = dot_pioreactor / "camera" / "ov5647_noir_200ms.json"
     tuning_file.parent.mkdir(parents=True)
     tuning_file.write_text("{}", encoding="utf-8")
+    tuning_file.with_name("viewing.conf").write_text("quality=75\n", encoding="utf-8")
     configure_camera_backend(
         monkeypatch,
         capture_backend="rpicam",
@@ -1037,6 +1075,7 @@ def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
     tuning_file = dot_pioreactor / "camera" / "ov5647_noir_200ms.json"
     tuning_file.parent.mkdir(parents=True)
     tuning_file.write_text("{}", encoding="utf-8")
+    tuning_file.with_name("viewing.conf").write_text("quality=75\n", encoding="utf-8")
     configure_camera_backend(monkeypatch, capture_backend="rpicam", keep_camera_active="1")
     monkeypatch.setattr(camera, "camera_warmer_pid", lambda: None)
     monkeypatch.setattr(camera.shutil, "which", lambda _command: "/usr/bin/rpicam-still")
@@ -1044,6 +1083,7 @@ def test_rpicam_backend_falls_back_to_one_shot_and_then_starts_warmer(
     capture_commands: list[list[str]] = []
 
     def capture(arguments: list[str], **_kwargs: object) -> None:
+        assert _kwargs["cwd"] == dot_pioreactor / "camera"
         capture_commands.append(arguments)
         Path(arguments[-1]).write_bytes(b"one-shot camera still")
 
@@ -1629,6 +1669,7 @@ def test_rpicam_focus_preview_returns_focus_score_from_capture_metadata(
     tuning_file = dot_pioreactor / "camera" / "ov5647_noir_200ms.json"
     tuning_file.parent.mkdir(parents=True)
     tuning_file.write_text("{}", encoding="utf-8")
+    tuning_file.with_name("viewing.conf").write_text("quality=75\n", encoding="utf-8")
     configure_camera_backend(
         monkeypatch,
         capture_backend="rpicam",

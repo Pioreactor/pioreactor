@@ -6,7 +6,7 @@ import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import ListItemText from "@mui/material/ListItemText";
 import DownloadIcon from "@mui/icons-material/Download";
-import SettingsIcon from "@mui/icons-material/Settings";
+import SettingsIcon from "@mui/icons-material/SettingsOutlined";
 import Typography from '@mui/material/Typography';
 import { Link } from 'react-router';
 

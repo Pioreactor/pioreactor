@@ -12,7 +12,7 @@ import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
 import Snackbar from './components/Snackbar';
 import Select from '@mui/material/Select';
-import SaveIcon from '@mui/icons-material/Save';
+import SaveIcon from '@mui/icons-material/SaveOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';

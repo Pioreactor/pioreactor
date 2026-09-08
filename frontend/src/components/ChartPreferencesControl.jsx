@@ -17,7 +17,7 @@ import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import SettingsIcon from '@mui/icons-material/Settings';
+import SettingsIcon from '@mui/icons-material/SettingsOutlined';
 import Snackbar from "./Snackbar";
 import Chip from '@mui/material/Chip';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';

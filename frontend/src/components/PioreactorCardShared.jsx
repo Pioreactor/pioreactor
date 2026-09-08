@@ -19,7 +19,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CancelIcon from "@mui/icons-material/Cancel";
 import CloseIcon from "@mui/icons-material/Close";
-import TuneIcon from "@mui/icons-material/Tune";
+import CalibrationIcon from "./CalibrationIcon";
 import { alpha, keyframes, styled } from "@mui/material/styles";
 import { useConfirm } from "material-ui-confirm";
 import { Link } from "react-router";
@@ -219,7 +219,7 @@ export function CalibrateDialog({
   return (
     <React.Fragment>
       <Button color="primary" disabled={disabled} onClick={handleClickOpen}>
-        <TuneIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon} /> Calibrate
+        <CalibrationIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon} /> Calibrations
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
@@ -378,7 +378,7 @@ export function CalibrateDialog({
                         <TableCell align="left" sx={{ padding: "6px 0px" }}>
                           <Chip
                             size="small"
-                            icon={<TuneIcon />}
+                            icon={<CalibrationIcon />}
                             label={calName}
                             data-calibration-name={calName}
                             data-device={device}

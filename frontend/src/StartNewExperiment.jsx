@@ -15,7 +15,7 @@ import Button from "@mui/material/Button";
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import {useNavigate } from 'react-router';
-import SaveIcon from '@mui/icons-material/Save';
+import SaveIcon from '@mui/icons-material/SaveOutlined';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { useExperiment } from './providers/ExperimentContext';

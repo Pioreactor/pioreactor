@@ -42,8 +42,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import FlareIcon from '@mui/icons-material/Flare';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
-import SettingsIcon from '@mui/icons-material/Settings';
+import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
+import ControlIcon from './components/ControlIcon';
 import IconButton from '@mui/material/IconButton';
 import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
@@ -917,7 +917,7 @@ function SettingsActionsDialog({
   return (
     <div>
     <Button disabled={disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
+      <ControlIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} slotProps={{
       paper: {
@@ -1935,7 +1935,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   return (
     <React.Fragment>
     <Button onClick={handleClickOpen} color="primary">
-      <SettingsIcon fontSize="small" sx={textIcon}/> Control all Pioreactors
+      <ControlIcon fontSize="small" sx={textIcon}/> Control all Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{
       paper: {

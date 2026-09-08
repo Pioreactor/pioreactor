@@ -7,7 +7,7 @@ import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import Alert from "@mui/material/Alert";
 import CardContent from "@mui/material/CardContent";
-import SaveIcon from "@mui/icons-material/Save";
+import SaveIcon from "@mui/icons-material/SaveOutlined";
 import TextField from "@mui/material/TextField";
 import FormControl from "@mui/material/FormControl";
 import InputAdornment from "@mui/material/InputAdornment";

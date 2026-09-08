@@ -35,7 +35,7 @@ import UploadIcon from '@mui/icons-material/Upload';
 import DownloadIcon from '@mui/icons-material/Download';
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';
-import TuneIcon from '@mui/icons-material/Tune';
+import CalibrationIcon from './components/CalibrationIcon';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
@@ -683,7 +683,7 @@ function CalibrationData({ loading, rawData }) {
 
                       <Chip
                         size="small"
-                        icon={<TuneIcon/>}
+                        icon={<CalibrationIcon/>}
                         label={calName}
                         data-calibration-name={calName}
                         />

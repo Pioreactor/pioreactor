@@ -16,7 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import TuneIcon from "@mui/icons-material/Tune";
+import CalibrationIcon from "./components/CalibrationIcon";
 import { fetchTaskResult, getSuccessfulUnitTaskResults } from "./utils/tasks";
 import PioreactorIcon from "./components/PioreactorIcon";
 import {
@@ -64,7 +64,7 @@ function CoverageCell({ cell, onNavigate }) {
         {status === COVERAGE_STATUS.ACTIVE && hasCalibrationLink && (
           <Chip
             size="small"
-            icon={<TuneIcon />}
+            icon={<CalibrationIcon />}
             label={cell.calibrationName}
             data-calibration-name={cell.calibrationName}
             clickable

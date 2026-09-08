@@ -29,7 +29,7 @@ import PioreactorIcon from "./components/PioreactorIcon"
 import yaml from "js-yaml";
 import dayjs from 'dayjs';
 import Snackbar from './components/Snackbar';
-import TuneIcon from '@mui/icons-material/Tune';
+import CalibrationIcon from './components/CalibrationIcon';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
@@ -520,7 +520,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                         <TableCell>
                           <Chip
                             size="small"
-                            icon={<TuneIcon/>}
+                            icon={<CalibrationIcon/>}
                             label={calibrationName}
                             data-calibration-name={calibrationName}
                             />

@@ -2,7 +2,7 @@ import React from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
-import TuneIcon from "@mui/icons-material/Tune";
+import CalibrationIcon from "./CalibrationIcon";
 import { Link } from "react-router";
 import EstimatorIcon from "./EstimatorIcon";
 
@@ -26,7 +26,7 @@ export default function CalibrationSessionResultLinks({ result, protocolTargetDe
               View{" "}
               <Chip
                 size="small"
-                icon={<TuneIcon />}
+                icon={<CalibrationIcon />}
                 clickable
                 component={Link}
                 sx={{ my: 1 }}
@@ -42,7 +42,7 @@ export default function CalibrationSessionResultLinks({ result, protocolTargetDe
         completedCalibrationDevice && (
           <Chip
             size="small"
-            icon={<TuneIcon />}
+            icon={<CalibrationIcon />}
             clickable
             component={Link}
             to={`/calibrations/${unit}/${completedCalibrationDevice}/${result.calibration.calibration_name}`}
