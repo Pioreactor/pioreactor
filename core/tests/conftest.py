@@ -123,6 +123,7 @@ def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
     mock_get = mocker.patch(
         "pioreactor.cluster_management.get_from_leader", autospec=True, side_effect=mock_get_response
     )
+    mocker.patch("pioreactor.actions.leader.experiment_profile.get_from_leader", new=mock_get)
 
     return mock_get
 

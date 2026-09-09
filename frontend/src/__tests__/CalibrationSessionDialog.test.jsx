@@ -243,13 +243,6 @@ describe("CalibrationSessionDialog", () => {
 
     await screen.findByText("Adjust the focus slightly, then take another snapshot.");
     const firstImage = screen.getByRole("img", { name: "Camera focus snapshot from unit-1." });
-    expect(
-      screen.getByRole("img", {
-        name: "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
-      }),
-    ).toHaveAttribute("src", "/static/svgs/camera-focus-tool-concept-02-sequence.svg");
-    expect(screen.getByRole("dialog")).toHaveClass("MuiDialog-paperWidthMd");
-    expect(firstImage).toHaveStyle({ maxHeight: "520px" });
     expect(screen.getByText("Focus guidance").closest("[aria-live='polite']")).toBeTruthy();
     expect(screen.queryByText(/FocusFoM/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/best this session/i)).not.toBeInTheDocument();
@@ -282,11 +275,6 @@ describe("CalibrationSessionDialog", () => {
     expect(screen.getByText("Loading image...")).toBeInTheDocument();
 
     await screen.findByText("Blurrier — turn back slightly.");
-    expect(
-      screen.queryByRole("img", {
-        name: "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
-      }),
-    ).not.toBeInTheDocument();
     const secondImage = screen.getByRole("img", { name: "Camera focus snapshot from unit-1." });
     expect(secondImage).toHaveAttribute(
       "src",

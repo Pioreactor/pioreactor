@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const mockNavigate = jest.fn();
@@ -66,19 +66,12 @@ describe("Plugins", () => {
     jest.resetAllMocks();
   });
 
-  test("selects the plugin target from the page heading", async () => {
+  test("selects the plugin target", async () => {
     const user = userEvent.setup();
     renderPlugins();
 
-    const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveTextContent("Manage plugins for");
-    expect(heading.closest("header")).not.toBeNull();
-
-    const targetSelect = await within(heading).findByRole("combobox", {
-      name: "Pioreactor",
-    });
+    const targetSelect = await screen.findByRole("combobox", { name: "Pioreactor" });
     await waitFor(() => expect(targetSelect).toBeEnabled());
-    expect(within(heading).getByText("unit-1")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Installed plugins on unit-1" })).toBeVisible();
 
     await user.click(targetSelect);

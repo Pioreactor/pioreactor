@@ -31,7 +31,7 @@ describe("StirringCalibrationBatchDialog", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByTestId("CloseIcon").closest("button"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });

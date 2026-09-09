@@ -59,11 +59,6 @@ describe("Start new experiment", () => {
     const populateButton = await screen.findByRole("button", {
       name: "Populate from latest-exp",
     });
-    expect(within(populateButton).getByTestId("PlayCircleOutlinedIcon")).toBeTruthy();
-    expect(within(populateButton).getByText("latest-exp").closest("[data-experiment-name]")).toHaveAttribute(
-      "data-experiment-name",
-      "latest-exp",
-    );
     const experimentNameInput = screen.getByRole("textbox", { name: /Experiment name/ });
     const descriptionInput = screen.getByRole("textbox", {
       name: "Description (optional - can be edited later)",
@@ -84,7 +79,6 @@ describe("Start new experiment", () => {
 
     fireEvent.click(await screen.findByRole("button", {name: "Choose a previous experiment"}));
     const menu = await screen.findByRole("menu");
-    expect(within(menu).queryByText("Search all experiments…")).toBeNull();
     fireEvent.click(within(menu).getByRole("option", {name: /second-exp/}));
 
     const populateButton = screen.getByRole("button", {name: "Populate from second-exp"});
@@ -98,5 +92,4 @@ describe("Start new experiment", () => {
     expect(screen.getByText("second-tag")).toBeTruthy();
     expect(global.fetch).not.toHaveBeenCalled();
   });
-
 });

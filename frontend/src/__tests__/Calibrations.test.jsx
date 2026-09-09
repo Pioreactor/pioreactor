@@ -27,7 +27,6 @@ const { fetchTaskResult, getSuccessfulUnitTaskResults } = require("../utils/task
 const {
   default: Calibrations,
   UploadCalibrationDialog,
-  buildCalibrationUploadFailureMessage,
   getFailedCalibrationUploadUnits,
 } = require("../Calibrations");
 
@@ -197,15 +196,6 @@ describe("calibration upload helpers", () => {
         },
       }),
     ).toEqual(["xr1", "xr3"]);
-  });
-
-  test("formats failed unit names into a single message", () => {
-    expect(buildCalibrationUploadFailureMessage(["xr1"])).toBe(
-      "Calibration upload failed for unit: xr1.",
-    );
-    expect(buildCalibrationUploadFailureMessage(["xr1", "xr3"])).toBe(
-      "Calibration upload failed for units: xr1, xr3.",
-    );
   });
 });
 

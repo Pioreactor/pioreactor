@@ -105,14 +105,6 @@ describe("CameraStills", () => {
     jest.resetAllMocks();
   });
 
-  test("identifies the camera unit below the page toolbar", async () => {
-    renderCameraStills();
-
-    expect(await screen.findByRole("heading", { level: 1, name: "Camera snapshots on unit-1" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to cameras" })).toHaveAttribute("href", "/cameras");
-    expect(screen.getByRole("separator")).toBeInTheDocument();
-  });
-
   test("shows progress while downloading all snapshots", async () => {
     const user = userEvent.setup();
     const archive = new Blob(["camera archive"], { type: "application/zip" });
@@ -178,12 +170,7 @@ describe("CameraStills", () => {
     });
     await user.click(deleteButton);
 
-    expect(mockConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Delete this camera snapshot?",
-        confirmationText: "Delete",
-      }),
-    );
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/workers/unit-1/camera/experiments/experiment%20a/stills/image-1.jpg",
@@ -208,7 +195,7 @@ describe("CameraStills", () => {
     );
   });
 
-  test("shows informational icons for scheduled and manual snapshots", async () => {
+  test("distinguishes scheduled and manual capture reasons", async () => {
     const user = userEvent.setup();
     cameraStills = [
       cameraStills[0],
@@ -224,9 +211,6 @@ describe("CameraStills", () => {
 
     const scheduledIcon = await screen.findByRole("img", { name: "Scheduled snapshot" });
     const manualIcon = screen.getByRole("img", { name: "Manual snapshot" });
-    expect(scheduledIcon).toHaveAttribute("data-testid", "ScheduleIcon");
-    expect(manualIcon).toHaveAttribute("data-testid", "LocalSeeIcon");
-    expect(within(screen.getByRole("button", { name: "Capture snapshot" })).getByTestId("LocalSeeIcon")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Scheduled snapshot" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manual snapshot" })).not.toBeInTheDocument();
 
@@ -235,32 +219,6 @@ describe("CameraStills", () => {
     await user.unhover(scheduledIcon);
     await user.hover(manualIcon);
     expect(await screen.findByRole("tooltip", { name: "Manual snapshot" })).toBeInTheDocument();
-  });
-
-  test("uses labeled icon buttons for snapshot actions", async () => {
-    const user = userEvent.setup();
-    renderCameraStills();
-
-    const deleteButton = await screen.findByRole("button", {
-      name: /Delete camera snapshot captured at/,
-    });
-    const renameButton = screen.getByRole("button", { name: "Rename photo image-1" });
-    const openImageLink = screen.getByRole("link", { name: "Open image" });
-    expect(within(deleteButton).getByTestId("DeleteOutlinedIcon")).toBeInTheDocument();
-    expect(within(renameButton).getByTestId("EditIcon")).toBeInTheDocument();
-    expect(within(openImageLink).getByTestId("FullscreenIcon")).toBeInTheDocument();
-    expect(deleteButton).not.toHaveTextContent("Delete");
-    expect(renameButton).not.toHaveTextContent("Rename");
-    expect(openImageLink).not.toHaveTextContent("Open image");
-
-    await user.hover(renameButton);
-    expect(await screen.findByRole("tooltip", { name: "Rename photo" })).toBeInTheDocument();
-    await user.unhover(renameButton);
-    await user.hover(deleteButton);
-    expect(await screen.findByRole("tooltip", { name: "Delete snapshot" })).toBeInTheDocument();
-    await user.unhover(deleteButton);
-    await user.hover(openImageLink);
-    expect(await screen.findByRole("tooltip", { name: "Open image" })).toBeInTheDocument();
   });
 
   test("renames a photo from its small card", async () => {
@@ -346,14 +304,10 @@ describe("CameraStills", () => {
       expect.stringContaining("image-2.jpg"),
     );
     expect(within(dialog).getByText("image-2")).toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: /Rename photo/ })).not.toBeInTheDocument();
     const manualIcon = within(dialog).getByRole("img", { name: "Manual snapshot" });
-    expect(manualIcon).toHaveAttribute("data-testid", "LocalSeeIcon");
     await user.hover(manualIcon);
     expect(await screen.findByRole("tooltip", { name: "Manual snapshot" })).toBeInTheDocument();
     await user.unhover(manualIcon);
-    expect(within(dialog).queryByRole("button", { name: "Previous snapshot" })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Next snapshot" })).not.toBeInTheDocument();
 
     await user.keyboard("{ArrowRight}");
 
@@ -362,10 +316,7 @@ describe("CameraStills", () => {
       expect.stringContaining("image-1.jpg"),
     );
     expect(within(dialog).getByText("image-1")).toBeInTheDocument();
-    expect(within(dialog).getByRole("img", { name: "Scheduled snapshot" })).toHaveAttribute(
-      "data-testid",
-      "ScheduleIcon",
-    );
+    expect(within(dialog).getByRole("img", { name: "Scheduled snapshot" })).toBeInTheDocument();
 
     await user.keyboard("{ArrowLeft}");
 

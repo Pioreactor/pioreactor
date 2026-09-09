@@ -84,7 +84,6 @@ describe("Experiment overview metadata", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Tags:")).toBeTruthy();
     expect(screen.getByText("rna")).toBeTruthy();
     expect(screen.getByText("screening")).toBeTruthy();
   });

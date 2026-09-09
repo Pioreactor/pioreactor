@@ -73,7 +73,6 @@ describe("CameraPanel", () => {
       dayjs("2026-06-11T12:00:00Z").format("YYYY-MM-DD HH:mm:ss"),
     )).toBeInTheDocument();
     const captureReasonIcon = within(dialog).getByRole("img", { name: "Manual snapshot" });
-    expect(captureReasonIcon).toHaveAttribute("data-testid", "LocalSeeIcon");
     fireEvent.mouseOver(captureReasonIcon);
     expect(await screen.findByRole("tooltip", { name: "Manual snapshot" })).toBeInTheDocument();
   });

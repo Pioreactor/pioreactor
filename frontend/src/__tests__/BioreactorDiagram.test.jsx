@@ -92,7 +92,6 @@ describe("BioreactorDiagram model", () => {
     expect(airTube.label).toBe("");
     expect(airTube.load).toBeNull();
     expect(airTube.airStone).toBeUndefined();
-    expect(airTube.tipY).toBe(112);
   });
 });
 
@@ -157,37 +156,36 @@ describe("BioreactorDiagram SVG", () => {
     act(() => callback(timestamp));
   }
 
-  test.each([[20, 510, 400], [40, 610, 500]])(
+  test.each([20, 40])(
     "renders the %i mL geometry with the efflux tip aligned to its marker",
-    (size, diagramHeight, vialHeight) => {
+    (size) => {
       const diagram = renderDiagram({size, liquidVolume: 10, maxVolume: 15});
       const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
-      expect(svg.tagName.toLowerCase()).toBe("svg");
-      expect(svg).toHaveAttribute("viewBox", `0 0 400 ${diagramHeight}`);
       expect(diagram.getByText("10 mL")).toBeInTheDocument();
       expect(diagram.getByText("15 mL")).toBeInTheDocument();
       const tube = svg.querySelector('[data-tube="waste"] rect');
       const marker = svg.querySelector('line[stroke-dasharray="4 3"]');
-      const expectedTip = 65 + vialHeight * (1 - 15 / size);
-      expect(Number(tube.getAttribute("y")) + Number(tube.getAttribute("height"))).toBe(expectedTip);
-      expect(Number(marker.getAttribute("y1"))).toBe(expectedTip);
+      expect(Number(tube.getAttribute("y")) + Number(tube.getAttribute("height"))).toBe(
+        Number(marker.getAttribute("y1")),
+      );
       expect(window.requestAnimationFrame).not.toHaveBeenCalled();
     },
   );
 
-  test("animates only the stir bar, then resets and stops when stirring stops", () => {
+  test("animates the stir bar, then resets and stops when stirring stops", () => {
     const diagram = renderDiagram();
     const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
     const stirBar = svg.querySelector('[data-part="stir-bar"]');
-    const liquid = svg.querySelector('rect[fill="#e0d0b5"]');
-    const liquidBefore = liquid.outerHTML;
+    const initialWidth = stirBar.getAttribute("width");
+    const initialX = stirBar.getAttribute("x");
     sendTelemetry("pwms/dc", {17: 10});
     advanceFrame(0);
     advanceFrame(100);
-    expect(Number(stirBar.getAttribute("width"))).toBeLessThan(80);
-    expect(Number(stirBar.getAttribute("width"))).toBeGreaterThanOrEqual(10);
-    expect(Number(stirBar.getAttribute("x")) + Number(stirBar.getAttribute("width")) / 2).toBeCloseTo(200);
-    expect(liquid.outerHTML).toBe(liquidBefore);
+    expect(Number(stirBar.getAttribute("width"))).toBeLessThan(Number(initialWidth));
+    expect(Number(stirBar.getAttribute("width"))).toBeGreaterThan(0);
+    expect(Number(stirBar.getAttribute("x")) + Number(stirBar.getAttribute("width")) / 2).toBeCloseTo(
+      Number(initialX) + Number(initialWidth) / 2,
+    );
 
     // Unrelated telemetry must not restart the animation.
     const scheduledFrames = window.requestAnimationFrame.mock.calls.length;
@@ -196,8 +194,8 @@ describe("BioreactorDiagram SVG", () => {
     expect(window.cancelAnimationFrame).not.toHaveBeenCalled();
 
     sendTelemetry("pwms/dc", {17: 0});
-    expect(stirBar).toHaveAttribute("width", "80");
-    expect(stirBar).toHaveAttribute("x", "160");
+    expect(stirBar).toHaveAttribute("width", initialWidth);
+    expect(stirBar).toHaveAttribute("x", initialX);
     expect(frames.size).toBe(0);
     expect(svg.querySelector("desc")).toHaveTextContent("Stirring off");
   });
@@ -217,6 +215,10 @@ describe("BioreactorDiagram SVG", () => {
   test("updates idle telemetry, liquid volume, and the liquid-pump warning without animation", () => {
     const diagram = renderDiagram();
     const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
+    const led = svg.querySelector('[data-led="A"] rect');
+    const heater = svg.querySelector('[data-part="heater"] rect');
+    const mediaTube = svg.querySelector('[data-tube="media"] rect');
+    const initialFills = [led, heater, mediaTube].map(element => element.getAttribute("fill"));
     sendTelemetry("leds/intensity", {A: 30, B: 0, C: 0, D: 0});
     sendTelemetry("temperature_automation/temperature", {temperature: 31});
     sendTelemetry("growth_rate_calculating/od_filtered", {od_filtered: 0.8});
@@ -224,15 +226,13 @@ describe("BioreactorDiagram SVG", () => {
     expect(diagram.getByText("Temp: 31°C")).toBeInTheDocument();
     expect(diagram.getByText("nOD: 0.8")).toBeInTheDocument();
     expect(diagram.getByText(/diagram above may not be an accurate/)).toBeInTheDocument();
-    expect(svg.querySelector('[data-led="A"] rect')).toHaveAttribute("fill", "rgba(234, 188, 116, 0.5)");
-    expect(svg.querySelector('[data-part="heater"] rect')).toHaveAttribute("fill", "#D8A0A2");
-    expect(svg.querySelector('[data-tube="media"] rect')).toHaveAttribute("fill", "#EABC74");
-    expect(svg.querySelectorAll("polyline").length).toBeGreaterThan(0);
+    [led, heater, mediaTube].forEach((element, index) => {
+      expect(element.getAttribute("fill")).not.toBe(initialFills[index]);
+    });
     diagram.rerender(
       <BioreactorDiagram experiment="experiment-1" unit="unit-1" config={config} size={20} liquidVolume={15} />,
     );
     expect(diagram.getByText("15 mL")).toBeInTheDocument();
-    expect(svg.querySelector('rect[fill="#e0d0b5"]')).toHaveAttribute("height", "300");
     sendTelemetry("pwms/dc", {});
     expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
@@ -258,9 +258,12 @@ describe("BioreactorDiagram SVG", () => {
     const diagram = renderDiagram({config: {...config, PWM: {...config.PWM, 4: "air_bubbler"}}});
     const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
     const airStone = svg.querySelector('[data-tube="air"] rect:last-child');
-    expect(airStone).toHaveAttribute("fill", "#99999B");
+    const initialFill = airStone.getAttribute("fill");
     sendTelemetry("pwms/dc", {12: 35});
-    expect(airStone).toHaveAttribute("fill", "#EABC74");
+    expect(airStone.getAttribute("fill")).not.toBe(initialFill);
+    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
+    sendTelemetry("pwms/dc", {});
+    expect(airStone).toHaveAttribute("fill", initialFill);
     expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
   });
 });

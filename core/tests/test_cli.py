@@ -1152,7 +1152,7 @@ def test_camera_snapshot(monkeypatch: pytest.MonkeyPatch, supplied_name: str, ex
     )
     supplied_names: list[str | None] = []
 
-    def capture(name: str | None) -> CameraStillMetadata:
+    def capture(name: str | None, *, capture_profile: Path | None) -> CameraStillMetadata:
         supplied_names.append(name)
         return metadata
 
@@ -1170,7 +1170,7 @@ def test_camera_snapshot_reports_capture_error(monkeypatch: pytest.MonkeyPatch) 
     from pioreactor.actions import camera_snapshot
     from pioreactor.camera import CameraUnavailableError
 
-    def raise_camera_unavailable(name: str | None) -> None:
+    def raise_camera_unavailable(name: str | None, *, capture_profile: Path | None) -> None:
         raise CameraUnavailableError("No camera detected.")
 
     monkeypatch.setattr(camera_snapshot, "camera_snapshot", raise_camera_unavailable)
