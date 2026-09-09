@@ -11,7 +11,7 @@ This repository contains the **executable code for the Pioreactor project**. Its
 
 ## Local README and AGENTS files
 
-Read the nearest `AGENTS.md` or `README.md` when working in a subtree. This is the index; keep detailed subsystem rules in the local file to avoid drift.
+Read the nearest `AGENTS.md` or `README.md` when working in a subtree.
 
 - `AGENTS.md`: repo-wide agent guidance, architecture notes, testing expectations, and search restrictions.
 - `README.md`: public project overview, product positioning, purchase link, and docs link.
@@ -85,34 +85,6 @@ Do not assume bare `python`, `pytest`, or `mypy` point at the correct interprete
 
 `DOT_PIOREACTOR` is the effective data root for much of the application. When debugging filesystem, calibration, profile, plugin, backup/restore, or config issues, confirm which `DOT_PIOREACTOR` root the process is using before changing code.
 
-**Startup order (recommended):**
-
-0. Before starting anything, run `make dev-status` to see whether the Huey consumer, Flask API (4999), or frontend dev server (3000) are already up. Only launch what's listed under "Need to start".
-1. Start the Huey consumer:
-
-   ```bash
-   make huey-dev
-   ```
-2. Start the web API (port **4999**):
-
-   ```bash
-   make web-dev
-   ```
-3. Start the React dev server (port **3000**):
-
-   ```bash
-   make frontend-dev
-   ```
-4. (Optional) Run Pioreactor jobs, e.g.:
-
-   ```bash
-   pio run XYZ
-   pio kill --job-name XYZ
-   ```
-
-   Some jobs might be blocking and long-running, so use the background feature of your harness to not block.
-
----
 
 ## Tools & commands
 
@@ -183,7 +155,7 @@ We run GitHub Actions for CI, located in `.github/workflows/ci.yaml`.
 
 ---
 
-## Important local filesystem locations
+## Important local $DOT_PIOREACTOR filesystem locations
 
 - `.pioreactor/config.ini` contains development configuration parameters.
 - `.pioreactor/plugins/` is where Python plugin files (`*.py`) can be added.
@@ -208,12 +180,7 @@ For web and cluster-control changes, decide which ownership boundary is correct 
 
 A common mistake is patching `api.py` when the real behavior belongs in `unit_api.py` or in the Huey task layer.
 
-Some leader `/api` read endpoints fan out to worker `/unit_api` routes and may use a short-TTL leader-side cache. When adding or changing cluster-wide reads:
-
-- prefer existing cached fan-out helpers when the response can tolerate brief staleness
-- keep cached payloads close to the uncached worker payload shape
-- invalidate affected entries after request validation and before queueing or dispatching the mutation
-- avoid caching highly volatile or write-heavy paths
+Some leader `/api` read endpoints fan out to worker `/unit_api` routes and may use a short-TTL leader-side cache.
 
 ---
 
@@ -291,26 +258,3 @@ The Pioreactor software enables users to control and monitor small-scale bioreac
 Tickets from `tk` look like `pio-xxxx`.
 
 Use tags sparingly. Prefer 2-4 broad tags per ticket: one area tag, one domain tag when relevant, and one concern tag only if it changes how the work should be found later. Do not tag ticket type, priority, status, or temporary review batches; `tk` already tracks those better.
-
-Preferred broad tags:
-
-- `frontend`
-- `backend`
-- `web-api-and-tasks`
-- `cli`
-- `packaging`
-- `docs`
-- `automations`
-- `dosing`
-- `temperature`
-- `od`
-- `calibration`
-- `experiment-profiles`
-- `plugins`
-- `config`
-- `typing`
-- `reliability`
-- `performance`
-- `operating-system`
-
----
