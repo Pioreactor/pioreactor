@@ -33,7 +33,10 @@ def focus_guidance_from_scores(focus_scores: list[int | None]) -> tuple[str, str
 
     valid_focus_scores = [score for score in focus_scores if score is not None]
     if len(valid_focus_scores) == 1:
-        return "initial", "Adjust the focus slightly using the focus tool, then take another snapshot."
+        return (
+            "initial",
+            "Adjust the focus slightly using the focus tool, then take another snapshot. Tip: you can leave the manual focus on.",
+        )
 
     initial_focus_score = valid_focus_scores[0]
     comparison_focus_score = initial_focus_score
@@ -141,14 +144,14 @@ class TakeSnapshot(SessionStep):
             raise ValueError("Turn off any running jobs before starting this calibration.")
 
         step = steps.action(
-            "Prepare the vial and camera",
-            "Fill the vial half-way with a slightly turbid solution. Place the camera into the camera holder on the vial cap, then press Take snapshot "
+            "Prepare the camera and focus jig",
+            "Place the camera into the camera holder on the manual focus jig. Add a ~50 x 50mm piece of card stock, with text, into the slot. Then press Take snapshot "
             "to take a snapshot.",
         )
         step.metadata = {
             "image": {
                 "src": "/static/svgs/camera-manual-focus-setup.svg",
-                "alt": "Place the camera in the holder on a capped, half-filled vial with a stir bar.",
+                "alt": "Place camera into the camera focus jig (provided by us), and a 50 x 50 mm card stock in the holder.",
                 "caption": "Place camera into the camera focus jig (provided by us), and a 50 x 50 mm card stock in the holder.",
             },
             "dialog": {

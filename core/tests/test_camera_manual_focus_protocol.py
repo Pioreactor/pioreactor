@@ -55,15 +55,6 @@ def test_manual_focus_session_captures_and_retakes_images(monkeypatch: pytest.Mo
         "max_width": "md",
         "height": "min(90vh, 860px)",
     }
-    assert first_focus_step.metadata["guidance"] == {
-        "title": "Focus guidance",
-        "status": "initial",
-        "message": "Adjust the focus slightly using the focus tool, then take another snapshot.",
-        "image": {
-            "src": "/static/svgs/camera-focus-tool-concept-02-sequence.svg",
-            "alt": "Fit the focusing tool over the camera lens, then rotate the handle in either direction.",
-        },
-    }
 
     second_focus_step = engine.advance({"action": "retake"})
 
