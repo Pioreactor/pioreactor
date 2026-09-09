@@ -20,6 +20,7 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils.pwm import SoftwarePWMOutputDevice
 from pioreactor.whoami import get_unit_name
 from tests.utils import FakeMQTTClient
+from tests.utils import wait_for
 
 
 def pause(n=1) -> None:
@@ -103,7 +104,7 @@ def test_pwm_update_mqtt() -> None:
     pwm12.start(50)
     pwm12.change_duty_cycle(20)
     pwm12.clean_up()
-    pause()
+    assert wait_for(lambda: len(mqtt_items) == 3)
 
     assert len(mqtt_items) == 3
     assert json.loads(mqtt_items[0])["12"] == 50.0

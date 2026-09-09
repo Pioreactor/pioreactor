@@ -1166,10 +1166,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
             pause(2)
             pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07)
             # there should be a log published with "Unable to set garbage in dosing_automation"
-            pause(2)
-        pause(2)
-
-    assert wait_for(lambda: any("garbage" in log["message"] for log in bucket), timeout=4.0)
+            assert wait_for(lambda: any("garbage" in log["message"] for log in bucket), timeout=4.0)
 
 
 def test_run_returns_no_event_when_latest_required_reading_is_stale() -> None:

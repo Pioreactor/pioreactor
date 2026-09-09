@@ -59,6 +59,16 @@ if [ ! -f "$CAMERA_DIRECTORY/viewing.conf" ]; then
     tmp=""
 fi
 
+if [ ! -f "$CAMERA_DIRECTORY/stable_cv.conf" ]; then
+    test -f "$SCRIPT_DIR/stable_cv.conf"
+    test -s "$SCRIPT_DIR/stable_cv.conf"
+    install -d -o pioreactor -g www-data -m 0755 "$CAMERA_DIRECTORY"
+    tmp="$(mktemp "$CAMERA_DIRECTORY/.stable_cv.conf.XXXXXX")"
+    install -o pioreactor -g www-data -m 0644 "$SCRIPT_DIR/stable_cv.conf" "$tmp"
+    mv "$tmp" "$CAMERA_DIRECTORY/stable_cv.conf"
+    tmp=""
+fi
+
 HOSTNAME=$(hostname)
 LEADER_HOSTNAME=$(sudo -u pioreactor -i pio config get cluster.topology leader_hostname)
 

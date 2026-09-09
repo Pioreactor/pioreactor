@@ -9,6 +9,7 @@ from datetime import timezone
 from datetime import UTC
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from msgspec.yaml import encode as yaml_encode
@@ -678,15 +679,24 @@ def test_typed_mutation_routes_reject_malformed_json(client, method: str, endpoi
 
 
 @pytest.mark.parametrize(
-    "endpoint",
-    ["/unit_api/system/reboot", "/unit_api/system/shutdown", "/unit_api/system/repair"],
+    "endpoint, task_name",
+    [
+        ("/unit_api/system/reboot", "reboot"),
+        ("/unit_api/system/shutdown", "shutdown"),
+        ("/unit_api/system/repair", "repair_system"),
+    ],
 )
-def test_system_action_endpoints_schedule_task(client, endpoint) -> None:
+def test_system_action_endpoints_schedule_task(
+    client, endpoint: str, task_name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """System action endpoints should schedule background tasks."""
+    task = Mock(return_value=Mock(id="system-task"))
+    monkeypatch.setattr(f"pioreactor.web.unit_api.tasks.{task_name}", task)
     resp = client.post(endpoint)
     assert resp.status_code == 202
     data = resp.get_json()
-    assert "task_id" in data and "result_url_path" in data
+    assert data["task_id"] == "system-task" and "result_url_path" in data
+    task.assert_called_once()
 
 
 def test_reboot_leader_delays_inside_task_not_http_handler(client, monkeypatch: pytest.MonkeyPatch) -> None:

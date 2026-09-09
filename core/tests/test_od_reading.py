@@ -2402,6 +2402,7 @@ def test_setting_interval_while_sleeping_preserves_pause(monkeypatch: pytest.Mon
         assert sampled.wait(1.0)
 
 
+@pytest.mark.slow
 def test_setting_interval_after_starting() -> None:
     initial_interval = 2
     with start_od_reading(

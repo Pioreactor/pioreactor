@@ -19,6 +19,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from tests.utils import FakeMQTTClient
+from tests.utils import wait_for
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARED_SQL_DIR = REPO_ROOT / "packaging" / "shared-assets" / "sql"
@@ -111,7 +112,12 @@ def test_updated_heater_dc() -> None:
             f"pioreactor/{unit}/test/temperature_automation/latest_event",
             '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}',
         )
-        sleep(5)
+        assert wait_for(
+            lambda: cursor.execute(
+                "SELECT COUNT(*) FROM temperature_automation_events WHERE pioreactor_unit=?", (unit,)
+            ).fetchone()[0]
+            == 1
+        )
 
     cursor.execute("SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()
@@ -159,7 +165,12 @@ def test_dosing_events_land_in_db() -> None:
             logger=job.logger,
             mqtt_client=job.pub_client,
         )
-        sleep(1)
+        assert wait_for(
+            lambda: cursor.execute(
+                "SELECT COUNT(*) FROM dosing_events WHERE pioreactor_unit=?", (unit,)
+            ).fetchone()[0]
+            == 2
+        )
 
     cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()
@@ -220,7 +231,16 @@ def test_bioreactor_topics_land_in_db() -> None:
         sleep(1)
         publish(f"pioreactor/{unit}/{exp}/bioreactor/current_volume_ml", 13.5)
         publish(f"pioreactor/{unit}/{exp}/bioreactor/alt_media_fraction", 0.25)
-        sleep(2)
+        assert wait_for(
+            lambda: cursor.execute(
+                "SELECT liquid_volume FROM liquid_volumes WHERE experiment=?", (exp,)
+            ).fetchall()
+            == [(13.5,)]
+            and cursor.execute(
+                "SELECT alt_media_fraction FROM alt_media_fractions WHERE experiment=?", (exp,)
+            ).fetchall()
+            == [(0.25,)]
+        )
 
     cursor.execute("SELECT liquid_volume FROM liquid_volumes WHERE experiment=?", (exp,))
     liquid_volume_results = cursor.fetchall()
@@ -311,9 +331,10 @@ def test_table_does_not_exist_in_db_but_parser_exists_logs_write_error() -> None
     with m2db.MqttToDBStreamer(unit, exp, parsers) as job:
         with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
             t = TestJob(unit=unit, experiment=exp)
-            sleep(2)
+            assert wait_for(
+                lambda: any("Unable to persist MQTT data to SQLite" in log["message"] for log in bucket)
+            )
             t.clean_up()
-            sleep(1)
 
         job.write_stats()
 

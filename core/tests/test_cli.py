@@ -41,6 +41,7 @@ from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.networking import DiscoveredWorker
 from pioreactor.utils.networking import resolve_to_address
 from tests.conftest import capture_requests
+from tests.utils import wait_for
 
 
 @pytest.fixture(autouse=True)
@@ -1354,13 +1355,8 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
         runner = CliRunner()
         result = runner.invoke(pio, ["kill", "--job-name", "dosing_automation"])
 
-        pause()
         assert result.exit_code == 0
-        pause()
-        pause()
-        pause()
-
-        assert not is_pio_job_running("dosing_automation")
+        assert wait_for(lambda: not is_pio_job_running("dosing_automation"))
 
 
 def test_pios_run_requests() -> None:

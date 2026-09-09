@@ -112,8 +112,8 @@ def test_execute_experiment_profile_order(
     experiment = "_testing_experiment"
 
     action1 = Start(hours_elapsed=0 / 60 / 60)
-    action2 = Start(hours_elapsed=2 / 60 / 60)
-    action3 = Stop(hours_elapsed=4 / 60 / 60)
+    action2 = Start(hours_elapsed=0.2 / 60 / 60)
+    action3 = Stop(hours_elapsed=0.4 / 60 / 60)
 
     profile = Profile(
         version="1.0",
@@ -148,8 +148,8 @@ def test_execute_experiment_profile_hack_for_led_intensity(
 ) -> None:
     experiment = "_testing_experiment"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"A": 50})
-    action2 = Update(hours_elapsed=1 / 60 / 60, options={"A": 40, "B": 22.5})
-    action3 = Stop(hours_elapsed=2 / 60 / 60)
+    action2 = Update(hours_elapsed=0.1 / 60 / 60, options={"A": 40, "B": 22.5})
+    action3 = Stop(hours_elapsed=0.2 / 60 / 60)
     job = "led_intensity"
 
     profile = Profile(
@@ -844,7 +844,7 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
     experiment = "_testing_experiment"
     action_true = Start(hours_elapsed=0, if_="1 == 1")
     action_false = Start(hours_elapsed=0, if_="False")
-    action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
+    action_true_conditional = Start(hours_elapsed=0.1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
 
     profile = Profile(
         version="1.0",
@@ -878,7 +878,7 @@ def test_execute_experiment_profile_pause_and_resume_actions(
 ) -> None:
     experiment = "_testing_experiment"
     pause = Pause(hours_elapsed=0)
-    resume = Resume(hours_elapsed=1 / 60 / 60)
+    resume = Resume(hours_elapsed=0.1 / 60 / 60)
 
     profile = Profile(
         version="1.0",
@@ -922,10 +922,10 @@ def test_execute_experiment_profile_dry_run_skips_job_mutations(
                     "jobbing": Job(
                         actions=[
                             Start(hours_elapsed=0),
-                            Update(hours_elapsed=1 / 60 / 60, options={"target_rpm": 500}),
-                            Pause(hours_elapsed=2 / 60 / 60),
-                            Resume(hours_elapsed=3 / 60 / 60),
-                            Stop(hours_elapsed=4 / 60 / 60),
+                            Update(hours_elapsed=0.1 / 60 / 60, options={"target_rpm": 500}),
+                            Pause(hours_elapsed=0.2 / 60 / 60),
+                            Resume(hours_elapsed=0.3 / 60 / 60),
+                            Stop(hours_elapsed=0.4 / 60 / 60),
                         ]
                     ),
                 }
@@ -1346,12 +1346,12 @@ def test_execute_experiment_profile_when_action_simple(
 ) -> None:
     experiment = "_testing_experiment"
     action = When(
-        hours_elapsed=0.0005,
+        hours_elapsed=0.1 / 60 / 60,
         condition_="${{unit1:od_reading:od1.od > 2.0}}",
         actions=[
             Log(hours_elapsed=0, options=_LogOptions(message="OD exceeded threshold")),
             Start(hours_elapsed=0, options={"target_rpm": 500}),
-            Update(hours_elapsed=0.001, options={"target_rpm": 600}),
+            Update(hours_elapsed=0.2 / 60 / 60, options={"target_rpm": 600}),
         ],
     )
 
@@ -1448,12 +1448,12 @@ def test_execute_experiment_profile_when_action_with_if(
 ) -> None:
     experiment = "_testing_experiment"
     action = When(
-        hours_elapsed=0.0005,
+        hours_elapsed=0.1 / 60 / 60,
         if_="1 == 1",
         condition_="${{unit1:od_reading:od1.od > 2.0}}",
         actions=[
             Start(hours_elapsed=0, options={"target_rpm": 500}),
-            Update(hours_elapsed=0.001, options={"target_rpm": 600}),
+            Update(hours_elapsed=0.2 / 60 / 60, options={"target_rpm": 600}),
         ],
     )
 
@@ -1649,8 +1649,8 @@ def test_api_requests_are_made(
     experiment = "_testing_experiment"
 
     action1 = Start(hours_elapsed=0 / 60 / 60)
-    action2 = Start(hours_elapsed=2 / 60 / 60)
-    action3 = Stop(hours_elapsed=4 / 60 / 60)
+    action2 = Start(hours_elapsed=0.2 / 60 / 60)
+    action3 = Stop(hours_elapsed=0.4 / 60 / 60)
 
     profile = Profile(
         version="1.0",

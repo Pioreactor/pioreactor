@@ -14,6 +14,7 @@
  - Added the ability to name camera snapshots when capturing them and rename existing photos from the Camera Stills page.
  - Added a labelled `air_bubbler` sparger to bioreactor diagrams when the `pioreactor-air-bubbler` plugin is configured, with highlighting while it is active.
  - Improved MCP tool discovery with read-only annotations, clearer job-control guidance, and more detailed capability summaries. Added SQL query parameters for safely supplying values with `?` placeholders.
+ - More clear icons in the UI
 
 #### Bug fixes
 
