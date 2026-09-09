@@ -1,4 +1,4 @@
-### Upcoming
+### 26.9.0
 
 #### Breaking changes
  - MCP changes:
