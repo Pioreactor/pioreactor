@@ -11,3 +11,5 @@ from .exceptions import HueyException as HueyException
 from .exceptions import ResultTimeout as ResultTimeout
 from .exceptions import TaskException as TaskException
 from .exceptions import TaskLockedException as TaskLockedException
+from .utils import Error as Error
+from .utils import SKIPPED as SKIPPED

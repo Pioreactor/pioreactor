@@ -886,6 +886,45 @@ def test_multicast_chord_deletes_child_results_and_preserves_callback_result(
     assert chord_result.get(preserve=True) == expected
 
 
+@pytest.mark.parametrize("skipped", [False, True])
+def test_multicast_chord_reports_failed_and_skipped_members(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    skipped: bool,
+) -> None:
+    monkeypatch.setattr(tasks.huey, "_immediate", False)
+    monkeypatch.setattr(tasks.huey, "storage", SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"))
+
+    def get_from_unit(unit: str, *args: Any, **kwargs: Any) -> tuple[str, Any]:
+        if unit == "unit2":
+            raise RuntimeError("boom")
+        return unit, tasks.fanout_success(unit, {"value": 1})
+
+    monkeypatch.setattr(tasks, "_get_from_unit", get_from_unit)
+    result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    if skipped:
+        tasks.huey.revoke_by_id(list(result.results)[1].id)
+
+    for _ in result.results:
+        child_task = tasks.huey.dequeue()
+        assert child_task is not None
+        tasks.huey.execute(child_task)
+
+    callback_task = tasks.huey.dequeue()
+    assert callback_task is not None
+    tasks.huey.execute(callback_task)
+
+    assert result.get() == {
+        "unit1": tasks.fanout_success("unit1", {"value": 1}),
+        "unit2": tasks.fanout_failure(
+            "unit2",
+            "task_skipped" if skipped else "task_exception",
+            "Task was skipped." if skipped else "RuntimeError('boom')",
+            retryable=not skipped,
+        ),
+    }
+
+
 def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

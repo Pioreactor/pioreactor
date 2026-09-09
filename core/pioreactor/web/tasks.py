@@ -35,6 +35,8 @@ from uuid import uuid4
 
 import huey.api as huey_api
 from huey import chord as huey_chord
+from huey import Error
+from huey import SKIPPED
 from huey.exceptions import ResultTimeout
 from msgspec import DecodeError
 from msgspec import to_builtins
@@ -1849,6 +1851,26 @@ def _reduce_multicast_results(
     results_by_unit: dict[str, Any] = {}
 
     for unit, result in zip(units, ordered_results):
+        # Chord callbacks receive Error/SKIPPED; individual result reads below
+        # can still produce exceptions or None when a fanout times out.
+        if isinstance(result, Error):
+            results_by_unit[unit] = fanout_failure(
+                unit,
+                "task_exception",
+                result.metadata["error"],
+                retryable=True,
+            )
+            continue
+
+        if result is SKIPPED:
+            results_by_unit[unit] = fanout_failure(
+                unit,
+                "task_skipped",
+                "Task was skipped.",
+                retryable=False,
+            )
+            continue
+
         if isinstance(result, Exception):
             results_by_unit[unit] = fanout_failure(
                 unit,
