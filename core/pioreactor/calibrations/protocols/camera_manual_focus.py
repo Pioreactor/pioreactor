@@ -149,7 +149,7 @@ class TakeSnapshot(SessionStep):
             "image": {
                 "src": "/static/svgs/camera-manual-focus-setup.svg",
                 "alt": "Place the camera in the holder on a capped, half-filled vial with a stir bar.",
-                "caption": "Prepare a half-filled, slightly turbid vial with a stir bar, then place the camera in the cap holder.",
+                "caption": "Place camera into the camera focus jig (provided by us), and a 50 x 50 mm card stock in the holder.",
             },
             "dialog": {
                 "max_width": "md",
