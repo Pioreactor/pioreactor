@@ -12,6 +12,8 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
@@ -29,6 +31,7 @@ import LocalSeeIcon from "@mui/icons-material/CameraAltOutlined";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 
 import { useExperiment } from "./providers/ExperimentContext";
+import CameraStillImage from "./components/CameraStillImage";
 import UnderlineSpan from "./components/UnderlineSpan";
 import useCameraResource from "./hooks/useCameraResource";
 import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
@@ -78,6 +81,7 @@ function normalizeCameraStills(payload) {
 
 export default function CameraStills({ title }) {
   const confirm = useConfirm();
+  const [magma, setMagma] = React.useState(false);
   const { pioreactorUnit } = useParams();
   const { experimentMetadata } = useExperiment();
   const experiment = experimentMetadata?.experiment;
@@ -324,6 +328,11 @@ export default function CameraStills({ title }) {
             <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to cameras
           </Button>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <FormControlLabel
+              control={<Switch size="small" checked={magma} onChange={(event) => setMagma(event.target.checked)} />}
+              label="Colour view"
+              sx={{ m: 0, minHeight: 44 }}
+            />
             <Button
               onClick={takeSnapshotAndRefreshTimeline}
               disabled={loading || takingSnapshot || !experiment}
@@ -401,17 +410,11 @@ export default function CameraStills({ title }) {
                         },
                       }}
                     >
-                      <Box
-                        component="img"
+                      <CameraStillImage
+                        magma={magma}
                         src={stillImageUrl(pioreactorUnit, experiment, still.image_id)}
                         alt={`Camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(still)}`}
                         loading="lazy"
-                        sx={{
-                          display: "block",
-                          width: "100%",
-                          aspectRatio: "4 / 3",
-                          objectFit: "contain",
-                        }}
                       />
                     </Box>
                     <Stack
@@ -627,16 +630,11 @@ export default function CameraStills({ title }) {
                 overflow: "hidden",
               }}
             >
-              <Box
-                component="img"
+              <CameraStillImage
+                key={selectedStill.image_id}
+                magma={magma}
                 src={stillImageUrl(pioreactorUnit, experiment, selectedStill.image_id)}
                 alt={`Enlarged camera snapshot from ${pioreactorUnit} at ${formatCaptureTime(selectedStill)}`}
-                sx={{
-                  display: "block",
-                  width: "100%",
-                  aspectRatio: "4 / 3",
-                  objectFit: "contain",
-                }}
               />
             </Box>
           )}
