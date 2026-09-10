@@ -1283,7 +1283,14 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     def _desired_dodging_mode(self, enable_dodging_od: bool, od_state: JobState | None) -> bool:
         """Return True if we should dodge based on enable flag and OD state."""
-        return enable_dodging_od and od_state in {JobState.INIT, JobState.READY, JobState.SLEEPING}
+        from pioreactor.hardware import uses_photodiodes
+
+        # Poll times for autonomous sensors are not acquisition windows.
+        return (
+            enable_dodging_od
+            and uses_photodiodes()
+            and od_state in {JobState.INIT, JobState.READY, JobState.SLEEPING}
+        )
 
     def set_currently_dodging_od(self, value: bool) -> None:
         """

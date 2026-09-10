@@ -307,6 +307,7 @@ export default function ChartPreferencesControl({
         />
       )}
       <Snackbar
+        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
         message={`Chart selection saved.`}
         onClose={() => setSnackbarOpen(false)}

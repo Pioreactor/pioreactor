@@ -77,7 +77,6 @@ from __future__ import annotations
 import math
 import os
 import random
-import threading
 import types
 from collections.abc import Mapping
 from time import sleep
@@ -95,13 +94,13 @@ from pioreactor import hardware
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.od_reading_job import ODReadingJob
+from pioreactor.background_jobs.external_od_reading import ExternalODReader
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
-from pioreactor.states import JobState as st
 from pioreactor.utils import argextrema
 from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import local_intermittent_storage
@@ -156,19 +155,27 @@ def average_over_od_readings(*multiple_od_readings: structs.ODReadings) -> struc
             counts_by_channel[pd_channel] = counts_by_channel.get(pd_channel, 0) + 1
 
     timestamp = timing.current_utc_datetime()
-    return structs.ODReadings(
-        timestamp=timestamp,
-        ods={
-            pd_channel: structs.RawODReading(
+    averaged: dict[pt.PdChannel, structs.ODReading] = {}
+    for channel, value in summed_pd_channel_to_od.items():
+        original = reference_reading.ods[channel]
+        mean = value / counts_by_channel[channel]
+        if isinstance(original, structs.SensorODReading):
+            averaged[channel] = structs.SensorODReading(
                 timestamp=timestamp,
-                angle=reference_reading.ods[pd_channel].angle,
-                od=od_value / counts_by_channel[pd_channel],
-                channel=pd_channel,
-                ir_led_intensity=reference_reading.ods[pd_channel].ir_led_intensity,
+                channel=channel,
+                od=mean,
+                source=original.source,
+                signal_unit=original.signal_unit,
             )
-            for pd_channel, od_value in summed_pd_channel_to_od.items()
-        },
-    )
+        else:
+            averaged[channel] = structs.RawODReading(
+                timestamp=timestamp,
+                channel=channel,
+                od=mean,
+                angle=original.angle,
+                ir_led_intensity=original.ir_led_intensity,
+            )
+    return structs.ODReadings(timestamp=timestamp, ods=averaged)
 
 
 class ADCReader(LoggerMixin):
@@ -950,6 +957,8 @@ class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
 
         blank_corrected_ods: dict[pt.PdChannel, structs.ODReading] = {}
         for channel, od_reading in od_readings.ods.items():
+            if isinstance(od_reading, structs.SensorODReading):
+                raise ValueError("Photodiode blanks cannot be applied to external sensor readings.")
             blank_value = self.od_blank.get(channel, 0.0)
             blank_corrected_od = od_reading.od - blank_value
             if blank_corrected_od < 0:
@@ -1023,6 +1032,10 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
             """
             Verify that the OD reading is within the expected bounds of the calibration.
             """
+            if isinstance(od_reading, structs.SensorODReading):
+                raise exc.CalibrationError(
+                    "Photodiode calibration cannot be applied to external sensor readings."
+                )
             if od_reading.ir_led_intensity != calibration_data.ir_led_intensity:
                 raise exc.CalibrationError(
                     f"IR LED intensity {od_reading.ir_led_intensity} does not match calibration {calibration_data.ir_led_intensity} for channel {od_reading.channel}."
@@ -1098,6 +1111,10 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
         for channel in od_readings.ods:
             if channel in self.models:  # calibration exists
                 raw_od = od_readings.ods[channel]
+                if isinstance(raw_od, structs.SensorODReading):
+                    raise exc.CalibrationError(
+                        "Photodiode calibration cannot be applied to external sensor readings."
+                    )
 
                 # check if everything is okay - blows up if not.
                 self.models[channel].verify(raw_od)
@@ -1149,6 +1166,8 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
             return
 
         for od_reading in raw_od_readings.ods.values():
+            if isinstance(od_reading, structs.SensorODReading):
+                raise exc.EstimatorError("Photodiode fusion cannot be applied to external sensor readings.")
             if od_reading.ir_led_intensity != self.estimator.ir_led_intensity:
                 raise exc.EstimatorError(
                     f"IR LED intensity {od_reading.ir_led_intensity} does not match estimator {self.estimator.ir_led_intensity} for channel {od_reading.channel}."
@@ -1161,7 +1180,9 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         self._verify(raw_od_readings)
 
         fused_inputs: dict[pt.PdAngle, float] = {
-            reading.angle: reading.od for reading in raw_od_readings.ods.values()
+            reading.angle: reading.od
+            for reading in raw_od_readings.ods.values()
+            if not isinstance(reading, structs.SensorODReading)
         }
         try:
             od_fused_value = compute_fused_od(self.estimator, fused_inputs)
@@ -1193,7 +1214,7 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         return False
 
 
-class ODReader(BackgroundJob):
+class ODReader(ODReadingJob):
     """
     Produce a stream of OD readings from the sensors.
 
@@ -1230,16 +1251,10 @@ class ODReader(BackgroundJob):
     """
 
     job_name = "od_reading"
-    published_settings = {
+    published_settings = ODReadingJob.published_settings | {
         "first_od_obs_time": {"datatype": "float", "settable": False},
         "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
-        "interval": {"datatype": "float", "settable": True, "unit": "s"},
         "relative_intensity_of_ir_led": {"datatype": "json", "settable": False},
-        "ods": {"datatype": "ODReadings", "settable": False},
-        "od1": {"datatype": "ODReading", "settable": False},
-        "od2": {"datatype": "ODReading", "settable": False},
-        "od3": {"datatype": "ODReading", "settable": False},
-        "od4": {"datatype": "ODReading", "settable": False},
         # below are only used if a calibration is used
         "raw_od1": {"datatype": "RawODReading", "settable": False},
         "raw_od2": {"datatype": "RawODReading", "settable": False},
@@ -1351,9 +1366,6 @@ class ODReader(BackgroundJob):
                 estimator_status = self.estimator_transformer.estimator.estimator_name
 
         self.logger.debug(f"OD setup: calibrations={calibration_status}; estimator={estimator_status}.")
-
-        self.first_od_obs_time: float | None = None
-        self._set_for_iterating = threading.Event()
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
 
@@ -1491,38 +1503,8 @@ class ODReader(BackgroundJob):
         return round(ir_led_intensity, 2)
 
     def set_interval(self, interval: float | None) -> None:
-        if (interval is not None) and interval <= 0:
-            raise ValueError("interval must be positive or None")
-
-        self.interval = interval
         self.ir_led_reference_transformer.set_interval(interval)
-
-        if self.interval is not None:
-            if self.interval <= 1.0:
-                self.logger.warning(
-                    f"Recommended to have the interval between readings be larger than 1.0 sec. Currently {self.interval} sec."
-                )
-
-            if hasattr(self, "record_from_adc_timer"):
-                # cancel any existing one
-                self.record_from_adc_timer.cancel()
-
-            self.record_from_adc_timer = timing.RepeatedTimer(
-                self.interval,
-                self.record_from_adc,
-                job_name=self.job_name,
-                run_immediately=True,
-                logger=self.logger,
-            )
-            # Preserve sleep before starting the thread, including its immediate first callback.
-            if self.state == self.SLEEPING:
-                self.record_from_adc_timer.pause()
-            self.record_from_adc_timer.start()
-
-        else:
-            if hasattr(self, "record_from_adc_timer"):
-                # cancel any existing one
-                self.record_from_adc_timer.cancel()
+        super().set_interval(interval)
 
     def _prepare_post_callbacks(self) -> list[Callable]:
         callbacks: list[Callable] = []
@@ -1624,9 +1606,8 @@ class ODReader(BackgroundJob):
         else:
             # happy path
             assert od_readings is not None
-            self.ods = od_readings
+            self.publish_readings(od_readings)
             for channel, _ in self.channel_angle_map.items():
-                setattr(self, f"od{channel}", od_readings.ods[channel])
                 if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
                     setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
                     setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
@@ -1684,14 +1665,6 @@ class ODReader(BackgroundJob):
     ###########
     # Private
     ############
-
-    def on_sleeping(self) -> None:
-        if hasattr(self, "record_from_adc_timer"):
-            self.record_from_adc_timer.pause()
-
-    def on_sleeping_to_ready(self) -> None:
-        if hasattr(self, "record_from_adc_timer"):
-            self.record_from_adc_timer.unpause()
 
     def on_disconnected(self) -> None:
         try:
@@ -1766,22 +1739,6 @@ class ODReader(BackgroundJob):
                 "timestamp": timing.current_utc_datetime(),
             }
 
-    def _unblock_internal_event(self) -> None:
-        if self.state is not st.READY:
-            return
-
-        self._set_for_iterating.set()
-
-    def __iter__(self) -> "ODReader":
-        return self
-
-    def __next__(self) -> structs.ODReadings:
-        while self._set_for_iterating.wait():
-            self._set_for_iterating.clear()
-            if self.ods is not None:
-                return self.ods
-        assert False  # we never reach here - this is to silence mypy
-
 
 def find_ir_led_reference(channels: Mapping[str, str | None]) -> pt.PdChannel | None:
     if sum(v == "REF" for v in channels.values()) > 1:
@@ -1824,7 +1781,7 @@ def start_od_reading(
     estimator: bool | structs.ODFusionEstimator | None = True,
     ir_led_intensity: float | None = None,
     penalizer: float = 0.0,
-) -> "ODReader":
+) -> ODReadingJob:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
 
@@ -1847,6 +1804,25 @@ def start_od_reading(
 
     if interval is not None and interval <= 0:
         raise ValueError("interval must be positive.")
+
+    od_hardware = hardware.get_od_hardware_config()
+    if od_hardware.driver != "photodiodes":
+        if fake_data:
+            raise ValueError("--fake-data is only supported by the photodiode source.")
+        if (
+            ir_led_intensity is not None
+            or calibration not in (True, False, None)
+            or estimator not in (True, False, None)
+        ):
+            raise ValueError(
+                "Photodiode illumination, calibration and fusion options do not apply to external OD sources."
+            )
+        return ExternalODReader(
+            od_hardware,
+            unit or whoami.get_unit_name(),
+            experiment or whoami.get_assigned_experiment_name(unit or whoami.get_unit_name()),
+            interval,
+        )
 
     if not channels:
         raise ValueError("Need to supply at least one photodiode channel.")
@@ -2009,14 +1985,18 @@ def click_od_reading(
         else 0
     )
     with start_od_reading(
-        config["od_config.photodiode_channel"],
+        (
+            dict(config.items("od_config.photodiode_channel"))
+            if config.has_section("od_config.photodiode_channel")
+            else {}
+        ),
         fake_data=fake_data or whoami.is_testing_env(),
         interval=run_interval,
         ir_led_intensity=ir_led_intensity,
         penalizer=penalizer,
     ) as od:
         if snapshot:
-            od_snapshot = od.record_from_adc()
+            od_snapshot = od.snapshot() if isinstance(od, ExternalODReader) else od.record_from_adc()
             # send the reading to stdout so it can be captured / piped elsewhere
             click.echo(str(od_snapshot), err=False)
         else:

@@ -189,7 +189,18 @@ class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):
     ir_led_intensity: float
 
 
-ODReading = RawODReading | CalibratedODReading
+class SensorODReading(JSONPrintedStruct, tag=2, tag_field="calibrated"):
+    """An external backscatter sensor observation, separate from ADC voltages."""
+
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    od: float
+    channel: pt.PdChannel
+    source: str
+    signal_unit: str
+    angle: t.Literal["0"] = "0"
+
+
+ODReading = RawODReading | CalibratedODReading | SensorODReading
 
 
 class ODReadings(JSONPrintedStruct):

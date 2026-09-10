@@ -78,6 +78,8 @@ def _run_fusion_calibration_preflight() -> dict[pt.PdChannel, pt.PdAngle]:
 def _aggregate_angles(readings: structs.ODReadings) -> dict[pt.PdAngle, float]:
     by_angle: dict[pt.PdAngle, list[float]] = {}
     for reading in readings.ods.values():
+        if isinstance(reading, structs.SensorODReading):
+            raise ValueError("Photodiode fusion cannot use external sensor readings.")
         angle = reading.angle
         if angle not in FUSION_ANGLES:
             continue
@@ -94,6 +96,9 @@ def _measure_fusion_standard_samples(
     from pioreactor.background_jobs.od_reading import start_od_reading
     from itertools import cycle
 
+    from pioreactor.hardware import require_photodiodes
+
+    require_photodiodes("OD fusion calibration")
     repeats = max(1, int(repeats))
     samples: list[dict[pt.PdAngle, float]] = []
     _jitter = cycle([0.9, 1.1, 0.8, 1.2])

@@ -12,6 +12,8 @@ from typing import cast
 from typing import TYPE_CHECKING
 
 from msgspec.yaml import decode as yaml_decode
+from msgspec import convert
+from msgspec import Struct
 from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.models import get_registered_models
@@ -145,6 +147,51 @@ def get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int]
     return addresses
 
 
+class ODHardwareConfig(Struct, forbid_unknown_fields=True):
+    driver: str = "photodiodes"
+    bus: int = 1
+    address: int | None = None
+
+
+def get_od_hardware_config(
+    model_name: str | None = None, model_version: str | None = None
+) -> ODHardwareConfig:
+    """OD selection follows the same HAT -> model layering as other subsystems."""
+    data = (
+        get_layered_mod_config("od")
+        if model_name is None or model_version is None
+        else get_layered_mod_config_for_model("od", model_name, model_version)
+    )
+    result = convert(data, type=ODHardwareConfig)
+    if not result.driver or result.bus != 1:
+        raise exc.HardwareError("OD hardware requires a driver name and Pioreactor's I2C bus 1 in od.yaml")
+    if result.driver != "photodiodes" and (result.address is None or not 0x08 <= result.address <= 0x77):
+        raise exc.HardwareError("External OD hardware requires a valid 7-bit I2C address in od.yaml")
+    return result
+
+
+def uses_photodiodes() -> bool:
+    return get_od_hardware_config().driver == "photodiodes"
+
+
+def require_photodiodes(operation: str) -> None:
+    if not uses_photodiodes():
+        raise exc.HardwareError(f"{operation} is not supported by the selected external OD hardware.")
+
+
+def get_required_i2c_addresses_for_model(model_name: str, model_version: str) -> set[int]:
+    od = get_od_hardware_config(model_name, model_version)
+    adc_cfg = get_layered_mod_config_for_model("adc", model_name, model_version)
+    addresses = {
+        int(data["address"])
+        for name, data in adc_cfg.items()
+        if od.driver == "photodiodes" or not name.startswith("pd")
+    }
+    if od.address is not None and od.driver != "photodiodes":
+        addresses.add(od.address)
+    return addresses
+
+
 def check_model_hardware_compatibility(model_name: str, model_version: str) -> dict[str, str]:
     if hardware_version_info is None or hardware_version_info[0] != 1:
         return {"status": "skipped", "reason": "hardware check only applies to HAT v1.x"}
@@ -156,7 +203,7 @@ def check_model_hardware_compatibility(model_name: str, model_version: str) -> d
         display_name = f"{model_name} {model_version}"
 
     try:
-        addresses = get_adc_addresses_for_model(model_name, model_version)
+        addresses = get_required_i2c_addresses_for_model(model_name, model_version)
     except exc.HardwareNotFoundError as err:
         return {"status": "skipped", "reason": str(err)}
 
@@ -316,6 +363,8 @@ def get_adc_curriers() -> dict[str, ADCCurrier]:
 
 @cache
 def get_available_pd_channels() -> dict[pt.PdChannel, ADCCurrier]:
+    if not uses_photodiodes():
+        return {}
     adcs = get_adc_curriers()
     return {
         cast(pt.PdChannel, adc_name.removeprefix("pd")): adc_currier
@@ -428,7 +477,11 @@ def is_ADC_present(*args: int) -> bool:
     if args:
         to_check = set(args)
     else:
-        to_check = {adc.i2c_address for adc in get_adc_curriers().values()}
+        to_check = {
+            adc.i2c_address
+            for name, adc in get_adc_curriers().items()
+            if uses_photodiodes() or not name.startswith("pd")
+        }
     return all(is_i2c_device_present(c) for c in to_check)
 
 

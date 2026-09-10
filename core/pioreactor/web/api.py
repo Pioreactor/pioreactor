@@ -122,7 +122,7 @@ TIME_SERIES_SOURCE_CONFIG: dict[TimeSeriesDataSource, tuple[str, int, bool]] = {
     "growth_rates": ("rate", 5, False),
     "temperature_readings": ("temperature_c", 2, False),
     "od_readings_filtered": ("normalized_od_reading", 7, False),
-    "od_readings": ("od_reading", 7, True),
+    "od_readings": ("od_reading", 12, True),
     "od_readings_fused": ("od_reading", 7, False),
     "raw_od_readings": ("od_reading", 7, True),
 }
@@ -183,6 +183,7 @@ def query_time_series_from_database(
     else:
         series = [(unit, None) for unit in units]
 
+    sensor_series: list[str] = []
     response_series: list[str] = []
     response_data: list[list[dict[str, t.Any]]] = []
 
@@ -311,10 +312,23 @@ def query_time_series_from_database(
                 assert isinstance(sampled_rows, list)
                 rows = sampled_rows
 
+        series_name = f"{unit}-{channel}" if partition_by_channel else unit
+        if data_source == "od_readings":
+            geometry = query_app_db(
+                "SELECT angle FROM od_readings WHERE experiment=? AND pioreactor_unit=? AND channel=? ORDER BY timestamp DESC LIMIT 1",
+                (experiment, unit, channel),
+                one=True,
+            )
+            assert not isinstance(geometry, list)
+            if geometry is not None and geometry["angle"] == 0:
+                sensor_series.append(series_name)
         response_series.append(f"{unit}-{channel}" if partition_by_channel else unit)
         response_data.append([{"x": row["timestamp"], "y": row["y"]} for row in rows])
 
-    return encode({"series": response_series, "data": response_data})
+    response: dict[str, t.Any] = {"series": response_series, "data": response_data}
+    if sensor_series:
+        response["sensor_series"] = sensor_series
+    return encode(response)
 
 
 def _parse_experiment_tags(raw_tags: str | None) -> list[str]:

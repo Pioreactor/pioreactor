@@ -1,3 +1,4 @@
+import { formatChartValue } from "../utils/chartValues.js";
 import React, {
   useCallback,
   useEffect,
@@ -215,21 +216,23 @@ function Chart(props) {
         xValue = d.datum.x;
       }
 
-      const rounded =
-        Math.round(yTransformation(d.datum.y) * 10 ** fixedDecimals) / 10 ** fixedDecimals;
+      const rounded = formatChartValue(yTransformation(d.datum.y), fixedDecimals);
       return `${xValue}\n${seriesLabel}: ${rounded}`;
     },
     [byDuration, fixedDecimals, yTransformation]
   );
 
   const mapPartitionedSeriesName = useCallback(
-    (seriesName) => {
+    (seriesName, isExternalSensor = false) => {
       if (!isPartitionedBySensor) {
         return seriesName;
       }
       const { base, suffix } = splitPartitionedName(seriesName);
       if (!suffix) {
         return seriesName;
+      }
+      if (isExternalSensor) {
+        return `${base}-0`;
       }
       const angle = channelAngleMap[suffix];
       if (!angle) {
@@ -588,9 +591,11 @@ function Chart(props) {
 
       let timestamp;
       let yValue;
+      let isExternalSensor = false;
       try {
         if (payloadKey) {
           const payload = JSON.parse(payloadString);
+          isExternalSensor = payload.calibrated === 2;
           if (!Object.prototype.hasOwnProperty.call(payload, payloadKey)) {
             throw new Error(`Payload key '${payloadKey}' not found in the message.`);
           }
@@ -616,7 +621,7 @@ function Chart(props) {
         .replace("raw_od", "")
         .replace("od", "");
       const parsedUnit = isPartitionedBySensor
-        ? mapPartitionedSeriesName(`${baseUnit}-${channel}`)
+        ? mapPartitionedSeriesName(`${baseUnit}-${channel}`, isExternalSensor)
         : baseUnit;
 
       if (!parsedUnit) {
@@ -685,7 +690,7 @@ function Chart(props) {
       const data = await response.json();
       const initialSeriesMap = {};
       for (const [index, unitName] of data["series"].entries()) {
-        const mappedUnitName = mapPartitionedSeriesName(unitName);
+        const mappedUnitName = mapPartitionedSeriesName(unitName, data.sensor_series?.includes(unitName));
         if (!mappedUnitName) {
           continue;
         }
@@ -811,8 +816,8 @@ function Chart(props) {
         <VictoryAxis
           crossAxis={false}
           dependentAxis
-          domain={allowZoom ? null : yAxisDomain}
-          tickFormat={(t) => `${t.toFixed(fixedDecimals)}`}
+          domain={allowZoom || (isPartitionedBySensor && names.some((name) => name.endsWith("-0"))) ? null : yAxisDomain}
+          tickFormat={(t) => formatChartValue(t, fixedDecimals)}
           label={yAxisLabel}
           axisLabelComponent={
             <VictoryLabel

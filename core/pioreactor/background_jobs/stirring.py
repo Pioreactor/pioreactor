@@ -514,7 +514,9 @@ class Stirrer(BackgroundJobWithDodging):
             is_od_running = is_pio_job_running("od_reading")
             is_dodging = self.currently_dodging_od
 
-            if not is_od_running or is_dodging:
+            from pioreactor.hardware import uses_photodiodes
+
+            if not is_od_running or is_dodging or not uses_photodiodes():
                 # if dodging, poll only runs when needed (outside od readings), so it's always safe to kick.
                 self.kick_stirring()
             else:

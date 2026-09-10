@@ -132,6 +132,9 @@ def od_blank(
 ) -> dict[pt.PdChannel, pt.OD]:
     from pioreactor.background_jobs.od_reading import start_od_reading
 
+    from pioreactor.hardware import require_photodiodes
+
+    require_photodiodes("OD blanking")
     action_name = "od_blank"
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)

@@ -670,7 +670,19 @@ BUILTIN_SELF_TESTS: tuple[SelfTest, ...] = (
 
 
 def get_builtin_self_tests() -> list[SelfTest]:
-    return list(BUILTIN_SELF_TESTS)
+    from pioreactor.hardware import uses_photodiodes
+
+    if uses_photodiodes():
+        return list(BUILTIN_SELF_TESTS)
+    photodiode_tests = {
+        test_all_positive_correlations_between_pds_and_leds,
+        test_ambient_light_interference,
+        test_dark_offset_correction_is_effective,
+        test_REF_is_lower_than_0_dot_256_volts,
+        test_REF_is_in_correct_position,
+        test_PD_is_near_0_volts_for_blank,
+    }
+    return [test for test in BUILTIN_SELF_TESTS if test not in photodiode_tests]
 
 
 def run_tests(

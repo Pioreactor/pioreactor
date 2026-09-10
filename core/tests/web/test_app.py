@@ -4008,3 +4008,27 @@ def test_install_plugin_invalidates_plugins_cache(client, monkeypatch: MonkeyPat
         ("plugins_installed", "/unit_api/plugins/installed", ["unit1"]),
         ("calibration_protocols", "/unit_api/calibration_protocols", ["unit1"]),
     ]
+
+
+def test_backscatter_history_preserves_small_values_and_geometry(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr("pioreactor.web.api.current_utc_datetime", lambda: datetime(2026, 1, 1, tzinfo=UTC))
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("backscatter-history", "2025-12-31T22:00:00.000Z", ""),
+    )
+    modify_app_db(
+        "INSERT INTO od_readings (experiment,pioreactor_unit,timestamp,od_reading,angle,channel) VALUES (?,?,?,?,?,?)",
+        ("backscatter-history", "unit-a", "2025-12-31T23:00:00.000Z", 7.45279e-7, 0, 1),
+    )
+    response = client.get(
+        "/api/experiments/backscatter-history/time_series/od_readings?lookback=2&target_points=10"
+    )
+    assert response.status_code == 200
+    result = response.get_json()
+    assert result["sensor_series"] == ["unit-a-1"]
+    index = result["series"].index("unit-a-1")
+    assert result["data"][index][0]["y"] == 7.45279e-7
