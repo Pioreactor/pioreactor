@@ -33,7 +33,7 @@ const ManageDivider = styled(Divider)(({ theme }) => ({
   marginBottom: theme.spacing(1.25) // equivalent to 10px
 }));
 
-export default function SelfTestDialog({disabled, experiment, unit, label , selfTestState, selfTestTests}) {
+export default function SelfTestDialog({disabled, experiment, unit, label , selfTestState, selfTestTests, cameraEnabled}) {
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -143,7 +143,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" component="p" gutterBottom>
-            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
+            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring{cameraEnabled ? ", plus the camera" : ""}.
           </Typography>
           <RequirementsAlert sx={{mb: 2, pb: 0}}>
             Add a closed vial, half-filled with water or clear media, and stirbar into the Pioreactor.
@@ -282,6 +282,23 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
 
             </List>
+
+          {cameraEnabled && (
+            <List
+              subheader={
+                <ListSubheader sx={{lineHeight: "20px"}} component="div" disableSticky disableGutters>
+                  Camera
+                </ListSubheader>
+              }
+            >
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
+                  {displayIcon("test_camera_capture", selfTestState)}
+                </ListItemIcon>
+                <ListItemText primary="Camera captures an image" />
+              </ListItem>
+            </List>
+          )}
 
           <ManageDivider/>
           <Typography variant="body2" component="p" gutterBottom>

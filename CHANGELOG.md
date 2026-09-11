@@ -1,3 +1,9 @@
+### Upcoming
+
+#### Enhancements
+
+ - Added a camera self-test
+
 ### 26.9.0
 
 #### Breaking changes

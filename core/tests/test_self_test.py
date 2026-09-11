@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+from contextlib import contextmanager
+from pathlib import Path
 from threading import Event
 from time import sleep
 from types import SimpleNamespace
+from typing import Iterator
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,6 +21,46 @@ def reset_self_test_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(self_test_mod, "REGISTERED_SELF_TESTS", [])
     self_test_mod._ensure_plugin_self_tests_registered.cache_clear()
     monkeypatch.setattr(self_test_mod.plugin_management, "get_plugins", lambda: {})
+
+
+@pytest.mark.parametrize("enabled", ["0", "1"])
+def test_camera_self_test_requires_enabled_camera(monkeypatch: pytest.MonkeyPatch, enabled: str) -> None:
+    monkeypatch.setitem(self_test_mod.config["camera"], "enabled", enabled)
+
+    assert (self_test_mod.test_camera_capture in get_all_tests()) == (enabled == "1")
+
+
+@pytest.mark.parametrize("capture_result", ["photo", "empty", "error"])
+def test_camera_self_test_reports_capture_result_and_cleans_up(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capture_result: str
+) -> None:
+    image_path = tmp_path / "camera.jpg"
+
+    @contextmanager
+    def capture(unit: str, *, experiment: str, capture_focus_score: bool) -> Iterator[tuple[Path, None]]:
+        image_path.write_bytes(b"photo" if capture_result == "photo" else b"")
+        try:
+            if capture_result == "error":
+                raise RuntimeError("Camera capture failed")
+            yield image_path, None
+        finally:
+            image_path.unlink()
+
+    monkeypatch.setattr(self_test_mod, "camera_captured_image", capture)
+    managed_state = SimpleNamespace(exit_event=Event(), publish_setting=MagicMock())
+    results = run_tests(
+        [self_test_mod.test_camera_capture],
+        managed_state,
+        MagicMock(),
+        unit="unit",
+        testing_experiment="experiment",
+    )
+
+    assert results["count_passed"] == int(capture_result == "photo")
+    managed_state.publish_setting.assert_called_once_with(
+        "test_camera_capture", int(capture_result == "photo")
+    )
+    assert not image_path.exists()
 
 
 def test_run_tests_success_and_failure_counts() -> None:

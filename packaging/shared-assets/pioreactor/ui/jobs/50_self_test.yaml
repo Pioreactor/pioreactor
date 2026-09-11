@@ -40,6 +40,9 @@ published_settings:
   - key: test_PD_is_near_0_volts_for_blank
     display: false
     type: boolean
+  - key: test_camera_capture
+    display: false
+    type: boolean
   - key: all_tests_passed
     display: false
     type: boolean
