@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
@@ -645,7 +646,7 @@ function CalibrationData({ loading, rawData }) {
                 <TableRow
                   sx={{
                     ':hover': {
-                      bgcolor: '#F7F7F7', // theme.palette.primary.main
+                      bgcolor: uiColors.stripe, // theme.palette.primary.main
                     },
                     cursor: "pointer",
                   }}

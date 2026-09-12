@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useMemo, useEffectEvent } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
@@ -53,10 +54,10 @@ const StyledTimeTableCell = styled(TableCell)(({ level }) => {
 
 const TableRowStyled = styled(TableRow)(() => ({
   '&:nth-of-type(odd)': {
-    backgroundColor: "#F7F7F7",
+    backgroundColor: uiColors.stripe,
   },
   '&:nth-of-type(even)': {
-    backgroundColor: "white",
+    backgroundColor: uiColors.surface,
   },
 }));
 
@@ -239,10 +240,10 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                 </colgroup>
                 <TableHead>
                   <TableRow >
-                    <TableCell sx={{"backgroundColor": "white"}}>Time</TableCell>
-                    <TableCell sx={{"backgroundColor": "white"}}>Pioreactor</TableCell>
-                    <TableCell sx={{"backgroundColor": "white"}}>Source</TableCell>
-                    <TableCell sx={{"backgroundColor": "white"}}>Message</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Time</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Pioreactor</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Source</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Message</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

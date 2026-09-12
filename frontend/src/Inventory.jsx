@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useCallback} from "react";
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -714,7 +715,7 @@ function WorkerCard({
             <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isActive() ? "inherit" : inactiveGrey} />
             <Typography sx={{
                 fontSize: 20,
-                color: "rgba(0, 0, 0, 0.87)",
+                color: uiColors.text,
                 fontWeight: 500,
                 ...(isActive() ? {} : { color: inactiveGrey }),
               }}
@@ -812,7 +813,7 @@ function WorkerCard({
                 Software version
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{softwareVersion()}</Box>
             </td>
           </tr>
           <tr>
@@ -820,7 +821,7 @@ function WorkerCard({
                 IPv4
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ipv4 || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -828,7 +829,7 @@ function WorkerCard({
                 Raspberry Pi
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -836,7 +837,7 @@ function WorkerCard({
                 WLAN MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -844,7 +845,7 @@ function WorkerCard({
                 Ethernet MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
             </td>
           </tr>
           </Box>
@@ -995,7 +996,7 @@ function InventoryDisplay({
                   cursor: 'pointer',
                 }}>
                 <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={'rgba(0, 0, 0, 0.6)'}/>
+                  <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={uiColors.textSecondary}/>
                   <Typography color="text.secondary" align="center">
                     Add new Pioreactor
                   </Typography>

@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import Avatar from "boring-avatars";
 import React from "react";
 import UnderlineSpan from "./components/UnderlineSpan";
@@ -34,10 +35,10 @@ const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 const ListItemStyled = styled(ListItem)(() => ({
   "&:nth-of-type(odd)": {
-    backgroundColor: "#F7F7F7",
+    backgroundColor: uiColors.stripe,
   },
   "&:nth-of-type(even)": {
-    backgroundColor: "white",
+    backgroundColor: uiColors.surface,
   },
   paddingLeft: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)`,
   paddingRight: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)`,

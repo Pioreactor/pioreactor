@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React from 'react';
 import { styled } from '@mui/material/styles';
 import Drawer from '@mui/material/Drawer';
@@ -372,7 +373,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
 
   const list = () => (
-    <Sidebar rootStyles={{height: "100%"}} width="230px" backgroundColor="white">
+    <Sidebar rootStyles={{height: "100%"}} width="230px" backgroundColor={uiColors.surface}>
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ flex: 1}}>
 
@@ -384,21 +385,21 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 label:  {whiteSpace: "pre-wrap", fontSize: "16px"},
                 button: ({ level, active, disabled }) => {
                   const sx = {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'inherit'),
-                    backgroundColor: active ? '#5331ca14' : undefined,
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : 'inherit'),
+                    backgroundColor: active ? uiColors.selection : undefined,
                     height: "43px",
                     fontWeight: active ? 500 : 400,
                   };
                   if (level === 1){
                     sx.paddingLeft = "27px"
-                    sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
+                    sx.color = disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.navIcon)
                     sx.fontWeight = active ? 500 : 400
                   }
                   return sx
                 },
                 icon: ({level, active, disabled}) => {
                   return {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'rgba(0,0,0, 0.6)'),
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.textSecondary),
                     marginRight: "8px",
                     minWidth: "30px",
                     width: "30px",
@@ -472,21 +473,21 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 label:  {whiteSpace: "pre-wrap", fontSize: "16px"},
                 button: ({ level, active, disabled }) => {
                   const sx = {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'inherit'),
-                    backgroundColor: active ? '#5331ca14' : undefined,
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : 'inherit'),
+                    backgroundColor: active ? uiColors.selection : undefined,
                     height: "43px",
                     fontWeight: active ? 500 : 400,
                   };
                   if (level === 1){
                     sx.paddingLeft = "27px"
-                    sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
+                    sx.color = disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.navIcon)
                     sx.fontWeight = active ? 500 : 400
                   }
                   return sx
                 },
                 icon: ({level, active, disabled}) => {
                   return {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'rgba(0,0,0, 0.6)'),
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.textSecondary),
                     marginRight: "8px",
                     minWidth: "30px",
                     width: "30px",

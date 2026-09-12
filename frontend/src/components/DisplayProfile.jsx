@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React from "react";
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -47,7 +48,7 @@ const highlightedLogMessage = {
   borderLeft:  "3px solid #1e1e1e1e",
   padding: "6px 6px",
   paddingLeft: "10px",
-  backgroundColor: "#f3f3f3",
+  backgroundColor: uiColors.subtleBackground,
 }
 
 const inlineCommentSx = {

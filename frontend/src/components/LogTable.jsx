@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 import dayjs from 'dayjs';
@@ -33,7 +34,7 @@ const StyledTableHeaderCell = styled(TableCell)(({}) => ({
   padding: "6px 6px 6px 10px",
   fontSize: 13,
   whiteSpace: "normal",
-  backgroundColor: "white"
+  backgroundColor: uiColors.surface
 }));
 
 const StyledTableCell = styled(TableCell)(({ level }) => ({

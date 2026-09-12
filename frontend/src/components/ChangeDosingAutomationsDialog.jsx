@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useRef } from "react";
 
 import Button from "@mui/material/Button";
@@ -150,7 +151,7 @@ function ChangeDosingAutomationsDialog(props) {
     <React.Fragment>
     <Dialog open={props.open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{ paper: { sx: { height: "100%" } } }}>
       <DialogTitle>
-        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)"}}>
+        <Typography sx={{fontSize: "13px", color: uiColors.textSecondary}}>
           <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
             {(props.unit === "$broadcast")
               ? <b>All active and assigned Pioreactors</b>
@@ -160,7 +161,7 @@ function ChangeDosingAutomationsDialog(props) {
               )
             }
         </Typography>
-        <Typography sx={{fontSize: 20, color: "rgba(0, 0, 0, 0.87)"}}>
+        <Typography sx={{fontSize: 20, color: uiColors.text}}>
           Select {automationType} automation
         </Typography>
         <IconButton

@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useMemo, useCallback} from "react";
 
 import Grid from '@mui/material/Grid';
@@ -588,7 +589,7 @@ function SettingsActionsDialog(props) {
       }
     }}>
       <DialogTitle>
-        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
+        <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}}>
           <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
           <span> {props.label ? `${props.label} / ${props.unit}` : `${props.unit}`} </span>
         </Typography>
@@ -1000,7 +1001,7 @@ function SettingsActionsDialog(props) {
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['A']) ? (LEDMap['A'].replace("_", " ").replace("led", "LED")) : "Channel A" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['A']) ? "Channel A" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="A" unit={props.unit} />
@@ -1009,7 +1010,7 @@ function SettingsActionsDialog(props) {
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['B']) ? (LEDMap['B'].replace("_", " ").replace("led", "LED")) : "Channel B" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['B']) ? "Channel B" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="B" unit={props.unit} />
@@ -1018,7 +1019,7 @@ function SettingsActionsDialog(props) {
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['C']) ? (LEDMap['C'].replace("_", " ").replace("led", "LED")) : "Channel C" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['C']) ? "Channel C" : ""}
           </Typography>
 
@@ -1028,7 +1029,7 @@ function SettingsActionsDialog(props) {
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['D']) ? (LEDMap['D'].replace("_", " ").replace("led", "LED")) : "Channel D" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['D']) ? "Channel D" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="D" unit={props.unit} />
@@ -1671,7 +1672,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
     <Card aria-disabled={!isUnitActive}>
       <CardContent sx={{p: "10px 20px 20px 20px"}}>
         <Box className={"fixme"}>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(label) ? unit : ""}
           </Typography>
           <Box sx={(theme) => ({
@@ -1686,7 +1687,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
               <PioreactorIconWithModel badgeContent={modelBadgeContent} />
               <Typography sx={{
                   fontSize: 20,
-                  color: "rgba(0, 0, 0, 0.87)",
+                  color: uiColors.text,
                   fontWeight: 500,
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}

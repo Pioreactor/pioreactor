@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useRef } from "react";
 
 import {
@@ -90,10 +91,10 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
     <>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title" slotProps={{ paper: { sx: { height: "100%" } } }} fullWidth>
         <DialogTitle >
-          <Typography sx={{ fontSize: 13, color: "rgba(0,0,0,0.60)" }}>
+          <Typography sx={{ fontSize: 13, color: uiColors.textSecondary }}>
             <PioreactorIcon sx={{ fontSize: "1.2em", verticalAlign: "middle" }} /> {unit}
           </Typography>
-          <Typography sx={{ fontSize: 20, color: "rgba(0,0,0,0.87)" }}>
+          <Typography sx={{ fontSize: 20, color: uiColors.text }}>
             {displayName}
           </Typography>
           <IconButton

@@ -1,0 +1,27 @@
+// Shared UI colours. Data-series and illustration colours remain with their owners.
+export const uiColors = {
+  "surface": "white",
+  "stripe": "#F7F7F7",
+  "primary": "#5331ca",
+  "selection": "#5331ca14",
+  "text": "rgba(0, 0, 0, 0.87)",
+  "textSecondary": "rgba(0, 0, 0, 0.60)",
+  "navDisabled": "#00000050",
+  "navIcon": "rgb(75, 75, 75)",
+  "codeBackground": "rgba(0, 0, 0, 0.07)",
+  "subtleBackground": "#f3f3f3",
+  "selectedSurface": "#f6f4fa",
+  "hoverSurface": "#f9f9f9",
+  "chartControl": "rgba(255,255,255,0.85)",
+  "ready": "#176114",
+  "readyBackground": "#DDFFDC",
+  "disconnected": "#585858",
+  "lost": "#DE3618",
+  "lostBackground": "#fbeae9",
+  "stateBackground": "rgba(0, 0, 0, 0.04)",
+  "disabled": "rgba(0, 0, 0, 0.38)",
+  "inactive": "#99999b",
+  "logError": "#FF8F7B",
+  "logWarning": "#ffefa4",
+  "logNotice": "#addcaf"
+};

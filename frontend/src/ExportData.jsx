@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import React from "react";
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
@@ -206,7 +207,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
         p: 1.5,
         borderLeft: isSelected ? "4px solid #5331CA" : "4px solid #ddd",
         borderRadius: "4px",
-        backgroundColor: isSelected ? "#5331ca14" : "white",
+        backgroundColor: isSelected ? uiColors.selection : uiColors.surface,
         transition: "background-color 0.15s, border 0.15s",
       }}
     >
@@ -248,11 +249,11 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
             display: 'none',
           },
           ml: "20px",
-          backgroundColor: isSelected ? "#f6f4fa" : "white",
+          backgroundColor: isSelected ? uiColors.selectedSurface : uiColors.surface,
           mt: "8px",
           maxWidth: "70vw",
           "&.Mui-expanded": {
-            backgroundColor: isSelected ? "#f6f4fa" : "#f9f9f9",
+            backgroundColor: isSelected ? uiColors.selectedSurface : uiColors.hoverSurface,
             ml: "20px",
             width: "70vw",
             overflow: "scroll",
@@ -269,7 +270,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
             flexDirection: 'row-reverse',
             fontWeight: "bold",
             '&:hover': {
-              backgroundColor: "#f3f3f3",
+              backgroundColor: uiColors.subtleBackground,
             },
           }}
         expandIcon={<ArrowDropDownIcon />}

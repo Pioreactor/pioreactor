@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import React from "react";
 
 import CircularProgress from '@mui/material/CircularProgress';
@@ -43,8 +44,8 @@ import Snackbar from './components/Snackbar';
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 const stateDisplay = {
-  "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
-  "disconnected":  {display: "Off", color: lostRed, backgroundColor: "#fbeae9"},
+  "ready":         {display: "On", color: readyGreen, backgroundColor: uiColors.readyBackground},
+  "disconnected":  {display: "Off", color: lostRed, backgroundColor: uiColors.lostBackground},
 }
 
 
@@ -671,7 +672,7 @@ function LeaderCard({leaderHostname}) {
           <Box sx={{display: "flex", justifyContent: "left"}}>
             <Typography sx={{
                 fontSize: 20,
-                color: "rgba(0, 0, 0, 0.87)",
+                color: uiColors.text,
                 fontWeight: 500,
               }}
               gutterBottom>
@@ -708,7 +709,7 @@ function LeaderCard({leaderHostname}) {
                 Software version
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{softwareVersion()}</Box>
             </td>
           </tr>
           <tr>
@@ -716,7 +717,7 @@ function LeaderCard({leaderHostname}) {
                 IPv4
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ipv4 || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -724,7 +725,7 @@ function LeaderCard({leaderHostname}) {
                 Raspberry Pi
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -732,7 +733,7 @@ function LeaderCard({leaderHostname}) {
                 WLAN MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -740,7 +741,7 @@ function LeaderCard({leaderHostname}) {
                 Ethernet MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
             </td>
           </tr>
           </Box>

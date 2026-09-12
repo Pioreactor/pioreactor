@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
@@ -298,7 +299,7 @@ function EstimatorData({ loading, rawData }) {
                 <TableRow
                   sx={{
                     ':hover': {
-                      bgcolor: '#F7F7F7',
+                      bgcolor: uiColors.stripe,
                     },
                     cursor: "pointer",
                   }}

@@ -31,6 +31,10 @@ and predictable while still fitting useful information on screen.
 
 ### Color
 
+The MUI theme lives in `src/theme/index.js`. Shared non-MUI surface, navigation,
+and status colours live in `src/theme/colors.js`; use `uiColors` rather than
+repeating those literals. Data-series and illustration colours remain separate.
+
 Use theme tokens where they exist. The values below define the intended visual
 result and should be moved into the theme as repeated patterns are consolidated.
 
@@ -640,7 +644,7 @@ unrelated drift:
 | Title and actions header | `frontend/src/Inventory.jsx`, `frontend/src/Pioreactors.jsx` |
 | Sentence-style header | `frontend/src/Logs.jsx`, `frontend/src/SystemLogs.jsx`, `frontend/src/Plugins.jsx` |
 | Status colors | `frontend/src/utils/color.js` |
-| App palette and canvas | `frontend/src/App.jsx` |
+| App palette and canvas | `frontend/src/theme/index.js` |
 
 ## Known inconsistencies
 

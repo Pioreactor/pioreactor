@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import React from "react";
 import dayjs from "dayjs";
 
@@ -47,10 +48,10 @@ const StyledTableCell = styled(TableCell)(() => ({
 
 const TableRowStyled = styled(TableRow)(() => ({
   "&:nth-of-type(odd)": {
-    backgroundColor: "#F7F7F7",
+    backgroundColor: uiColors.stripe,
   },
   "&:nth-of-type(even)": {
-    backgroundColor: "white",
+    backgroundColor: uiColors.surface,
   },
 }));
 
@@ -387,10 +388,10 @@ function ExperimentsContainer(props) {
           <Table size="small" aria-label="experiments table">
             <TableHead>
               <TableRow>
-                <TableCell sx={{backgroundColor: "white" }}>Experiment</TableCell>
-                <TableCell sx={{backgroundColor: "white", whiteSpace: "nowrap" }}>Created at</TableCell>
-                <TableCell sx={{backgroundColor: "white" }}><UnderlineSpan title="Active means at least one Pioreactor is assigned">Status</UnderlineSpan></TableCell>
-                <TableCell sx={{backgroundColor: "white" }} align="right" />
+                <TableCell sx={{backgroundColor: uiColors.surface }}>Experiment</TableCell>
+                <TableCell sx={{backgroundColor: uiColors.surface, whiteSpace: "nowrap" }}>Created at</TableCell>
+                <TableCell sx={{backgroundColor: uiColors.surface }}><UnderlineSpan title="Active means at least one Pioreactor is assigned">Status</UnderlineSpan></TableCell>
+                <TableCell sx={{backgroundColor: uiColors.surface }} align="right" />
               </TableRow>
             </TableHead>
             <TableBody>

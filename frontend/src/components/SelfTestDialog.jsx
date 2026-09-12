@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React, {useState} from "react";
 import { styled } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
@@ -124,7 +125,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
       </Button>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} gutterBottom>
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} gutterBottom>
             <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> {label ? `${label} / ${unit}` : `${unit}`}
           </Typography>
            Self-test

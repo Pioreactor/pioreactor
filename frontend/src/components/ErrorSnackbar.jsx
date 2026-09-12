@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React from "react";
 import Alert from '@mui/material/Alert';
 import Link from '@mui/material/Link';
@@ -171,7 +172,7 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
         {count > 1 && (
           <Box
             sx={{
-              color: "rgba(0, 0, 0, 0.6)",
+              color: uiColors.textSecondary,
               fontSize: 12,
               lineHeight: 1.4,
               mt: "10px",

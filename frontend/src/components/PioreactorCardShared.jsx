@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import dayjs from "dayjs";
 import React from "react";
 
@@ -223,7 +224,7 @@ export function CalibrateDialog({
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
-          <Typography sx={{ fontSize: "13px", color: "rgba(0, 0, 0, 0.60)" }}>
+          <Typography sx={{ fontSize: "13px", color: uiColors.textSecondary }}>
             <PioreactorIcon sx={{ verticalAlign: "middle", fontSize: "1.2em" }} /> {label ? `${label} / ${unit}` : `${unit}`}
           </Typography>
           <Tabs
@@ -816,7 +817,7 @@ export function UnitSettingDisplay(props) {
         key={flashToken}
         gutterBottom
         sx={{
-          color: "rgba(0, 0, 0, 0.87)",
+          color: uiColors.text,
           padding: "1px 9px",
           borderRadius: "16px",
           backgroundColor: defaultStateDisplayBackground,

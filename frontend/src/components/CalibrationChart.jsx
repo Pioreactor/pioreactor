@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React, { useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
@@ -201,7 +202,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                 cornerRadius={0}
                 constrainToVisibleArea      // keep it on–screen
                 flyoutStyle={{
-                  fill: "white",
+                  fill: uiColors.surface,
                   stroke: "#90a4ae",
                   strokeWidth: 1.0,
                 }}
@@ -346,7 +347,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
             aria-label={`chart-options-${deviceName || 'calibration'}`}
             size="small"
             onClick={handleOpenOptionsMenu}
-            sx={{ backgroundColor: "rgba(255,255,255,0.85)" }}
+            sx={{ backgroundColor: uiColors.chartControl }}
           >
             <SettingsIcon fontSize="small" />
           </IconButton>
@@ -354,7 +355,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
             aria-label={`download-${deviceName || 'calibration'}`}
             size="small"
             onClick={handleOpenExportMenu}
-            sx={{ backgroundColor: "rgba(255,255,255,0.85)" }}
+            sx={{ backgroundColor: uiColors.chartControl }}
           >
             <DownloadIcon fontSize="small" />
           </IconButton>

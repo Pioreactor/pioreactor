@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React, {
   useCallback,
   useEffect,
@@ -764,7 +765,7 @@ function Chart(props) {
               <VictoryTooltip
                 cornerRadius={0}
                 flyoutStyle={{
-                  fill: "white",
+                  fill: uiColors.surface,
                   stroke: "#90a4ae",
                   strokeWidth: 1.5,
                 }}
@@ -861,7 +862,7 @@ function Chart(props) {
           position: "absolute",
           bottom: 8,
           right: 8,
-          backgroundColor: "rgba(255,255,255,0.85)",
+          backgroundColor: uiColors.chartControl,
           zIndex: 2,
         }}
       >

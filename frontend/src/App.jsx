@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router";
-import { ThemeProvider, createTheme} from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
+import theme from "./theme";
 import CssBaseline from "@mui/material/CssBaseline";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -48,49 +49,6 @@ const Calibrations = React.lazy(() => import("./Calibrations"));
 const CalibrationCoverage = React.lazy(() => import("./CalibrationCoverage"));
 const Estimators = React.lazy(() => import("./Estimators"));
 const Protocols = React.lazy(() => import("./Protocols"));
-
-
-const theme = createTheme({
-  focusVisible: true,
-  palette: {
-    background: {
-      default: "#f6f6f7",
-    },
-    primary: {
-      // light: will be calculated from palette.primary.main,
-      main: '#5331CA',
-      // dark: will be calculated from palette.primary.main,
-      // contrastText: will be calculated to contrast with palette.primary.main
-    },
-    secondary: {
-      main: '#DF1A0C',
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-    MuiTab: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-    MuiToggleButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-  },
-});
-
 
 const NotFound = () => {
   return (

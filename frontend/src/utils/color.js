@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 const shiftHue = (color, degrees) => {
   if (!color) {
     return color;
@@ -158,20 +159,20 @@ const colors = [
   "#1734B8",
 ];
 
-const ERROR_COLOR = "#FF8F7B";
-const WARNING_COLOR = "#ffefa4";
-const NOTICE_COLOR = "#addcaf";
+const ERROR_COLOR = uiColors.logError;
+const WARNING_COLOR = uiColors.logWarning;
+const NOTICE_COLOR = uiColors.logNotice;
 
-const readyGreen = "#176114";
-const disconnectedGrey = "#585858";
-const lostRed = "#DE3618";
-const defaultStateDisplayBackground = "rgba(0, 0, 0, 0.04)";
-const disabledColor = "rgba(0, 0, 0, 0.38)";
-const inactiveGrey = "#99999b";
+const readyGreen = uiColors.ready;
+const disconnectedGrey = uiColors.disconnected;
+const lostRed = uiColors.lost;
+const defaultStateDisplayBackground = uiColors.stateBackground;
+const disabledColor = uiColors.disabled;
+const inactiveGrey = uiColors.inactive;
 
 const stateDisplay = {
-  init: { display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC" },
-  ready: { display: "On", color: readyGreen, backgroundColor: "#DDFFDC" },
+  init: { display: "Starting", color: readyGreen, backgroundColor: uiColors.readyBackground },
+  ready: { display: "On", color: readyGreen, backgroundColor: uiColors.readyBackground },
   sleeping: { display: "Paused", color: disconnectedGrey, backgroundColor: defaultStateDisplayBackground },
   disconnected: { display: "Off", color: disconnectedGrey, backgroundColor: defaultStateDisplayBackground },
   lost: { display: "Lost", color: lostRed, backgroundColor: defaultStateDisplayBackground },
