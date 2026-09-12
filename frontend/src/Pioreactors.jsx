@@ -545,8 +545,8 @@ function SettingsActionsDialog({
   }, [selfTestSettings]);
 
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings),
-    [selfTestSettings]
+    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, config.camera?.enabled === "1"),
+    [selfTestSettings, config.camera?.enabled]
   );
   const editableSettingsGroups = useMemo(() => {
     return Object.values(settingsCollections || {}).filter(job => job.metadata.display)
@@ -1545,8 +1545,8 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   }, [selfTestDefinition]);
 
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromDefinition(selfTestDefinition),
-    [selfTestDefinition]
+    () => getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, config.camera?.enabled === "1"),
+    [selfTestDefinition, config.camera?.enabled]
   );
   const bioreactorSettingsGroup = useMemo(
     () => buildBioreactorSettingsCollection(

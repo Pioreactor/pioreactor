@@ -226,8 +226,8 @@ function SettingsActionsDialog(props) {
     }, {});
   }, [selfTestSettings]);
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings),
-    [selfTestSettings]
+    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, props.config?.camera?.enabled === "1"),
+    [selfTestSettings, props.config?.camera?.enabled]
   );
   const editableSettingsGroups = useMemo(() => {
     return Object.values(props.settingsCollections || {}).filter(job => job.metadata.display)
