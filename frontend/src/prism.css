@@ -140,3 +140,50 @@ pre[class*="language-"] {
 .token.entity {
     cursor: help;
 }
+
+/* Editors share the app's colour scheme, including readonly previews. */
+[data-dark] code[class*="language-"],
+[data-dark] pre[class*="language-"] {
+    color: var(--mui-palette-text-primary);
+    text-shadow: none;
+    background: var(--mui-palette-ui-editorBackground);
+}
+
+[data-dark] .token.comment,
+[data-dark] .token.prolog,
+[data-dark] .token.doctype,
+[data-dark] .token.cdata { color: #a9b4c3; }
+
+[data-dark] .token.punctuation { color: #80cbc4; }
+
+[data-dark] .token.property,
+[data-dark] .token.tag,
+[data-dark] .token.boolean,
+[data-dark] .token.number,
+[data-dark] .token.constant,
+[data-dark] .token.symbol,
+[data-dark] .token.deleted { color: #f3a6c8; }
+
+[data-dark] .token.selector,
+[data-dark] .token.char,
+[data-dark] .token.builtin,
+[data-dark] .token.inserted { color: #b5baff; }
+
+[data-dark] .token.attr-name { color: var(--mui-palette-text-primary); }
+
+[data-dark] .token.operator,
+[data-dark] .token.entity,
+[data-dark] .token.url,
+[data-dark] .language-css .token.string,
+[data-dark] .style .token.string { color: #e8c391; background: transparent; }
+
+[data-dark] .token.atrule,
+[data-dark] .token.attr-value,
+[data-dark] .token.keyword { color: #f0ae9c; }
+
+[data-dark] .token.function,
+[data-dark] .token.class-name { color: #f59bb0; }
+
+[data-dark] .token.regex,
+[data-dark] .token.important,
+[data-dark] .token.variable { color: #e8c391; }

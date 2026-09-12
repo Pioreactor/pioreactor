@@ -2204,7 +2204,7 @@ function Pioreactor({title, cameraUIEnabled = false}) {
   else {
     return (
       <>
-        <Grid container rowSpacing={1} columnSpacing={2} sx={{ justifyContent: "space-between" }}>
+        <Grid container rowSpacing={2} columnSpacing={2} sx={{ justifyContent: "space-between" }}>
           <Grid
             size={{
               md: 12,

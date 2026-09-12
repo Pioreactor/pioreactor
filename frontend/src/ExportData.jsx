@@ -205,7 +205,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
         ml: 1,
         mt: 2,
         p: 1.5,
-        borderLeft: isSelected ? "4px solid #5331CA" : "4px solid #ddd",
+        borderLeft: isSelected ? `4px solid ${uiColors.primary}` : `4px solid ${uiColors.border}`,
         borderRadius: "4px",
         backgroundColor: isSelected ? uiColors.selection : uiColors.surface,
         transition: "background-color 0.15s, border 0.15s",

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Box from '@mui/material/Box';
+import { uiColors } from '../theme/colors';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useMQTT } from '../providers/MQTTContext';
 import { getBioreactorTubeLayout, getPwmDutyCyclesByLoad } from './bioreactorDiagramModel';
@@ -218,6 +219,9 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
   if (nOD) {
     dynamicRects.push({ text: `nOD: ${roundTo1(nOD)}`, x: 210, width: 80 });
   }
+  const effluxLabelOnLiquid = visibleLiquidHeight > 0
+    && wasteTubeTipY + 23 >= liquidY
+    && wasteTubeTipY + 23 <= liquidY + visibleLiquidHeight;
   const volumeLabelY = Math.max(liquidSurfaceY - 30, 40);
   const outlineTop = (diagramDim.height - bioreactor.height) / 2 + diagramYOffset - 50;
 
@@ -230,9 +234,31 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       viewBox={`0 0 ${diagramDim.width} ${diagramDim.height}`}
       width={diagramDim.width}
       height={diagramDim.height}
-      sx={{ display: 'block', m: '0 auto', maxWidth: '100%', height: 'auto' }}
-      fill="#fff"
-      stroke="#000"
+      sx={(theme) => ({
+        display: 'block', m: '0 auto', maxWidth: '100%', height: 'auto',
+        '--diagram-surface': '#fff',
+        '--diagram-ink': '#000',
+        '--diagram-muted': 'grey',
+        '--diagram-liquid-text': 'grey',
+        '--diagram-vial': 'rgb(244,244,244)',
+        '--diagram-frame': 'rgba(0,0,0,0.01)',
+        '--diagram-frame-outline': 'rgba(0,0,0,0.04)',
+        '--diagram-cap': '#ececed',
+        '--diagram-cap-outline': '#E0E0E1',
+        ...theme.applyStyles('dark', {
+          '--diagram-surface': uiColors.subtleBackground,
+          '--diagram-ink': uiColors.text,
+          '--diagram-muted': uiColors.textSecondary,
+          '--diagram-liquid-text': '#58534b',
+          '--diagram-vial': uiColors.surface,
+          '--diagram-frame': 'rgba(255,255,255,0.02)',
+          '--diagram-frame-outline': 'rgba(255,255,255,0.08)',
+          '--diagram-cap': '#41424d',
+          '--diagram-cap-outline': '#55535f',
+        }),
+      })}
+      fill="var(--diagram-surface)"
+      stroke="var(--diagram-ink)"
       strokeWidth={3}
       fontFamily="Roboto, sans-serif"
       fontSize={13}
@@ -248,13 +274,13 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
           H 55 V ${diagramDim.height - 30 + diagramYOffset} H ${diagramDim.width - 55}
           V ${shiftedBaseHigh - 50} H ${diagramDim.width - 20} V ${shiftedBaseLow - 50}
           H ${diagramDim.width - 70} V ${outlineTop} Z`}
-        fill="rgba(0,0,0,0.01)"
-        stroke="rgba(0,0,0,0.04)"
+        fill="var(--diagram-frame)"
+        stroke="var(--diagram-frame-outline)"
         strokeWidth={8}
       />
       <rect
         x={bioreactor.x} y={bioreactor.y} width={bioreactor.width}
-        height={bioreactor.height} rx={bioreactor.cornerRadius} fill="rgb(244,244,244)"
+        height={bioreactor.height} rx={bioreactor.cornerRadius} fill="var(--diagram-vial)"
       />
       {visibleLiquidHeight > 0 && (
         <g>
@@ -269,17 +295,17 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       )}
       <line
         x1={bioreactor.x + 2} x2={bioreactor.x + bioreactor.width - 2}
-        y1={wasteTubeTipY} y2={wasteTubeTipY} stroke="grey" strokeWidth={1} strokeDasharray="4 3"
+        y1={wasteTubeTipY} y2={wasteTubeTipY} stroke="var(--diagram-muted)" strokeWidth={1} strokeDasharray="4 3"
       />
       <text
         x={bioreactor.x + bioreactor.width / 2 + 60} y={wasteTubeTipY + 23}
-        fill="grey" stroke="none" fontSize={12} dominantBaseline="text-after-edge"
+        fill={effluxLabelOnLiquid ? "var(--diagram-liquid-text)" : "var(--diagram-muted)"} stroke="none" fontSize={12} dominantBaseline="text-after-edge"
       >
         {roundTo1(cappedMaxVolume)} mL
       </text>
       <rect
         x={cap.x} y={cap.y} width={cap.width} height={cap.height} rx={cap.radius}
-        fill="#ececed" stroke="#E0E0E1" strokeWidth={6}
+        fill="var(--diagram-cap)" stroke="var(--diagram-cap-outline)" strokeWidth={6}
       />
       <rect
         ref={stirBarRef}
@@ -290,22 +316,26 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       />
       {ledRects.map(led => (
         <g key={led.label} data-led={led.label}>
+          {/* Keep intensity's translucent amber over a light base in both modes. */}
+          {leds[led.label] > 0 && (
+            <rect x={led.x} y={led.y} width={40} height={30} rx={3} fill="#fff" stroke="none" />
+          )}
           <rect
             x={led.x} y={led.y} width={40} height={30} rx={3}
-            fill={leds[led.label] > 0 ? `rgba(234, 188, 116, ${leds[led.label] / 100 + 0.2})` : '#fff'}
+            fill={leds[led.label] > 0 ? `rgba(234, 188, 116, ${leds[led.label] / 100 + 0.2})` : 'var(--diagram-surface)'}
           />
-          <text x={led.x + 20} y={led.y + 15} fill="#000" stroke="none">{led.label}</text>
+          <text x={led.x + 20} y={led.y + 15} fill={leds[led.label] > 0 ? "#000" : "var(--diagram-ink)"} stroke="none">{led.label}</text>
         </g>
       ))}
       {tubes.map(tube => (
         <g key={tube.id} data-tube={tube.id} strokeWidth={tube.active ? 4 : 3}>
           <rect
             x={tube.x} y={tube.y} width={tube.width} height={tube.tipY - tube.y}
-            rx={tube.radius} fill={tube.active ? '#EABC74' : '#fff'}
+            rx={tube.radius} fill={tube.active ? '#EABC74' : 'var(--diagram-surface)'}
           />
           <text
             transform={`translate(${tube.x + tube.width / 2} ${tube.y + (tube.tipY - tube.y) / 2}) rotate(-90)`}
-            fill="#000" stroke="none"
+            fill={tube.active ? "#000" : "var(--diagram-ink)"} stroke="none"
           >
             {tube.label}
           </text>
@@ -321,14 +351,14 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       {dynamicRects.map(label => (
         <g key={label.x}>
           <rect x={label.x} y={260 + diagramYOffset} width={label.width} height={30} rx={3} />
-          <text x={label.x + label.width / 2} y={275 + diagramYOffset} fill="#000" stroke="none">
+          <text x={label.x + label.width / 2} y={275 + diagramYOffset} fill="var(--diagram-ink)" stroke="none">
             {label.text}
           </text>
         </g>
       ))}
       {volume !== 0 && (
-        <g stroke="grey" strokeWidth={1}>
-          <text x={bioreactor.x + 100} y={volumeLabelY} fill="grey" stroke="none">
+        <g stroke="var(--diagram-muted)" strokeWidth={1}>
+          <text x={bioreactor.x + 100} y={volumeLabelY} fill="var(--diagram-muted)" stroke="none">
             {roundTo1(volume)} mL
           </text>
           <line
@@ -338,8 +368,8 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
         </g>
       )}
       <g data-part="heater">
-        <rect x={100} y={shiftedBaseHigh - 10} width={200} height={20} rx={3} fill={heat ? '#D8A0A2' : '#fff'} />
-        <text x={200} y={shiftedBaseHigh} fill="#000" stroke="none">heat</text>
+        <rect x={100} y={shiftedBaseHigh - 10} width={200} height={20} rx={3} fill={heat ? '#D8A0A2' : 'var(--diagram-surface)'} />
+        <text x={200} y={shiftedBaseHigh} fill={heat ? "#000" : "var(--diagram-ink)"} stroke="none">heat</text>
       </g>
       {liquidPumpActive && (
         <g fill="rgb(255, 244, 229)" stroke="rgb(102, 60, 0)">

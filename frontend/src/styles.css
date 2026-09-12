@@ -19,7 +19,7 @@ html {
 
 
 .underlineSpan {
-  border-bottom: 1px dotted rgba(0, 0, 0, 0.87);
+  border-bottom: 1px dotted var(--mui-palette-text-primary, rgba(0, 0, 0, 0.87));
   text-decoration: none;
 }
 
@@ -80,6 +80,6 @@ u {
 }
 
 .readonlyEditor textarea:focus-visible {
-  outline: 2px solid #5331ca;
+  outline: 2px solid var(--mui-palette-primary-main, #5331ca);
   outline-offset: 2px;
 }

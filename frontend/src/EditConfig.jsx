@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 import Grid from '@mui/material/Grid';
@@ -330,7 +331,7 @@ function EditableCodeDiv() {
 
       <Box sx={{
         tabSize: "4ch",
-        border: "1px solid #ccc",
+        border: `1px solid ${uiColors.border}`,
         m: "10px auto 10px auto",
         position: "relative",
         width: "98%",
@@ -349,7 +350,7 @@ function EditableCodeDiv() {
             style={{
               fontSize: "14px",
               fontFamily: 'monospace',
-              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              backgroundColor: uiColors.surface,
               borderRadius: "3px",
               minHeight: "100%"
             }}

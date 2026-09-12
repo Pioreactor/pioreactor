@@ -66,6 +66,34 @@ Odd row:  #F7F7F7
 Even row: #FFFFFF
 ```
 
+### Appearance
+
+The header's Appearance menu offers Light, Dark, and System. Light remains the
+initial default; the browser remembers an explicit choice. System follows the
+operating system, including changes while the UI is open. Changing appearance
+must preserve page state and unsaved input.
+
+MUI colour schemes own the palette and emit CSS variables. `uiColors` exposes
+those variables for ordinary styles, SVGs, and module-level status definitions.
+Use MUI palette tokens in `sx` and `uiColors` for the shared specialised colours.
+The light values above remain the reference for light mode; dark mode uses:
+
+| Purpose | Dark value |
+| --- | --- |
+| Page background | `#191A21` |
+| Surface | `#22232B` |
+| Zebra row | `#292A34` |
+| Primary | `#B9A5FF` |
+| Primary text | `#F1F0F5` |
+| Secondary text | `#BDBBC9` |
+
+Keep camera images faithful to their source. Diagram surfaces, outlines, and
+labels follow the active scheme; liquid and active hardware colours retain their
+meaning and use contrasting labels. Chart
+axes, labels, tooltips, and controls follow the active scheme; series keep their
+hue with a brightness lift in dark mode. PNG and SVG exports carry the active
+chart colours and background so they remain readable outside the UI.
+
 ### Typography
 
 - A route page must have exactly one semantic `h1`.
@@ -656,7 +684,6 @@ These are design debt, not alternate approved patterns.
 | Detail headers | Back navigation is separate from the record `h1` | Single calibration and single estimator pages mark the back button container as the `h1`; the actual record title is an `h2` inside the Card. |
 | Header spacing | One responsive title/action layout | Header margins currently vary between `5px`, `mb: 1`, `mb: 2`, and omitted spacing; action wrapping is inconsistent. |
 | Clickable row accessibility | Whole-row navigation has focus and keyboard activation | Calibration and estimator rows have `onClick` and pointer hover but are not keyboard-focusable and do not handle Enter or Space. |
-| Row color tokens | Zebra and hover colors come from one shared rule | `#F7F7F7` is repeated independently in Experiments, Plugins, logs, Calibrations, and Estimators. |
 | Pioreactor labels | Pioreactor references in content use a small icon Chip | `MissingWorkerModelModal.jsx` and some operational lists use raw icon-plus-text labels outside title or Select contexts. |
 | Heading construction | Typography owns its weight and semantics | Some pages use nested bold `Box` elements, some use `sx={{ fontWeight: "bold" }}`, and others leave the same heading unbolded. |
 | Spacing tokens | Layout uses theme spacing | Several headers, editors, and controls use one-off pixel margins and widths for ordinary layout. |

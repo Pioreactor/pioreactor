@@ -1,3 +1,5 @@
+import { cloneChartSvg } from "../utils/chartExport";
+import useChartTheme from "../theme/useChartTheme";
 import { uiColors } from "../theme/colors";
 import React, { useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
@@ -16,7 +18,6 @@ import {
   VictoryScatter,
   VictoryLine,
   VictoryAxis,
-  VictoryTheme,
   VictoryLabel,
   VictoryCursorContainer,
   VictoryTooltip,
@@ -25,6 +26,7 @@ import {
 import { generateCurveData } from "../utils/curve_utils";
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
+  const chartTheme = useChartTheme();
   const [exportAnchorEl, setExportAnchorEl] = useState(null);
   const [optionsAnchorEl, setOptionsAnchorEl] = useState(null);
   const [useLogX, setUseLogX] = useState(false);
@@ -90,7 +92,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
       return;
     }
 
-    const clonedSvg = svgElement.cloneNode(true);
+    const clonedSvg = cloneChartSvg(svgElement, chartTheme.surface);
     clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     clonedSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
@@ -130,7 +132,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
         return;
       }
       context.scale(scaleFactor, scaleFactor);
-      context.fillStyle = "#ffffff";
+      context.fillStyle = chartTheme.surface;
       context.fillRect(0, 0, width, height);
       context.drawImage(image, 0, 0, width, height);
       const dataUrl = canvas.toDataURL("image/png", 1.0);
@@ -185,7 +187,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
         height={325}
         width={1050}
         scale={{ x: useLogX ? "log" : "linear", y: useLogY ? "log" : "linear" }}
-        theme={VictoryTheme.material}
+        theme={chartTheme.theme}
         padding={{ left: 50, right: 50, bottom: 40, top: 45 }}
         containerComponent={
           <VictoryCursorContainer
@@ -202,14 +204,14 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                 cornerRadius={0}
                 constrainToVisibleArea      // keep it on–screen
                 flyoutStyle={{
-                  fill: uiColors.surface,
+                  fill: chartTheme.surface,
                   stroke: "#90a4ae",
                   strokeWidth: 1.0,
                 }}
                 style={{
                   fontSize: 10,
                   fontFamily: "inherit",
-                  fill: "#333",
+                  fill: chartTheme.text,
                 }}
               />
             }
@@ -234,6 +236,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
             style={{
               fontSize: 16,
               fontFamily: "inherit",
+              fill: chartTheme.text,
             }}
         />
 
@@ -243,6 +246,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                 fontSize: 14,
                 padding: 5,
                 fontFamily: "inherit",
+                fill: chartTheme.text,
               },
             }}
             offsetY={40}
@@ -256,6 +260,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                 style={{
                   fontSize: 12,
                   fontFamily: "inherit",
+                  fill: chartTheme.text,
                 }}
               />
             }
@@ -273,6 +278,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                   fontSize: 12,
                   padding: 10,
                   fontFamily: "inherit",
+                  fill: chartTheme.text,
                 }}
               />
             }
@@ -281,6 +287,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                 fontSize: 14,
                 padding: 5,
                 fontFamily: "inherit",
+                fill: chartTheme.text,
               },
             }}
           />
@@ -294,7 +301,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
           const filteredScatterData = filterDataForScale(scatterData);
 
           // Simple color selection (optional)
-          const color = unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || "black";
+          const color = chartTheme.seriesColor(unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || chartTheme.text);
 
           return (
               <VictoryScatter
@@ -312,7 +319,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
           const filteredCurveData = filterDataForScale(curveData);
 
           // Simple color selection (optional)
-          const color = unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || "black";
+          const color = chartTheme.seriesColor(unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || chartTheme.text);
           const isActive = cal.is_active;
           const baseLineWidth = isActive ? 3 : 1.5;
           const lineOpacity = isActive ? 1.0 : 0.8;

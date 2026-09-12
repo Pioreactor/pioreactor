@@ -274,7 +274,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           ) : showEmptyState ? (
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "350px", gap: 2, textAlign: "center" }}>
               <Box component="img" src={emptyStateIllustration} alt="No logs illustration" sx={{ maxWidth: "350px", width: "100%", opacity: 0.8 }} />
-              <Box sx={{ color: "#5f6a7d", fontSize: "14px" }}>
+              <Box sx={{ color: "text.secondary", fontSize: "14px" }}>
                 No logs yet. They will appear here once your Pioreactor starts reporting activity.
               </Box>
             </Box>

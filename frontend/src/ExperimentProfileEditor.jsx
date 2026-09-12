@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import React from "react";
 
 import Grid from "@mui/material/Grid";
@@ -229,7 +230,7 @@ export function ExperimentProfileEditorContent({
           <Box
             sx={{
               tabSize: "4ch",
-              border: "1px solid #ccc",
+              border: `1px solid ${uiColors.border}`,
               m: "10px auto 10px auto",
               position: "relative",
               width: "98%",
@@ -247,7 +248,7 @@ export function ExperimentProfileEditorContent({
               style={{
                 fontSize: "14px",
                 fontFamily: "monospace",
-                backgroundColor: "hsla(0, 0%, 100%, .5)",
+                backgroundColor: uiColors.surface,
                 borderRadius: "4px",
                 minHeight: "100%",
               }}

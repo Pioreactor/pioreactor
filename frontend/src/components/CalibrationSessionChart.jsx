@@ -1,3 +1,4 @@
+import useChartTheme from "../theme/useChartTheme";
 import React from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
@@ -7,7 +8,6 @@ import {
   VictoryScatter,
   VictoryLine,
   VictoryAxis,
-  VictoryTheme,
   VictoryLabel,
 } from "victory";
 import { evaluateCurve } from "../utils/curve_utils";
@@ -45,6 +45,7 @@ function generateCurvePoints(points, curveData, stepCount = 50) {
 }
 
 export default function CalibrationSessionChart({ chart }) {
+  const chartTheme = useChartTheme();
   if (!chart || !Array.isArray(chart.series) || chart.series.length === 0) {
     return null;
   }
@@ -61,7 +62,7 @@ export default function CalibrationSessionChart({ chart }) {
         domainPadding={10}
         height={height}
         width={width}
-        theme={VictoryTheme.material}
+        theme={chartTheme.theme}
         padding={{ left: 50, right: 25, bottom: 45, top: 40 }}
       >
         <VictoryLabel
@@ -72,6 +73,7 @@ export default function CalibrationSessionChart({ chart }) {
           style={{
             fontSize: 12,
             fontFamily: "inherit",
+            fill: chartTheme.text,
           }}
         />
         <VictoryAxis
@@ -80,6 +82,7 @@ export default function CalibrationSessionChart({ chart }) {
               fontSize: 11,
               padding: 4,
               fontFamily: "inherit",
+              fill: chartTheme.text,
             },
           }}
           tickFormat={(value) => Number(value).toFixed(2)}
@@ -91,6 +94,7 @@ export default function CalibrationSessionChart({ chart }) {
               style={{
                 fontSize: 10,
                 fontFamily: "inherit",
+                fill: chartTheme.text,
               }}
             />
           }
@@ -107,6 +111,7 @@ export default function CalibrationSessionChart({ chart }) {
                 fontSize: 10,
                 padding: 8,
                 fontFamily: "inherit",
+                fill: chartTheme.text,
               }}
             />
           }
@@ -115,12 +120,13 @@ export default function CalibrationSessionChart({ chart }) {
               fontSize: 11,
               padding: 4,
               fontFamily: "inherit",
+              fill: chartTheme.text,
             },
           }}
         />
 
         {chart.series.map((series, index) => {
-          const color = SERIES_COLORS[index % SERIES_COLORS.length];
+          const color = chartTheme.seriesColor(SERIES_COLORS[index % SERIES_COLORS.length]);
           return (
             <VictoryScatter
               key={`scatter-${series.id || index}`}
@@ -139,7 +145,7 @@ export default function CalibrationSessionChart({ chart }) {
           if (curvePoints.length === 0) {
             return null;
           }
-          const color = SERIES_COLORS[index % SERIES_COLORS.length];
+          const color = chartTheme.seriesColor(SERIES_COLORS[index % SERIES_COLORS.length]);
           return (
             <VictoryLine
               key={`curve-${series.id || index}`}
@@ -164,7 +170,7 @@ export default function CalibrationSessionChart({ chart }) {
                   width: 10,
                   height: 10,
                   borderRadius: "50%",
-                  backgroundColor: SERIES_COLORS[index % SERIES_COLORS.length],
+                  backgroundColor: chartTheme.seriesColor(SERIES_COLORS[index % SERIES_COLORS.length]),
                 }}
               />
               <Typography variant="caption" color="text.secondary">

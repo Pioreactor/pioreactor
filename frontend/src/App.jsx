@@ -80,11 +80,11 @@ function App() {
   return (
     <React.StrictMode>
       <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={theme}>
+        <ThemeProvider theme={theme} defaultMode="light" modeStorageKey="pioreactor-color-mode">
           <Router>
             <ScrollToTop/>
             <ConfirmProvider>
-              <CssBaseline />
+              <CssBaseline enableColorScheme />
               <SnackbarProvider maxSnack={4}>
                 <MainSite />
               </SnackbarProvider>
@@ -111,7 +111,7 @@ function MainSite() {
       <ErrorBoundary>
         <ExperimentProvider>
           <SideNavAndHeader cameraUIEnabled={cameraUIEnabled} />
-          <Box component="main" sx={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+          <Box component="main" sx={{flexGrow: 1, paddingTop: { xs: 14, sm: 9 }, paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
             <div className="pageContainer">
               <MQTTProvider name="global" config={config}>
                 <React.Suspense fallback={<RouteFallback />}>

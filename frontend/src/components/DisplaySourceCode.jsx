@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React from "react";
 import { styled } from '@mui/material/styles';
 import Card from '@mui/material/Card';
@@ -10,12 +11,12 @@ import 'prismjs/components/prism-yaml'; // You can add more languages or change 
 const StyledCard = styled(Card)(() => ({
   height: "350px",
   overflow: "auto",
-  backgroundColor: "rgb(248,248,248)",
+  backgroundColor: uiColors.editorBackground,
   letterSpacing: "0em",
   margin: "10px 0px 10px 0px",
   position: "relative",
   width: "98%",
-  border: "1px solid #ccc",
+  border: `1px solid ${uiColors.border}`,
   borderRadius: "4px",
   boxShadow: "none"
 }));

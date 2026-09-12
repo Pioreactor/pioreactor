@@ -1,0 +1,1 @@
+import{c as r,j as i,A as d}from"./index-DOzL8rWD.js";function a(t){const{sx:o,children:s,...n}=t,e={backgroundColor:r.subtleBackground,borderColor:r.border,borderStyle:"solid",borderWidth:"1px",color:r.textSecondary,mt:1,mb:1,"& .MuiAlert-icon":{color:r.textSecondary}},c=Array.isArray(o)?[e,...o]:[e,o];return i.jsx(d,{severity:"info",sx:c,...n,children:s})}export{a as R};

@@ -258,7 +258,7 @@ export function UploadCalibrationDialog({
         <FormLabel component="legend">YAML description</FormLabel>
         <Box sx={{
             tabSize: "4ch",
-            border: "1px solid #ccc",
+            border: `1px solid ${uiColors.border}`,
             m: "5px 0px 10px 0px",
             position: "relative",
             width: "100%",
@@ -275,7 +275,7 @@ export function UploadCalibrationDialog({
             style={{
               fontSize: "14px",
               fontFamily: 'monospace',
-              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              backgroundColor: uiColors.surface,
               borderRadius: "4px",
               minHeight: "100%"
             }}

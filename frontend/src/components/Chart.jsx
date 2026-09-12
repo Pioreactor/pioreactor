@@ -1,3 +1,5 @@
+import { cloneChartSvg } from "../utils/chartExport";
+import useChartTheme from "../theme/useChartTheme";
 import { uiColors } from "../theme/colors";
 import React, {
   useCallback,
@@ -15,7 +17,6 @@ import {
   VictoryChart,
   VictoryLabel,
   VictoryAxis,
-  VictoryTheme,
   VictoryLine,
   VictoryScatter,
   VictoryGroup,
@@ -64,6 +65,7 @@ const resolveUnitColor = (name, colorMap) => {
 };
 
 function Chart(props) {
+  const chartTheme = useChartTheme();
   const {
     allowZoom,
     byDuration,
@@ -263,18 +265,18 @@ function Chart(props) {
 
       const reformattedName = relabelAndFormatSeriesForLegend(name);
       const line = seriesMap[name];
-      const legendColor = applyAngleAlpha(name, line?.color);
+      const legendColor = applyAngleAlpha(name, chartTheme.seriesColor(line?.color));
       const item = {
         name: reformattedName,
         originalName: name,
         symbol: { fill: legendColor },
       };
       if (hiddenSeries.has(name)) {
-        return { ...item, symbol: { fill: "white" } };
+        return { ...item, symbol: { fill: chartTheme.surface } };
       }
       return item;
     },
-    [applyAngleAlpha, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
+    [chartTheme, applyAngleAlpha, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
   );
 
   const legendItems = useMemo(
@@ -336,7 +338,7 @@ function Chart(props) {
         return null;
       }
 
-      const seriesColor = applyAngleAlpha(name, series?.color);
+      const seriesColor = applyAngleAlpha(name, chartTheme.seriesColor(series?.color));
       let marker = null;
       if (interpolation === "none" || series.data?.length === 1) {
         marker = (
@@ -363,7 +365,7 @@ function Chart(props) {
                 stroke: seriesColor,
                 strokeWidth: 2,
               },
-              parent: { border: "1px solid #ccc" },
+              parent: { border: `1px solid ${uiColors.border}` },
             }}
           />
         );
@@ -384,6 +386,7 @@ function Chart(props) {
       );
     },
     [
+      chartTheme,
       applyAngleAlpha,
       chartKey,
       hiddenSeries,
@@ -495,7 +498,7 @@ function Chart(props) {
         return;
       }
 
-      const clonedSvg = svgElement.cloneNode(true);
+      const clonedSvg = cloneChartSvg(svgElement, chartTheme.surface);
       clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
       clonedSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
@@ -539,7 +542,7 @@ function Chart(props) {
           return;
         }
         context.scale(scaleFactor, scaleFactor);
-        context.fillStyle = "#ffffff";
+        context.fillStyle = chartTheme.surface;
         context.fillRect(0, 0, width, height);
         context.drawImage(image, 0, 0, width, height);
         const dataUrl = canvas.toDataURL("image/png", 1.0);
@@ -551,7 +554,7 @@ function Chart(props) {
       };
       image.src = url;
     },
-    [addWatermarkToSvg, getDownloadFilename, triggerBlobDownload, triggerDataUrlDownload]
+    [chartTheme, addWatermarkToSvg, getDownloadFilename, triggerBlobDownload, triggerDataUrlDownload]
   );
 
   const handleOpenExportMenu = useCallback((event) => {
@@ -754,7 +757,7 @@ function Chart(props) {
         height={chartHeight}
         width={chartWidth}
         scale={{ x: byDuration ? "linear" : "time" }}
-        theme={VictoryTheme.material}
+        theme={chartTheme.theme}
         containerComponent={
           <ChartContainer
             zoomDimension={"x"}
@@ -763,9 +766,10 @@ function Chart(props) {
             labels={createToolTip}
             labelComponent={
               <VictoryTooltip
+                style={{ fill: chartTheme.text }}
                 cornerRadius={0}
                 flyoutStyle={{
-                  fill: uiColors.surface,
+                  fill: chartTheme.surface,
                   stroke: "#90a4ae",
                   strokeWidth: 1.5,
                 }}
@@ -782,6 +786,7 @@ function Chart(props) {
           style={{
             fontSize: 16,
             fontFamily: "inherit",
+            fill: chartTheme.text,
           }}
         />
         <VictoryAxis
@@ -790,6 +795,7 @@ function Chart(props) {
               fontSize: 14,
               padding: 5,
               fontFamily: "inherit",
+              fill: chartTheme.text,
             },
           }}
           offsetY={legendBottomPadding}
@@ -804,7 +810,7 @@ function Chart(props) {
               style={{
                 fontSize: 12,
                 fontFamily: "inherit",
-                fill: "grey",
+                fill: chartTheme.axisLabel,
               }}
             />
           }
@@ -822,6 +828,7 @@ function Chart(props) {
                 fontSize: 15,
                 padding: 10,
                 fontFamily: "inherit",
+                fill: chartTheme.text,
               }}
             />
           }
@@ -830,6 +837,7 @@ function Chart(props) {
               fontSize: 14,
               padding: 5,
               fontFamily: "inherit",
+              fill: chartTheme.text,
             },
           }}
         />

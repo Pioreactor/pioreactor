@@ -16,12 +16,12 @@ import { getInlineCommentForPath } from "../utils/experimentProfilePreview";
 const DisplayProfileCard = {
     height: "350px",
     overflow: "auto",
-    backgroundColor: "rgb(250,250,250)",
+    backgroundColor: uiColors.editorBackground,
     letterSpacing: "0em",
     margin: "10px 0px 10px 0px",
     position: "relative",
     width: "98%",
-    border: "1px solid #ccc",
+    border: `1px solid ${uiColors.border}`,
     borderRadius: "4px",
     boxShadow: "none",
 }

@@ -258,19 +258,19 @@ function ManageLeaderMenu({unit}) {
 const Path = styled(Box)(({ theme }) => ({
   display: 'inline-block',
   fontFamily: 'monospace',
-  backgroundColor: theme.palette.grey[100],
+  backgroundColor: uiColors.subtleBackground,
   padding: theme.spacing(1),
   paddingLeft: theme.spacing(2),
   paddingRight: theme.spacing(2),
   borderRadius: theme.shape.borderRadius,
-  color: theme.palette.text.primary,
+  color: uiColors.text,
   marginLeft: theme.spacing(0),
   marginTop: theme.spacing(2),
 }));
 
-const FileDir = styled(Box)(({ theme }) => ({
+const FileDir = styled(Box)(() => ({
   fontFamily: 'monospace',
-  color: theme.palette.text.primary,
+  color: uiColors.text,
 }));
 
 const BorderLinearProgress = styled(LinearProgress, {
@@ -279,7 +279,7 @@ const BorderLinearProgress = styled(LinearProgress, {
   height: 10,
   borderRadius: 5,
   [`&.${linearProgressClasses.colorPrimary}`]: {
-    backgroundColor: theme.palette.grey[200],
+    backgroundColor: uiColors.codeBackground,
   },
   [`& .${linearProgressClasses.bar}`]: {
     borderRadius: 5,
