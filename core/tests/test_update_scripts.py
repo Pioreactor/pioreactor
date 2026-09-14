@@ -155,3 +155,77 @@ def test_destructive_sql_migrations_have_guardrails() -> None:
                 error_msgs.append(f"Error in {script}: destructive SQL migrations must {description}.")
 
     assert not error_msgs, "\n".join(error_msgs)
+
+
+def test_raw_od_angle_migration(tmp_path: Path) -> None:
+    import os
+    import sqlite3
+    import subprocess
+
+    database = tmp_path / "test.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE raw_od_readings (od_reading REAL)")
+        connection.execute("INSERT INTO raw_od_readings VALUES (0.25)")
+
+    # Exercise the shipped shell script against SQLite without root or a real cluster.
+    commands = {
+        "sudo": '#!/bin/bash\nshift 3\nexec "$@"\n',
+        "pio": '#!/bin/bash\nif [ "$3" = "storage" ]; then echo "$TEST_DATABASE"; else hostname; fi\n',
+        "chown": "#!/bin/bash\nexit 0\n",
+        "bash": '#!/bin/bash\ncase "$1" in */10_install_od_defaults.sh) exit 0;; esac\nexec /bin/bash "$@"\n',
+    }
+    for name, contents in commands.items():
+        command = tmp_path / name
+        command.write_text(contents)
+        command.chmod(0o755)
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "TEST_DATABASE": str(database)}
+    for _ in range(2):
+        subprocess.run(
+            ["bash", str(SCRIPT_DIRECTORY / "update.sh")], env=env, check=True, capture_output=True
+        )
+        with sqlite3.connect(database) as connection:
+            assert connection.execute("SELECT od_reading, angle FROM raw_od_readings").fetchall() == [
+                (0.25, None)
+            ]
+    with sqlite3.connect(database) as connection:
+        connection.execute("INSERT INTO raw_od_readings VALUES (0.5, 0)")
+    subprocess.run(["bash", str(SCRIPT_DIRECTORY / "update.sh")], env=env, check=True, capture_output=True)
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT angle FROM raw_od_readings WHERE od_reading=0.5").fetchone() == (0,)
+
+
+def test_od_defaults_preserve_existing_selection(tmp_path: Path) -> None:
+    import os
+    import subprocess
+    from pioreactor.models import CORE_MODELS
+
+    model_root = tmp_path / "models"
+    probe = model_root / "pioreactor_40ml/1.5/od.yaml"
+    probe.parent.mkdir(parents=True)
+    probe.write_text("driver: turbidvision\nbus: 1\naddress: 0x69\n")
+    install = tmp_path / "install"
+    # Exercise real installation, omitting only ownership changes on the development host.
+    install.write_text(
+        '#!/bin/bash\nargs=()\nwhile [ "$#" -gt 0 ]; do\n'
+        'case "$1" in -o|-g) shift 2;; *) args+=("$1"); shift;; esac\ndone\n'
+        '/usr/bin/install "${args[@]}"\n'
+    )
+    install.chmod(0o755)
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    seed_root = Path(__file__).resolve().parents[2] / "packaging/shared-assets/pioreactor/hardware/models"
+    for _ in range(2):
+        subprocess.run(
+            ["bash", str(SCRIPT_DIRECTORY / "10_install_od_defaults.sh"), str(model_root)],
+            env=env,
+            check=True,
+            capture_output=True,
+        )
+        for model in CORE_MODELS:
+            relative = Path(model.model_name) / model.model_version / "od.yaml"
+            assert (seed_root / relative).read_text() == "driver: photodiodes\n"
+            installed = model_root / relative
+            assert installed.read_text() == (
+                "driver: turbidvision\nbus: 1\naddress: 0x69\n"
+                if installed == probe
+                else "driver: photodiodes\n"
+            )

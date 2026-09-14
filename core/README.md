@@ -3,7 +3,10 @@
 ## Model-selected OD acquisition
 
 The native `od_reading` activity selects its device through the existing
-HAT → model hardware YAML layering. Missing `od.yaml` selects Eye-spy.
+HAT → model hardware YAML layering. Built-in 20/40 ml models ship `od.yaml`
+with `driver: photodiodes`. The update installs missing defaults on leaders and
+workers without overwriting existing selections. Missing `od.yaml` still selects
+Eye-spy for compatibility with older installations.
 An add-on keeps the unit's existing model identity:
 
 ```yaml
@@ -24,6 +27,8 @@ The factory receives `ODHardwareConfig` and a logger. Its device implements
 `read()` returns `None` for no fresh measurement, or:
 
 ```python
+from pioreactor.structs import ODDeviceReading
+
 ODDeviceReading(timestamp=acquisition_time, value=reflectance)
 ```
 
@@ -51,7 +56,13 @@ External devices never enter this pipeline. Photodiode-specific blanking and
 calibration reject external devices, and photodiode self-tests are omitted.
 
 External MQTT readings include source and units. Existing SQL tables store the
-value and angle without a schema change. The chart preserves small reflectance
-values. Growth processing uses `ods`, rather than photodiode fusion, for the
-external device. Switching source requires a new experiment or clearing the
-experiment's normalization cache.
+value and angle. The upcoming update adds `angle` to `raw_od_readings`. The chart
+preserves small reflectance values. Growth processing uses `ods`, rather than photodiode fusion, for the
+external device. When switching hardware, start a new experiment or clear its
+normalization cache; the growth model does not detect hardware changes.
+
+OD charts use observation geometry, not the current photodiode configuration.
+The time-series API includes `angle` on each OD point; live charts use the MQTT
+reading's `angle`. Both OD and raw diagnostic history read geometry directly
+from their stored observations. Historical raw points predating the migration have `angle: null`
+and are labeled by channel. Upgrade the leader before using the plugin.

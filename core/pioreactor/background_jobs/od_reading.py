@@ -80,6 +80,7 @@ import random
 import threading
 import types
 from collections.abc import Mapping
+from functools import partial
 from time import monotonic
 from time import sleep
 from time import time
@@ -1184,9 +1185,7 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         self._verify(raw_od_readings)
 
         fused_inputs: dict[pt.PdAngle, float] = {
-            reading.angle: reading.od
-            for reading in raw_od_readings.ods.values()
-            if not isinstance(reading, structs.SensorODReading)
+            cast(pt.PdAngle, reading.angle): reading.od for reading in raw_od_readings.ods.values()
         }
         try:
             od_fused_value = compute_fused_od(self.estimator, fused_inputs)
@@ -1628,17 +1627,22 @@ class ODReader(BackgroundJob):
         self.device = device_factory()
         self.source = self.device.source
         self.signal_unit = self.device.signal_unit
-        self.acquisition = "scheduled" if isinstance(self.device, PhotodiodeODDevice) else "continuous"
         self.pre_read_callbacks = self._prepare_pre_callbacks()
         self.post_read_callbacks = self._prepare_post_callbacks()
+        # Device selection is fixed for this job's lifetime.
+        self._acquire_readings: Callable[[], structs.ODReadings | None]
         if isinstance(self.device, PhotodiodeODDevice):
+            self.acquisition = "scheduled"
+            self._acquire_readings = partial(self._read_photodiodes, self.device)
             self.add_to_published_settings("first_od_obs_time", {"datatype": "float", "settable": False})
-        if isinstance(self.device, PhotodiodeODDevice):
             for name, settings in self.photodiode_settings.items():
                 self.add_to_published_settings(name, settings)
-        self.device.start()
-        if isinstance(self.device, PhotodiodeODDevice):
+            self.device.start()
             self.ir_led_intensity = self.device.ir_led_intensity
+        else:
+            self.acquisition = "continuous"
+            self._acquire_readings = partial(self._read_external_device, self.device)
+            self.device.start()
         self.set_interval(interval)
 
     def set_interval(self, interval: float | None) -> None:
@@ -1680,34 +1684,9 @@ class ODReader(BackgroundJob):
                     self.logger.debug("Error in pre-read callback", exc_info=True)
             readings = None
             try:
-                if isinstance(self.device, PhotodiodeODDevice):
-                    try:
-                        readings = self.device.read()
-                    except (exc.NoSolutionsFoundError, exc.CalibrationError, ValueError):
-                        if self.device.raw_readings is not None:
-                            self.ods = None
-                            for channel, raw in self.device.raw_readings.ods.items():
-                                setattr(self, f"od{channel}", None)
-                                setattr(self, f"calibrated_od{channel}", None)
-                                setattr(self, f"raw_od{channel}", raw)
-                        raise
-                    self.publish_photodiode_diagnostics(readings)
-                else:
-                    reading = self.device.read()
-                    if reading is None:
-                        return None
-                    readings = structs.ODReadings(
-                        timestamp=reading.timestamp,
-                        ods={
-                            "1": structs.SensorODReading(
-                                timestamp=reading.timestamp,
-                                od=reading.value,
-                                channel="1",
-                                source=self.source,
-                                signal_unit=self.signal_unit,
-                            ),
-                        },
-                    )
+                readings = self._acquire_readings()
+                if readings is None:
+                    return None
                 self.ods = readings
                 for channel, observation in readings.ods.items():
                     setattr(self, f"od{channel}", observation)
@@ -1723,15 +1702,47 @@ class ODReader(BackgroundJob):
                 if readings is not None:
                     self._unblock_internal_event()
 
-    def publish_photodiode_diagnostics(self, readings: structs.ODReadings) -> None:
-        assert isinstance(self.device, PhotodiodeODDevice)
-        assert self.device.raw_readings is not None
+    def _read_external_device(self, device: ODDevice) -> structs.ODReadings | None:
+        reading = device.read()
+        if reading is None:
+            return None
+        return structs.ODReadings(
+            timestamp=reading.timestamp,
+            ods={
+                "1": structs.SensorODReading(
+                    timestamp=reading.timestamp,
+                    od=reading.value,
+                    channel="1",
+                    source=self.source,
+                    signal_unit=self.signal_unit,
+                ),
+            },
+        )
+
+    def _read_photodiodes(self, device: PhotodiodeODDevice) -> structs.ODReadings:
+        try:
+            readings = device.read()
+        except (exc.NoSolutionsFoundError, exc.CalibrationError, ValueError):
+            if device.raw_readings is not None:
+                self.ods = None
+                for channel, raw in device.raw_readings.ods.items():
+                    setattr(self, f"od{channel}", None)
+                    setattr(self, f"calibrated_od{channel}", None)
+                    setattr(self, f"raw_od{channel}", raw)
+            raise
+        self.publish_photodiode_diagnostics(device, readings)
+        return readings
+
+    def publish_photodiode_diagnostics(
+        self, device: PhotodiodeODDevice, readings: structs.ODReadings
+    ) -> None:
+        assert device.raw_readings is not None
         for channel, reading in readings.ods.items():
             if isinstance(reading, structs.CalibratedODReading):
-                setattr(self, f"raw_od{channel}", self.device.raw_readings.ods[channel])
+                setattr(self, f"raw_od{channel}", device.raw_readings.ods[channel])
                 setattr(self, f"calibrated_od{channel}", reading)
-        if self.device.od_fused is not None or self.od_fused is not None:
-            self.od_fused = self.device.od_fused
+        if device.od_fused is not None or self.od_fused is not None:
+            self.od_fused = device.od_fused
 
     def snapshot(self, timeout: float = 60.0) -> structs.ODReadings:
         deadline = monotonic() + timeout

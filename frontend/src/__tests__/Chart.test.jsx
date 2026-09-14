@@ -99,10 +99,11 @@ test("keeps small reflectance values visible instead of rounding to zero", () =>
   expect(formatChartValue(0.125, 3)).toBe("0.125");
 });
 
-test.each([false, true])("shows backscatter despite REF channel config (history=%s)", async (historical) => {
+test.each([false, true].flatMap((historical) => [0, 45, 90, 135, 180].map((angle) => [historical, angle])))
+("uses recorded geometry despite REF config (history=%s, angle=%s)", async (historical, angle) => {
   const history = historical ? {
-    series: ["unit1-1"], sensor_series: ["unit1-1"],
-    data: [[{ x: "2026-09-01T01:00:00Z", y: 7.45279e-7 }]],
+    series: ["unit1-1"],
+    data: [[{ x: "2026-09-01T01:00:00Z", y: 7.45279e-7, angle }]],
   } : { series: [], data: [] };
   const { subscribeToTopic } = renderChart({
     chartKey: "optical_density", dataSource: "od_readings", topic: "od_reading/od1",
@@ -114,9 +115,41 @@ test.each([false, true])("shows backscatter despite REF channel config (history=
   if (!historical) {
     const callback = subscribeToTopic.mock.calls.at(-1)[1];
     act(() => callback("pioreactor/unit1/exp1/od_reading/od1", JSON.stringify({
-      calibrated: 2, od: 7.45279e-7, angle: "0", timestamp: "2026-09-01T01:00:00Z",
+      calibrated: angle === 0 ? 2 : 0, od: 7.45279e-7, angle: String(angle), timestamp: "2026-09-01T01:00:00Z",
     }), { retain: false }));
   }
   await waitFor(() => expect(screen.getByTestId("series-data").textContent).toContain("7.45279e-7"));
   expect(screen.getByTestId("y-domain").textContent).toBe("null");
+  expect(screen.getByText(`unit1-${angle}°`)).toBeTruthy();
+});
+
+
+test("keeps historical geometry changes and mixed units separate", async () => {
+  renderChart({
+    chartKey: "optical_density", dataSource: "od_readings", topic: "od_reading/od1",
+    payloadKey: "od", isPartitionedBySensor: true,
+  }, {
+    series: ["unit1-1", "unit2-1"],
+    data: [
+      [{ x: "2026-09-01T01:00:00Z", y: 0.1, angle: 45 },
+       { x: "2026-09-01T02:00:00Z", y: 0.2, angle: 135 }],
+      [{ x: "2026-09-01T01:00:00Z", y: 7e-7, angle: 0 }],
+    ],
+  });
+  await waitFor(() => expect(screen.getAllByTestId("series-data")).toHaveLength(3));
+  for (const name of ["unit1-45°", "unit1-135°", "unit2-0°"]) {
+    expect(screen.getByText(name)).toBeTruthy();
+  }
+});
+
+test("labels unmatched raw history by channel without guessing geometry", async () => {
+  renderChart({
+    chartKey: "raw_optical_density", dataSource: "raw_od_readings", topic: "od_reading/raw_od1",
+    payloadKey: "od", isPartitionedBySensor: true, unit: "unit1",
+    config: { "od_config.photodiode_channel": { "1": "90" } },
+  }, {
+    series: ["unit1-1"],
+    data: [[{ x: "2026-09-01T01:00:00Z", y: 0.1, angle: null }]],
+  });
+  await waitFor(() => expect(screen.getByText("unit1-channel 1")).toBeTruthy());
 });

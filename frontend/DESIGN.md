@@ -581,7 +581,7 @@ Rules:
   completing a self-test.
 - Error copy should say what failed and what the user can do next.
 - Use the shared Snackbar wrapper for transient success or local action
-  feedback. Snackbars must use the bottom-center position (`anchorOrigin={{vertical: "bottom", horizontal: "center"}}`)
+  feedback. Snackbars must use the bottom-center position.
 - A Pioreactor card may flash a subtle, brief primary-color halo around a pill
   when a live update changes the pill's visible value: state changes flash
   the activity status pill, and displayed setting changes flash that setting's

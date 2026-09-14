@@ -5,26 +5,13 @@ External devices return one timestamped value, published on channel 1 at 0 degre
 Optical-reference correction is device-owned; experiment baseline normalization
 is still owned by Pioreactor's growth model. It must not be applied here.
 """
-import math
 from collections.abc import Callable
-from datetime import datetime
 from typing import Protocol
 
-from msgspec import Struct
 from pioreactor import exc
+from pioreactor import structs
 from pioreactor.hardware import ODHardwareConfig
 from pioreactor.logging import CustomLogger
-
-
-class ODDeviceReading(Struct):
-    timestamp: datetime
-    value: float
-
-    def __post_init__(self) -> None:
-        if self.timestamp.tzinfo is None:
-            raise ValueError("OD timestamps must include a timezone.")
-        if not math.isfinite(self.value):
-            raise ValueError("OD device returned an invalid observation.")
 
 
 class ODDevice(Protocol):
@@ -33,7 +20,7 @@ class ODDevice(Protocol):
 
     def start(self) -> None: ...
     def stop(self) -> None: ...
-    def read(self) -> ODDeviceReading | None: ...
+    def read(self) -> structs.ODDeviceReading | None: ...
     def close(self) -> None: ...
 
 

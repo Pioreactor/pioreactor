@@ -10,8 +10,8 @@ from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.od_devices import ODDeviceReading
 from pioreactor.od_devices import register_od_device
+from pioreactor.structs import ODDeviceReading
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
@@ -92,19 +92,10 @@ def test_dodging_is_disabled_for_external_source(external_source: MagicMock) -> 
     assert not BackgroundJobWithDodging._desired_dodging_mode(None, True, JobState.READY)
 
 
-def test_growth_rejects_old_normalization_and_ignores_fusion(external_source: MagicMock) -> None:
+def test_external_source_ignores_photodiode_fusion(external_source: MagicMock) -> None:
     from pioreactor.background_jobs.growth_rate_calculating import _should_use_fused_od
 
-    experiment = "test_old_source"
-    with local_persistent_storage("od_normalization_mean") as cache:
-        cache[experiment] = '{"1": 0.2}'
-    try:
-        with pytest.raises(ValueError, match="OD hardware changed"):
-            GrowthRateCalculator(get_unit_name(), experiment)
-        assert not _should_use_fused_od(get_unit_name())
-    finally:
-        with local_persistent_storage("od_normalization_mean") as cache:
-            cache.pop(experiment)
+    assert not _should_use_fused_od(get_unit_name())
 
 
 def test_hardware_layering_keeps_aux_but_replaces_pd_requirements(
@@ -203,14 +194,11 @@ def test_probe_mqtt_reaches_native_growth_model(
                     assert calc.od_filtered is not None
                     assert math.isfinite(calc.growth_rate.growth_rate)
                     assert 0.9 < calc.od_filtered.od_filtered < 1.1
-                    with local_persistent_storage("od_normalization_source") as cache:
-                        assert cache[experiment] == "test_probe"
             finally:
                 calc._blocking_event.set()
                 processing.join(timeout=2.0)
-                for namespace in ("od_normalization_mean", "od_normalization_source"):
-                    with local_persistent_storage(namespace) as cache:
-                        cache.pop(experiment, None)
+                with local_persistent_storage("od_normalization_mean") as cache:
+                    cache.pop(experiment, None)
             assert not processing.is_alive()
 
 

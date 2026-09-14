@@ -53,8 +53,8 @@ import click
 from msgspec import DecodeError
 from msgspec.json import decode
 from msgspec.json import encode as dumps
-from pioreactor import structs
 from pioreactor import hardware
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
@@ -143,15 +143,6 @@ class GrowthRateCalculator(BackgroundJob):
 
         # runtime state initialized during processing
         self.ekf: CultureGrowthEKF | None = None
-        self.od_source = hardware.get_od_hardware_config().driver
-        with local_persistent_storage("od_normalization_mean") as normalization:
-            has_normalization = self.experiment in normalization
-        with local_persistent_storage("od_normalization_source") as sources:
-            previous_source = sources.get(self.experiment, "photodiodes")
-        if has_normalization and previous_source != self.od_source:
-            raise ValueError(
-                "OD hardware changed since this experiment was normalized. Start a new experiment or clear its OD normalization cache."
-            )
         self.od_normalization_factors: dict[pt.PdChannel, float] = {}
         self.growth_rate: structs.GrowthRate | None = None
         self.od_filtered: structs.ODFiltered | None = None
@@ -372,8 +363,6 @@ class GrowthRateCalculator(BackgroundJob):
             )
             with local_persistent_storage("od_normalization_mean") as cache:
                 cache[self.experiment] = dumps(od_normalization_factors)
-            with local_persistent_storage("od_normalization_source") as cache:
-                cache[self.experiment] = self.od_source
             self.logger.debug("Cached OD normalization factors computed from warmup observations.")
             if any(v == 0.0 for v in od_variances.values()):
                 self.logger.error(

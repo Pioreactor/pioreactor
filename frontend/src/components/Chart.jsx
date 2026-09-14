@@ -33,7 +33,7 @@ import { Box } from "@mui/material";
 // Activate the UTC plugin
 dayjs.extend(utc);
 
-const sensorRe = /^(.*)-(\d+)$/;
+const sensorRe = /^(.*)-((?:ch)?\d+)$/;
 
 function toArray(thing){
    if (Array.isArray(thing)){
@@ -69,7 +69,6 @@ function Chart(props) {
     byDuration,
     chartKey,
     client,
-    config,
     dataSource,
     dataSourceColumn,
     downSample,
@@ -108,14 +107,6 @@ function Chart(props) {
     () => (allowZoom ? createContainer("zoom", "voronoi") : VictoryVoronoiContainer),
     [allowZoom]
   );
-
-  const channelAngleMap = useMemo(() => {
-    const rawMap = config?.["od_config.photodiode_channel"] || {};
-    const entries = Object.entries(rawMap)
-      .filter(([, angle]) => angle && angle !== "REF")
-      .map(([channel, angle]) => [String(channel), String(angle)]);
-    return Object.fromEntries(entries);
-  }, [config]);
 
   const yTransformation = useMemo(
     () => yTransformationProp || ((y) => y),
@@ -160,7 +151,7 @@ function Chart(props) {
         const { base, suffix } = splitPartitionedName(name);
         if (suffix) {
           const displayBase = relabelMap ? (relabelMap[base] || base) : base;
-          return `${breakString(12)(displayBase)}-${suffix}°`;
+          return `${breakString(12)(displayBase)}-${suffix.startsWith("ch") ? `channel ${suffix.slice(2)}` : `${suffix}°`}`;
         }
       }
       if (!relabelMap) {
@@ -179,7 +170,7 @@ function Chart(props) {
         const { base, suffix } = splitPartitionedName(name);
         if (suffix) {
           const displayBase = relabelMap ? (relabelMap[base] || base) : base;
-          return `${truncateString(displayBase)}-${suffix}°`;
+          return `${truncateString(displayBase)}-${suffix.startsWith("ch") ? `channel ${suffix.slice(2)}` : `${suffix}°`}`;
         }
       }
       if (!relabelMap) {
@@ -223,7 +214,7 @@ function Chart(props) {
   );
 
   const mapPartitionedSeriesName = useCallback(
-    (seriesName, isExternalSensor = false) => {
+    (seriesName, angle) => {
       if (!isPartitionedBySensor) {
         return seriesName;
       }
@@ -231,16 +222,9 @@ function Chart(props) {
       if (!suffix) {
         return seriesName;
       }
-      if (isExternalSensor) {
-        return `${base}-0`;
-      }
-      const angle = channelAngleMap[suffix];
-      if (!angle) {
-        return null;
-      }
-      return `${base}-${angle}`;
+      return angle == null ? `${base}-ch${suffix}` : `${base}-${angle}`;
     },
-    [channelAngleMap, isPartitionedBySensor]
+    [isPartitionedBySensor]
   );
 
   const shouldIncludeUnit = useCallback(
@@ -591,11 +575,11 @@ function Chart(props) {
 
       let timestamp;
       let yValue;
-      let isExternalSensor = false;
+      let angle;
       try {
         if (payloadKey) {
           const payload = JSON.parse(payloadString);
-          isExternalSensor = payload.calibrated === 2;
+          angle = payload.angle;
           if (!Object.prototype.hasOwnProperty.call(payload, payloadKey)) {
             throw new Error(`Payload key '${payloadKey}' not found in the message.`);
           }
@@ -621,7 +605,7 @@ function Chart(props) {
         .replace("raw_od", "")
         .replace("od", "");
       const parsedUnit = isPartitionedBySensor
-        ? mapPartitionedSeriesName(`${baseUnit}-${channel}`, isExternalSensor)
+        ? mapPartitionedSeriesName(`${baseUnit}-${channel}`, angle)
         : baseUnit;
 
       if (!parsedUnit) {
@@ -690,23 +674,19 @@ function Chart(props) {
       const data = await response.json();
       const initialSeriesMap = {};
       for (const [index, unitName] of data["series"].entries()) {
-        const mappedUnitName = mapPartitionedSeriesName(unitName, data.sensor_series?.includes(unitName));
-        if (!mappedUnitName) {
-          continue;
+        for (const item of data["data"][index]) {
+          const name = mapPartitionedSeriesName(unitName, item.angle);
+          if (!shouldIncludeUnit(name)) {
+            continue;
+          }
+          if (!initialSeriesMap[name]) {
+            initialSeriesMap[name] = { data: [], name, color: getUnitColor(name) };
+          }
+          initialSeriesMap[name].data.push({ y: item.y, x: transformX(item.x) });
         }
-        if (!shouldIncludeUnit(mappedUnitName)) {
-          continue;
-        }
-        if (data["data"][index].length > 0) {
-          initialSeriesMap[mappedUnitName] = {
-            data: data["data"][index].map((item) => ({
-              y: item.y,
-              x: transformX(item.x),
-            })),
-            name: mappedUnitName,
-            color: getUnitColor(mappedUnitName),
-          };
-        }
+      }
+      for (const series of Object.values(initialSeriesMap)) {
+        series.data.sort((a, b) => a.x - b.x);
       }
       setSeriesMap(initialSeriesMap);
       setFetched(true);
@@ -816,7 +796,7 @@ function Chart(props) {
         <VictoryAxis
           crossAxis={false}
           dependentAxis
-          domain={allowZoom || (isPartitionedBySensor && names.some((name) => name.endsWith("-0"))) ? null : yAxisDomain}
+          domain={allowZoom || isPartitionedBySensor ? null : yAxisDomain}
           tickFormat={(t) => formatChartValue(t, fixedDecimals)}
           label={yAxisLabel}
           axisLabelComponent={

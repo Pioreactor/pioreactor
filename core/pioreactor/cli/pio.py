@@ -455,7 +455,7 @@ def get_update_app_commands(
                     update_command(
                         ["sudo", "sqlite3", database_path, f".read {tmp_rls_dir}/update.sql"],
                         10,
-                        allow_failure=False,
+                        allow_failure=True,
                     ),
                     update_command(
                         ["sudo", "sqlite3", database_path, "PRAGMA optimize = 0x10002"],

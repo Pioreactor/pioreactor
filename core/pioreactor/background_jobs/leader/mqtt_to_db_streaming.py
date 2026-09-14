@@ -192,15 +192,6 @@ def produce_metadata(topic: str) -> MetaData:
 def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODReading)
-    if isinstance(od_reading, structs.SensorODReading):
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": od_reading.timestamp,
-            "od_reading": od_reading.od,
-            "angle": int(od_reading.angle),  # Backscatter geometry.
-            "channel": int(od_reading.channel),
-        }
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
@@ -231,6 +222,7 @@ def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
         "timestamp": od_reading.timestamp,
         "od_reading": od_reading.od,
         "channel": int(od_reading.channel),
+        "angle": int(od_reading.angle),
     }
 
 

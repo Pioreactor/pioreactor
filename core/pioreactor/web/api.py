@@ -183,9 +183,11 @@ def query_time_series_from_database(
     else:
         series = [(unit, None) for unit in units]
 
-    sensor_series: list[str] = []
     response_series: list[str] = []
     response_data: list[list[dict[str, t.Any]]] = []
+
+    # Geometry comes from the observation, never the unit's current configuration.
+    geometry_column = ", t.angle" if partition_by_channel else ""
 
     # Table, column, and index names above come only from TIME_SERIES_SOURCE_CONFIG.
     for unit, channel in series:
@@ -194,8 +196,8 @@ def query_time_series_from_database(
         probe_rows = query_app_db(
             f"""
             SELECT timestamp,
-                   round({value_column}, ?) AS y
-            FROM {data_source} INDEXED BY {index}
+                   round({value_column}, ?) AS y {geometry_column}
+            FROM {data_source} AS t INDEXED BY {index}
             WHERE experiment=?
               AND pioreactor_unit=?
               {channel_filter}
@@ -225,8 +227,8 @@ def query_time_series_from_database(
             last_row = query_app_db(
                 f"""
                 SELECT timestamp,
-                       round({value_column}, ?) AS y
-                FROM {data_source} INDEXED BY {index}
+                       round({value_column}, ?) AS y {geometry_column}
+                FROM {data_source} AS t INDEXED BY {index}
                 WHERE experiment=?
                   AND pioreactor_unit=?
                   {channel_filter}
@@ -288,7 +290,7 @@ def query_time_series_from_database(
                         GROUP BY selected_rowid
                     )
                     SELECT t.timestamp,
-                           round(t.{value_column}, ?) AS y
+                           round(t.{value_column}, ?) AS y {geometry_column}
                     FROM unique_chosen
                     JOIN {data_source} AS t ON t.rowid=unique_chosen.selected_rowid
                     ORDER BY unique_chosen.i
@@ -312,23 +314,19 @@ def query_time_series_from_database(
                 assert isinstance(sampled_rows, list)
                 rows = sampled_rows
 
-        series_name = f"{unit}-{channel}" if partition_by_channel else unit
-        if data_source == "od_readings":
-            geometry = query_app_db(
-                "SELECT angle FROM od_readings WHERE experiment=? AND pioreactor_unit=? AND channel=? ORDER BY timestamp DESC LIMIT 1",
-                (experiment, unit, channel),
-                one=True,
-            )
-            assert not isinstance(geometry, list)
-            if geometry is not None and geometry["angle"] == 0:
-                sensor_series.append(series_name)
         response_series.append(f"{unit}-{channel}" if partition_by_channel else unit)
-        response_data.append([{"x": row["timestamp"], "y": row["y"]} for row in rows])
+        response_data.append(
+            [
+                {
+                    "x": row["timestamp"],
+                    "y": row["y"],
+                    **({"angle": row["angle"]} if partition_by_channel else {}),
+                }
+                for row in rows
+            ]
+        )
 
-    response: dict[str, t.Any] = {"series": response_series, "data": response_data}
-    if sensor_series:
-        response["sensor_series"] = sensor_series
-    return encode(response)
+    return encode({"series": response_series, "data": response_data})
 
 
 def _parse_experiment_tags(raw_tags: str | None) -> list[str]:

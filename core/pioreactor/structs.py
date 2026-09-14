@@ -3,6 +3,7 @@
 These define structs for internal data structures including MQTT messages, and are type-checkable + runtime-checked.
 
 """
+import math
 import typing as t
 from datetime import datetime
 from pathlib import Path
@@ -179,6 +180,17 @@ class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
     channel: pt.PdChannel
     ir_led_intensity: float
     calibration_name: str
+
+
+class ODDeviceReading(Struct):
+    timestamp: datetime
+    value: float
+
+    def __post_init__(self) -> None:
+        if self.timestamp.tzinfo is None:
+            raise ValueError("OD timestamps must include a timezone.")
+        if not math.isfinite(self.value):
+            raise ValueError("OD device returned an invalid observation.")
 
 
 class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):

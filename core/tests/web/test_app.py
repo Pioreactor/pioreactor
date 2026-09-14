@@ -1136,14 +1136,14 @@ def test_time_series_partitions_channel_sources(client: FlaskClient, monkeypatch
         "series": ["unit-a-1", "unit-a-2"],
         "data": [
             [
-                {"x": "2025-12-31T12:00:00.000Z", "y": 1.12},
-                {"x": "2025-12-31T14:00:00.000Z", "y": 1.14},
-                {"x": "2025-12-31T16:00:00.000Z", "y": 1.16},
+                {"x": "2025-12-31T12:00:00.000Z", "y": 1.12, "angle": 90},
+                {"x": "2025-12-31T14:00:00.000Z", "y": 1.14, "angle": 90},
+                {"x": "2025-12-31T16:00:00.000Z", "y": 1.16, "angle": 90},
             ],
             [
-                {"x": "2025-12-31T12:00:00.000Z", "y": 2.12},
-                {"x": "2025-12-31T14:00:00.000Z", "y": 2.14},
-                {"x": "2025-12-31T16:00:00.000Z", "y": 2.16},
+                {"x": "2025-12-31T12:00:00.000Z", "y": 2.12, "angle": 90},
+                {"x": "2025-12-31T14:00:00.000Z", "y": 2.14, "angle": 90},
+                {"x": "2025-12-31T16:00:00.000Z", "y": 2.16, "angle": 90},
             ],
         ],
     }
@@ -1196,7 +1196,7 @@ def test_time_series_partitions_channel_sources(client: FlaskClient, monkeypatch
             """,
             ("source-test", "unit-a", "2025-12-31T22:00:00.000Z", 0.123456789, 90, 1),
             "unit-a-1",
-            0.1234568,
+            0.123456789,
         ),
         (
             "od_readings_fused",
@@ -1248,7 +1248,19 @@ def test_built_in_time_series_source_configuration(
     assert response.status_code == 200
     assert response.get_json() == {
         "series": [expected_series],
-        "data": [[{"x": "2025-12-31T22:00:00.000Z", "y": expected_y}]],
+        "data": [
+            [
+                {
+                    "x": "2025-12-31T22:00:00.000Z",
+                    "y": expected_y,
+                    **(
+                        {"angle": 90 if route == "od_readings" else None}
+                        if route in ("od_readings", "raw_od_readings")
+                        else {}
+                    ),
+                }
+            ]
+        ],
     }
 
 
@@ -4029,6 +4041,53 @@ def test_backscatter_history_preserves_small_values_and_geometry(
     )
     assert response.status_code == 200
     result = response.get_json()
-    assert result["sensor_series"] == ["unit-a-1"]
+    assert "sensor_series" not in result
     index = result["series"].index("unit-a-1")
     assert result["data"][index][0]["y"] == 7.45279e-7
+    assert result["data"][index][0]["angle"] == 0
+
+
+@pytest.mark.parametrize("target_points", [1, 3, 10])
+@pytest.mark.parametrize("source", ["od_readings", "raw_od_readings"])
+def test_history_uses_each_observations_geometry(
+    client: FlaskClient, monkeypatch: MonkeyPatch, target_points: int, source: str
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr("pioreactor.web.api.current_utc_datetime", lambda: datetime(2026, 1, 1, tzinfo=UTC))
+    experiment = "recorded-geometry"
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        (experiment, "2025-12-31T12:00:00.000Z", ""),
+    )
+    angles = {}
+    for unit, offset in (("unit-a", 0), ("unit-b", 10)):
+        for hour in range(12, 17):
+            timestamp = f"2025-12-31T{hour}:00:00.000Z"
+            value = hour + offset
+            angle = (45 if hour < 15 else 135) if unit == "unit-a" else 0
+            angles[value] = angle
+            modify_app_db(
+                "INSERT INTO od_readings (experiment,pioreactor_unit,timestamp,od_reading,angle,channel) VALUES (?,?,?,?,?,?)",
+                (experiment, unit, timestamp, value, angle, 1),
+            )
+            modify_app_db(
+                "INSERT INTO raw_od_readings (experiment,pioreactor_unit,timestamp,od_reading,channel,angle) VALUES (?,?,?,?,?,?)",
+                (experiment, unit, timestamp, value, 1, angle),
+            )
+    # A raw diagnostic retains its geometry even when calibration produced no OD observation.
+    modify_app_db(
+        "INSERT INTO raw_od_readings (experiment,pioreactor_unit,timestamp,od_reading,channel,angle) VALUES (?,?,?,?,?,?)",
+        (experiment, "unit-a", "2025-12-31T17:00:00.000Z", 99, 1, 135),
+    )
+    angles[99] = 135
+    response = client.get(
+        f"/api/experiments/{experiment}/time_series/{source}?lookback=20&target_points={target_points}"
+    )
+    assert response.status_code == 200
+    result = response.get_json()
+    assert result["series"] == ["unit-a-1", "unit-b-1"]
+    for points in result["data"]:
+        assert 1 <= len(points) <= target_points
+        for point in points:
+            assert point["angle"] == angles[point["y"]]

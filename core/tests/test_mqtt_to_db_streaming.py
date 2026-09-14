@@ -388,3 +388,12 @@ def test_database_write_error_stats_reset() -> None:
     with local_intermittent_storage("mqtt_to_db_streaming") as cache:
         assert cache.get("database_write_errors_in_last_60s") == 0
         assert cache.get("latest_database_write_error") is None
+
+
+def test_parse_raw_od_preserves_geometry() -> None:
+    reading = structs.RawODReading(
+        timestamp=current_utc_datetime(), od=0.25, angle="135", channel="1", ir_led_intensity=70.0
+    )
+    row = m2db.parse_raw_od("pioreactor/unit/experiment/od_reading/raw/1", encode(reading))
+    assert row["angle"] == 135
+    assert row["od_reading"] == 0.25
