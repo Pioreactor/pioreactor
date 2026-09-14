@@ -149,7 +149,7 @@ def test_REF_is_in_correct_position(
 
         # Warm-up: discard a few initial readings to allow signals to stabilize.
         for _ in range(warmup_samples):
-            reading = od_reader.record_from_adc()
+            reading = od_reader.record()
             assert reading is not None, "Unable to capture OD reading during warmup."
 
         def collect_phase_medians(target_state: JobState) -> dict[PdChannel, float]:
@@ -158,7 +158,7 @@ def test_REF_is_in_correct_position(
             per_channel_window: dict[PdChannel, list[float]] = {channel: [] for channel in all_channels}
 
             for sample_i in range(settle_samples + window_samples):
-                reading = od_reader.record_from_adc()
+                reading = od_reader.record()
                 assert reading is not None, "Unable to capture OD reading while collecting phase medians."
                 if sample_i < settle_samples:
                     continue

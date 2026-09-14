@@ -28,6 +28,7 @@ from pioreactor.background_jobs.od_reading import NullEstimatorTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
+from pioreactor.background_jobs.od_reading import PhotodiodeODDevice
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
@@ -47,7 +48,6 @@ from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
-from .utils import FakeMQTTClient
 from .utils import wait_for
 
 
@@ -167,7 +167,7 @@ def test_fake_data_sampling_does_not_wait_for_hardware_timing(
         calibration=False,
         estimator=False,
     ) as od:
-        assert od.record_from_adc() is not None
+        assert od.record() is not None
 
 
 def test_sin_regression_exactly_50hz() -> None:
@@ -242,15 +242,20 @@ def test_fused_od_updates_with_estimator() -> None:
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
     with ODReader(
-        channel_angle_map,
-        interval=None,
+        lambda: PhotodiodeODDevice(
+            channel_angle_map,
+            interval=None,
+            unit=get_unit_name(),
+            experiment="test_fused_od_updates_with_estimator",
+            adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
+            calibration_transformer=NullCalibrationTransformer(),
+            estimator_transformer=estimator_transformer,
+        ),
         unit=get_unit_name(),
         experiment="test_fused_od_updates_with_estimator",
-        adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
-        calibration_transformer=NullCalibrationTransformer(),
-        estimator_transformer=estimator_transformer,
+        interval=None,
     ) as reader:
-        fused_od = reader.estimator_transformer(raw_readings)
+        fused_od = reader.device.estimator_transformer(raw_readings)
         if fused_od is not None:
             reader.od_fused = fused_od
         assert reader.od_fused is not None
@@ -267,15 +272,20 @@ def test_fused_od_skips_when_angle_missing() -> None:
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
     with ODReader(
-        channel_angle_map,
-        interval=None,
+        lambda: PhotodiodeODDevice(
+            channel_angle_map,
+            interval=None,
+            unit=get_unit_name(),
+            experiment="test_fused_od_skips_when_angle_missing",
+            adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
+            calibration_transformer=NullCalibrationTransformer(),
+            estimator_transformer=estimator_transformer,
+        ),
         unit=get_unit_name(),
         experiment="test_fused_od_skips_when_angle_missing",
-        adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
-        calibration_transformer=NullCalibrationTransformer(),
-        estimator_transformer=estimator_transformer,
+        interval=None,
     ) as reader:
-        fused_od = reader.estimator_transformer(raw_readings)
+        fused_od = reader.device.estimator_transformer(raw_readings)
         if fused_od is not None:
             reader.od_fused = fused_od
         assert reader.od_fused is None
@@ -295,23 +305,28 @@ def test_fused_od_errors_when_ir_led_intensity_differs_from_estimator() -> None:
         estimator_transformer(raw_readings)
 
 
-def test_record_from_adc_handles_estimator_ir_led_intensity_mismatch() -> None:
+def test_record_handles_estimator_ir_led_intensity_mismatch() -> None:
     estimator = _build_fusion_estimator()
     estimator_transformer = CachedEstimatorTransformer()
     estimator_transformer.hydrate_estimator(estimator)
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
     with ODReader(
-        channel_angle_map,
-        interval=None,
+        lambda: PhotodiodeODDevice(
+            channel_angle_map,
+            interval=None,
+            unit=get_unit_name(),
+            experiment="test_record_handles_estimator_ir_led_intensity_mismatch",
+            adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
+            calibration_transformer=NullCalibrationTransformer(),
+            estimator_transformer=estimator_transformer,
+        ),
         unit=get_unit_name(),
-        experiment="test_record_from_adc_handles_estimator_ir_led_intensity_mismatch",
-        adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
-        calibration_transformer=NullCalibrationTransformer(),
-        estimator_transformer=estimator_transformer,
+        experiment="test_record_handles_estimator_ir_led_intensity_mismatch",
+        interval=None,
     ) as reader:
-        reader.ir_led_intensity = estimator.ir_led_intensity - 10.0
-        od_readings = reader.record_from_adc()
+        reader.set_ir_led_intensity(estimator.ir_led_intensity - 10.0)
+        od_readings = reader.record()
         assert od_readings is not None
         assert reader.od_fused is None
 
@@ -957,10 +972,10 @@ def test_simple_API() -> None:
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
-        od_job.ir_led_intensity = led_int
-        od_job.start_ir_led()
+        od_job.set_ir_led_intensity(led_int)
+        od_job.device.start_ir_led()
         assert od_job.ir_led_intensity == led_int
-        results = od_job.record_from_adc()
+        results = od_job.record()
         assert results is not None
         assert list(results.ods.keys()) == ["1"]
 
@@ -992,7 +1007,7 @@ def test_ability_to_be_iterated() -> None:
 
 def test_add_pre_read_callback() -> None:
     def cb(od_job):
-        od_job.ir_led_intensity = 15
+        od_job.set_ir_led_intensity(15)
 
     ODReader.add_pre_read_callback(cb)
 
@@ -1123,13 +1138,13 @@ def test_outliers_are_removed_in_sin_regression() -> None:
 
 def test_interval_is_empty() -> None:
     with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True) as od:
-        assert not hasattr(od, "record_from_adc_timer")
+        assert not hasattr(od, "record_timer")
         od.on_sleeping()
         od.on_sleeping_to_ready()
 
 
 def test_determine_best_ir_led_intensity_values() -> None:
-    _determine_best_ir_led_intensity = ODReader._determine_best_ir_led_intensity
+    _determine_best_ir_led_intensity = PhotodiodeODDevice._determine_best_ir_led_intensity
 
     assert (
         _determine_best_ir_led_intensity(
@@ -1170,7 +1185,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
 
 def test_calibration_not_requested() -> None:
     with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=False) as od:
-        assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
+        assert isinstance(od.device.calibration_transformer, NullCalibrationTransformer)
         ts = current_utc_datetime()
         x = structs.ODReadings(
             timestamp=ts,
@@ -1178,7 +1193,7 @@ def test_calibration_not_requested() -> None:
                 "2": structs.RawODReading(ir_led_intensity=80, od=0.1, angle="90", channel="2", timestamp=ts)
             },
         )
-        assert od.calibration_transformer(x) == x
+        assert od.device.calibration_transformer(x) == x
 
         y = structs.ODReadings(
             timestamp=ts,
@@ -1189,7 +1204,7 @@ def test_calibration_not_requested() -> None:
                 ),
             },
         )
-        assert od.calibration_transformer(y) == y
+        assert od.device.calibration_transformer(y) == y
 
 
 def test_cached_blank_transformer_subtracts_blank_from_od_readings() -> None:
@@ -1257,8 +1272,8 @@ def test_calibration_not_present() -> None:
     assert cal is None
 
     with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=cal) as od:
-        assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
-        assert len(od.calibration_transformer.models) == 0, od.calibration_transformer.models
+        assert isinstance(od.device.calibration_transformer, NullCalibrationTransformer)
+        assert len(od.device.calibration_transformer.models) == 0, od.device.calibration_transformer.models
 
 
 def test_start_od_reading_allows_blank_without_calibration_or_estimator() -> None:
@@ -1276,7 +1291,7 @@ def test_start_od_reading_allows_blank_without_calibration_or_estimator() -> Non
         calibration=False,
         estimator=False,
     ) as od:
-        assert od.blank_transformer.od_blank == {"2": 0.15}
+        assert od.device.blank_transformer.od_blank == {"2": 0.15}
 
 
 def test_start_od_reading_rejects_blank_with_calibration() -> None:
@@ -1450,13 +1465,13 @@ def test_calibration_multi_angle_active_calibrations() -> None:
         calibration=True,
         ir_led_intensity=90.0,
     ) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
-        assert set(od.calibration_transformer.models.keys()) == {"2", "3", "4"}
+        assert isinstance(od.device.calibration_transformer, CachedCalibrationTransformer)
+        assert set(od.device.calibration_transformer.models.keys()) == {"2", "3", "4"}
 
         voltage = 1.0
-        assert od.calibration_transformer.models["2"](voltage) == pytest.approx(voltage / 2)
-        assert od.calibration_transformer.models["3"](voltage) == pytest.approx(voltage / 4)
-        assert od.calibration_transformer.models["4"](voltage) == pytest.approx(voltage / 5)
+        assert od.device.calibration_transformer.models["2"](voltage) == pytest.approx(voltage / 2)
+        assert od.device.calibration_transformer.models["3"](voltage) == pytest.approx(voltage / 4)
+        assert od.device.calibration_transformer.models["4"](voltage) == pytest.approx(voltage / 5)
 
 
 def test_calibration_simple_linear_calibration_positive_slope() -> None:
@@ -1484,16 +1499,16 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         calibration=cal,
         ir_led_intensity=90.0,
     ) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        assert isinstance(od.device.calibration_transformer, CachedCalibrationTransformer)
 
         voltage = 0.0
-        assert od.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
+        assert od.device.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
 
         voltage = 0.5
-        assert od.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
+        assert od.device.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment=experiment) as bucket:
             voltage = 10.0
-            assert od.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
+            assert od.device.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
             assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
             assert any("Signal above" in log["message"] for log in bucket)
 
@@ -1523,13 +1538,13 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         calibration=cal,
         ir_led_intensity=90.0,
     ) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        assert isinstance(od.device.calibration_transformer, CachedCalibrationTransformer)
 
         voltage = 0.0
-        assert od.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
+        assert od.device.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
 
         voltage = 0.5
-        assert od.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
+        assert od.device.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
 
         with collect_all_logs_of_level(
             "warning",
@@ -1539,7 +1554,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
             voltage = 12.0
             assert voltage > maximum_voltage
 
-            assert od.calibration_transformer.models["2"](voltage) == 0.0
+            assert od.device.calibration_transformer.models["2"](voltage) == 0.0
             assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
             assert any("suggested" in log["message"] for log in bucket)
 
@@ -1569,9 +1584,9 @@ def test_calibration_simple_quadratic_calibration() -> None:
         calibration=cal,
         ir_led_intensity=90.0,
     ) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        assert isinstance(od.device.calibration_transformer, CachedCalibrationTransformer)
         x = 0.5
-        assert abs(od.calibration_transformer.models["2"](x) - np.sqrt(3 / 5)) < 0.001
+        assert abs(od.device.calibration_transformer.models["2"](x) - np.sqrt(3 / 5)) < 0.001
 
 
 def test_calibration_multi_modal() -> None:
@@ -1600,7 +1615,7 @@ def test_calibration_multi_modal() -> None:
         calibration=cal,
         ir_led_intensity=90.0,
     ) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        assert isinstance(od.device.calibration_transformer, CachedCalibrationTransformer)
         for i in range(0, 1000):
             voltage = np.polyval(poly, i / 1000)
             print(voltage)
@@ -1778,10 +1793,11 @@ def test_od_reader_pauses_local_dosing_automation_when_ir_reference_is_noisy(moc
         "2": structs.RawPDReading(reading=0.5, channel="2"),
     }
 
-    od = ODReader.__new__(ODReader)
+    od = PhotodiodeODDevice.__new__(PhotodiodeODDevice)
     object.__setattr__(od, "unit", get_unit_name())
     object.__setattr__(od, "experiment", experiment)
-    object.__setattr__(od, "pub_client", FakeMQTTClient(on_publish=record_publish))
+    object.__setattr__(od, "_logger", None)
+    mocker.patch("pioreactor.background_jobs.od_reading.publish", side_effect=record_publish)
     object.__setattr__(od, "channel_angle_map", {"2": "90"})
     object.__setattr__(od, "ir_led_intensity", 80.0)
     od.adc_reader = mocker.Mock()
@@ -1866,7 +1882,7 @@ def test_ref_normalization_unity_uses_unit_init() -> None:
         with start_od_reading(
             make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
         ) as od:
-            assert isinstance(od.ir_led_reference_transformer, PhotodiodeIrLedReferenceTrackerUnitInit)
+            assert isinstance(od.device.ir_led_reference_transformer, PhotodiodeIrLedReferenceTrackerUnitInit)
 
 
 def test_dark_offset_turns_off_all_leds(mocker) -> None:
@@ -1891,12 +1907,17 @@ def test_dark_offset_turns_off_all_leds(mocker) -> None:
     mocker.patch.object(adc_reader, "set_offsets", side_effect=capture_led_state_during_offset)
 
     with ODReader(
-        {"1": "90"},
-        interval=None,
+        lambda: PhotodiodeODDevice(
+            {"1": "90"},
+            interval=None,
+            unit=unit,
+            experiment=experiment,
+            adc_reader=adc_reader,
+            calibration_transformer=NullCalibrationTransformer(),
+        ),
         unit=unit,
         experiment=experiment,
-        adc_reader=adc_reader,
-        calibration_transformer=NullCalibrationTransformer(),
+        interval=None,
     ):
         pass
 
@@ -1922,13 +1943,18 @@ def test_ODReader_with_multiple_angles_and_a_ref() -> None:
     )
 
     with ODReader(
-        channel_angle_map,  # type: ignore
-        interval=3,
+        lambda: PhotodiodeODDevice(
+            channel_angle_map,  # type: ignore
+            interval=3,
+            unit=get_unit_name(),
+            experiment=experiment,
+            adc_reader=ADCReader(channels=channels, fake_data=True, dynamic_gain=False),  # type: ignore
+            ir_led_reference_tracker=ir_led_reference_tracker,
+            calibration_transformer=NullCalibrationTransformer(),
+        ),
         unit=get_unit_name(),
         experiment=experiment,
-        adc_reader=ADCReader(channels=channels, fake_data=True, dynamic_gain=False),  # type: ignore
-        ir_led_reference_tracker=ir_led_reference_tracker,
-        calibration_transformer=NullCalibrationTransformer(),
+        interval=3,
     ) as odr:
         for i, signal in enumerate(odr):
             print(signal)
@@ -1962,8 +1988,8 @@ def test_calibration_data_from_user1() -> None:
         calibration=calibration,
         ir_led_intensity=90.0,
     ) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
-        infer = od.calibration_transformer.models["2"]
+        assert isinstance(od.device.calibration_transformer, CachedCalibrationTransformer)
+        infer = od.device.calibration_transformer.models["2"]
 
         # try varying voltage up over and across the lower bound, and assert we are always non-decreasing.
         od_0 = 0.0
@@ -2006,8 +2032,8 @@ def test_calibration_data_from_user2() -> None:
         calibration=cal,
         ir_led_intensity=90.0,
     ) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
-        infer = od.calibration_transformer.models["2"]
+        assert isinstance(od.device.calibration_transformer, CachedCalibrationTransformer)
+        infer = od.device.calibration_transformer.models["2"]
 
         # try varying voltage up over and across the lower bound, and assert we are always non-decreasing.
         od_0 = 0.0
@@ -2101,7 +2127,7 @@ def test_supports_more_photodiode_channels() -> None:
         fake_data=True,
         experiment=experiment,
     ) as od:
-        assert set(od.channel_angle_map.keys()) == {"1", "3", "4"}
+        assert set(od.device.channel_angle_map.keys()) == {"1", "3", "4"}
 
 
 def test_can_pass_config_section_directly() -> None:
@@ -2124,7 +2150,7 @@ def test_can_pass_config_section_directly() -> None:
             calibration=False,
             estimator=False,
         ) as od:
-            assert set(od.channel_angle_map.keys()) == {"1"}
+            assert set(od.device.channel_angle_map.keys()) == {"1"}
 
 
 def test_config_section_omits_empty_photodiode_channels() -> None:
@@ -2147,8 +2173,8 @@ def test_config_section_omits_empty_photodiode_channels() -> None:
             calibration=False,
             estimator=False,
         ) as od:
-            assert set(od.channel_angle_map.keys()) == {"2"}
-            assert set(od.adc_reader.channels) == {"1", "2"}
+            assert set(od.device.channel_angle_map.keys()) == {"2"}
+            assert set(od.device.adc_reader.channels) == {"1", "2"}
 
 
 def test_CachedCalibrationTransformer_with_real_calibration() -> None:
@@ -2389,7 +2415,7 @@ def test_setting_interval_while_sleeping_preserves_pause(monkeypatch: pytest.Mon
         make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
     ) as od:
         sampled = Event()
-        monkeypatch.setattr(od, "record_from_adc", sampled.set)
+        monkeypatch.setattr(od, "record", sampled.set)
         od.set_state(od.SLEEPING)
         od.set_interval(0.02)
         assert not sampled.wait(0.1)
@@ -2455,8 +2481,8 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         calibration=calibration,
         ir_led_intensity=70,
     ) as od_job:
-        od_job.record_from_adc()
-        assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
+        od_job.record()
+        assert isinstance(od_job.device.calibration_transformer, CachedCalibrationTransformer)
         assert od_job.ods is not None
         assert od_job.od2 is not None
         assert od_job.calibrated_od2 is not None
@@ -2470,8 +2496,8 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         experiment=experiment,
         calibration=False,
     ) as od_job:
-        od_job.record_from_adc()
-        assert isinstance(od_job.calibration_transformer, NullCalibrationTransformer)
+        od_job.record()
+        assert isinstance(od_job.device.calibration_transformer, NullCalibrationTransformer)
         assert od_job.ods is not None
         assert od_job.od2 is not None
         assert od_job.calibrated_od2 is None
@@ -2500,8 +2526,8 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
         calibration=calibration,
         ir_led_intensity=50,
     ) as od_job:
-        od_job.record_from_adc()
-        assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
+        od_job.record()
+        assert isinstance(od_job.device.calibration_transformer, CachedCalibrationTransformer)
         assert od_job.raw_od2 is not None  # here!
 
 
@@ -2512,12 +2538,12 @@ def test_ir_led_on_and_rest_off_state_turns_off_other_leds_by_default() -> None:
             make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
         ) as od:
             # set a custom IR intensity and verify desired state
-            od.ir_led_intensity = 42.0
-            state = od.ir_led_on_and_rest_off_state
+            od.set_ir_led_intensity(42.0)
+            state = od.device.ir_led_on_and_rest_off_state
             # All LED channels should be present; only IR channel has intensity
             assert set(state) == set(ALL_LED_CHANNELS)
             for ch in ALL_LED_CHANNELS:
-                expected = od.ir_led_intensity if ch == od.ir_channel else 0.0
+                expected = od.ir_led_intensity if ch == od.device.ir_channel else 0.0
                 assert state[ch] == expected
 
 
@@ -2535,12 +2561,12 @@ def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -
             make_channels("REF", "90"), interval=None, fake_data=True, calibration=False, estimator=False
         ) as od:
             # set IR intensity and perform a single reading to exercise the LED context
-            _ = od.record_from_adc()
+            _ = od.record()
 
             # after reading, non-IR LEDs should retain their original intensities
             with local_intermittent_storage("leds") as cache_after:
                 for ch, val in init_states.items():
-                    if ch == od.ir_channel:
+                    if ch == od.device.ir_channel:
                         assert cache_after[ch] == 0.0
                     else:
                         assert cache_after[ch] == val, f"LED {ch} was modified during read"
@@ -2684,17 +2710,17 @@ def test_od_reading_forces_ir_off_before_unlock_on_success_and_exception(
     monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", tracked_led_intensity)
 
     try:
-        assert od.record_from_adc() is not None
+        assert od.record() is not None
         assert_ir_off_precedes_unlock()
 
         events.clear()
         monkeypatch.setattr(
-            od,
+            od.device,
             "_read_from_adc",
             lambda: (_ for _ in ()).throw(RuntimeError("synthetic reading failure")),
         )
         with pytest.raises(RuntimeError, match="synthetic reading failure"):
-            od.record_from_adc()
+            od.record()
         assert_ir_off_precedes_unlock()
     finally:
         od.clean_up()
@@ -2724,16 +2750,16 @@ def test_calibration_failure_clears_previous_od_state(monkeypatch) -> None:
         calibration=False,
         estimator=False,
     ) as od_job:
-        monkeypatch.setattr(od_job, "_read_from_adc", lambda: raw_reading)
-        od_job.calibration_transformer = FlakyCalibrationTransformer()
+        monkeypatch.setattr(od_job.device, "_read_from_adc", lambda: raw_reading)
+        od_job.device.calibration_transformer = FlakyCalibrationTransformer()
 
-        first = od_job.record_from_adc()
+        first = od_job.record()
         assert first is not None
         assert od_job.ods is not None
         assert od_job.od1 is not None
 
         with pytest.raises(exc.CalibrationError, match="synthetic calibration failure"):
-            od_job.record_from_adc()
+            od_job.record()
 
         assert od_job.ods is None
         assert od_job.od1 is None
@@ -2763,8 +2789,8 @@ def test_fused_od_is_cleared_when_estimator_returns_none(monkeypatch) -> None:
         calibration=False,
         estimator=False,
     ) as od_job:
-        monkeypatch.setattr(od_job, "_read_from_adc", lambda: raw_reading)
-        od_job.estimator_transformer = FlakyEstimatorTransformer()
+        monkeypatch.setattr(od_job.device, "_read_from_adc", lambda: raw_reading)
+        od_job.device.estimator_transformer = FlakyEstimatorTransformer()
         published_od_fused_values: list[structs.ODFused | None] = []
         original_publish_setting = od_job._publish_setting
 
@@ -2775,13 +2801,13 @@ def test_fused_od_is_cleared_when_estimator_returns_none(monkeypatch) -> None:
 
         monkeypatch.setattr(od_job, "_publish_setting", capture_od_fused_publish)
 
-        od_job.record_from_adc()
+        od_job.record()
         assert od_job.od_fused is not None
 
-        od_job.record_from_adc()
+        od_job.record()
         assert od_job.od_fused is None
 
-        od_job.record_from_adc()
+        od_job.record()
         assert od_job.od_fused is None
         assert published_od_fused_values == [
             structs.ODFused(od_fused=0.5, timestamp=raw_reading.timestamp),
@@ -2804,7 +2830,7 @@ def test_relative_intensity_topic_publishes_a_json_payload(monkeypatch) -> None:
     ) as od_job:
         assert od_job.published_settings["relative_intensity_of_ir_led"]["datatype"] == "json"
 
-        od_job.record_from_adc()
+        od_job.record()
 
         msg = subscribe(
             f"pioreactor/{get_unit_name()}/{experiment}/od_reading/relative_intensity_of_ir_led",

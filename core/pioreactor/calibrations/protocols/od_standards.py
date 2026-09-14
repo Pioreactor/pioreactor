@@ -118,17 +118,17 @@ def _read_voltages_from_adc(
     ) as od_reader:
 
         for _ in range(3):
-            od_reader.record_from_adc()
+            od_reader.record()
             if not is_testing_env():
                 sleep(1.0)
 
-        od_readings1 = od_reader.record_from_adc()
+        od_readings1 = od_reader.record()
         if not is_testing_env():
             sleep(3.0)
-        od_readings2 = od_reader.record_from_adc()
+        od_readings2 = od_reader.record()
         if not is_testing_env():
             sleep(3.0)
-        od_readings3 = od_reader.record_from_adc()
+        od_readings3 = od_reader.record()
         assert od_readings1 is not None
         assert od_readings2 is not None
         assert od_readings3 is not None

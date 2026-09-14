@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -6,11 +7,13 @@ from msgspec.json import decode
 from msgspec.json import encode
 from pioreactor import hardware
 from pioreactor import structs
-from pioreactor.background_jobs.external_od_reading import ExternalODReader
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
+from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.od_sources import register_od_source
+from pioreactor.od_devices import ODDeviceReading
+from pioreactor.od_devices import register_od_device
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
@@ -18,8 +21,9 @@ from pioreactor.whoami import get_unit_name
 def external_source(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     reader = MagicMock()
     reader.signal_unit = "ratio"
-    reader.read.return_value = 7.4e-7
-    register_od_source("test_probe", lambda hardware, logger: reader)
+    reader.source = "test_probe"
+    reader.read.return_value = ODDeviceReading(timestamp=current_utc_datetime(), value=7.4e-7)
+    register_od_device("test_probe", lambda hardware, logger: reader)
     monkeypatch.setattr(
         hardware,
         "get_od_hardware_config",
@@ -37,11 +41,11 @@ def test_external_source_uses_native_job_without_photodiodes(
         ADCReader, "__init__", MagicMock(side_effect=AssertionError("ADC must not be initialized"))
     )
     with start_od_reading({}, unit=get_unit_name(), experiment="test_source", interval=None) as job:
-        assert isinstance(job, ExternalODReader)
+        assert isinstance(job, ODReader)
         assert job.job_name == "od_reading"
         assert job.acquisition == "continuous"
         assert "first_od_obs_time" not in job.published_settings
-        reading = job.record_from_adc()
+        reading = job.record()
         assert reading is not None
         decoded = decode(encode(reading), type=structs.ODReadings)
         assert isinstance(decoded.ods["1"], structs.SensorODReading)
@@ -49,7 +53,7 @@ def test_external_source_uses_native_job_without_photodiodes(
         assert decoded.ods["1"].angle == "0"
         job.set_state(job.SLEEPING)
         external_source.stop.assert_called_once()
-        assert job.record_from_adc() is None
+        assert job.record() is None
         job.set_state(job.READY)
         assert external_source.start.call_count == 2
     external_source.close.assert_called_once()
@@ -65,11 +69,10 @@ def test_source_start_failure_closes_driver(external_source: MagicMock) -> None:
 def test_no_new_sample_and_invalid_sample(external_source: MagicMock) -> None:
     with start_od_reading({}, unit=get_unit_name(), experiment="test_samples", interval=None) as job:
         external_source.read.return_value = None
-        assert job.record_from_adc() is None
+        assert job.record() is None
         assert job.ods is None
-        external_source.read.return_value = float("nan")
         with pytest.raises(ValueError, match="invalid observation"):
-            job.record_from_adc()
+            ODDeviceReading(timestamp=current_utc_datetime(), value=float("nan"))
         assert job.ods is None
 
 
@@ -124,12 +127,12 @@ def test_hardware_layering_keeps_aux_but_replaces_pd_requirements(
 
 
 def test_unknown_source_never_falls_back_to_adc(monkeypatch: pytest.MonkeyPatch) -> None:
-    from pioreactor.od_sources import create_od_source
+    from pioreactor.od_devices import create_od_device
     from pioreactor import plugin_management
 
     monkeypatch.setattr(plugin_management, "get_plugins", lambda: {})
     with pytest.raises(Exception, match="not installed"):
-        create_od_source(hardware.ODHardwareConfig(driver="missing", address=0x69), MagicMock())
+        create_od_device(hardware.ODHardwareConfig(driver="missing", address=0x69), MagicMock())
 
 
 def test_backscatter_round_trips_through_existing_od_table() -> None:
@@ -190,12 +193,10 @@ def test_probe_mqtt_reaches_native_growth_model(
                 with start_od_reading({}, unit=get_unit_name(), experiment=experiment, interval=None) as job:
                     for index in range(10):
                         timestamp += timedelta(seconds=5)
-                        monkeypatch.setattr(
-                            "pioreactor.background_jobs.external_od_reading.current_utc_datetime",
-                            lambda: timestamp,
+                        external_source.read.return_value = ODDeviceReading(
+                            timestamp=timestamp, value=7.4e-7 * (1.001**index)
                         )
-                        external_source.read.return_value = 7.4e-7 * (1.001**index)
-                        job.record_from_adc()
+                        job.record()
                     assert wait_for(
                         lambda: calc.growth_rate is not None and calc.od_filtered is not None, timeout=5.0
                     )
@@ -211,3 +212,18 @@ def test_probe_mqtt_reaches_native_growth_model(
                     with local_persistent_storage(namespace) as cache:
                         cache.pop(experiment, None)
             assert not processing.is_alive()
+
+
+def test_device_preserves_acquisition_time_and_uses_one_backscatter_channel(
+    external_source: MagicMock,
+) -> None:
+    timestamp = current_utc_datetime()
+    external_source.read.return_value = ODDeviceReading(timestamp=timestamp, value=0.5)
+    with start_od_reading({}, unit=get_unit_name(), experiment="device_outputs", interval=None) as job:
+        batch = job.record()
+        assert batch.timestamp == timestamp
+        assert set(batch.ods) == {"1"}
+        assert job.od1.od == 0.5
+        assert job.od1.angle == "0"
+        assert "raw_od1" not in job.published_settings
+        assert "first_od_obs_time" not in job.published_settings

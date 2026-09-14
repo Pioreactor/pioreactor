@@ -119,11 +119,11 @@ def _measure_fusion_standard_samples(
             calibration=False,
         ) as od_reader:
             for _ in range(3):
-                od_reader.record_from_adc()
+                od_reader.record()
                 sleep(1)
 
             for i in range(repeats):
-                od_readings = od_reader.record_from_adc()
+                od_readings = od_reader.record()
                 st.set_target_rpm(rpm * next(_jitter))
                 sleep(2)
                 assert od_readings is not None

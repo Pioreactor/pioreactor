@@ -77,13 +77,16 @@ from __future__ import annotations
 import math
 import os
 import random
+import threading
 import types
 from collections.abc import Mapping
+from time import monotonic
 from time import sleep
 from time import time
 from typing import Callable
 from typing import cast
 from typing import Protocol
+from typing import Self
 from typing import TYPE_CHECKING
 
 import click
@@ -94,11 +97,12 @@ from pioreactor import hardware
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.background_jobs.od_reading_job import ODReadingJob
-from pioreactor.background_jobs.external_od_reading import ExternalODReader
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.od_devices import create_od_device
+from pioreactor.od_devices import ODDevice
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import argextrema
@@ -1214,77 +1218,15 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         return False
 
 
-class ODReader(ODReadingJob):
-    """
-    Produce a stream of OD readings from the sensors.
+class PhotodiodeODDevice(LoggerMixin):
+    """Eye-spy acquisition, illumination and optical corrections; no job lifecycle."""
 
-    Parameters
-    -----------
-    channel_angle_map: dict
-        dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
-    interval: float
-        seconds between readings. If None or 0, then don't periodically read.
-    adc_reader: ADCReader
-    ir_led_reference_tracker: IrLedReferenceTracker
-    calibration_transformer:
-    estimator_transformer:
-
-
-    Examples
-    ---------
-
-    Initializing this class will start reading in the background, if ``interval`` is not ``None``.
-
-    > od_reader = ODReader({'1': '45'}, 5)
-    > # readings will start to be published to MQTT, and the latest reading will be available as od_reader.ods
-
-    It can also be iterated over:
-
-    > od_reader = ODReader({'1': '45'}, 5)
-    > for od_reading in od_reader:
-    >    # do things...
-
-    If ``interval`` is ``None`` or 0, then users need to call ``record_from_adc`` manually.
-
-    >> od_reading = od_reader.record_from_adc()
-
-    """
+    raw_readings: structs.ODReadings | None = None
+    od_fused: structs.ODFused | None = None
 
     job_name = "od_reading"
-    published_settings = ODReadingJob.published_settings | {
-        "first_od_obs_time": {"datatype": "float", "settable": False},
-        "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
-        "relative_intensity_of_ir_led": {"datatype": "json", "settable": False},
-        # below are only used if a calibration is used
-        "raw_od1": {"datatype": "RawODReading", "settable": False},
-        "raw_od2": {"datatype": "RawODReading", "settable": False},
-        "raw_od3": {"datatype": "RawODReading", "settable": False},
-        "raw_od4": {"datatype": "RawODReading", "settable": False},
-        "calibrated_od1": {"datatype": "CalibratedODReading", "settable": False},
-        "calibrated_od2": {"datatype": "CalibratedODReading", "settable": False},
-        "calibrated_od3": {"datatype": "CalibratedODReading", "settable": False},
-        "calibrated_od4": {"datatype": "CalibratedODReading", "settable": False},
-        # below are used if a sensor fusion is used
-        "od_fused": {"datatype": "ODFused", "settable": False},
-    }
-
-    _pre_read: list[Callable] = []
-    _post_read: list[Callable] = []
-    od1: structs.ODReading | None = None
-    od2: structs.ODReading | None = None
-    od3: structs.ODReading | None = None
-    od4: structs.ODReading | None = None
-    ods: structs.ODReadings | None = None
-    od_fused: structs.ODFused | None = None
-    raw_od1: structs.RawODReading | None = None
-    raw_od2: structs.RawODReading | None = None
-    raw_od3: structs.RawODReading | None = None
-    raw_od4: structs.RawODReading | None = None
-    calibrated_od1: structs.CalibratedODReading | None = None
-    calibrated_od2: structs.CalibratedODReading | None = None
-    calibrated_od3: structs.CalibratedODReading | None = None
-    calibrated_od4: structs.CalibratedODReading | None = None
-    record_from_adc_timer: timing.RepeatedTimer
+    source = "photodiodes"
+    signal_unit = "V"
 
     def __init__(
         self,
@@ -1299,13 +1241,16 @@ class ODReader(ODReadingJob):
         estimator_transformer: EstimatorTransformerProtocol | None = None,
         ir_led_intensity: float | None = None,
     ) -> None:
-        super(ODReader, self).__init__(unit=unit, experiment=experiment)
+        self.unit = unit
+        self.experiment = experiment
+        super().__init__()
+        self._logger = create_logger("od_reading", unit=unit, experiment=experiment)
+        self.initialized = False
 
         if len(channel_angle_map) == 0:
             self.logger.error(
                 "Need to supply a signal channel. Check `[od_config.photodiode_channel]` in your config."
             )
-            self.clean_up()
             raise ValueError(
                 "Need to supply a signal channel. Check `[od_config.photodiode_channel]` in your config."
             )
@@ -1380,12 +1325,14 @@ class ODReader(ODReadingJob):
 
         if not hardware.is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")
-            self.clean_up()
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
-        self.pre_read_callbacks = self._prepare_pre_callbacks()
-        self.post_read_callbacks = self._prepare_post_callbacks()
+        self.should_auto_adjust_ir_led = should_auto_adjust_ir_led
+        self.set_interval(interval)
 
+    def start(self) -> None:
+        if self.initialized:
+            return
         # Invariant: OD owns every LED before its first temporary write and keeps ownership until IR is off.
         with led_utils.lock_leds_temporarily([self.ir_channel, *self.non_ir_led_channels]) as lock_owner:
             try:
@@ -1394,7 +1341,6 @@ class ODReader(ODReadingJob):
                     unit=self.unit,
                     experiment=self.experiment,
                     source_of_event=self.job_name,
-                    pubsub_client=self.pub_client,
                     verbose=False,
                     lock_owner=lock_owner,
                 ):
@@ -1419,17 +1365,12 @@ class ODReader(ODReadingJob):
                 # IR's only valid idle state is off. Keep ownership until this write is attempted.
                 self.stop_ir_led(lock_owner)
 
-        if should_auto_adjust_ir_led:
+        if self.should_auto_adjust_ir_led:
             self.ir_led_intensity = self._determine_best_ir_led_intensity(
                 self.channel_angle_map, self.ir_led_intensity, on_reading
             )
 
-        self.set_interval(interval)
-
-        self.logger.debug(
-            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}"
-            + (f" every {self.interval} seconds." if self.interval else ".")
-        )
+        self.initialized = True
 
     def _determine_initial_ir_led_intensity(self, ir_led_intensity: float | str | None) -> tuple[bool, float]:
         """
@@ -1502,9 +1443,346 @@ class ODReader(ODReadingJob):
         ir_led_intensity = max(ir_led_intensity, 50)  # always more than X
         return round(ir_led_intensity, 2)
 
+    @property
+    def ir_led_on_and_rest_off_state(self) -> dict[pt.LedChannel, pt.LedIntensityValue]:
+        if config.getboolean("od_reading.config", "turn_off_leds_during_reading", fallback="True"):
+            return {
+                channel: (self.ir_led_intensity if channel == self.ir_channel else 0.0)
+                for channel in led_utils.ALL_LED_CHANNELS
+            }
+        else:
+            return {self.ir_channel: self.ir_led_intensity}
+
+    def start_ir_led(self, lock_owner: str | None = None) -> None:
+        r = led_utils.led_intensity(
+            {self.ir_channel: self.ir_led_intensity},
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            verbose=False,
+            lock_owner=lock_owner,
+        )
+        if not r:
+            raise exc.HardwareNotFoundError("IR LED could not be started. Stopping OD reading.")
+
+        return
+
+    def stop_ir_led(self, lock_owner: str | None = None) -> None:
+        led_utils.led_intensity(
+            {self.ir_channel: 0.0},
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            verbose=False,
+            lock_owner=lock_owner,
+        )
+
+    def _get_ir_led_channel_from_configuration(self) -> pt.LedChannel:
+        try:
+            return cast(pt.LedChannel, config.get("leds_reverse", IR_keyword))
+        except Exception:
+            self.logger.error(
+                """`leds` section must contain `IR` value. Ex:
+        [leds]
+        A=IR
+            """
+            )
+            raise KeyError("`IR` value not found in section.")
+
+    def _read_from_adc(self) -> structs.ODReadings:
+        """
+        Read from the ADC. This function normalizes by the IR ref.
+
+        Note
+        -----
+        The IR LED needs to be turned on for this function to report accurate OD signals.
+        """
+        raw_pd_readings = self.adc_reader.take_reading()
+
+        ref_reading, raw_pd_readings = self.ir_led_reference_transformer.pop_reference_reading(
+            raw_pd_readings
+        )
+        is_stable = self.ir_led_reference_transformer.update(ref_reading)
+        if not is_stable:
+            publish(
+                f"pioreactor/{self.unit}/{self.experiment}/dosing_automation/$state/set",
+                "sleeping",
+                qos=QOS.AT_LEAST_ONCE,
+            )
+
+        ts = timing.current_utc_datetime()
+        raw_od_readings = structs.ODReadings(
+            timestamp=ts,
+            ods={
+                pd: structs.RawODReading(
+                    od=self.ir_led_reference_transformer.transform(raw_pd_reading.reading),
+                    ir_led_intensity=self.ir_led_intensity,
+                    angle=self.channel_angle_map[pd],
+                    channel=pd,
+                    timestamp=ts,
+                )
+                for pd, raw_pd_reading in raw_pd_readings.items()
+            },
+        )
+
+        return raw_od_readings
+
+    def read(self) -> structs.ODReadings:
+        self.raw_readings = None
+        # OD owns all LED writes through measurement and restoration. Unlocking before IR-off would
+        # let a camera cleanup overwrite OD illumination or leave IR in a non-idle state.
+        with led_utils.lock_leds_temporarily([self.ir_channel, *self.non_ir_led_channels]) as lock_owner:
+            try:
+                with led_utils.change_leds_intensities_temporarily(
+                    desired_state=self.ir_led_on_and_rest_off_state,
+                    unit=self.unit,
+                    experiment=self.experiment,
+                    source_of_event=self.job_name,
+                    verbose=False,
+                    lock_owner=lock_owner,
+                ):
+                    if not (getattr(self.adc_reader, "fake_data", False) or whoami.is_testing_env()):
+                        sleep(
+                            config.getfloat(
+                                "od_reading.config", "duration_between_led_off_and_od_reading", fallback=0.125
+                            )
+                        )
+                    raw_od_readings = self._read_from_adc()
+                    raw_od_readings = self.blank_transformer(raw_od_readings)
+            finally:
+                # Release the lock only after OD has forced its illumination off.
+                self.stop_ir_led(lock_owner)
+
+        self.raw_readings = raw_od_readings
+        od_readings = self.calibration_transformer(raw_od_readings)
+        try:
+            self.od_fused = self.estimator_transformer(raw_od_readings)
+        except (exc.CalibrationError, exc.EstimatorError) as error:
+            self.logger.error(f"Error in estimator transformer: {error}")
+            self.od_fused = None
+        return od_readings
+
     def set_interval(self, interval: float | None) -> None:
         self.ir_led_reference_transformer.set_interval(interval)
-        super().set_interval(interval)
+
+    def stop(self) -> None:
+        self.stop_ir_led()
+
+    def close(self) -> None:
+        self.stop()
+
+
+class ODReader(BackgroundJob):
+    """Schedule a device and publish its observations through the native OD activity."""
+
+    job_name = "od_reading"
+    published_settings = {
+        "interval": {"datatype": "float", "settable": True, "unit": "s"},
+        "ods": {"datatype": "ODReadings", "settable": False},
+        "od1": {"datatype": "ODReading", "settable": False},
+        "od2": {"datatype": "ODReading", "settable": False},
+        "od3": {"datatype": "ODReading", "settable": False},
+        "od4": {"datatype": "ODReading", "settable": False},
+        "source": {"datatype": "string", "settable": False},
+        "signal_unit": {"datatype": "string", "settable": False},
+        "acquisition": {"datatype": "string", "settable": False},
+    }
+    ods: structs.ODReadings | None = None
+    record_timer: timing.RepeatedTimer
+
+    photodiode_settings: dict[str, pt.PublishableSetting] = {
+        "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
+        "relative_intensity_of_ir_led": {"datatype": "json", "settable": False},
+        # below are only used if a calibration is used
+        "raw_od1": {"datatype": "ODReading", "settable": False},
+        "raw_od2": {"datatype": "ODReading", "settable": False},
+        "raw_od3": {"datatype": "ODReading", "settable": False},
+        "raw_od4": {"datatype": "ODReading", "settable": False},
+        "calibrated_od1": {"datatype": "ODReading", "settable": False},
+        "calibrated_od2": {"datatype": "ODReading", "settable": False},
+        "calibrated_od3": {"datatype": "ODReading", "settable": False},
+        "calibrated_od4": {"datatype": "ODReading", "settable": False},
+        # below are used if a sensor fusion is used
+        "od_fused": {"datatype": "ODFused", "settable": False},
+    }
+
+    _pre_read: list[Callable] = []
+    _post_read: list[Callable] = []
+    od_fused: structs.ODFused | None = None
+
+    def __init__(
+        self,
+        device_factory: Callable[[], ODDevice | PhotodiodeODDevice],
+        unit: str,
+        experiment: str,
+        interval: float | None,
+    ) -> None:
+        super().__init__(unit=unit, experiment=experiment)
+        self._lock = threading.RLock()
+        self._set_for_iterating = threading.Event()
+        for channel in ("1", "2", "3", "4"):
+            for prefix in ("od", "raw_od", "calibrated_od"):
+                setattr(self, f"{prefix}{channel}", None)
+        self.device: ODDevice | PhotodiodeODDevice | None = None
+        self.first_od_obs_time: float | None = None
+        self.device = device_factory()
+        self.source = self.device.source
+        self.signal_unit = self.device.signal_unit
+        self.acquisition = "scheduled" if isinstance(self.device, PhotodiodeODDevice) else "continuous"
+        self.pre_read_callbacks = self._prepare_pre_callbacks()
+        self.post_read_callbacks = self._prepare_post_callbacks()
+        if isinstance(self.device, PhotodiodeODDevice):
+            self.add_to_published_settings("first_od_obs_time", {"datatype": "float", "settable": False})
+        if isinstance(self.device, PhotodiodeODDevice):
+            for name, settings in self.photodiode_settings.items():
+                self.add_to_published_settings(name, settings)
+        self.device.start()
+        if isinstance(self.device, PhotodiodeODDevice):
+            self.ir_led_intensity = self.device.ir_led_intensity
+        self.set_interval(interval)
+
+    def set_interval(self, interval: float | None) -> None:
+        if interval is not None and (not math.isfinite(interval) or interval <= 0):
+            raise ValueError("interval must be positive or None")
+        self.interval = interval
+        if isinstance(self.device, PhotodiodeODDevice):
+            self.device.set_interval(interval)
+        if hasattr(self, "record_timer"):
+            self.record_timer.cancel()
+        if interval is None:
+            return
+        if interval <= 1.0:
+            self.logger.warning(
+                f"Recommended to have the interval between readings be larger than 1.0 sec. Currently {interval} sec."
+            )
+        self.record_timer = timing.RepeatedTimer(
+            interval,
+            self.record,
+            job_name=self.job_name,
+            run_immediately=True,
+            logger=self.logger,
+        )
+        if self.state == self.SLEEPING:
+            self.record_timer.pause()
+        self.record_timer.start()
+
+    def record(self) -> structs.ODReadings | None:
+        """Acquire and publish a fresh batch from the selected device."""
+        with self._lock:
+            if self.device is None or self.state in (self.SLEEPING, self.DISCONNECTED, self.LOST):
+                return None
+            if isinstance(self.device, PhotodiodeODDevice) and self.first_od_obs_time is None:
+                self.first_od_obs_time = time()
+            for callback in self.pre_read_callbacks:
+                try:
+                    callback()
+                except Exception:
+                    self.logger.debug("Error in pre-read callback", exc_info=True)
+            readings = None
+            try:
+                if isinstance(self.device, PhotodiodeODDevice):
+                    try:
+                        readings = self.device.read()
+                    except (exc.NoSolutionsFoundError, exc.CalibrationError, ValueError):
+                        if self.device.raw_readings is not None:
+                            self.ods = None
+                            for channel, raw in self.device.raw_readings.ods.items():
+                                setattr(self, f"od{channel}", None)
+                                setattr(self, f"calibrated_od{channel}", None)
+                                setattr(self, f"raw_od{channel}", raw)
+                        raise
+                    self.publish_photodiode_diagnostics(readings)
+                else:
+                    reading = self.device.read()
+                    if reading is None:
+                        return None
+                    readings = structs.ODReadings(
+                        timestamp=reading.timestamp,
+                        ods={
+                            "1": structs.SensorODReading(
+                                timestamp=reading.timestamp,
+                                od=reading.value,
+                                channel="1",
+                                source=self.source,
+                                signal_unit=self.signal_unit,
+                            ),
+                        },
+                    )
+                self.ods = readings
+                for channel, observation in readings.ods.items():
+                    setattr(self, f"od{channel}", observation)
+                return readings
+            finally:
+                for callback in self.post_read_callbacks:
+                    try:
+                        callback(readings)
+                    except Exception:
+                        self.logger.debug("Error in post-read callback", exc_info=True)
+                if isinstance(self.device, PhotodiodeODDevice):
+                    self._log_relative_intensity_of_ir_led()
+                if readings is not None:
+                    self._unblock_internal_event()
+
+    def publish_photodiode_diagnostics(self, readings: structs.ODReadings) -> None:
+        assert isinstance(self.device, PhotodiodeODDevice)
+        assert self.device.raw_readings is not None
+        for channel, reading in readings.ods.items():
+            if isinstance(reading, structs.CalibratedODReading):
+                setattr(self, f"raw_od{channel}", self.device.raw_readings.ods[channel])
+                setattr(self, f"calibrated_od{channel}", reading)
+        if self.device.od_fused is not None or self.od_fused is not None:
+            self.od_fused = self.device.od_fused
+
+    def snapshot(self, timeout: float = 60.0) -> structs.ODReadings:
+        deadline = monotonic() + timeout
+        while self.state not in (self.DISCONNECTED, self.LOST) and monotonic() < deadline:
+            readings = self.record()
+            if readings is not None:
+                return readings
+            sleep(0.1)
+        raise TimeoutError("OD device did not produce a measurement within the snapshot timeout.")
+
+    def set_ir_led_intensity(self, value: float) -> None:
+        if not isinstance(self.device, PhotodiodeODDevice):
+            raise ValueError("The selected OD device does not use Pioreactor illumination.")
+        self.device.ir_led_intensity = value
+        self.ir_led_intensity = value
+
+    def _unblock_internal_event(self) -> None:
+        if self.state == self.READY:
+            self._set_for_iterating.set()
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> structs.ODReadings:
+        while self._set_for_iterating.wait():
+            self._set_for_iterating.clear()
+            if self.ods is not None:
+                return self.ods
+        raise StopIteration
+
+    def on_sleeping(self) -> None:
+        if hasattr(self, "record_timer"):
+            self.record_timer.pause()
+        with self._lock:
+            if self.device is not None:
+                self.device.stop()
+
+    def on_sleeping_to_ready(self) -> None:
+        with self._lock:
+            if self.device is not None:
+                self.device.start()
+        if hasattr(self, "record_timer"):
+            self.record_timer.unpause()
+
+    def on_disconnected(self) -> None:
+        if hasattr(self, "record_timer"):
+            self.record_timer.cancel()
+        device = getattr(self, "device", None)
+        if device is not None:
+            with self._lock:
+                device.close()
 
     def _prepare_post_callbacks(self) -> list[Callable]:
         callbacks: list[Callable] = []
@@ -1532,210 +1810,14 @@ class ODReader(ODReadingJob):
     def add_post_read_callback(cls, function: Callable) -> None:
         cls._post_read.append(function)
 
-    @property
-    def ir_led_on_and_rest_off_state(self) -> dict[pt.LedChannel, pt.LedIntensityValue]:
-        if config.getboolean("od_reading.config", "turn_off_leds_during_reading", fallback="True"):
-            return {
-                channel: (self.ir_led_intensity if channel == self.ir_channel else 0.0)
-                for channel in led_utils.ALL_LED_CHANNELS
-            }
-        else:
-            return {self.ir_channel: self.ir_led_intensity}
-
-    def _clear_od_fused_if_present(self) -> None:
-        if self.od_fused is None:
-            return
-
-        self.od_fused = None
-
-    def record_from_adc(self) -> structs.ODReadings | None:
-        """
-        Take a recording of the current OD of the culture.
-
-        """
-        if self.first_od_obs_time is None:
-            self.first_od_obs_time = time()
-
-        for pre_function in self.pre_read_callbacks:
-            try:
-                pre_function()
-            except Exception:
-                self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
-
-        # OD owns all LED writes through measurement and restoration. Unlocking before IR-off would
-        # let a camera cleanup overwrite OD illumination or leave IR in a non-idle state.
-        with led_utils.lock_leds_temporarily([self.ir_channel, *self.non_ir_led_channels]) as lock_owner:
-            try:
-                with led_utils.change_leds_intensities_temporarily(
-                    desired_state=self.ir_led_on_and_rest_off_state,
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    source_of_event=self.job_name,
-                    pubsub_client=self.pub_client,
-                    verbose=False,
-                    lock_owner=lock_owner,
-                ):
-                    if not (getattr(self.adc_reader, "fake_data", False) or whoami.is_testing_env()):
-                        sleep(
-                            config.getfloat(
-                                "od_reading.config", "duration_between_led_off_and_od_reading", fallback=0.125
-                            )
-                        )
-                    raw_od_readings = self._read_from_adc()
-                    raw_od_readings = self.blank_transformer(raw_od_readings)
-            finally:
-                # Release the lock only after OD has forced its illumination off.
-                self.stop_ir_led(lock_owner)
-
-        try:
-            od_readings = self.calibration_transformer(raw_od_readings)
-        except (exc.NoSolutionsFoundError, exc.CalibrationError, ValueError) as e:
-            # some calibration error occurred
-            od_readings = None
-            self.ods = None
-
-            # Preserve the fresh raw readings, but clear the calibrated outputs so
-            # consumers do not keep observing the previous successful batch.
-            for channel, _ in self.channel_angle_map.items():
-                setattr(self, f"od{channel}", None)
-                setattr(self, f"calibrated_od{channel}", None)
-                setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
-
-            self.logger.error(f"Error in calibration transformer: {e}")
-            raise e
-        else:
-            # happy path
-            assert od_readings is not None
-            self.publish_readings(od_readings)
-            for channel, _ in self.channel_angle_map.items():
-                if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
-                    setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
-                    setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
-
-            try:
-                fused_od = self.estimator_transformer(raw_od_readings)
-            except (exc.CalibrationError, exc.EstimatorError) as e:
-                self.logger.error(f"Error in estimator transformer: {e}")
-                self._clear_od_fused_if_present()
-            else:
-                if fused_od is not None:
-                    self.od_fused = fused_od
-                else:
-                    self._clear_od_fused_if_present()
-
-        finally:
-            for post_function in self.post_read_callbacks:
-                try:
-                    post_function(od_readings)
-                except Exception:
-                    self.logger.debug(f"Error in post_function={post_function.__name__}.", exc_info=True)
-
-            self._log_relative_intensity_of_ir_led()
-            self._unblock_internal_event()
-
-        return od_readings
-
-    def start_ir_led(self, lock_owner: str | None = None) -> None:
-        r = led_utils.led_intensity(
-            {self.ir_channel: self.ir_led_intensity},
-            unit=self.unit,
-            experiment=self.experiment,
-            source_of_event=self.job_name,
-            pubsub_client=self.pub_client,
-            verbose=False,
-            lock_owner=lock_owner,
-        )
-        if not r:
-            self.clean_up()
-            raise exc.HardwareNotFoundError("IR LED could not be started. Stopping OD reading.")
-
-        return
-
-    def stop_ir_led(self, lock_owner: str | None = None) -> None:
-        led_utils.led_intensity(
-            {self.ir_channel: 0.0},
-            unit=self.unit,
-            experiment=self.experiment,
-            source_of_event=self.job_name,
-            pubsub_client=self.pub_client,
-            verbose=False,
-            lock_owner=lock_owner,
-        )
-
-    ###########
-    # Private
-    ############
-
-    def on_disconnected(self) -> None:
-        try:
-            self.record_from_adc_timer.cancel()
-        except Exception:
-            pass
-
-        # turn off the LED after we have take our last ADC reading..
-        try:
-            self.stop_ir_led()
-        except Exception:
-            pass
-
-    def _get_ir_led_channel_from_configuration(self) -> pt.LedChannel:
-        try:
-            return cast(pt.LedChannel, config.get("leds_reverse", IR_keyword))
-        except Exception:
-            self.logger.error(
-                """`leds` section must contain `IR` value. Ex:
-        [leds]
-        A=IR
-            """
-            )
-            self.clean_up()
-            raise KeyError("`IR` value not found in section.")
-
-    def _read_from_adc(self) -> structs.ODReadings:
-        """
-        Read from the ADC. This function normalizes by the IR ref.
-
-        Note
-        -----
-        The IR LED needs to be turned on for this function to report accurate OD signals.
-        """
-        raw_pd_readings = self.adc_reader.take_reading()
-
-        ref_reading, raw_pd_readings = self.ir_led_reference_transformer.pop_reference_reading(
-            raw_pd_readings
-        )
-        is_stable = self.ir_led_reference_transformer.update(ref_reading)
-        if not is_stable:
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/dosing_automation/$state/set",
-                self.SLEEPING,
-                qos=QOS.AT_LEAST_ONCE,
-            )
-
-        ts = timing.current_utc_datetime()
-        raw_od_readings = structs.ODReadings(
-            timestamp=ts,
-            ods={
-                pd: structs.RawODReading(
-                    od=self.ir_led_reference_transformer.transform(raw_pd_reading.reading),
-                    ir_led_intensity=self.ir_led_intensity,
-                    angle=self.channel_angle_map[pd],
-                    channel=pd,
-                    timestamp=ts,
-                )
-                for pd, raw_pd_reading in raw_pd_readings.items()
-            },
-        )
-
-        return raw_od_readings
-
     def _log_relative_intensity_of_ir_led(self) -> None:
+        assert isinstance(self.device, PhotodiodeODDevice)
         if random.random() <= config.getfloat(
             "od_reading.config", "sample_relative_intensity_fraction", fallback=0.2
         ):
             self.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
-                "relative_intensity_of_ir_led": 1 / self.ir_led_reference_transformer.transform(1.0),
+                "relative_intensity_of_ir_led": 1 / self.device.ir_led_reference_transformer.transform(1.0),
                 "timestamp": timing.current_utc_datetime(),
             }
 
@@ -1781,7 +1863,7 @@ def start_od_reading(
     estimator: bool | structs.ODFusionEstimator | None = True,
     ir_led_intensity: float | None = None,
     penalizer: float = 0.0,
-) -> ODReadingJob:
+) -> ODReader:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
 
@@ -1817,8 +1899,8 @@ def start_od_reading(
             raise ValueError(
                 "Photodiode illumination, calibration and fusion options do not apply to external OD sources."
             )
-        return ExternalODReader(
-            od_hardware,
+        return ODReader(
+            lambda: create_od_device(od_hardware, create_logger("od_reading")),
             unit or whoami.get_unit_name(),
             experiment or whoami.get_assigned_experiment_name(unit or whoami.get_unit_name()),
             interval,
@@ -1918,23 +2000,28 @@ def start_od_reading(
         penalizer = 0.0
 
     return ODReader(
-        channel_angle_map,
-        interval=interval,
-        unit=unit,
-        experiment=experiment,
-        adc_reader=ADCReader(
-            channels=active_pd_channels,
-            fake_data=fake_data,
-            dynamic_gain=not fake_data,
-            penalizer=penalizer,
+        lambda: PhotodiodeODDevice(
+            channel_angle_map,
+            interval=interval,
             unit=unit,
             experiment=experiment,
+            adc_reader=ADCReader(
+                channels=active_pd_channels,
+                fake_data=fake_data,
+                dynamic_gain=not fake_data,
+                penalizer=penalizer,
+                unit=unit,
+                experiment=experiment,
+            ),
+            ir_led_reference_tracker=ir_led_reference_tracker,
+            blank_transformer=blank_transformer,
+            calibration_transformer=calibration_transformer,
+            estimator_transformer=estimator_transformer,
+            ir_led_intensity=ir_led_intensity,
         ),
-        ir_led_reference_tracker=ir_led_reference_tracker,
-        blank_transformer=blank_transformer,
-        calibration_transformer=calibration_transformer,
-        estimator_transformer=estimator_transformer,
-        ir_led_intensity=ir_led_intensity,
+        unit=unit,
+        experiment=experiment,
+        interval=interval,
     )
 
 
@@ -1996,7 +2083,7 @@ def click_od_reading(
         penalizer=penalizer,
     ) as od:
         if snapshot:
-            od_snapshot = od.snapshot() if isinstance(od, ExternalODReader) else od.record_from_adc()
+            od_snapshot = od.snapshot()
             # send the reading to stdout so it can be captured / piped elsewhere
             click.echo(str(od_snapshot), err=False)
         else:
