@@ -5,11 +5,14 @@ import { TextDecoder, TextEncoder } from "util";
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+const mockSubscribeToTopic = jest.fn();
+const mockUnsubscribeFromTopic = jest.fn();
+
 jest.mock("../providers/MQTTContext", () => ({
   useMQTT: () => ({
-    client: null,
-    subscribeToTopic: jest.fn(),
-    unsubscribeFromTopic: jest.fn(),
+    client: {},
+    subscribeToTopic: mockSubscribeToTopic,
+    unsubscribeFromTopic: mockUnsubscribeFromTopic,
   }),
 }));
 
@@ -94,6 +97,81 @@ describe("Cameras", () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("No assigned Pioreactors were found.")).toBeInTheDocument();
     expect(screen.queryByText(/Timed out fetching camera statuses/)).not.toBeInTheDocument();
+  });
+
+  test("coalesces camera notifications while a refresh is in progress", async () => {
+    let finishRefresh;
+    const emptyCameraResponse = {
+      ok: true,
+      json: () => Promise.resolve({ cameras: {} }),
+    };
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce(emptyCameraResponse)
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        finishRefresh = () => resolve(emptyCameraResponse);
+      }))
+      .mockResolvedValue(emptyCameraResponse);
+
+    render(
+      <MemoryRouter>
+        <Cameras title="Cameras" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    const onCameraStillChanged = mockSubscribeToTopic.mock.calls[0][1];
+
+    act(() => {
+      for (let index = 0; index < 12; index += 1) {
+        onCameraStillChanged(
+          `pioreactor/unit-${index}/experiment-a/camera/latest_still`,
+          Buffer.from("{}"),
+          { retain: false },
+        );
+      }
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+
+    finishRefresh();
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+  });
+
+  test("coalesces retained camera notifications received during the initial load", async () => {
+    let finishInitialLoad;
+    const emptyCameraResponse = {
+      ok: true,
+      json: () => Promise.resolve({ cameras: {} }),
+    };
+    global.fetch = jest.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        finishInitialLoad = () => resolve(emptyCameraResponse);
+      }))
+      .mockResolvedValue(emptyCameraResponse);
+
+    render(
+      <MemoryRouter>
+        <Cameras title="Cameras" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    const onCameraStillChanged = mockSubscribeToTopic.mock.calls[0][1];
+
+    act(() => {
+      for (let index = 0; index < 12; index += 1) {
+        onCameraStillChanged(
+          `pioreactor/unit-${index}/experiment-a/camera/latest_still`,
+          Buffer.from("{}"),
+          { retain: true },
+        );
+      }
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    finishInitialLoad();
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
   });
 
   test("keeps stored camera snapshots visible when camera hardware is unavailable", async () => {

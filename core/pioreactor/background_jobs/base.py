@@ -13,7 +13,9 @@ from typing import Self
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
+from paho.mqtt.client import error_string
 from paho.mqtt.client import MQTTMessageInfo
+from paho.mqtt.enums import MQTTErrorCode
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
@@ -763,7 +765,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _publish_setting(self, setting: str) -> None:
         """
-        Publish the current value of the class attribute `attr` to MQTT.
+        Queue the current setting at QoS 2 and persist it locally without waiting for broker acknowledgement.
         """
         if setting == "state":
             setting_name = "$state"
@@ -780,7 +782,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         with JobManager() as jm:
             jm.upsert_setting(self.job_id, setting_name, value)
 
-        msg.wait_for_publish(timeout=5)
+        if msg.rc != MQTTErrorCode.MQTT_ERR_SUCCESS:
+            raise RuntimeError(f"Message publish failed: {error_string(msg.rc)}")
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.

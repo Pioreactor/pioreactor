@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from bisect import bisect_right
 from typing import Any
 from typing import Iterable
 from typing import Sequence
@@ -11,9 +12,7 @@ def to_pyfloat(seq: list[float]) -> list[float]:
 
 
 def interval_index(knots: Any, x: float) -> int:
-    import numpy as np
-
-    idx = int(np.searchsorted(knots, x, side="right") - 1)
+    idx = bisect_right(knots, x) - 1
     if idx < 0:
         return 0
     if idx >= len(knots) - 1:

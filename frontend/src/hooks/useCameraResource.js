@@ -16,6 +16,8 @@ export default function useCameraResource({
   const subscriberId = React.useId();
   const subscriberKey = `CameraResource${subscriberId}`;
   const requestVersionRef = React.useRef(0);
+  const activeRefreshRef = React.useRef(null);
+  const pendingRefreshOptionsRef = React.useRef(null);
   const [resource, setResource] = React.useState({ url, data: undefined });
   const [loading, setLoading] = React.useState(Boolean(url));
   const [resourceError, setResourceError] = React.useState({ url, message: null });
@@ -38,7 +40,7 @@ export default function useCameraResource({
     setResourceError({ url, message });
   }, [url]);
 
-  const refresh = React.useCallback(async ({ signal, showLoading = true } = {}) => {
+  const runRefresh = React.useCallback(async ({ signal, showLoading = true } = {}) => {
     if (!url) {
       setLoading(false);
       return;
@@ -75,6 +77,33 @@ export default function useCameraResource({
       }
     }
   }, [normalize, url]);
+  const runRefreshRef = React.useRef(runRefresh);
+  runRefreshRef.current = runRefresh;
+
+  const refresh = React.useCallback((options = {}) => {
+    pendingRefreshOptionsRef.current = options;
+    if (activeRefreshRef.current) {
+      return activeRefreshRef.current;
+    }
+
+    const runPendingRefreshes = async () => {
+      while (pendingRefreshOptionsRef.current) {
+        const nextOptions = pendingRefreshOptionsRef.current;
+        pendingRefreshOptionsRef.current = null;
+        if (!nextOptions.signal?.aborted) {
+          await runRefreshRef.current(nextOptions);
+        }
+      }
+    };
+
+    const refreshPromise = runPendingRefreshes().finally(() => {
+      if (activeRefreshRef.current === refreshPromise) {
+        activeRefreshRef.current = null;
+      }
+    });
+    activeRefreshRef.current = refreshPromise;
+    return refreshPromise;
+  }, []);
 
   React.useEffect(() => {
     if (!url) {

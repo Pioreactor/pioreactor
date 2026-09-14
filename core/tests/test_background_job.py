@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
+from paho.mqtt.client import MQTTMessageInfo
+from paho.mqtt.enums import MQTTErrorCode
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import BackgroundJobContrib
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
@@ -45,6 +47,68 @@ def temporary_config_section(config_parser, section):
 def pause() -> None:
     # to avoid race conditions
     time.sleep(0.5)
+
+
+@pytest.mark.parametrize(
+    "setting,value,settable",
+    [("state", "ready", True), ("reading", 1.2, False), ("reading", 1.2, True)],
+)
+def test_setting_updates_do_not_wait_for_acknowledgement(
+    monkeypatch: pytest.MonkeyPatch, setting: str, value: str | float, settable: bool
+) -> None:
+    class PendingMessageInfo(MQTTMessageInfo):
+        def wait_for_publish(self, timeout: float | None = None) -> None:
+            raise AssertionError("waited for ack")
+
+    with BackgroundJob(unit=get_unit_name(), experiment="test_nonblocking_settings") as job:
+        if setting != "state":
+            job.add_to_published_settings(setting, {"datatype": "float", "settable": settable})
+        message = PendingMessageInfo(1)
+        publish = MagicMock(return_value=message)
+        with monkeypatch.context() as scoped:
+            scoped.setattr(job, "publish", publish)
+            setattr(job, setting, value)
+
+        setting_name = "$state" if setting == "state" else setting
+        publish.assert_called_once_with(
+            f"pioreactor/{job.unit}/{job.experiment}/{job.job_name}/{setting_name}",
+            value,
+            retain=True,
+            qos=QOS.EXACTLY_ONCE,
+        )
+        assert not message.is_published()
+        with JobManager() as jm:
+            assert jm.get_setting_from_running_job(job.job_name, setting_name) == value
+
+
+@pytest.mark.parametrize("rc", [MQTTErrorCode.MQTT_ERR_QUEUE_SIZE, MQTTErrorCode.MQTT_ERR_NO_CONN])
+def test_setting_publish_errors_are_visible(monkeypatch: pytest.MonkeyPatch, rc: MQTTErrorCode) -> None:
+    with BackgroundJob(unit=get_unit_name(), experiment="test_setting_publish_errors") as job:
+        message = MQTTMessageInfo(1)
+        message.rc = rc
+        with monkeypatch.context() as scoped:
+            scoped.setattr(job, "publish", MagicMock(return_value=message))
+            with pytest.raises(RuntimeError):
+                job._publish_setting("state")
+
+
+def test_queued_settings_are_delivered_before_normal_shutdown() -> None:
+    with BackgroundJob(unit=get_unit_name(), experiment="test_queued_settings_shutdown") as job:
+        for index in range(12):
+            setting = f"reading_{index}"
+            job.add_to_published_settings(
+                setting, {"datatype": "integer", "settable": False, "persist": True}
+            )
+            setattr(job, setting, index)
+
+    for index in range(12):
+        message = subscribe(
+            f"pioreactor/{job.unit}/{job.experiment}/{job.job_name}/reading_{index}",
+            timeout=2,
+            qos=QOS.EXACTLY_ONCE,
+        )
+        assert message is not None
+        assert message.payload == str(index).encode()
 
 
 def test_states() -> None:
@@ -885,6 +949,8 @@ def test_disabling_dodging_while_sleeping_stays_disabled_when_ready() -> None:
 
 def test_dodging_post_init_timer_setup_failure_cleans_up_running_job(monkeypatch) -> None:
     class FakePublishResult:
+        rc = MQTTErrorCode.MQTT_ERR_SUCCESS
+
         def wait_for_publish(self, timeout: float | None = None) -> None:
             pass
 
