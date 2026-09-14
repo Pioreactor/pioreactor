@@ -453,12 +453,26 @@ def get_update_app_commands(
             release_commands.extend(
                 [
                     update_command(
-                        ["sudo", "sqlite3", database_path, f".read {tmp_rls_dir}/update.sql"],
+                        [
+                            "sudo",
+                            "sqlite3",
+                            "-cmd",
+                            ".timeout 15000",
+                            database_path,
+                            f".read {tmp_rls_dir}/update.sql",
+                        ],
                         10,
                         allow_failure=True,
                     ),
                     update_command(
-                        ["sudo", "sqlite3", database_path, "PRAGMA optimize = 0x10002"],
+                        [
+                            "sudo",
+                            "sqlite3",
+                            "-cmd",
+                            ".timeout 15000",
+                            database_path,
+                            "PRAGMA optimize = 0x10002",
+                        ],
                         11,
                         allow_failure=True,
                     ),

@@ -61,8 +61,6 @@ fi
 
 echo "Version check passed: $current_version"
 """
-# PRAGMA optimize is executed separately by pio.py after the migration.
-UPDATE_SQL_FOOTER = "PRAGMA busy_timeout = 15000;"
 
 
 def run_git_command(args: list[str], dry_run: bool) -> None:
@@ -305,44 +303,6 @@ def ensure_pre_update_script(version: str, dry_run: bool) -> bool:
     return True
 
 
-def ensure_update_sql_has_busy_timeout(dry_run: bool) -> bool:
-    upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
-    update_sql_path = upcoming / "update.sql"
-
-    if update_sql_path.exists():
-        current = update_sql_path.read_text(encoding="utf-8")
-        lines = current.splitlines()
-        non_empty_lines = [line.strip() for line in lines if line.strip()]
-        if non_empty_lines and non_empty_lines[-1] == UPDATE_SQL_FOOTER:
-            return False
-        while lines and not lines[-1].strip():
-            lines.pop()
-        if lines and lines[-1].strip() in {
-            "PRAGMA optimize;",
-            "PRAGMA optimize = 0x10002;",
-        }:
-            lines.pop()
-            while lines and not lines[-1].strip():
-                lines.pop()
-            if lines and lines[-1].strip() == UPDATE_SQL_FOOTER:
-                lines.pop()
-        current = "\n".join(lines)
-        print(f"Appending update SQL footer to {update_sql_path}")
-    else:
-        current = ""
-        print(f"Creating {update_sql_path} with update SQL footer")
-
-    if dry_run:
-        print(f"DRY-RUN: would write {update_sql_path}")
-        return True
-
-    upcoming.mkdir(parents=True, exist_ok=True)
-    if current and not current.endswith("\n"):
-        current += "\n"
-    update_sql_path.write_text(f"{current}{UPDATE_SQL_FOOTER}\n", encoding="utf-8")
-    return True
-
-
 def ensure_update_scripts_folder(version: str, dry_run: bool) -> bool:
     target = UPDATE_SCRIPTS_DIR / version
     upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
@@ -470,14 +430,13 @@ def main(argv: list[str]) -> int:
         release_version_changed = ensure_release_version(release_version, dry_run=args.dry_run)
         changelog_changed = ensure_changelog_top_matches(release_version, dry_run=args.dry_run)
         pre_update_changed = ensure_pre_update_script(release_version, dry_run=args.dry_run)
-        update_sql_changed = ensure_update_sql_has_busy_timeout(dry_run=args.dry_run)
         update_scripts_changed = ensure_update_scripts_folder(release_version, dry_run=args.dry_run)
 
         if release_version_changed:
             stage_if_exists(VERSION_FILE, dry_run=args.dry_run)
         if changelog_changed:
             stage_if_exists(CHANGELOG_FILE, dry_run=args.dry_run)
-        if pre_update_changed or update_sql_changed or update_scripts_changed:
+        if pre_update_changed or update_scripts_changed:
             stage_update_scripts_changes(release_version, dry_run=args.dry_run)
         if fe_build_changed:
             stage_if_exists(FE_BUILD_DIR, dry_run=args.dry_run)
@@ -486,7 +445,6 @@ def main(argv: list[str]) -> int:
             release_version_changed
             or changelog_changed
             or pre_update_changed
-            or update_sql_changed
             or update_scripts_changed
             or fe_build_changed
         )
