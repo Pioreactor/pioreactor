@@ -14,7 +14,7 @@ from pioreactor.hardware import ODHardwareConfig
 from pioreactor.logging import CustomLogger
 
 
-class ODDevice(Protocol):
+class ExternalODDevice(Protocol):
     source: str
     signal_unit: str
 
@@ -24,7 +24,7 @@ class ODDevice(Protocol):
     def close(self) -> None: ...
 
 
-type DeviceFactory = Callable[[ODHardwareConfig, CustomLogger], ODDevice]
+type DeviceFactory = Callable[[ODHardwareConfig, CustomLogger], ExternalODDevice]
 _factories: dict[str, DeviceFactory] = {}
 
 
@@ -34,7 +34,7 @@ def register_od_device(name: str, factory: DeviceFactory) -> None:
     _factories[name] = factory
 
 
-def create_od_device(config: ODHardwareConfig, logger: CustomLogger) -> ODDevice:
+def create_od_device(config: ODHardwareConfig, logger: CustomLogger) -> ExternalODDevice:
     if config.driver not in _factories:
         from pioreactor.plugin_management import get_plugins
 

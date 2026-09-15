@@ -29,6 +29,7 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
 from pioreactor.background_jobs.od_reading import PhotodiodeODDevice
+from pioreactor.background_jobs.od_reading import PhotodiodeODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
@@ -241,7 +242,7 @@ def test_fused_od_updates_with_estimator() -> None:
     estimator_transformer.hydrate_estimator(estimator)
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
-    with ODReader(
+    with PhotodiodeODReader(
         lambda: PhotodiodeODDevice(
             channel_angle_map,
             interval=None,
@@ -271,7 +272,7 @@ def test_fused_od_skips_when_angle_missing() -> None:
     estimator_transformer.hydrate_estimator(estimator)
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
-    with ODReader(
+    with PhotodiodeODReader(
         lambda: PhotodiodeODDevice(
             channel_angle_map,
             interval=None,
@@ -311,7 +312,7 @@ def test_record_handles_estimator_ir_led_intensity_mismatch() -> None:
     estimator_transformer.hydrate_estimator(estimator)
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
-    with ODReader(
+    with PhotodiodeODReader(
         lambda: PhotodiodeODDevice(
             channel_angle_map,
             interval=None,
@@ -1906,7 +1907,7 @@ def test_dark_offset_turns_off_all_leds(mocker) -> None:
 
     mocker.patch.object(adc_reader, "set_offsets", side_effect=capture_led_state_during_offset)
 
-    with ODReader(
+    with PhotodiodeODReader(
         lambda: PhotodiodeODDevice(
             {"1": "90"},
             interval=None,
@@ -1942,7 +1943,7 @@ def test_ODReader_with_multiple_angles_and_a_ref() -> None:
         ir_led_reference_channel,  # type: ignore
     )
 
-    with ODReader(
+    with PhotodiodeODReader(
         lambda: PhotodiodeODDevice(
             channel_angle_map,  # type: ignore
             interval=3,
@@ -2895,3 +2896,66 @@ def test_average_over_od_readings_uses_per_channel_counts() -> None:
 
     assert averaged.ods["1"].od == pytest.approx(3.0)
     assert averaged.ods["2"].od == pytest.approx(3.0)
+
+
+def test_photodiode_led_operations_reuse_job_mqtt_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    clients: list[Any] = []
+    original_led_intensity = od_reading_module.led_utils.led_intensity
+
+    def tracked_led_intensity(
+        desired_state: dict[pt.LedChannel, pt.LedIntensityValue], **kwargs: Any
+    ) -> bool:
+        clients.append(kwargs.get("pubsub_client"))
+        return original_led_intensity(desired_state, **kwargs)
+
+    monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", tracked_led_intensity)
+    with start_od_reading(
+        make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
+    ) as job:
+        assert clients  # Startup also reuses the client.
+        assert all(client is job.pub_client for client in clients)
+        clients.clear()
+        job.record()
+        assert clients
+        assert all(client is job.pub_client for client in clients)
+        clients.clear()
+    assert clients  # Cleanup switches IR off before the job disconnects.
+    assert all(client is job.pub_client for client in clients)
+
+
+@pytest.mark.parametrize("fail_acquisition", [False, True])
+def test_photodiode_reader_preserves_callback_order(
+    monkeypatch: pytest.MonkeyPatch, fail_acquisition: bool
+) -> None:
+    events: list[str] = []
+    with start_od_reading(
+        make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
+    ) as job:
+        assert isinstance(job, PhotodiodeODReader)
+        original_read = job.device.read
+
+        def before() -> None:
+            assert job.first_od_obs_time is not None
+            events.append("before")
+
+        def read() -> structs.ODReadings:
+            events.append("read")
+            if fail_acquisition:
+                raise exc.CalibrationError("test failure")
+            return original_read()
+
+        def after(readings: structs.ODReadings | None) -> None:
+            assert (readings is None) == fail_acquisition
+            events.append("after")
+
+        job.pre_read_callbacks = [before]
+        job.post_read_callbacks = [after]
+        monkeypatch.setattr(job.device, "read", read)
+        monkeypatch.setattr(job, "_log_relative_intensity_of_ir_led", lambda: events.append("reference"))
+        monkeypatch.setattr(job, "_unblock_internal_event", lambda: events.append("notify"))
+        if fail_acquisition:
+            with pytest.raises(exc.CalibrationError):
+                job.record()
+        else:
+            job.record()
+        assert events == ["before", "read", "after", "reference"] + ([] if fail_acquisition else ["notify"])

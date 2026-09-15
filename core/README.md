@@ -47,7 +47,12 @@ stirring's scheduled-OD avoidance remain specific to Eye-spy.
 `ODReader` owns scheduling, callbacks, iteration, MQTT publication, and lifecycle.
 `record()` reads once; `snapshot()` waits for fresh data. Python callers normally
 use `start_od_reading`; direct construction takes a device factory, unit,
-experiment, and interval.
+experiment, and interval. `ExternalODReader` wraps plugin observations, while
+`PhotodiodeODReader` specializes the shared job for
+Eye-spy settings, acquisition timing, calibration failures, and diagnostics.
+The two concrete readers inherit `ODReader` and use the same activity name and
+primary MQTT topics. The plugin protocol is named `ExternalODDevice`; Eye-spy
+has its own acquisition interface.
 
 `PhotodiodeODDevice` keeps Eye-spy's multiple channels, illumination, ADC,
 reference correction, blanking, calibration, and fusion together. Its diagnostics

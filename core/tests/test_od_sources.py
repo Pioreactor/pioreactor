@@ -8,7 +8,7 @@ from msgspec.json import encode
 from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
-from pioreactor.background_jobs.od_reading import ODReader
+from pioreactor.background_jobs.od_reading import ExternalODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.od_devices import register_od_device
 from pioreactor.structs import ODDeviceReading
@@ -41,7 +41,7 @@ def test_external_source_uses_native_job_without_photodiodes(
         ADCReader, "__init__", MagicMock(side_effect=AssertionError("ADC must not be initialized"))
     )
     with start_od_reading({}, unit=get_unit_name(), experiment="test_source", interval=None) as job:
-        assert isinstance(job, ODReader)
+        assert isinstance(job, ExternalODReader)
         assert job.job_name == "od_reading"
         assert job.acquisition == "continuous"
         assert "first_od_obs_time" not in job.published_settings
