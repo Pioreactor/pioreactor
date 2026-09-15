@@ -130,7 +130,7 @@ def od_blank(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
 ) -> dict[pt.PdChannel, pt.OD]:
-    from pioreactor.background_jobs.od_reading import start_od_reading
+    from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 
     from pioreactor.hardware import require_photodiodes
 
@@ -153,7 +153,7 @@ def od_blank(
                 del cache[testing_experiment]
 
         try:
-            with start_od_reading(
+            with start_photodiode_od_reading(
                 config["od_config.photodiode_channel"],
                 unit=unit,
                 interval=0.01 if whoami.is_testing_env() else 1.5,

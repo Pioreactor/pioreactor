@@ -28,7 +28,7 @@ from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
-from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 from pioreactor.config import config
 from pioreactor.hardware import get_available_pd_channels
 from pioreactor.hardware import is_HAT_present
@@ -131,7 +131,7 @@ def test_REF_is_in_correct_position(
             enable_dodging_od=False,
             calibration=False,
         ) as st,
-        start_od_reading(
+        start_photodiode_od_reading(
             channels=test_channels,
             interval=None,
             unit=unit,
@@ -549,7 +549,7 @@ def test_PD_is_near_0_volts_for_blank(
 
         signals = []
 
-        with start_od_reading(
+        with start_photodiode_od_reading(
             channels={channel: angle},
             interval=1.15,
             unit=unit,

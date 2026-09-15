@@ -93,7 +93,7 @@ def _measure_fusion_standard_samples(
     repeats: int = SAMPLES_PER_STANDARD,
 ) -> list[dict[pt.PdAngle, float]]:
     from pioreactor.background_jobs.stirring import start_stirring as stirring
-    from pioreactor.background_jobs.od_reading import start_od_reading
+    from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
     from itertools import cycle
 
     from pioreactor.hardware import require_photodiodes
@@ -110,7 +110,7 @@ def _measure_fusion_standard_samples(
     ) as st:
         st.block_until_rpm_is_close_to_target(abs_tolerance=60)
 
-        with start_od_reading(
+        with start_photodiode_od_reading(
             config["od_config.photodiode_channel"],
             interval=None,
             unit=get_unit_name(),

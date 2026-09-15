@@ -101,14 +101,14 @@ def _read_voltages_from_adc(
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
 ) -> dict[pt.PdChannel, pt.Voltage]:
     from pioreactor.background_jobs.od_reading import average_over_od_readings
-    from pioreactor.background_jobs.od_reading import start_od_reading
+    from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 
     from pioreactor.hardware import require_photodiodes
 
     require_photodiodes("Photodiode calibration")
     signal_channels = sorted(channel_angle_map.keys(), key=int)
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         config["od_config.photodiode_channel"],
         interval=None,
         unit=get_unit_name(),

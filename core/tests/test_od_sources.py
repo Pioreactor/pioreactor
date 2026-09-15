@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from msgspec.json import decode
 from msgspec.json import encode
+from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
@@ -40,7 +41,7 @@ def test_external_source_uses_native_job_without_photodiodes(
     monkeypatch.setattr(
         ADCReader, "__init__", MagicMock(side_effect=AssertionError("ADC must not be initialized"))
     )
-    with start_od_reading({}, unit=get_unit_name(), experiment="test_source", interval=None) as job:
+    with start_od_reading(unit=get_unit_name(), experiment="test_source", interval=None) as job:
         assert isinstance(job, ExternalODReader)
         assert job.job_name == "od_reading"
         assert job.acquisition == "continuous"
@@ -62,12 +63,12 @@ def test_external_source_uses_native_job_without_photodiodes(
 def test_source_start_failure_closes_driver(external_source: MagicMock) -> None:
     external_source.start.side_effect = OSError("start failed")
     with pytest.raises(OSError, match="start failed"):
-        start_od_reading({}, unit=get_unit_name(), experiment="test_start_fail", interval=None)
+        start_od_reading(unit=get_unit_name(), experiment="test_start_fail", interval=None)
     external_source.close.assert_called_once()
 
 
 def test_no_new_sample_and_invalid_sample(external_source: MagicMock) -> None:
-    with start_od_reading({}, unit=get_unit_name(), experiment="test_samples", interval=None) as job:
+    with start_od_reading(unit=get_unit_name(), experiment="test_samples", interval=None) as job:
         external_source.read.return_value = None
         assert job.record() is None
         assert job.ods is None
@@ -181,7 +182,7 @@ def test_probe_mqtt_reaches_native_growth_model(
             processing = Thread(target=calc.block_until_disconnected, daemon=True)
             processing.start()
             try:
-                with start_od_reading({}, unit=get_unit_name(), experiment=experiment, interval=None) as job:
+                with start_od_reading(unit=get_unit_name(), experiment=experiment, interval=None) as job:
                     for index in range(10):
                         timestamp += timedelta(seconds=5)
                         external_source.read.return_value = ODDeviceReading(
@@ -207,7 +208,7 @@ def test_device_preserves_acquisition_time_and_uses_one_backscatter_channel(
 ) -> None:
     timestamp = current_utc_datetime()
     external_source.read.return_value = ODDeviceReading(timestamp=timestamp, value=0.5)
-    with start_od_reading({}, unit=get_unit_name(), experiment="device_outputs", interval=None) as job:
+    with start_od_reading(unit=get_unit_name(), experiment="device_outputs", interval=None) as job:
         batch = job.record()
         assert batch.timestamp == timestamp
         assert set(batch.ods) == {"1"}
@@ -215,3 +216,59 @@ def test_device_preserves_acquisition_time_and_uses_one_backscatter_channel(
         assert job.od1.angle == "0"
         assert "raw_od1" not in job.published_settings
         assert "first_od_obs_time" not in job.published_settings
+
+
+@pytest.mark.parametrize("interval, expected_penalizer", [(None, 0.0), (5.0, 0.6)])
+def test_configured_photodiode_start_loads_defaults(
+    monkeypatch: pytest.MonkeyPatch, interval: float | None, expected_penalizer: float
+) -> None:
+    import pioreactor.background_jobs.od_reading as module
+    from pioreactor.config import config
+    from pioreactor.config import temporary_config_changes
+
+    monkeypatch.setattr(hardware, "get_od_hardware_config", lambda: hardware.ODHardwareConfig())
+    start = MagicMock()
+    monkeypatch.setattr(module, "start_photodiode_od_reading", start)
+    with temporary_config_changes(config, [("od_reading.config", "smoothing_penalizer", "3.0")]):
+        result = start_od_reading(unit="test", experiment="configured", interval=interval)
+    assert result is start.return_value
+    assert start.call_args.args == (dict(config.items("od_config.photodiode_channel")),)
+    assert start.call_args.kwargs["unit"] == "test"
+    assert start.call_args.kwargs["experiment"] == "configured"
+    assert start.call_args.kwargs["interval"] == interval
+    assert start.call_args.kwargs["penalizer"] == expected_penalizer
+
+
+def test_cli_probe_snapshot_uses_configured_hardware(
+    external_source: MagicMock, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from pioreactor.background_jobs.od_reading import click_od_reading
+
+    click_od_reading.callback(fake_data=False, interval=None, ir_led_intensity=None, snapshot=True)
+    assert decode(capsys.readouterr().out)["ods"]["1"]["source"] == "test_probe"
+    external_source.start.assert_called_once()
+    external_source.close.assert_called_once()
+
+
+@pytest.mark.parametrize("fake_data, intensity", [(True, None), (False, 50.0)])
+def test_cli_rejects_photodiode_options_for_probe(
+    external_source: MagicMock, fake_data: bool, intensity: float | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor.background_jobs.od_reading import click_od_reading
+
+    from pioreactor.config import config
+
+    # Probe installations need not have a photodiode channel section.
+    original_items = config.items
+
+    def items(section: str) -> list[tuple[str, str]]:
+        if section == "od_config.photodiode_channel":
+            raise AssertionError("Probe startup must not read photodiode channels")
+        return original_items(section)
+
+    monkeypatch.setattr(config, "items", items)
+    with pytest.raises(exc.HardwareError, match="not supported"):
+        click_od_reading.callback(
+            fake_data=fake_data, interval=None, ir_led_intensity=intensity, snapshot=True
+        )
+    external_source.start.assert_not_called()

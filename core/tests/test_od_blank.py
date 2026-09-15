@@ -72,11 +72,11 @@ def test_clears_temporary_ir_led_reference_normalization_cache(monkeypatch: pyte
                 },
             )
 
-    def fake_start_od_reading(*args: object, **kwargs: object) -> FakeODStream:
+    def fake_start_photodiode_od_reading(*args: object, **kwargs: object) -> FakeODStream:
         assert kwargs["experiment"] == testing_experiment
         return FakeODStream()
 
-    monkeypatch.setattr(od_reading_module, "start_od_reading", fake_start_od_reading)
+    monkeypatch.setattr(od_reading_module, "start_photodiode_od_reading", fake_start_photodiode_od_reading)
 
     output = od_blank(n_samples=7, experiment=experiment)
 

@@ -1218,7 +1218,7 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
 
 
 class PhotodiodeODDevice(LoggerMixin):
-    """Eye-spy acquisition, illumination and optical corrections; no job lifecycle."""
+    """Host-controlled photodiode acquisition, illumination and optical corrections."""
 
     # Borrowed from ODReader before start(); the job owns its lifecycle.
     pub_client: Client
@@ -1779,7 +1779,7 @@ class ExternalODReader(ODReader[ExternalODDevice]):
 
 
 class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
-    """Eye-spy settings and diagnostics around the shared OD job lifecycle."""
+    """Photodiode settings and diagnostics around the shared OD job lifecycle."""
 
     first_od_obs_time: float | None = None
     od_fused: structs.ODFused | None = None
@@ -1899,7 +1899,50 @@ def create_channel_angle_map(
 
 
 def start_od_reading(
+    *,
+    interval: float | None = None,
+    unit: pt.Unit | None = None,
+    experiment: pt.Experiment | None = None,
+) -> ODReader:
+    """Start this unit's configured OD hardware with its normal processing defaults.
+
+    interval=None leaves acquisition unscheduled, for record() or snapshot().
+    """
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
+    od_hardware = hardware.get_od_hardware_config()
+    if od_hardware.driver == "photodiodes":
+        return start_photodiode_od_reading(
+            dict(config.items("od_config.photodiode_channel")),
+            interval=interval,
+            unit=unit,
+            experiment=experiment,
+            fake_data=whoami.is_testing_env(),
+            penalizer=(
+                config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
+                if interval is not None and interval > 0
+                else 0.0
+            ),
+        )
+
+    maybe_job_id = get_running_pio_job_id("od_reading")
+    if maybe_job_id is not None:
+        raise exc.JobPresentError(f"od_reading is already running (job_id={maybe_job_id}). Skipping.")
+
+    if interval is not None and interval <= 0:
+        raise ValueError("interval must be positive.")
+
+    return ExternalODReader(
+        lambda: create_od_device(od_hardware, create_logger("od_reading", unit=unit, experiment=experiment)),
+        unit=unit,
+        experiment=experiment,
+        interval=interval,
+    )
+
+
+def start_photodiode_od_reading(
     channels: Mapping[str, str | None],
+    *,
     interval: float | None = None,
     fake_data: bool = False,
     unit: pt.Unit | None = None,
@@ -1908,48 +1951,18 @@ def start_od_reading(
     estimator: bool | structs.ODFusionEstimator | None = True,
     ir_led_intensity: float | None = None,
     penalizer: float = 0.0,
-) -> ODReader:
+) -> PhotodiodeODReader:
+    """Start host-controlled photodiode acquisition with explicit processing options.
+
+    channels maps physical inputs to angles or REF, e.g. {"1": "REF", "2": "90"}.
     """
-    This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
-
-    Note on channels
-    --------------------------
-
-    Provide a mapping between physical photodiode channels and the desired IR/angle configuration.
-    Keys should match whatever channels are declared in `adc.yaml`. For example, if your config looks like:
-
-        [od_config.photodiode_channel]
-        1=REF
-        2=90
-
-    then the correct syntax is `start_od_reading({"1": "REF", "2": "90"})`.
-
-    """
+    hardware.require_photodiodes("Photodiode OD acquisition")
     maybe_job_id = get_running_pio_job_id("od_reading")
     if maybe_job_id is not None:
         raise exc.JobPresentError(f"od_reading is already running (job_id={maybe_job_id}). Skipping.")
 
     if interval is not None and interval <= 0:
         raise ValueError("interval must be positive.")
-
-    od_hardware = hardware.get_od_hardware_config()
-    if od_hardware.driver != "photodiodes":
-        if fake_data:
-            raise ValueError("--fake-data is only supported by the photodiode source.")
-        if (
-            ir_led_intensity is not None
-            or calibration not in (True, False, None)
-            or estimator not in (True, False, None)
-        ):
-            raise ValueError(
-                "Photodiode illumination, calibration and fusion options do not apply to external OD sources."
-            )
-        return ExternalODReader(
-            lambda: create_od_device(od_hardware, create_logger("od_reading")),
-            unit or whoami.get_unit_name(),
-            experiment or whoami.get_assigned_experiment_name(unit or whoami.get_unit_name()),
-            interval,
-        )
 
     if not channels:
         raise ValueError("Need to supply at least one photodiode channel.")
@@ -2111,22 +2124,23 @@ def click_od_reading(
 
     default_interval = 1 / samples_per_second
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
-    penalizer = (
-        config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / run_interval
-        if (run_interval is not None)
-        else 0
-    )
-    with start_od_reading(
-        (
-            dict(config.items("od_config.photodiode_channel"))
-            if config.has_section("od_config.photodiode_channel")
-            else {}
-        ),
-        fake_data=fake_data or whoami.is_testing_env(),
-        interval=run_interval,
-        ir_led_intensity=ir_led_intensity,
-        penalizer=penalizer,
-    ) as od:
+    od: ODReader
+    if fake_data or ir_led_intensity is not None:
+        hardware.require_photodiodes("Photodiode OD acquisition")
+        od = start_photodiode_od_reading(
+            dict(config.items("od_config.photodiode_channel")),
+            fake_data=fake_data or whoami.is_testing_env(),
+            interval=run_interval,
+            ir_led_intensity=ir_led_intensity,
+            penalizer=(
+                config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / run_interval
+                if run_interval is not None and run_interval > 0
+                else 0.0
+            ),
+        )
+    else:
+        od = start_od_reading(interval=run_interval)
+    with od:
         if snapshot:
             od_snapshot = od.snapshot()
             # send the reading to stdout so it can be captured / piped elsewhere

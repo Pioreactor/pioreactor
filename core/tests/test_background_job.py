@@ -10,7 +10,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import BackgroundJobContrib
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.background_jobs.od_reading import ODReader
-from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.exc import JobPresentError
@@ -803,7 +803,9 @@ def test_dodging_persists_when_second_od_reader_start_fails() -> None:
             with KeepDodging() as dodger:
                 assert not dodger.currently_dodging_od
 
-                with start_od_reading({"1": "90"}, interval=3, unit=unit, experiment=exp, fake_data=True):
+                with start_photodiode_od_reading(
+                    {"1": "90"}, interval=3, unit=unit, experiment=exp, fake_data=True
+                ):
                     wait_for(lambda: dodger.currently_dodging_od)
                     assert dodger.currently_dodging_od
 
@@ -812,7 +814,9 @@ def test_dodging_persists_when_second_od_reader_start_fails() -> None:
                     assert interval_msg is not None
 
                     with pytest.raises(JobPresentError):
-                        start_od_reading({"1": "90"}, interval=3, unit=unit, experiment=exp, fake_data=True)
+                        start_photodiode_od_reading(
+                            {"1": "90"}, interval=3, unit=unit, experiment=exp, fake_data=True
+                        )
 
                     time.sleep(1)
                     assert dodger.currently_dodging_od
@@ -985,7 +989,7 @@ def test_dodging_order() -> None:
             with collect_all_logs_of_level(
                 "NOTICE", unit=get_unit_name(), experiment="test_dodging"
             ) as bucket:
-                with start_od_reading(
+                with start_photodiode_od_reading(
                     {"1": "90"},
                     interval=6,
                     unit=get_unit_name(),
@@ -1029,7 +1033,7 @@ def test_dodging_when_od_reading_stops_first() -> None:
                 def action_to_do_after_od_reading(self) -> None:
                     self.logger.notice(f"   Unpausing at {time.time()} 🟢")
 
-            st = start_od_reading(
+            st = start_photodiode_od_reading(
                 {"1": "90"},
                 unit=get_unit_name(),
                 experiment="test_dodging_when_od_reading_stops_first",
@@ -1088,7 +1092,7 @@ def test_disabling_dodging() -> None:
                     self.logger.info(f"initialize_continuous_operation, {self.test=}")
 
             with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment=exp) as bucket:
-                with start_od_reading(
+                with start_photodiode_od_reading(
                     {"1": "90"},
                     interval=5,  # needed
                     unit=get_unit_name(),

@@ -30,7 +30,7 @@ from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTracke
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
 from pioreactor.background_jobs.od_reading import PhotodiodeODDevice
 from pioreactor.background_jobs.od_reading import PhotodiodeODReader
-from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
@@ -137,12 +137,12 @@ def test_sin_regression_exactly_60hz() -> None:
     assert phi_ == pytest.approx(phi, abs=0.15)
 
 
-def test_duplicate_start_od_reading_fails_before_adc_reader_construction(
+def test_duplicate_start_photodiode_od_reading_fails_before_adc_reader_construction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    experiment = "test_duplicate_start_od_reading_fails_before_adc_reader_construction"
+    experiment = "test_duplicate_start_photodiode_od_reading_fails_before_adc_reader_construction"
 
-    with start_od_reading({"1": "90"}, interval=10.0, fake_data=True, experiment=experiment):
+    with start_photodiode_od_reading({"1": "90"}, interval=10.0, fake_data=True, experiment=experiment):
 
         def fail_if_constructed(*args: object, **kwargs: object) -> object:
             raise AssertionError("ADCReader should not be constructed on duplicate od_reading start.")
@@ -150,7 +150,7 @@ def test_duplicate_start_od_reading_fails_before_adc_reader_construction(
         monkeypatch.setattr(od_reading_module, "ADCReader", fail_if_constructed)
 
         with pytest.raises(JobPresentError):
-            start_od_reading({"1": "90"}, interval=10.0, fake_data=True, experiment=experiment)
+            start_photodiode_od_reading({"1": "90"}, interval=10.0, fake_data=True, experiment=experiment)
 
 
 def test_fake_data_sampling_does_not_wait_for_hardware_timing(
@@ -161,7 +161,7 @@ def test_fake_data_sampling_does_not_wait_for_hardware_timing(
 
     monkeypatch.setattr(od_reading_module, "sleep", fail_sleep)
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("90", "REF"),
         interval=None,
         fake_data=True,
@@ -915,18 +915,18 @@ def test_ADC_picks_exact_frequency_for_perfect_signal() -> None:
 
 def test_error_thrown_if_wrong_angle() -> None:
     with pytest.raises(ValueError):
-        start_od_reading(make_channels("100", "135"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_photodiode_od_reading(make_channels("100", "135"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading(make_channels("100", None), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_photodiode_od_reading(make_channels("100", None), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading(make_channels("135", "99"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_photodiode_od_reading(make_channels("135", "99"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading(make_channels("100", "REF"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_photodiode_od_reading(make_channels("100", "REF"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
-    st = start_od_reading(
+    st = start_photodiode_od_reading(
         make_channels("135", "90"), fake_data=True, experiment="test_error_thrown_if_wrong_angle"
     )
     st.clean_up()
@@ -969,7 +969,9 @@ def test_sin_regression_all_negative() -> None:
 
 @pytest.mark.slow
 def test_simple_API() -> None:
-    od_job = start_od_reading(make_channels("90", "REF"), interval=100_000, fake_data=True, calibration=False)
+    od_job = start_photodiode_od_reading(
+        make_channels("90", "REF"), interval=100_000, fake_data=True, calibration=False
+    )
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
@@ -984,7 +986,7 @@ def test_simple_API() -> None:
 
 
 def test_ability_to_be_iterated() -> None:
-    od_stream = start_od_reading(
+    od_stream = start_photodiode_od_reading(
         make_channels("90", "REF"),
         interval=0.01,
         fake_data=True,
@@ -1012,7 +1014,7 @@ def test_add_pre_read_callback() -> None:
 
     ODReader.add_pre_read_callback(cb)
 
-    od = start_od_reading(make_channels("45", "REF"), interval=0.01, fake_data=True)
+    od = start_photodiode_od_reading(make_channels("45", "REF"), interval=0.01, fake_data=True)
     assert wait_for(lambda: od.ir_led_intensity == 15, timeout=1.0)
     od.clean_up()
 
@@ -1030,7 +1032,7 @@ def test_add_post_read_callback() -> None:
     with collect_all_logs_of_level(
         "CRITICAL", experiment="test_add_post_read_callback", unit="test"
     ) as bucket:
-        od = start_od_reading(
+        od = start_photodiode_od_reading(
             make_channels("45", "REF"),
             interval=1,
             fake_data=True,
@@ -1138,7 +1140,7 @@ def test_outliers_are_removed_in_sin_regression() -> None:
 
 
 def test_interval_is_empty() -> None:
-    with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True) as od:
+    with start_photodiode_od_reading(make_channels("90", "REF"), interval=None, fake_data=True) as od:
         assert not hasattr(od, "record_timer")
         od.on_sleeping()
         od.on_sleeping_to_ready()
@@ -1185,7 +1187,9 @@ def test_determine_best_ir_led_intensity_values() -> None:
 
 
 def test_calibration_not_requested() -> None:
-    with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=False) as od:
+    with start_photodiode_od_reading(
+        make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
+    ) as od:
         assert isinstance(od.device.calibration_transformer, NullCalibrationTransformer)
         ts = current_utc_datetime()
         x = structs.ODReadings(
@@ -1272,18 +1276,20 @@ def test_calibration_not_present() -> None:
     cal = load_active_calibration("od90")
     assert cal is None
 
-    with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=cal) as od:
+    with start_photodiode_od_reading(
+        make_channels("90", "REF"), interval=None, fake_data=True, calibration=cal
+    ) as od:
         assert isinstance(od.device.calibration_transformer, NullCalibrationTransformer)
         assert len(od.device.calibration_transformer.models) == 0, od.device.calibration_transformer.models
 
 
-def test_start_od_reading_allows_blank_without_calibration_or_estimator() -> None:
-    experiment = "test_start_od_reading_allows_blank_without_calibration_or_estimator"
+def test_start_photodiode_od_reading_allows_blank_without_calibration_or_estimator() -> None:
+    experiment = "test_start_photodiode_od_reading_allows_blank_without_calibration_or_estimator"
 
     with local_persistent_storage("od_blank") as cache:
         cache[experiment] = '{"2": 0.15}'
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -1295,8 +1301,8 @@ def test_start_od_reading_allows_blank_without_calibration_or_estimator() -> Non
         assert od.device.blank_transformer.od_blank == {"2": 0.15}
 
 
-def test_start_od_reading_rejects_blank_with_calibration() -> None:
-    experiment = "test_start_od_reading_rejects_blank_with_calibration"
+def test_start_photodiode_od_reading_rejects_blank_with_calibration() -> None:
+    experiment = "test_start_photodiode_od_reading_rejects_blank_with_calibration"
     calibration = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_data_=_poly_curve([2.0, 0.0]),
@@ -1312,7 +1318,7 @@ def test_start_od_reading_rejects_blank_with_calibration() -> None:
         cache[experiment] = '{"2": 0.15}'
 
     with pytest.raises(ValueError, match="incompatible with OD calibrations and fused estimators"):
-        start_od_reading(
+        start_photodiode_od_reading(
             make_channels("REF", "90"),
             interval=None,
             fake_data=True,
@@ -1324,8 +1330,10 @@ def test_start_od_reading_rejects_blank_with_calibration() -> None:
         )
 
 
-def test_start_od_reading_logs_blank_with_calibration_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    experiment = "test_start_od_reading_logs_blank_with_calibration_error"
+def test_start_photodiode_od_reading_logs_blank_with_calibration_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    experiment = "test_start_photodiode_od_reading_logs_blank_with_calibration_error"
     logged_errors: list[str] = []
 
     class FakeLogger:
@@ -1349,7 +1357,7 @@ def test_start_od_reading_logs_blank_with_calibration_error(monkeypatch: pytest.
     monkeypatch.setattr(od_reading_module, "create_logger", lambda *args, **kwargs: FakeLogger())
 
     with pytest.raises(ValueError, match="incompatible with OD calibrations and fused estimators"):
-        start_od_reading(
+        start_photodiode_od_reading(
             make_channels("REF", "90"),
             interval=None,
             fake_data=True,
@@ -1365,14 +1373,14 @@ def test_start_od_reading_logs_blank_with_calibration_error(monkeypatch: pytest.
     ]
 
 
-def test_start_od_reading_rejects_blank_with_estimator() -> None:
-    experiment = "test_start_od_reading_rejects_blank_with_estimator"
+def test_start_photodiode_od_reading_rejects_blank_with_estimator() -> None:
+    experiment = "test_start_photodiode_od_reading_rejects_blank_with_estimator"
 
     with local_persistent_storage("od_blank") as cache:
         cache[experiment] = '{"1": 0.05, "2": 0.15, "3": 0.2}'
 
     with pytest.raises(ValueError, match="incompatible with OD calibrations and fused estimators"):
-        start_od_reading(
+        start_photodiode_od_reading(
             {"1": "45", "2": "90", "3": "135"},
             interval=None,
             fake_data=True,
@@ -1407,7 +1415,7 @@ def test_calibration_duplicate_channel_raises_value_error() -> None:
     )
 
     with pytest.raises(ValueError, match="already hydrated"):
-        start_od_reading(
+        start_photodiode_od_reading(
             make_channels("REF", "90"),
             interval=None,
             fake_data=True,
@@ -1457,7 +1465,7 @@ def test_calibration_multi_angle_active_calibrations() -> None:
     cal_135.set_as_active_calibration_for_device("od135")
 
     channels = {"1": "REF", "2": "90", "3": "45", "4": "135"}
-    with start_od_reading(
+    with start_photodiode_od_reading(
         channels,
         interval=None,
         fake_data=True,
@@ -1491,7 +1499,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
 
     cal.set_as_active_calibration_for_device("od90")
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -1530,7 +1538,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
 
     cal.set_as_active_calibration_for_device("od90")
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -1576,7 +1584,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
 
     cal.set_as_active_calibration_for_device("od90")
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -1608,7 +1616,7 @@ def test_calibration_multi_modal() -> None:
 
     cal.set_as_active_calibration_for_device("od90")
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -1638,7 +1646,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
 
     cal.set_as_active_calibration_for_device("od90")
     with collect_all_logs_of_level("ERROR", unit=get_unit_name(), experiment=experiment) as bucket:
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels("REF", "90"),
             interval=1,
             fake_data=True,
@@ -1880,7 +1888,7 @@ def test_unit_reference_recovers_from_invalid_cached_baseline(invalid_ref: float
 
 def test_ref_normalization_unity_uses_unit_init() -> None:
     with temporary_config_change(config, "od_reading.config", "ref_normalization", "unity"):
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
         ) as od:
             assert isinstance(od.device.ir_led_reference_transformer, PhotodiodeIrLedReferenceTrackerUnitInit)
@@ -1981,7 +1989,7 @@ def test_calibration_data_from_user1() -> None:
 
     calibration.set_as_active_calibration_for_device("od90")
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -2025,7 +2033,7 @@ def test_calibration_data_from_user2() -> None:
 
     cal.set_as_active_calibration_for_device("od90")
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -2049,7 +2057,7 @@ def test_auto_ir_led_intensity_REF_and_90() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
         experiment = "test_auto_ir_led_intensity"
 
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels("REF", "90"),
             interval=None,
             fake_data=True,
@@ -2064,7 +2072,7 @@ def test_auto_ir_led_intensity_90_only() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
         experiment = "test_auto_ir_led_intensity"
 
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels(None, "90"), interval=None, fake_data=True, experiment=experiment, calibration=False
         ) as od:
             assert od.ir_led_intensity == 85.0
@@ -2074,7 +2082,7 @@ def test_auto_ir_led_intensity_90_and_90() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
         experiment = "test_auto_ir_led_intensity"
 
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels("90", "90"), interval=None, fake_data=True, experiment=experiment
         ) as od:
             assert od.ir_led_intensity == 85.0
@@ -2084,7 +2092,7 @@ def test_at_least_one_channel() -> None:
     experiment = "test_at_least_one_channel"
 
     with pytest.raises(ValueError):
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels(None, None), interval=None, fake_data=True, experiment=experiment
         ):
             pass
@@ -2094,7 +2102,7 @@ def test_at_least_one_signal_channel() -> None:
     experiment = "test_at_least_one_signal_channel"
 
     with pytest.raises(ValueError):
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels("REF", None), interval=None, fake_data=True, experiment=experiment
         ):
             pass
@@ -2104,7 +2112,9 @@ def test_only_one_ref_channel_allowed() -> None:
     experiment = "test_only_one_ref_channel_allowed"
 
     with pytest.raises(ValueError):
-        with start_od_reading({"1": "REF", "2": "REF"}, interval=None, fake_data=True, experiment=experiment):
+        with start_photodiode_od_reading(
+            {"1": "REF", "2": "REF"}, interval=None, fake_data=True, experiment=experiment
+        ):
             pass
 
 
@@ -2122,7 +2132,7 @@ def test_click_od_reading_errors_cleanly_when_samples_per_second_is_zero() -> No
 def test_supports_more_photodiode_channels() -> None:
     experiment = "test_supports_more_photodiode_channels"
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         {"1": "90", "2": "REF", "3": "135", "4": "45"},
         interval=None,
         fake_data=True,
@@ -2143,7 +2153,7 @@ def test_can_pass_config_section_directly() -> None:
         ],
     ):
         section = config["od_config.photodiode_channel"]
-        with start_od_reading(
+        with start_photodiode_od_reading(
             section,
             interval=None,
             fake_data=True,
@@ -2166,7 +2176,7 @@ def test_config_section_omits_empty_photodiode_channels() -> None:
         ],
     ):
         section = config["od_config.photodiode_channel"]
-        with start_od_reading(
+        with start_photodiode_od_reading(
             section,
             interval=None,
             fake_data=True,
@@ -2412,7 +2422,7 @@ def test_mandys_calibration() -> None:
 
 @pytest.mark.slow
 def test_setting_interval_while_sleeping_preserves_pause(monkeypatch: pytest.MonkeyPatch) -> None:
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
     ) as od:
         sampled = Event()
@@ -2432,7 +2442,7 @@ def test_setting_interval_while_sleeping_preserves_pause(monkeypatch: pytest.Mon
 @pytest.mark.slow
 def test_setting_interval_after_starting() -> None:
     initial_interval = 2
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("90", "REF"), interval=initial_interval, fake_data=True, calibration=False
     ) as od:
         next(od)
@@ -2474,7 +2484,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         recorded_data={"y": [0, 1, 2], "x": [0, 1, 2]},
     )
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -2490,7 +2500,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         assert od_job.raw_od2 is not None
 
     # if no calibration is used:
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -2519,7 +2529,7 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
         recorded_data={"y": [0, 1], "x": [0, 1]},
     )
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("REF", "90"),
         interval=None,
         fake_data=True,
@@ -2535,7 +2545,7 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
 def test_ir_led_on_and_rest_off_state_turns_off_other_leds_by_default() -> None:
     # By default, turn_off_leds_during_reading is True: only IR channel should be on
     with temporary_config_change(config, "od_reading.config", "turn_off_leds_during_reading", "True"):
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
         ) as od:
             # set a custom IR intensity and verify desired state
@@ -2558,7 +2568,7 @@ def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -
             for ch, val in init_states.items():
                 cache[ch] = val
 
-        with start_od_reading(
+        with start_photodiode_od_reading(
             make_channels("REF", "90"), interval=None, fake_data=True, calibration=False, estimator=False
         ) as od:
             # set IR intensity and perform a single reading to exercise the LED context
@@ -2601,7 +2611,7 @@ def test_od_initialization_owns_led_locks_until_ir_is_off(monkeypatch: pytest.Mo
     monkeypatch.setattr(od_reading_module.led_utils, "lock_leds_temporarily", tracked_lock_leds_temporarily)
     monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", tracked_led_intensity)
 
-    od = start_od_reading(
+    od = start_photodiode_od_reading(
         make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
     )
     try:
@@ -2653,7 +2663,7 @@ def test_od_initialization_exception_forces_ir_off_before_unlock(
     )
 
     with pytest.raises(RuntimeError, match="synthetic tuning failure"):
-        start_od_reading(
+        start_photodiode_od_reading(
             make_channels("90", "REF"),
             interval=None,
             fake_data=True,
@@ -2672,7 +2682,7 @@ def test_od_initialization_exception_forces_ir_off_before_unlock(
 def test_od_reading_forces_ir_off_before_unlock_on_success_and_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    od = start_od_reading(
+    od = start_photodiode_od_reading(
         make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
     )
     original_lock_leds_temporarily = od_reading_module.led_utils.lock_leds_temporarily
@@ -2743,7 +2753,7 @@ def test_calibration_failure_clears_previous_od_state(monkeypatch) -> None:
                 return batched_readings
             raise exc.CalibrationError("synthetic calibration failure")
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("45", "REF"),
         interval=None,
         fake_data=True,
@@ -2782,7 +2792,7 @@ def test_fused_od_is_cleared_when_estimator_returns_none(monkeypatch) -> None:
                 return structs.ODFused(od_fused=0.5, timestamp=raw_od_readings.timestamp)
             return None
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("45", "REF"),
         interval=None,
         fake_data=True,
@@ -2821,7 +2831,7 @@ def test_relative_intensity_topic_publishes_a_json_payload(monkeypatch) -> None:
 
     monkeypatch.setattr("pioreactor.background_jobs.od_reading.random.random", lambda: 0.0)
 
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("45", "REF"),
         interval=None,
         fake_data=True,
@@ -2909,7 +2919,7 @@ def test_photodiode_led_operations_reuse_job_mqtt_client(monkeypatch: pytest.Mon
         return original_led_intensity(desired_state, **kwargs)
 
     monkeypatch.setattr(od_reading_module.led_utils, "led_intensity", tracked_led_intensity)
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
     ) as job:
         assert clients  # Startup also reuses the client.
@@ -2928,7 +2938,7 @@ def test_photodiode_reader_preserves_callback_order(
     monkeypatch: pytest.MonkeyPatch, fail_acquisition: bool
 ) -> None:
     events: list[str] = []
-    with start_od_reading(
+    with start_photodiode_od_reading(
         make_channels("90", "REF"), interval=None, fake_data=True, calibration=False, estimator=False
     ) as job:
         assert isinstance(job, PhotodiodeODReader)
