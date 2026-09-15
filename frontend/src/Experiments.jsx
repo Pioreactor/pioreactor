@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React from "react";
 import dayjs from "dayjs";
@@ -318,19 +319,18 @@ function ExperimentsContainer(props) {
 
   return (
     <React.Fragment>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, gap: 2, flexWrap: "wrap" }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>Experiments</Box>
-        </Typography>
-        <Button
-          variant="text"
-          component={Link}
-          to="/start-new-experiment"
-        >
-          <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Create new experiment
-        </Button>
-      </Box>
-      <Divider sx={{mt: 0, mb: "15px"}} />
+      <PageHeader
+        title="Experiments"
+        actions={(
+          <Button
+            variant="text"
+            component={Link}
+            to="/start-new-experiment"
+          >
+            <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Create new experiment
+          </Button>
+        )}
+      />
 
 
       <Card sx={{ mb: 2 }}>

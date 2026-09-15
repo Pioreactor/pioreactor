@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -9,8 +10,6 @@ import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -347,12 +346,7 @@ function StartNewExperimentContainer() {
 
   return (
     <React.Fragment>
-      <Box component="header" sx={{ mb: 2 }}>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-          Start a new experiment
-        </Typography>
-        <Divider />
-      </Box>
+      <PageHeader title="Start a new experiment" />
       <Card>
         <CardContent sx={{ p: 2 }}>
           <Box sx={{ my: 2, mx: "auto", width: "70%" }}>

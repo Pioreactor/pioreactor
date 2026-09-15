@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useCallback} from "react";
 import Dialog from '@mui/material/Dialog';
@@ -96,21 +97,16 @@ function Header(props) {
   const leaderHostname = props.config?.["cluster.topology"]?.leader_hostname ?? null;
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>
-            Inventory
-          </Box>
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+    <PageHeader
+      title="Inventory"
+      actions={(
+        <>
           <AddNewPioreactor setWorkers={props.setWorkers} availableModels={props.availableModels}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageInventoryMenu showSyncClocks leaderHostname={leaderHostname}/>
-        </Box>
-      </Box>
-      <Divider sx={{mt: "0px", mb: "15px"}} />
-    </Box>
+        </>
+      )}
+    />
   )
 }
 

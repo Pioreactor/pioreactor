@@ -75,7 +75,7 @@ function SystemLogs(props) {
       <Grid container spacing={2} >
         <Grid size={{md: 12, lg: 7}}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-              <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
+              <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
 
                 <Select
                   labelId="levelSelect"

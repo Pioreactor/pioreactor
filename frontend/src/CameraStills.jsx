@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from "dayjs";
 import { useConfirm } from "material-ui-confirm";
@@ -11,7 +12,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Grid from "@mui/material/Grid";
@@ -313,21 +313,15 @@ export default function CameraStills({ title }) {
 
   return (
     <Stack spacing={2}>
-      <Box component="header">
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 2,
-            flexWrap: "wrap",
-            mb: 1,
-          }}
-        >
+      <PageHeader
+        navigation={(
           <Button component={Link} to="/cameras">
             <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to cameras
           </Button>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+        )}
+        sx={{ mb: 0 }}
+        actions={(
+          <>
             <FormControlLabel
               control={<Switch size="small" checked={magma} onChange={(event) => setMagma(event.target.checked)} />}
               label="Colour view"
@@ -349,10 +343,9 @@ export default function CameraStills({ title }) {
             >
               {downloadingStills ? <CircularProgress color="inherit" size={18} sx={textIcon} /> : <DownloadIcon fontSize="small" sx={textIcon}/>} Download all snapshots
             </Button>
-          </Box>
-        </Box>
-        <Divider />
-      </Box>
+          </>
+        )}
+      />
 
       <Box>
         <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>

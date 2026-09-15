@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useMemo, useCallback} from "react";
 
@@ -487,23 +488,18 @@ export function AssignPioreactors({ experiment, variant="text" }) {
 
 function PioreactorHeader({experiment, config, units}) {
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>
-            Pioreactors
-          </Box>
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+    <PageHeader
+      title="Pioreactors"
+      actions={(
+        <>
           <ButtonStopProcess experiment={experiment}/>
           <AssignPioreactors experiment={experiment}/>
           <SettingsActionsDialogAll experiment={experiment} config={config} units={units}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageExperimentMenu experiment={experiment}/>
-        </Box>
-      </Box>
-      <Divider sx={{mt: "0px", mb: "15px"}} />
-    </Box>
+        </>
+      )}
+    />
   )
 }
 

@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -575,14 +576,11 @@ function Profiles(props) {
             md: 12,
             xs: 12
           }}>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-              <Typography variant="h5" component="h2">
-                <Box sx={{ fontWeight: "fontWeightBold" }}>
-                  Experiment profiles
-                </Box>
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <PageHeader
+            title="Experiment profiles"
+            sx={{ mb: 0 }}
+            actions={(
+              <>
                 <Button
                   to={`/experiment-profiles/new`}
                   component={Link}
@@ -594,10 +592,9 @@ function Profiles(props) {
                 </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />
                 <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
-              </Box>
-            </Box>
-            <Divider />
-          </Box>
+              </>
+            )}
+          />
         </Grid>
 
         {/* Left side: For selecting a profile or running a new profile */}

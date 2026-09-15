@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useMemo, useCallback} from "react";
 
@@ -141,30 +142,25 @@ function ShieldAlertOutlineIcon(props) {
 
 
 
-function PioreactorHeader({assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
+function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
   }
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{display:"inline"}}>
-            <Button component={Link} to="/pioreactors">
-              <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to Pioreactors
-            </Button>
-          </Box>
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-          {/* <ButtonStopProcess experiment={assignedExperiment} unit={unit}/> */}
-          {/* <Divider orientation="vertical" flexItem variant="middle"/> */}
-          {/* <ControlPioreactorMenu experiment={experiment} unit={unit}/> */}
-        </Box>
-      </Box>
-     <Divider />
+      <PageHeader
+        navigation={(
+          <Button component={Link} to="/pioreactors">
+            <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to Pioreactors
+          </Button>
+        )}
+      />
 
-        <Box sx={{m: "10px 2px 0px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
+          {unit}
+        </Typography>
+        <Box sx={{mb: 0, display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>

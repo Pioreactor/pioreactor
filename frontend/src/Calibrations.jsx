@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import dayjs from 'dayjs';
 
@@ -10,8 +11,6 @@ import {
   FormControl,
   MenuItem,
   Select,
-  Typography,
-  Divider,
   TextField,
   Dialog,
   DialogTitle,
@@ -758,14 +757,10 @@ function CalibrationsContainer() {
 
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Calibrations
-            </Box>
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <PageHeader
+        title="Calibrations"
+        actions={(
+          <>
             <Button
               sx={{ mr: "0px"}}
               color="primary"
@@ -784,11 +779,9 @@ function CalibrationsContainer() {
             <Button color="primary" onClick={handleDownloadCalibrations} loading={downloading}>
               <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all calibrations
             </Button>
-          </Box>
-        </Box>
-        <Divider sx={{mt: "0px", mb: "15px"}} />
-
-      </Box>
+          </>
+        )}
+      />
 
       {downloadError && <Alert severity="error" sx={{ mb: 2 }}>{downloadError}</Alert>}
       <UploadCalibrationDialog

@@ -1,3 +1,4 @@
+import PageHeader from "./PageHeader";
 import React from 'react'
 import dayjs from "dayjs";
 //import dayjs from "dayjs";
@@ -7,7 +8,6 @@ import {Chip, Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
-import Divider from '@mui/material/Divider';
 import Alert from '@mui/material/Alert';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
@@ -99,17 +99,13 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
   return(
     <React.Fragment>
       <Box>
-        <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
-          <Typography variant="h5" component="h1">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>{experiment}</Box>
-          </Typography>
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+        <PageHeader
+          title={experiment}
+          actions={(
             <ManageExperimentMenu experiment={experiment}/>
-          </Box>
-        </Box>
-
-        <Divider/>
-        <Box sx={{m: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          )}
+        />
+        <Box sx={{mt: 0, mb: 1.5, display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>

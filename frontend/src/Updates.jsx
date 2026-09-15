@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import MarkdownView from 'react-showdown';
 
@@ -11,7 +12,6 @@ import {Typography} from '@mui/material';
 import Snackbar from './components/Snackbar';
 import Link from '@mui/material/Link';
 import UpdateIcon from '@mui/icons-material/Update';
-import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -744,7 +744,7 @@ function UpdateSoftwareConfirmDialog() {
 }
 
 
-function PageHeader() {
+function UpdatesHeader() {
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const [config, setConfig] = React.useState({})
   const [version, setVersion] = React.useState("")
@@ -799,24 +799,19 @@ function PageHeader() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>
-            Updates
-          </Box>
-        </Typography>
-        <Box>
-          <Box sx={{float: "right", mr: "0px", ml: "10px"}}>
+      <PageHeader
+        title="Updates"
+        actions={(
+          <>
+            <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
+              <Button sx={{  mr: "0px"}} color="primary">
+                <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> View latest release
+              </Button>
+            </Link>
             <UpdateSoftwareConfirmDialog />
-          </Box>
-          <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
-            <Button sx={{  mr: "0px"}} color="primary">
-              <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> View latest release
-            </Button>
-          </Link>
-        </Box>
-      </Box>
-      <Divider sx={{mt: 0, mb: "15px"}} />
+          </>
+        )}
+      />
       <Typography variant="subtitle2">
 
         <Box sx={{ fontWeight: "fontWeightBold", m: "10px 2px 10px 2px", display:"inline-block" }}>
@@ -893,7 +888,7 @@ function Updates(props) {
             md: 12,
             xs: 12
           }}>
-          <PageHeader/>
+          <UpdatesHeader/>
           <ChangelogContainer/>
         </Grid>
       </Grid>

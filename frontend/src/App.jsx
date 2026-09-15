@@ -5,6 +5,7 @@ import theme from "./theme";
 import CssBaseline from "@mui/material/CssBaseline";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
+import PageHeader from "./components/PageHeader";
 import { StyledEngineProvider } from '@mui/material/styles';
 
 
@@ -53,7 +54,7 @@ const Protocols = React.lazy(() => import("./Protocols"));
 const NotFound = () => {
   return (
     <>
-      <h1>Page Not Found</h1>
+      <PageHeader title="Page not found" />
       <p>Sorry, the page you are looking for could not be found.</p>
     </>
   );

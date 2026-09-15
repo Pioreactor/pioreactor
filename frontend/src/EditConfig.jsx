@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
@@ -8,9 +9,7 @@ import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import FormLabel from '@mui/material/FormLabel';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
-import {Typography} from '@mui/material';
 import Snackbar from './components/Snackbar';
 import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/SaveOutlined';
@@ -421,18 +420,9 @@ function EditConfigContainer(){
   return(
     <React.Fragment>
 
-      <Box component="header" sx={{ mb: 2 }}>
-        <Box sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 2,
-          flexWrap: "wrap",
-          mb: 1,
-        }}>
-          <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
-            Configuration
-          </Typography>
+      <PageHeader
+        title="Configuration"
+        actions={(
           <Button
             sx={{  mr: "0px" }}
             color="primary"
@@ -442,9 +432,8 @@ function EditConfigContainer(){
             <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
             Download all configurations
           </Button>
-        </Box>
-        <Divider />
-      </Box>
+        )}
+      />
 
       {downloadError && <Alert severity="error" sx={{ mb: 2 }}>{downloadError}</Alert>}
 

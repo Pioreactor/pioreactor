@@ -1,7 +1,7 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React from "react";
 import TextField from '@mui/material/TextField';
-import Divider from '@mui/material/Divider';
 
 import Grid from '@mui/material/Grid';
 import FormControl from '@mui/material/FormControl';
@@ -545,14 +545,10 @@ function ExportDataContainer() {
   const hasExperimentSelection = Boolean(state.experimentSelection);
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Export data
-            </Box>
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <PageHeader
+        title="Export data"
+        actions={(
+          <>
             {hasWritableUsb ? (
               <SelectButton
                 value={exportDestination}
@@ -584,10 +580,9 @@ function ExportDataContainer() {
                   Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
               </Button>
             )}
-          </Box>
-        </Box>
-      <Divider sx={{mt: "0px", mb: "15px"}} />
-      </Box>
+          </>
+        )}
+      />
       <Card>
         <CardContent sx={{ p: 1 }}>
           <Box sx={{ ml: 1, mr: 1 }}>

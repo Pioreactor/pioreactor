@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import dayjs from 'dayjs';
 
@@ -9,7 +10,6 @@ import {
   MenuItem,
   Select,
   Typography,
-  Divider,
   Alert,
 } from '@mui/material';
 import Grid from "@mui/material/Grid";
@@ -363,14 +363,7 @@ function EstimatorData({ loading, rawData }) {
 function EstimatorsContainer() {
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>Estimators</Box>
-          </Typography>
-        </Box>
-        <Divider sx={{ mt: "0px", mb: "15px" }} />
-      </Box>
+      <PageHeader title="Estimators" />
       <Grid container spacing={2}>
         <Grid
           size={{

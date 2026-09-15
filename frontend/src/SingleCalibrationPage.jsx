@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams,  useNavigate,  Link } from "react-router";
 import { useConfirm } from 'material-ui-confirm';
@@ -357,18 +358,14 @@ function SingleCalibrationPage(props) {
 
   return (
       <>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-
-          <Typography variant="h5" component="h1">
-            <Box sx={{display:"inline"}}>
-              <Button component={Link} to="/calibrations">
-                <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
-              </Button>
-            </Box>
-          </Typography>
-
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <PageHeader
+        navigation={(
+          <Button component={Link} to="/calibrations">
+            <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
+          </Button>
+        )}
+        actions={(
+          <>
             <ViewYamlSource
               pioreactorUnit={pioreactorUnit}
               calibrationName={calibrationName}
@@ -401,9 +398,49 @@ function SingleCalibrationPage(props) {
                 : <CheckCircleOutlineOutlinedIcon fontSize="small" sx={textIcon} />}
               {isActive ? "Set inactive" : "Set active"}
             </Button>
-          </Box>
+          </>
+        )}
+      />
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", overflowWrap: "anywhere" }}>
+            Calibration: {calibrationName}
+          </Typography>
+          {isActive && (
+            <Chip
+              size="small"
+              label={"Active"}
+              icon={<CheckCircleOutlineOutlinedIcon />}
+              sx={{
+                color: readyGreen,
+                border: "none",
+                backgroundColor: "transparent",
+                "& .MuiChip-icon": { color: readyGreen },
+              }}
+            />
+          )}
         </Box>
-        <Divider sx={{ mb: 2 }} />
+        <Typography variant="subtitle2" color="text.secondary">
+          <MuiLink
+            component={Link}
+            to={`/calibrations/${pioreactorUnit}`}
+            color="inherit"
+            underline="hover"
+            sx={{ fontWeight: 500 }}
+          >
+            {pioreactorUnit}
+          </MuiLink>
+          {" / "}
+          <MuiLink
+            component={Link}
+            to={`/calibrations/${pioreactorUnit}/${device}`}
+            color="inherit"
+            underline="hover"
+            sx={{ fontWeight: 500 }}
+          >
+            {device}
+          </MuiLink>
+        </Typography>
       </Box>
       <SingleCalibrationPageCard
         pioreactorUnit={pioreactorUnit}
@@ -462,49 +499,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
       <Grid size={12} sx={{mb: 2}}>
         <Card>
           <CardContent sx={{p: 2}}>
-              <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography variant="h6" component="h2">
-                    Calibration: {calibrationName}
-                  </Typography>
-                  {is_active && (
-                    <Chip
-                      size="small"
-                      label={"Active"}
-                      icon={<CheckCircleOutlineOutlinedIcon />}
-                      sx={{
-                        color: readyGreen,
-                        border: "none",
-                        backgroundColor: "transparent",
-                        "& .MuiChip-icon": { color: readyGreen },
-                      }}
-                    />
-                  )}
-                </Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  <MuiLink
-                    component={Link}
-                    to={`/calibrations/${pioreactorUnit}`}
-                    color="inherit"
-                    underline="hover"
-                    sx={{ fontWeight: 500 }}
-                  >
-                    {pioreactorUnit}
-                  </MuiLink>
-                  {" / "}
-                  <MuiLink
-                    component={Link}
-                    to={`/calibrations/${pioreactorUnit}/${device}`}
-                    color="inherit"
-                    underline="hover"
-                    sx={{ fontWeight: 500 }}
-                  >
-                    {device}
-                  </MuiLink>
-                </Typography>
-              </Box>
-
-              <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibrationName}`} />
+            <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibrationName}`} />
 
               <Box sx={{px: 5, mt: 1}}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>

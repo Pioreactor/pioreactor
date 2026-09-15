@@ -156,32 +156,23 @@ not replace the page header.
 
 There are three approved page header variants.
 
+Use `src/components/PageHeader.jsx` for the title/action row and divider.
+It owns the bold `h5`/`h1`, a 44px minimum row height, an 8px gap before the
+divider, and 16px after it. The common row height aligns title-only pages with
+pages that have buttons. Rows grow when titles or actions wrap.
+
+Pass `title` and optional `actions` for ordinary pages. Pass `navigation`
+instead of `title` for a detail toolbar, with the record `h1` below it. When a
+parent Stack or Grid already supplies the 16px region gap, use `sx={{ mb: 0 }}`
+to avoid doubling it. Sentence-style headers remain separate and omit the divider.
+
 #### 1. Title and actions
 
 Use this for collection, administration, and operational pages with actions.
 Examples include Inventory, Pioreactors, Updates, and Export data.
 
 ```jsx
-<Box component="header" sx={{ mb: 2 }}>
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 2,
-      flexWrap: "wrap",
-      mb: 1,
-    }}
-  >
-    <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
-      Inventory
-    </Typography>
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-      {actions}
-    </Box>
-  </Box>
-  <Divider />
-</Box>
+<PageHeader title="Inventory" actions={actions} />
 ```
 
 Rules:
@@ -198,12 +189,7 @@ Rules:
 Use this when a page has no page-level actions.
 
 ```jsx
-<Box component="header" sx={{ mb: 2 }}>
-  <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-    Protocols
-  </Typography>
-  <Divider />
-</Box>
+<PageHeader title="Protocols" />
 ```
 
 Do not omit the divider merely because the action group is empty.
@@ -214,26 +200,14 @@ Use this for a single calibration, estimator, Pioreactor, profile, or other
 named record.
 
 ```jsx
-<Box component="header" sx={{ mb: 2 }}>
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 2,
-      flexWrap: "wrap",
-      mb: 1,
-    }}
-  >
+<PageHeader
+  navigation={(
     <Button component={Link} to="/calibrations">
       <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
     </Button>
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-      {actions}
-    </Box>
-  </Box>
-  <Divider />
-</Box>
+  )}
+  actions={actions}
+/>
 <Box sx={{ mb: 2 }}>
   <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
     <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
@@ -653,8 +627,8 @@ Rules:
   focused shared component.
 - A shared component should encode a settled rule, not hide unresolved design
   differences.
-- The likely first shared patterns are `PageHeader`, zebra table rows, clickable
-  table rows, and entity Chips.
+- `PageHeader` owns standard page headers. Other candidates for shared patterns
+  are zebra table rows, clickable table rows, and entity Chips.
 - Do not inspect or edit `core/pioreactor/web/static/`; it is generated output.
 
 ## Reference implementations
@@ -680,17 +654,14 @@ These are design debt, not alternate approved patterns.
 
 | Area | Intended rule | Current inconsistency |
 | --- | --- | --- |
-| Page heading semantics | One `h1` per route page | Calibrations, Estimators, Plugins, Protocols, Export data, Leader, Logs, System logs, Experiment Profiles, and the experiment profile create/edit pages use `component="h2"` for the top-level title in at least one route state. |
-| Detail headers | Back navigation is separate from the record `h1` | Single calibration and single estimator pages mark the back button container as the `h1`; the actual record title is an `h2` inside the Card. |
-| Header spacing | One responsive title/action layout | Header margins currently vary between `5px`, `mb: 1`, `mb: 2`, and omitted spacing; action wrapping is inconsistent. |
 | Clickable row accessibility | Whole-row navigation has focus and keyboard activation | Calibration and estimator rows have `onClick` and pointer hover but are not keyboard-focusable and do not handle Enter or Space. |
 | Pioreactor labels | Pioreactor references in content use a small icon Chip | `MissingWorkerModelModal.jsx` and some operational lists use raw icon-plus-text labels outside title or Select contexts. |
-| Heading construction | Typography owns its weight and semantics | Some pages use nested bold `Box` elements, some use `sx={{ fontWeight: "bold" }}`, and others leave the same heading unbolded. |
-| Spacing tokens | Layout uses theme spacing | Several headers, editors, and controls use one-off pixel margins and widths for ordinary layout. |
+| Heading construction | Typography owns its weight and semantics | Some section headings still use nested bold `Box` elements. |
+| Spacing tokens | Layout uses theme spacing | Several editors and controls use one-off pixel margins and widths for ordinary layout. |
 
 ### Recommended cleanup order
 
-1. Standardize page headers and semantic heading levels.
+1. Continue normalizing section heading levels.
 2. Fix clickable row keyboard behavior.
 3. Make all non-clickable log tables use the zebra rule.
 4. Move zebra, hover, and repeated status colors into shared theme tokens.

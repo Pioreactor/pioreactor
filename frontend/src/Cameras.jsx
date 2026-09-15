@@ -1,12 +1,10 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 
 import CameraPanel from "./components/CameraPanel";
 import useCameraResource from "./hooks/useCameraResource";
@@ -76,12 +74,7 @@ export default function Cameras({ title }) {
 
   return (
     <Stack spacing={2}>
-      <Box component="header">
-        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-          Cameras
-        </Typography>
-        <Divider sx={{mt: "12px", mb: "15px"}} />
-      </Box>
+      <PageHeader title="Cameras" sx={{ mb: 0 }} />
 
       {error && <Alert severity="error">{error} Existing camera information may be out of date.</Alert>}
       {failedCameraResults.map((result) => (
