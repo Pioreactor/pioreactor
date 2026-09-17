@@ -4,7 +4,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import Brightness4OutlinedIcon from "@mui/icons-material/Brightness4Outlined";
+import ContrastOutlinedIcon from '@mui/icons-material/ContrastOutlined';
 
 export default function AppearanceMenu() {
   const { mode, setMode } = useColorScheme();
@@ -22,7 +22,7 @@ export default function AppearanceMenu() {
           onClick={(event) => setAnchorEl(event.currentTarget)}
           sx={{ width: 44, height: 44 }}
         >
-          <Brightness4OutlinedIcon />
+          <ContrastOutlinedIcon  sx={{ fontSize: 18}} />
         </IconButton>
       </Tooltip>
       <Menu

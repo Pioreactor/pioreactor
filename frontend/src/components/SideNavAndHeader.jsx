@@ -28,7 +28,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
 //import Icon2x2Grid from './Icon2x2Grid';
-import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
+import PluginsIcon from './PluginsIcon';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import ExperimentProfileIcon from './ExperimentProfileIcon';
@@ -585,7 +585,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
 
                 <MenuItem
-                  icon={<LibraryAddOutlinedIcon sx={{fontSize: "23px"}}/> }
+                  icon={<PluginsIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/plugins" className="link" />}
                   active={isSelected("/plugins")}
 

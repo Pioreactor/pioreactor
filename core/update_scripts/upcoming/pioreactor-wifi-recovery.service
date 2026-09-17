@@ -1,9 +1,12 @@
 [Unit]
-Description=Reconnect Pioreactor Wi-Fi or recover a wedged SDIO device
+Description=Check Pioreactor Wi-Fi connectivity
 Wants=NetworkManager.service
 After=NetworkManager.service network-online.target
 
 [Service]
 Type=oneshot
+# Hide routine systemd start/finish messages; retain recovery logs and failures.
+LogLevelMax=notice
+SyslogLevel=notice
 ExecStart=/usr/local/bin/pioreactor-wifi-recovery.sh
 TimeoutStartSec=2min
