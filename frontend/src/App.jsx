@@ -86,7 +86,7 @@ function App() {
             <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline enableColorScheme />
-              <SnackbarProvider maxSnack={4}>
+              <SnackbarProvider maxSnack={4} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
                 <MainSite />
               </SnackbarProvider>
             </ConfirmProvider>

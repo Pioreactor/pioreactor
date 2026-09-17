@@ -196,7 +196,6 @@ export default function ActionPumpForm(props) {
         </Alert>
       )}
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         onClose={handleSnackbarClose}
         message={snackbarMsg}

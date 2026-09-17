@@ -143,7 +143,7 @@ function RunExperimentProfilesContent({
       <Grid size={4}>
         <Box sx={{ width: "100%", mt: 2,  display: "flex", justifyContent: "space-between" }}>
           <FormControl sx={{ minWidth: "300px" }}>
-            <FormLabel component="legend">Experiment profile</FormLabel>
+            <FormLabel id="profileSelect">Experiment profile</FormLabel>
             <Select
               labelId="profileSelect"
               variant="standard"
@@ -276,8 +276,8 @@ function RunProfilesContainer(props) {
     <React.Fragment>
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <Typography variant="h6" component="h2">
-            <Box sx={{ fontWeight: "fontWeightRegular" }}>Available profiles</Box>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: "fontWeightRegular" }}>
+            Available profiles
           </Typography>
           <RunExperimentProfilesContent {...props} experiment={experiment} />
         </CardContent>
@@ -307,8 +307,8 @@ function RunningProfilesContainer() {
     <React.Fragment>
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            <Box sx={{ fontWeight: "fontWeightRegular" }}>Profiles running</Box>
+          <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: "fontWeightRegular" }}>
+            Profiles running
           </Typography>
           {loading && (
             <Box sx={{ textAlign: "center", mt: 2 }}>
@@ -627,8 +627,8 @@ function Profiles(props) {
           <Box sx={{ mt: 2 }}>
             <Card>
               <CardContent sx={{ p: 2 }}>
-                <Typography variant="h6" component="h2" gutterBottom>
-                  <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent profile runs</Box>
+                <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: "fontWeightRegular" }}>
+                  Recent profile runs
                 </Typography>
                 {recentLoading && (
                   <Box sx={{ textAlign: "center", mt: 1 }}>

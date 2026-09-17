@@ -297,7 +297,7 @@ function EditableCodeDiv() {
       <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
         <FormControl>
           <div>
-            <FormLabel component="legend">Config target</FormLabel>
+            <FormLabel id="configTargetSelect" sx={{mr: 1}}>Config target:</FormLabel>
             <Select
               labelId="configTargetSelect"
               variant="standard"
@@ -312,7 +312,7 @@ function EditableCodeDiv() {
         </FormControl>
         <FormControl sx={{ mr: "20px" }}>
           <div>
-            <FormLabel component="legend">Versions</FormLabel>
+            <FormLabel id="historicalConfigSelect"  sx={{mr: 1}}>Version:</FormLabel>
             <Select
               labelId="historicalConfigSelect"
               variant="standard"
@@ -374,7 +374,6 @@ function EditableCodeDiv() {
         </div>
       </Box>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={state.openSnackbar}
         onClose={handleSnackbarClose}
         message={state.snackbarMsg}

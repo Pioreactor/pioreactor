@@ -412,6 +412,9 @@ Examples:
 Rules:
 
 - A clickable row must have `cursor: pointer`.
+- Use `NavigableTableRow` from `src/components/TableRows.jsx` for shared
+  row navigation, keyboard activation, hover, and focus styling. Put a real
+  link in the identifying cell; nested controls keep their own interaction.
 - Hover uses `#F7F7F7`.
 - Keyboard focus must be visible.
 - Enter and Space must activate the same navigation as click.
@@ -588,6 +591,8 @@ Rules:
 - Error copy should say what failed and what the user can do next.
 - Use the shared Snackbar wrapper for transient success or local action
   feedback. Snackbars must use the bottom-center position.
+- `SnackbarProvider` in `App.jsx` owns the position. Callers should not repeat
+  `anchorOrigin` or override it for live log notifications.
 - A Pioreactor card may flash a subtle, brief primary-color halo around a pill
   when a live update changes the pill's visible value: state changes flash
   the activity status pill, and displayed setting changes flash that setting's
@@ -627,8 +632,9 @@ Rules:
   focused shared component.
 - A shared component should encode a settled rule, not hide unresolved design
   differences.
-- `PageHeader` owns standard page headers. Other candidates for shared patterns
-  are zebra table rows, clickable table rows, and entity Chips.
+- `PageHeader` owns standard page headers. `TableRows.jsx` owns zebra and
+  navigable rows; `LogTableCells.jsx` owns log-cell spacing and severity fills.
+  Use zebra rows for log entries, leaving time-gap separators as plain rows.
 - Do not inspect or edit `core/pioreactor/web/static/`; it is generated output.
 
 ## Reference implementations
@@ -654,7 +660,6 @@ These are design debt, not alternate approved patterns.
 
 | Area | Intended rule | Current inconsistency |
 | --- | --- | --- |
-| Clickable row accessibility | Whole-row navigation has focus and keyboard activation | Calibration and estimator rows have `onClick` and pointer hover but are not keyboard-focusable and do not handle Enter or Space. |
 | Pioreactor labels | Pioreactor references in content use a small icon Chip | `MissingWorkerModelModal.jsx` and some operational lists use raw icon-plus-text labels outside title or Select contexts. |
 | Heading construction | Typography owns its weight and semantics | Some section headings still use nested bold `Box` elements. |
 | Spacing tokens | Layout uses theme spacing | Several editors and controls use one-off pixel margins and widths for ordinary layout. |
@@ -662,7 +667,4 @@ These are design debt, not alternate approved patterns.
 ### Recommended cleanup order
 
 1. Continue normalizing section heading levels.
-2. Fix clickable row keyboard behavior.
-3. Make all non-clickable log tables use the zebra rule.
-4. Move zebra, hover, and repeated status colors into shared theme tokens.
-5. Normalize Pioreactor entity labels outside titles, breadcrumbs, and Selects.
+2. Normalize Pioreactor entity labels outside titles, breadcrumbs, and Selects.

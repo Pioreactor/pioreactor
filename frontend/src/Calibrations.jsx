@@ -1,4 +1,5 @@
 import PageHeader from "./components/PageHeader";
+import { NavigableTableRow } from "./components/TableRows";
 import { uiColors } from "./theme/colors";
 import dayjs from 'dayjs';
 
@@ -552,7 +553,7 @@ function CalibrationData({ loading, rawData }) {
         <Box sx={{display: "flex", justifyContent: "space-between" }}>
           <Box>
             <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
-              <FormLabel component="legend">Pioreactor</FormLabel>
+              <FormLabel id="pioreactor-select-label">Pioreactor</FormLabel>
               <Select
                 labelId="pioreactor-select-label"
                 label="Pioreactor"
@@ -574,7 +575,7 @@ function CalibrationData({ loading, rawData }) {
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
-              <FormLabel component="legend">Device</FormLabel>
+              <FormLabel id="device-select-label">Device</FormLabel>
               <Select
                 labelId="device-select-label"
                 label="Device"
@@ -642,16 +643,10 @@ function CalibrationData({ loading, rawData }) {
               }
 
               return (
-                <TableRow
-                  sx={{
-                    ':hover': {
-                      bgcolor: uiColors.stripe, // theme.palette.primary.main
-                    },
-                    cursor: "pointer",
-                  }}
+                <NavigableTableRow
                   onMouseOver={(e) => onMouseOverRow(e, cal) }
                   onMouseOut={(e) => onMouseExitRow(e)}
-                  onClick={() => navigate(`/calibrations/${unitName}/${selectedDevice}/${calName}`)}
+                  to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
                   key={i}
                   >
                   <TableCell data-copy-value={unitName} sx={{padding: "6px 6px", display: "flex"}}>
@@ -686,6 +681,9 @@ function CalibrationData({ loading, rawData }) {
                         icon={<CalibrationIcon/>}
                         label={calName}
                         data-calibration-name={calName}
+                        clickable
+                        component={Link}
+                        to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
                         />
                   </TableCell>
                   <TableCell align="left" data-copy-value={cal.is_active ? "Active" : ""} sx={{padding: "6px 0px"}}>
@@ -704,7 +702,7 @@ function CalibrationData({ loading, rawData }) {
                     ) : ""}
                   </TableCell>
                   <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('MMMM D, YYYY, h:mm a')}</TableCell>
-                </TableRow>
+                </NavigableTableRow>
               );
             })}
           </TableBody>

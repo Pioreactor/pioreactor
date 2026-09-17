@@ -761,7 +761,7 @@ function WorkerCard({
             <td >
               <FormControl variant="standard" error={showModelError}>
                 <Select
-                  labelId="modelSelect"
+                  inputProps={{ "aria-label": "Model" }}
                   variant="standard"
                   value={selectValue}
                   onChange={handleModelChange}
@@ -873,7 +873,6 @@ function WorkerCard({
       </CardActions>
     </Card>
     <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={snackbarOpen}
       onClose={handleSnackbarClose}
       message={snackbarMessage}

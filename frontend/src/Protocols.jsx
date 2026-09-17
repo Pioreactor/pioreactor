@@ -454,8 +454,9 @@ function Protocols(props) {
           >
             <Box>
               <FormControl variant="standard" sx={{ minWidth: 220 }}>
-                <FormLabel component="legend">Pioreactor</FormLabel>
+                <FormLabel id="protocol-pioreactor-label">Pioreactor</FormLabel>
                 <Select
+                  labelId="protocol-pioreactor-label"
                   value={displayedSelectedUnit}
                   onChange={handleSelectUnitChange}
                   disabled={isLoadingWorkers || workers.length === 0}
@@ -481,8 +482,9 @@ function Protocols(props) {
             </Box>
             <Box>
               <FormControl variant="standard" sx={{ minWidth: 220 }}>
-                <FormLabel component="legend">Device</FormLabel>
+                <FormLabel id="protocol-device-label">Device</FormLabel>
                 <Select
+                  labelId="protocol-device-label"
                   value={selectedDevice}
                   onChange={handleSelectDeviceChange}
                   disabled={isLoadingProtocols || protocols.length === 0}
@@ -563,7 +565,6 @@ function Protocols(props) {
         </Typography>
       </Box>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}

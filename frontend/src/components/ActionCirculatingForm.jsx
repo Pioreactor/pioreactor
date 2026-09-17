@@ -127,7 +127,6 @@ export default function ActionCirculatingForm(props) {
         </Button>
       </Box>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         onClose={handleSnackbarClose}
         message={snackbarMsg}

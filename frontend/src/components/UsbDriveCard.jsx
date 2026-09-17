@@ -349,7 +349,6 @@ export default function UsbDriveCard({unit}) {
         </Button>
       </CardActions>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}

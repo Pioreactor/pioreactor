@@ -112,7 +112,7 @@ function SingleExperimentSelect({availableValues, parentHandleChange, value}) {
   return (
     <div>
       <FormControl fullWidth variant="standard" component="fieldset" sx={{ maxWidth: 470 }}>
-        <Typography variant="h6" gutterBottom >
+        <Typography id="expSelect" variant="h6" gutterBottom >
           <Box sx={{ fontWeight: "fontWeightRegular" }}>Experiment</Box>
         </Typography>
         <Select
@@ -690,7 +690,6 @@ function ExportDataContainer() {
         <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</Box>
       </Grid>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMsg}

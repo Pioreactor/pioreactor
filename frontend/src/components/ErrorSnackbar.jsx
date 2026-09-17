@@ -237,7 +237,6 @@ function ErrorSnackbar() {
     }
 
     const snackbarKey = enqueueSnackbar(`${task}:${alertLevel}:${displayUnit}:${formattedMessage}`, {
-      anchorOrigin: {vertical: "bottom", horizontal: "right"},
       persist: true,
       TransitionProps: { direction: "up" },
       content: (key) => (

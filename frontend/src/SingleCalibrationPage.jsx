@@ -451,7 +451,6 @@ function SingleCalibrationPage(props) {
       />
 
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}
@@ -503,7 +502,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
 
               <Box sx={{px: 5, mt: 1}}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6">Calibration data</Typography>
+                  <Typography variant="h6" component="h2">Calibration data</Typography>
                   {/*<Button style={{textTransform: 'none', float: "right" }} onClick={copyCalibrationYamlToClipboard}>
                     <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as YAML
                   </Button>*/}
@@ -577,7 +576,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
 
               <Box sx={{ px: 5, mt: 5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6">Recorded data</Typography>
+                  <Typography variant="h6" component="h2">Recorded data</Typography>
                   {/*<Button style={{textTransform: 'none', float: "right" }} onClick={copyRecordedDataCsvToClipboard}>
                     <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as CSV
                   </Button>*/}

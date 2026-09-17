@@ -1,3 +1,4 @@
+import { ZebraTableRow } from "./components/TableRows";
 import PageHeader from "./components/PageHeader";
 import { uiColors } from "./theme/colors";
 import React from "react";
@@ -47,14 +48,6 @@ const StyledTableCell = styled(TableCell)(() => ({
   whiteSpace: "normal",
 }));
 
-const TableRowStyled = styled(TableRow)(() => ({
-  "&:nth-of-type(odd)": {
-    backgroundColor: uiColors.stripe,
-  },
-  "&:nth-of-type(even)": {
-    backgroundColor: uiColors.surface,
-  },
-}));
 
 function ExperimentActionsMenu({
   experiment,
@@ -354,13 +347,13 @@ function ExperimentsContainer(props) {
               }}
             >
               <ToggleButton value="all">
-                all
+                All
               </ToggleButton>
               <ToggleButton value="active">
-                active
+                Active
               </ToggleButton>
               <ToggleButton value="inactive">
-                inactive
+                Inactive
               </ToggleButton>
             </ToggleButtonGroup>
             <Autocomplete
@@ -400,7 +393,7 @@ function ExperimentsContainer(props) {
                 const remainingTagCount = Math.max((experiment.tags || []).length - visibleTags.length, 0);
 
                 return (
-                  <TableRowStyled key={experiment.experiment}>
+                  <ZebraTableRow key={experiment.experiment}>
                     <StyledTableCell sx={{ width: "65%"}}>
                       <Stack spacing={0.75}>
                         <Box>
@@ -467,7 +460,7 @@ function ExperimentsContainer(props) {
                         deleteDisabled={experiments.length <= 1}
                       />
                     </StyledTableCell>
-                  </TableRowStyled>
+                  </ZebraTableRow>
                 );
               })}
               {!loading && filteredExperiments.length === 0 && (
@@ -494,7 +487,6 @@ function ExperimentsContainer(props) {
         open={snackbarOpen}
         message={snackbarMessage}
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
 
       <ExperimentMetadataDialog

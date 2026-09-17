@@ -147,7 +147,7 @@ export default function ExperimentMetadataDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={isSaving}>
+        <Button color="secondary" onClick={onClose} disabled={isSaving}>
           Cancel
         </Button>
         <Button

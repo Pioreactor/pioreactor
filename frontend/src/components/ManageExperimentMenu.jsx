@@ -213,7 +213,6 @@ export default function ManageExperimentMenu({experiment}){
         open={snackbarOpen}
         message={snackbarMessage}
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
     </div>
   );

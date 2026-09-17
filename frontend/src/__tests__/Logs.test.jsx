@@ -69,6 +69,8 @@ describe("Logs", () => {
     const { rerender } = renderLogs();
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    expect(screen.getByRole("combobox", { name: "Log level" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Pioreactor" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Record event" }));
     await user.click(within(screen.getByRole("dialog")).getAllByRole("combobox")[0]);
     await user.click(await screen.findByRole("option", { name: "unit-1" }));

@@ -232,9 +232,9 @@ function UploadArchiveAndConfirm(props) {
             {units.length > 1 &&
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
-                <InputLabel >Units to update</InputLabel>
+                <InputLabel id="file-update-units">Units to update</InputLabel>
                 <Select
-                  labelId="configSelect"
+                  labelId="file-update-units"
                   value={selectedUnits ? selectedUnits : "$broadcast"}
                   onChange={onSelectionChange}
                   label="Units to update"
@@ -383,9 +383,9 @@ export function UpdateFromInternetAndConfirm(props) {
             {units.length > 1 &&
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
-                <InputLabel >Units to update</InputLabel>
+                <InputLabel id="internet-update-units">Units to update</InputLabel>
                 <Select
-                  labelId="configSelect"
+                  labelId="internet-update-units"
                   value={selectedUnits ? selectedUnits : "$broadcast"}
                   onChange={onSelectionChange}
                   label="Units to update"
@@ -510,7 +510,7 @@ function UpdateFromUsbAndConfirm(props) {
             {props.description}
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "260px"}} variant="outlined" size="small">
-                <InputLabel>Release archive</InputLabel>
+                <InputLabel id="usbArchiveSelect">Release archive</InputLabel>
                 <Select
                   labelId="usbArchiveSelect"
                   value={selectedArchivePath}
@@ -529,7 +529,7 @@ function UpdateFromUsbAndConfirm(props) {
             {units.length > 1 &&
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
-                <InputLabel >Units to update</InputLabel>
+                <InputLabel id="usbUnitsSelect">Units to update</InputLabel>
                 <Select
                   labelId="usbUnitsSelect"
                   value={selectedUnits ? selectedUnits : "$broadcast"}
@@ -702,7 +702,6 @@ function UpdateSoftwareConfirmDialog() {
         }
       </SelectButton>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         message="Updating in the background. This may take a few minutes. You may leave this page."
         autoHideDuration={20000}
@@ -865,7 +864,7 @@ Could not retrieve latest Changelog. Perhaps not connected to the internet.
     <React.Fragment>
       <Card>
         <CardContent sx={{p: 1}}>
-        <Typography variant="h6" component="h6">
+        <Typography variant="h6" component="h2">
             Change log
         </Typography>
           <MarkdownView

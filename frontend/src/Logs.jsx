@@ -101,7 +101,7 @@ function Logs(props) {
               <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
 
                 <Select
-                  labelId="levelSelect"
+                  inputProps={{ "aria-label": "Log level" }}
                   variant="standard"
                   value={logLevel}
                   onChange={(e) => setLogLevel(e.target.value)}
@@ -122,7 +122,7 @@ function Logs(props) {
                 </Select>
                 <Box component="span" sx={{mr: "4px"}}> experiment logs for</Box>
                 <Select
-                  labelId="configSelect"
+                  inputProps={{ "aria-label": "Pioreactor" }}
                   variant="standard"
                   value={pioreactorUnit ? pioreactorUnit : "$broadcast"}
                   onChange={onSelectionChange}

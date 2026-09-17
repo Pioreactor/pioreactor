@@ -238,7 +238,6 @@ function ManageLeaderMenu({unit}) {
         </MenuItem>
       </Menu>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}

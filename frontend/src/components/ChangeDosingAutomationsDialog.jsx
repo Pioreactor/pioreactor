@@ -232,7 +232,6 @@ function ChangeDosingAutomationsDialog(props) {
       </DialogActions>
     </Dialog>
     <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={openSnackbar}
       onClose={handleSnackbarClose}
       message={`Starting ${automationType} automation ${automations[automationName]?.display_name}.`}

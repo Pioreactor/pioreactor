@@ -1,3 +1,5 @@
+import { ZebraTableRow } from "./TableRows";
+import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell } from "./LogTableCells";
 import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useMemo, useEffectEvent } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
@@ -15,8 +17,6 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import { styled } from '@mui/material/styles';
-import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
@@ -28,38 +28,6 @@ dayjs.extend(utc);
 
 
 
-const StyledTableCell = styled(TableCell)(({ level }) => {
-  return {
-    padding: "6px 6px 6px 10px",
-    fontSize: 13,
-    backgroundColor: level === "ERROR" ? ERROR_COLOR :
-                      level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : null,
-    whiteSpace: "normal"
-  };
-});
-
-
-const StyledTimeTableCell = styled(TableCell)(({ level }) => {
-  return {
-    padding: "6px 6px 6px 10px",
-    fontSize: 13,
-    backgroundColor: level === "ERROR" ? ERROR_COLOR :
-                      level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : null,
-    whiteSpace: "pre"
-  };
-});
-
-
-const TableRowStyled = styled(TableRow)(() => ({
-  '&:nth-of-type(odd)': {
-    backgroundColor: uiColors.stripe,
-  },
-  '&:nth-of-type(even)': {
-    backgroundColor: uiColors.surface,
-  },
-}));
 
 const LEVELS = [
   "DEBUG",
@@ -248,7 +216,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                 </TableHead>
                 <TableBody>
                   {listOfLogs.map((log) => (
-                    <TableRowStyled key={log.key}>
+                    <ZebraTableRow key={log.key}>
                       <StyledTimeTableCell level={log.level}>
                         {timestampCell(log.timestamp)}
                       </StyledTimeTableCell>
@@ -266,7 +234,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                       </StyledTableCell>
                       <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                       <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
-                    </TableRowStyled>
+                    </ZebraTableRow>
                   ))}
                 </TableBody>
               </Table>

@@ -170,7 +170,6 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
 
       {/* Feedback snackbar */}
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={() => setSnackbarOpen(false)}
         message={`Starting ${jobName} with configuration overrides.`}

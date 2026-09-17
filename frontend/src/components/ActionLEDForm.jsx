@@ -107,7 +107,6 @@ export default function ActionLEDForm(props) {
         </Button>
       </Box>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         onClose={handleSnackbarClose}
         message={`Updating channel ${props.channel} to ${intensity}%.`}

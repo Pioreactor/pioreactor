@@ -1,5 +1,5 @@
 import PageHeader from "./components/PageHeader";
-import { uiColors } from "./theme/colors";
+import { NavigableTableRow } from "./components/TableRows";
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
@@ -233,7 +233,7 @@ function EstimatorData({ loading, rawData }) {
         <Box sx={{ display: "flex", justifyContent: "space-between" }}>
           <Box>
             <FormControl size="small" sx={{ mb: '1rem', mr: 4 }}>
-              <FormLabel component="legend">Pioreactor</FormLabel>
+              <FormLabel id="pioreactor-select-label">Pioreactor</FormLabel>
               <Select
                 labelId="pioreactor-select-label"
                 label="Pioreactor"
@@ -255,7 +255,7 @@ function EstimatorData({ loading, rawData }) {
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ mb: '1rem', mr: 4 }}>
-              <FormLabel component="legend">Device</FormLabel>
+              <FormLabel id="device-select-label">Device</FormLabel>
               <Select
                 labelId="device-select-label"
                 label="Device"
@@ -296,14 +296,8 @@ function EstimatorData({ loading, rawData }) {
               const deviceName = estimator.device || selectedDevice;
 
               return (
-                <TableRow
-                  sx={{
-                    ':hover': {
-                      bgcolor: uiColors.stripe,
-                    },
-                    cursor: "pointer",
-                  }}
-                  onClick={() => navigate(`/estimators/${unitName}/${deviceName}/${estimatorName}`)}
+                <NavigableTableRow
+                  to={`/estimators/${unitName}/${deviceName}/${estimatorName}`}
                   key={i}
                 >
                   <TableCell data-copy-value={unitName} sx={{ padding: "6px 6px", display: "flex" }}>
@@ -321,6 +315,9 @@ function EstimatorData({ loading, rawData }) {
                       icon={<EstimatorIcon />}
                       label={estimatorName}
                       data-estimator-name={estimatorName}
+                      clickable
+                      component={Link}
+                      to={`/estimators/${unitName}/${deviceName}/${estimatorName}`}
                     />
                   </TableCell>
                   <TableCell align="left" data-copy-value={estimator.is_active ? "Active" : ""} sx={{ padding: "6px 0px" }}>
@@ -341,7 +338,7 @@ function EstimatorData({ loading, rawData }) {
                   <TableCell align="right" sx={{ padding: "6px 6px" }}>
                     {dayjs(estimator.created_at).format('MMMM D, YYYY, h:mm a')}
                   </TableCell>
-                </TableRow>
+                </NavigableTableRow>
               );
             })}
           </TableBody>

@@ -401,7 +401,6 @@ function SingleEstimatorPage(props) {
       />
 
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}
@@ -450,7 +449,7 @@ function SingleEstimatorPageCard({ pioreactorUnit, device, estimatorName, estima
           <CardContent sx={{ p: 2 }}>
             <Box sx={{ px: 5, mt: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h6">Estimator data</Typography>
+                <Typography variant="h6" component="h2">Estimator data</Typography>
               </Box>
               <Table size="small">
                 <TableBody>
@@ -522,7 +521,7 @@ function SingleEstimatorPageCard({ pioreactorUnit, device, estimatorName, estima
             {recordedDataText && (
               <Box sx={{ px: 5, mt: 5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="h6">Recorded data</Typography>
+                  <Typography variant="h6" component="h2">Recorded data</Typography>
                 </Box>
                 <DisplaySourceCode sourceCode={recordedDataText} />
               </Box>

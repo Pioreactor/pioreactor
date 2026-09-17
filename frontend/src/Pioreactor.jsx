@@ -1109,7 +1109,6 @@ function SettingsActionsDialog(props) {
       </DialogContent>
     </Dialog>
     <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={snackbarOpen}
       onClose={handleSnackbarClose}
       message={snackbarMessage}
@@ -1812,6 +1811,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                         <IconButton
                           size="small"
                           onClick={(event) => handleStateMenuOpen(event, jobKey)}
+                          aria-label={`${job.metadata.display_name} actions`}
                           sx={{ml: 0.25}}
                         >
                           <ExpandMoreIcon fontSize="small" />
@@ -1962,7 +1962,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                 <Typography variant="subtitle2">
                   {quickSetting.label}
                 </Typography>
-                <IconButton size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
+                <IconButton aria-label="Close setting editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>
