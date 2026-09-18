@@ -135,16 +135,14 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[Discovered
     This is very similar to `avahi-browse _pio-worker._tcp -tpr`
     """
 
-    def worker_hostnames(queue: Queue[DiscoveredWorker]) -> None:
-        with subprocess.Popen(
-            ["avahi-browse", "_pio-worker._tcp", "-rp"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        ) as process:
-            if process.stdout is None:
-                return
+    with subprocess.Popen(
+        ["avahi-browse", "_pio-worker._tcp", "-rp"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    ) as process:
 
+        def worker_hostnames(queue: Queue[DiscoveredWorker]) -> None:
             assert process.stdout is not None
             for line in process.stdout:
                 result = line.rstrip("\n")
@@ -154,22 +152,23 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[Discovered
                 hostname = parsed[6].removesuffix(".local")
                 ipv4_address = parsed[7]
                 queue.put(DiscoveredWorker(hostname=hostname, ipv4_address=ipv4_address))
-        return
 
-    hostnames_queue: Queue[DiscoveredWorker] = Queue()
-    worker_thread = Thread(target=worker_hostnames, args=(hostnames_queue,))
-    worker_thread.daemon = True
-    worker_thread.start()
+        hostnames_queue: Queue[DiscoveredWorker] = Queue()
+        worker_thread = Thread(target=worker_hostnames, args=(hostnames_queue,), daemon=True)
+        worker_thread.start()
 
-    while True:
         try:
-            # Wait for the next hostname, with a timeout if terminate is True
-            worker = hostnames_queue.get(timeout=1.5 if terminate else None)
-            yield worker
-        except Empty:
-            # If the queue is empty and we're in terminate mode, stop the iteration
-            if terminate:
-                break
+            while True:
+                try:
+                    # Wait for the next hostname, with a timeout if terminate is True
+                    worker = hostnames_queue.get(timeout=1.5 if terminate else None)
+                    yield worker
+                except Empty:
+                    if terminate:
+                        break
+        finally:
+            process.terminate()
+            worker_thread.join()
 
 
 def resolve_to_address(hostname: str) -> str:

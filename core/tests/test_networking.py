@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import subprocess
+import sys
+from threading import Thread
 from typing import Iterator
 
 import pytest
@@ -86,9 +88,62 @@ def test_discover_workers_on_network_includes_hostname_and_ipv4(monkeypatch) -> 
         def __exit__(self, *args: object) -> None:
             return None
 
+        def terminate(self) -> None:
+            pass
+
     monkeypatch.setattr(networking.subprocess, "Popen", FakePopen)
 
     assert list(networking.discover_workers_on_network(terminate=True)) == [
         networking.DiscoveredWorker(hostname="unit1", ipv4_address="192.168.1.10"),
         networking.DiscoveredWorker(hostname="unit2", ipv4_address="192.168.1.11"),
     ]
+
+
+@pytest.mark.parametrize("terminate", [True, False])
+def test_discovery_cleans_up_process_and_thread(terminate: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    popen = subprocess.Popen
+    processes: list[subprocess.Popen[str]] = []
+    threads: list[Thread] = []
+
+    def start_process(*args: object, **kwargs: object) -> subprocess.Popen[str]:
+        process = popen(
+            [
+                sys.executable,
+                "-u",
+                "-c",
+                "import time; "
+                "print('=;eth0;IPv4;Pioreactor worker;_pio-worker._tcp;local;unit1.local;192.168.1.10;4999;'); "
+                "time.sleep(30)",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        processes.append(process)
+        return process
+
+    def start_thread(*args: object, **kwargs: object) -> Thread:
+        thread = Thread(*args, **kwargs)
+        threads.append(thread)
+        return thread
+
+    monkeypatch.setattr(networking.subprocess, "Popen", start_process)
+    monkeypatch.setattr(networking, "Thread", start_thread)
+    discovery = networking.discover_workers_on_network(terminate=terminate)
+    try:
+        assert next(discovery) == networking.DiscoveredWorker("unit1", "192.168.1.10")
+        assert processes[0].poll() is None
+        if terminate:
+            assert list(discovery) == []
+        else:
+            discovery.close()
+        assert processes[0].poll() is not None
+        assert not threads[0].is_alive()
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+            process.wait()
+        discovery.close()
+        for thread in threads:
+            thread.join(timeout=2)
