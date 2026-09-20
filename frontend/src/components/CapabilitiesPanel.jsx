@@ -243,6 +243,7 @@ export default function CapabilitiesPanel() {
         </Typography>
         <TextField
           size="small"
+          label="Search jobs and automations"
           placeholder="Search jobs, automations, help..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}

@@ -53,6 +53,11 @@ export default function ActionCirculatingForm(props) {
 
   function stopPump() {
     fetch(`/api/workers/${props.unit}/jobs/stop/job_name/${props.action}/experiments/${experimentPathSegment(props.experiment)}`, {method: "POST"})
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to stop circulation: HTTP ${response.status}`);
+      }
+    })
     .catch(() => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)
@@ -93,6 +98,7 @@ export default function ActionCirculatingForm(props) {
             disabled={false}
             onChange={handleDurationChange}
             slotProps={{
+              htmlInput: { inputMode: "decimal" },
               input: {
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               },

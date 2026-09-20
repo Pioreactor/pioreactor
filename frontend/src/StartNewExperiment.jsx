@@ -23,6 +23,7 @@ import SelectButton from './components/SelectButton';
 // Activate the UTC plugin
 dayjs.extend(utc);
 
+const INVALID_EXPERIMENT_NAME_CHARACTERS = /[#$%+\/?\\]/;
 
 function normalizeTagList(tags) {
   const normalizedTags = [];
@@ -78,7 +79,7 @@ function ExperimentSummaryForm(props) {
     [historicalExperimentList],
   );
   const trimmedExpName = expName.trim();
-  const hasInvalidCharacters = /[#$%+\/?\\]/.test(trimmedExpName);
+  const hasInvalidCharacters = INVALID_EXPERIMENT_NAME_CHARACTERS.test(trimmedExpName);
   const nameAlreadyUsed = trimmedExpName in historicalExperiments;
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
   const populateExperimentName = selectedPopulateExperimentName || historicalExperimentList[0]?.experiment || "";
@@ -174,9 +175,9 @@ function ExperimentSummaryForm(props) {
       setFormError(true);
       setHelperText("Experiment name already used. Please choose another.")
     }
-    else if (/[#$%&+\/=?\\]/.test(experimentNameProposed)) {
+    else if (INVALID_EXPERIMENT_NAME_CHARACTERS.test(experimentNameProposed)) {
       setFormError(true)
-      setHelperText("Can't use $, %, #, &, \\, /, +, = or ? characters in experiment name.")
+      setHelperText("Can't use $, %, #, \\, /, + or ? characters in experiment name.")
     }
     else {
       setHelperText(" ")
@@ -213,7 +214,7 @@ function ExperimentSummaryForm(props) {
               label="Experiment name"
               value={expName}
               required
-              sx={{mt: 0, mb: 0, width: "50%"}}
+              sx={{mt: 0, mb: 0, width: { xs: "100%", md: "50%" }}}
               onChange={onExpNameChange}
               helperText={helperText}
               />

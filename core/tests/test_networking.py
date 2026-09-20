@@ -8,6 +8,34 @@ import pytest
 from pioreactor.utils import networking
 
 
+@pytest.mark.parametrize(
+    ("hostname", "expected"),
+    [
+        ("worker.local ", "worker.local"),
+        (" localhost ", "localhost"),
+        (" 192.168.1.2 ", "192.168.1.2"),
+        (" worker ", "worker.local"),
+    ],
+)
+def test_add_local_normalizes_whitespace(hostname: str, expected: str) -> None:
+    assert networking.add_local(hostname) == expected
+
+
+def test_cluster_copy_preserves_failure_reason(monkeypatch: pytest.MonkeyPatch) -> None:
+    error = networking.RsyncError("Permission denied")
+
+    def fail_rsync(*args: str) -> None:
+        raise error
+
+    monkeypatch.setattr(networking, "rsync", fail_rsync)
+    with pytest.raises(networking.RsyncError, match="Permission denied") as caught:
+        networking.cp_file_across_cluster("worker", "/source", "/target")
+
+    assert "/source" in str(caught.value)
+    assert "worker:/target" in str(caught.value)
+    assert caught.value.__cause__ is error
+
+
 @pytest.mark.parametrize(("returncode", "expected"), [(0, True), (1, False)])
 def test_is_reachable_uses_ping_returncode(monkeypatch, returncode: int, expected: bool) -> None:
     def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:

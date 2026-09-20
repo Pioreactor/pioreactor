@@ -3,6 +3,7 @@ import useChartTheme from "../theme/useChartTheme";
 import { uiColors } from "../theme/colors";
 import React, { useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
@@ -350,22 +351,26 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
             gap: 0.5,
           }}
         >
-          <IconButton
-            aria-label={`chart-options-${deviceName || 'calibration'}`}
-            size="small"
-            onClick={handleOpenOptionsMenu}
-            sx={{ backgroundColor: uiColors.chartControl }}
-          >
-            <SettingsIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            aria-label={`download-${deviceName || 'calibration'}`}
-            size="small"
-            onClick={handleOpenExportMenu}
-            sx={{ backgroundColor: uiColors.chartControl }}
-          >
-            <DownloadIcon fontSize="small" />
-          </IconButton>
+          <Tooltip title="Chart options" describeChild>
+            <IconButton
+              aria-label={`chart-options-${deviceName || 'calibration'}`}
+              size="small"
+              onClick={handleOpenOptionsMenu}
+              sx={{ backgroundColor: uiColors.chartControl }}
+            >
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Download chart" describeChild>
+            <IconButton
+              aria-label={`download-${deviceName || 'calibration'}`}
+              size="small"
+              onClick={handleOpenExportMenu}
+              sx={{ backgroundColor: uiColors.chartControl }}
+            >
+              <DownloadIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
       <Menu
         anchorEl={exportAnchorEl}

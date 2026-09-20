@@ -252,7 +252,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
             <Box sx={{width: 300}}/>
             <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) }>
-              {loading ? "Loading..." : "More"}
+              {loading ? "Loading..." : "Load older logs"}
             </Button>
             <FormControlLabel
               checked={!onlyAssignedLogs}

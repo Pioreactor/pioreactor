@@ -273,7 +273,7 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <p>First, follow the instructions <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">here</a> to set up your new Pioreactor's worker software.</p>
+        <p>First, follow the <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">worker setup instructions</a> to set up your new Pioreactor's worker software.</p>
 
         <Typography component="p">Before continuing, confirm that:</Typography>
         <ol>

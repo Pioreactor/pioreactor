@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -862,20 +863,22 @@ function Chart(props) {
         />
         {names.map(selectVictoryLines)}
       </VictoryChart>
-      <IconButton
-        aria-label={`download-${chartKey}`}
-        size="small"
-        onClick={handleOpenExportMenu}
-        sx={{
-          position: "absolute",
-          bottom: 8,
-          right: 8,
-          backgroundColor: uiColors.chartControl,
-          zIndex: 2,
-        }}
-      >
-        <DownloadIcon fontSize="small" />
-      </IconButton>
+      <Tooltip title="Download chart" describeChild>
+        <IconButton
+          aria-label={`download-${chartKey}`}
+          size="small"
+          onClick={handleOpenExportMenu}
+          sx={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            backgroundColor: uiColors.chartControl,
+            zIndex: 2,
+          }}
+        >
+          <DownloadIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <Menu
         anchorEl={exportAnchorEl}
         open={exportMenuOpen}

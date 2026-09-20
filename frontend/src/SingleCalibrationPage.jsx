@@ -216,7 +216,7 @@ function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled
         View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>
+        <DialogTitle sx={{ pr: 6 }}>
           YAML description for calibration {calibrationName}
           <IconButton
             aria-label="close"

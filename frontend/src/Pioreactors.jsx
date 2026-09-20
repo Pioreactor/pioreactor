@@ -1017,34 +1017,45 @@ function SettingsActionsDialog({
                 <Typography variant="body2" component="p" gutterBottom>
                   <span dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
                 </Typography>
-
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  variant="contained"
-                  onClick={() => setOpenChangeTemperatureDialog(true)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
                 >
-                  Start
-                </Button>
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  disabled={true}
-                >
-                  Stop
-                </Button>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      variant="contained"
+                      onClick={() => setOpenChangeTemperatureDialog(true)}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      disabled
+                    >
+                      Stop
+                    </Button>
+                  </Box>
 
-                <AutomationAdvancedConfigButton
-                  jobName="temperature_automation"
-                  displayName="Temperature automation"
-                  automationType="temperature"
-                  unit={unit}
-                  experiment={experiment}
-                  label={label}
-                  configSections={config || {}}
-                />
+                  <AutomationAdvancedConfigButton
+                    jobName="temperature_automation"
+                    displayName="Temperature automation"
+                    automationType="temperature"
+                    unit={unit}
+                    experiment={experiment}
+                    label={label}
+                    configSections={config || {}}
+                  />
+                </Box>
 
                </React.Fragment>
               }
@@ -1084,37 +1095,49 @@ function SettingsActionsDialog({
                   <span dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
                 </Typography>
 
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  variant="contained"
-                  onClick={() => setOpenChangeDosingDialog(true)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
                 >
-                  Start
-                </Button>
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  disabled={true}
-                >
-                  Stop
-                </Button>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      variant="contained"
+                      onClick={() => setOpenChangeDosingDialog(true)}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      disabled
+                    >
+                      Stop
+                    </Button>
+                  </Box>
 
-                <AutomationAdvancedConfigButton
-                  jobName="dosing_automation"
-                  displayName="Dosing automation"
-                  automationType="dosing"
-                  unit={unit}
-                  experiment={experiment}
-                  label={label}
-                  configSections={config || {}}
-                  maxVolume={dosingMaxVolume}
-                  liquidVolume={dosingLiquidVolume}
-                  capacity={modelDetails.reactor_capacity_ml}
-                  threshold={modelDetails.reactor_max_fill_volume_ml}
-                />
+                  <AutomationAdvancedConfigButton
+                    jobName="dosing_automation"
+                    displayName="Dosing automation"
+                    automationType="dosing"
+                    unit={unit}
+                    experiment={experiment}
+                    label={label}
+                    configSections={config || {}}
+                    maxVolume={dosingMaxVolume}
+                    liquidVolume={dosingLiquidVolume}
+                    capacity={modelDetails.reactor_capacity_ml}
+                    threshold={modelDetails.reactor_max_fill_volume_ml}
+                  />
+                </Box>
                </React.Fragment>
               }
             </div>
@@ -1160,33 +1183,45 @@ function SettingsActionsDialog({
                   <span dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
                 </Typography>
 
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  variant="contained"
-                  onClick={() => setOpenChangeLEDDialog(true)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
                 >
-                  Start
-                </Button>
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  disabled={true}
-                >
-                  Stop
-                </Button>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      variant="contained"
+                      onClick={() => setOpenChangeLEDDialog(true)}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      disabled
+                    >
+                      Stop
+                    </Button>
+                  </Box>
 
-                <AutomationAdvancedConfigButton
-                  jobName="led_automation"
-                  displayName="LED automation"
-                  automationType="led"
-                  unit={unit}
-                  experiment={experiment}
-                  label={label}
-                  configSections={config || {}}
-                />
+                  <AutomationAdvancedConfigButton
+                    jobName="led_automation"
+                    displayName="LED automation"
+                    automationType="led"
+                    unit={unit}
+                    experiment={experiment}
+                    label={label}
+                    configSections={config || {}}
+                  />
+                </Box>
                </React.Fragment>
               }
             </div>

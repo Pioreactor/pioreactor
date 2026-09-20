@@ -168,7 +168,7 @@ function ViewYamlSource({ estimatorName, estimator, disabled }) {
         View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>
+        <DialogTitle sx={{ pr: 6 }}>
           YAML description for estimator {estimatorName}
           <IconButton
             aria-label="close"

@@ -43,7 +43,7 @@ def current_utc_datetime() -> datetime:
 
 def current_utc_timestamp() -> str:
     # this is timezone aware.
-    return to_iso_format(current_utc_datetime())
+    return to_iso_format(datetime.now(timezone.utc))
 
 
 def current_utc_datestamp() -> str:

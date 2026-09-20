@@ -44,7 +44,7 @@ def rsync(*args: str) -> None:
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        raise RsyncError(f"rysnc command failed: {e.stderr}") from e
+        raise RsyncError(f"rsync command failed: {e.stderr}") from e
 
 
 def cp_file_across_cluster(
@@ -60,8 +60,8 @@ def cp_file_across_cluster(
             localpath,
             f"{user}@{resolve_to_address(unit)}:{remotepath}",
         )
-    except RsyncError:
-        raise RsyncError(f"Error moving file {localpath} to {unit}:{remotepath}.")
+    except RsyncError as exc:
+        raise RsyncError(f"Error moving file {localpath} to {unit}:{remotepath}: {exc}") from exc
 
 
 def is_using_local_access_point() -> bool:
@@ -182,6 +182,7 @@ def resolve_to_address(hostname: str) -> str:
 
 def add_local(hostname: str) -> str:
     # add_local assumes a working mDNS.
+    hostname = hostname.strip()
     hostname_lower = hostname.lower()
 
     # Check if it's localhost first
@@ -201,4 +202,4 @@ def add_local(hostname: str) -> str:
     if hostname_lower.endswith(".local"):
         return hostname
 
-    return hostname.strip() + ".local"
+    return hostname + ".local"

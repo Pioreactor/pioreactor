@@ -113,7 +113,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
               </Box>
               <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
                 {(startedAt !== "") &&
-                <span>{dayjs(startedAt).format("dddd, MMMM D, h:mm a")}</span>
+                <span>{dayjs(startedAt).format("dddd, MMMM D, YYYY, h:mm a")}</span>
                 }
               </Box>
             </Box>
