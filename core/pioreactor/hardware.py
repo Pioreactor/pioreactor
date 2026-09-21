@@ -11,9 +11,9 @@ from typing import Callable
 from typing import cast
 from typing import TYPE_CHECKING
 
-from msgspec.yaml import decode as yaml_decode
 from msgspec import convert
 from msgspec import Struct
+from msgspec.yaml import decode as yaml_decode
 from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.models import get_registered_models
@@ -149,8 +149,7 @@ def get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int]
 
 class ODHardwareConfig(Struct, forbid_unknown_fields=True):
     driver: str = "photodiodes"
-    bus: int = 1
-    address: int | None = None
+    options: dict[str, Any] = {}
 
 
 def get_od_hardware_config(
@@ -163,10 +162,8 @@ def get_od_hardware_config(
         else get_layered_mod_config_for_model("od", model_name, model_version)
     )
     result = convert(data, type=ODHardwareConfig)
-    if not result.driver or result.bus != 1:
-        raise exc.HardwareError("OD hardware requires a driver name and Pioreactor's I2C bus 1 in od.yaml")
-    if result.driver != "photodiodes" and (result.address is None or not 0x08 <= result.address <= 0x77):
-        raise exc.HardwareError("External OD hardware requires a valid 7-bit I2C address in od.yaml")
+    if not result.driver:
+        raise exc.HardwareError("OD hardware requires a driver name in od.yaml")
     return result
 
 
@@ -180,16 +177,14 @@ def require_photodiodes(operation: str) -> None:
 
 
 def get_required_i2c_addresses_for_model(model_name: str, model_version: str) -> set[int]:
+    """Check built-in hardware only; external drivers check connectivity at startup."""
     od = get_od_hardware_config(model_name, model_version)
     adc_cfg = get_layered_mod_config_for_model("adc", model_name, model_version)
-    addresses = {
+    return {
         int(data["address"])
         for name, data in adc_cfg.items()
         if od.driver == "photodiodes" or not name.startswith("pd")
     }
-    if od.address is not None and od.driver != "photodiodes":
-        addresses.add(od.address)
-    return addresses
 
 
 def check_model_hardware_compatibility(model_name: str, model_version: str) -> dict[str, str]:

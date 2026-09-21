@@ -173,7 +173,7 @@ class RawPDReading(JSONPrintedStruct):
     channel: pt.PdChannel
 
 
-class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
+class CalibratedODReading(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
     od: pt.CalibratedOD
@@ -185,15 +185,16 @@ class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
 class ODDeviceReading(Struct):
     timestamp: datetime
     value: float
+    calibrated: bool = False
 
     def __post_init__(self) -> None:
         if self.timestamp.tzinfo is None:
-            raise ValueError("OD timestamps must include a timezone.")
-        if not math.isfinite(self.value):
-            raise ValueError("OD device returned an invalid observation.")
+            raise ValueError(f"OD timestamps must include a timezone. Saw {self.timestamp}.")
+        if not math.isfinite(self.value) and self.value <= 0:
+            raise ValueError(f"OD device returned an invalid observation: {self.value}.")
 
 
-class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):
+class RawODReading(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
     od: pt.RawOD
@@ -201,23 +202,29 @@ class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):
     ir_led_intensity: float
 
 
-class SensorODReading(JSONPrintedStruct, tag=2, tag_field="calibrated"):
-    """An external backscatter sensor observation, separate from ADC voltages."""
+class ODReading(JSONPrintedStruct):
+    """A published observation, independent of its acquisition hardware."""
 
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     od: float
     channel: pt.PdChannel
-    source: str
-    signal_unit: str
-    angle: t.Literal["0"] = "0"
+    angle: pt.ObservationAngle
+    calibrated: bool
 
 
-ODReading = RawODReading | CalibratedODReading | SensorODReading
+PhotodiodeODReading = RawODReading | CalibratedODReading
 
 
 class ODReadings(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     ods: dict[pt.PdChannel, ODReading]
+
+
+class PhotodiodeODReadings(Struct):
+    """Internal Eye-spy processing batch; richer readings also serve diagnostics."""
+
+    timestamp: datetime
+    ods: dict[pt.PdChannel, PhotodiodeODReading]
 
 
 class Temperature(JSONPrintedStruct):

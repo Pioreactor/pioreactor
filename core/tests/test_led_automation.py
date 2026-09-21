@@ -31,8 +31,8 @@ def make_general_reading_payload(reading_kind: str) -> bytes:
             structs.ODReadings(
                 timestamp=current_utc_datetime(),
                 ods={
-                    "2": structs.RawODReading(
-                        ir_led_intensity=80.0,
+                    "2": structs.ODReading(
+                        calibrated=False,
                         timestamp=current_utc_datetime(),
                         angle="45",
                         od=0.42,

@@ -59,33 +59,33 @@ def test_aggregate_angles_averages_by_angle() -> None:
     readings = structs.ODReadings(
         timestamp=timestamp,
         ods={
-            "1": structs.RawODReading(
+            "1": structs.ODReading(
                 timestamp=timestamp,
                 angle="45",
                 od=1.0,
                 channel="1",
-                ir_led_intensity=1.0,
+                calibrated=False,
             ),
-            "2": structs.RawODReading(
+            "2": structs.ODReading(
                 timestamp=timestamp,
                 angle="45",
                 od=3.0,
                 channel="2",
-                ir_led_intensity=1.0,
+                calibrated=False,
             ),
-            "3": structs.RawODReading(
+            "3": structs.ODReading(
                 timestamp=timestamp,
                 angle="90",
                 od=2.0,
                 channel="3",
-                ir_led_intensity=1.0,
+                calibrated=False,
             ),
-            "4": structs.RawODReading(
+            "4": structs.ODReading(
                 timestamp=timestamp,
                 angle="180",
                 od=9.0,
                 channel="4",
-                ir_led_intensity=1.0,
+                calibrated=False,
             ),
         },
     )

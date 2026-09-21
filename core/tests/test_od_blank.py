@@ -62,12 +62,12 @@ def test_clears_temporary_ir_led_reference_normalization_cache(monkeypatch: pyte
             return structs.ODReadings(
                 timestamp=timestamp,
                 ods={
-                    "2": structs.RawODReading(
+                    "2": structs.ODReading(
                         timestamp=timestamp,
                         angle="90",
                         od=0.2,
                         channel="2",
-                        ir_led_intensity=80.0,
+                        calibrated=False,
                     )
                 },
             )

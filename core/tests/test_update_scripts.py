@@ -202,7 +202,7 @@ def test_od_defaults_preserve_existing_selection(tmp_path: Path) -> None:
     model_root = tmp_path / "models"
     probe = model_root / "pioreactor_40ml/1.5/od.yaml"
     probe.parent.mkdir(parents=True)
-    probe.write_text("driver: turbidvision\nbus: 1\naddress: 0x69\n")
+    probe.write_text("driver: turbidvision\noptions:\n  bus: 1\n  address: 0x69\n")
     install = tmp_path / "install"
     # Exercise real installation, omitting only ownership changes on the development host.
     install.write_text(
@@ -225,7 +225,7 @@ def test_od_defaults_preserve_existing_selection(tmp_path: Path) -> None:
             assert (seed_root / relative).read_text() == "driver: photodiodes\n"
             installed = model_root / relative
             assert installed.read_text() == (
-                "driver: turbidvision\nbus: 1\naddress: 0x69\n"
+                "driver: turbidvision\noptions:\n  bus: 1\n  address: 0x69\n"
                 if installed == probe
                 else "driver: photodiodes\n"
             )

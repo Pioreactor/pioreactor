@@ -78,9 +78,7 @@ def _run_fusion_calibration_preflight() -> dict[pt.PdChannel, pt.PdAngle]:
 def _aggregate_angles(readings: structs.ODReadings) -> dict[pt.PdAngle, float]:
     by_angle: dict[pt.PdAngle, list[float]] = {}
     for reading in readings.ods.values():
-        if isinstance(reading, structs.SensorODReading):
-            raise ValueError("Photodiode fusion cannot use external sensor readings.")
-        angle = reading.angle
+        angle = cast(pt.PdAngle, reading.angle)
         if angle not in FUSION_ANGLES:
             continue
         by_angle.setdefault(angle, []).append(float(reading.od))

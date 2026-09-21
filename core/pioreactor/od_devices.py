@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
 """Acquisition boundary: devices return observations; the OD job publishes them.
 
-External devices return one timestamped value, published on channel 1 at 0 degrees.
+External devices return one timestamped value, published on logical channel 1
+with device-declared geometry.
 Optical-reference correction is device-owned; experiment baseline normalization
 is still owned by Pioreactor's growth model. It must not be applied here.
 """
 from collections.abc import Callable
+from typing import Any
 from typing import Protocol
 
 from pioreactor import exc
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.hardware import ODHardwareConfig
 from pioreactor.logging import CustomLogger
 
 
 class ExternalODDevice(Protocol):
     source: str
-    signal_unit: str
+    angle: pt.ObservationAngle
 
     def start(self) -> None: ...
     def stop(self) -> None: ...
@@ -24,7 +27,7 @@ class ExternalODDevice(Protocol):
     def close(self) -> None: ...
 
 
-type DeviceFactory = Callable[[ODHardwareConfig, CustomLogger], ExternalODDevice]
+type DeviceFactory = Callable[[dict[str, Any], CustomLogger], ExternalODDevice]
 _factories: dict[str, DeviceFactory] = {}
 
 
@@ -45,4 +48,4 @@ def create_od_device(config: ODHardwareConfig, logger: CustomLogger) -> External
         raise exc.HardwareNotFoundError(
             f"OD driver {config.driver!r} is not installed. Install its plugin or correct od.yaml."
         ) from None
-    return factory(config, logger)
+    return factory(config.options, logger)

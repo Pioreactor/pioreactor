@@ -11,6 +11,7 @@ import numpy as np
 import pioreactor.background_jobs.od_reading as od_reading_module
 import pytest
 from msgspec.json import decode
+from msgspec.json import encode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
@@ -99,14 +100,14 @@ def _build_readings_for_concentration(concentration: float) -> dict[pt.PdAngle, 
     return readings
 
 
-def _build_od_readings(readings_by_angle: dict[pt.PdAngle, float]) -> structs.ODReadings:
+def _build_od_readings(readings_by_angle: dict[pt.PdAngle, float]) -> structs.PhotodiodeODReadings:
     timestamp = current_utc_datetime()
     channel_map: dict[pt.PdAngle, pt.PdChannel] = {
         "45": "1",
         "90": "2",
         "135": "3",
     }
-    ods: dict[pt.PdChannel, structs.ODReading] = {}
+    ods: dict[pt.PdChannel, structs.PhotodiodeODReading] = {}
     for angle, reading in readings_by_angle.items():
         channel = channel_map[angle]
         ods[channel] = structs.RawODReading(
@@ -116,7 +117,7 @@ def _build_od_readings(readings_by_angle: dict[pt.PdAngle, float]) -> structs.OD
             channel=channel,
             ir_led_intensity=80.0,
         )
-    return structs.ODReadings(timestamp=timestamp, ods=ods)
+    return structs.PhotodiodeODReadings(timestamp=timestamp, ods=ods)
 
 
 def test_sin_regression_exactly_60hz() -> None:
@@ -1192,7 +1193,7 @@ def test_calibration_not_requested() -> None:
     ) as od:
         assert isinstance(od.device.calibration_transformer, NullCalibrationTransformer)
         ts = current_utc_datetime()
-        x = structs.ODReadings(
+        x = structs.PhotodiodeODReadings(
             timestamp=ts,
             ods={
                 "2": structs.RawODReading(ir_led_intensity=80, od=0.1, angle="90", channel="2", timestamp=ts)
@@ -1200,7 +1201,7 @@ def test_calibration_not_requested() -> None:
         )
         assert od.device.calibration_transformer(x) == x
 
-        y = structs.ODReadings(
+        y = structs.PhotodiodeODReadings(
             timestamp=ts,
             ods={
                 "1": structs.RawODReading(ir_led_intensity=80, od=0.5, angle="90", channel="1", timestamp=ts),
@@ -1214,7 +1215,7 @@ def test_calibration_not_requested() -> None:
 
 def test_cached_blank_transformer_subtracts_blank_from_od_readings() -> None:
     timestamp = current_utc_datetime()
-    od_readings = structs.ODReadings(
+    od_readings = structs.PhotodiodeODReadings(
         timestamp=timestamp,
         ods={
             "1": structs.RawODReading(
@@ -1244,7 +1245,7 @@ def test_cached_blank_transformer_subtracts_blank_from_od_readings() -> None:
 
 def test_cached_blank_transformer_rejects_od_reading_below_blank() -> None:
     timestamp = current_utc_datetime()
-    od_readings = structs.ODReadings(
+    od_readings = structs.PhotodiodeODReadings(
         timestamp=timestamp,
         ods={
             "1": structs.RawODReading(
@@ -1696,8 +1697,8 @@ def test_calibration_with_irl_data1() -> None:
     cc = CachedCalibrationTransformer()
     cc.hydate_models(cal)
 
-    def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
-        return structs.ODReadings(
+    def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.PhotodiodeODReadings:
+        return structs.PhotodiodeODReadings(
             timestamp=current_utc_datetime(),
             ods={
                 ch: structs.RawODReading(
@@ -2299,8 +2300,8 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     cal_transformer = CachedCalibrationTransformer()
     cal_transformer.hydate_models(calibration)
 
-    def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
-        return structs.ODReadings(
+    def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.PhotodiodeODReadings:
+        return structs.PhotodiodeODReadings(
             timestamp=current_utc_datetime(),
             ods={
                 ch: structs.RawODReading(
@@ -2328,8 +2329,8 @@ def test_calibration_trims_to_voltage_extrema() -> None:
     transformer = CachedCalibrationTransformer()
     transformer.hydate_models(calibration)
 
-    def to_od_readings(voltage: float) -> structs.ODReadings:
-        return structs.ODReadings(
+    def to_od_readings(voltage: float) -> structs.PhotodiodeODReadings:
+        return structs.PhotodiodeODReadings(
             timestamp=current_utc_datetime(),
             ods={
                 "2": structs.RawODReading(
@@ -2370,8 +2371,8 @@ def test_calibration_with_misaligned_voltage_and_od_extrema() -> None:
     transformer = CachedCalibrationTransformer()
     transformer.hydate_models(calibration)
 
-    def to_od_readings(voltage: float) -> structs.ODReadings:
-        return structs.ODReadings(
+    def to_od_readings(voltage: float) -> structs.PhotodiodeODReadings:
+        return structs.PhotodiodeODReadings(
             timestamp=current_utc_datetime(),
             ods={
                 "1": structs.RawODReading(
@@ -2498,6 +2499,10 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         assert od_job.od2 is not None
         assert od_job.calibrated_od2 is not None
         assert od_job.raw_od2 is not None
+        assert od_job.od2.calibrated is True
+        assert set(decode(encode(od_job.od2))) == {"timestamp", "od", "channel", "angle", "calibrated"}
+        assert od_job.calibrated_od2.calibration_name == calibration.calibration_name
+        assert od_job.raw_od2.ir_led_intensity == 70
 
     # if no calibration is used:
     with start_photodiode_od_reading(
@@ -2513,6 +2518,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         assert od_job.od2 is not None
         assert od_job.calibrated_od2 is None
         assert od_job.raw_od2 is None
+        assert od_job.od2.calibrated is False
 
 
 def test_raw_published_even_if_calibration_is_bad() -> None:
@@ -2747,7 +2753,7 @@ def test_calibration_failure_clears_previous_od_state(monkeypatch) -> None:
             super().__init__()
             self.calls = 0
 
-        def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings:
+        def __call__(self, batched_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
             self.calls += 1
             if self.calls == 1:
                 return batched_readings
@@ -2786,7 +2792,7 @@ def test_fused_od_is_cleared_when_estimator_returns_none(monkeypatch) -> None:
             super().__init__()
             self.calls = 0
 
-        def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
+        def __call__(self, raw_od_readings: structs.PhotodiodeODReadings) -> structs.ODFused | None:
             self.calls += 1
             if self.calls == 1:
                 return structs.ODFused(od_fused=0.5, timestamp=raw_od_readings.timestamp)
@@ -2874,31 +2880,31 @@ def test_average_over_od_readings_uses_per_channel_counts() -> None:
         structs.ODReadings(
             timestamp=timestamp,
             ods={
-                "1": structs.RawODReading(
+                "1": structs.ODReading(
                     timestamp=timestamp,
                     angle="45",
                     od=1.0,
                     channel="1",
-                    ir_led_intensity=70.0,
+                    calibrated=False,
                 ),
-                "2": structs.RawODReading(
+                "2": structs.ODReading(
                     timestamp=timestamp,
                     angle="90",
                     od=3.0,
                     channel="2",
-                    ir_led_intensity=70.0,
+                    calibrated=False,
                 ),
             },
         ),
         structs.ODReadings(
             timestamp=timestamp,
             ods={
-                "1": structs.RawODReading(
+                "1": structs.ODReading(
                     timestamp=timestamp,
                     angle="45",
                     od=5.0,
                     channel="1",
-                    ir_led_intensity=70.0,
+                    calibrated=False,
                 ),
             },
         ),
@@ -2948,7 +2954,7 @@ def test_photodiode_reader_preserves_callback_order(
             assert job.first_od_obs_time is not None
             events.append("before")
 
-        def read() -> structs.ODReadings:
+        def read() -> structs.PhotodiodeODReadings:
             events.append("read")
             if fail_acquisition:
                 raise exc.CalibrationError("test failure")

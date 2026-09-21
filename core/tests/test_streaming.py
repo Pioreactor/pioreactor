@@ -46,12 +46,12 @@ def test_growth_rate_calculator_stream_preserves_raw_event_order_and_skip_contra
         structs.ODReadings(
             timestamp=timestamp,
             ods={
-                "1": structs.RawODReading(
+                "1": structs.ODReading(
                     timestamp=timestamp,
                     angle="90",
                     od=od,
                     channel="1",
-                    ir_led_intensity=70.0,
+                    calibrated=False,
                 )
             },
         )
@@ -118,12 +118,12 @@ def test_growth_rate_calculator_stream_preserves_fused_od_readings_contract() ->
             reading = next(events)
 
             assert reading.timestamp == timestamp
-            assert reading.ods["1"] == structs.RawODReading(
+            assert reading.ods["1"] == structs.ODReading(
                 timestamp=timestamp,
                 angle="90",
                 od=0.42,
                 channel="1",
-                ir_led_intensity=0.0,
+                calibrated=True,
             )
 
 

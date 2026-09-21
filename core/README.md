@@ -12,8 +12,9 @@ An add-on keeps the unit's existing model identity:
 ```yaml
 # $DOT_PIOREACTOR/hardware/models/<model_name>/<model_version>/od.yaml
 driver: turbidvision
-bus: 1
-address: 0x69
+options:
+  bus: 1
+  address: 0x69
 ```
 
 Future models can ship this file as their hardware default.
@@ -21,24 +22,41 @@ Future models can ship this file as their hardware default.
 ## External device contract
 
 A plugin registers a factory with `pioreactor.od_devices.register_od_device`.
-The factory receives `ODHardwareConfig` and a logger. Its device implements
-`start`, `read`, `stop`, and `close`, and declares `source` and `signal_unit`.
+The factory receives the driver-owned `options` mapping and a logger. The driver
+validates its options before opening hardware and checks connectivity at startup.
+Core validates only the outer `driver`/`options` structure; its I²C compatibility
+check covers built-in hardware, not external devices. Options follow the existing
+HAT → model dictionary merging.
+
+The device implements `start`, `read`, `stop`, and `close`, and declares `source`
+and `angle`. Geometry is fixed for the device lifetime: Turbid Vision declares
+`angle = "0"`; other devices can declare the supported 45°, 90°, 135°, or 180°
+geometries without changing photodiode calibration types.
 
 `read()` returns `None` for no fresh measurement, or:
 
 ```python
 from pioreactor.structs import ODDeviceReading
 
-ODDeviceReading(timestamp=acquisition_time, value=reflectance)
+ODDeviceReading(timestamp=acquisition_time, value=value, calibrated=False)
 ```
 
 The timestamp is a timezone-aware datetime. The value is one consistently
 selected optical signal. Optical-output correction belongs to the device;
 normalization by the experiment's initial reading belongs to Pioreactor's growth
-model. The device does not publish MQTT or provide growth estimates.
+model. `calibrated` describes whether the device applied a calibration to the
+returned value; it does not request another Pioreactor calibration. Select the
+output at startup and keep it fixed through sleep/resume. The device does not
+publish MQTT or provide growth estimates.
 
-External readings use channel 1 and the actual 0° backscatter geometry. There is
-no external channel configuration, multi-output contract, or scheduled-acquisition
+All primary MQTT readings use one `ODReading` shape: `timestamp`, `od`,
+`channel`, `angle`, and `calibrated`. There is no discriminator or hardware-specific
+metadata on `ods` or `od1`–`od4`. The source remains a job setting. Eye-spy keeps
+illumination and calibration-name metadata in its internal processing readings
+and the existing `raw_od*` / `calibrated_od*` diagnostic topics.
+
+External readings use logical channel 1 and the device-declared geometry. There
+is no external channel configuration, multi-output contract, or scheduled-acquisition
 capability. External devices are polled for their latest reading; OD dodging and
 stirring's scheduled-OD avoidance remain specific to Eye-spy.
 
@@ -64,7 +82,7 @@ use the existing photodiode message types, not a generic optional-fields blob.
 External devices never enter this pipeline. Photodiode-specific blanking and
 calibration reject external devices, and photodiode self-tests are omitted.
 
-External MQTT readings include source and units. Existing SQL tables store the
+The OD job publishes its source separately. Existing SQL tables store the
 value and angle. The upcoming update adds `angle` to `raw_od_readings`. The chart
 preserves small reflectance values. Growth processing uses `ods`, rather than photodiode fusion, for the
 external device. When switching hardware, start a new experiment or clear its

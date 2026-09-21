@@ -76,12 +76,12 @@ def test_mqtt_fetches() -> None:
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(
-            structs.RawODReading(
+            structs.ODReading(
                 timestamp=datetime.now(UTC),
                 angle="90",
                 od=1.2,
                 channel="2",
-                ir_led_intensity=90,
+                calibrated=False,
             )
         ),
         retain=True,
@@ -144,12 +144,12 @@ def test_mqtt_fetches_with_env() -> None:
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(
-            structs.RawODReading(
+            structs.ODReading(
                 timestamp=datetime.now(UTC),
                 angle="90",
                 od=1.2,
                 channel="2",
-                ir_led_intensity=80,
+                calibrated=False,
             )
         ),
         retain=True,
@@ -230,12 +230,12 @@ def test_mqtt_fetches_with_calculations() -> None:
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(
-            structs.RawODReading(
+            structs.ODReading(
                 timestamp=datetime.now(UTC),
                 angle="90",
                 od=1.2,
                 channel="2",
-                ir_led_intensity=80,
+                calibrated=False,
             )
         ),
         retain=True,

@@ -189,12 +189,12 @@ class GrowthRateCalculator(BackgroundJob):
                     yield structs.ODReadings(
                         timestamp=fused.timestamp,
                         ods={
-                            FUSED_PD_CHANNEL: structs.RawODReading(
+                            FUSED_PD_CHANNEL: structs.ODReading(
                                 timestamp=fused.timestamp,
                                 angle=FUSED_PD_ANGLE,
                                 od=fused.od_fused,
                                 channel=FUSED_PD_CHANNEL,
-                                ir_led_intensity=0.0,
+                                calibrated=True,
                             )
                         },
                     )

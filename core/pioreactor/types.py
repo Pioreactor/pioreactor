@@ -104,6 +104,7 @@ type PdChannel = t.Literal["1", "2", "3", "4"]
 type PwmChannel = t.Literal["1", "2", "3", "4", "5"]
 
 type PdAngle = t.Literal["45", "90", "135", "180"]
+type ObservationAngle = PdAngle | t.Literal["0"]
 type PdAngleOrREF = PdAngle | t.Literal["REF"]
 
 # hardware level stuff

@@ -164,22 +164,13 @@ def average_over_od_readings(*multiple_od_readings: structs.ODReadings) -> struc
     for channel, value in summed_pd_channel_to_od.items():
         original = reference_reading.ods[channel]
         mean = value / counts_by_channel[channel]
-        if isinstance(original, structs.SensorODReading):
-            averaged[channel] = structs.SensorODReading(
-                timestamp=timestamp,
-                channel=channel,
-                od=mean,
-                source=original.source,
-                signal_unit=original.signal_unit,
-            )
-        else:
-            averaged[channel] = structs.RawODReading(
-                timestamp=timestamp,
-                channel=channel,
-                od=mean,
-                angle=original.angle,
-                ir_led_intensity=original.ir_led_intensity,
-            )
+        averaged[channel] = structs.ODReading(
+            timestamp=timestamp,
+            channel=channel,
+            od=mean,
+            angle=original.angle,
+            calibrated=original.calibrated,
+        )
     return structs.ODReadings(timestamp=timestamp, ods=averaged)
 
 
@@ -880,7 +871,7 @@ class HydratedCalibrationModel:
         self,
         calibration_name: str,
         calibrate_signal: Callable[[pt.Voltage], pt.OD],
-        verify_reading: Callable[[structs.ODReading], bool],
+        verify_reading: Callable[[structs.PhotodiodeODReading], bool],
     ) -> None:
         self.calibration_name = calibration_name
         self._calibrate_signal = calibrate_signal
@@ -889,7 +880,7 @@ class HydratedCalibrationModel:
     def __call__(self, observed_voltage: pt.Voltage) -> pt.OD:
         return self._calibrate_signal(observed_voltage)
 
-    def verify(self, od_reading: structs.ODReading) -> bool:
+    def verify(self, od_reading: structs.PhotodiodeODReading) -> bool:
         return self._verify_reading(od_reading)
 
 
@@ -898,7 +889,7 @@ class CalibrationTransformerProtocol(Protocol):
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None: ...
 
-    def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings: ...
+    def __call__(self, batched_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings: ...
 
 
 class EstimatorTransformerProtocol(Protocol):
@@ -906,7 +897,7 @@ class EstimatorTransformerProtocol(Protocol):
 
     def hydrate_estimator(self, estimator: structs.ODFusionEstimator | None) -> None: ...
 
-    def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None: ...
+    def __call__(self, raw_od_readings: structs.PhotodiodeODReadings) -> structs.ODFused | None: ...
 
 
 class BlankTransformerProtocol(Protocol):
@@ -914,7 +905,7 @@ class BlankTransformerProtocol(Protocol):
 
     def hydrate(self, experiment: pt.Experiment) -> None: ...
 
-    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings: ...
+    def __call__(self, od_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings: ...
 
 
 class NullBlankTransformer(LoggerMixin, BlankTransformerProtocol):
@@ -927,7 +918,7 @@ class NullBlankTransformer(LoggerMixin, BlankTransformerProtocol):
     def hydrate(self, experiment: pt.Experiment) -> None:
         return
 
-    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
+    def __call__(self, od_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
         return od_readings
 
 
@@ -956,14 +947,12 @@ class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
         if self.od_blank is not None:
             self.logger.debug(f"Using per-experiment OD blank correction: {self.od_blank}")
 
-    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
+    def __call__(self, od_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
         if not self.od_blank:
             return od_readings
 
-        blank_corrected_ods: dict[pt.PdChannel, structs.ODReading] = {}
+        blank_corrected_ods: dict[pt.PdChannel, structs.PhotodiodeODReading] = {}
         for channel, od_reading in od_readings.ods.items():
-            if isinstance(od_reading, structs.SensorODReading):
-                raise ValueError("Photodiode blanks cannot be applied to external sensor readings.")
             blank_value = self.od_blank.get(channel, 0.0)
             blank_corrected_od = od_reading.od - blank_value
             if blank_corrected_od < 0:
@@ -981,7 +970,7 @@ class CachedBlankTransformer(LoggerMixin, BlankTransformerProtocol):
                 ir_led_intensity=od_reading.ir_led_intensity,
             )
 
-        return structs.ODReadings(timestamp=od_readings.timestamp, ods=blank_corrected_ods)
+        return structs.PhotodiodeODReadings(timestamp=od_readings.timestamp, ods=blank_corrected_ods)
 
 
 class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
@@ -994,7 +983,7 @@ class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
         return
 
-    def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings:
+    def __call__(self, batched_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
         return batched_readings
 
 
@@ -1033,14 +1022,10 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
                     "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
                 )
 
-        def _verify(od_reading: structs.ODReading) -> bool:
+        def _verify(od_reading: structs.PhotodiodeODReading) -> bool:
             """
             Verify that the OD reading is within the expected bounds of the calibration.
             """
-            if isinstance(od_reading, structs.SensorODReading):
-                raise exc.CalibrationError(
-                    "Photodiode calibration cannot be applied to external sensor readings."
-                )
             if od_reading.ir_led_intensity != calibration_data.ir_led_intensity:
                 raise exc.CalibrationError(
                     f"IR LED intensity {od_reading.ir_led_intensity} does not match calibration {calibration_data.ir_led_intensity} for channel {od_reading.channel}."
@@ -1111,15 +1096,11 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
             return True
         return False
 
-    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
-        calibrated_od_readings = structs.ODReadings(ods={}, timestamp=od_readings.timestamp)
+    def __call__(self, od_readings: structs.PhotodiodeODReadings) -> structs.PhotodiodeODReadings:
+        calibrated_od_readings = structs.PhotodiodeODReadings(ods={}, timestamp=od_readings.timestamp)
         for channel in od_readings.ods:
             if channel in self.models:  # calibration exists
                 raw_od = od_readings.ods[channel]
-                if isinstance(raw_od, structs.SensorODReading):
-                    raise exc.CalibrationError(
-                        "Photodiode calibration cannot be applied to external sensor readings."
-                    )
 
                 # check if everything is okay - blows up if not.
                 self.models[channel].verify(raw_od)
@@ -1148,7 +1129,7 @@ class NullEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
     def hydrate_estimator(self, estimator: structs.ODFusionEstimator | None) -> None:
         return
 
-    def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
+    def __call__(self, raw_od_readings: structs.PhotodiodeODReadings) -> structs.ODFused | None:
         return None
 
 
@@ -1166,19 +1147,17 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
             return
         self.estimator = estimator
 
-    def _verify(self, raw_od_readings: structs.ODReadings) -> None:
+    def _verify(self, raw_od_readings: structs.PhotodiodeODReadings) -> None:
         if self.estimator is None:
             return
 
         for od_reading in raw_od_readings.ods.values():
-            if isinstance(od_reading, structs.SensorODReading):
-                raise exc.EstimatorError("Photodiode fusion cannot be applied to external sensor readings.")
             if od_reading.ir_led_intensity != self.estimator.ir_led_intensity:
                 raise exc.EstimatorError(
                     f"IR LED intensity {od_reading.ir_led_intensity} does not match estimator {self.estimator.ir_led_intensity} for channel {od_reading.channel}."
                 )
 
-    def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
+    def __call__(self, raw_od_readings: structs.PhotodiodeODReadings) -> structs.ODFused | None:
         if self.estimator is None:
             return None
 
@@ -1222,12 +1201,11 @@ class PhotodiodeODDevice(LoggerMixin):
 
     # Borrowed from ODReader before start(); the job owns its lifecycle.
     pub_client: Client
-    raw_readings: structs.ODReadings | None = None
+    raw_readings: structs.PhotodiodeODReadings | None = None
     od_fused: structs.ODFused | None = None
 
     job_name = "od_reading"
     source = "photodiodes"
-    signal_unit = "V"
 
     def __init__(
         self,
@@ -1493,7 +1471,7 @@ class PhotodiodeODDevice(LoggerMixin):
             )
             raise KeyError("`IR` value not found in section.")
 
-    def _read_from_adc(self) -> structs.ODReadings:
+    def _read_from_adc(self) -> structs.PhotodiodeODReadings:
         """
         Read from the ADC. This function normalizes by the IR ref.
 
@@ -1515,7 +1493,7 @@ class PhotodiodeODDevice(LoggerMixin):
             )
 
         ts = timing.current_utc_datetime()
-        raw_od_readings = structs.ODReadings(
+        raw_od_readings = structs.PhotodiodeODReadings(
             timestamp=ts,
             ods={
                 pd: structs.RawODReading(
@@ -1531,7 +1509,7 @@ class PhotodiodeODDevice(LoggerMixin):
 
         return raw_od_readings
 
-    def read(self) -> structs.ODReadings:
+    def read(self) -> structs.PhotodiodeODReadings:
         self.raw_readings = None
         # OD owns all LED writes through measurement and restoration. Unlocking before IR-off would
         # let a camera cleanup overwrite OD illumination or leave IR in a non-idle state.
@@ -1589,7 +1567,6 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
         "od3": {"datatype": "ODReading", "settable": False},
         "od4": {"datatype": "ODReading", "settable": False},
         "source": {"datatype": "string", "settable": False},
-        "signal_unit": {"datatype": "string", "settable": False},
         "acquisition": {"datatype": "string", "settable": False},
     }
     ods: structs.ODReadings | None = None
@@ -1612,7 +1589,6 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
             setattr(self, f"od{channel}", None)
         self.device: DeviceT = device_factory()
         self.source = self.device.source
-        self.signal_unit = self.device.signal_unit
         self.pre_read_callbacks = self._prepare_pre_callbacks()
         self.post_read_callbacks = self._prepare_post_callbacks()
         self.initialize_device()
@@ -1767,12 +1743,12 @@ class ExternalODReader(ODReader[ExternalODDevice]):
         return structs.ODReadings(
             timestamp=reading.timestamp,
             ods={
-                "1": structs.SensorODReading(
+                "1": structs.ODReading(
                     timestamp=reading.timestamp,
                     od=reading.value,
                     channel="1",
-                    source=self.source,
-                    signal_unit=self.signal_unit,
+                    angle=self.device.angle,
+                    calibrated=reading.calibrated,
                 ),
             },
         )
@@ -1788,14 +1764,14 @@ class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
         "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "relative_intensity_of_ir_led": {"datatype": "json", "settable": False},
         # below are only used if a calibration is used
-        "raw_od1": {"datatype": "ODReading", "settable": False},
-        "raw_od2": {"datatype": "ODReading", "settable": False},
-        "raw_od3": {"datatype": "ODReading", "settable": False},
-        "raw_od4": {"datatype": "ODReading", "settable": False},
-        "calibrated_od1": {"datatype": "ODReading", "settable": False},
-        "calibrated_od2": {"datatype": "ODReading", "settable": False},
-        "calibrated_od3": {"datatype": "ODReading", "settable": False},
-        "calibrated_od4": {"datatype": "ODReading", "settable": False},
+        "raw_od1": {"datatype": "RawODReading", "settable": False},
+        "raw_od2": {"datatype": "RawODReading", "settable": False},
+        "raw_od3": {"datatype": "RawODReading", "settable": False},
+        "raw_od4": {"datatype": "RawODReading", "settable": False},
+        "calibrated_od1": {"datatype": "CalibratedODReading", "settable": False},
+        "calibrated_od2": {"datatype": "CalibratedODReading", "settable": False},
+        "calibrated_od3": {"datatype": "CalibratedODReading", "settable": False},
+        "calibrated_od4": {"datatype": "CalibratedODReading", "settable": False},
         # below are used if a sensor fusion is used
         "od_fused": {"datatype": "ODFused", "settable": False},
     }
@@ -1840,9 +1816,21 @@ class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
                     setattr(self, f"raw_od{channel}", raw)
             raise
         self.publish_photodiode_diagnostics(readings)
-        return readings
+        return structs.ODReadings(
+            timestamp=readings.timestamp,
+            ods={
+                channel: structs.ODReading(
+                    timestamp=reading.timestamp,
+                    od=reading.od,
+                    channel=reading.channel,
+                    angle=reading.angle,
+                    calibrated=isinstance(reading, structs.CalibratedODReading),
+                )
+                for channel, reading in readings.ods.items()
+            },
+        )
 
-    def publish_photodiode_diagnostics(self, readings: structs.ODReadings) -> None:
+    def publish_photodiode_diagnostics(self, readings: structs.PhotodiodeODReadings) -> None:
         device = self.device
         assert device.raw_readings is not None
         for channel, reading in readings.ods.items():

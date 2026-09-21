@@ -83,8 +83,8 @@ def publish_turbidostat_observations(
             structs.ODReadings(
                 timestamp=current_utc_datetime(),
                 ods={
-                    channel: structs.RawODReading(
-                        ir_led_intensity=80.0,
+                    channel: structs.ODReading(
+                        calibrated=False,
                         timestamp=current_utc_datetime(),
                         angle=angle,
                         od=raw_od,
@@ -203,8 +203,8 @@ def test_silent_automation_updates_cached_readings_without_dosing() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.05,
@@ -234,8 +234,8 @@ def test_silent_automation_updates_cached_readings_without_dosing() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.06,
@@ -286,8 +286,8 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.05,
@@ -313,8 +313,8 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.06,
@@ -345,8 +345,8 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.065,
@@ -377,8 +377,8 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.04,
@@ -537,8 +537,8 @@ def test_turbidostat_ignores_unselected_biomass_signal_updates(monkeypatch) -> N
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=2.0,
@@ -941,8 +941,8 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.05,
@@ -960,8 +960,8 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.250,
@@ -984,8 +984,8 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.500,
@@ -1008,8 +1008,8 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.RawODReading(
-                            ir_led_intensity=80.0,
+                        "2": structs.ODReading(
+                            calibrated=False,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.100,

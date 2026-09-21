@@ -39,7 +39,7 @@ from pioreactor.mureq import Response
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.structs import RawODReading
+from pioreactor.structs import ODReading
 from pioreactor.utils.timing import current_utc_datetime
 from tests.conftest import capture_requests
 
@@ -1373,12 +1373,12 @@ def test_execute_experiment_profile_when_action_simple(
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
         encode(
-            RawODReading(
+            ODReading(
                 od=2.5,
                 angle="90",
                 timestamp=current_utc_datetime(),
                 channel="1",
-                ir_led_intensity=80,
+                calibrated=False,
             )
         ),
         retain=True,
@@ -1475,12 +1475,12 @@ def test_execute_experiment_profile_when_action_with_if(
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
         encode(
-            RawODReading(
+            ODReading(
                 od=2.5,
                 angle="90",
                 timestamp=current_utc_datetime(),
                 channel="1",
-                ir_led_intensity=80,
+                calibrated=False,
             )
         ),
         retain=True,
