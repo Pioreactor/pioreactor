@@ -32,7 +32,7 @@ def make_general_reading_payload(reading_kind: str) -> bytes:
                 timestamp=current_utc_datetime(),
                 ods={
                     "2": structs.ODReading(
-                        calibrated=False,
+                        calibrated=0,
                         timestamp=current_utc_datetime(),
                         angle="45",
                         od=0.42,

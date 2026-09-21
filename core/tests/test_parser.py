@@ -81,7 +81,7 @@ def test_mqtt_fetches() -> None:
                 angle="90",
                 od=1.2,
                 channel="2",
-                calibrated=False,
+                calibrated=0,
             )
         ),
         retain=True,
@@ -149,7 +149,7 @@ def test_mqtt_fetches_with_env() -> None:
                 angle="90",
                 od=1.2,
                 channel="2",
-                calibrated=False,
+                calibrated=0,
             )
         ),
         retain=True,
@@ -235,7 +235,7 @@ def test_mqtt_fetches_with_calculations() -> None:
                 angle="90",
                 od=1.2,
                 channel="2",
-                calibrated=False,
+                calibrated=0,
             )
         ),
         retain=True,

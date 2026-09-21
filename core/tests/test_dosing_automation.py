@@ -84,7 +84,7 @@ def publish_turbidostat_observations(
                 timestamp=current_utc_datetime(),
                 ods={
                     channel: structs.ODReading(
-                        calibrated=False,
+                        calibrated=0,
                         timestamp=current_utc_datetime(),
                         angle=angle,
                         od=raw_od,
@@ -204,7 +204,7 @@ def test_silent_automation_updates_cached_readings_without_dosing() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.05,
@@ -235,7 +235,7 @@ def test_silent_automation_updates_cached_readings_without_dosing() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.06,
@@ -287,7 +287,7 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.05,
@@ -314,7 +314,7 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.06,
@@ -346,7 +346,7 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.065,
@@ -378,7 +378,7 @@ def test_turbidostat_doses_when_normalized_od_reaches_or_exceeds_target(monkeypa
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.04,
@@ -538,7 +538,7 @@ def test_turbidostat_ignores_unselected_biomass_signal_updates(monkeypatch) -> N
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=2.0,
@@ -942,7 +942,7 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.05,
@@ -961,7 +961,7 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.250,
@@ -985,7 +985,7 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.500,
@@ -1009,7 +1009,7 @@ def test_turbidostat_doses_when_raw_od_reaches_or_exceeds_target(monkeypatch) ->
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            calibrated=False,
+                            calibrated=0,
                             timestamp=current_utc_datetime(),
                             angle="45",
                             od=0.100,

@@ -40,7 +40,7 @@ def create_od_raw_batched(channels, voltages: list[float], angles, timestamp: st
     for channel, voltage, angle in zip(channels, voltages, angles):
         assert int(channel) in (1, 2)
         readings.ods[channel] = structs.ODReading(
-            od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel, calibrated=False
+            od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel, calibrated=0
         )
 
     return readings
@@ -404,7 +404,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                                 "angle": "90",
                                 "timestamp": "2021-06-06T15:08:12.081153Z",
                                 "channel": "1",
-                                "calibrated": False,
+                                "calibrated": 0,
                             }
                         },
                         "timestamp": "2021-06-06T15:08:12.081153Z",

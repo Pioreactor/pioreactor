@@ -1378,7 +1378,7 @@ def test_execute_experiment_profile_when_action_simple(
                 angle="90",
                 timestamp=current_utc_datetime(),
                 channel="1",
-                calibrated=False,
+                calibrated=0,
             )
         ),
         retain=True,
@@ -1480,7 +1480,7 @@ def test_execute_experiment_profile_when_action_with_if(
                 angle="90",
                 timestamp=current_utc_datetime(),
                 channel="1",
-                calibrated=False,
+                calibrated=0,
             )
         ),
         retain=True,

@@ -194,7 +194,7 @@ class GrowthRateCalculator(BackgroundJob):
                                 angle=FUSED_PD_ANGLE,
                                 od=fused.od_fused,
                                 channel=FUSED_PD_CHANNEL,
-                                calibrated=True,
+                                calibrated=1,
                             )
                         },
                     )

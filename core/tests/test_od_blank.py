@@ -67,7 +67,7 @@ def test_clears_temporary_ir_led_reference_normalization_cache(monkeypatch: pyte
                         angle="90",
                         od=0.2,
                         channel="2",
-                        calibrated=False,
+                        calibrated=0,
                     )
                 },
             )

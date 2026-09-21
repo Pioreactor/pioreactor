@@ -195,7 +195,7 @@ class StreamODReadingsFromExport:
                 channel=line["channel"],
                 timestamp=dt,
                 od=float(line["od_reading"]),
-                calibrated=False,
+                calibrated=0,
             )
             ods = ODReadings(timestamp=dt, ods={"2": od})
             yield ods

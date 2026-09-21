@@ -1748,7 +1748,7 @@ class ExternalODReader(ODReader[ExternalODDevice]):
                     od=reading.value,
                     channel="1",
                     angle=self.device.angle,
-                    calibrated=reading.calibrated,
+                    calibrated=1 if reading.calibrated else 0,
                 ),
             },
         )
@@ -1824,7 +1824,7 @@ class PhotodiodeODReader(ODReader[PhotodiodeODDevice]):
                     od=reading.od,
                     channel=reading.channel,
                     angle=reading.angle,
-                    calibrated=isinstance(reading, structs.CalibratedODReading),
+                    calibrated=1 if isinstance(reading, structs.CalibratedODReading) else 0,
                 )
                 for channel, reading in readings.ods.items()
             },

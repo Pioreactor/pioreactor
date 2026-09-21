@@ -51,7 +51,7 @@ def test_growth_rate_calculator_stream_preserves_raw_event_order_and_skip_contra
                     angle="90",
                     od=od,
                     channel="1",
-                    calibrated=False,
+                    calibrated=0,
                 )
             },
         )
@@ -123,7 +123,7 @@ def test_growth_rate_calculator_stream_preserves_fused_od_readings_contract() ->
                 angle="90",
                 od=0.42,
                 channel="1",
-                calibrated=True,
+                calibrated=1,
             )
 
 

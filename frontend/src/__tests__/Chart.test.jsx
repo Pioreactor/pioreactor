@@ -115,7 +115,7 @@ test.each([false, true].flatMap((historical) => [0, 45, 90, 135, 180].map((angle
   if (!historical) {
     const callback = subscribeToTopic.mock.calls.at(-1)[1];
     act(() => callback("pioreactor/unit1/exp1/od_reading/od1", JSON.stringify({
-      calibrated: false, od: 7.45279e-7, angle: String(angle), timestamp: "2026-09-01T01:00:00Z",
+      calibrated: 0, od: 7.45279e-7, angle: String(angle), timestamp: "2026-09-01T01:00:00Z",
     }), { retain: false }));
   }
   await waitFor(() => expect(screen.getByTestId("series-data").textContent).toContain("7.45279e-7"));

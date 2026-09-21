@@ -2499,7 +2499,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         assert od_job.od2 is not None
         assert od_job.calibrated_od2 is not None
         assert od_job.raw_od2 is not None
-        assert od_job.od2.calibrated is True
+        assert od_job.od2.calibrated == 1
         assert set(decode(encode(od_job.od2))) == {"timestamp", "od", "channel", "angle", "calibrated"}
         assert od_job.calibrated_od2.calibration_name == calibration.calibration_name
         assert od_job.raw_od2.ir_led_intensity == 70
@@ -2518,7 +2518,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         assert od_job.od2 is not None
         assert od_job.calibrated_od2 is None
         assert od_job.raw_od2 is None
-        assert od_job.od2.calibrated is False
+        assert od_job.od2.calibrated == 0
 
 
 def test_raw_published_even_if_calibration_is_bad() -> None:
@@ -2885,14 +2885,14 @@ def test_average_over_od_readings_uses_per_channel_counts() -> None:
                     angle="45",
                     od=1.0,
                     channel="1",
-                    calibrated=False,
+                    calibrated=0,
                 ),
                 "2": structs.ODReading(
                     timestamp=timestamp,
                     angle="90",
                     od=3.0,
                     channel="2",
-                    calibrated=False,
+                    calibrated=0,
                 ),
             },
         ),
@@ -2904,7 +2904,7 @@ def test_average_over_od_readings_uses_per_channel_counts() -> None:
                     angle="45",
                     od=5.0,
                     channel="1",
-                    calibrated=False,
+                    calibrated=0,
                 ),
             },
         ),

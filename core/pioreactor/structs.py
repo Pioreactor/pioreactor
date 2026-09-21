@@ -190,7 +190,7 @@ class ODDeviceReading(Struct):
     def __post_init__(self) -> None:
         if self.timestamp.tzinfo is None:
             raise ValueError(f"OD timestamps must include a timezone. Saw {self.timestamp}.")
-        if not math.isfinite(self.value) and self.value <= 0:
+        if not math.isfinite(self.value) or self.value <= 0:
             raise ValueError(f"OD device returned an invalid observation: {self.value}.")
 
 
@@ -209,7 +209,7 @@ class ODReading(JSONPrintedStruct):
     od: float
     channel: pt.PdChannel
     angle: pt.ObservationAngle
-    calibrated: bool
+    calibrated: t.Literal[0, 1]
 
 
 PhotodiodeODReading = RawODReading | CalibratedODReading

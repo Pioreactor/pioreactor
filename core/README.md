@@ -50,7 +50,9 @@ output at startup and keep it fixed through sleep/resume. The device does not
 publish MQTT or provide growth estimates.
 
 All primary MQTT readings use one `ODReading` shape: `timestamp`, `od`,
-`channel`, `angle`, and `calibrated`. There is no discriminator or hardware-specific
+`channel`, `angle`, and `calibrated` (`0` for uncalibrated, `1` for calibrated).
+The integer flag is an ordinary field, preserving the existing MQTT encoding.
+There is no discriminator or hardware-specific
 metadata on `ods` or `od1`–`od4`. The source remains a job setting. Eye-spy keeps
 illumination and calibration-name metadata in its internal processing readings
 and the existing `raw_od*` / `calibrated_od*` diagnostic topics.

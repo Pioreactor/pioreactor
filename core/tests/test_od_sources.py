@@ -34,6 +34,44 @@ def external_source(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     return reader
 
 
+@pytest.mark.parametrize("calibrated", [0, 1])
+def test_develop_od_payload_decodes_with_integer_calibration_flag(calibrated: int) -> None:
+    payload = {
+        "timestamp": "2026-09-01T01:00:00Z",
+        "od": 0.42,
+        "channel": "1",
+        "angle": "90",
+        "calibrated": calibrated,
+        "ir_led_intensity": 70.0,
+    }
+    if calibrated:
+        payload["calibration_name"] = "test_calibration"
+    reading = decode(encode(payload), type=structs.ODReading)
+    batch = decode(
+        encode({"timestamp": payload["timestamp"], "ods": {"1": payload}}), type=structs.ODReadings
+    )
+    assert batch.ods["1"] == reading
+    published = decode(encode(reading))
+    assert type(published["calibrated"]) is int
+    assert published["calibrated"] == calibrated
+    assert set(published) == {"timestamp", "od", "channel", "angle", "calibrated"}
+
+
+@pytest.mark.parametrize("calibrated", [2, -1, True, False])
+def test_od_payload_rejects_invalid_calibration_flag(calibrated: int | bool) -> None:
+    from msgspec import ValidationError
+
+    payload = {
+        "timestamp": "2026-09-01T01:00:00Z",
+        "od": 0.42,
+        "channel": "1",
+        "angle": "90",
+        "calibrated": calibrated,
+    }
+    with pytest.raises(ValidationError):
+        decode(encode(payload), type=structs.ODReading)
+
+
 def test_external_source_uses_native_job_without_photodiodes(
     external_source: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -141,7 +179,7 @@ def test_sensor_geometry_round_trips_through_existing_od_table(angle: pt.Observa
         od=7.45279e-7,
         channel="1",
         angle=angle,
-        calibrated=False,
+        calibrated=0,
     )
     row = parse_od("pioreactor/unit/experiment/od_reading/od1", encode(reading))
     assert row["angle"] == int(angle)
@@ -177,7 +215,7 @@ def test_external_geometry_survives_publication_and_averaging(
         assert set(decoded.ods) == {"1"}
         assert decoded.ods["1"].angle == angle
         assert isinstance(decoded.ods["1"], structs.ODReading)
-        assert decoded.ods["1"].calibrated is calibrated
+        assert decoded.ods["1"].calibrated == int(calibrated)
         assert set(decode(encode(reading))["ods"]["1"]) == {
             "timestamp",
             "od",
@@ -188,7 +226,7 @@ def test_external_geometry_survives_publication_and_averaging(
         averaged = average_over_od_readings(decoded, decoded).ods["1"]
         assert averaged.angle == angle
         assert isinstance(averaged, structs.ODReading)
-        assert averaged.calibrated is calibrated
+        assert averaged.calibrated == int(calibrated)
 
 
 def test_non_i2c_driver_receives_its_options(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -312,7 +350,7 @@ def test_cli_probe_snapshot_uses_configured_hardware(
     from pioreactor.background_jobs.od_reading import click_od_reading
 
     click_od_reading.callback(fake_data=False, interval=None, ir_led_intensity=None, snapshot=True)
-    assert decode(capsys.readouterr().out)["ods"]["1"]["calibrated"] is False
+    assert decode(capsys.readouterr().out)["ods"]["1"]["calibrated"] == 0
     external_source.start.assert_called_once()
     external_source.close.assert_called_once()
 
