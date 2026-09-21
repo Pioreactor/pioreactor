@@ -90,8 +90,8 @@ export function getPioreactorCardBioreactorTopics({
 export function ButtonStopProcess({ experiment, unit = "$broadcast", disabled = false }) {
   const confirm = useConfirm();
   const description = unit === "$broadcast"
-    ? "This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment. Do you wish to continue?"
-    : `This will immediately stop all running activities on ${unit}, and any experiment profiles running for this experiment on this Pioreactor. Do you wish to continue?`;
+    ? "This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment."
+    : `This will immediately stop all running activities on ${unit}, and any experiment profiles running for this experiment on this Pioreactor.`;
 
   const handleClick = () => {
     confirm({
@@ -173,7 +173,6 @@ export function CalibrateDialog({
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(() => setTabValue(0), 200);
   };
 
   function createUserButtonsBasedOnState(jobState, job, alwaysDisable = false) {

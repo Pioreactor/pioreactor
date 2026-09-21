@@ -102,7 +102,7 @@ function RunExperimentProfilesContent({
 
   const deleteProfile = () => {
     confirm({
-      title: `Are you sure you wish to delete this profile?`,
+      title: `Delete this profile?`,
       description: "This action is permanent.",
       confirmationText: "Delete",
       confirmationButtonProps: { color: "primary", variant: "contained" },

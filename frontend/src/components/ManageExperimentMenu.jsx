@@ -112,7 +112,7 @@ export default function ManageExperimentMenu({experiment}){
 
   const handleEndExperiment = () => {
     confirm({
-      description: 'This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?',
+      description: 'This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment.',
       title: "End experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
@@ -129,7 +129,7 @@ export default function ManageExperimentMenu({experiment}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. This may take a while if your database is larger, too. Do you wish to continue?',
+        description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. This may take a while if your database is larger, too.',
         title: "Delete experiment?",
         confirmationText: "Confirm",
         confirmationButtonProps: {color: "primary", variant: "contained"},

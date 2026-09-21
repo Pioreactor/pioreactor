@@ -251,7 +251,7 @@ function ExperimentsContainer(props) {
   const handleEndExperiment = async (experiment) => {
     await confirm({
       description:
-        "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?",
+        "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment.",
       title: "End experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: { color: "primary", variant: "contained" },
@@ -277,7 +277,7 @@ function ExperimentsContainer(props) {
   const handleDeleteExperiment = async (experiment) => {
     await confirm({
       description:
-        "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?",
+        "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors.",
       title: "Delete experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: { color: "primary", variant: "contained" },

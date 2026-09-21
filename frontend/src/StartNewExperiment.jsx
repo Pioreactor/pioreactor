@@ -233,7 +233,6 @@ function ExperimentSummaryForm(props) {
             <TextField
               label="Description (optional - can be edited later)"
               rows={2}
-              placeholder="Add a description. This description can be changed later."
               multiline
               value={description}
               sx={{mt: 0, mb: 2, width: "100%"}}

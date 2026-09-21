@@ -238,9 +238,6 @@ export default function CapabilitiesPanel() {
 
   return (
       <>
-        <Typography variant="body2"  sx={{mb: 1}}>
-          Browse jobs and automations available across your cluster.
-        </Typography>
         <TextField
           size="small"
           label="Search jobs and automations"

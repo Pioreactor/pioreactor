@@ -158,7 +158,7 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
     let confirmed = false;
     try {
       await confirm({
-        description: 'Deleting this calibration will remove it from disk. This is irreversible. Do you wish to continue?',
+        description: 'Deleting this calibration will remove it from disk. This is irreversible.',
         title: `Delete calibration ${calibrationName}?`,
         confirmationText: "Confirm",
         confirmationButtonProps: {color: "primary", variant: "contained"},

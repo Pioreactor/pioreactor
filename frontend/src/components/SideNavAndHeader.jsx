@@ -723,8 +723,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                   support@pioreactor.com
                 </MuiLink>.
                 <br/>
-                It's especially helpful if you can provide your software version (found on the Inventory page, model version, and any screenshots in the email, too.
-                .
+                It's helpful if you can provide your software version and hardware model too.
               </Typography>
             </Stack>
           </Stack>

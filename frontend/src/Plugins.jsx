@@ -961,12 +961,6 @@ function PluginContainer() {
       />
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <p>
-            Discover, install, and manage Pioreactor plugins. These
-            plugins can provide new functionalities for your Pioreactor (additional hardware may be
-            necessary), or new automations to control dosing, temperature and LED tasks.
-          </p>
-
           <Typography variant="h6" component="h2">
             {targetIsRealUnit ? `Installed plugins on ${selectedTarget}` : "Installed plugins"}
           </Typography>

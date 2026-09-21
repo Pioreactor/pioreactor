@@ -709,7 +709,6 @@ function SettingsActionsDialog({
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(()=> setTabValue(0), 200) // we put a timeout here so the switching tabs doesn't occur during the close transition.
   };
 
   const handleSnackbarClose = (e, reason) => {
@@ -1773,7 +1772,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(()=> setTabValue(0), 200) // we put a timeout here so the switching tabs doesn't occur during the close transition.
 
   };
 
