@@ -92,7 +92,7 @@ def test_external_source_uses_native_job_without_photodiodes(
         assert decoded.ods["1"].od == 7.4e-7
         assert decoded.ods["1"].angle == "0"
         job.set_state(job.SLEEPING)
-        external_source.stop.assert_called_once()
+        external_source.pause.assert_called_once()
         assert job.record() is None
         job.set_state(job.READY)
         assert external_source.start.call_count == 2

@@ -21,10 +21,17 @@ class ExternalODDevice(Protocol):
     source: str
     angle: pt.ObservationAngle
 
-    def start(self) -> None: ...
-    def stop(self) -> None: ...
-    def read(self) -> structs.ODDeviceReading | None: ...
-    def close(self) -> None: ...
+    def start(self) -> None:
+        """Begin acquisition or resume after pause()."""
+
+    def pause(self) -> None:
+        """Suspend acquisition while retaining resources for start()."""
+
+    def read(self) -> structs.ODDeviceReading | None:
+        """Read the device"""
+
+    def close(self) -> None:
+        """End acquisition and release resources, whether running or paused."""
 
 
 type DeviceFactory = Callable[[dict[str, Any], CustomLogger], ExternalODDevice]

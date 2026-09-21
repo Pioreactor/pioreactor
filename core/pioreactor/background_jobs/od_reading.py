@@ -1548,11 +1548,11 @@ class PhotodiodeODDevice(LoggerMixin):
     def set_interval(self, interval: float | None) -> None:
         self.ir_led_reference_transformer.set_interval(interval)
 
-    def stop(self) -> None:
+    def pause(self) -> None:
         self.stop_ir_led()
 
     def close(self) -> None:
-        self.stop()
+        self.pause()
 
 
 class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
@@ -1671,7 +1671,7 @@ class ODReader[DeviceT: ExternalODDevice | PhotodiodeODDevice](BackgroundJob):
             self.record_timer.pause()
         with self._lock:
             if self.device is not None:
-                self.device.stop()
+                self.device.pause()
 
     def on_sleeping_to_ready(self) -> None:
         with self._lock:

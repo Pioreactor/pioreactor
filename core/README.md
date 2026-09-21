@@ -28,10 +28,15 @@ Core validates only the outer `driver`/`options` structure; its I²C compatibili
 check covers built-in hardware, not external devices. Options follow the existing
 HAT → model dictionary merging.
 
-The device implements `start`, `read`, `stop`, and `close`, and declares `source`
+The device implements `start`, `read`, `pause`, and `close`, and declares `source`
 and `angle`. Geometry is fixed for the device lifetime: Turbid Vision declares
 `angle = "0"`; other devices can declare the supported 45°, 90°, 135°, or 180°
 geometries without changing photodiode calibration types.
+
+`start()` begins acquisition or resumes it after `pause()`. Sleeping calls
+`pause()`, which suspends acquisition while retaining resources for resuming.
+Disconnecting calls `close()`, which ends acquisition and releases resources
+whether the device is running or paused.
 
 `read()` returns `None` for no fresh measurement, or:
 
