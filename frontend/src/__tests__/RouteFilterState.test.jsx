@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router";
 
@@ -89,6 +89,7 @@ function renderCollectionPage(Page, basePath, pageTitle) {
     <MemoryRouter initialEntries={[`${basePath}/unit-1/od`]}>
       <RouteHistoryControls nextPath={`${basePath}/unit-2/stirring`} />
       <Routes>
+        <Route path={`${basePath}/:pioreactorUnit/:device/:name`} element={<h1>Record detail</h1>} />
         <Route
           path={`${basePath}/:pioreactorUnit/:device`}
           element={<Page title={pageTitle} />}
@@ -112,6 +113,52 @@ describe("route-backed collection filters", () => {
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  test.each([
+    [Calibrations, "/calibrations", "Calibrations"],
+    [Estimators, "/estimators", "Estimators"],
+  ])("%s exposes named filters and a record link without duplicate navigation", async (Page, basePath, title) => {
+    const user = userEvent.setup();
+    renderCollectionPage(Page, basePath, title);
+    const link = await screen.findByRole("link", { name: "calibration-unit-1-od" });
+    expect(screen.getByRole("combobox", { name: "Pioreactor" })).toHaveTextContent("unit-1");
+    expect(screen.getByRole("combobox", { name: "Device" })).toHaveTextContent("od");
+    expect(link).toHaveAttribute("href", `${basePath}/unit-1/od/calibration-unit-1-od`);
+    await user.click(link);
+    expect(screen.getByRole("heading", { name: "Record detail" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByRole("link", { name: "calibration-unit-1-od" })).toBeInTheDocument();
+  });
+
+  test.each([
+    [Calibrations, "/calibrations", "{Enter}"],
+    [Calibrations, "/calibrations", " "],
+    [Estimators, "/estimators", "{Enter}"],
+    [Estimators, "/estimators", " "],
+  ])("%s row navigates with %s %s", async (Page, basePath, key) => {
+    const user = userEvent.setup();
+    renderCollectionPage(Page, basePath, "Collection");
+    const row = (await screen.findByRole("link", { name: "calibration-unit-1-od" })).closest("tr");
+    expect(row).toHaveAttribute("tabindex", "0");
+    row.focus();
+    await user.keyboard(key);
+    expect(screen.getByRole("heading", { name: "Record detail" })).toBeInTheDocument();
+  });
+
+  test("calibration visibility controls do not open the record", async () => {
+    const user = userEvent.setup();
+    renderCollectionPage(Calibrations, "/calibrations", "Calibrations");
+    const row = (await screen.findByRole("link", { name: "calibration-unit-1-od" })).closest("tr");
+    const toggle = within(row).getByRole("button");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await user.keyboard(" ");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("heading", { name: "Record detail" })).not.toBeInTheDocument();
   });
 
   test("calibrations follows route history", async () => {

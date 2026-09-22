@@ -24,7 +24,7 @@ export default function ActionLEDForm(props) {
 
   const validInput = (intensity) => {
     if (intensity !== EMPTYSTATE && re.test(intensity)){
-      if (parseFloat(intensity) >= 0 && parseFloat(intensity) <= 100){
+      if (Number(intensity) >= 0 && Number(intensity) <= 100){
         return true
       }
     }
@@ -90,6 +90,7 @@ export default function ActionLEDForm(props) {
           onChange={onChange}
           onKeyPress={onKeyPress}
           slotProps={{
+            htmlInput: { inputMode: "decimal" },
             input: {
               endAdornment: <InputAdornment position="end">%</InputAdornment>,
             },
@@ -107,7 +108,6 @@ export default function ActionLEDForm(props) {
         </Button>
       </Box>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         onClose={handleSnackbarClose}
         message={`Updating channel ${props.channel} to ${intensity}%.`}

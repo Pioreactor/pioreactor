@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import React from "react";
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -15,12 +16,12 @@ import { getInlineCommentForPath } from "../utils/experimentProfilePreview";
 const DisplayProfileCard = {
     height: "350px",
     overflow: "auto",
-    backgroundColor: "rgb(250,250,250)",
+    backgroundColor: uiColors.editorBackground,
     letterSpacing: "0em",
     margin: "10px 0px 10px 0px",
     position: "relative",
     width: "98%",
-    border: "1px solid #ccc",
+    border: `1px solid ${uiColors.border}`,
     borderRadius: "4px",
     boxShadow: "none",
 }
@@ -47,7 +48,7 @@ const highlightedLogMessage = {
   borderLeft:  "3px solid #1e1e1e1e",
   padding: "6px 6px",
   paddingLeft: "10px",
-  backgroundColor: "#f3f3f3",
+  backgroundColor: uiColors.subtleBackground,
 }
 
 const inlineCommentSx = {

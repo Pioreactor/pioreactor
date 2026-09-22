@@ -16,6 +16,8 @@ This directory contains files used to build or install Pioreactor outside the no
 
 The Pioreactor repo owns these files because they describe the Pioreactor application runtime contract. CustoPiZer consumes selected files from here when building Raspberry Pi images, but CustoPiZer still owns Raspberry Pi image-specific boot, hardware, networking, service ordering, and firstboot behavior.
 
+Wi-Fi recovery's script and systemd units live in `runtime-files/bash/pioreactor-wifi-recovery.sh` and `runtime-files/systemd/pioreactor-wifi-recovery.*`. CustoPiZer's asset sync copies them into every Raspberry Pi image build; its common `pioreactor.target` starts the timer. When changing recovery, also bundle matching copies in the next release's update scripts for existing installations. The recovery retries disconnected autoconnect client profiles at most every five minutes, respects intentional disconnects, and retains separate hardware-error checks for SDIO resets.
+
 ## WIP Local HTTPS Support
 
 The runtime lighttpd assets include early, disabled support for serving the browser UI over local HTTPS. `runtime-files/lighttpd/10-pioreactor-https.conf` is copied into image and installer inputs, but it is not enabled by default. It expects a generated local certificate bundle at `/etc/pioreactor/tls/local-ui.lighttpd.pem` and proxies `/mqtt` to the existing Mosquitto websocket listener on `127.0.0.1:9001` so an HTTPS-loaded browser can use same-origin WSS.

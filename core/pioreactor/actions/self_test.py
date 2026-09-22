@@ -29,6 +29,8 @@ from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_photodiode_od_reading
+from pioreactor.camera import camera_captured_image
+from pioreactor.camera import camera_is_enabled
 from pioreactor.config import config
 from pioreactor.hardware import get_available_pd_channels
 from pioreactor.hardware import is_HAT_present
@@ -653,6 +655,13 @@ def test_positive_correlation_between_rpm_and_stirring(
         assert measured_correlation > 0.9, f"RPM correlation not high enough: {(dcs, measured_rpms)}"
 
 
+def test_camera_capture(
+    managed_state: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
+) -> None:
+    with camera_captured_image(unit, experiment=experiment, capture_focus_score=False) as (image_path, _):
+        assert image_path.stat().st_size > 0, "Camera captured an empty image."
+
+
 BUILTIN_SELF_TESTS: tuple[SelfTest, ...] = (
     # order in UI - good for responsiveness.
     test_pioreactor_HAT_present,
@@ -672,17 +681,20 @@ BUILTIN_SELF_TESTS: tuple[SelfTest, ...] = (
 def get_builtin_self_tests() -> list[SelfTest]:
     from pioreactor.hardware import uses_photodiodes
 
-    if uses_photodiodes():
-        return list(BUILTIN_SELF_TESTS)
-    photodiode_tests = {
-        test_all_positive_correlations_between_pds_and_leds,
-        test_ambient_light_interference,
-        test_dark_offset_correction_is_effective,
-        test_REF_is_lower_than_0_dot_256_volts,
-        test_REF_is_in_correct_position,
-        test_PD_is_near_0_volts_for_blank,
-    }
-    return [test for test in BUILTIN_SELF_TESTS if test not in photodiode_tests]
+    tests = list(BUILTIN_SELF_TESTS)
+    if not uses_photodiodes():
+        photodiode_tests = {
+            test_all_positive_correlations_between_pds_and_leds,
+            test_ambient_light_interference,
+            test_dark_offset_correction_is_effective,
+            test_REF_is_lower_than_0_dot_256_volts,
+            test_REF_is_in_correct_position,
+            test_PD_is_near_0_volts_for_blank,
+        }
+        tests = [test for test in tests if test not in photodiode_tests]
+    if camera_is_enabled():
+        tests.append(test_camera_capture)
+    return tests
 
 
 def run_tests(

@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import { Link, useNavigate } from "react-router";
 import {
@@ -5,7 +6,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Divider,
   Paper,
   Table,
   TableBody,
@@ -134,22 +134,17 @@ function CalibrationCoverage(props) {
 
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Calibration status
-            </Box>
-          </Typography>
+      <PageHeader
+        title="Calibration status"
+        actions={(
           <Button
             color="primary"
             onClick={() => navigate("/calibrations")}
           >
             <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
           </Button>
-        </Box>
-        <Divider sx={{ mt: "0px", mb: "15px" }} />
-      </Box>
+        )}
+      />
 
       {loading && (
         <Box sx={{ textAlign: "center", mt: "2rem" }}>

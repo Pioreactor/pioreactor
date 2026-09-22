@@ -159,7 +159,7 @@ function RecordEventLogDialog({
             variant="outlined"
             label="Timestamp"
             value={timestampLocal}
-            helperText="Localtime"
+            helperText="Local time · YYYY-MM-DD HH:mm:ss"
             onChange={(e) => setTimestampLocal(e.target.value)}
           />
           <TextField

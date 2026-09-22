@@ -1,3 +1,6 @@
+import { ZebraTableRow } from "./TableRows";
+import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell } from "./LogTableCells";
+import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useMemo, useEffectEvent } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
@@ -14,8 +17,6 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import { styled } from '@mui/material/styles';
-import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
@@ -27,38 +28,6 @@ dayjs.extend(utc);
 
 
 
-const StyledTableCell = styled(TableCell)(({ level }) => {
-  return {
-    padding: "6px 6px 6px 10px",
-    fontSize: 13,
-    backgroundColor: level === "ERROR" ? ERROR_COLOR :
-                      level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : null,
-    whiteSpace: "normal"
-  };
-});
-
-
-const StyledTimeTableCell = styled(TableCell)(({ level }) => {
-  return {
-    padding: "6px 6px 6px 10px",
-    fontSize: 13,
-    backgroundColor: level === "ERROR" ? ERROR_COLOR :
-                      level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : null,
-    whiteSpace: "pre"
-  };
-});
-
-
-const TableRowStyled = styled(TableRow)(() => ({
-  '&:nth-of-type(odd)': {
-    backgroundColor: "#F7F7F7",
-  },
-  '&:nth-of-type(even)': {
-    backgroundColor: "white",
-  },
-}));
 
 const LEVELS = [
   "DEBUG",
@@ -239,15 +208,15 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                 </colgroup>
                 <TableHead>
                   <TableRow >
-                    <TableCell sx={{"backgroundColor": "white"}}>Time</TableCell>
-                    <TableCell sx={{"backgroundColor": "white"}}>Pioreactor</TableCell>
-                    <TableCell sx={{"backgroundColor": "white"}}>Source</TableCell>
-                    <TableCell sx={{"backgroundColor": "white"}}>Message</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Time</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Pioreactor</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Source</TableCell>
+                    <TableCell sx={{"backgroundColor": uiColors.surface}}>Message</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {listOfLogs.map((log) => (
-                    <TableRowStyled key={log.key}>
+                    <ZebraTableRow key={log.key}>
                       <StyledTimeTableCell level={log.level}>
                         {timestampCell(log.timestamp)}
                       </StyledTimeTableCell>
@@ -265,7 +234,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                       </StyledTableCell>
                       <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                       <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
-                    </TableRowStyled>
+                    </ZebraTableRow>
                   ))}
                 </TableBody>
               </Table>
@@ -273,7 +242,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           ) : showEmptyState ? (
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "350px", gap: 2, textAlign: "center" }}>
               <Box component="img" src={emptyStateIllustration} alt="No logs illustration" sx={{ maxWidth: "350px", width: "100%", opacity: 0.8 }} />
-              <Box sx={{ color: "#5f6a7d", fontSize: "14px" }}>
+              <Box sx={{ color: "text.secondary", fontSize: "14px" }}>
                 No logs yet. They will appear here once your Pioreactor starts reporting activity.
               </Box>
             </Box>
@@ -283,7 +252,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
             <Box sx={{width: 300}}/>
             <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) }>
-              {loading ? "Loading..." : "More"}
+              {loading ? "Loading..." : "Load older logs"}
             </Button>
             <FormControlLabel
               checked={!onlyAssignedLogs}

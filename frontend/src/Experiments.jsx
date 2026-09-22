@@ -1,3 +1,6 @@
+import { ZebraTableRow } from "./components/TableRows";
+import PageHeader from "./components/PageHeader";
+import { uiColors } from "./theme/colors";
 import React from "react";
 import dayjs from "dayjs";
 
@@ -45,14 +48,6 @@ const StyledTableCell = styled(TableCell)(() => ({
   whiteSpace: "normal",
 }));
 
-const TableRowStyled = styled(TableRow)(() => ({
-  "&:nth-of-type(odd)": {
-    backgroundColor: "#F7F7F7",
-  },
-  "&:nth-of-type(even)": {
-    backgroundColor: "white",
-  },
-}));
 
 function ExperimentActionsMenu({
   experiment,
@@ -256,7 +251,7 @@ function ExperimentsContainer(props) {
   const handleEndExperiment = async (experiment) => {
     await confirm({
       description:
-        "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?",
+        "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment.",
       title: "End experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: { color: "primary", variant: "contained" },
@@ -282,7 +277,7 @@ function ExperimentsContainer(props) {
   const handleDeleteExperiment = async (experiment) => {
     await confirm({
       description:
-        "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?",
+        "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors.",
       title: "Delete experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: { color: "primary", variant: "contained" },
@@ -317,19 +312,18 @@ function ExperimentsContainer(props) {
 
   return (
     <React.Fragment>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, gap: 2, flexWrap: "wrap" }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>Experiments</Box>
-        </Typography>
-        <Button
-          variant="text"
-          component={Link}
-          to="/start-new-experiment"
-        >
-          <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Create new experiment
-        </Button>
-      </Box>
-      <Divider sx={{mt: 0, mb: "15px"}} />
+      <PageHeader
+        title="Experiments"
+        actions={(
+          <Button
+            variant="text"
+            component={Link}
+            to="/start-new-experiment"
+          >
+            <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Create new experiment
+          </Button>
+        )}
+      />
 
 
       <Card sx={{ mb: 2 }}>
@@ -353,13 +347,13 @@ function ExperimentsContainer(props) {
               }}
             >
               <ToggleButton value="all">
-                all
+                All
               </ToggleButton>
               <ToggleButton value="active">
-                active
+                Active
               </ToggleButton>
               <ToggleButton value="inactive">
-                inactive
+                Inactive
               </ToggleButton>
             </ToggleButtonGroup>
             <Autocomplete
@@ -387,10 +381,10 @@ function ExperimentsContainer(props) {
           <Table size="small" aria-label="experiments table">
             <TableHead>
               <TableRow>
-                <TableCell sx={{backgroundColor: "white" }}>Experiment</TableCell>
-                <TableCell sx={{backgroundColor: "white", whiteSpace: "nowrap" }}>Created at</TableCell>
-                <TableCell sx={{backgroundColor: "white" }}><UnderlineSpan title="Active means at least one Pioreactor is assigned">Status</UnderlineSpan></TableCell>
-                <TableCell sx={{backgroundColor: "white" }} align="right" />
+                <TableCell sx={{backgroundColor: uiColors.surface }}>Experiment</TableCell>
+                <TableCell sx={{backgroundColor: uiColors.surface, whiteSpace: "nowrap" }}>Created at</TableCell>
+                <TableCell sx={{backgroundColor: uiColors.surface }}><UnderlineSpan title="Active means at least one Pioreactor is assigned">Status</UnderlineSpan></TableCell>
+                <TableCell sx={{backgroundColor: uiColors.surface }} align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -399,7 +393,7 @@ function ExperimentsContainer(props) {
                 const remainingTagCount = Math.max((experiment.tags || []).length - visibleTags.length, 0);
 
                 return (
-                  <TableRowStyled key={experiment.experiment}>
+                  <ZebraTableRow key={experiment.experiment}>
                     <StyledTableCell sx={{ width: "65%"}}>
                       <Stack spacing={0.75}>
                         <Box>
@@ -466,7 +460,7 @@ function ExperimentsContainer(props) {
                         deleteDisabled={experiments.length <= 1}
                       />
                     </StyledTableCell>
-                  </TableRowStyled>
+                  </ZebraTableRow>
                 );
               })}
               {!loading && filteredExperiments.length === 0 && (
@@ -493,7 +487,6 @@ function ExperimentsContainer(props) {
         open={snackbarOpen}
         message={snackbarMessage}
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
 
       <ExperimentMetadataDialog

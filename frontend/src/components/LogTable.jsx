@@ -1,3 +1,6 @@
+import { ZebraTableRow } from "./TableRows";
+import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell } from "./LogTableCells";
+import { uiColors } from "../theme/colors";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 import dayjs from 'dayjs';
@@ -22,7 +25,6 @@ import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
-import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
 import { experimentPathSegment } from "../utils/url";
 import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
 
@@ -33,35 +35,17 @@ const StyledTableHeaderCell = styled(TableCell)(({}) => ({
   padding: "6px 6px 6px 10px",
   fontSize: 13,
   whiteSpace: "normal",
-  backgroundColor: "white"
+  backgroundColor: uiColors.surface
 }));
 
-const StyledTableCell = styled(TableCell)(({ level }) => ({
-  padding: "6px 6px 6px 10px",
-  fontSize: 13,
-  backgroundColor:
-    level === "ERROR"   ? ERROR_COLOR   :
-    level === "WARNING" ? WARNING_COLOR :
-    level === "NOTICE"  ? NOTICE_COLOR  : "inherit",
-  whiteSpace: "normal"
-}));
 
 const StyledTableCellFiller = styled(TableCell)(() => ({
   paddingTop: "25px",
   paddingBottom: "15px",
   textAlign: "center",
-  color: "text.secondary"
+  color: uiColors.textSecondary
 }));
 
-const StyledTimeTableCell = styled(TableCell)(({ level }) => ({
-  padding: "6px 6px 6px 10px",
-  fontSize: 13,
-  backgroundColor:
-    level === "ERROR"   ? ERROR_COLOR   :
-    level === "WARNING" ? WARNING_COLOR :
-    level === "NOTICE"  ? NOTICE_COLOR  : "inherit",
-  whiteSpace: "pre"
-}));
 
 const LEVELS = ["NOTSET", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITICAL"];
 const HIGHLIGHTABLE_CHIP_SX = {
@@ -199,7 +183,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
             <TableBody>
               {listOfLogs.map((log, i) => (
                 <React.Fragment key={log.key}>
-                  <TableRow>
+                  <ZebraTableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
                     <StyledTableCell level={log.level} data-copy-value={relabelUnit(log.pioreactor_unit)}>
                       <Chip
@@ -215,7 +199,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                     </StyledTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
-                  </TableRow>
+                  </ZebraTableRow>
                   {listOfLogs[i + 1] &&
                     toTimestampObject(log.timestamp).diff(
                       toTimestampObject(listOfLogs[i + 1].timestamp),

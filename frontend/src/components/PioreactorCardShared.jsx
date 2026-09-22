@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import dayjs from "dayjs";
 import React from "react";
 
@@ -89,8 +90,8 @@ export function getPioreactorCardBioreactorTopics({
 export function ButtonStopProcess({ experiment, unit = "$broadcast", disabled = false }) {
   const confirm = useConfirm();
   const description = unit === "$broadcast"
-    ? "This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment. Do you wish to continue?"
-    : `This will immediately stop all running activities on ${unit}, and any experiment profiles running for this experiment on this Pioreactor. Do you wish to continue?`;
+    ? "This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment."
+    : `This will immediately stop all running activities on ${unit}, and any experiment profiles running for this experiment on this Pioreactor.`;
 
   const handleClick = () => {
     confirm({
@@ -172,7 +173,6 @@ export function CalibrateDialog({
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(() => setTabValue(0), 200);
   };
 
   function createUserButtonsBasedOnState(jobState, job, alwaysDisable = false) {
@@ -223,7 +223,7 @@ export function CalibrateDialog({
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
-          <Typography sx={{ fontSize: "13px", color: "rgba(0, 0, 0, 0.60)" }}>
+          <Typography sx={{ fontSize: "13px", color: uiColors.textSecondary }}>
             <PioreactorIcon sx={{ verticalAlign: "middle", fontSize: "1.2em" }} /> {label ? `${label} / ${unit}` : `${unit}`}
           </Typography>
           <Tabs
@@ -641,9 +641,15 @@ const SELF_TEST_GROUPS = [
   },
 ];
 
-function getAvailableSelfTestGroupsForKeys(keys) {
+function getAvailableSelfTestGroupsForKeys(keys, cameraEnabled) {
   const availableKeys = new Set(keys);
-  return SELF_TEST_GROUPS
+  const groups = cameraEnabled
+    ? [...SELF_TEST_GROUPS, {
+      title: "Camera",
+      tests: [{ key: "test_camera_capture", label: "Camera captures an image" }],
+    }]
+    : SELF_TEST_GROUPS;
+  return groups
     .map((group) => ({
       ...group,
       tests: group.tests.filter((test) => availableKeys.has(test.key)),
@@ -651,19 +657,20 @@ function getAvailableSelfTestGroupsForKeys(keys) {
     .filter((group) => group.tests.length > 0);
 }
 
-export function getAvailableSelfTestGroupsFromSettings(selfTestSettings) {
+export function getAvailableSelfTestGroupsFromSettings(selfTestSettings, cameraEnabled) {
   if (!selfTestSettings) {
     return [];
   }
-  return getAvailableSelfTestGroupsForKeys(Object.keys(selfTestSettings));
+  return getAvailableSelfTestGroupsForKeys(Object.keys(selfTestSettings), cameraEnabled);
 }
 
-export function getAvailableSelfTestGroupsFromDefinition(selfTestDefinition) {
+export function getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, cameraEnabled) {
   if (!selfTestDefinition) {
     return [];
   }
   return getAvailableSelfTestGroupsForKeys(
     selfTestDefinition.published_settings.map((field) => field.key),
+    cameraEnabled,
   );
 }
 
@@ -809,7 +816,7 @@ export function UnitSettingDisplay(props) {
         key={flashToken}
         gutterBottom
         sx={{
-          color: "rgba(0, 0, 0, 0.87)",
+          color: uiColors.text,
           padding: "1px 9px",
           borderRadius: "16px",
           backgroundColor: defaultStateDisplayBackground,

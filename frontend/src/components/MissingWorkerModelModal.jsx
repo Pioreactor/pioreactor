@@ -323,7 +323,6 @@ const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
         </DialogActions>
       </Dialog>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         autoHideDuration={6000}

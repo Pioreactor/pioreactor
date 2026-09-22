@@ -1,4 +1,5 @@
 import React from 'react'
+import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 
 
@@ -9,9 +10,14 @@ export default  function UnderlineSpan(props){
     <Tooltip
       title={title}
       placement="top-start">
-      <span className={title ? 'underlineSpan' : ''} >
+      <Box
+        component="span"
+        className={title ? 'underlineSpan' : ''}
+        tabIndex={title ? 0 : undefined}
+        sx={{ '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '2px' } }}
+      >
         {props.children}
-      </span>
+      </Box>
     </Tooltip>
  )
 }

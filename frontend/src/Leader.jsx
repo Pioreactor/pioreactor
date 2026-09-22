@@ -1,3 +1,5 @@
+import PageHeader from "./components/PageHeader";
+import { uiColors } from "./theme/colors";
 import React from "react";
 
 import CircularProgress from '@mui/material/CircularProgress';
@@ -43,8 +45,8 @@ import Snackbar from './components/Snackbar';
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 const stateDisplay = {
-  "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
-  "disconnected":  {display: "Off", color: lostRed, backgroundColor: "#fbeae9"},
+  "ready":         {display: "On", color: readyGreen, backgroundColor: uiColors.readyBackground},
+  "disconnected":  {display: "Off", color: lostRed, backgroundColor: uiColors.lostBackground},
 }
 
 
@@ -236,7 +238,6 @@ function ManageLeaderMenu({unit}) {
         </MenuItem>
       </Menu>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}
@@ -257,19 +258,19 @@ function ManageLeaderMenu({unit}) {
 const Path = styled(Box)(({ theme }) => ({
   display: 'inline-block',
   fontFamily: 'monospace',
-  backgroundColor: theme.palette.grey[100],
+  backgroundColor: uiColors.subtleBackground,
   padding: theme.spacing(1),
   paddingLeft: theme.spacing(2),
   paddingRight: theme.spacing(2),
   borderRadius: theme.shape.borderRadius,
-  color: theme.palette.text.primary,
+  color: uiColors.text,
   marginLeft: theme.spacing(0),
   marginTop: theme.spacing(2),
 }));
 
-const FileDir = styled(Box)(({ theme }) => ({
+const FileDir = styled(Box)(() => ({
   fontFamily: 'monospace',
-  color: theme.palette.text.primary,
+  color: uiColors.text,
 }));
 
 const BorderLinearProgress = styled(LinearProgress, {
@@ -278,7 +279,7 @@ const BorderLinearProgress = styled(LinearProgress, {
   height: 10,
   borderRadius: 5,
   [`&.${linearProgressClasses.colorPrimary}`]: {
-    backgroundColor: theme.palette.grey[200],
+    backgroundColor: uiColors.codeBackground,
   },
   [`& .${linearProgressClasses.bar}`]: {
     borderRadius: 5,
@@ -671,7 +672,7 @@ function LeaderCard({leaderHostname}) {
           <Box sx={{display: "flex", justifyContent: "left"}}>
             <Typography sx={{
                 fontSize: 20,
-                color: "rgba(0, 0, 0, 0.87)",
+                color: uiColors.text,
                 fontWeight: 500,
               }}
               gutterBottom>
@@ -708,7 +709,7 @@ function LeaderCard({leaderHostname}) {
                 Software version
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{softwareVersion()}</Box>
             </td>
           </tr>
           <tr>
@@ -716,7 +717,7 @@ function LeaderCard({leaderHostname}) {
                 IPv4
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ipv4 || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -724,7 +725,7 @@ function LeaderCard({leaderHostname}) {
                 Raspberry Pi
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -732,7 +733,7 @@ function LeaderCard({leaderHostname}) {
                 WLAN MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -740,7 +741,7 @@ function LeaderCard({leaderHostname}) {
                 Ethernet MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
             </td>
           </tr>
           </Box>
@@ -1082,20 +1083,12 @@ function LeaderContainer({config}) {
 
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Leader
-            </Box>
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-            <ManageInventoryMenu/>
-          </Box>
-        </Box>
-        <Divider sx={{mt: "0px", mb: "15px"}} />
-
-      </Box>
+      <PageHeader
+        title="Leader"
+        actions={(
+          <ManageInventoryMenu/>
+        )}
+      />
       <Grid container spacing={2} sx={{ justifyContent: "flex-start", alignItems: "flex-start" }}>
         <Grid
           container

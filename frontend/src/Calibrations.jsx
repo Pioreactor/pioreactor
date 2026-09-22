@@ -1,3 +1,6 @@
+import PageHeader from "./components/PageHeader";
+import { NavigableTableRow } from "./components/TableRows";
+import { uiColors } from "./theme/colors";
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
@@ -9,8 +12,6 @@ import {
   FormControl,
   MenuItem,
   Select,
-  Typography,
-  Divider,
   TextField,
   Dialog,
   DialogTitle,
@@ -257,7 +258,7 @@ export function UploadCalibrationDialog({
         <FormLabel component="legend">YAML description</FormLabel>
         <Box sx={{
             tabSize: "4ch",
-            border: "1px solid #ccc",
+            border: `1px solid ${uiColors.border}`,
             m: "5px 0px 10px 0px",
             position: "relative",
             width: "100%",
@@ -274,7 +275,7 @@ export function UploadCalibrationDialog({
             style={{
               fontSize: "14px",
               fontFamily: 'monospace',
-              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              backgroundColor: uiColors.surface,
               borderRadius: "4px",
               minHeight: "100%"
             }}
@@ -552,7 +553,7 @@ function CalibrationData({ loading, rawData }) {
         <Box sx={{display: "flex", justifyContent: "space-between" }}>
           <Box>
             <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
-              <FormLabel component="legend">Pioreactor</FormLabel>
+              <FormLabel id="pioreactor-select-label">Pioreactor</FormLabel>
               <Select
                 labelId="pioreactor-select-label"
                 label="Pioreactor"
@@ -574,7 +575,7 @@ function CalibrationData({ loading, rawData }) {
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ mb: '1rem', mr: 4}}>
-              <FormLabel component="legend">Device</FormLabel>
+              <FormLabel id="device-select-label">Device</FormLabel>
               <Select
                 labelId="device-select-label"
                 label="Device"
@@ -642,16 +643,10 @@ function CalibrationData({ loading, rawData }) {
               }
 
               return (
-                <TableRow
-                  sx={{
-                    ':hover': {
-                      bgcolor: '#F7F7F7', // theme.palette.primary.main
-                    },
-                    cursor: "pointer",
-                  }}
+                <NavigableTableRow
                   onMouseOver={(e) => onMouseOverRow(e, cal) }
                   onMouseOut={(e) => onMouseExitRow(e)}
-                  onClick={() => navigate(`/calibrations/${unitName}/${selectedDevice}/${calName}`)}
+                  to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
                   key={i}
                   >
                   <TableCell data-copy-value={unitName} sx={{padding: "6px 6px", display: "flex"}}>
@@ -686,6 +681,9 @@ function CalibrationData({ loading, rawData }) {
                         icon={<CalibrationIcon/>}
                         label={calName}
                         data-calibration-name={calName}
+                        clickable
+                        component={Link}
+                        to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
                         />
                   </TableCell>
                   <TableCell align="left" data-copy-value={cal.is_active ? "Active" : ""} sx={{padding: "6px 0px"}}>
@@ -704,7 +702,7 @@ function CalibrationData({ loading, rawData }) {
                     ) : ""}
                   </TableCell>
                   <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('MMMM D, YYYY, h:mm a')}</TableCell>
-                </TableRow>
+                </NavigableTableRow>
               );
             })}
           </TableBody>
@@ -757,14 +755,10 @@ function CalibrationsContainer() {
 
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Calibrations
-            </Box>
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <PageHeader
+        title="Calibrations"
+        actions={(
+          <>
             <Button
               sx={{ mr: "0px"}}
               color="primary"
@@ -783,11 +777,9 @@ function CalibrationsContainer() {
             <Button color="primary" onClick={handleDownloadCalibrations} loading={downloading}>
               <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all calibrations
             </Button>
-          </Box>
-        </Box>
-        <Divider sx={{mt: "0px", mb: "15px"}} />
-
-      </Box>
+          </>
+        )}
+      />
 
       {downloadError && <Alert severity="error" sx={{ mb: 2 }}>{downloadError}</Alert>}
       <UploadCalibrationDialog

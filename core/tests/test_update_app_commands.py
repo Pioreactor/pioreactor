@@ -410,6 +410,8 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
             [
                 "sudo",
                 "sqlite3",
+                "-cmd",
+                ".timeout 15000",
                 config_module.config.get("storage", "database"),
                 f".read {tmp_rls_dir}/update.sql",
             ],
@@ -419,6 +421,8 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
             [
                 "sudo",
                 "sqlite3",
+                "-cmd",
+                ".timeout 15000",
                 config_module.config.get("storage", "database"),
                 "PRAGMA optimize = 0x10002",
             ],

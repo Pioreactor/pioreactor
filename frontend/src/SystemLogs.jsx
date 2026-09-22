@@ -75,10 +75,10 @@ function SystemLogs(props) {
       <Grid container spacing={2} >
         <Grid size={{md: 12, lg: 7}}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-              <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
+              <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
 
                 <Select
-                  labelId="levelSelect"
+                  inputProps={{ "aria-label": "Log level" }}
                   variant="standard"
                   value={logLevel}
                   onChange={(e) => setLogLevel(e.target.value)}
@@ -99,7 +99,7 @@ function SystemLogs(props) {
                 </Select>
                 <Box component="span" sx={{mr: "8px"}}> system logs for</Box>
                 <Select
-                  labelId="configSelect"
+                  inputProps={{ "aria-label": "Pioreactor" }}
                   variant="standard"
                   value={selectedUnitValue}
                   onChange={onSelectionChange}

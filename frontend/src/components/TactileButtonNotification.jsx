@@ -43,7 +43,6 @@ function TactileButtonNotification() {
       open={open}
       autoHideDuration={FAILSAFE_AUTO_HIDE_MS}
       onClose={handleClose}
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       key={"button-tactile-snackbar"}
       message={unit ? `Holding ${unit}'s button down` : ""}
       transitionDuration={{enter: 10}}

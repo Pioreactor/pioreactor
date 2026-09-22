@@ -1,3 +1,5 @@
+import PageHeader from "./components/PageHeader";
+import { uiColors } from "./theme/colors";
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 import Grid from '@mui/material/Grid';
@@ -7,9 +9,7 @@ import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import FormLabel from '@mui/material/FormLabel';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
-import {Typography} from '@mui/material';
 import Snackbar from './components/Snackbar';
 import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/SaveOutlined';
@@ -297,7 +297,7 @@ function EditableCodeDiv() {
       <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
         <FormControl>
           <div>
-            <FormLabel component="legend">Config target</FormLabel>
+            <FormLabel id="configTargetSelect" sx={{mr: 1}}>Config target:</FormLabel>
             <Select
               labelId="configTargetSelect"
               variant="standard"
@@ -312,7 +312,7 @@ function EditableCodeDiv() {
         </FormControl>
         <FormControl sx={{ mr: "20px" }}>
           <div>
-            <FormLabel component="legend">Versions</FormLabel>
+            <FormLabel id="historicalConfigSelect"  sx={{mr: 1}}>Version:</FormLabel>
             <Select
               labelId="historicalConfigSelect"
               variant="standard"
@@ -330,7 +330,7 @@ function EditableCodeDiv() {
 
       <Box sx={{
         tabSize: "4ch",
-        border: "1px solid #ccc",
+        border: `1px solid ${uiColors.border}`,
         m: "10px auto 10px auto",
         position: "relative",
         width: "98%",
@@ -349,7 +349,7 @@ function EditableCodeDiv() {
             style={{
               fontSize: "14px",
               fontFamily: 'monospace',
-              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              backgroundColor: uiColors.surface,
               borderRadius: "3px",
               minHeight: "100%"
             }}
@@ -374,7 +374,6 @@ function EditableCodeDiv() {
         </div>
       </Box>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={state.openSnackbar}
         onClose={handleSnackbarClose}
         message={state.snackbarMsg}
@@ -420,18 +419,9 @@ function EditConfigContainer(){
   return(
     <React.Fragment>
 
-      <Box component="header" sx={{ mb: 2 }}>
-        <Box sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 2,
-          flexWrap: "wrap",
-          mb: 1,
-        }}>
-          <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
-            Configuration
-          </Typography>
+      <PageHeader
+        title="Configuration"
+        actions={(
           <Button
             sx={{  mr: "0px" }}
             color="primary"
@@ -441,9 +431,8 @@ function EditConfigContainer(){
             <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
             Download all configurations
           </Button>
-        </Box>
-        <Divider />
-      </Box>
+        )}
+      />
 
       {downloadError && <Alert severity="error" sx={{ mb: 2 }}>{downloadError}</Alert>}
 

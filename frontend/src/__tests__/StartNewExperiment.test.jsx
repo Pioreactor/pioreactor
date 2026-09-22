@@ -49,6 +49,29 @@ describe("Start new experiment", () => {
     jest.resetAllMocks();
   });
 
+  test("keeps character validation and Save availability consistent", () => {
+    render(
+      <MemoryRouter>
+        <StartNewExperiment title="Pioreactor ~ Start new experiment" />
+      </MemoryRouter>,
+    );
+
+    const nameInput = screen.getByRole("textbox", { name: /Experiment name/ });
+    const saveButton = screen.getByRole("button", { name: "Save" });
+
+    for (const character of "#$%+/?\\") {
+      fireEvent.change(nameInput, { target: { value: `run${character}1` } });
+      expect(nameInput).toHaveAttribute("aria-invalid", "true");
+      expect(saveButton).toBeDisabled();
+    }
+
+    for (const character of "&=") {
+      fireEvent.change(nameInput, { target: { value: `run${character}1` } });
+      expect(nameInput).toHaveAttribute("aria-invalid", "false");
+      expect(saveButton).toBeEnabled();
+    }
+  });
+
   test("populates fields from the latest experiment", async () => {
     render(
       <MemoryRouter>

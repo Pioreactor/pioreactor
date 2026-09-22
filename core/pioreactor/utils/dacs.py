@@ -65,7 +65,7 @@ class Pico_DAC(_DAC):
             self.i2c.writeto(self._dac_address, bytes([channel, eight_bit]))
         except OSError:
             raise HardwareNotFoundError(
-                f"Unable to find i2c channel {self._dac_address}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c channel 0x{self._dac_address:x}. Is the HAT attached? Is the firmware loaded?"
             )
 
 

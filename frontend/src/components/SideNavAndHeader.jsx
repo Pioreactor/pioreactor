@@ -1,4 +1,6 @@
+import { uiColors } from "../theme/colors";
 import React from 'react';
+import AppearanceMenu from './AppearanceMenu';
 import { styled } from '@mui/material/styles';
 import Drawer from '@mui/material/Drawer';
 import Badge from '@mui/material/Badge';
@@ -26,7 +28,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
 //import Icon2x2Grid from './Icon2x2Grid';
-import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
+import PluginsIcon from './PluginsIcon';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import ExperimentProfileIcon from './ExperimentProfileIcon';
@@ -372,7 +374,14 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
 
   const list = () => (
-    <Sidebar rootStyles={{height: "100%"}} width="230px" backgroundColor="white">
+    <Sidebar rootStyles={{
+      height: "100%",
+      "[data-dark] &": {
+        borderColor: "#ffffff1f",
+        ".ps-submenu-content": { backgroundColor: uiColors.surface },
+        ".ps-menu-button:hover": { backgroundColor: uiColors.hoverSurface },
+      },
+    }} width="230px" backgroundColor={uiColors.surface}>
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ flex: 1}}>
 
@@ -384,21 +393,21 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 label:  {whiteSpace: "pre-wrap", fontSize: "16px"},
                 button: ({ level, active, disabled }) => {
                   const sx = {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'inherit'),
-                    backgroundColor: active ? '#5331ca14' : undefined,
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : 'inherit'),
+                    backgroundColor: active ? uiColors.selection : undefined,
                     height: "43px",
                     fontWeight: active ? 500 : 400,
                   };
                   if (level === 1){
                     sx.paddingLeft = "27px"
-                    sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
+                    sx.color = disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.navIcon)
                     sx.fontWeight = active ? 500 : 400
                   }
                   return sx
                 },
                 icon: ({level, active, disabled}) => {
                   return {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'rgba(0,0,0, 0.6)'),
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.textSecondary),
                     marginRight: "8px",
                     minWidth: "30px",
                     width: "30px",
@@ -472,21 +481,21 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 label:  {whiteSpace: "pre-wrap", fontSize: "16px"},
                 button: ({ level, active, disabled }) => {
                   const sx = {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'inherit'),
-                    backgroundColor: active ? '#5331ca14' : undefined,
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : 'inherit'),
+                    backgroundColor: active ? uiColors.selection : undefined,
                     height: "43px",
                     fontWeight: active ? 500 : 400,
                   };
                   if (level === 1){
                     sx.paddingLeft = "27px"
-                    sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
+                    sx.color = disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.navIcon)
                     sx.fontWeight = active ? 500 : 400
                   }
                   return sx
                 },
                 icon: ({level, active, disabled}) => {
                   return {
-                    color: disabled ? '#00000050' : (active ? '#5331ca' : 'rgba(0,0,0, 0.6)'),
+                    color: disabled ? uiColors.navDisabled : (active ? uiColors.primary : uiColors.textSecondary),
                     marginRight: "8px",
                     minWidth: "30px",
                     width: "30px",
@@ -576,7 +585,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
 
                 <MenuItem
-                  icon={<LibraryAddOutlinedIcon sx={{fontSize: "23px"}}/> }
+                  icon={<PluginsIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/plugins" className="link" />}
                   active={isSelected("/plugins")}
 
@@ -604,7 +613,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
   return (
     <React.Fragment>
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-          <Toolbar variant="dense">
+          <Toolbar variant="dense" sx={{ flexWrap: { xs: "wrap", sm: "nowrap" } }}>
               <IconButton
                 color="inherit"
                 aria-label="open drawer"
@@ -622,7 +631,12 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
               </Typography>
 
 
-              <div>
+              <Box sx={{
+                display: "flex", alignItems: "center", flexShrink: 0,
+                order: { xs: 1, sm: 0 }, width: { xs: "100%", sm: "auto" },
+                overflowX: "auto", justifyContent: "flex-end",
+                "& .MuiButton-root": { whiteSpace: "nowrap", flexShrink: 0 },
+              }}>
                 { lap &&
                   <Button color="inherit" component={Link} to={{pathname: "/inventory"}}>
                     <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
@@ -652,10 +666,11 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                     {getUsbNavLabel(usbStatus)}
                   </Button>
                 }
+              </Box>
+                <AppearanceMenu />
                 <Button onClick={openHelpDialog} color="inherit">
                   <HelpOutlineIcon sx={{ fontSize: 18, verticalAlign: "middle", mr: "3px" }}/>Help
                 </Button>
-              </div>
           </Toolbar>
         </AppBar>
       <Dialog open={helpDialogOpen} onClose={closeHelpDialog} maxWidth="sm" fullWidth>
@@ -708,8 +723,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                   support@pioreactor.com
                 </MuiLink>.
                 <br/>
-                It's especially helpful if you can provide your software version (found on the Inventory page, model version, and any screenshots in the email, too.
-                .
+                It's helpful if you can provide your software version and hardware model too.
               </Typography>
             </Stack>
           </Stack>
@@ -723,7 +737,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
         ModalProps={{
           keepMounted: true, // Better open performance on mobile.
         }}
-        sx={{ display: { xs: 'block', sm: 'block' , md: "none"} }}
+        sx={{ display: { xs: 'block', sm: 'block' , md: "none"}, "&.MuiModal-hidden": { display: "none" } }}
       >
         <Box sx={{minHeight: "60px"}}/>
         {list()}

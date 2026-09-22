@@ -1,3 +1,5 @@
+import PageHeader from "./components/PageHeader";
+import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useCallback} from "react";
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -95,21 +97,16 @@ function Header(props) {
   const leaderHostname = props.config?.["cluster.topology"]?.leader_hostname ?? null;
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>
-            Inventory
-          </Box>
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+    <PageHeader
+      title="Inventory"
+      actions={(
+        <>
           <AddNewPioreactor setWorkers={props.setWorkers} availableModels={props.availableModels}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageInventoryMenu showSyncClocks leaderHostname={leaderHostname}/>
-        </Box>
-      </Box>
-      <Divider sx={{mt: "0px", mb: "15px"}} />
-    </Box>
+        </>
+      )}
+    />
   )
 }
 
@@ -276,7 +273,7 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <p>First, follow the instructions <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">here</a> to set up your new Pioreactor's worker software.</p>
+        <p>First, follow the <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">worker setup instructions</a> to set up your new Pioreactor's worker software.</p>
 
         <Typography component="p">Before continuing, confirm that:</Typography>
         <ol>
@@ -714,7 +711,7 @@ function WorkerCard({
             <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isActive() ? "inherit" : inactiveGrey} />
             <Typography sx={{
                 fontSize: 20,
-                color: "rgba(0, 0, 0, 0.87)",
+                color: uiColors.text,
                 fontWeight: 500,
                 ...(isActive() ? {} : { color: inactiveGrey }),
               }}
@@ -764,7 +761,7 @@ function WorkerCard({
             <td >
               <FormControl variant="standard" error={showModelError}>
                 <Select
-                  labelId="modelSelect"
+                  inputProps={{ "aria-label": "Model" }}
                   variant="standard"
                   value={selectValue}
                   onChange={handleModelChange}
@@ -812,7 +809,7 @@ function WorkerCard({
                 Software version
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{softwareVersion()}</Box>
             </td>
           </tr>
           <tr>
@@ -820,7 +817,7 @@ function WorkerCard({
                 IPv4
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ipv4 || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -828,7 +825,7 @@ function WorkerCard({
                 Raspberry Pi
             </Box>
             <td >
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{versions.rpi_machine || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -836,7 +833,7 @@ function WorkerCard({
                 WLAN MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{WLANaddress || "-"}</Box>
             </td>
           </tr>
           <tr>
@@ -844,7 +841,7 @@ function WorkerCard({
                 Ethernet MAC
             </Box>
             <td>
-              <Box component="code" sx={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
+              <Box component="code" sx={{backgroundColor: uiColors.codeBackground, padding: "1px 4px"}}>{ETHAddress || "-"}</Box>
             </td>
           </tr>
           </Box>
@@ -862,6 +859,7 @@ function WorkerCard({
             label={null}
             selfTestState={selfTestJob ? selfTestJob.state : null}
             selfTestTests={selfTestJob}
+            cameraEnabled={config.camera?.enabled === "1"}
           />
           <Unassign
             unit={unit}
@@ -875,7 +873,6 @@ function WorkerCard({
       </CardActions>
     </Card>
     <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={snackbarOpen}
       onClose={handleSnackbarClose}
       message={snackbarMessage}
@@ -994,7 +991,7 @@ function InventoryDisplay({
                   cursor: 'pointer',
                 }}>
                 <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={'rgba(0, 0, 0, 0.6)'}/>
+                  <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={uiColors.textSecondary}/>
                   <Typography color="text.secondary" align="center">
                     Add new Pioreactor
                   </Typography>

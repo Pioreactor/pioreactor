@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import { useNavigate, useParams } from "react-router";
 import Alert from "@mui/material/Alert";
@@ -5,7 +6,6 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import Grid from "@mui/material/Grid";
@@ -435,13 +435,7 @@ function Protocols(props) {
 
   return (
     <React.Fragment>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h2">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>Protocols</Box>
-        </Typography>
-
-      </Box>
-      <Divider sx={{ mt: "0px", mb: "15px" }} />
+      <PageHeader title="Protocols" />
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
@@ -460,8 +454,9 @@ function Protocols(props) {
           >
             <Box>
               <FormControl variant="standard" sx={{ minWidth: 220 }}>
-                <FormLabel component="legend">Pioreactor</FormLabel>
+                <FormLabel id="protocol-pioreactor-label">Pioreactor</FormLabel>
                 <Select
+                  labelId="protocol-pioreactor-label"
                   value={displayedSelectedUnit}
                   onChange={handleSelectUnitChange}
                   disabled={isLoadingWorkers || workers.length === 0}
@@ -487,8 +482,9 @@ function Protocols(props) {
             </Box>
             <Box>
               <FormControl variant="standard" sx={{ minWidth: 220 }}>
-                <FormLabel component="legend">Device</FormLabel>
+                <FormLabel id="protocol-device-label">Device</FormLabel>
                 <Select
+                  labelId="protocol-device-label"
                   value={selectedDevice}
                   onChange={handleSelectDeviceChange}
                   disabled={isLoadingProtocols || protocols.length === 0}
@@ -569,7 +565,6 @@ function Protocols(props) {
         </Typography>
       </Box>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}

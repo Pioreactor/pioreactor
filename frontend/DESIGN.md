@@ -31,6 +31,10 @@ and predictable while still fitting useful information on screen.
 
 ### Color
 
+The MUI theme lives in `src/theme/index.js`. Shared non-MUI surface, navigation,
+and status colours live in `src/theme/colors.js`; use `uiColors` rather than
+repeating those literals. Data-series and illustration colours remain separate.
+
 Use theme tokens where they exist. The values below define the intended visual
 result and should be moved into the theme as repeated patterns are consolidated.
 
@@ -61,6 +65,34 @@ exactly:
 Odd row:  #F7F7F7
 Even row: #FFFFFF
 ```
+
+### Appearance
+
+The header's Appearance menu offers Light, Dark, and System. Light remains the
+initial default; the browser remembers an explicit choice. System follows the
+operating system, including changes while the UI is open. Changing appearance
+must preserve page state and unsaved input.
+
+MUI colour schemes own the palette and emit CSS variables. `uiColors` exposes
+those variables for ordinary styles, SVGs, and module-level status definitions.
+Use MUI palette tokens in `sx` and `uiColors` for the shared specialised colours.
+The light values above remain the reference for light mode; dark mode uses:
+
+| Purpose | Dark value |
+| --- | --- |
+| Page background | `#191A21` |
+| Surface | `#22232B` |
+| Zebra row | `#292A34` |
+| Primary | `#B9A5FF` |
+| Primary text | `#F1F0F5` |
+| Secondary text | `#BDBBC9` |
+
+Keep camera images faithful to their source. Diagram surfaces, outlines, and
+labels follow the active scheme; liquid and active hardware colours retain their
+meaning and use contrasting labels. Chart
+axes, labels, tooltips, and controls follow the active scheme; series keep their
+hue with a brightness lift in dark mode. PNG and SVG exports carry the active
+chart colours and background so they remain readable outside the UI.
 
 ### Typography
 
@@ -124,32 +156,23 @@ not replace the page header.
 
 There are three approved page header variants.
 
+Use `src/components/PageHeader.jsx` for the title/action row and divider.
+It owns the bold `h5`/`h1`, a 44px minimum row height, an 8px gap before the
+divider, and 16px after it. The common row height aligns title-only pages with
+pages that have buttons. Rows grow when titles or actions wrap.
+
+Pass `title` and optional `actions` for ordinary pages. Pass `navigation`
+instead of `title` for a detail toolbar, with the record `h1` below it. When a
+parent Stack or Grid already supplies the 16px region gap, use `sx={{ mb: 0 }}`
+to avoid doubling it. Sentence-style headers remain separate and omit the divider.
+
 #### 1. Title and actions
 
 Use this for collection, administration, and operational pages with actions.
 Examples include Inventory, Pioreactors, Updates, and Export data.
 
 ```jsx
-<Box component="header" sx={{ mb: 2 }}>
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 2,
-      flexWrap: "wrap",
-      mb: 1,
-    }}
-  >
-    <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
-      Inventory
-    </Typography>
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-      {actions}
-    </Box>
-  </Box>
-  <Divider />
-</Box>
+<PageHeader title="Inventory" actions={actions} />
 ```
 
 Rules:
@@ -166,12 +189,7 @@ Rules:
 Use this when a page has no page-level actions.
 
 ```jsx
-<Box component="header" sx={{ mb: 2 }}>
-  <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-    Protocols
-  </Typography>
-  <Divider />
-</Box>
+<PageHeader title="Protocols" />
 ```
 
 Do not omit the divider merely because the action group is empty.
@@ -182,26 +200,14 @@ Use this for a single calibration, estimator, Pioreactor, profile, or other
 named record.
 
 ```jsx
-<Box component="header" sx={{ mb: 2 }}>
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 2,
-      flexWrap: "wrap",
-      mb: 1,
-    }}
-  >
+<PageHeader
+  navigation={(
     <Button component={Link} to="/calibrations">
       <ArrowBackIcon fontSize="small" sx={textIcon} /> Back to calibrations
     </Button>
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-      {actions}
-    </Box>
-  </Box>
-  <Divider />
-</Box>
+  )}
+  actions={actions}
+/>
 <Box sx={{ mb: 2 }}>
   <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
     <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
@@ -406,6 +412,9 @@ Examples:
 Rules:
 
 - A clickable row must have `cursor: pointer`.
+- Use `NavigableTableRow` from `src/components/TableRows.jsx` for shared
+  row navigation, keyboard activation, hover, and focus styling. Put a real
+  link in the identifying cell; nested controls keep their own interaction.
 - Hover uses `#F7F7F7`.
 - Keyboard focus must be visible.
 - Enter and Space must activate the same navigation as click.
@@ -582,6 +591,8 @@ Rules:
 - Error copy should say what failed and what the user can do next.
 - Use the shared Snackbar wrapper for transient success or local action
   feedback. Snackbars must use the bottom-center position.
+- `SnackbarProvider` in `App.jsx` owns the position. Callers should not repeat
+  `anchorOrigin` or override it for live log notifications.
 - A Pioreactor card may flash a subtle, brief primary-color halo around a pill
   when a live update changes the pill's visible value: state changes flash
   the activity status pill, and displayed setting changes flash that setting's
@@ -621,8 +632,9 @@ Rules:
   focused shared component.
 - A shared component should encode a settled rule, not hide unresolved design
   differences.
-- The likely first shared patterns are `PageHeader`, zebra table rows, clickable
-  table rows, and entity Chips.
+- `PageHeader` owns standard page headers. `TableRows.jsx` owns zebra and
+  navigable rows; `LogTableCells.jsx` owns log-cell spacing and severity fills.
+  Use zebra rows for log entries, leaving time-gap separators as plain rows.
 - Do not inspect or edit `core/pioreactor/web/static/`; it is generated output.
 
 ## Reference implementations
@@ -640,7 +652,7 @@ unrelated drift:
 | Title and actions header | `frontend/src/Inventory.jsx`, `frontend/src/Pioreactors.jsx` |
 | Sentence-style header | `frontend/src/Logs.jsx`, `frontend/src/SystemLogs.jsx`, `frontend/src/Plugins.jsx` |
 | Status colors | `frontend/src/utils/color.js` |
-| App palette and canvas | `frontend/src/App.jsx` |
+| App palette and canvas | `frontend/src/theme/index.js` |
 
 ## Known inconsistencies
 
@@ -648,19 +660,11 @@ These are design debt, not alternate approved patterns.
 
 | Area | Intended rule | Current inconsistency |
 | --- | --- | --- |
-| Page heading semantics | One `h1` per route page | Calibrations, Estimators, Plugins, Protocols, Export data, Leader, Logs, System logs, Experiment Profiles, and the experiment profile create/edit pages use `component="h2"` for the top-level title in at least one route state. |
-| Detail headers | Back navigation is separate from the record `h1` | Single calibration and single estimator pages mark the back button container as the `h1`; the actual record title is an `h2` inside the Card. |
-| Header spacing | One responsive title/action layout | Header margins currently vary between `5px`, `mb: 1`, `mb: 2`, and omitted spacing; action wrapping is inconsistent. |
-| Clickable row accessibility | Whole-row navigation has focus and keyboard activation | Calibration and estimator rows have `onClick` and pointer hover but are not keyboard-focusable and do not handle Enter or Space. |
-| Row color tokens | Zebra and hover colors come from one shared rule | `#F7F7F7` is repeated independently in Experiments, Plugins, logs, Calibrations, and Estimators. |
 | Pioreactor labels | Pioreactor references in content use a small icon Chip | `MissingWorkerModelModal.jsx` and some operational lists use raw icon-plus-text labels outside title or Select contexts. |
-| Heading construction | Typography owns its weight and semantics | Some pages use nested bold `Box` elements, some use `sx={{ fontWeight: "bold" }}`, and others leave the same heading unbolded. |
-| Spacing tokens | Layout uses theme spacing | Several headers, editors, and controls use one-off pixel margins and widths for ordinary layout. |
+| Heading construction | Typography owns its weight and semantics | Some section headings still use nested bold `Box` elements. |
+| Spacing tokens | Layout uses theme spacing | Several editors and controls use one-off pixel margins and widths for ordinary layout. |
 
 ### Recommended cleanup order
 
-1. Standardize page headers and semantic heading levels.
-2. Fix clickable row keyboard behavior.
-3. Make all non-clickable log tables use the zebra rule.
-4. Move zebra, hover, and repeated status colors into shared theme tokens.
-5. Normalize Pioreactor entity labels outside titles, breadcrumbs, and Selects.
+1. Continue normalizing section heading levels.
+2. Normalize Pioreactor entity labels outside titles, breadcrumbs, and Selects.

@@ -21,6 +21,9 @@ def mean(x: Sequence[Number]) -> float:
 def trimmed_variance(x: Sequence[Number], cut_off_n: int = 1) -> float:
     from statistics import variance
 
+    if cut_off_n == 0:
+        return variance(x)
+
     if cut_off_n >= len(x) / 2:
         raise ValueError("cut_off_n must be less than half the length of x.")
 
@@ -31,6 +34,9 @@ def trimmed_variance(x: Sequence[Number], cut_off_n: int = 1) -> float:
 
 def trimmed_mean(x: Sequence[Number], cut_off_n: int = 1) -> float:
     from statistics import mean
+
+    if cut_off_n == 0:
+        return mean(x)
 
     x = list(x)  # copy it
     x.sort()

@@ -1,9 +1,11 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router";
-import { ThemeProvider, createTheme} from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
+import theme from "./theme";
 import CssBaseline from "@mui/material/CssBaseline";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
+import PageHeader from "./components/PageHeader";
 import { StyledEngineProvider } from '@mui/material/styles';
 
 
@@ -49,53 +51,10 @@ const CalibrationCoverage = React.lazy(() => import("./CalibrationCoverage"));
 const Estimators = React.lazy(() => import("./Estimators"));
 const Protocols = React.lazy(() => import("./Protocols"));
 
-
-const theme = createTheme({
-  focusVisible: true,
-  palette: {
-    background: {
-      default: "#f6f6f7",
-    },
-    primary: {
-      // light: will be calculated from palette.primary.main,
-      main: '#5331CA',
-      // dark: will be calculated from palette.primary.main,
-      // contrastText: will be calculated to contrast with palette.primary.main
-    },
-    secondary: {
-      main: '#DF1A0C',
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-    MuiTab: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-    MuiToggleButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-  },
-});
-
-
 const NotFound = () => {
   return (
     <>
-      <h1>Page Not Found</h1>
+      <PageHeader title="Page not found" />
       <p>Sorry, the page you are looking for could not be found.</p>
     </>
   );
@@ -122,12 +81,12 @@ function App() {
   return (
     <React.StrictMode>
       <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={theme}>
+        <ThemeProvider theme={theme} defaultMode="light" modeStorageKey="pioreactor-color-mode">
           <Router>
             <ScrollToTop/>
             <ConfirmProvider>
-              <CssBaseline />
-              <SnackbarProvider maxSnack={4}>
+              <CssBaseline enableColorScheme />
+              <SnackbarProvider maxSnack={4} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
                 <MainSite />
               </SnackbarProvider>
             </ConfirmProvider>
@@ -153,7 +112,7 @@ function MainSite() {
       <ErrorBoundary>
         <ExperimentProvider>
           <SideNavAndHeader cameraUIEnabled={cameraUIEnabled} />
-          <Box component="main" sx={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+          <Box component="main" sx={{flexGrow: 1, paddingTop: { xs: 14, sm: 9 }, paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
             <div className="pageContainer">
               <MQTTProvider name="global" config={config}>
                 <React.Suspense fallback={<RouteFallback />}>

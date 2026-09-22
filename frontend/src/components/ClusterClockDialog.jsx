@@ -102,6 +102,7 @@ function ClusterClockDialog({open, onClose, leaderHostname}) {
 
   async function handlePostTimestamp() {
     setUpdatingClock(true);
+    setError(null);
     try {
       const response = await fetch("/api/system/utc_clock", {
         method: "POST",
@@ -117,6 +118,7 @@ function ClusterClockDialog({open, onClose, leaderHostname}) {
 
       fetchBroadcastData();
     } catch (err) {
+      setError("Unable to update cluster clocks. Check your connection and retry.");
       console.error("Error posting timestamp:", err);
     } finally {
       setUpdatingClock(false);

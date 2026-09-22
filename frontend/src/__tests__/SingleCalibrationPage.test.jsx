@@ -147,8 +147,7 @@ describe("SingleCalibrationPage task-backed mutations", () => {
 
     renderSingleCalibrationPage();
 
-    await screen.findByText("Calibration: calibration-a");
-    await user.click(screen.getByRole("button", { name: /set inactive/i }));
+    await user.click(await screen.findByRole("button", { name: /set inactive/i }));
 
     await waitFor(() =>
       expect(fetchTaskResult).toHaveBeenCalledWith(

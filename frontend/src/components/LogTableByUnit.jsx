@@ -1,3 +1,5 @@
+import { ZebraTableRow } from "./TableRows";
+import { LogTableCell as StyledTableCell, LogTimeTableCell as StyledTimeTableCell } from "./LogTableCells";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 import dayjs from 'dayjs';
@@ -21,7 +23,6 @@ import { Link } from 'react-router';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
 
-import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utils/color";
 import { experimentPathSegment } from "../utils/url";
 
 // Activate the UTC plugin
@@ -29,33 +30,11 @@ dayjs.extend(utc);
 
 
 
-const StyledTableCell = styled(TableCell)(({ level }) => {
-  return {
-    padding: "6px 6px 6px 10px",
-    fontSize: 13,
-    backgroundColor: level === "ERROR" ? ERROR_COLOR :
-                      level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : "inherit",
-    whiteSpace: "normal"
-  };
-});
-
 const StyledTableCellFiller = styled(TableCell)(() => {
   return {
     paddingTop: "25px",
     paddingBottom: "15px",
     textAlign: "center"
-  };
-});
-
-const StyledTimeTableCell = styled(TableCell)(({ level }) => {
-  return {
-    padding: "6px 6px 6px 10px",
-    fontSize: 13,
-    backgroundColor: level === "ERROR" ? ERROR_COLOR :
-                      level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : "inherit",
-    whiteSpace: "pre"
   };
 });
 
@@ -196,11 +175,11 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
             <TableBody>
               {listOfLogs.map((log, i) => (
                 <React.Fragment key={log.key}>
-                  <TableRow>
+                  <ZebraTableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
-                  </TableRow>
+                  </ZebraTableRow>
                   {listOfLogs[i + 1] &&
                     toTimestampObject(log.timestamp).diff(
                       toTimestampObject(listOfLogs[i + 1].timestamp),

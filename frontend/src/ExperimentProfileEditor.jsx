@@ -1,8 +1,9 @@
+import PageHeader from "./components/PageHeader";
+import { uiColors } from "./theme/colors";
 import React from "react";
 
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
-import { Typography } from "@mui/material";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import Alert from "@mui/material/Alert";
@@ -22,7 +23,6 @@ import CapabilitiesPanel from "./components/CapabilitiesPanel";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
@@ -229,7 +229,7 @@ export function ExperimentProfileEditorContent({
           <Box
             sx={{
               tabSize: "4ch",
-              border: "1px solid #ccc",
+              border: `1px solid ${uiColors.border}`,
               m: "10px auto 10px auto",
               position: "relative",
               width: "98%",
@@ -247,7 +247,7 @@ export function ExperimentProfileEditorContent({
               style={{
                 fontSize: "14px",
                 fontFamily: "monospace",
-                backgroundColor: "hsla(0, 0%, 100%, .5)",
+                backgroundColor: uiColors.surface,
                 borderRadius: "4px",
                 minHeight: "100%",
               }}
@@ -286,7 +286,6 @@ export function ExperimentProfileEditorContent({
         </Grid>
       </Grid>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={openSnackbar}
         onClose={handleSnackbarClose}
         message={snackbarMsg}
@@ -389,22 +388,21 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
           xs: 12,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
-            {pageCopy.heading}
-          </Typography>
-          <Box>
-            <Button sx={{  mr: 1 }} variant="text" onClick={() => setOpenCapabilities(true)}>
-              <SearchIcon fontSize="small" sx={textIcon}/> Search jobs and automations
-            </Button>
-            <Button component={Link} to="/experiment-profiles">
-              <ArrowBackIcon fontSize="small" sx={textIcon}/> Back to experiment profiles
-            </Button>
-          </Box>
-        </Box>
-        <Divider />
+        <PageHeader
+          title={pageCopy.heading}
+          actions={(
+            <>
+              <Button sx={{  mr: 1 }} variant="text" onClick={() => setOpenCapabilities(true)}>
+                <SearchIcon fontSize="small" sx={textIcon}/> Search jobs and automations
+              </Button>
+              <Button component={Link} to="/experiment-profiles">
+                <ArrowBackIcon fontSize="small" sx={textIcon}/> Back to experiment profiles
+              </Button>
+            </>
+          )}
+        />
 
-        <Card sx={{ mt: 2 }}>
+        <Card>
           <CardContent sx={{ p: 2 }}>
             {loading && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>

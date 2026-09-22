@@ -172,6 +172,12 @@ def test_raw_od_angle_migration(tmp_path: Path) -> None:
         "sudo": '#!/bin/bash\nshift 3\nexec "$@"\n',
         "pio": '#!/bin/bash\nif [ "$3" = "storage" ]; then echo "$TEST_DATABASE"; else hostname; fi\n',
         "chown": "#!/bin/bash\nexit 0\n",
+        "systemctl": "#!/bin/bash\nexit 0\n",
+        "install": (
+            '#!/bin/bash\nargs=()\nwhile [ "$#" -gt 0 ]; do\n'
+            'case "$1" in -o|-g) shift 2;; *) args+=("$1"); shift;; esac\ndone\n'
+            '/usr/bin/install "${args[@]}"\n'
+        ),
         "bash": '#!/bin/bash\ncase "$1" in */10_install_od_defaults.sh) exit 0;; esac\nexec /bin/bash "$@"\n',
     }
     for name, contents in commands.items():
@@ -179,17 +185,25 @@ def test_raw_od_angle_migration(tmp_path: Path) -> None:
         command.write_text(contents)
         command.chmod(0o755)
     env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "TEST_DATABASE": str(database)}
+    # Keep the merged Wi-Fi installation inside the test's temporary directory.
+    update_script = tmp_path / "update.sh"
+    update_script.write_text(
+        (SCRIPT_DIRECTORY / "update.sh")
+        .read_text()
+        .replace("/usr/local/bin/", f"{tmp_path}/bin/")
+        .replace("/etc/systemd/system/", f"{tmp_path}/systemd/")
+    )
+    for asset in ("wifi_recovery.sh", "pioreactor-wifi-recovery.service", "pioreactor-wifi-recovery.timer"):
+        (tmp_path / asset).write_bytes((SCRIPT_DIRECTORY / asset).read_bytes())
     for _ in range(2):
-        subprocess.run(
-            ["bash", str(SCRIPT_DIRECTORY / "update.sh")], env=env, check=True, capture_output=True
-        )
+        subprocess.run(["bash", str(update_script)], env=env, check=True, capture_output=True)
         with sqlite3.connect(database) as connection:
             assert connection.execute("SELECT od_reading, angle FROM raw_od_readings").fetchall() == [
                 (0.25, None)
             ]
     with sqlite3.connect(database) as connection:
         connection.execute("INSERT INTO raw_od_readings VALUES (0.5, 0)")
-    subprocess.run(["bash", str(SCRIPT_DIRECTORY / "update.sh")], env=env, check=True, capture_output=True)
+    subprocess.run(["bash", str(update_script)], env=env, check=True, capture_output=True)
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT angle FROM raw_od_readings WHERE od_reading=0.5").fetchone() == (0,)
 

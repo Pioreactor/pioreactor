@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import { Badge } from "@mui/material";
 import PioreactorIcon from "./PioreactorIcon"; // Adjust the import path as needed
 
@@ -13,8 +14,8 @@ const PioreactorIconWithModel = ({ badgeContent, color }) => {
         display: { xs: "none", sm: "none", md: "inline" },
         mr: "8px",
         "& .MuiBadge-badge": {
-          color: "inherit",
-          backgroundColor: "rgba(235,235,235)",
+          backgroundColor: uiColors.subtleBackground,
+          color: uiColors.text,
           padding: "0px",
           fontSize: "10px",
           fontWeight: "900",

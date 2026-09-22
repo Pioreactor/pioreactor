@@ -102,7 +102,6 @@ class JobManager:
         CREATE INDEX IF NOT EXISTS idx_pio_job_metadata_job_name ON pio_job_metadata(job_name);
 
         CREATE INDEX IF NOT EXISTS idx_pio_job_published_settings_job_id ON pio_job_published_settings(job_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS  idx_pio_job_published_settings_setting_job_id ON pio_job_published_settings(setting, job_id);
         """
         self.cursor.executescript(create_table_query)
 
@@ -216,7 +215,7 @@ class JobManager:
                 if result:
                     return result[0]
 
-                if (timeout and timer() > timeout) or (timeout is None):
+                if timeout is None or timer() >= timeout:
                     raise NameError(
                         f"Setting `{setting}` was not found in published settings of `{job_name}`."
                     )

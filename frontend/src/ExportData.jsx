@@ -1,6 +1,7 @@
+import PageHeader from "./components/PageHeader";
+import { uiColors } from "./theme/colors";
 import React from "react";
 import TextField from '@mui/material/TextField';
-import Divider from '@mui/material/Divider';
 
 import Grid from '@mui/material/Grid';
 import FormControl from '@mui/material/FormControl';
@@ -111,7 +112,7 @@ function SingleExperimentSelect({availableValues, parentHandleChange, value}) {
   return (
     <div>
       <FormControl fullWidth variant="standard" component="fieldset" sx={{ maxWidth: 470 }}>
-        <Typography variant="h6" gutterBottom >
+        <Typography id="expSelect" variant="h6" gutterBottom >
           <Box sx={{ fontWeight: "fontWeightRegular" }}>Experiment</Box>
         </Typography>
         <Select
@@ -204,9 +205,9 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
         ml: 1,
         mt: 2,
         p: 1.5,
-        borderLeft: isSelected ? "4px solid #5331CA" : "4px solid #ddd",
+        borderLeft: isSelected ? `4px solid ${uiColors.primary}` : `4px solid ${uiColors.border}`,
         borderRadius: "4px",
-        backgroundColor: isSelected ? "#5331ca14" : "white",
+        backgroundColor: isSelected ? uiColors.selection : uiColors.surface,
         transition: "background-color 0.15s, border 0.15s",
       }}
     >
@@ -248,11 +249,11 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
             display: 'none',
           },
           ml: "20px",
-          backgroundColor: isSelected ? "#f6f4fa" : "white",
+          backgroundColor: isSelected ? uiColors.selectedSurface : uiColors.surface,
           mt: "8px",
           maxWidth: "70vw",
           "&.Mui-expanded": {
-            backgroundColor: isSelected ? "#f6f4fa" : "#f9f9f9",
+            backgroundColor: isSelected ? uiColors.selectedSurface : uiColors.hoverSurface,
             ml: "20px",
             width: "70vw",
             overflow: "scroll",
@@ -269,7 +270,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
             flexDirection: 'row-reverse',
             fontWeight: "bold",
             '&:hover': {
-              backgroundColor: "#f3f3f3",
+              backgroundColor: uiColors.subtleBackground,
             },
           }}
         expandIcon={<ArrowDropDownIcon />}
@@ -544,14 +545,10 @@ function ExportDataContainer() {
   const hasExperimentSelection = Boolean(state.experimentSelection);
   return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>
-              Export data
-            </Box>
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <PageHeader
+        title="Export data"
+        actions={(
+          <>
             {hasWritableUsb ? (
               <SelectButton
                 value={exportDestination}
@@ -583,10 +580,9 @@ function ExportDataContainer() {
                   Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
               </Button>
             )}
-          </Box>
-        </Box>
-      <Divider sx={{mt: "0px", mb: "15px"}} />
-      </Box>
+          </>
+        )}
+      />
       <Card>
         <CardContent sx={{ p: 1 }}>
           <Box sx={{ ml: 1, mr: 1 }}>
@@ -694,7 +690,6 @@ function ExportDataContainer() {
         <Box component="p" sx={{textAlign: "center", mt: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</Box>
       </Grid>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMsg}

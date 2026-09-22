@@ -267,3 +267,16 @@ def test_retrieve_setting(job_manager, job_id) -> None:
     job_manager.set_not_running(job_key)
     with pytest.raises(NameError):
         job_manager.get_setting_from_running_job("test_name", "my_setting_int")
+
+
+def test_retrieve_setting_with_zero_timeout(
+    job_manager: JobManager, job_id: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_sleep(seconds: float) -> None:
+        pytest.fail("A zero timeout must not poll for missing settings.")
+
+    monkeypatch.setattr("pioreactor.utils.job_manager.sleep", unexpected_sleep)
+    job_manager.upsert_setting(job_id, "interval", 5)
+    assert job_manager.get_setting_from_running_job("test_job", "interval", timeout=0) == 5
+    with pytest.raises(NameError, match="missing"):
+        job_manager.get_setting_from_running_job("test_job", "missing", timeout=0)

@@ -147,8 +147,7 @@ describe("SingleEstimatorPage task-backed mutations", () => {
 
     renderSingleEstimatorPage();
 
-    await screen.findByText("Estimator: estimator-a");
-    await user.click(screen.getByRole("button", { name: /set inactive/i }));
+    await user.click(await screen.findByRole("button", { name: /set inactive/i }));
 
     await waitFor(() =>
       expect(fetchTaskResult).toHaveBeenCalledWith(

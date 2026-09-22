@@ -94,6 +94,7 @@ class PID:
         Resets the state variables.
         """
         self.error_prev = None
+        self._last_input = None
         self.error_sum = 0.0
         self.derivative_prev = 0.0
 

@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -9,8 +10,6 @@ import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -24,6 +23,7 @@ import SelectButton from './components/SelectButton';
 // Activate the UTC plugin
 dayjs.extend(utc);
 
+const INVALID_EXPERIMENT_NAME_CHARACTERS = /[#$%+\/?\\]/;
 
 function normalizeTagList(tags) {
   const normalizedTags = [];
@@ -79,7 +79,7 @@ function ExperimentSummaryForm(props) {
     [historicalExperimentList],
   );
   const trimmedExpName = expName.trim();
-  const hasInvalidCharacters = /[#$%+\/?\\]/.test(trimmedExpName);
+  const hasInvalidCharacters = INVALID_EXPERIMENT_NAME_CHARACTERS.test(trimmedExpName);
   const nameAlreadyUsed = trimmedExpName in historicalExperiments;
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
   const populateExperimentName = selectedPopulateExperimentName || historicalExperimentList[0]?.experiment || "";
@@ -175,9 +175,9 @@ function ExperimentSummaryForm(props) {
       setFormError(true);
       setHelperText("Experiment name already used. Please choose another.")
     }
-    else if (/[#$%&+\/=?\\]/.test(experimentNameProposed)) {
+    else if (INVALID_EXPERIMENT_NAME_CHARACTERS.test(experimentNameProposed)) {
       setFormError(true)
-      setHelperText("Can't use $, %, #, &, \\, /, +, = or ? characters in experiment name.")
+      setHelperText("Can't use $, %, #, \\, /, + or ? characters in experiment name.")
     }
     else {
       setHelperText(" ")
@@ -214,7 +214,7 @@ function ExperimentSummaryForm(props) {
               label="Experiment name"
               value={expName}
               required
-              sx={{mt: 0, mb: 0, width: "50%"}}
+              sx={{mt: 0, mb: 0, width: { xs: "100%", md: "50%" }}}
               onChange={onExpNameChange}
               helperText={helperText}
               />
@@ -233,7 +233,6 @@ function ExperimentSummaryForm(props) {
             <TextField
               label="Description (optional - can be edited later)"
               rows={2}
-              placeholder="Add a description. This description can be changed later."
               multiline
               value={description}
               sx={{mt: 0, mb: 2, width: "100%"}}
@@ -347,12 +346,7 @@ function StartNewExperimentContainer() {
 
   return (
     <React.Fragment>
-      <Box component="header" sx={{ mb: 2 }}>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-          Start a new experiment
-        </Typography>
-        <Divider />
-      </Box>
+      <PageHeader title="Start a new experiment" />
       <Card>
         <CardContent sx={{ p: 2 }}>
           <Box sx={{ my: 2, mx: "auto", width: "70%" }}>

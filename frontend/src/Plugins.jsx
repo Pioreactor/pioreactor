@@ -1,3 +1,4 @@
+import { uiColors } from "./theme/colors";
 import Avatar from "boring-avatars";
 import React from "react";
 import UnderlineSpan from "./components/UnderlineSpan";
@@ -34,10 +35,10 @@ const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 const ListItemStyled = styled(ListItem)(() => ({
   "&:nth-of-type(odd)": {
-    backgroundColor: "#F7F7F7",
+    backgroundColor: uiColors.stripe,
   },
   "&:nth-of-type(even)": {
-    backgroundColor: "white",
+    backgroundColor: uiColors.surface,
   },
   paddingLeft: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)`,
   paddingRight: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)`,
@@ -960,12 +961,6 @@ function PluginContainer() {
       />
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <p>
-            Discover, install, and manage Pioreactor plugins. These
-            plugins can provide new functionalities for your Pioreactor (additional hardware may be
-            necessary), or new automations to control dosing, temperature and LED tasks.
-          </p>
-
           <Typography variant="h6" component="h2">
             {targetIsRealUnit ? `Installed plugins on ${selectedTarget}` : "Installed plugins"}
           </Typography>
@@ -1034,7 +1029,6 @@ function PluginContainer() {
         .
       </Box>
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMsg}

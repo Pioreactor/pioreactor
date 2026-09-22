@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -101,7 +102,7 @@ function RunExperimentProfilesContent({
 
   const deleteProfile = () => {
     confirm({
-      title: `Are you sure you wish to delete this profile?`,
+      title: `Delete this profile?`,
       description: "This action is permanent.",
       confirmationText: "Delete",
       confirmationButtonProps: { color: "primary", variant: "contained" },
@@ -142,7 +143,7 @@ function RunExperimentProfilesContent({
       <Grid size={4}>
         <Box sx={{ width: "100%", mt: 2,  display: "flex", justifyContent: "space-between" }}>
           <FormControl sx={{ minWidth: "300px" }}>
-            <FormLabel component="legend">Experiment profile</FormLabel>
+            <FormLabel id="profileSelect">Experiment profile</FormLabel>
             <Select
               labelId="profileSelect"
               variant="standard"
@@ -275,8 +276,8 @@ function RunProfilesContainer(props) {
     <React.Fragment>
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <Typography variant="h6" component="h2">
-            <Box sx={{ fontWeight: "fontWeightRegular" }}>Available profiles</Box>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: "fontWeightRegular" }}>
+            Available profiles
           </Typography>
           <RunExperimentProfilesContent {...props} experiment={experiment} />
         </CardContent>
@@ -306,8 +307,8 @@ function RunningProfilesContainer() {
     <React.Fragment>
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            <Box sx={{ fontWeight: "fontWeightRegular" }}>Profiles running</Box>
+          <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: "fontWeightRegular" }}>
+            Profiles running
           </Typography>
           {loading && (
             <Box sx={{ textAlign: "center", mt: 2 }}>
@@ -575,14 +576,11 @@ function Profiles(props) {
             md: 12,
             xs: 12
           }}>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-              <Typography variant="h5" component="h2">
-                <Box sx={{ fontWeight: "fontWeightBold" }}>
-                  Experiment profiles
-                </Box>
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <PageHeader
+            title="Experiment profiles"
+            sx={{ mb: 0 }}
+            actions={(
+              <>
                 <Button
                   to={`/experiment-profiles/new`}
                   component={Link}
@@ -594,10 +592,9 @@ function Profiles(props) {
                 </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />
                 <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
-              </Box>
-            </Box>
-            <Divider />
-          </Box>
+              </>
+            )}
+          />
         </Grid>
 
         {/* Left side: For selecting a profile or running a new profile */}
@@ -630,8 +627,8 @@ function Profiles(props) {
           <Box sx={{ mt: 2 }}>
             <Card>
               <CardContent sx={{ p: 2 }}>
-                <Typography variant="h6" component="h2" gutterBottom>
-                  <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent profile runs</Box>
+                <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: "fontWeightRegular" }}>
+                  Recent profile runs
                 </Typography>
                 {recentLoading && (
                   <Box sx={{ textAlign: "center", mt: 1 }}>

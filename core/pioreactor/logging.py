@@ -150,8 +150,9 @@ class MQTTHandler(logging.Handler):
             retain=self.retain,
             **self.mqtt_kwargs,
         )
-        # if Python exits too quickly, the last msg might never make it to the broker.
-        mqtt_msg.wait_for_publish(timeout=2)
+        # Keep DEBUG logging asynchronous; wait for other levels before a possible process exit.
+        if record.levelno != logging.DEBUG:
+            mqtt_msg.wait_for_publish(timeout=2)
 
     def close(self) -> None:
         if self.owns_client:

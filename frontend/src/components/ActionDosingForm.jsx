@@ -127,6 +127,7 @@ export default function ActionPumpForm(props) {
               sx={actionTextField}
               slotProps={{
                 htmlInput: {
+                  'aria-label': 'Dose volume in mL',
                   min: 0,
                   step: 1,
                   ...(hardRemainingMl != null ? { max: Math.max(hardRemainingMl, 0) } : {}),
@@ -152,6 +153,9 @@ export default function ActionPumpForm(props) {
               onChange={(e) => handleNumericChange(e, setDuration, setFormErrorDuration)}
               sx={actionTextField}
               slotProps={{
+                htmlInput: {
+                  'aria-label': 'Pump duration in seconds',
+                },
                 input: {
                   endAdornment: <InputAdornment position="end">s</InputAdornment>,
                 },
@@ -196,7 +200,6 @@ export default function ActionPumpForm(props) {
         </Alert>
       )}
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         onClose={handleSnackbarClose}
         message={snackbarMsg}

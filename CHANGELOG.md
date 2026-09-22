@@ -1,3 +1,22 @@
+### Upcoming
+
+#### Enhancements
+
+ - Added Light, Dark, and System appearance options in the UI, with the selection remembered in the browser. Charts, diagrams, logs, and editors now adapt to the selected appearance, and downloaded charts retain their colours and background.
+ - Added a **Colour view** toggle to Camera Stills, using the Magma colour map to highlight differences in image brightness.
+ - Added a camera capture self-test when `[camera].enabled=1`, with results and camera-only testing available in the UI.
+
+
+#### Bug fixes
+
+ - Extended Wi-Fi recovery to retry saved autoconnect networks when a Raspberry Pi remains disconnected, with at least five minutes between attempts and respect for intentional disconnects.
+ - Made database updates wait up to 15 seconds for temporary SQLite locks instead of failing immediately.
+ - Fixed circulation stop requests failing silently when the server returns an error; the UI now reports the failure.
+ - Fixed LED intensity validation accepting malformed numeric input, and made experiment-name validation consistently allow `&` and `=`.
+ - Fixed network discovery leaving background processes running after a scan finishes, and corrected hostname handling when addresses contain surrounding whitespace.
+ - Fixed PID resets retaining the previous input, which could produce a derivative spike on the next update.
+ - Fixed job-setting lookups with `timeout=0` waiting indefinitely instead of returning immediately when the setting is unavailable.
+
 ### 26.9.0
 
 #### Breaking changes

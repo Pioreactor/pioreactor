@@ -79,7 +79,7 @@ function VialVolumePreview({
         width="80"
         height={svgHeight}
         aria-label="Dynamic vial volume preview"
-        sx={{ color: "#464646" }}
+        sx={{ color: "text.secondary" }}
       >
         <defs>
           <clipPath id={clipPathId}>

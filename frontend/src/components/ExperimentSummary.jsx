@@ -1,13 +1,14 @@
+import PageHeader from "./PageHeader";
 import React from 'react'
 import dayjs from "dayjs";
 //import dayjs from "dayjs";
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import ButtonBase from '@mui/material/ButtonBase';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {Chip, Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import OutlinedInput from '@mui/material/OutlinedInput';
-import InputLabel from '@mui/material/InputLabel';
-import Divider from '@mui/material/Divider';
 import Alert from '@mui/material/Alert';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
@@ -74,10 +75,10 @@ class EditableDescription extends React.Component {
   render = () => {
     return (
       <Box sx={{padding: "0px 5px 0px 5px"}}>
-        <InputLabel htmlFor="description-box">Description</InputLabel>
         <OutlinedInput
           placeholder={"Provide a description of your experiment."}
           id="description-box"
+          inputProps={{ 'aria-label': 'Description' }}
           multiline
           fullWidth={true}
           onChange={this.handleChange}
@@ -92,6 +93,14 @@ class EditableDescription extends React.Component {
 
 
 function ExperimentSummary({experimentMetadata, updateExperiment, showAssignmentAlert=false}){
+  const [descriptionOpen, setDescriptionOpen] = React.useState(
+    () => localStorage.getItem('experimentDescriptionOpen') !== 'false'
+  );
+  const toggleDescription = () => {
+    const open = !descriptionOpen;
+    setDescriptionOpen(open);
+    localStorage.setItem('experimentDescriptionOpen', String(open));
+  };
   const experiment = experimentMetadata.experiment
   const startedAt = experimentMetadata.created_at
   const deltaHours = experimentMetadata.delta_hours
@@ -99,17 +108,13 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
   return(
     <React.Fragment>
       <Box>
-        <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
-          <Typography variant="h5" component="h1">
-            <Box sx={{ fontWeight: "fontWeightBold" }}>{experiment}</Box>
-          </Typography>
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+        <PageHeader
+          title={experiment}
+          actions={(
             <ManageExperimentMenu experiment={experiment}/>
-          </Box>
-        </Box>
-
-        <Divider/>
-        <Box sx={{m: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          )}
+        />
+        <Box sx={{mt: 0, mb: 1.5, display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
@@ -117,7 +122,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
               </Box>
               <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
                 {(startedAt !== "") &&
-                <span>{dayjs(startedAt).format("dddd, MMMM D, h:mm a")}</span>
+                <span>{dayjs(startedAt).format("dddd, MMMM D, YYYY, h:mm a")}</span>
                 }
               </Box>
             </Box>
@@ -153,7 +158,17 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
         </Alert>
       }
       <Card >
-        <CardContent sx={{p: 1}}>
+        <ButtonBase
+          disableRipple
+          onClick={toggleDescription}
+          aria-expanded={descriptionOpen}
+          aria-controls="experiment-description-content"
+          sx={{ width: '100%', minHeight: 44, px: 2, justifyContent: 'space-between' }}
+        >
+          <Typography component="span" variant="body2" color="text.secondary">Description</Typography>
+          <ExpandMoreIcon sx={{ transform: descriptionOpen ? 'rotate(180deg)' : 'none', color: 'text.secondary' }} />
+        </ButtonBase>
+        <CardContent id="experiment-description-content" hidden={!descriptionOpen} sx={{p: 1, pt: 0, '&:last-child': { pb: 1 }}}>
           <EditableDescription experimentMetadata={experimentMetadata} updateExperiment={updateExperiment} />
         </CardContent>
       </Card>

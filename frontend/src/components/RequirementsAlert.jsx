@@ -1,18 +1,19 @@
 import React from "react";
+import { uiColors } from "../theme/colors";
 import Alert from "@mui/material/Alert";
 
 function RequirementsAlert(props) {
   const { sx, children, ...rest } = props;
   const baseSx = {
-    backgroundColor: "grey.100",
-    borderColor: "grey.300",
+    backgroundColor: uiColors.subtleBackground,
+    borderColor: uiColors.border,
     borderStyle: "solid",
     borderWidth: "1px",
-    color: "grey.700",
+    color: uiColors.textSecondary,
     mt: 1,
     mb: 1,
     "& .MuiAlert-icon": {
-      color: "grey.600",
+      color: uiColors.textSecondary,
     },
   };
   const combinedSx = Array.isArray(sx) ? [baseSx, ...sx] : [baseSx, sx];

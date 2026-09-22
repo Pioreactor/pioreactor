@@ -126,7 +126,7 @@ class Pico_ADC:
             return int.from_bytes(result, byteorder="little", signed=False)
         except OSError:
             raise exc.HardwareNotFoundError(
-                f"Unable to find i2c address {self.i2c_addr}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c address 0x{self.i2c_addr:x}. Is the HAT attached? Is the firmware loaded?"
             )
 
     def get_firmware_version(self) -> tuple[int, int]:
@@ -136,7 +136,7 @@ class Pico_ADC:
             return (result[1], result[0])
         except OSError:
             raise exc.HardwareNotFoundError(
-                f"Unable to find i2c address {self.i2c_addr}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c address 0x{self.i2c_addr:x}. Is the HAT attached? Is the firmware loaded?"
             )
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:

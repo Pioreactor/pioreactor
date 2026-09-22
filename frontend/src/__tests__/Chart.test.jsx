@@ -14,7 +14,7 @@ jest.mock("victory", () => {
     VictoryScatter: ({ name }) => <div>{name}</div>,
     VictoryTooltip: MockVictoryComponent,
     VictoryVoronoiContainer: MockVictoryComponent,
-    VictoryTheme: { material: {} },
+    VictoryTheme: jest.requireActual("victory").VictoryTheme,
     createContainer: () => MockVictoryComponent,
   };
 });

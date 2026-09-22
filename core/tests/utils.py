@@ -17,6 +17,7 @@ class FakeMQTTMessageInfo:
         published: bool = True,
         on_wait: Callable[[float | None], Any] | None = None,
     ) -> None:
+        self.rc = 0
         self.wait_error = wait_error
         self.published = published
         self.on_wait = on_wait

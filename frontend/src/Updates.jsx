@@ -1,3 +1,4 @@
+import PageHeader from "./components/PageHeader";
 import React from "react";
 import MarkdownView from 'react-showdown';
 
@@ -11,7 +12,6 @@ import {Typography} from '@mui/material';
 import Snackbar from './components/Snackbar';
 import Link from '@mui/material/Link';
 import UpdateIcon from '@mui/icons-material/Update';
-import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -232,9 +232,9 @@ function UploadArchiveAndConfirm(props) {
             {units.length > 1 &&
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
-                <InputLabel >Units to update</InputLabel>
+                <InputLabel id="file-update-units">Units to update</InputLabel>
                 <Select
-                  labelId="configSelect"
+                  labelId="file-update-units"
                   value={selectedUnits ? selectedUnits : "$broadcast"}
                   onChange={onSelectionChange}
                   label="Units to update"
@@ -383,9 +383,9 @@ export function UpdateFromInternetAndConfirm(props) {
             {units.length > 1 &&
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
-                <InputLabel >Units to update</InputLabel>
+                <InputLabel id="internet-update-units">Units to update</InputLabel>
                 <Select
-                  labelId="configSelect"
+                  labelId="internet-update-units"
                   value={selectedUnits ? selectedUnits : "$broadcast"}
                   onChange={onSelectionChange}
                   label="Units to update"
@@ -510,7 +510,7 @@ function UpdateFromUsbAndConfirm(props) {
             {props.description}
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "260px"}} variant="outlined" size="small">
-                <InputLabel>Release archive</InputLabel>
+                <InputLabel id="usbArchiveSelect">Release archive</InputLabel>
                 <Select
                   labelId="usbArchiveSelect"
                   value={selectedArchivePath}
@@ -529,7 +529,7 @@ function UpdateFromUsbAndConfirm(props) {
             {units.length > 1 &&
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
-                <InputLabel >Units to update</InputLabel>
+                <InputLabel id="usbUnitsSelect">Units to update</InputLabel>
                 <Select
                   labelId="usbUnitsSelect"
                   value={selectedUnits ? selectedUnits : "$broadcast"}
@@ -702,7 +702,6 @@ function UpdateSoftwareConfirmDialog() {
         }
       </SelectButton>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
         message="Updating in the background. This may take a few minutes. You may leave this page."
         autoHideDuration={20000}
@@ -744,7 +743,7 @@ function UpdateSoftwareConfirmDialog() {
 }
 
 
-function PageHeader() {
+function UpdatesHeader() {
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const [config, setConfig] = React.useState({})
   const [version, setVersion] = React.useState("")
@@ -799,24 +798,19 @@ function PageHeader() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>
-            Updates
-          </Box>
-        </Typography>
-        <Box>
-          <Box sx={{float: "right", mr: "0px", ml: "10px"}}>
+      <PageHeader
+        title="Updates"
+        actions={(
+          <>
+            <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
+              <Button sx={{  mr: "0px"}} color="primary">
+                <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> View latest release
+              </Button>
+            </Link>
             <UpdateSoftwareConfirmDialog />
-          </Box>
-          <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
-            <Button sx={{  mr: "0px"}} color="primary">
-              <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", m: "0px 3px"}}/> View latest release
-            </Button>
-          </Link>
-        </Box>
-      </Box>
-      <Divider sx={{mt: 0, mb: "15px"}} />
+          </>
+        )}
+      />
       <Typography variant="subtitle2">
 
         <Box sx={{ fontWeight: "fontWeightBold", m: "10px 2px 10px 2px", display:"inline-block" }}>
@@ -870,7 +864,7 @@ Could not retrieve latest Changelog. Perhaps not connected to the internet.
     <React.Fragment>
       <Card>
         <CardContent sx={{p: 1}}>
-        <Typography variant="h6" component="h6">
+        <Typography variant="h6" component="h2">
             Change log
         </Typography>
           <MarkdownView
@@ -893,7 +887,7 @@ function Updates(props) {
             md: 12,
             xs: 12
           }}>
-          <PageHeader/>
+          <UpdatesHeader/>
           <ChangelogContainer/>
         </Grid>
       </Grid>

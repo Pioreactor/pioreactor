@@ -27,7 +27,7 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
 
   const handleReboot = () => {
     confirm({
-      description: 'This will halt running activities in worker Pioreactors and reboot them. Do you wish to continue?',
+      description: 'This will halt running activities in worker Pioreactors and reboot them.',
       title: "Reboot all workers?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
@@ -41,7 +41,7 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
 
   const handleShutdown = () => {
     confirm({
-      description: 'This will halt running activities in worker Pioreactors and shut them down. A physical power-cycle is required to restart them. Do you wish to continue?',
+      description: 'This will halt running activities in worker Pioreactors and shut them down. A physical power-cycle is required to restart them.',
       title: "Shutdown all workers?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
@@ -53,7 +53,7 @@ function ManageInventoryMenu({showSyncClocks=false, leaderHostname=null}){
   };
   const handleUnassign = () => {
     confirm({
-      description: 'Unassign all workers from active experiments. This will also halt all activities in worker Pioreactors. Do you wish to continue?',
+      description: 'Unassign all workers from active experiments. This will also halt all activities in worker Pioreactors.',
       title: "Unassign all workers?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},

@@ -1,3 +1,5 @@
+import PageHeader from "./components/PageHeader";
+import { uiColors } from "./theme/colors";
 import React, {useState, useEffect, useMemo, useCallback} from "react";
 
 import Grid from '@mui/material/Grid';
@@ -486,23 +488,18 @@ export function AssignPioreactors({ experiment, variant="text" }) {
 
 function PioreactorHeader({experiment, config, units}) {
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", mb: 1 }}>
-        <Typography variant="h5" component="h1">
-          <Box sx={{ fontWeight: "fontWeightBold" }}>
-            Pioreactors
-          </Box>
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+    <PageHeader
+      title="Pioreactors"
+      actions={(
+        <>
           <ButtonStopProcess experiment={experiment}/>
           <AssignPioreactors experiment={experiment}/>
           <SettingsActionsDialogAll experiment={experiment} config={config} units={units}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageExperimentMenu experiment={experiment}/>
-        </Box>
-      </Box>
-      <Divider sx={{mt: "0px", mb: "15px"}} />
-    </Box>
+        </>
+      )}
+    />
   )
 }
 
@@ -545,8 +542,8 @@ function SettingsActionsDialog({
   }, [selfTestSettings]);
 
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings),
-    [selfTestSettings]
+    () => getAvailableSelfTestGroupsFromSettings(selfTestSettings, config.camera?.enabled === "1"),
+    [selfTestSettings, config.camera?.enabled]
   );
   const editableSettingsGroups = useMemo(() => {
     return Object.values(settingsCollections || {}).filter(job => job.metadata.display)
@@ -712,7 +709,6 @@ function SettingsActionsDialog({
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(()=> setTabValue(0), 200) // we put a timeout here so the switching tabs doesn't occur during the close transition.
   };
 
   const handleSnackbarClose = (e, reason) => {
@@ -927,7 +923,7 @@ function SettingsActionsDialog({
       }
     }}>
       <DialogTitle>
-        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
+        <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}}>
           <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
           <span> {label ? `${label} / ${unit}` : `${unit}`} </span>
         </Typography>
@@ -1020,34 +1016,45 @@ function SettingsActionsDialog({
                 <Typography variant="body2" component="p" gutterBottom>
                   <span dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
                 </Typography>
-
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  variant="contained"
-                  onClick={() => setOpenChangeTemperatureDialog(true)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
                 >
-                  Start
-                </Button>
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  disabled={true}
-                >
-                  Stop
-                </Button>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      variant="contained"
+                      onClick={() => setOpenChangeTemperatureDialog(true)}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      disabled
+                    >
+                      Stop
+                    </Button>
+                  </Box>
 
-                <AutomationAdvancedConfigButton
-                  jobName="temperature_automation"
-                  displayName="Temperature automation"
-                  automationType="temperature"
-                  unit={unit}
-                  experiment={experiment}
-                  label={label}
-                  configSections={config || {}}
-                />
+                  <AutomationAdvancedConfigButton
+                    jobName="temperature_automation"
+                    displayName="Temperature automation"
+                    automationType="temperature"
+                    unit={unit}
+                    experiment={experiment}
+                    label={label}
+                    configSections={config || {}}
+                  />
+                </Box>
 
                </React.Fragment>
               }
@@ -1087,37 +1094,49 @@ function SettingsActionsDialog({
                   <span dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
                 </Typography>
 
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  variant="contained"
-                  onClick={() => setOpenChangeDosingDialog(true)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
                 >
-                  Start
-                </Button>
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  disabled={true}
-                >
-                  Stop
-                </Button>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      variant="contained"
+                      onClick={() => setOpenChangeDosingDialog(true)}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      disabled
+                    >
+                      Stop
+                    </Button>
+                  </Box>
 
-                <AutomationAdvancedConfigButton
-                  jobName="dosing_automation"
-                  displayName="Dosing automation"
-                  automationType="dosing"
-                  unit={unit}
-                  experiment={experiment}
-                  label={label}
-                  configSections={config || {}}
-                  maxVolume={dosingMaxVolume}
-                  liquidVolume={dosingLiquidVolume}
-                  capacity={modelDetails.reactor_capacity_ml}
-                  threshold={modelDetails.reactor_max_fill_volume_ml}
-                />
+                  <AutomationAdvancedConfigButton
+                    jobName="dosing_automation"
+                    displayName="Dosing automation"
+                    automationType="dosing"
+                    unit={unit}
+                    experiment={experiment}
+                    label={label}
+                    configSections={config || {}}
+                    maxVolume={dosingMaxVolume}
+                    liquidVolume={dosingLiquidVolume}
+                    capacity={modelDetails.reactor_capacity_ml}
+                    threshold={modelDetails.reactor_max_fill_volume_ml}
+                  />
+                </Box>
                </React.Fragment>
               }
             </div>
@@ -1163,33 +1182,45 @@ function SettingsActionsDialog({
                   <span dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
                 </Typography>
 
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  variant="contained"
-                  onClick={() => setOpenChangeLEDDialog(true)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
                 >
-                  Start
-                </Button>
-                <Button
-                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-                  size="small"
-                  color="primary"
-                  disabled={true}
-                >
-                  Stop
-                </Button>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      variant="contained"
+                      onClick={() => setOpenChangeLEDDialog(true)}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      sx={{ width: 70, height: 31 }}
+                      size="small"
+                      color="primary"
+                      disabled
+                    >
+                      Stop
+                    </Button>
+                  </Box>
 
-                <AutomationAdvancedConfigButton
-                  jobName="led_automation"
-                  displayName="LED automation"
-                  automationType="led"
-                  unit={unit}
-                  experiment={experiment}
-                  label={label}
-                  configSections={config || {}}
-                />
+                  <AutomationAdvancedConfigButton
+                    jobName="led_automation"
+                    displayName="LED automation"
+                    automationType="led"
+                    unit={unit}
+                    experiment={experiment}
+                    label={label}
+                    configSections={config || {}}
+                  />
+                </Box>
                </React.Fragment>
               }
             </div>
@@ -1338,7 +1369,7 @@ function SettingsActionsDialog({
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['A']) ? (LEDMap['A'].replace("_", " ").replace("led", "LED")) : "Channel A" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['A']) ? "Channel A" : ""}
           </Typography>
           <ActionLEDForm experiment={experiment} channel="A" unit={unit} />
@@ -1347,7 +1378,7 @@ function SettingsActionsDialog({
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['B']) ? (LEDMap['B'].replace("_", " ").replace("led", "LED")) : "Channel B" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['B']) ? "Channel B" : ""}
           </Typography>
           <ActionLEDForm experiment={experiment} channel="B" unit={unit} />
@@ -1356,7 +1387,7 @@ function SettingsActionsDialog({
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['C']) ? (LEDMap['C'].replace("_", " ").replace("led", "LED")) : "Channel C" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['C']) ? "Channel C" : ""}
           </Typography>
 
@@ -1366,7 +1397,7 @@ function SettingsActionsDialog({
           <Typography sx={{textTransform: "capitalize"}}>
             {(LEDMap['D']) ? (LEDMap['D'].replace("_", " ").replace("led", "LED")) : "Channel D" }
           </Typography>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(LEDMap['D']) ? "Channel D" : ""}
           </Typography>
           <ActionLEDForm experiment={experiment} channel="D" unit={unit} />
@@ -1457,7 +1488,6 @@ function SettingsActionsDialog({
       </DialogContent>
     </Dialog>
     <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={snackbarOpen}
       onClose={handleSnackbarClose}
       message={snackbarMessage}
@@ -1545,8 +1575,8 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
   }, [selfTestDefinition]);
 
   const availableSelfTestGroups = useMemo(
-    () => getAvailableSelfTestGroupsFromDefinition(selfTestDefinition),
-    [selfTestDefinition]
+    () => getAvailableSelfTestGroupsFromDefinition(selfTestDefinition, config.camera?.enabled === "1"),
+    [selfTestDefinition, config.camera?.enabled]
   );
   const bioreactorSettingsGroup = useMemo(
     () => buildBioreactorSettingsCollection(
@@ -1742,7 +1772,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(()=> setTabValue(0), 200) // we put a timeout here so the switching tabs doesn't occur during the close transition.
 
   };
 
@@ -1945,7 +1974,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
       }
     }}>
       <DialogTitle sx={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
-        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
+        <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}}>
           <PioreactorsIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> <b>All assigned and active Pioreactors</b>
         </Typography>
         <IconButton
@@ -2313,7 +2342,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
       </DialogContent>
     </Dialog>
     <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={snackbarOpen}
       onClose={handleSnackbarClose}
       message={snackbarMessage}
@@ -2874,7 +2902,7 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
     <Card sx={{mt: 0, mb: 3}} id={unit} aria-disabled={!isUnitActive}>
       <CardContent sx={{p: "10px 20px 20px 20px"}}>
         <Box className={"fixme"}>
-          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}} color="textSecondary">
             {(label) ? unit : ""}
           </Typography>
           <Box sx={(theme) => ({
@@ -2892,7 +2920,7 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
               <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isUnitActive ? undefined : disabledColor} />
               <Typography sx={{
                   fontSize: 20,
-                  color: "rgba(0, 0, 0, 0.87)",
+                  color: uiColors.text,
                   fontWeight: 500,
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
@@ -3018,6 +3046,7 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
                         <IconButton
                           size="small"
                           onClick={(event) => handleStateMenuOpen(event, jobKey)}
+                          aria-label={`${job.metadata.display_name} actions`}
                           sx={{ml: 0.25}}
                         >
                           <ExpandMoreIcon fontSize="small" />
@@ -3168,7 +3197,7 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
                 <Typography variant="subtitle2">
                   {quickSetting.label}
                 </Typography>
-                <IconButton size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
+                <IconButton aria-label="Close setting editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>

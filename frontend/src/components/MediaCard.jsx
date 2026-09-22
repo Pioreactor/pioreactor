@@ -1,3 +1,4 @@
+import { uiColors } from "../theme/colors";
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from "@mui/material/Typography";
@@ -137,7 +138,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
               {activeUnits.length > 1 &&
               <TableRow key="all">
                 <TableCell sx={{ padding: '6px 0px' }} component="th" scope="row">
-                  <Chip size="small" icon={<PioreactorsIcon/>} label="All assigned Pioreactors" sx={{backgroundColor: "white"}} />
+                  <Chip size="small" icon={<PioreactorsIcon/>} label="All assigned Pioreactors" sx={{backgroundColor: uiColors.surface}} />
                 </TableCell>
                 <TableCell align="right" sx={{ fontSize: 13, padding: '6px 0px' }}>
                   {totals.media.toFixed(1)}mL ({rates.all.mediaRate.toFixed(1)}mL/h)

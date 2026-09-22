@@ -198,7 +198,7 @@ function ChartPreferencesDialog({
                 >
                   <DragIndicatorIcon />
                 </Box>
-                <FormControlLabel
+                <CustomFormControlLabel
                   control={(
                     <Checkbox
                       checked
@@ -208,6 +208,7 @@ function ChartPreferencesDialog({
                     />
                   )}
                   label={chartLabel(descriptor)}
+                  sublabel={sublabel(descriptor)}
                   sx={{ flexGrow: 1, minWidth: 0, mr: 1 }}
                 />
               </Box>

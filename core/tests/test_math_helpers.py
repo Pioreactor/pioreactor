@@ -4,6 +4,7 @@ import pytest
 from pioreactor.utils.math_helpers import closest_point_to_domain
 from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.math_helpers import trimmed_mean
+from pioreactor.utils.math_helpers import trimmed_variance
 
 
 def test_simple_linear_regression_cases() -> None:
@@ -41,6 +42,11 @@ def test_trimmed_mean() -> None:
 
     assert trimmed_mean([-100, -50, 1, 2, 3, 50, 10], cut_off_n=2) == 2
     assert trimmed_mean([100, -50, -1, 0, 1, -50, 10], cut_off_n=2) == 0
+
+
+def test_zero_trimming_uses_all_observations() -> None:
+    assert trimmed_mean([3, 1, 2], cut_off_n=0) == 2
+    assert trimmed_variance([3, 1, 2], cut_off_n=0) == 1
 
 
 def test_closest_point_single_point_in_domain() -> None:
