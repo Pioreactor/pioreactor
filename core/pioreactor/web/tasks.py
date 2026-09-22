@@ -1266,9 +1266,9 @@ def export_experiment_data_to_usb_task(
 @huey.task()
 @huey.lock_task("delete-experiment-lock")
 def delete_experiment_records_task(
-    camera_cleanup_results: list[Any],
     experiment: str,
     units: list[str],
+    camera_cleanup_results: list[Any],
 ) -> dict[str, Any]:
     logger.debug(f"Deleting experiment {experiment}.")
     camera_cleanup = _reduce_multicast_results(units, False, camera_cleanup_results)
@@ -1302,15 +1302,31 @@ def delete_experiment_records_task(
     }
 
 
-def delete_experiment_task(experiment: str, units: list[str]) -> Any:
-    camera_cleanup_endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
-    if not units:
-        return delete_experiment_records_task([], experiment, units)
+@huey.task()
+def delete_experiment_after_stop_task(
+    experiment: str,
+    units: list[str],
+    _stop_results: list[Any],
+) -> dict[str, Any]:
+    # Huey appends stop results after the callback's bound arguments.
+    # Wait for all stop attempts before cleanup; unresolved stops do not block deletion.
+    endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
+    cleanup_results = [delete_from_unit.call_local(unit, endpoint) for unit in units]
+    return delete_experiment_records_task.call_local(experiment, units, cleanup_results)
+
+
+def delete_experiment_task(experiment: str, units: list[str], stop_units: list[str]) -> Any:
+    callback = delete_experiment_after_stop_task.s(experiment, units)
+    if not stop_units:
+        return delete_experiment_after_stop_task(experiment, units, [])
 
     return huey.enqueue(
         huey_chord(
-            [delete_from_unit.s(unit, camera_cleanup_endpoint) for unit in units],
-            delete_experiment_records_task.s(experiment, units),
+            [
+                post_into_unit.s(unit, "/unit_api/jobs/stop", {"experiment": experiment})
+                for unit in stop_units
+            ],
+            callback,
         )
     )
 

@@ -451,7 +451,7 @@ def test_delete_experiment_task_deletes_and_reports_reclaimable_space(
 
     monkeypatch.setattr(web_db.pioreactor_config, "get", fake_config_get)
 
-    result = tasks.delete_experiment_records_task.call_local([], "exp1", [])
+    result = tasks.delete_experiment_records_task.call_local("exp1", [], [])
 
     assert result["result"] is True
     assert result["experiment"] == "exp1"
@@ -500,9 +500,9 @@ def test_delete_experiment_records_reports_worker_camera_cleanup_failure(
     ]
 
     result = tasks.delete_experiment_records_task.call_local(
-        cleanup_results,
         "exp1",
         ["unit1", "unit2"],
+        cleanup_results,
     )
 
     assert result["result"] is True
@@ -514,48 +514,75 @@ def test_delete_experiment_records_reports_worker_camera_cleanup_failure(
         assert conn.execute("SELECT COUNT(*) FROM experiments WHERE experiment='exp1'").fetchone()[0] == 0
 
 
-def test_delete_experiment_task_fans_out_camera_cleanup_before_database_callback(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("units", [[], ["unit1", "unit2"]])
+@pytest.mark.parametrize("stop_outcome", ["success", "false", "failed", "unreachable", "exception"])
+def test_delete_experiment_through_huey(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, units: list[str], stop_outcome: str
 ) -> None:
-    captured: dict[str, object] = {}
-    enqueued_chord = object()
-    task_result = object()
+    db_path = tmp_path / "app.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("CREATE TABLE experiments (experiment TEXT PRIMARY KEY)")
+        conn.execute("INSERT INTO experiments VALUES ('exp1')")
 
-    class FakeDeleteFromUnitTask:
-        @staticmethod
-        def s(unit: str, endpoint: str) -> tuple[str, str, str]:
-            return ("delete", unit, endpoint)
+    monkeypatch.setattr(web_db, "get_app_database_path", lambda: db_path)
+    monkeypatch.setattr(tasks.huey, "_immediate", False)
+    monkeypatch.setattr(tasks.huey, "storage", SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"))
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: unit)
+    stop_units = ["leader", *units]
+    events: list[str] = []
 
-    class FakeDeleteRecordsTask:
-        @staticmethod
-        def s(experiment: str, units: list[str]) -> tuple[str, str, list[str]]:
-            return ("callback", experiment, units)
+    def stop_request(address: str, endpoint: str, **kwargs: Any) -> Response:
+        assert endpoint == "/unit_api/jobs/stop"
+        assert kwargs["json"] == {"experiment": "exp1"}
+        events.append(f"stop:{address}")
+        if stop_outcome == "unreachable":
+            raise tasks.HTTPException("offline")
+        if stop_outcome == "exception":
+            raise RuntimeError("unexpected stop failure")
+        return _response(202, {"result_url_path": "/unit_api/task_results/stop"})
 
-    def fake_chord(headers: list[object], callback: object) -> object:
-        captured["headers"] = headers
-        captured["callback"] = callback
-        return enqueued_chord
+    def stop_result(address: str, endpoint: str, **kwargs: Any) -> Response:
+        events.append(f"result:{address}")
+        return _response(
+            200,
+            {
+                "task_id": "stop",
+                "status": "failed" if stop_outcome == "failed" else "succeeded",
+                "result": stop_outcome == "success",
+                "error": "stop failed",
+            },
+        )
 
-    def fake_enqueue(chord: object) -> object:
-        captured["enqueued"] = chord
-        return task_result
+    def cleanup_request(address: str, endpoint: str, **kwargs: Any) -> Response:
+        assert endpoint == "/unit_api/camera/experiments/exp1/stills"
+        assert all(f"stop:{unit}" in events for unit in stop_units)
+        events.append(f"cleanup:{address}")
+        return _response(200, {"deleted_image_ids": []})
 
-    monkeypatch.setattr(tasks, "delete_from_unit", FakeDeleteFromUnitTask)
-    monkeypatch.setattr(tasks, "delete_experiment_records_task", FakeDeleteRecordsTask)
-    monkeypatch.setattr(tasks, "huey_chord", fake_chord)
-    monkeypatch.setattr(tasks.huey, "enqueue", fake_enqueue)
+    monkeypatch.setattr(tasks, "post_into", stop_request)
+    monkeypatch.setattr(tasks, "get_from", stop_result)
+    monkeypatch.setattr(tasks, "delete_from", cleanup_request)
 
-    result = tasks.delete_experiment_task("experiment a", ["unit1", "unit2"])
+    result = tasks.delete_experiment_task("exp1", units, stop_units)
+    for _ in stop_units:
+        task = tasks.huey.dequeue()
+        assert task is not None
+        tasks.huey.execute(task)
+        with sqlite3.connect(db_path) as conn:
+            assert conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0] == 1
+        assert not any(event.startswith("cleanup:") for event in events)
 
-    assert result is task_result
-    assert captured == {
-        "headers": [
-            ("delete", "unit1", "/unit_api/camera/experiments/experiment a/stills"),
-            ("delete", "unit2", "/unit_api/camera/experiments/experiment a/stills"),
-        ],
-        "callback": ("callback", "experiment a", ["unit1", "unit2"]),
-        "enqueued": enqueued_chord,
-    }
+    callback = tasks.huey.dequeue()
+    assert callback is not None
+    tasks.huey.execute(callback)
+    payload = result.get(blocking=True, timeout=0.1)
+    assert payload["experiment"] == "exp1"
+    assert payload["result"] is True
+    assert set(payload["camera_cleanup"]) == set(units)
+    assert payload["camera_cleanup_failures"] == []
+    assert "stop_failures" not in payload
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0] == 0
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:

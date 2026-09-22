@@ -3477,8 +3477,7 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
         )
 
     workers = get_all_existing_workers_ever_assigned_to_experiment(experiment)
-    fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
-    task = tasks.delete_experiment_task(experiment, workers)
+    task = tasks.delete_experiment_task(experiment, workers, get_all_units())
     return create_task_response(task)
 
 

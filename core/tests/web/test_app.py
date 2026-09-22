@@ -1313,17 +1313,14 @@ def test_delete_experiment_endpoint_schedules_task(client, monkeypatch: MonkeyPa
 
     captured: dict[str, object] = {}
 
-    def fake_delete_experiment_task(experiment: str, units: list[str]) -> DummyTask:
+    def fake_delete_experiment_task(experiment: str, units: list[str], stop_units: list[str]) -> DummyTask:
         captured["experiment"] = experiment
         captured["units"] = units
+        captured["stop_units"] = stop_units
         return DummyTask()
 
     monkeypatch.setattr(api.tasks, "delete_experiment_task", fake_delete_experiment_task)
-    monkeypatch.setattr(
-        api.fanout,
-        "broadcast_post_across_cluster",
-        lambda endpoint, json=None: captured.update({"endpoint": endpoint, "json": json}),
-    )
+    monkeypatch.setattr(api, "get_all_units", lambda: ["leader", "unit1", "unit2"])
 
     response = client.delete("/api/experiments/exp1")
 
@@ -1332,8 +1329,7 @@ def test_delete_experiment_endpoint_schedules_task(client, monkeypatch: MonkeyPa
     assert captured == {
         "experiment": "exp1",
         "units": ["unit1", "unit2"],
-        "endpoint": "/unit_api/jobs/stop",
-        "json": {"experiment": "exp1"},
+        "stop_units": ["leader", "unit1", "unit2"],
     }
 
 
@@ -1342,17 +1338,10 @@ def test_delete_experiment_endpoint_returns_404_without_scheduling_task(
 ) -> None:
     import pioreactor.web.api as api
 
-    def fail_delete_experiment_task(experiment: str, units: list[str]) -> None:
+    def fail_delete_experiment_task(experiment: str, units: list[str], stop_units: list[str]) -> None:
         raise AssertionError("delete task should not be scheduled")
 
     monkeypatch.setattr(api.tasks, "delete_experiment_task", fail_delete_experiment_task)
-    monkeypatch.setattr(
-        api.fanout,
-        "broadcast_post_across_cluster",
-        lambda endpoint, json=None: (_ for _ in ()).throw(
-            AssertionError("stop fanout should not be scheduled")
-        ),
-    )
 
     response = client.delete("/api/experiments/not-real")
 

@@ -118,10 +118,12 @@ export default function ManageExperimentMenu({experiment}){
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
 
-      }).then(() =>
-        fetch(`/api/experiments/${encodeURIComponent(experiment)}/workers`, {method: "DELETE"})
+      }).then(async ({ confirmed }) => {
+        if (!confirmed) return;
+        await fetch(`/api/experiments/${encodeURIComponent(experiment)}/workers`, {method: "DELETE"});
         // DELETEing will also stop all activity.
-    ).then(() => navigate(0)).catch(() => {});
+        navigate(0);
+      }).catch(() => {});
 
   };
 
@@ -139,7 +141,7 @@ export default function ManageExperimentMenu({experiment}){
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 

@@ -9,6 +9,8 @@
 
 #### Bug fixes
 
+ - Fixed experiment deletion failing with `unhashable type: 'dict'` when cleaning up camera snapshots on previously assigned Pioreactors.
+ - Fixed cancelling **Delete experiment** or **End experiment** still performing the action in some menus.
  - Improved experiment deletion feedback to show the underlying error and distinguish a timeout from a failed deletion. Both deletion menus now wait about two minutes before advising users to refresh and check whether deletion completed.
  - Fixed overlapping experiment deletions being reported as still running when blocked by another deletion; the UI now asks users to wait for the other deletion to finish before retrying.
  - Extended Wi-Fi recovery to retry saved autoconnect networks when a Raspberry Pi remains disconnected, with at least five minutes between attempts and respect for intentional disconnects.

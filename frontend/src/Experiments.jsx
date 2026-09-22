@@ -249,7 +249,7 @@ function ExperimentsContainer(props) {
   };
 
   const handleEndExperiment = async (experiment) => {
-    await confirm({
+    const { confirmed } = await confirm({
       description:
         "This will stop any running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment.",
       title: "End experiment?",
@@ -257,6 +257,8 @@ function ExperimentsContainer(props) {
       confirmationButtonProps: { color: "primary", variant: "contained" },
       cancellationButtonProps: { color: "secondary" },
     });
+
+    if (!confirmed) return;
 
     setBusyExperimentName(experiment.experiment);
 
@@ -275,7 +277,7 @@ function ExperimentsContainer(props) {
   };
 
   const handleDeleteExperiment = async (experiment) => {
-    await confirm({
+    const { confirmed } = await confirm({
       description:
         "This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors.",
       title: "Delete experiment?",
@@ -283,6 +285,8 @@ function ExperimentsContainer(props) {
       confirmationButtonProps: { color: "primary", variant: "contained" },
       cancellationButtonProps: { color: "secondary" },
     });
+
+    if (!confirmed) return;
 
     setBusyExperimentName(experiment.experiment);
 
@@ -293,15 +297,23 @@ function ExperimentsContainer(props) {
         delayMs: 200,
       });
 
-      const responseAfterDelete = await fetch("/api/experiments");
-      const nextExperiments = responseAfterDelete.ok ? await responseAfterDelete.json() : [];
+      let message = `Deleted experiment ${experiment.experiment}.`;
+      let nextExperiments = allExperiments.filter((item) => item.experiment !== experiment.experiment);
+      try {
+        const responseAfterDelete = await fetch("/api/experiments");
+        if (!responseAfterDelete.ok) throw new Error(`HTTP ${responseAfterDelete.status}`);
+        nextExperiments = await responseAfterDelete.json();
+      } catch (error) {
+        console.error("Failed to refresh experiments after deletion:", error);
+        message += " The experiment list could not be refreshed. Refresh the page to try again.";
+      }
       setAllExperiments(nextExperiments);
 
       if (experimentMetadata.experiment === experiment.experiment && nextExperiments.length > 0) {
         updateExperiment(nextExperiments[0], true);
       }
 
-      showSnackbar(`Deleted experiment ${experiment.experiment}.`);
+      showSnackbar(message);
     } catch (error) {
       console.error("Failed to delete experiment:", error);
       showSnackbar(error instanceof TaskPollingTimeoutError
