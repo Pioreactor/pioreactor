@@ -19,9 +19,9 @@ CORE_REQUIREMENTS = [
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
     "MarkupSafe==3.0.3",
-    "python-dotenv==1.2.2",
+    "python-dotenv==1.2.3",
     "Werkzeug==3.1.8",
-    "packaging==26.2",
+    "packaging==26.3",
     # preinstalled on base images
     # "pyyaml==6.0.2",
     # "rpi-lgpio==0.6"
