@@ -6,9 +6,33 @@ from threading import Event
 
 import pytest
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import paused_timer
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
 from pioreactor.utils.timing import to_iso_format
+
+
+@pytest.mark.parametrize("interval", [0, -1])
+def test_repeated_timer_rejects_nonpositive_interval(interval: float) -> None:
+    with pytest.raises(ValueError, match="interval must be positive"):
+        RepeatedTimer(interval, lambda: None)
+
+
+@pytest.mark.parametrize("initially_paused", [False, True])
+def test_paused_timer_restores_state_after_nested_context_and_exception(initially_paused: bool) -> None:
+    timer = RepeatedTimer(1, lambda: None)
+    if initially_paused:
+        timer.pause()
+
+    with pytest.raises(ValueError, match="callback failed"):
+        with paused_timer(timer):
+            assert timer.is_paused
+            with paused_timer(timer):
+                assert timer.is_paused
+            assert timer.is_paused
+            raise ValueError("callback failed")
+
+    assert timer.is_paused is initially_paused
 
 
 def test_inverse_relationship() -> None:

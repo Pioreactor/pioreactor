@@ -159,7 +159,7 @@ class Sqlite3Worker(threading.Thread):
         except Exception as e:
             self.report_error(e, "COMMIT", tuple())
             if self._raise_on_error:
-                raise e
+                raise
 
     def run_query(self, query: str, values: SqliteValues) -> None:
         """Run a query.
@@ -173,7 +173,7 @@ class Sqlite3Worker(threading.Thread):
         except sqlite3.Error as e:
             self.report_error(e, query, values)
             if self._raise_on_error:
-                raise e
+                raise
 
     def close(self) -> None:
         """Close down the thread."""
