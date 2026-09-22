@@ -65,7 +65,6 @@ from pioreactor.utils.timing import to_iso_format
 from pioreactor.web import cache
 from pioreactor.web import fanout
 from pioreactor.web import tasks
-from pioreactor.web.app import get_all_existing_workers_ever_assigned_to_experiment
 from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
 from pioreactor.web.app import get_all_workers_in_experiment
@@ -3476,8 +3475,7 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
             remediation="List experiments and choose a valid experiment name.",
         )
 
-    workers = get_all_existing_workers_ever_assigned_to_experiment(experiment)
-    task = tasks.delete_experiment_task(experiment, workers, get_all_units())
+    task = tasks.delete_experiment_task(experiment, get_all_units())
     return create_task_response(task)
 
 
