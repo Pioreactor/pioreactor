@@ -9,6 +9,8 @@
 
 #### Bug fixes
 
+ - Improved experiment deletion feedback to show the underlying error and distinguish a timeout from a failed deletion. Both deletion menus now wait about two minutes before advising users to refresh and check whether deletion completed.
+ - Fixed overlapping experiment deletions being reported as still running when blocked by another deletion; the UI now asks users to wait for the other deletion to finish before retrying.
  - Extended Wi-Fi recovery to retry saved autoconnect networks when a Raspberry Pi remains disconnected, with at least five minutes between attempts and respect for intentional disconnects.
  - Made database updates wait up to 15 seconds for temporary SQLite locks instead of failing immediately.
  - Fixed circulation stop requests failing silently when the server returns an error; the UI now reports the failure.

@@ -38,7 +38,7 @@ import { Link, useNavigate } from "react-router";
 import ExperimentMetadataDialog from "./components/ExperimentMetadataDialog";
 import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
-import { fetchTaskResult } from "./utils/tasks";
+import { fetchTaskResult, TaskPollingTimeoutError } from "./utils/tasks";
 import Snackbar from "./components/Snackbar";
 
 const TAGS_TO_SHOW = 6;
@@ -290,7 +290,7 @@ function ExperimentsContainer(props) {
       await fetchTaskResult(`/api/experiments/${encodeURIComponent(experiment.experiment)}`, {
         fetchOptions: { method: "DELETE" },
         maxRetries: 600,
-        delayMs: 100,
+        delayMs: 200,
       });
 
       const responseAfterDelete = await fetch("/api/experiments");
@@ -304,7 +304,9 @@ function ExperimentsContainer(props) {
       showSnackbar(`Deleted experiment ${experiment.experiment}.`);
     } catch (error) {
       console.error("Failed to delete experiment:", error);
-      showSnackbar(`Failed to delete ${experiment.experiment}. Please try again.`);
+      showSnackbar(error instanceof TaskPollingTimeoutError
+        ? `Deletion of ${experiment.experiment} may still be running. Refresh shortly to check whether it completed.`
+        : `Could not delete ${experiment.experiment}: ${error.message}`);
     } finally {
       setBusyExperimentName("");
     }

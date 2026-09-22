@@ -12,6 +12,8 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from flask.testing import FlaskClient
+from huey.exceptions import TaskException
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
 from pioreactor.camera import camera_focus_preview_path
@@ -19,6 +21,7 @@ from pioreactor.camera import store_camera_still
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
+from pioreactor.web import unit_api
 from pioreactor.web.app import HOSTNAME
 
 
@@ -474,6 +477,26 @@ def test_task_results_failed_when_taskexception_contains_plain_error(client, mon
     data = resp.get_json()
     assert data["status"] == "failed"
     assert data["error"] == "Command exited during startup grace window. Exit code 2. No such command."
+
+
+@pytest.mark.parametrize("lock_name", ["delete-experiment-lock", "plugins-lock"])
+def test_task_lock_rejection_is_terminal(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, lock_name: str
+) -> None:
+    def locked_result(task_id: str, preserve: bool = False) -> None:
+        raise TaskException({"error": f"TaskLockedException('unable to acquire lock {lock_name}')"})
+
+    monkeypatch.setattr(unit_api.huey.storage, "has_data_for_key", lambda task_id: True)
+    monkeypatch.setattr(unit_api.huey, "result", locked_result)
+
+    response = client.get("/unit_api/task_results/locked-task")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "failed"
+    assert "Wait for it to finish, then try again." in payload["error"]
+    if lock_name == "delete-experiment-lock":
+        assert payload["error"].startswith("Another experiment deletion is in progress.")
 
 
 def test_invalid_update_target(client) -> None:

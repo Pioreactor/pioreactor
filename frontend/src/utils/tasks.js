@@ -1,6 +1,8 @@
+export class TaskPollingTimeoutError extends Error {}
+
 export async function checkTaskCallback(callbackURL, { maxRetries = 150, delayMs = 100 } = {}) {
   if (maxRetries <= 0) {
-    throw new Error("Max retries reached. Stopping.");
+    throw new TaskPollingTimeoutError("Timed out waiting for task completion.");
   }
 
   let response;

@@ -294,9 +294,9 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
           {isDiscovering ? (
             <CircularProgress size={20} sx={{ mt: 1 }} />
           ) : discoveredWorkers.length === 0 ? (
-            <Typography variant="body2" component="p" color="textSecondary">No workers found. Discovery may not find every Pioreactor.</Typography>
+            <Typography variant="body2" component="p" color="textSecondary">No workers found. Discovery may not find every available Pioreactor.</Typography>
           ) : <>
-              <Typography variant="body2" component="p" color="textSecondary" gutterBottom>Discovery may not find every Pioreactor.</Typography>
+              <Typography variant="body2" component="p" color="textSecondary" gutterBottom>Discovery may not find every available Pioreactor.</Typography>
               {discoveredWorkers.map((w) => (
                 <Chip
                   icon={<PioreactorIcon/>}

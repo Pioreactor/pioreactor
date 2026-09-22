@@ -12,7 +12,7 @@ import { useConfirm } from 'material-ui-confirm';
 import { useExperiment } from '../providers/ExperimentContext';
 import Divider from '@mui/material/Divider';
 import ExperimentMetadataDialog from "./ExperimentMetadataDialog";
-import { fetchTaskResult } from "../utils/tasks";
+import { fetchTaskResult, TaskPollingTimeoutError } from "../utils/tasks";
 import Snackbar from "./Snackbar";
 
 
@@ -156,7 +156,9 @@ export default function ManageExperimentMenu({experiment}){
       showSnackbar(`Deleted experiment ${experiment}.`);
     } catch (error) {
       console.error("Failed to delete experiment:", error);
-      showSnackbar(`Failed to delete ${experiment}. Please try again.`);
+      showSnackbar(error instanceof TaskPollingTimeoutError
+        ? `Deletion of ${experiment} may still be running. Refresh shortly to check whether it completed.`
+        : `Could not delete ${experiment}: ${error.message}`);
     } finally {
       setIsDeleting(false);
     }

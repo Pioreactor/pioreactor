@@ -482,17 +482,23 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
         task = huey.result(task_id, preserve=True)
     except TaskException as e:
         if "TaskLockedException" in str(e):
+            # A lock rejection means this task did not run, not that it is still running.
+            error = (
+                "Another experiment deletion is in progress. Wait for it to finish, then try again."
+                if "delete-experiment-lock" in str(e)
+                else "Another operation holds the task lock. Wait for it to finish, then try again."
+            )
             return (
                 jsonify(
                     response_metadata
                     | {
-                        "status": "running",
-                        "error": "task is locked and already running.",
-                        "cause": "Another task with this ID is currently running.",
+                        "status": "failed",
+                        "error": error,
+                        "cause": "Task could not acquire its lock and did not run.",
                         "remediation": "Wait for the task to finish, then retry.",
                     }
                 ),
-                202,
+                200,
             )
 
         return (
