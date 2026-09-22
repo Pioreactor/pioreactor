@@ -494,9 +494,7 @@ def test_task_lock_rejection_is_terminal(
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["status"] == "failed"
-    assert "Wait for it to finish, then try again." in payload["error"]
-    if lock_name == "delete-experiment-lock":
-        assert payload["error"].startswith("Another experiment deletion is in progress.")
+    assert payload["error"] == "Another operation is in progress. Wait for it to finish, then try again."
 
 
 def test_invalid_update_target(client) -> None:
