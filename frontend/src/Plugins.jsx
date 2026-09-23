@@ -363,7 +363,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
 
   if (installedPlugins.length === 0) {
     return (
-      <Box sx={{ textAlign: "center", mb: "50px", mt: "50px" }}>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
         <Typography variant="body2" component="p" color="text.secondary">
           No installed plugins. Try installing one below, or read more about{" "}
           <a

@@ -1,0 +1,1 @@
+import{j as t,V as i,B as o}from"./index-CgDKiLyp.js";function l(e){const n=e.title;return t.jsx(i,{title:n,placement:"top-start",children:t.jsx(o,{component:"span",className:n?"underlineSpan":"",tabIndex:n?0:void 0,sx:{"&:focus-visible":{outline:"2px solid",outlineColor:"primary.main",outlineOffset:"2px"}},children:e.children})})}export{l as U};

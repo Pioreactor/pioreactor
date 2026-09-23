@@ -5,6 +5,7 @@
  - Added Light, Dark, and System appearance options in the UI, with the selection remembered in the browser. Charts, diagrams, logs, and editors now adapt to the selected appearance, and downloaded charts retain their colours and background.
  - Added a **Colour view** toggle to Camera Stills, using the Magma colour map to highlight differences in image brightness.
  - Added a camera capture self-test when `[camera].enabled=1`, with results and camera-only testing available in the UI.
+ - (New installs only) Bump the base RPi image to 2026-09-15
 
 #### Bug fixes
 
