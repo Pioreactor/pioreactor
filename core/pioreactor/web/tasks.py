@@ -28,6 +28,7 @@ from subprocess import run
 from subprocess import TimeoutExpired
 from tempfile import mkdtemp
 from tempfile import TemporaryFile
+from time import monotonic
 from time import sleep
 from typing import Any
 from typing import cast
@@ -1266,19 +1267,37 @@ def export_experiment_data_to_usb_task(
 @huey.task()
 @huey.lock_task("delete-experiment-lock")
 def delete_experiment_records_task(experiment: str) -> dict[str, Any]:
-    logger.debug(f"Deleting experiment {experiment}.")
+    logger.debug(f"Deleting experiment {experiment!r}: opening database.")
+    started = monotonic()
     conn = open_app_database_connection()
     try:
+        logger.debug(
+            f"Deleting experiment {experiment!r}: database opened in {monotonic() - started:.3f}s; deleting rows."
+        )
+        started = monotonic()
         cursor = conn.execute("DELETE FROM experiments WHERE experiment=?;", (experiment,))
         deleted = cursor.rowcount > 0
+        logger.debug(
+            f"Deleting experiment {experiment!r}: SQL deletion finished in {monotonic() - started:.3f}s; committing."
+        )
+        started = monotonic()
         conn.commit()
+        logger.debug(f"Deleting experiment {experiment!r}: commit finished in {monotonic() - started:.3f}s.")
 
         if not deleted:
             raise ValueError(f"Experiment {experiment} not found.")
 
+        logger.debug(f"Deleting experiment {experiment!r}: collecting database space statistics.")
+        started = monotonic()
         database_space = get_database_space_stats(conn)
+        logger.debug(
+            f"Deleting experiment {experiment!r}: space statistics collected in {monotonic() - started:.3f}s."
+        )
     finally:
+        logger.debug(f"Deleting experiment {experiment!r}: closing database.")
+        started = monotonic()
         conn.close()
+        logger.debug(f"Deleting experiment {experiment!r}: database closed in {monotonic() - started:.3f}s.")
 
     return {
         "result": True,
@@ -1290,12 +1309,27 @@ def delete_experiment_records_task(experiment: str) -> dict[str, Any]:
 
 @huey.task()
 def delete_experiment_task(experiment: str, units: list[str]) -> dict[str, Any]:
+    started = monotonic()
+    logger.debug(
+        f"Deleting experiment {experiment!r}: task started; queueing stop and camera cleanup for {len(units)} units."
+    )
     # Stops and camera cleanup are best effort; deletion does not wait for their results.
     endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
-    for unit in units:
-        post_into_unit(unit, "/unit_api/jobs/stop", {"experiment": experiment})
-        delete_from_unit(unit, endpoint)
-    return delete_experiment_records_task.call_local(experiment)
+    try:
+        for unit in units:
+            post_into_unit(unit, "/unit_api/jobs/stop", {"experiment": experiment})
+            delete_from_unit(unit, endpoint)
+        logger.debug(
+            f"Deleting experiment {experiment!r}: stop and camera cleanup queued in {monotonic() - started:.3f}s; starting database deletion."
+        )
+        result = delete_experiment_records_task.call_local(experiment)
+    except Exception:
+        logger.exception(f"Deleting experiment {experiment!r}: failed after {monotonic() - started:.3f}s.")
+        raise
+    logger.debug(
+        f"Deleting experiment {experiment!r}: completed in {monotonic() - started:.3f}s (background stop and camera cleanup may still be running)."
+    )
+    return result
 
 
 @huey.task(priority=100)
