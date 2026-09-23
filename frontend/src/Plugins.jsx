@@ -353,7 +353,7 @@ function ListSuggestedPlugins({
 function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUninstall }) {
   if (selectedTarget === BROADCAST_TARGET) {
     return (
-      <Box sx={{ textAlign: "center", mb: "50px", mt: "30px" }}>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
         <Typography variant="body2" component="p" color="text.secondary">
           Choose a Pioreactor to view installed plugins.
         </Typography>

@@ -599,7 +599,7 @@ Rules:
   completing a self-test.
 - Error copy should say what failed and what the user can do next.
 - Use the shared Snackbar wrapper for transient success or local action
-  feedback. Snackbars must use the bottom-center position.
+  feedback. Snackbars must use the bottom-right position.
 - `SnackbarProvider` in `App.jsx` owns the position. Callers should not repeat
   `anchorOrigin` or override it for live log notifications.
 - A Pioreactor card may flash a subtle, brief primary-color halo around a pill

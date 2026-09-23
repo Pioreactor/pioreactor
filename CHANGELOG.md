@@ -6,17 +6,16 @@
  - Added a **Colour view** toggle to Camera Stills, using the Magma colour map to highlight differences in image brightness.
  - Added a camera capture self-test when `[camera].enabled=1`, with results and camera-only testing available in the UI.
 
-
 #### Bug fixes
 
  - Fixed experiment deletion failing with `unhashable type: 'dict'` when cleaning up camera snapshots on previously assigned Pioreactors.
  - Fixed cancelling **Delete experiment** or **End experiment** still performing the action in some menus.
  - Improved experiment deletion feedback to show the underlying error and distinguish a timeout from a failed deletion. Both deletion menus now wait about two minutes before advising users to refresh and check whether deletion completed.
- - Fixed overlapping experiment deletions being reported as still running when blocked by another deletion; the UI now asks users to wait for the other deletion to finish before retrying.
  - Extended Wi-Fi recovery to retry saved autoconnect networks when a Raspberry Pi remains disconnected, with at least five minutes between attempts and respect for intentional disconnects.
  - Made database updates wait up to 15 seconds for temporary SQLite locks instead of failing immediately.
  - Fixed circulation stop requests failing silently when the server returns an error; the UI now reports the failure.
- - Fixed LED intensity validation accepting malformed numeric input, and made experiment-name validation consistently allow `&` and `=`.
+ - Fixed LED intensity validation accepting malformed numeric input,
+ - Made experiment-name validation consistently allow `&` and `=`.
  - Fixed network discovery leaving background processes running after a scan finishes, and corrected hostname handling when addresses contain surrounding whitespace.
  - Fixed PID resets retaining the previous input, which could produce a derivative spike on the next update.
  - Fixed job-setting lookups with `timeout=0` waiting indefinitely instead of returning immediately when the setting is unavailable.
