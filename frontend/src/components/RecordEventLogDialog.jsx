@@ -157,7 +157,7 @@ function RecordEventLogDialog({
             required
             size="small"
             variant="outlined"
-            label="Timestamp"
+            label="Local time"
             value={timestampLocal}
             helperText="Local time · YYYY-MM-DD HH:mm:ss"
             onChange={(e) => setTimestampLocal(e.target.value)}

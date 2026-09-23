@@ -154,7 +154,7 @@ function ClusterClockDialog({open, onClose, leaderHostname}) {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{padding: "6px 0px"}}>Pioreactor</TableCell>
-                  <TableCell align="right" sx={{padding: "6px 0px"}}>Clock time (localtime)</TableCell>
+                  <TableCell align="right" sx={{padding: "6px 0px"}}>Clock time (local)</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -184,7 +184,7 @@ function ClusterClockDialog({open, onClose, leaderHostname}) {
           <TextField
             size="small"
             variant="outlined"
-            label="Timestamp (localtime)"
+            label="Local time"
             value={timestampLocal}
             onChange={(e) => {
               setTimestampLocal(e.target.value);

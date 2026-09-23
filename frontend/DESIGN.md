@@ -515,6 +515,15 @@ actions, whose icons remain inline before the label.
 - **IconButton:** compact universal actions only. It must have an `aria-label`
   and usually a tooltip.
 
+### Time terminology
+
+- Use **Local time** for a date and time entered or displayed in the browser's
+  local time zone, including editable device-clock settings.
+- Use **Clock time (local)** for a device's displayed clock value.
+- Reserve **Timestamp** for a recorded event time or a chart mode that displays
+  absolute times.
+- Use two words and sentence case for `Local time`; avoid `localtime`.
+
 Rules:
 
 - Use sentence case.
