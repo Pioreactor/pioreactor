@@ -238,11 +238,9 @@ class ADCReader(LoggerMixin):
                 try:
                     adcs[c] = curried()
                 except (OSError, exc.HardwareError) as e:
-                    self.logger.error(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver}."
-                    )
+                    self.logger.error(f"Failed to initialize ADC for pd{c}. Check device {curried!r}.")
                     raise exc.HardwareNotFoundError(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver}."
+                        f"Failed to initialize ADC for pd{c}. Check device {curried!r}."
                     ) from e
                 except Exception as e:
                     self.logger.error(f"Unexpected error initializing ADC for pd{c}.")
@@ -315,9 +313,7 @@ class ADCReader(LoggerMixin):
             batched_readings[channel] = structs.RawPDReading(reading=avg_reading_voltage, channel=channel)
 
         for channel, adc in self.adcs.items():
-            self.logger.debug(
-                f"Setting ADC class {adc.__class__.__name__} for pd{channel} with initial gain {adc.gain}."
-            )
+            self.logger.debug(f"Setting ADC {adc!r} for pd{channel} with initial gain {adc.gain}.")
 
         return batched_readings
 
