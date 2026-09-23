@@ -1055,6 +1055,31 @@ def remove_file() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
+@unit_api_bp.route("/system/remove_from_inventory/<expected_hostname>", methods=["POST"])
+def remove_from_inventory(expected_hostname: str) -> ResponseReturnValue:
+    """Clean up a removed worker only when this is the named unit."""
+    if expected_hostname != HOSTNAME:
+        abort_with(
+            409,
+            "Worker hostname mismatch",
+            cause=f"This unit is {HOSTNAME}, not {expected_hostname}.",
+            remediation="Check the worker address in the leader's cluster configuration.",
+        )
+
+    disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
+    if disallow_file.is_file():
+        abort_with(
+            403,
+            "DISALLOW_UI_FILE_SYSTEM is present",
+            cause="File system operations are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the action locally via SSH.",
+        )
+
+    tasks.kill_jobs_task(all_jobs=True)
+    tasks.rm(str(get_dot_pioreactor_path() / "config.ini"))
+    return {"status": "accepted"}, 202
+
+
 # GET clock time
 @unit_api_bp.route("/system/utc_clock", methods=["GET"])
 def get_clock_time() -> ResponseReturnValue:

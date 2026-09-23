@@ -8,6 +8,7 @@ from datetime import UTC
 from email.message import Message
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from flask import Flask
@@ -145,6 +146,17 @@ def test_get_workers_includes_literal_ipv4_addresses(
     data = {worker["pioreactor_unit"]: worker for worker in response.get_json()}
     assert data["unit1"]["ipv4_address"] == "192.168.1.10"
     assert data["unit2"]["ipv4_address"] is None
+
+
+def test_delete_worker_queues_hostname_guarded_cleanup(client: FlaskClient) -> None:
+    with capture_requests() as requests:
+        response = client.delete("/api/workers/unit1")
+
+    assert response.status_code == 202
+    assert client.get("/api/workers/unit1").status_code == 404
+    assert [(request.method, request.path) for request in requests] == [
+        ("POST", "/unit_api/system/remove_from_inventory/unit1"),
+    ]
 
 
 @pytest.mark.parametrize("pioreactor_unit", ["203.0.113.10", "unknown-worker"])
@@ -1788,6 +1800,89 @@ def test_unit_api_specific_config_round_trip(
     response = client.get("/unit_api/config/merged")
     assert response.status_code == 200
     assert response.get_json()["shared"]["value"] == "unit-local"
+
+
+@pytest.mark.parametrize(
+    ("code", "missing_fields"),
+    [
+        (
+            "[mqtt]\nbroker_address=leader.local\n",
+            "[cluster.topology] leader_hostname, [cluster.topology] leader_address",
+        ),
+        (
+            "[cluster.topology]\nleader_hostname=\nleader_address=leader.local\n[mqtt]\nbroker_address=leader.local\n",
+            "[cluster.topology] leader_hostname",
+        ),
+        (
+            "[cluster.topology]\nleader_hostname=leader\nleader_address=\n[mqtt]\nbroker_address=leader.local\n",
+            "[cluster.topology] leader_address",
+        ),
+        (
+            "[cluster.topology]\nleader_hostname=leader\nleader_address=leader.local\n[mqtt]\nbroker_address=\n",
+            "[mqtt] broker_address",
+        ),
+    ],
+)
+def test_update_shared_config_reports_missing_fields(
+    client: FlaskClient, monkeypatch: MonkeyPatch, code: str, missing_fields: str
+) -> None:
+    logged_messages: list[str] = []
+    monkeypatch.setattr(
+        "pioreactor.web.api.publish_to_error_log",
+        lambda message, _task: logged_messages.append(message),
+    )
+
+    response = client.put("/api/config/shared", json={"code": code})
+
+    expected = f"Missing required field(s): {missing_fields}"
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected
+    assert logged_messages == [expected]
+
+
+def test_update_shared_config_rejects_mismatched_leader_hostname(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import HOSTNAME
+
+    write_config_and_sync = Mock()
+    logged_messages: list[str] = []
+    monkeypatch.setattr("pioreactor.web.api.tasks.write_config_and_sync", write_config_and_sync)
+    monkeypatch.setattr(
+        "pioreactor.web.api.publish_to_error_log",
+        lambda message, _task: logged_messages.append(message),
+    )
+    code = (
+        "[cluster.topology]\nleader_hostname=typo\nleader_address=leader.local\n"
+        "[mqtt]\nbroker_address=leader.local\n"
+    )
+
+    response = client.put("/api/config/shared", json={"code": code})
+
+    expected = f"[cluster.topology] leader_hostname must match this unit's hostname ({HOSTNAME}); got typo."
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected
+    assert logged_messages == [expected]
+    write_config_and_sync.assert_not_called()
+
+
+def test_update_shared_config_accepts_matching_leader_hostname(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import HOSTNAME
+
+    write_config_and_sync = Mock(return_value=Mock(return_value=(True, "")))
+    monkeypatch.setattr("pioreactor.web.api.tasks.write_config_and_sync", write_config_and_sync)
+    code = (
+        f"[cluster.topology]\nleader_hostname={HOSTNAME}\nleader_address=leader.local\n"
+        "[mqtt]\nbroker_address=leader.local\n"
+    )
+
+    response = client.put("/api/config/shared", json={"code": code})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "success"}
+    write_config_and_sync.assert_called_once()
 
 
 def test_update_specific_config_for_worker_saves_snapshot(

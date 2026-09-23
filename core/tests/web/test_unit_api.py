@@ -64,6 +64,58 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
 
 
+def test_remove_from_inventory_rejects_different_hostname(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stop_jobs = Mock()
+    remove_config = Mock()
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+
+    response = client.post("/unit_api/system/remove_from_inventory/nightlytest")
+
+    assert response.status_code == 409
+    stop_jobs.assert_not_called()
+    remove_config.assert_not_called()
+
+
+def test_remove_from_inventory_cleans_up_matching_worker(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    stop_jobs = Mock()
+    remove_config = Mock()
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+
+    response = client.post(f"/unit_api/system/remove_from_inventory/{HOSTNAME}")
+
+    assert response.status_code == 202
+    stop_jobs.assert_called_once_with(all_jobs=True)
+    remove_config.assert_called_once_with(str(dot_pioreactor / "config.ini"))
+
+
+def test_remove_from_inventory_respects_file_system_lock(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "DISALLOW_UI_FILE_SYSTEM").touch()
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    stop_jobs = Mock()
+    remove_config = Mock()
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+
+    response = client.post(f"/unit_api/system/remove_from_inventory/{HOSTNAME}")
+
+    assert response.status_code == 403
+    stop_jobs.assert_not_called()
+    remove_config.assert_not_called()
+
+
 def test_unscoped_camera_status_route_is_not_available(client) -> None:
     assert client.get("/unit_api/camera/status").status_code == 404
 

@@ -545,13 +545,27 @@ def _validate_shared_config(code: str) -> str:
     config = ConfigParserMod()
     config.read_string(normalized)
 
-    assert config["cluster.topology"]
-    assert config.get("cluster.topology", "leader_hostname")
-    assert config.get("cluster.topology", "leader_address")
-    assert config["mqtt"]
+    missing_fields = [
+        f"[{section}] {option}"
+        for section, option in (
+            ("cluster.topology", "leader_hostname"),
+            ("cluster.topology", "leader_address"),
+            ("mqtt", "broker_address"),
+        )
+        if not config.get(section, option, fallback="")
+    ]
+    if missing_fields:
+        raise ValueError(f"Missing required field(s): {', '.join(missing_fields)}")
 
-    if config.get("cluster.topology", "leader_address", fallback="").startswith("http") or config.get(
-        "mqtt", "broker_address", fallback=""
+    leader_hostname = config.get("cluster.topology", "leader_hostname")
+    if leader_hostname != HOSTNAME:
+        raise ValueError(
+            f"[cluster.topology] leader_hostname must match this unit's hostname ({HOSTNAME}); "
+            f"got {leader_hostname}."
+        )
+
+    if config.get("cluster.topology", "leader_address").startswith("http") or config.get(
+        "mqtt", "broker_address"
     ).startswith("http"):
         abort_with(400, "Don't start addresses with http:// or https://")
 
@@ -3819,10 +3833,6 @@ def update_shared_config() -> ResponseReturnValue:
         msg = "Incorrect syntax. Please fix and try again."
         publish_to_error_log(msg, "update_shared_config")
         abort_with(400, msg)
-    except (AssertionError, configparser.NoSectionError, KeyError) as e:
-        msg = f"Missing required field(s): {e}"
-        publish_to_error_log(msg, "update_shared_config")
-        abort_with(400, msg)
     except ValueError as e:
         msg = str(e)
         publish_to_error_log(msg, "update_shared_config")
@@ -4433,10 +4443,9 @@ def add_worker() -> ResponseReturnValue:
 def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
     row_count = modify_app_db("DELETE FROM workers WHERE pioreactor_unit=?;", (pioreactor_unit,))
     if row_count > 0:
-        tasks.multicast_post("/unit_api/jobs/stop/all", _single_unit(pioreactor_unit))
-
-        # only delete configs if not the leader...
-        if pioreactor_unit != HOSTNAME:
+        if pioreactor_unit == HOSTNAME:
+            tasks.multicast_post("/unit_api/jobs/stop/all", _single_unit(pioreactor_unit))
+        else:
             modify_app_db(
                 "DELETE FROM config_files_histories WHERE filename IN (?, ?);",
                 (
@@ -4445,11 +4454,10 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
                 ),
             )
 
-            # delete shared config on worker
+            # The worker must verify its own hostname before stopping jobs or deleting config.
             tasks.multicast_post(
-                "/unit_api/system/remove_file",
+                f"/unit_api/system/remove_from_inventory/{pioreactor_unit}",
                 _single_unit(pioreactor_unit),
-                json={"filepath": str(get_dot_pioreactor_path() / "config.ini")},
             )
 
         cache.invalidate_merged_config_cache(pioreactor_unit)
