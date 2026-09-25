@@ -4,6 +4,7 @@ from __future__ import annotations
 import sqlite3
 import subprocess
 import sys
+from contextlib import closing
 from importlib.metadata import EntryPoint
 from pathlib import Path
 from types import SimpleNamespace
@@ -185,6 +186,44 @@ def test_python_plugin_package_environment_exercises_full_leader_merge_contract(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'demo_plugin_table'"
         ).fetchone()
     assert table_exists == (1,)
+
+
+@pytest.mark.parametrize("sql", ["CREATE TABLE added_by_plugin (id INTEGER);", "INVALID SQL;"])
+def test_apply_additional_sql_closes_connection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sql: str
+) -> None:
+    install_folder = tmp_path / "plugin"
+    install_folder.mkdir()
+    (install_folder / "additional_sql.sql").write_text(sql, encoding="utf-8")
+    database_path = tmp_path / "database.sqlite"
+    original_connect = sqlite3.connect
+
+    class TrackedConnection(sqlite3.Connection):
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+            super().close()
+
+    connections: list[TrackedConnection] = []
+
+    def tracked_connect(path: Path) -> TrackedConnection:
+        connection = original_connect(path, factory=TrackedConnection)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(package_operations.sqlite3, "connect", tracked_connect)
+
+    if sql.startswith("INVALID"):
+        with pytest.raises(sqlite3.OperationalError):
+            package_operations.apply_additional_sql(install_folder, database_path)
+    else:
+        assert package_operations.apply_additional_sql(install_folder, database_path)
+        with closing(original_connect(database_path)) as db:
+            assert db.execute("SELECT 1 FROM sqlite_master WHERE name = 'added_by_plugin'").fetchone() == (1,)
+
+    assert len(connections) == 1
+    assert connections[0].closed
 
 
 def test_plugin_assets_use_entry_point_module_when_distribution_name_differs(

@@ -71,14 +71,13 @@ def is_using_local_access_point() -> bool:
 def is_address_on_network(address: str, timeout: float = 10.0) -> bool:
     import socket
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(timeout)
-    try:
-        s.connect((address, 22))
-        s.close()
-        return True
-    except (socket.error, socket.timeout):
-        return False
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(timeout)
+        try:
+            s.connect((address, 22))
+            return True
+        except (socket.error, socket.timeout):
+            return False
 
 
 def is_reachable(address: str) -> bool:

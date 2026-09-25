@@ -12,9 +12,9 @@ from pioreactor.utils.timing import to_datetime
 from pioreactor.utils.timing import to_iso_format
 
 
-@pytest.mark.parametrize("interval", [0, -1])
-def test_repeated_timer_rejects_nonpositive_interval(interval: float) -> None:
-    with pytest.raises(ValueError, match="interval must be positive"):
+@pytest.mark.parametrize("interval", [0, -1, float("nan"), float("inf"), -float("inf")])
+def test_repeated_timer_rejects_invalid_interval(interval: float) -> None:
+    with pytest.raises(ValueError, match="interval must be finite and positive"):
         RepeatedTimer(interval, lambda: None)
 
 

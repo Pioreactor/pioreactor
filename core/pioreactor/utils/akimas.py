@@ -88,6 +88,9 @@ def _akima_derivatives(x_values: Any, y_values: Any) -> Any:
     n = x_values.size
     slopes = np.diff(y_values) / np.diff(x_values)
 
+    if n == 2:
+        return np.array([slopes[0], slopes[0]], dtype=float)
+
     extended = np.empty(n + 3, dtype=float)
     extended[2 : n + 1] = slopes
 

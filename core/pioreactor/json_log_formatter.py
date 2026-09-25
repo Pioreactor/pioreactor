@@ -30,6 +30,7 @@ class JSONFormatter(logging.Formatter):
         "relativeCreated",
         "thread",
         "threadName",
+        "taskName",
         "processName",
         "process",
         "message",

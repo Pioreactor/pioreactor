@@ -5,6 +5,7 @@ from contextlib import suppress
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from math import isfinite
 from threading import Event
 from threading import Thread
 from time import perf_counter
@@ -109,8 +110,8 @@ class RepeatedTimer:
     ) -> None:
         from pioreactor.logging import create_logger
 
-        if interval <= 0:
-            raise ValueError("interval must be positive.")
+        if not isfinite(interval) or interval <= 0:
+            raise ValueError("interval must be finite and positive.")
 
         self.interval = interval
         self.function = function
