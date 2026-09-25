@@ -107,11 +107,8 @@ class SoftwarePWMOutputDevice:
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, 0)
 
     def start(self, initial_dc: pt.FloatBetween0and100) -> None:
-        import lgpio
-
         self._started = True
         self.dc = initial_dc
-        lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
 
     def off(self) -> None:
         self.dc = 0.0
