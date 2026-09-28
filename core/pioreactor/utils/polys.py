@@ -72,9 +72,8 @@ def poly_solve(poly_data: structs.PolyFitCoefficients, y: float) -> list[float]:
 
     import numpy as np
 
-    coef_shift = np.zeros_like(poly_data.coefficients, dtype=float)
-    coef_shift[-1] = y
-    solve_for_poly = np.asarray(poly_data.coefficients, dtype=float) - coef_shift
+    solve_for_poly = np.array(poly_data.coefficients, dtype=float)
+    solve_for_poly[-1] -= y
     roots_ = np.roots(solve_for_poly).tolist()
     return sorted([float(np.real(r)) for r in roots_ if (abs(np.imag(r)) <= 1e-10 * (abs(np.real(r)) + 1.0))])
 

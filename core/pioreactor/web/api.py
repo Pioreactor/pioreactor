@@ -4223,12 +4223,16 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
 def get_experiment_profiles() -> ResponseReturnValue:
     try:
         profile_path = get_dot_pioreactor_path() / "experiment_profiles"
-        files = sorted(profile_path.glob("*.y*ml"), key=lambda f: f.stat().st_mtime, reverse=True)
+        files = sorted(
+            ((file, file.stat()) for file in profile_path.glob("*.y*ml")),
+            key=lambda item: item[1].st_mtime,
+            reverse=True,
+        )
 
         parsed_yaml = []
-        for file in files:
+        for file, file_stat in files:
             # allow empty files, it's annoying to users otherwise (and maybe theres a bug that wipes yamls?)
-            if file.stat().st_size == 0:
+            if file_stat.st_size == 0:
                 parsed_yaml.append(
                     {
                         "experimentProfile": Profile(

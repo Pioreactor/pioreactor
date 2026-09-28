@@ -29,15 +29,17 @@ export default function ActionCirculatingForm(props) {
   const [textfieldError, setTextfieldError] = useState(false);
   const [clicked, setClicked] = useState(false)
 
-  const [formErrorDuration, setFormErrorDuration] = useState(false)
+  const parsedDuration = Number(duration);
+  const validDuration = duration.trim() !== "" && Number.isFinite(parsedDuration) && parsedDuration >= 0;
+  const formErrorDuration = duration !== EMPTYSTATE && !validDuration;
 
 
   function onSubmit(e) {
     e.preventDefault();
-    if (duration !== EMPTYSTATE) {
+    if (validDuration) {
       setClicked(true)
 
-      var params = { duration: parseFloat(duration), source_of_event: "UI"}
+      var params = { duration: parsedDuration, source_of_event: "UI"}
       var msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
 
       runPioreactorJob(props.unit, props.experiment, props.action, [], params)
@@ -70,17 +72,9 @@ export default function ActionCirculatingForm(props) {
 
 
   function handleDurationChange(e) {
-    const re = /^[0-9.\b]+$/;
     setTextfieldError(false)
 
     setDuration(e.target.value);
-
-    if (e.target.value === EMPTYSTATE || re.test(e.target.value)) {
-      setFormErrorDuration(false)
-    }
-    else {
-      setFormErrorDuration(true)
-    }
   }
   return (
     <Box id={props.action} sx={{padding: "10px 0px 0px 0px"}}>
@@ -88,6 +82,7 @@ export default function ActionCirculatingForm(props) {
         <Box sx={{mb: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
           <TextField
             name="duration"
+            label="Duration"
             autoComplete={"off"}
             value={duration}
             error={formErrorDuration || textfieldError}
@@ -112,7 +107,7 @@ export default function ActionCirculatingForm(props) {
       <Box sx={{display: "flex"}}>
         <Button
           loading={clicked && (props?.job?.state === "disconnected")}
-          disabled={formErrorDuration || (props?.job?.state === "ready")}
+          disabled={!validDuration || (props?.job?.state === "ready")}
           type="submit"
           variant="contained"
           size="small"

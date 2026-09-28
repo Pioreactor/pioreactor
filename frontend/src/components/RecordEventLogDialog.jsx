@@ -20,8 +20,10 @@ import CloseIcon from '@mui/icons-material/Close';
 import PioreactorsIcon from './PioreactorsIcon';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 
 dayjs.extend(utc);
+dayjs.extend(customParseFormat);
 
 function RecordEventLogDialog({
   defaultPioreactor = "",
@@ -37,10 +39,12 @@ function RecordEventLogDialog({
   const [openDialog, setOpenDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const parsedTimestamp = dayjs(timestampLocal, 'YYYY-MM-DD HH:mm:ss', true);
+  const timestampValid = parsedTimestamp.isValid();
 
   const handleSubmit = async () => {
-    if (onSubmit && !isSubmitting) {
-      const timestampUTC = dayjs(timestampLocal, 'YYYY-MM-DD HH:mm:ss', true)
+    if (onSubmit && !isSubmitting && message.trim() && timestampValid) {
+      const timestampUTC = parsedTimestamp
         .utc()
         .format('YYYY-MM-DD[T]HH:mm:ss.000[Z]');
       setIsSubmitting(true);
@@ -159,7 +163,8 @@ function RecordEventLogDialog({
             variant="outlined"
             label="Local time"
             value={timestampLocal}
-            helperText="Local time · YYYY-MM-DD HH:mm:ss"
+            error={!timestampValid}
+            helperText={timestampValid ? "Local time · YYYY-MM-DD HH:mm:ss" : "Enter a valid local time in YYYY-MM-DD HH:mm:ss format."}
             onChange={(e) => setTimestampLocal(e.target.value)}
           />
           <TextField
@@ -178,7 +183,7 @@ function RecordEventLogDialog({
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={isSubmitting || message === "" || selectedExperiment === "" || selectedPioreactor === ""}
+          disabled={isSubmitting || !message.trim() || !timestampValid || selectedExperiment === "" || selectedPioreactor === ""}
         >
           {isSubmitting ? "Recording..." : "Record event"}
         </Button>

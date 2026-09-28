@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import RecordEventLogDialog from "../components/RecordEventLogDialog";
@@ -16,6 +16,39 @@ function renderRecordEventLogDialog(onSubmit) {
 }
 
 describe("RecordEventLogDialog", () => {
+  test("rejects blank messages and invalid dates, then submits a valid local timestamp as UTC", async () => {
+    const user = userEvent.setup();
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    renderRecordEventLogDialog(onSubmit);
+    await user.click(screen.getByRole("button", { name: "Record event" }));
+    const message = screen.getByRole("textbox", { name: /message/i });
+    const timestamp = screen.getByRole("textbox", { name: /local time/i });
+    const submit = screen.getByRole("button", { name: "Record event" });
+
+    fireEvent.change(message, { target: { value: "   " } });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.change(message, { target: { value: "Added media" } });
+    for (const value of ["", "2026-02-31 12:00:00", "2026-02-28 25:00:00", "2026-2-28 12:00:00"]) {
+      fireEvent.change(timestamp, { target: { value } });
+      expect(timestamp).toHaveAttribute("aria-invalid", "true");
+      expect(submit).toBeDisabled();
+      fireEvent.click(submit);
+    }
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.change(timestamp, { target: { value: "2026-02-28 12:00:00" } });
+    expect(timestamp).toHaveAttribute("aria-invalid", "false");
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      message: "Added media",
+      timestamp: new Date(2026, 1, 28, 12, 0, 0).toISOString(),
+    }));
+  });
+
   test("closes and clears fields after a successful submit", async () => {
     const user = userEvent.setup();
     const onSubmit = jest.fn().mockResolvedValue(undefined);

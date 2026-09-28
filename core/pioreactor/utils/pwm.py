@@ -302,9 +302,8 @@ class PWM:
         with local_intermittent_storage("pwm_dc") as cache:
             if self.duty_cycle > 0:
                 cache[self.pin] = self.duty_cycle
-            elif self.pin in cache and self.duty_cycle == 0:
+            elif self.duty_cycle == 0:
                 cache.pop(self.pin)
-            # else: # self.duty_cycle == 0 and self.pin not in cache, leave it.
 
             for k in cache:
                 if k == self.pin:

@@ -66,10 +66,7 @@ function ExperimentSummaryForm(props) {
   const [loading, setLoading] = React.useState(false);
   const historicalExperimentList = allExperiments;
   const historicalExperiments = React.useMemo(
-    () => historicalExperimentList.reduce((acc, {experiment}) => {
-      acc[experiment] = 1;
-      return acc;
-    }, {}),
+    () => new Set(historicalExperimentList.map(({experiment}) => experiment)),
     [historicalExperimentList],
   );
   const tagOptions = React.useMemo(
@@ -80,7 +77,7 @@ function ExperimentSummaryForm(props) {
   );
   const trimmedExpName = expName.trim();
   const hasInvalidCharacters = INVALID_EXPERIMENT_NAME_CHARACTERS.test(trimmedExpName);
-  const nameAlreadyUsed = trimmedExpName in historicalExperiments;
+  const nameAlreadyUsed = historicalExperiments.has(trimmedExpName);
   const hasBlockingValidationError = trimmedExpName === "" || hasInvalidCharacters || nameAlreadyUsed;
   const populateExperimentName = selectedPopulateExperimentName || historicalExperimentList[0]?.experiment || "";
 
@@ -171,7 +168,7 @@ function ExperimentSummaryForm(props) {
     var experimentNameProposed = e.target.value
     setExpName(experimentNameProposed)
     // realtime validation
-    if (experimentNameProposed.trim() in historicalExperiments){
+    if (historicalExperiments.has(experimentNameProposed.trim())){
       setFormError(true);
       setHelperText("Experiment name already used. Please choose another.")
     }
@@ -287,7 +284,7 @@ function ExperimentSummaryForm(props) {
               xs: 12,
               md: 8
             }}>
-            <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+            <Box sx={{display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: 1}}>
               {historicalExperimentList.length > 0 && (
                 <Box sx={{mr: 1}}>
                   <SelectButton
@@ -349,7 +346,7 @@ function StartNewExperimentContainer() {
       <PageHeader title="Start a new experiment" />
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <Box sx={{ my: 2, mx: "auto", width: "70%" }}>
+          <Box sx={{ my: 2, mx: "auto", width: { xs: "100%", md: "70%" } }}>
             <ExperimentSummaryForm handleNext={() => navigate('/overview')} />
           </Box>
         </CardContent>

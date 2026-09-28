@@ -2256,10 +2256,11 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     calibrations: list[dict[str, Any]] = []
 
     with local_persistent_storage("active_calibrations") as c:
+        active_calibration_name = c.get(device)
         for file in sorted(calibration_dir.glob("*.yaml")):
             try:
                 cal = to_builtins(yaml_decode(file.read_bytes(), type=AllCalibrations))
-                cal["is_active"] = c.get(device) == cal["calibration_name"]
+                cal["is_active"] = active_calibration_name == cal["calibration_name"]
                 cal["pioreactor_unit"] = HOSTNAME
                 calibrations.append(cal)
             except Exception as e:
@@ -2308,10 +2309,11 @@ def get_estimators_by_device(device: str) -> ResponseReturnValue:
 
     estimators: list[dict[str, Any]] = []
     with local_persistent_storage("active_estimators") as c:
+        active_estimator_name = c.get(device)
         for file in sorted(estimator_dir.glob("*.yaml")):
             try:
                 estimator = to_builtins(yaml_decode(file.read_bytes(), type=AllEstimators))
-                estimator["is_active"] = c.get(device) == estimator.get("estimator_name")
+                estimator["is_active"] = active_estimator_name == estimator.get("estimator_name")
                 estimator["pioreactor_unit"] = HOSTNAME
                 estimator["device"] = device
                 estimators.append(estimator)
