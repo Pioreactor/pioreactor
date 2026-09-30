@@ -294,7 +294,9 @@ def test_init_state_is_sent_to_mqtt() -> None:
     assert states == ["init", "ready", "disconnected"]
 
 
-@pytest.mark.flakey
+@pytest.mark.flakey(
+    reason="pio-e3fo: MQTT logger reconnect and subscriber delivery race during successive job lifecycles; synchronize broker delivery before asserting two records."
+)
 def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     # see note in base.py about create_logger
     unit = get_unit_name()
@@ -540,7 +542,9 @@ def test_invalid_setter_payload_does_not_mutate_setting(
     job.logger.warning.assert_called_once()
 
 
-@pytest.mark.flakey
+@pytest.mark.flakey(
+    reason="pio-e3fo: Readonly-setting warning depends on asynchronous MQTT subscription and log delivery; replace sleeps with subscription/delivery synchronization."
+)
 def test_editing_readonly_attr_via_mqtt() -> None:
     class TestJob(BackgroundJob):
         job_name = "job"
@@ -1013,7 +1017,9 @@ def test_dodging_post_init_timer_setup_failure_cleans_up_running_job(monkeypatch
                 handler.close()
 
 
-@pytest.mark.flakey
+@pytest.mark.flakey(
+    reason="pio-e3fo: OD timer callbacks and MQTT log delivery race against fixed 26-second observation window; drive timer callbacks explicitly."
+)
 def test_dodging_order() -> None:
     with temporary_config_section(config, "just_pause.config"):
         with temporary_config_changes(
@@ -1114,7 +1120,9 @@ def test_dodging_when_od_reading_stops_first() -> None:
                 assert len(bucket) == 0
 
 
-@pytest.mark.flakey
+@pytest.mark.flakey(
+    reason="pio-e3fo: Exact seven-log count depends on OD timer scheduling and MQTT delivery; drive dodging transitions explicitly."
+)
 def test_disabling_dodging() -> None:
     exp = "test_disabling_dodging"
 
@@ -1182,7 +1190,9 @@ def test_disabling_dodging() -> None:
                         time.sleep(3)
 
 
-@pytest.mark.flakey
+@pytest.mark.flakey(
+    reason="pio-e3fo: Initialization log can arrive after subscriber teardown; assert continuous-operation callback directly."
+)
 def test_disabled_dodging_will_start_continuous_operation() -> None:
     exp = "test_disabled_dodging_will_start_action_to_do_after_od_reading"
     with temporary_config_section(config, "just_pause.config"):

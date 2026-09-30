@@ -9,6 +9,7 @@ from datetime import timezone
 from datetime import UTC
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -1181,7 +1182,11 @@ def test_hardware_check_queues_task(client, monkeypatch) -> None:
     assert data["task_id"] == "task-456"
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(
+    reason="pio-h4k6: API plugin allowlist enforcement is commented out; missing allowlist does not reject installation.",
+    strict=True,
+    raises=AssertionError,
+)
 def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path) -> None:
     """API install should fail closed if allowlist is missing."""
     import pioreactor.web.unit_api as mod
@@ -1189,8 +1194,8 @@ def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path)
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
     monkeypatch.setattr(
         mod.tasks,
-        "pio_plugins",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+        "install_plugin_task",
+        lambda *args, **kwargs: SimpleNamespace(id="unexpected-install"),
     )
 
     resp = client.post(
@@ -1201,15 +1206,19 @@ def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path)
     assert b"allowlist" in resp.data
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(
+    reason="pio-h4k6: API plugin allowlist enforcement is commented out; unlisted package does not reject installation.",
+    strict=True,
+    raises=AssertionError,
+)
 def test_install_plugin_rejects_not_allowlisted(client, monkeypatch) -> None:
     """API install should reject plugins not on the allowlist."""
     import pioreactor.web.unit_api as mod
 
     monkeypatch.setattr(
         mod.tasks,
-        "pio_plugins",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+        "install_plugin_task",
+        lambda *args, **kwargs: SimpleNamespace(id="unexpected-install"),
     )
 
     resp = client.post(
@@ -1259,14 +1268,13 @@ def test_install_plugin_rejects_source_with_version(client) -> None:
     assert response.status_code == 400
 
 
-@pytest.mark.xfail(reason="need to update task api with new plugin install task")
 def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     """API install should proceed for allowlisted plugins."""
     import pioreactor.web.unit_api as mod
 
     captured = {}
 
-    def fake_pio_plugins(*args, **kwargs):
+    def fake_install_plugin_task(*args, **kwargs):
         captured["args"] = args
 
         class DummyTask:
@@ -1274,7 +1282,7 @@ def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
 
         return DummyTask()
 
-    monkeypatch.setattr(mod.tasks, "pio_plugins", fake_pio_plugins)
+    monkeypatch.setattr(mod.tasks, "install_plugin_task", fake_install_plugin_task)
 
     resp = client.post(
         "/unit_api/plugins/install",
@@ -1283,7 +1291,7 @@ def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     assert resp.status_code == 202
     data = resp.get_json()
     assert data["task_id"] == "task-123"
-    assert captured["args"] == ("install", "pioreactor-air-bubbler")
+    assert captured["args"] == ("pioreactor-air-bubbler",)
 
 
 def test_uninstall_plugin_rejects_when_ui_installs_are_disabled(

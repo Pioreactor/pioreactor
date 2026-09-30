@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-import os
 import sqlite3
 import zipfile
 from datetime import datetime
@@ -22,8 +21,6 @@ from pytest import MonkeyPatch
 from .conftest import capture_requests
 from .test_unit_api import _build_valid_calibration_yaml
 from .test_unit_api import FakeTaskResult
-
-IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 huey.immediate = True
 
@@ -707,28 +704,40 @@ def test_upsert_unit_labels(client) -> None:
     assert data["unit1"] == "Updated Reactor 1"
 
 
-@pytest.mark.xfail(reason="need to mock datetime")
 def test_get_logs_for_unit_and_experiment(client) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    # Experiment logs are visible only during the unit's assignment window.
+    modify_app_db(
+        "INSERT INTO experiment_worker_assignments_history "
+        "(experiment, pioreactor_unit, assigned_at, unassigned_at) VALUES (?, ?, ?, ?)",
+        ("exp1", "unit1", "2023-10-01T12:00:00Z", "2023-10-01T13:00:00Z"),
+    )
     response = client.get("/api/workers/unit1/experiments/exp1/logs")
     assert response.status_code == 200
     data = response.get_json()
     assert len(data) == 1  # Only one log entry for unit1 in exp1
     log = data[0]
     assert log["message"] == "Started mixing"
-    assert log["source"] == "mixer"
     assert log["level"] == "INFO"
-    assert log["task"] == "mixing_task"
+    assert log["task"] == "stirring"
+    assert log["pioreactor_unit"] == "unit1"
+    assert log["experiment"] == "exp1"
 
 
-@pytest.mark.xfail(reason="need to mock datetime")
-def test_get_growth_rates(client) -> None:
+def test_get_growth_rates(client, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2023, 10, 1, 14, tzinfo=UTC),
+    )
     response = client.get("/api/experiments/exp1/time_series/growth_rates")
     assert response.status_code == 200
     data = response.get_json()
-    assert len(data) == 2  # Two growth rates for exp1
-    rates = [item["rate"] for item in data]
-    assert 0.02 in rates
-    assert 0.025 in rates
+    assert data["series"] == ["unit1", "unit2"]
+    assert [[point["y"] for point in series] for series in data["data"]] == [
+        [0.01, 0.02],
+        [0.0, 0.0],
+    ]
 
 
 def test_get_system_logs_filters_universal_experiment(client) -> None:
@@ -3440,7 +3449,6 @@ def test_job_settings_unit_api_does_not_advertise_patch(client: FlaskClient) -> 
     assert patch_response.get_json()["error"] == "The method is not allowed for the requested URL."
 
 
-@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
 def test_get_settings_unit_api(client) -> None:
     from pioreactor.background_jobs.stirring import start_stirring
 
@@ -3454,7 +3462,8 @@ def test_get_settings_unit_api(client) -> None:
         r = client.get(
             "/unit_api/jobs/settings/job_name/stirring/setting/target_rpm",
         )
-        r.json["target_rpm"] == "500.0"
+        assert r.status_code == 200
+        assert float(r.json["target_rpm"]) == 500.0
 
 
 def test_get_settings_api(client, monkeypatch: MonkeyPatch) -> None:

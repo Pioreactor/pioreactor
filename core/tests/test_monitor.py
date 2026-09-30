@@ -139,7 +139,9 @@ def test_monitor_set_versions_ignores_unknown_keys_without_mutating_input(monkey
 
 
 @pytest.mark.slow
-@pytest.mark.skip()
+@pytest.mark.skip(
+    reason="pio-e3fo: Monitor no longer reconciles retained od_reading state with running processes; replace this legacy health-check integration test."
+)
 def test_check_job_states_in_monitor() -> None:
     unit = get_unit_name()
     exp = UNIVERSAL_EXPERIMENT
@@ -159,7 +161,9 @@ def test_check_job_states_in_monitor() -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.skip()
+@pytest.mark.skip(
+    reason="pio-e3fo: Monitor no longer runs a Zeroconf ServiceBrowser; migrate discovery notification coverage to the current discovery owner."
+)
 def test_monitor_alerts_on_found_worker() -> None:
     experiment = "test_monitor_alerts_on_found_worker"
 
@@ -184,7 +188,9 @@ def test_monitor_alerts_on_found_worker() -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.skip()
+@pytest.mark.skip(
+    reason="pio-e3fo: Monitor no longer runs a Zeroconf ServiceBrowser; migrate known-worker filtering coverage to the current discovery owner."
+)
 def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
     experiment = "test_monitor_doesnt_alert_if_already_in_cluster"
 
@@ -209,16 +215,17 @@ def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
     r.unregister_service(info)
 
 
-@pytest.mark.slow
-@pytest.mark.skip()
 def test_monitor_projects_dosing_events_into_bioreactor() -> None:
     unit = get_unit_name()
     experiment = "test_monitor_projects_dosing_events_into_bioreactor"
 
-    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
-        publish(
-            f"pioreactor/{unit}/{experiment}/dosing_events",
-            encode(
+    monitor = object.__new__(Monitor)
+    monitor.unit = unit
+    monitor.pub_client = cast(Any, None)
+    monitor.update_bioreactor_state_from_dosing_event(
+        SimpleNamespace(
+            topic=f"pioreactor/{unit}/{experiment}/dosing_events",
+            payload=encode(
                 structs.DosingEvent(
                     volume_change=1.5,
                     event="add_alt_media",
@@ -227,22 +234,23 @@ def test_monitor_projects_dosing_events_into_bioreactor() -> None:
                 )
             ),
         )
-        pause(2)
+    )
 
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(15.5)
     assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(1.5 / 15.5)
 
 
-@pytest.mark.slow
-@pytest.mark.skip()
 def test_monitor_projects_custom_add_dosing_events_into_bioreactor() -> None:
     unit = get_unit_name()
     experiment = "test_monitor_projects_custom_add_dosing_events_into_bioreactor"
 
-    with Monitor(unit=unit, experiment=UNIVERSAL_EXPERIMENT):
-        publish(
-            f"pioreactor/{unit}/{experiment}/dosing_events",
-            encode(
+    monitor = object.__new__(Monitor)
+    monitor.unit = unit
+    monitor.pub_client = cast(Any, None)
+    monitor.update_bioreactor_state_from_dosing_event(
+        SimpleNamespace(
+            topic=f"pioreactor/{unit}/{experiment}/dosing_events",
+            payload=encode(
                 structs.DosingEvent(
                     volume_change=1.0,
                     event="add_salty_media",
@@ -251,7 +259,7 @@ def test_monitor_projects_custom_add_dosing_events_into_bioreactor() -> None:
                 )
             ),
         )
-        pause(2)
+    )
 
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(15.0)
     assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(0.0)

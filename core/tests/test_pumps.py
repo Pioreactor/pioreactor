@@ -17,7 +17,6 @@ from pioreactor.actions.pump import circulate_media
 from pioreactor.actions.pump import publish_async
 from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
-from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.exc import CalibrationError
@@ -33,6 +32,7 @@ from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
 from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import get_unit_name
+from tests.utils import dosing_events_to_bioreactor_projector
 from tests.utils import FakeMQTTClient
 from tests.utils import wait_for
 
@@ -212,27 +212,29 @@ def test_publish_async_uses_exactly_once_when_requested(monkeypatch) -> None:
     assert publish_calls == [("pioreactor/unit/exp/dosing_events", b"{}", {"qos": QOS.EXACTLY_ONCE})]
 
 
-@pytest.mark.skip(reason="...")
 def test_public_add_media_updates_bioreactor_state() -> None:
     exp = "test_public_add_media_updates_bioreactor_state"
 
-    with Monitor(unit=unit, experiment="$experiment"):
+    with dosing_events_to_bioreactor_projector(unit, exp):
         assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(14.0)
 
         moved_ml = add_media(ml=1.25, unit=unit, experiment=exp)
-        pause(2)
+        assert wait_for(
+            lambda: bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.25)
+        )
 
     assert moved_ml == pytest.approx(1.25)
     assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.25)
 
 
-@pytest.mark.skip(reason="...")
 def test_public_add_alt_media_updates_bioreactor_state() -> None:
     exp = "test_public_add_alt_media_updates_bioreactor_state"
 
-    with Monitor(unit=unit, experiment="$experiment"):
+    with dosing_events_to_bioreactor_projector(unit, exp):
         moved_ml = add_alt_media(ml=1.0, unit=unit, experiment=exp)
-        pause(2)
+        assert wait_for(
+            lambda: bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.0)
+        )
 
     assert moved_ml == pytest.approx(1.0)
     assert bioreactor.get_bioreactor_value(exp, "current_volume_ml") == pytest.approx(15.0)

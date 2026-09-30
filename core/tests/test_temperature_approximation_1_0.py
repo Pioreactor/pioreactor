@@ -555,7 +555,11 @@ class TestTemperatureApproximation_1_0:
 
         assert 34.950 <= self.t.approximate_temperature_20_1_0(features) <= 35.493
 
-    @pytest.mark.xfail
+    @pytest.mark.xfail(
+        reason="pio-e3fo: Legacy 20ml v1.0 cooling model predicts 31.9435 C below the measured 32.169 C lower bound.",
+        strict=True,
+        raises=AssertionError,
+    )
     def test_temperature_approximation_cooling1(self) -> None:
         features = {
             "previous_heater_dc": 18.05247101728979,
@@ -828,7 +832,11 @@ class TestTemperatureApproximation_1_0:
         }
         assert 28.815 <= self.t.approximate_temperature_20_1_0(features) <= 29.119
 
-    @pytest.mark.xfail
+    @pytest.mark.xfail(
+        reason="pio-e3fo: Legacy 20ml v1.0 model predicts 25.4663 C above the measured 25.430 C upper bound.",
+        strict=True,
+        raises=AssertionError,
+    )
     def test_temperature_approximation16(self) -> None:
         features = {
             "previous_heater_dc": 18.156877790712812,
@@ -868,7 +876,11 @@ class TestTemperatureApproximation_1_0:
 
         assert 25.261 <= self.t.approximate_temperature_20_1_0(features) <= 25.430
 
-    @pytest.mark.xfail
+    @pytest.mark.xfail(
+        reason="pio-e3fo: Legacy 20ml v1.0 model predicts 25.5290 C above the measured 25.430 C upper bound.",
+        strict=True,
+        raises=AssertionError,
+    )
     def test_temperature_approximation17(self) -> None:
         features = {
             "previous_heater_dc": 18.518440157554934,

@@ -149,7 +149,9 @@ import pioreactor.background_jobs.growth_rate_calculating
                     experiment="test_invalid_required_configuration_fails_before_startup",
                 )
 
-    @pytest.mark.flakey
+    @pytest.mark.flakey(
+        reason="pio-e3fo: Growth-rate restart relies on asynchronous MQTT observations reaching the processing thread before shutdown; synchronize each processed observation."
+    )
     def test_restart(self) -> None:
         unit = get_unit_name()
         experiment = "test_restart"
