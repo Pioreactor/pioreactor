@@ -4,6 +4,10 @@
 
  - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`. Payload keys now identify PWM channels instead of GPIO pins, for example `{"1": 15.0, "4": 55.0, "5": 23.49}`. Update any plugins or scripts that consume this topic. Upgrade the leader/UI and all workers together, restart active worker jobs, and reload browser tabs; mixed versions are not supported for PWM telemetry.
 
+#### Enhancements
+
+ - Added automatic plugin installation from the SD card's boot partition. Place plugin `.whl` files and any required dependency wheels in `pioreactor/plugins/` (`/boot/firmware/pioreactor/plugins/` on the Pi), then reboot. Existing Raspberry Pi images gain this support after updating and rebooting; new workers retain staged wheels until they join a cluster and reboot. Successful installations remove the wheels, while failed or invalid wheels are saved in `failed/` with diagnostic logs. Wheels declaring direct URL dependencies are rejected, and installation attempts have time limits.
+
 #### Bug fixes
 
  - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
