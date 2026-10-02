@@ -75,7 +75,7 @@ describe("jobs utils", () => {
 
   test("getCardSettingDisplayKind special-cases stable job setting identities", () => {
     expect(getCardSettingDisplayKind("leds", "intensity")).toBe("led_intensity");
-    expect(getCardSettingDisplayKind("pwms", "dc")).toBe("pwm_dc");
+    expect(getCardSettingDisplayKind("pwms", "channel_dc")).toBe("pwm_dc");
     expect(getCardSettingDisplayKind("leds", "renamed_intensity")).toBe("default");
   });
 

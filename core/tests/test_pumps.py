@@ -650,7 +650,7 @@ def test_pump_context_exit_after_pwm_cleanup_stops_worker_without_republishing()
         if payload:
             mqtt_items.append(json.loads(payload))
 
-    subscribe_and_callback(collect, f"pioreactor/{unit}/{experiment}/pwms/dc", allow_retained=False)
+    subscribe_and_callback(collect, f"pioreactor/{unit}/{experiment}/pwms/channel_dc", allow_retained=False)
 
     with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as pump:
         pump.by_duration(seconds=100, block=False)
@@ -675,7 +675,7 @@ def test_add_media_publishes_single_empty_pwm_payload_on_shutdown() -> None:
             return
         mqtt_items.append(json.loads(payload))
 
-    subscribe_and_callback(collect, f"pioreactor/{unit}/{experiment}/pwms/dc", allow_retained=False)
+    subscribe_and_callback(collect, f"pioreactor/{unit}/{experiment}/pwms/channel_dc", allow_retained=False)
 
     moved_ml = add_media(ml=0.01, unit=unit, experiment=experiment)
 

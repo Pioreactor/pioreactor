@@ -1,15 +1,7 @@
-const PIN_TO_PWM = {
-  17: 1,
-  13: 2,
-  16: 3,
-  12: 4,
-  18: 5, // heater
-};
-
-export function getPwmDutyCyclesByLoad(dutyCyclesByPin, pwmConfig = {}) {
+export function getPwmDutyCyclesByLoad(dutyCyclesByChannel, pwmConfig = {}) {
   const dutyCyclesByLoad = {};
-  for (const [pin, dutyCycle] of Object.entries(dutyCyclesByPin)) {
-    const load = pwmConfig[PIN_TO_PWM[pin]];
+  for (const [channel, dutyCycle] of Object.entries(dutyCyclesByChannel)) {
+    const load = pwmConfig[channel];
     if (load) {
       dutyCyclesByLoad[load] = Number(dutyCycle);
     }

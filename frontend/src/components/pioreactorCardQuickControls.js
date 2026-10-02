@@ -8,7 +8,7 @@ const QUICK_EDITABLE_TYPES = new Set(["boolean", "numeric", "string"]);
 
 const SPECIAL_CARD_SETTING_DISPLAY_KINDS = {
   "leds.intensity": "led_intensity",
-  "pwms.dc": "pwm_dc",
+  "pwms.channel_dc": "pwm_dc",
 };
 
 export function isAutomationJob(jobKey) {

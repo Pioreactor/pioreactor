@@ -7,6 +7,7 @@ from pathlib import Path
 from time import sleep
 
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
+import pytest
 from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.automations import temperature  # noqa: F401
@@ -23,6 +24,24 @@ from tests.utils import wait_for
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARED_SQL_DIR = REPO_ROOT / "packaging" / "shared-assets" / "sql"
+
+
+@pytest.mark.parametrize("values", [{"1": 15.0, "4": 55.0, "5": 23.49}, {}])
+def test_pwm_channels_parse_without_leader_hardware_or_model(
+    monkeypatch: pytest.MonkeyPatch, values: dict[str, float]
+) -> None:
+    monkeypatch.setattr(
+        "pioreactor.hardware.get_pioreactor_model", lambda: pytest.fail("Leader model lookup")
+    )
+    monkeypatch.setattr(
+        "pioreactor.hardware.get_pwm_to_pin_map", lambda: pytest.fail("Leader hardware lookup")
+    )
+    row = m2db.parse_pwm_channel_dcs("pioreactor/worker01/experiment/pwms/channel_dc", encode(values))
+    assert row["pioreactor_unit"] == "worker01"
+    assert row["experiment"] == "experiment"
+    assert {key: row[key] for key in row if key.startswith("channel_")} == {
+        f"channel_{channel}": values.get(str(channel), 0.0) for channel in range(1, 6)
+    }
 
 
 def seed_experiment(cursor: sqlite3.Cursor, experiment: str) -> None:

@@ -137,7 +137,7 @@ def test_initial_startup_publishes_kick_to_pwm(monkeypatch) -> None:
         if payload:
             observed_dc_payloads.append(json.loads(payload))
 
-    subscribe_and_callback(collect_pwm_dc, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+    subscribe_and_callback(collect_pwm_dc, f"pioreactor/{unit}/{exp}/pwms/channel_dc", allow_retained=False)
 
     with start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=False):
         assert wait_for(
@@ -407,7 +407,7 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
             assert st.currently_dodging_od
             assert st.enable_dodging_od
             time.sleep(15)
-            subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+            subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/channel_dc", allow_retained=False)
 
         time.sleep(2)
     time.sleep(1)

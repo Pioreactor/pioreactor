@@ -86,14 +86,14 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
 
   const stirBarRef = useRef(null);
   const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
-  const [dutyCyclesByPin, setDutyCyclesByPin] = useState({});
+  const [dutyCyclesByChannel, setDutyCyclesByChannel] = useState({});
   const [temperature, setTemperature] = useState(null);
   const [nOD, setNOD] = useState(null);
   const [leds, setLeds] = useState({ A: 0, B: 0, C: 0, D: 0 });
   const pwmConfig = config?.PWM;
   const dutyCyclesByLoad = useMemo(
-    () => getPwmDutyCyclesByLoad(dutyCyclesByPin, pwmConfig),
-    [dutyCyclesByPin, pwmConfig],
+    () => getPwmDutyCyclesByLoad(dutyCyclesByChannel, pwmConfig),
+    [dutyCyclesByChannel, pwmConfig],
   );
   const rpmEstimate = dutyCyclesByLoad.stirring * 26.66666667;
   const rpm = Number.isFinite(rpmEstimate) && rpmEstimate > 0
@@ -133,8 +133,8 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     const topicString = topic.toString();
     const messageString = message.toString();
 
-    if (topicString.endsWith('pwms/dc')) {
-      setDutyCyclesByPin(messageString ? JSON.parse(messageString) : {});
+    if (topicString.endsWith('pwms/channel_dc')) {
+      setDutyCyclesByChannel(messageString ? JSON.parse(messageString) : {});
     } else if (topicString.endsWith('temperature_automation/temperature')) {
       setTemperature(messageString ? JSON.parse(messageString).temperature : null);
     } else if (topicString.endsWith('growth_rate_calculating/od_filtered')) {
@@ -152,11 +152,11 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
       `pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
       `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
       `pioreactor/${unit}/${experiment}/leds/intensity`,
-      `pioreactor/${unit}/${experiment}/pwms/dc`,
+      `pioreactor/${unit}/${experiment}/pwms/channel_dc`,
       `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
       `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
       `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
-      `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
+      `pioreactor/${unit}/_testing_${experiment}/pwms/channel_dc`,
     ];
     subscribeToTopic(topics, onMessage, 'BioreactorDiagram');
     return () => {

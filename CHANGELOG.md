@@ -1,3 +1,18 @@
+### Upcoming
+
+#### Breaking changes
+
+ - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`. Payload keys now identify PWM channels instead of GPIO pins, for example `{"1": 15.0, "4": 55.0, "5": 23.49}`. Update any plugins or scripts that consume this topic. Upgrade the leader/UI and all workers together, restart active worker jobs, and reload browser tabs; mixed versions are not supported for PWM telemetry.
+
+#### Bug fixes
+
+ - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
+ - Fixed circulation actions accepting empty, malformed, or negative durations.
+ - Fixed event recording accepting invalid local timestamps or messages containing only whitespace.
+ - Fixed the new-experiment form incorrectly rejecting unused names such as `constructor`, and improved its layout on narrow screens.
+ - Fixed OD reader error reporting when an ADC fails to initialize.
+ - Fixed Akima calibration fitting with only two data points.
+
 ### 26.10.0
 
 #### Enhancements

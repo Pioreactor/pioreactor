@@ -15,6 +15,7 @@ from typing import Iterator
 from pioreactor import types as pt
 from pioreactor.exc import PWMError
 from pioreactor.hardware import determine_gpiochip
+from pioreactor.hardware import get_pwm_to_pin_map
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
@@ -232,8 +233,12 @@ class PWM:
         pub_client: Client | None = None,
         logger: CustomLogger | None = None,
     ) -> None:
+        self._is_cleaned_up = True  # No resources to release if mapping resolution fails.
         self.unit = unit or get_unit_name()
         self.experiment = experiment or get_assigned_experiment_name(self.unit)
+        # Resolve channel wiring before any hardware is activated. Locks and the
+        # shared cache remain pin-based; telemetry contains configured channels only.
+        self._pwm_to_pin = get_pwm_to_pin_map()
 
         if pub_client is None:
             self._external_client = False
@@ -315,8 +320,11 @@ class PWM:
                     duty_cycle_value = cast(float | int | str, value)
                     current_values[cast(pt.GpioPin, k)] = float(duty_cycle_value)
 
+        channel_values = {
+            channel: current_values[pin] for channel, pin in self._pwm_to_pin.items() if pin in current_values
+        }
         self.pub_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
+            f"pioreactor/{self.unit}/{self.experiment}/pwms/channel_dc", dumps(channel_values), retain=True
         )
 
     def start(self, duty_cycle: pt.FloatBetween0and100) -> None:

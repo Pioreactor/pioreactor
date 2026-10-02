@@ -8,13 +8,11 @@ from typing import cast
 import click
 from msgspec import Struct
 from msgspec.json import decode as msgspec_loads
-from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.automations import events as automation_events  # noqa: F401
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
-from pioreactor.hardware import get_pwm_to_pin_map
 from pioreactor.pubsub import QOS
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.sqlite_worker import Sqlite3Worker
@@ -393,34 +391,19 @@ def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSq
     }
 
 
-def parse_pwm_dcs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
+def parse_pwm_channel_dcs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    pin_to_dc = msgspec_loads(payload)
-
-    try:
-        # this is a all gross. What's going on?
-        # 1. If the leader doesn't have a HAT, it can't load get_pwm_to_pin_map
-        # 2. Why do we even need that? because worker's publishes _pins_ and not _channels_! workers should publish channels.
-        # 3. leader's get_pwm_to_pin_map might differ from workers get_pwm_to_pin_map too. See 2.
-        pwm_to_pin = get_pwm_to_pin_map()
-    except exc.HardwareNotFoundError:
-        pwm_to_pin = {
-            "1": 17,
-            "2": 13,
-            "3": 16,
-            "4": 12,
-            "5": 18,
-        }
+    channel_to_dc = msgspec_loads(payload, type=dict[str, float])
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": current_utc_datetime(),
-        "channel_1": pin_to_dc.get(str(pwm_to_pin["1"]), 0.0),
-        "channel_2": pin_to_dc.get(str(pwm_to_pin["2"]), 0.0),
-        "channel_3": pin_to_dc.get(str(pwm_to_pin["3"]), 0.0),
-        "channel_4": pin_to_dc.get(str(pwm_to_pin["4"]), 0.0),
-        "channel_5": pin_to_dc.get(str(pwm_to_pin["5"]), 0.0),
+        "channel_1": channel_to_dc.get("1", 0.0),
+        "channel_2": channel_to_dc.get("2", 0.0),
+        "channel_3": channel_to_dc.get("3", 0.0),
+        "channel_4": channel_to_dc.get("4", 0.0),
+        "channel_5": channel_to_dc.get("5", 0.0),
     }
 
 
@@ -532,8 +515,8 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "temperature_automation_events",
             ),
             TopicToParserToTable(
-                "pioreactor/+/+/pwms/dc",
-                parse_pwm_dcs,
+                "pioreactor/+/+/pwms/channel_dc",
+                parse_pwm_channel_dcs,
                 "pwm_dcs",
             ),
             TopicToParserToTable(
