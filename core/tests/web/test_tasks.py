@@ -1170,8 +1170,11 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
     def fake_cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int) -> None:
         captured["copy"] = (unit, localpath, remotepath, timeout)
 
-    def fake_post_into(address: str, endpoint: str, json: dict[str, str], timeout: int) -> FakeResponse:
+    def fake_post_into(
+        address: str, endpoint: str, json: dict[str, str], timeout: int, headers: dict[str, str]
+    ) -> FakeResponse:
         captured["post"] = (address, endpoint, json, timeout)
+        captured["headers"] = headers
         return FakeResponse()
 
     monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_artifact", lambda _filepath: source)
@@ -1182,6 +1185,7 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
     result = tasks._install_plugin_from_leader_usb_on_worker("worker1", source.as_posix())
 
     assert captured["copy"] == ("worker1", source.as_posix(), "/tmp/dropin_plugin.py", 60)
+    assert captured["headers"] == {"X-Pioreactor-Target": "worker1"}
     assert captured["post"] == (
         "worker1.local",
         "/unit_api/plugins/install-python-file-from-leader-copy",

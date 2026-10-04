@@ -139,6 +139,8 @@ def test_execute_experiment_profile_order(
     assert bucket[4].json == {"job_name": "job2", "experiment": "_testing_experiment"}
     assert bucket[0].method == "PUT"
     assert all(request.method == "POST" for request in bucket[1:])
+    assert sorted(request.headers["X-Pioreactor-Target"] for request in bucket[1:3]) == ["unit1", "unit2"]
+    assert all(request.headers["X-Pioreactor-Target"] == "unit1" for request in bucket[3:])
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -265,8 +267,11 @@ def test_execute_experiment_profile_start_failure_is_logged(
     )
     mock__load_experiment_profile.return_value = profile
 
-    def fake_post_into(address: str, endpoint: str, json: dict[str, object]) -> Response:
+    def fake_post_into(
+        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str]
+    ) -> Response:
         assert address == "unit1.local"
+        assert headers == {"X-Pioreactor-Target": "unit1"}
         assert endpoint == "/unit_api/jobs/run/job_name/circulate_alt_media"
         return Response(
             address + endpoint,

@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS config_files_histories (
 );
 
 CREATE INDEX IF NOT EXISTS config_files_histories_ix
-ON config_files_histories (filename);
+ON config_files_histories (filename, timestamp);
 
 
 CREATE TABLE IF NOT EXISTS od_blanks (
@@ -346,16 +346,12 @@ CREATE TABLE IF NOT EXISTS pioreactor_unit_labels (
     pioreactor_unit TEXT NOT NULL,
     label TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    UNIQUE (pioreactor_unit, experiment),
+    UNIQUE (experiment, pioreactor_unit),
     UNIQUE (label, experiment),
     FOREIGN KEY (experiment) REFERENCES experiments (
         experiment
     ) ON DELETE CASCADE
 );
-
-CREATE INDEX IF NOT EXISTS pioreactor_unit_labels_ix
-ON pioreactor_unit_labels (experiment, pioreactor_unit);
-
 
 CREATE TABLE IF NOT EXISTS temperature_automation_events (
     experiment TEXT NOT NULL,
@@ -461,9 +457,6 @@ CREATE TABLE IF NOT EXISTS calibrations (
     set_to_current_at TEXT,
     UNIQUE (pioreactor_unit, type, name)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS calibrations_ix
-ON calibrations (pioreactor_unit, type, name);
 
 
 CREATE TABLE IF NOT EXISTS pwm_dcs (

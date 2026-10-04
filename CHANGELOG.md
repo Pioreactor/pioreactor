@@ -2,6 +2,7 @@
 
 #### Breaking changes
 
+ - Changed the worker inventory-cleanup endpoint to `POST /unit_api/system/remove_from_inventory`. The intended hostname is now supplied through the optional `X-Pioreactor-Target` header instead of a URL suffix.
  - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`. Payload keys now identify PWM channels instead of GPIO pins, for example `{"1": 15.0, "4": 55.0, "5": 23.49}`. Update any plugins or scripts that consume this topic. Upgrade the leader/UI and all workers together, restart active worker jobs, and reload browser tabs; mixed versions are not supported for PWM telemetry.
 
 #### Enhancements
@@ -10,6 +11,7 @@
 
 #### Bug fixes
 
+ - Added worker hostname checks to leader HTTP commands to prevent a stale or reused IP address from running the command on the wrong Pioreactor. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.
  - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
  - Fixed circulation actions accepting empty, malformed, or negative durations.
  - Fixed event recording accepting invalid local timestamps or messages containing only whitespace.

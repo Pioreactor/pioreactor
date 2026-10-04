@@ -746,6 +746,7 @@ def start_job(
                     response = post_into(
                         address,
                         f"/unit_api/jobs/run/job_name/{job_name}",
+                        headers={"X-Pioreactor-Target": unit},
                         json={
                             "options": evaluated_options,
                             "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
@@ -889,6 +890,7 @@ def stop_job(
             response = post_into(
                 resolve_to_address(unit),
                 "/unit_api/jobs/stop",
+                headers={"X-Pioreactor-Target": unit},
                 json={"job_name": job_name, "experiment": experiment},
             )
             if not response.ok:

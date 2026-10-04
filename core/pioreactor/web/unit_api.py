@@ -97,6 +97,23 @@ AllEstimators = subclass_union(structs.EstimatorBase)
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
 
+@unit_api_bp.before_request
+def check_mutation_target() -> None:
+    """Reject misaddressed commands before handlers perform or queue any side effects."""
+    if request.method not in {"POST", "PATCH", "PUT", "DELETE"}:
+        return
+
+    expected_hostname = request.headers.get("X-Pioreactor-Target")
+    # Direct API clients may omit the header; cluster callers supply the intended unit.
+    if expected_hostname is not None and expected_hostname != HOSTNAME:
+        abort_with(
+            409,
+            "Worker hostname mismatch",
+            cause=f"This unit is {HOSTNAME}, not {expected_hostname!r}.",
+            remediation="Check the worker address in the leader's cluster configuration.",
+        )
+
+
 # Register calibration session routes here to keep unit_api_bp ownership in this module.
 register_calibration_session_routes(unit_api_bp)
 
@@ -1055,17 +1072,9 @@ def remove_file() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api_bp.route("/system/remove_from_inventory/<expected_hostname>", methods=["POST"])
-def remove_from_inventory(expected_hostname: str) -> ResponseReturnValue:
-    """Clean up a removed worker only when this is the named unit."""
-    if expected_hostname != HOSTNAME:
-        abort_with(
-            409,
-            "Worker hostname mismatch",
-            cause=f"This unit is {HOSTNAME}, not {expected_hostname}.",
-            remediation="Check the worker address in the leader's cluster configuration.",
-        )
-
+@unit_api_bp.route("/system/remove_from_inventory", methods=["POST"])
+def remove_from_inventory() -> ResponseReturnValue:
+    """Stop jobs and remove shared config after removal from inventory."""
     disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
     if disallow_file.is_file():
         abort_with(

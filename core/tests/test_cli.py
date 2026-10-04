@@ -1247,6 +1247,7 @@ def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPa
             "unit1.local",
             "/unit_api/plugins/install",
             {
+                "headers": {"X-Pioreactor-Target": "unit1"},
                 "json": {
                     "args": ["pioreactor-air-bubbler"],
                     "options": {"version": "0.12.1"},
@@ -1378,6 +1379,7 @@ def test_pios_run_requests() -> None:
 
     assert len(bucket) == 2
     assert sorted(bucket)[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
+    assert [request.headers["X-Pioreactor-Target"] for request in sorted(bucket)] == ["unit1", "unit2"]
 
 
 def test_parse_click_arguments_returns_request_struct() -> None:
@@ -1700,6 +1702,28 @@ def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
     assert all("--repo org/repo" in command for command in commands)
 
 
+def test_pios_update_app_identity_rejection_does_not_fall_back_to_ssh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ssh = Mock()
+    request = Mock(
+        return_value=Response(
+            "http://wrong-worker/unit_api/system/update/app",
+            409,
+            {},
+            b'{"error":"Worker hostname mismatch"}',
+        )
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", request)
+    monkeypatch.setattr("pioreactor.cli.pios.ssh", ssh)
+
+    result = CliRunner().invoke(pios, ["update", "app", "--units", "unit1", "-y"])
+
+    assert result.exit_code != 0
+    assert request.call_args.kwargs["headers"] == {"X-Pioreactor-Target": "unit1"}
+    ssh.assert_not_called()
+
+
 def test_pios_update_app_options_are_not_accepted_on_update_group() -> None:
     runner = CliRunner()
     result = runner.invoke(
@@ -1816,6 +1840,7 @@ def test_pios_kill_requests() -> None:
     assert bucket[0].json == {"experiment": "demo"}
     assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop"
     assert bucket[1].json == {"experiment": "demo"}
+    assert [request.headers["X-Pioreactor-Target"] for request in sorted(bucket)] == ["unit1", "unit2"]
 
 
 def test_pios_jobs_list_requests_history_endpoint(monkeypatch) -> None:
@@ -2222,6 +2247,7 @@ def test_pios_reboot_requests() -> None:
 
     assert len(bucket) == 1
     assert bucket[0].url == "http://unit1.local:4999/unit_api/system/reboot"
+    assert bucket[0].headers == {"X-Pioreactor-Target": "unit1"}
 
 
 @pytest.mark.parametrize(

@@ -932,6 +932,7 @@ def delete_camera_still_for_worker_experiment(
         response = delete_from(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             timeout=20,
         )
         response.raise_for_status()
@@ -966,6 +967,7 @@ def rename_camera_still_for_worker_experiment(
         response = patch_into(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             json=body,
             timeout=20,
         )
@@ -2372,7 +2374,10 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
             resolve_registered_unit_address(pioreactor_unit),
             "/unit_api/import_zipped_dot_pioreactor",
             body=body,
-            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            headers={
+                "X-Pioreactor-Target": pioreactor_unit,
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
             timeout=120,
         )
         response.raise_for_status()
@@ -2500,6 +2505,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             "/unit_api/calibrations/sessions",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             json=payload,
             timeout=30,
         )
@@ -2569,6 +2575,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/inputs",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             json={"inputs": body.inputs},
             timeout=300,
         )
@@ -2603,6 +2610,7 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/abort",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             timeout=30,
         )
         response.raise_for_status()
@@ -3996,6 +4004,7 @@ def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> Response
             response = put_into(
                 resolve_registered_unit_address(pioreactor_unit),
                 "/unit_api/config/specific",
+                headers={"X-Pioreactor-Target": pioreactor_unit},
                 json={"code": code},
                 timeout=30,
             )
@@ -4460,7 +4469,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
             # The worker must verify its own hostname before stopping jobs or deleting config.
             tasks.multicast_post(
-                f"/unit_api/system/remove_from_inventory/{pioreactor_unit}",
+                "/unit_api/system/remove_from_inventory",
                 _single_unit(pioreactor_unit),
             )
 

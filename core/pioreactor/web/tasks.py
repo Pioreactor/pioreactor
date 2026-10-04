@@ -1400,7 +1400,13 @@ def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> d
         install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
 
     logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
-    response = post_into(resolve_to_address(unit), install_endpoint, json=payload, timeout=60)
+    response = post_into(
+        resolve_to_address(unit),
+        install_endpoint,
+        headers={"X-Pioreactor-Target": unit},
+        json=payload,
+        timeout=60,
+    )
     response.raise_for_status()
 
     return {
@@ -1802,7 +1808,9 @@ def post_into_unit(
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = post_into(address, endpoint, json=json, params=params, timeout=2.0)
+        r = post_into(
+            address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, params=params, timeout=2.0
+        )
         r.raise_for_status()
 
         if r.content is None:
@@ -2156,7 +2164,7 @@ def patch_into_unit(
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = patch_into(address, endpoint, json=json, timeout=2.0)
+        r = patch_into(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
@@ -2217,7 +2225,7 @@ def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = Non
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = delete_from(address, endpoint, json=json, timeout=2.0)
+        r = delete_from(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
         r.raise_for_status()
         return unit, fanout_success(unit, r.json() if r.content else None)
     except (HTTPErrorStatus, HTTPException) as e:

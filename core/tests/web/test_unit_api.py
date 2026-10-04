@@ -73,15 +73,68 @@ def test_remove_from_inventory_rejects_different_hostname(
     monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
     monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
 
-    response = client.post("/unit_api/system/remove_from_inventory/nightlytest")
+    response = client.post(
+        "/unit_api/system/remove_from_inventory", headers={"X-Pioreactor-Target": "nightlytest"}
+    )
 
     assert response.status_code == 409
     stop_jobs.assert_not_called()
     remove_config.assert_not_called()
 
 
-def test_remove_from_inventory_cleans_up_matching_worker(
-    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize("target", ["another-worker", ""])
+@pytest.mark.parametrize(
+    "method, path",
+    [
+        ("POST", "/unit_api/jobs/stop/all"),
+        ("PATCH", "/unit_api/jobs/stop/all"),
+        ("POST", "/unit_api/jobs/run/job_name/stirring"),
+        ("POST", "/unit_api/system/reboot"),
+        ("POST", "/unit_api/system/shutdown"),
+        ("POST", "/unit_api/system/remove_file"),
+        ("PUT", "/unit_api/config/specific"),
+        ("DELETE", "/unit_api/calibrations/stirring/example"),
+        ("POST", "/unit_api/calibrations/sessions"),
+    ],
+)
+def test_mutation_rejects_wrong_target_before_queuing_work(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, target: str, method: str, path: str
+) -> None:
+    adapter = client.application.url_map.bind("localhost")
+    endpoint, _ = adapter.match(path, method=method)
+    handler = Mock(return_value={"unexpected": "mutation reached handler"})
+    monkeypatch.setitem(client.application.view_functions, endpoint, handler)
+
+    response = client.open(path, method=method, headers={"X-Pioreactor-Target": target})
+
+    assert response.status_code == 409
+    assert HOSTNAME in response.get_json()["cause"]
+    handler.assert_not_called()
+
+
+@pytest.mark.parametrize("target", [None, HOSTNAME])
+def test_mutation_accepts_matching_or_absent_target(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, target: str | None
+) -> None:
+    stop_jobs = Mock(return_value=SimpleNamespace(id="stop-task"))
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    headers = {} if target is None else {"X-Pioreactor-Target": target}
+
+    response = client.post("/unit_api/jobs/stop/all", headers=headers)
+
+    assert response.status_code == 202
+    stop_jobs.assert_called_once_with(all_jobs=True)
+
+
+def test_read_requests_are_not_subject_to_mutation_target_check(client: FlaskClient) -> None:
+    response = client.get("/unit_api/task_results/unknown", headers={"X-Pioreactor-Target": "other"})
+
+    assert response.status_code == 202
+
+
+@pytest.mark.parametrize("target", [None, HOSTNAME])
+def test_remove_from_inventory_cleans_up_matching_or_unspecified_worker(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, target: str | None
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
     dot_pioreactor.mkdir()
@@ -91,7 +144,8 @@ def test_remove_from_inventory_cleans_up_matching_worker(
     monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
     monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
 
-    response = client.post(f"/unit_api/system/remove_from_inventory/{HOSTNAME}")
+    headers = {} if target is None else {"X-Pioreactor-Target": target}
+    response = client.post("/unit_api/system/remove_from_inventory", headers=headers)
 
     assert response.status_code == 202
     stop_jobs.assert_called_once_with(all_jobs=True)
@@ -110,7 +164,9 @@ def test_remove_from_inventory_respects_file_system_lock(
     monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
     monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
 
-    response = client.post(f"/unit_api/system/remove_from_inventory/{HOSTNAME}")
+    response = client.post(
+        "/unit_api/system/remove_from_inventory", headers={"X-Pioreactor-Target": HOSTNAME}
+    )
 
     assert response.status_code == 403
     stop_jobs.assert_not_called()
