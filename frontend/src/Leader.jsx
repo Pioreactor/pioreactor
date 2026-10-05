@@ -24,6 +24,7 @@ import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
 import UsbDriveCard from './components/UsbDriveCard';
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { unitTargetHeaders } from "./utils/unitApi";
 import { disconnectedGrey, lostRed, disabledColor, readyGreen } from "./utils/color";
 
 import {
@@ -349,6 +350,7 @@ function DirectoryNavigatorCard({leaderHostname}) {
       const response = await fetch('/unit_api/import_zipped_dot_pioreactor', {
         method: 'POST',
         body: formData,
+        headers: unitTargetHeaders(leaderHostname),
       });
 
       if (!response.ok) {
@@ -886,7 +888,7 @@ function SystemSpaceCard() {
 
 
 
-function LeaderJobs(){
+function LeaderJobs({leaderHostname}){
 
   const webServerJobName = "web server and queue"
   const [mqtt_to_db_streaming_state, set_mqtt_to_db_streaming_state] = React.useState("disconnected")
@@ -902,6 +904,7 @@ function LeaderJobs(){
         method: "POST",
         body: JSON.stringify({ job_name: jobName }),
         headers: {
+          ...unitTargetHeaders(leaderHostname),
           Accept: 'application/json',
           'Content-Type': 'application/json'
         },
@@ -921,6 +924,7 @@ function LeaderJobs(){
     try {
       const response = await fetch("/unit_api/system/web_server/restart", {
         method: "POST",
+        headers: unitTargetHeaders(leaderHostname),
       });
       if (!response.ok) {
         throw new Error(`Failed to restart web server: ${response.statusText}`);
@@ -1117,14 +1121,14 @@ function LeaderContainer({config}) {
               xs: 12,
               sm: 12
             }}>
-            <LeaderJobs/>
+            <LeaderJobs leaderHostname={leaderHostname}/>
           </Grid>
           <Grid
             size={{
               xs: 12,
               sm: 12
             }}>
-            <UsbDriveCard/>
+            <UsbDriveCard leaderHostname={leaderHostname}/>
           </Grid>
         </Grid>
 
@@ -1174,5 +1178,5 @@ function Leader({title, config}) {
   );
 }
 
-export { LeaderCard };
+export { DirectoryNavigatorCard, LeaderCard, LeaderJobs };
 export default Leader;

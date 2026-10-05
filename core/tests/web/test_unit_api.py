@@ -65,7 +65,7 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
 
 
-def test_remove_from_inventory_rejects_different_hostname(
+def test_cleanup_after_inventory_removal_rejects_different_hostname(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     stop_jobs = Mock()
@@ -74,7 +74,7 @@ def test_remove_from_inventory_rejects_different_hostname(
     monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
 
     response = client.post(
-        "/unit_api/system/remove_from_inventory", headers={"X-Pioreactor-Target": "nightlytest"}
+        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": "nightlytest"}
     )
 
     assert response.status_code == 409
@@ -133,7 +133,7 @@ def test_read_requests_are_not_subject_to_mutation_target_check(client: FlaskCli
 
 
 @pytest.mark.parametrize("target", [None, HOSTNAME])
-def test_remove_from_inventory_cleans_up_matching_or_unspecified_worker(
+def test_cleanup_after_inventory_removal_cleans_up_matching_or_unspecified_worker(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, target: str | None
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
@@ -145,14 +145,14 @@ def test_remove_from_inventory_cleans_up_matching_or_unspecified_worker(
     monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
 
     headers = {} if target is None else {"X-Pioreactor-Target": target}
-    response = client.post("/unit_api/system/remove_from_inventory", headers=headers)
+    response = client.post("/unit_api/system/cleanup_after_inventory_removal", headers=headers)
 
     assert response.status_code == 202
     stop_jobs.assert_called_once_with(all_jobs=True)
     remove_config.assert_called_once_with(str(dot_pioreactor / "config.ini"))
 
 
-def test_remove_from_inventory_respects_file_system_lock(
+def test_cleanup_after_inventory_removal_respects_file_system_lock(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
@@ -165,7 +165,7 @@ def test_remove_from_inventory_respects_file_system_lock(
     monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
 
     response = client.post(
-        "/unit_api/system/remove_from_inventory", headers={"X-Pioreactor-Target": HOSTNAME}
+        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": HOSTNAME}
     )
 
     assert response.status_code == 403

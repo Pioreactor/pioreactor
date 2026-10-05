@@ -4469,7 +4469,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
             # The worker must verify its own hostname before stopping jobs or deleting config.
             tasks.multicast_post(
-                "/unit_api/system/remove_from_inventory",
+                "/unit_api/system/cleanup_after_inventory_removal",
                 _single_unit(pioreactor_unit),
             )
 

@@ -152,7 +152,7 @@ def test_delete_worker_queues_hostname_guarded_cleanup(client: FlaskClient) -> N
     assert response.status_code == 202
     assert client.get("/api/workers/unit1").status_code == 404
     assert [(request.method, request.path) for request in requests] == [
-        ("POST", "/unit_api/system/remove_from_inventory"),
+        ("POST", "/unit_api/system/cleanup_after_inventory_removal"),
     ]
     assert requests[0].headers["X-Pioreactor-Target"] == "unit1"
 
