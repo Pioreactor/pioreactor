@@ -12,6 +12,29 @@ This directory contains files used to build or install Pioreactor outside the no
 
 - `release-signing.md`: maintainer and fork instructions for signed `release_<version>.zip` archives, including why release archives are signed and how to recreate the signing setup.
 
+## Boot-partition YAML imports
+
+On Raspberry Pi images, `bootfs_files.service` imports supported YAML files on
+each boot after firstboot/everyboot and before the web services and monitor.
+Stage files under `/boot/firmware/pioreactor/` (the `pioreactor/` directory when
+the boot partition is mounted on another computer):
+
+- `experiment_profiles/*.yaml` or `*.yml`: leader only, using profile schema and semantic validation.
+- `models/*.yaml` or `*.yml`: either role, using the `Model` schema.
+- `hardware/**/*.yaml` or `*.yml`: either role, preserving nested HAT/model paths. Files must be YAML mappings; layered hardware compatibility is checked by the runtime.
+
+Imports replace matching files under `$DOT_PIOREACTOR` atomically, without
+backups, with ownership `pioreactor:www-data`. Successful inputs are removed
+from the boot partition. Failed inputs remain with an adjacent `<filename>.log`
+and are retried on the next boot. Unsupported files are left untouched. Workers
+without `config.ini` defer all imports until their onboarding reboot. Profiles
+staged on workers remain untouched. Profiles are made available, never started.
+
+Plugin wheels continue to use the separate `bootfs_plugins.service`. Generic
+Linux leaders do not use this Raspberry Pi boot-partition lifecycle. The
+upcoming update installs the service for existing images and schedules it for
+the next boot.
+
 ## Ownership Boundary
 
 The Pioreactor repo owns these files because they describe the Pioreactor application runtime contract. CustoPiZer consumes selected files from here when building Raspberry Pi images, but CustoPiZer still owns Raspberry Pi image-specific boot, hardware, networking, service ordering, and firstboot behavior.

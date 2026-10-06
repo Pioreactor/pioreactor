@@ -23,3 +23,5 @@ mv "$TMP_DESCRIPTOR" "$SETTINGS_DIR/13_pwms.yaml"
 cmp "$ASSET" "$SETTINGS_DIR/13_pwms.yaml"
 
 bash "$SCRIPT_DIR/20_install_bootfs_plugins.sh"
+
+bash "$SCRIPT_DIR/30_install_bootfs_files.sh"

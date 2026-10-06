@@ -1,0 +1,12 @@
+[Unit]
+Description=Import experiment profiles, models, and hardware staged on the boot partition
+After=firstboot.service everyboot.service
+Wants=everyboot.service
+Before=pioreactor-web.target lighttpd.service huey.service pioreactor_startup_run@monitor.service
+
+[Service]
+EnvironmentFile=/etc/pioreactor.env
+ExecStart=/bin/bash /usr/local/bin/bootfs_files.sh
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=5min
