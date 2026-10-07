@@ -32,9 +32,9 @@ const config = {
 };
 
 describe("BioreactorDiagram model", () => {
-  test("maps active GPIO pins to configured load names", () => {
+  test("maps active PWM channels to configured load names", () => {
     expect(getPwmDutyCyclesByLoad(
-      { 12: 35, 13: 20 },
+      { 4: 35, 2: 20 },
       { 2: "media", 4: "air_bubbler" },
     )).toEqual({ air_bubbler: 35, media: 20 });
   });
@@ -178,7 +178,7 @@ describe("BioreactorDiagram SVG", () => {
     const stirBar = svg.querySelector('[data-part="stir-bar"]');
     const initialWidth = stirBar.getAttribute("width");
     const initialX = stirBar.getAttribute("x");
-    sendTelemetry("pwms/dc", {17: 10});
+    sendTelemetry("pwms/channel_dc", {1: 10});
     advanceFrame(0);
     advanceFrame(100);
     expect(Number(stirBar.getAttribute("width"))).toBeLessThan(Number(initialWidth));
@@ -193,7 +193,7 @@ describe("BioreactorDiagram SVG", () => {
     expect(window.requestAnimationFrame).toHaveBeenCalledTimes(scheduledFrames);
     expect(window.cancelAnimationFrame).not.toHaveBeenCalled();
 
-    sendTelemetry("pwms/dc", {17: 0});
+    sendTelemetry("pwms/channel_dc", {1: 0});
     expect(stirBar).toHaveAttribute("width", initialWidth);
     expect(stirBar).toHaveAttribute("x", initialX);
     expect(frames.size).toBe(0);
@@ -202,7 +202,7 @@ describe("BioreactorDiagram SVG", () => {
 
   test("cancels the animation and unsubscribes on unmount", () => {
     const diagram = renderDiagram();
-    sendTelemetry("pwms/dc", {17: 10});
+    sendTelemetry("pwms/channel_dc", {1: 10});
     advanceFrame(0);
     diagram.unmount();
     expect(frames.size).toBe(0);
@@ -222,7 +222,7 @@ describe("BioreactorDiagram SVG", () => {
     sendTelemetry("leds/intensity", {A: 30, B: 0, C: 0, D: 0});
     sendTelemetry("temperature_automation/temperature", {temperature: 31});
     sendTelemetry("growth_rate_calculating/od_filtered", {od_filtered: 0.8});
-    sendTelemetry("pwms/dc", {13: 25, 18: 50});
+    sendTelemetry("pwms/channel_dc", {2: 25, 5: 50});
     expect(diagram.getByText("Temp: 31°C")).toBeInTheDocument();
     expect(diagram.getByText("nOD: 0.8")).toBeInTheDocument();
     expect(diagram.getByText(/diagram above may not be an accurate/)).toBeInTheDocument();
@@ -233,14 +233,14 @@ describe("BioreactorDiagram SVG", () => {
       <BioreactorDiagram experiment="experiment-1" unit="unit-1" config={config} size={20} liquidVolume={15} />,
     );
     expect(diagram.getByText("15 mL")).toBeInTheDocument();
-    sendTelemetry("pwms/dc", {});
+    sendTelemetry("pwms/channel_dc", {});
     expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
   test("does not animate a non-finite RPM estimate", () => {
     renderDiagram();
-    sendTelemetry("pwms/dc", {17: "not-a-number"});
+    sendTelemetry("pwms/channel_dc", {1: "not-a-number"});
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
@@ -249,7 +249,7 @@ describe("BioreactorDiagram SVG", () => {
       matches: true, media: query, addEventListener: jest.fn(), removeEventListener: jest.fn(),
     }));
     const diagram = renderDiagram();
-    sendTelemetry("pwms/dc", {17: 10});
+    sendTelemetry("pwms/channel_dc", {1: 10});
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
     expect(diagram.getByRole("img").querySelector("desc")).toHaveTextContent("Stirring on");
   });
@@ -259,10 +259,10 @@ describe("BioreactorDiagram SVG", () => {
     const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
     const airStone = svg.querySelector('[data-tube="air"] rect:last-child');
     const initialFill = airStone.getAttribute("fill");
-    sendTelemetry("pwms/dc", {12: 35});
+    sendTelemetry("pwms/channel_dc", {4: 35});
     expect(airStone.getAttribute("fill")).not.toBe(initialFill);
     expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
-    sendTelemetry("pwms/dc", {});
+    sendTelemetry("pwms/channel_dc", {});
     expect(airStone).toHaveAttribute("fill", initialFill);
     expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
   });

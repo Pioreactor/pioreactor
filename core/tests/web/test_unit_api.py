@@ -9,9 +9,12 @@ from datetime import timezone
 from datetime import UTC
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from flask.testing import FlaskClient
+from huey.exceptions import TaskException
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
 from pioreactor.camera import camera_focus_preview_path
@@ -19,6 +22,7 @@ from pioreactor.camera import store_camera_still
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
+from pioreactor.web import unit_api
 from pioreactor.web.app import HOSTNAME
 
 
@@ -59,6 +63,114 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
 
     assert resp.status_code == 200
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
+
+
+def test_cleanup_after_inventory_removal_rejects_different_hostname(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stop_jobs = Mock()
+    remove_config = Mock()
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+
+    response = client.post(
+        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": "nightlytest"}
+    )
+
+    assert response.status_code == 409
+    stop_jobs.assert_not_called()
+    remove_config.assert_not_called()
+
+
+@pytest.mark.parametrize("target", ["another-worker", ""])
+@pytest.mark.parametrize(
+    "method, path",
+    [
+        ("POST", "/unit_api/jobs/stop/all"),
+        ("PATCH", "/unit_api/jobs/stop/all"),
+        ("POST", "/unit_api/jobs/run/job_name/stirring"),
+        ("POST", "/unit_api/system/reboot"),
+        ("POST", "/unit_api/system/shutdown"),
+        ("POST", "/unit_api/system/remove_file"),
+        ("PUT", "/unit_api/config/specific"),
+        ("DELETE", "/unit_api/calibrations/stirring/example"),
+        ("POST", "/unit_api/calibrations/sessions"),
+    ],
+)
+def test_mutation_rejects_wrong_target_before_queuing_work(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, target: str, method: str, path: str
+) -> None:
+    adapter = client.application.url_map.bind("localhost")
+    endpoint, _ = adapter.match(path, method=method)
+    handler = Mock(return_value={"unexpected": "mutation reached handler"})
+    monkeypatch.setitem(client.application.view_functions, endpoint, handler)
+
+    response = client.open(path, method=method, headers={"X-Pioreactor-Target": target})
+
+    assert response.status_code == 409
+    assert HOSTNAME in response.get_json()["cause"]
+    handler.assert_not_called()
+
+
+@pytest.mark.parametrize("target", [None, HOSTNAME])
+def test_mutation_accepts_matching_or_absent_target(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, target: str | None
+) -> None:
+    stop_jobs = Mock(return_value=SimpleNamespace(id="stop-task"))
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    headers = {} if target is None else {"X-Pioreactor-Target": target}
+
+    response = client.post("/unit_api/jobs/stop/all", headers=headers)
+
+    assert response.status_code == 202
+    stop_jobs.assert_called_once_with(all_jobs=True)
+
+
+def test_read_requests_are_not_subject_to_mutation_target_check(client: FlaskClient) -> None:
+    response = client.get("/unit_api/task_results/unknown", headers={"X-Pioreactor-Target": "other"})
+
+    assert response.status_code == 202
+
+
+@pytest.mark.parametrize("target", [None, HOSTNAME])
+def test_cleanup_after_inventory_removal_cleans_up_matching_or_unspecified_worker(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, target: str | None
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    stop_jobs = Mock()
+    remove_config = Mock()
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+
+    headers = {} if target is None else {"X-Pioreactor-Target": target}
+    response = client.post("/unit_api/system/cleanup_after_inventory_removal", headers=headers)
+
+    assert response.status_code == 202
+    stop_jobs.assert_called_once_with(all_jobs=True)
+    remove_config.assert_called_once_with(str(dot_pioreactor / "config.ini"))
+
+
+def test_cleanup_after_inventory_removal_respects_file_system_lock(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "DISALLOW_UI_FILE_SYSTEM").touch()
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    stop_jobs = Mock()
+    remove_config = Mock()
+    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
+    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+
+    response = client.post(
+        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": HOSTNAME}
+    )
+
+    assert response.status_code == 403
+    stop_jobs.assert_not_called()
+    remove_config.assert_not_called()
 
 
 def test_unscoped_camera_status_route_is_not_available(client) -> None:
@@ -474,6 +586,24 @@ def test_task_results_failed_when_taskexception_contains_plain_error(client, mon
     data = resp.get_json()
     assert data["status"] == "failed"
     assert data["error"] == "Command exited during startup grace window. Exit code 2. No such command."
+
+
+@pytest.mark.parametrize("lock_name", ["delete-experiment-lock", "plugins-lock"])
+def test_task_lock_rejection_is_terminal(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, lock_name: str
+) -> None:
+    def locked_result(task_id: str, preserve: bool = False) -> None:
+        raise TaskException({"error": f"TaskLockedException('unable to acquire lock {lock_name}')"})
+
+    monkeypatch.setattr(unit_api.huey.storage, "has_data_for_key", lambda task_id: True)
+    monkeypatch.setattr(unit_api.huey, "result", locked_result)
+
+    response = client.get("/unit_api/task_results/locked-task")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "failed"
+    assert payload["error"] == "Another operation is in progress. Wait for it to finish, then try again."
 
 
 def test_invalid_update_target(client) -> None:
@@ -1108,7 +1238,11 @@ def test_hardware_check_queues_task(client, monkeypatch) -> None:
     assert data["task_id"] == "task-456"
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(
+    reason="pio-h4k6: API plugin allowlist enforcement is commented out; missing allowlist does not reject installation.",
+    strict=True,
+    raises=AssertionError,
+)
 def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path) -> None:
     """API install should fail closed if allowlist is missing."""
     import pioreactor.web.unit_api as mod
@@ -1116,8 +1250,8 @@ def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path)
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
     monkeypatch.setattr(
         mod.tasks,
-        "pio_plugins",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+        "install_plugin_task",
+        lambda *args, **kwargs: SimpleNamespace(id="unexpected-install"),
     )
 
     resp = client.post(
@@ -1128,15 +1262,19 @@ def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path)
     assert b"allowlist" in resp.data
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(
+    reason="pio-h4k6: API plugin allowlist enforcement is commented out; unlisted package does not reject installation.",
+    strict=True,
+    raises=AssertionError,
+)
 def test_install_plugin_rejects_not_allowlisted(client, monkeypatch) -> None:
     """API install should reject plugins not on the allowlist."""
     import pioreactor.web.unit_api as mod
 
     monkeypatch.setattr(
         mod.tasks,
-        "pio_plugins",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+        "install_plugin_task",
+        lambda *args, **kwargs: SimpleNamespace(id="unexpected-install"),
     )
 
     resp = client.post(
@@ -1186,14 +1324,13 @@ def test_install_plugin_rejects_source_with_version(client) -> None:
     assert response.status_code == 400
 
 
-@pytest.mark.xfail(reason="need to update task api with new plugin install task")
 def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     """API install should proceed for allowlisted plugins."""
     import pioreactor.web.unit_api as mod
 
     captured = {}
 
-    def fake_pio_plugins(*args, **kwargs):
+    def fake_install_plugin_task(*args, **kwargs):
         captured["args"] = args
 
         class DummyTask:
@@ -1201,7 +1338,7 @@ def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
 
         return DummyTask()
 
-    monkeypatch.setattr(mod.tasks, "pio_plugins", fake_pio_plugins)
+    monkeypatch.setattr(mod.tasks, "install_plugin_task", fake_install_plugin_task)
 
     resp = client.post(
         "/unit_api/plugins/install",
@@ -1210,7 +1347,7 @@ def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     assert resp.status_code == 202
     data = resp.get_json()
     assert data["task_id"] == "task-123"
-    assert captured["args"] == ("install", "pioreactor-air-bubbler")
+    assert captured["args"] == ("pioreactor-air-bubbler",)
 
 
 def test_uninstall_plugin_rejects_when_ui_installs_are_disabled(

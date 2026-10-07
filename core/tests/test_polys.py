@@ -29,11 +29,12 @@ def test_poly_fit_auto_degree_matches_linear() -> None:
     assert poly_fit(x, y, "auto") == pytest.approx(poly_fit(x, y, 1))
 
 
-def test_poly_solve_matches_numpy_roots() -> None:
+@pytest.mark.parametrize("y", [0.0, 5.0, -5.0])
+def test_poly_solve_matches_numpy_roots(y: float) -> None:
     coef = [1.0, 0.0, -4.0]  # x^2 - 4
-    y = 0.0
-    expected = sorted([float(np.real(r)) for r in np.roots([1.0, 0.0, -4.0]) if abs(np.imag(r)) < 1e-10])
+    expected = sorted([float(np.real(r)) for r in np.roots([1.0, 0.0, -4.0 - y]) if abs(np.imag(r)) < 1e-10])
     assert poly_solve(structs.PolyFitCoefficients(coefficients=coef), y) == pytest.approx(expected)
+    assert coef == [1.0, 0.0, -4.0]
 
 
 def test_poly_solve_real_root_tolerance_scales_with_root_magnitude(monkeypatch: pytest.MonkeyPatch) -> None:

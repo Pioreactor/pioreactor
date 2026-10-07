@@ -8,8 +8,10 @@ import time
 from datetime import datetime
 from datetime import UTC
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from typing import Iterator
+from unittest.mock import Mock
 
 import click
 import pioreactor.config as config_module
@@ -33,7 +35,6 @@ from pioreactor.config import resolve_global_config_path
 from pioreactor.config import resolve_local_config_path
 from pioreactor.config import temporary_config_change
 from pioreactor.mureq import Response
-from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
@@ -1182,11 +1183,21 @@ def test_camera_snapshot_reports_capture_error(monkeypatch: pytest.MonkeyPatch) 
     assert result.output == "Error: No camera detected.\n"
 
 
-@pytest.mark.xfail
-def test_plugin_is_available_to_run() -> None:
-    runner = CliRunner()
-    result = runner.invoke(pio, ["run", "example_plugin"])
+def test_plugin_is_available_to_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.cli.run import run as run_command
+
+    @click.command(name="example_plugin")
+    def click_example_plugin() -> None:
+        click.echo("example plugin ran")
+
+    plugin = SimpleNamespace(module=SimpleNamespace(click_example_plugin=click_example_plugin))
+    monkeypatch.setattr("pioreactor.plugin_management.get_plugins", lambda: {"example": plugin})
+    monkeypatch.setattr(run_command, "_plugins_loaded", False)
+    monkeypatch.setattr(run_command, "commands", run_command.commands.copy())
+
+    result = CliRunner().invoke(pio, ["run", "example_plugin"])
     assert result.exit_code == 0
+    assert result.output == "example plugin ran\n"
 
 
 def test_list_plugins() -> None:
@@ -1236,6 +1247,7 @@ def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPa
             "unit1.local",
             "/unit_api/plugins/install",
             {
+                "headers": {"X-Pioreactor-Target": "unit1"},
                 "json": {
                     "args": ["pioreactor-air-bubbler"],
                     "options": {"version": "0.12.1"},
@@ -1246,19 +1258,18 @@ def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPa
     ]
 
 
-@pytest.mark.flakey
-def test_pio_log() -> None:
-    with collect_all_logs_of_level("DEBUG", whoami.get_unit_name(), whoami.UNIVERSAL_EXPERIMENT) as bucket:
-        runner = CliRunner()
-        result = runner.invoke(pio, ["log", "-m", "test msg", "-n", "job1"])
-        pause()
-        pause()
-        pause()
+def test_pio_log(monkeypatch: pytest.MonkeyPatch) -> None:
+    logger = Mock()
+    create_logger = Mock(return_value=logger)
+    monkeypatch.setattr("pioreactor.logging.create_logger", create_logger)
+
+    result = CliRunner().invoke(pio, ["log", "-m", "test msg", "-n", "job1"])
 
     assert result.exit_code == 0
-    assert len(bucket) > 0
-    assert bucket[0]["message"] == "test msg"
-    assert bucket[0]["task"] == "job1"
+    create_logger.assert_called_once_with(
+        "job1", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT, to_mqtt=True
+    )
+    logger.debug.assert_called_once_with("test msg")
 
 
 def test_pio_jobs_set_requires_value() -> None:
@@ -1343,7 +1354,9 @@ def test_pios_jobs_set_publishes_to_each_resolved_target(monkeypatch: pytest.Mon
     ]
 
 
-@pytest.mark.xfail(reason="the `pio kill` will kill the pid, which is this pytest process!")
+@pytest.mark.skip(
+    reason="pio-e3fo: In-process dosing job records the pytest PID; pio kill sends SIGTERM to pytest. Run this integration scenario in a child process."
+)
 def test_pio_kill_cleans_up_automations_correctly() -> None:
     exp = "test_pio_kill_cleans_up_automations_correctly"
     unit = "testing_unit"
@@ -1366,6 +1379,7 @@ def test_pios_run_requests() -> None:
 
     assert len(bucket) == 2
     assert sorted(bucket)[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
+    assert [request.headers["X-Pioreactor-Target"] for request in sorted(bucket)] == ["unit1", "unit2"]
 
 
 def test_parse_click_arguments_returns_request_struct() -> None:
@@ -1688,6 +1702,28 @@ def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
     assert all("--repo org/repo" in command for command in commands)
 
 
+def test_pios_update_app_identity_rejection_does_not_fall_back_to_ssh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ssh = Mock()
+    request = Mock(
+        return_value=Response(
+            "http://wrong-worker/unit_api/system/update/app",
+            409,
+            {},
+            b'{"error":"Worker hostname mismatch"}',
+        )
+    )
+    monkeypatch.setattr("pioreactor.cli.pios.post_into", request)
+    monkeypatch.setattr("pioreactor.cli.pios.ssh", ssh)
+
+    result = CliRunner().invoke(pios, ["update", "app", "--units", "unit1", "-y"])
+
+    assert result.exit_code != 0
+    assert request.call_args.kwargs["headers"] == {"X-Pioreactor-Target": "unit1"}
+    ssh.assert_not_called()
+
+
 def test_pios_update_app_options_are_not_accepted_on_update_group() -> None:
     runner = CliRunner()
     result = runner.invoke(
@@ -1804,6 +1840,7 @@ def test_pios_kill_requests() -> None:
     assert bucket[0].json == {"experiment": "demo"}
     assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop"
     assert bucket[1].json == {"experiment": "demo"}
+    assert [request.headers["X-Pioreactor-Target"] for request in sorted(bucket)] == ["unit1", "unit2"]
 
 
 def test_pios_jobs_list_requests_history_endpoint(monkeypatch) -> None:
@@ -2210,6 +2247,7 @@ def test_pios_reboot_requests() -> None:
 
     assert len(bucket) == 1
     assert bucket[0].url == "http://unit1.local:4999/unit_api/system/reboot"
+    assert bucket[0].headers == {"X-Pioreactor-Target": "unit1"}
 
 
 @pytest.mark.parametrize(

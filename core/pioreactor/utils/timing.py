@@ -5,6 +5,7 @@ from contextlib import suppress
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from math import isfinite
 from threading import Event
 from threading import Thread
 from time import perf_counter
@@ -109,6 +110,9 @@ class RepeatedTimer:
     ) -> None:
         from pioreactor.logging import create_logger
 
+        if not isfinite(interval) or interval <= 0:
+            raise ValueError("interval must be finite and positive.")
+
         self.interval = interval
         self.function = function
         self.args = args
@@ -205,10 +209,12 @@ class RepeatedTimer:
 @contextmanager
 def paused_timer(timer: RepeatedTimer) -> t.Generator[None, None, None]:
     """
-    Context manager to pause and unpause a timer object automatically.
+    Pause a timer temporarily, restoring its previous pause state on exit.
     """
+    was_paused = timer.is_paused
     timer.pause()
     try:
         yield
     finally:
-        timer.unpause()
+        if not was_paused:
+            timer.unpause()

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from math import isfinite
 from typing import TYPE_CHECKING
 
 from msgspec.json import encode as dumps
@@ -19,8 +20,8 @@ class ExponentialMovingAverage:
     """
 
     def __init__(self, alpha: float) -> None:
-        if alpha < 0 or alpha > 1:
-            raise ValueError
+        if not 0 <= alpha <= 1:
+            raise ValueError("alpha must be between 0 and 1.")
         self.value: float | None = None
         self.alpha = alpha
 
@@ -106,6 +107,9 @@ class PID:
         Updates the controller's internal state with the current error and time step,
         and returns the controller output.
         """
+        if not isfinite(dt) or dt <= 0:
+            raise ValueError("dt must be finite and positive.")
+
         assert isinstance(self.setpoint, float)
 
         error = self.setpoint - input_

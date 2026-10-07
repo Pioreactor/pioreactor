@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from pioreactor import structs
 from pioreactor.utils.akimas import akima_eval
+from pioreactor.utils.akimas import akima_eval_derivative
 from pioreactor.utils.akimas import akima_fit
 from pioreactor.utils.akimas import akima_solve
 from scipy.interpolate import Akima1DInterpolator
@@ -43,6 +44,23 @@ def test_akima_solve_linear() -> None:
 def test_akima_allows_duplicate_x_by_averaging() -> None:
     akima_data = akima_fit([0.0, 1.0, 1.0], [0.0, 1.0, 3.0])
     assert akima_eval(akima_data, 1.0) == pytest.approx(2.0)
+
+
+@pytest.mark.parametrize(
+    ("x", "y"),
+    [
+        ([0.0, 2.0], [1.0, 5.0]),
+        ([0.0, 2.0, 2.0], [1.0, 4.0, 6.0]),
+    ],
+)
+def test_akima_two_knots_are_linear(x: list[float], y: list[float]) -> None:
+    akima_data = akima_fit(x, y)
+
+    assert akima_data.knots == [0.0, 2.0]
+    assert akima_data.coefficients[0] == pytest.approx([1.0, 2.0, 0.0, 0.0])
+    for point in (0.0, 0.5, 1.0, 2.0):
+        assert akima_eval(akima_data, point) == pytest.approx(1.0 + 2.0 * point)
+        assert akima_eval_derivative(akima_data, point) == pytest.approx(2.0)
 
 
 def test_akima_fit_requires_matching_lengths() -> None:

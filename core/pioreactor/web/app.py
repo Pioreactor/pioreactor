@@ -251,7 +251,7 @@ def query_app_db(
             APP_DATABASE_QUERY_PROGRESS_HANDLER_INSTRUCTIONS,
         )
         cur = con.execute(query, args)
-        rv = cur.fetchall()
+        rv = cur.fetchone() if one else cur.fetchall()
     except sqlite3.OperationalError as e:
         if query_timed_out:
             raise TimeoutError(
@@ -268,8 +268,6 @@ def query_app_db(
             con.execute("PRAGMA query_only = 0")
         except Exception:
             pass
-    if one:
-        return rv[0] if rv else None
     return rv
 
 
@@ -277,9 +275,10 @@ def query_temp_local_metadata_db(
     query: str, args: tuple[t.Any, ...] = (), one: bool = False
 ) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
     cur = _get_temp_local_metadata_db_connection().execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
-    return (rv[0] if rv else None) if one else rv
+    try:
+        return cur.fetchone() if one else cur.fetchall()
+    finally:
+        cur.close()
 
 
 def modify_app_db(statement: str, args: tuple[t.Any, ...] = ()) -> int:

@@ -1,18 +1,46 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`. Payload keys now identify PWM channels instead of GPIO pins, for example `{"1": 15.0, "4": 55.0, "5": 23.49}`. Update any plugins or scripts that consume this topic. Upgrade the leader/UI and all workers together, restart active worker jobs, and reload browser tabs; mixed versions are not supported for PWM telemetry.
+ - Renamed the unit API endpoint `POST /unit_api/system/remove_from_inventory/<expected_hostname>` to `POST /unit_api/system/cleanup_after_inventory_removal`. API clients should send the intended hostname in the `X-Pioreactor-Target` header; requests with a mismatched hostname return HTTP `409` before stopping jobs or removing configuration.
+
+#### Enhancements
+
+ - Added automatic plugin installation from the SD card's boot partition. Place plugin `.whl` files and any required dependency wheels in `pioreactor/plugins/` (`/boot/firmware/pioreactor/plugins/` on the Pi), then reboot. Existing Raspberry Pi images gain this support after updating and rebooting; new workers retain staged wheels until they join a cluster and reboot. Successful installations remove the wheels, while failed or invalid wheels are saved in `failed/` with diagnostic logs. Wheels declaring direct URL dependencies are rejected, and installation attempts have time limits.
+ - Added boot-partition imports for experiment profiles, custom bioreactor models, and hardware definitions on Raspberry Pi images, including existing images after updating and rebooting. Place `.yaml` or `.yml` files under `pioreactor/experiment_profiles/`, `pioreactor/models/`, or `pioreactor/hardware/` on the SD card's boot partition, then reboot. Profiles are imported on leaders only and are never started automatically; models and hardware definitions are imported on either role, preserving nested hardware paths. Imported files replace matching files without backups and are removed from the boot partition. Failed imports retain their input and an adjacent `.log` file for correction and retry on the next boot. Unconfigured workers defer imports until they join a cluster and reboot.
+ - Added `.yml` support for HAT and model hardware definitions alongside `.yaml`; `.yaml` takes precedence when both files exist.
+
+#### Bug fixes
+
+ - Added destination hostname checks to leader HTTP commands and leader-local UI actions to prevent requests from running on the wrong Pioreactor when an address is stale or reused. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.
+ - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
+ - Fixed configuration editing and saving being blocked when configuration history is slow or unavailable. History now loads independently, reports failures separately, preserves edits when it arrives, and ignores late responses from previously selected configuration targets.
+ - Fixed circulation actions accepting empty, malformed, or negative durations.
+ - Fixed event recording accepting invalid local timestamps or messages containing only whitespace.
+ - Fixed the new-experiment form incorrectly rejecting unused names such as `constructor`, and improved its layout on narrow screens.
+ - Fixed OD reader error reporting when an ADC fails to initialize.
+ - Fixed Akima calibration fitting with only two data points.
+
+### 26.10.0
+
 #### Enhancements
 
  - Added Light, Dark, and System appearance options in the UI, with the selection remembered in the browser. Charts, diagrams, logs, and editors now adapt to the selected appearance, and downloaded charts retain their colours and background.
  - Added a **Colour view** toggle to Camera Stills, using the Magma colour map to highlight differences in image brightness.
  - Added a camera capture self-test when `[camera].enabled=1`, with results and camera-only testing available in the UI.
-
+ - (New installs only) Bump the base RPi image to 2026-09-15
 
 #### Bug fixes
 
+ - Fixed experiment deletion failing with `unhashable type: 'dict'` when cleaning up camera snapshots on previously assigned Pioreactors.
+ - Fixed cancelling **Delete experiment** or **End experiment** still performing the action in some menus.
+ - Improved experiment deletion feedback to show the underlying error and distinguish a timeout from a failed deletion. Both deletion menus now wait about two minutes before advising users to refresh and check whether deletion completed.
  - Extended Wi-Fi recovery to retry saved autoconnect networks when a Raspberry Pi remains disconnected, with at least five minutes between attempts and respect for intentional disconnects.
  - Made database updates wait up to 15 seconds for temporary SQLite locks instead of failing immediately.
  - Fixed circulation stop requests failing silently when the server returns an error; the UI now reports the failure.
- - Fixed LED intensity validation accepting malformed numeric input, and made experiment-name validation consistently allow `&` and `=`.
+ - Fixed LED intensity validation accepting malformed numeric input,
+ - Made experiment-name validation consistently allow `&` and `=`.
  - Fixed network discovery leaving background processes running after a scan finishes, and corrected hostname handling when addresses contain surrounding whitespace.
  - Fixed PID resets retaining the previous input, which could produce a derivative spike on the next update.
  - Fixed job-setting lookups with `timeout=0` waiting indefinitely instead of returning immediately when the setting is unavailable.

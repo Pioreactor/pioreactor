@@ -97,6 +97,23 @@ AllEstimators = subclass_union(structs.EstimatorBase)
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
 
+@unit_api_bp.before_request
+def check_mutation_target() -> None:
+    """Reject misaddressed commands before handlers perform or queue any side effects."""
+    if request.method not in {"POST", "PATCH", "PUT", "DELETE"}:
+        return
+
+    expected_hostname = request.headers.get("X-Pioreactor-Target")
+    # Direct API clients may omit the header; cluster callers supply the intended unit.
+    if expected_hostname is not None and expected_hostname != HOSTNAME:
+        abort_with(
+            409,
+            "Worker hostname mismatch",
+            cause=f"This unit is {HOSTNAME}, not {expected_hostname!r}.",
+            remediation="Check the worker address in the leader's cluster configuration.",
+        )
+
+
 # Register calibration session routes here to keep unit_api_bp ownership in this module.
 register_calibration_session_routes(unit_api_bp)
 
@@ -482,17 +499,18 @@ def get_task_status(task_id: str) -> ResponseReturnValue:
         task = huey.result(task_id, preserve=True)
     except TaskException as e:
         if "TaskLockedException" in str(e):
+            # A lock rejection means this task did not run, not that it is still running.
             return (
                 jsonify(
                     response_metadata
                     | {
-                        "status": "running",
-                        "error": "task is locked and already running.",
-                        "cause": "Another task with this ID is currently running.",
-                        "remediation": "Wait for the task to finish, then retry.",
+                        "status": "failed",
+                        "error": "Another operation is in progress. Wait for it to finish, then try again.",
+                        "cause": "Task could not acquire its lock and did not run.",
+                        "remediation": "Wait for the other operation to finish, then retry.",
                     }
                 ),
-                202,
+                200,
             )
 
         return (
@@ -1052,6 +1070,23 @@ def remove_file() -> DelayedResponseReturnValue:
 
     task = tasks.rm(str(candidate_path))
     return create_task_response(task)
+
+
+@unit_api_bp.route("/system/cleanup_after_inventory_removal", methods=["POST"])
+def cleanup_after_inventory_removal() -> ResponseReturnValue:
+    """Stop jobs and remove shared config after removal from inventory."""
+    disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
+    if disallow_file.is_file():
+        abort_with(
+            403,
+            "DISALLOW_UI_FILE_SYSTEM is present",
+            cause="File system operations are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the action locally via SSH.",
+        )
+
+    tasks.kill_jobs_task(all_jobs=True)
+    tasks.rm(str(get_dot_pioreactor_path() / "config.ini"))
+    return {"status": "accepted"}, 202
 
 
 # GET clock time
@@ -2230,10 +2265,11 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     calibrations: list[dict[str, Any]] = []
 
     with local_persistent_storage("active_calibrations") as c:
+        active_calibration_name = c.get(device)
         for file in sorted(calibration_dir.glob("*.yaml")):
             try:
                 cal = to_builtins(yaml_decode(file.read_bytes(), type=AllCalibrations))
-                cal["is_active"] = c.get(device) == cal["calibration_name"]
+                cal["is_active"] = active_calibration_name == cal["calibration_name"]
                 cal["pioreactor_unit"] = HOSTNAME
                 calibrations.append(cal)
             except Exception as e:
@@ -2282,10 +2318,11 @@ def get_estimators_by_device(device: str) -> ResponseReturnValue:
 
     estimators: list[dict[str, Any]] = []
     with local_persistent_storage("active_estimators") as c:
+        active_estimator_name = c.get(device)
         for file in sorted(estimator_dir.glob("*.yaml")):
             try:
                 estimator = to_builtins(yaml_decode(file.read_bytes(), type=AllEstimators))
-                estimator["is_active"] = c.get(device) == estimator.get("estimator_name")
+                estimator["is_active"] = active_estimator_name == estimator.get("estimator_name")
                 estimator["pioreactor_unit"] = HOSTNAME
                 estimator["device"] = device
                 estimators.append(estimator)

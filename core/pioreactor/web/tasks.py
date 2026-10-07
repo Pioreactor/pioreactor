@@ -28,6 +28,7 @@ from subprocess import run
 from subprocess import TimeoutExpired
 from tempfile import mkdtemp
 from tempfile import TemporaryFile
+from time import monotonic
 from time import sleep
 from typing import Any
 from typing import cast
@@ -1265,21 +1266,18 @@ def export_experiment_data_to_usb_task(
 
 @huey.task()
 @huey.lock_task("delete-experiment-lock")
-def delete_experiment_records_task(
-    camera_cleanup_results: list[Any],
-    experiment: str,
-    units: list[str],
-) -> dict[str, Any]:
-    logger.debug(f"Deleting experiment {experiment}.")
-    camera_cleanup = _reduce_multicast_results(units, False, camera_cleanup_results)
-    camera_cleanup_failures = [
-        unit for unit, result in camera_cleanup.items() if fanout_result_failed(result)
-    ]
+def delete_experiment_records_task(experiment: str) -> dict[str, Any]:
     conn = open_app_database_connection()
     try:
+        started = monotonic()
         cursor = conn.execute("DELETE FROM experiments WHERE experiment=?;", (experiment,))
         deleted = cursor.rowcount > 0
+        logger.debug(
+            f"Deleting experiment {experiment!r}: SQL deletion finished in {monotonic() - started:.3f}s; committing."
+        )
+        started = monotonic()
         conn.commit()
+        logger.debug(f"Deleting experiment {experiment!r}: commit finished in {monotonic() - started:.3f}s.")
 
         if not deleted:
             raise ValueError(f"Experiment {experiment} not found.")
@@ -1288,31 +1286,32 @@ def delete_experiment_records_task(
     finally:
         conn.close()
 
-    msg = "Deleted experiment"
-    if camera_cleanup_failures:
-        msg += f"; camera cleanup failed on {', '.join(camera_cleanup_failures)}"
-
     return {
         "result": True,
         "experiment": experiment,
         "database_space": database_space,
-        "camera_cleanup": camera_cleanup,
-        "camera_cleanup_failures": camera_cleanup_failures,
-        "msg": msg,
+        "msg": "Deleted experiment",
     }
 
 
-def delete_experiment_task(experiment: str, units: list[str]) -> Any:
-    camera_cleanup_endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
-    if not units:
-        return delete_experiment_records_task([], experiment, units)
-
-    return huey.enqueue(
-        huey_chord(
-            [delete_from_unit.s(unit, camera_cleanup_endpoint) for unit in units],
-            delete_experiment_records_task.s(experiment, units),
-        )
+@huey.task()
+def delete_experiment_task(experiment: str, units: list[str]) -> dict[str, Any]:
+    started = monotonic()
+    logger.debug(f"Deleting experiment {experiment!r}: task started.")
+    # Stops and camera cleanup are best effort; deletion does not wait for their results.
+    endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
+    try:
+        for unit in units:
+            post_into_unit(unit, "/unit_api/jobs/stop", {"experiment": experiment})
+            delete_from_unit(unit, endpoint)
+        result = delete_experiment_records_task.call_local(experiment)
+    except Exception:
+        logger.exception(f"Deleting experiment {experiment!r}: failed after {monotonic() - started:.3f}s.")
+        raise
+    logger.debug(
+        f"Deleting experiment {experiment!r}: completed in {monotonic() - started:.3f}s (background stop and camera cleanup may still be running)."
     )
+    return result
 
 
 @huey.task(priority=100)
@@ -1401,7 +1400,13 @@ def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> d
         install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
 
     logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
-    response = post_into(resolve_to_address(unit), install_endpoint, json=payload, timeout=60)
+    response = post_into(
+        resolve_to_address(unit),
+        install_endpoint,
+        headers={"X-Pioreactor-Target": unit},
+        json=payload,
+        timeout=60,
+    )
     response.raise_for_status()
 
     return {
@@ -1803,7 +1808,9 @@ def post_into_unit(
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = post_into(address, endpoint, json=json, params=params, timeout=2.0)
+        r = post_into(
+            address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, params=params, timeout=2.0
+        )
         r.raise_for_status()
 
         if r.content is None:
@@ -2157,7 +2164,7 @@ def patch_into_unit(
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = patch_into(address, endpoint, json=json, timeout=2.0)
+        r = patch_into(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
@@ -2218,7 +2225,7 @@ def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = Non
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = delete_from(address, endpoint, json=json, timeout=2.0)
+        r = delete_from(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
         r.raise_for_status()
         return unit, fanout_success(unit, r.json() if r.content else None)
     except (HTTPErrorStatus, HTTPException) as e:

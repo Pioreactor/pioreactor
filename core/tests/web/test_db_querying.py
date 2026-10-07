@@ -2,6 +2,7 @@
 import sqlite3
 
 import pytest
+from flask import Flask
 from flask import g
 
 
@@ -22,6 +23,37 @@ def _count_rows(path: str) -> int:
         return int(cur.fetchone()[0])
     finally:
         conn.close()
+
+
+@pytest.mark.parametrize("helper_name", ["query_app_db", "query_temp_local_metadata_db"])
+def test_single_row_queries_only_materialize_one_row(
+    app: Flask, monkeypatch: pytest.MonkeyPatch, helper_name: str
+) -> None:
+    from pioreactor.web import app as web_app
+
+    connection = g._app_database
+    materialized_rows: list[int] = []
+
+    def counting_row_factory(cursor: sqlite3.Cursor, row: tuple[int]) -> dict[str, int]:
+        materialized_rows.append(row[0])
+        return web_app._make_dicts(cursor, row)
+
+    connection.row_factory = counting_row_factory
+    if helper_name == "query_temp_local_metadata_db":
+        monkeypatch.setattr(web_app, "_get_temp_local_metadata_db_connection", lambda: connection)
+
+    query = getattr(web_app, helper_name)
+    rows = "SELECT 1 AS value UNION ALL SELECT 2 UNION ALL SELECT 3"
+
+    assert query(rows, one=True) == {"value": 1}
+    assert materialized_rows == [1]
+
+    materialized_rows.clear()
+    assert query(f"SELECT value FROM ({rows}) WHERE value = 4", one=True) is None
+    assert materialized_rows == []
+
+    assert query(rows) == [{"value": 1}, {"value": 2}, {"value": 3}]
+    assert materialized_rows == [1, 2, 3]
 
 
 def test_query_app_db_disallows_dml_via_query_only_pragma(app, tmp_path) -> None:

@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import importlib.util
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +48,36 @@ def test_ensure_pre_update_script_uses_previous_series_floor_for_first_release(t
     assert changed is True
     contents = (tmp_path / "upcoming" / "pre_update.sh").read_text(encoding="utf-8")
     assert 'min_version="26.3.0"' in contents
+
+
+def test_custopizer_precheck_requires_clean_and_pushed_branch(tmp_path: Path) -> None:
+    create_release = load_create_release_module()
+    checkout = tmp_path / "CustoPiZer"
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "--quiet", "--bare", remote.as_posix()], check=True)
+    subprocess.run(["git", "init", "--quiet", "-b", "pioreactor", checkout.as_posix()], check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=checkout, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=checkout, check=True)
+    subprocess.run(["git", "remote", "add", "origin", remote.as_posix()], cwd=checkout, check=True)
+    (checkout / "image.txt").write_text("initial", encoding="utf-8")
+    subprocess.run(["git", "add", "image.txt"], cwd=checkout, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "initial"], cwd=checkout, check=True)
+    subprocess.run(["git", "push", "--quiet", "-u", "origin", "pioreactor"], cwd=checkout, check=True)
+    create_release.CUSTOPIZER_ROOT = checkout
+
+    create_release.ensure_custopizer_ready()
+
+    (checkout / "image.txt").write_text("changed", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="uncommitted changes"):
+        create_release.ensure_custopizer_ready()
+
+    subprocess.run(["git", "add", "image.txt"], cwd=checkout, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "change"], cwd=checkout, check=True)
+    with pytest.raises(RuntimeError, match="1 unpushed commit"):
+        create_release.ensure_custopizer_ready()
+
+    subprocess.run(["git", "push", "--quiet", "origin", "pioreactor"], cwd=checkout, check=True)
+    create_release.ensure_custopizer_ready()
 
 
 def test_declining_version_confirmation_aborts_before_branch_check() -> None:

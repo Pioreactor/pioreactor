@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import socket
 import subprocess
 import sys
 from threading import Thread
@@ -6,6 +7,30 @@ from typing import Iterator
 
 import pytest
 from pioreactor.utils import networking
+
+
+@pytest.mark.parametrize(("connect_error", "expected"), [(None, True), (socket.timeout(), False)])
+def test_is_address_on_network_closes_socket(
+    monkeypatch: pytest.MonkeyPatch, connect_error: OSError | None, expected: bool
+) -> None:
+    class FakeSocket(socket.socket):
+        address: tuple[str, int] | None = None
+
+        def connect(self, address: tuple[str, int]) -> None:
+            self.address = address
+            if connect_error is not None:
+                raise connect_error
+
+    fake_socket = FakeSocket(socket.AF_INET, socket.SOCK_STREAM)
+    monkeypatch.setattr(socket, "socket", lambda *args: fake_socket)
+
+    try:
+        assert networking.is_address_on_network("worker.local", timeout=2.5) is expected
+        assert fake_socket.gettimeout() == 2.5
+        assert fake_socket.address == ("worker.local", 22)
+        assert fake_socket.fileno() == -1
+    finally:
+        fake_socket.close()
 
 
 @pytest.mark.parametrize(

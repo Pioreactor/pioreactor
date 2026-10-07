@@ -65,7 +65,6 @@ from pioreactor.utils.timing import to_iso_format
 from pioreactor.web import cache
 from pioreactor.web import fanout
 from pioreactor.web import tasks
-from pioreactor.web.app import get_all_existing_workers_ever_assigned_to_experiment
 from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
 from pioreactor.web.app import get_all_workers_in_experiment
@@ -558,13 +557,27 @@ def _validate_shared_config(code: str) -> str:
     config = ConfigParserMod()
     config.read_string(normalized)
 
-    assert config["cluster.topology"]
-    assert config.get("cluster.topology", "leader_hostname")
-    assert config.get("cluster.topology", "leader_address")
-    assert config["mqtt"]
+    missing_fields = [
+        f"[{section}] {option}"
+        for section, option in (
+            ("cluster.topology", "leader_hostname"),
+            ("cluster.topology", "leader_address"),
+            ("mqtt", "broker_address"),
+        )
+        if not config.get(section, option, fallback="")
+    ]
+    if missing_fields:
+        raise ValueError(f"Missing required field(s): {', '.join(missing_fields)}")
 
-    if config.get("cluster.topology", "leader_address", fallback="").startswith("http") or config.get(
-        "mqtt", "broker_address", fallback=""
+    leader_hostname = config.get("cluster.topology", "leader_hostname")
+    if leader_hostname != HOSTNAME:
+        raise ValueError(
+            f"[cluster.topology] leader_hostname must match this unit's hostname ({HOSTNAME}); "
+            f"got {leader_hostname}."
+        )
+
+    if config.get("cluster.topology", "leader_address").startswith("http") or config.get(
+        "mqtt", "broker_address"
     ).startswith("http"):
         abort_with(400, "Don't start addresses with http:// or https://")
 
@@ -931,6 +944,7 @@ def delete_camera_still_for_worker_experiment(
         response = delete_from(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             timeout=20,
         )
         response.raise_for_status()
@@ -965,6 +979,7 @@ def rename_camera_still_for_worker_experiment(
         response = patch_into(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             json=body,
             timeout=20,
         )
@@ -2371,7 +2386,10 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
             resolve_registered_unit_address(pioreactor_unit),
             "/unit_api/import_zipped_dot_pioreactor",
             body=body,
-            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            headers={
+                "X-Pioreactor-Target": pioreactor_unit,
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
             timeout=120,
         )
         response.raise_for_status()
@@ -2499,6 +2517,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             "/unit_api/calibrations/sessions",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             json=payload,
             timeout=30,
         )
@@ -2568,6 +2587,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/inputs",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             json={"inputs": body.inputs},
             timeout=300,
         )
@@ -2602,6 +2622,7 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
         response = post_into(
             resolve_registered_worker_address(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/abort",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
             timeout=30,
         )
         response.raise_for_status()
@@ -3488,9 +3509,7 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
             remediation="List experiments and choose a valid experiment name.",
         )
 
-    workers = get_all_existing_workers_ever_assigned_to_experiment(experiment)
-    fanout.broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
-    task = tasks.delete_experiment_task(experiment, workers)
+    task = tasks.delete_experiment_task(experiment, get_all_units())
     return create_task_response(task)
 
 
@@ -3834,10 +3853,6 @@ def update_shared_config() -> ResponseReturnValue:
         msg = "Incorrect syntax. Please fix and try again."
         publish_to_error_log(msg, "update_shared_config")
         abort_with(400, msg)
-    except (AssertionError, configparser.NoSectionError, KeyError) as e:
-        msg = f"Missing required field(s): {e}"
-        publish_to_error_log(msg, "update_shared_config")
-        abort_with(400, msg)
     except ValueError as e:
         msg = str(e)
         publish_to_error_log(msg, "update_shared_config")
@@ -4001,6 +4016,7 @@ def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> Response
             response = put_into(
                 resolve_registered_unit_address(pioreactor_unit),
                 "/unit_api/config/specific",
+                headers={"X-Pioreactor-Target": pioreactor_unit},
                 json={"code": code},
                 timeout=30,
             )
@@ -4228,12 +4244,16 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
 def get_experiment_profiles() -> ResponseReturnValue:
     try:
         profile_path = get_dot_pioreactor_path() / "experiment_profiles"
-        files = sorted(profile_path.glob("*.y*ml"), key=lambda f: f.stat().st_mtime, reverse=True)
+        files = sorted(
+            ((file, file.stat()) for file in profile_path.glob("*.y*ml")),
+            key=lambda item: item[1].st_mtime,
+            reverse=True,
+        )
 
         parsed_yaml = []
-        for file in files:
+        for file, file_stat in files:
             # allow empty files, it's annoying to users otherwise (and maybe theres a bug that wipes yamls?)
-            if file.stat().st_size == 0:
+            if file_stat.st_size == 0:
                 parsed_yaml.append(
                     {
                         "experimentProfile": Profile(
@@ -4448,10 +4468,9 @@ def add_worker() -> ResponseReturnValue:
 def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
     row_count = modify_app_db("DELETE FROM workers WHERE pioreactor_unit=?;", (pioreactor_unit,))
     if row_count > 0:
-        tasks.multicast_post("/unit_api/jobs/stop/all", _single_unit(pioreactor_unit))
-
-        # only delete configs if not the leader...
-        if pioreactor_unit != HOSTNAME:
+        if pioreactor_unit == HOSTNAME:
+            tasks.multicast_post("/unit_api/jobs/stop/all", _single_unit(pioreactor_unit))
+        else:
             modify_app_db(
                 "DELETE FROM config_files_histories WHERE filename IN (?, ?);",
                 (
@@ -4460,11 +4479,10 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
                 ),
             )
 
-            # delete shared config on worker
+            # The worker must verify its own hostname before stopping jobs or deleting config.
             tasks.multicast_post(
-                "/unit_api/system/remove_file",
+                "/unit_api/system/cleanup_after_inventory_removal",
                 _single_unit(pioreactor_unit),
-                json={"filepath": str(get_dot_pioreactor_path() / "config.ini")},
             )
 
         cache.invalidate_merged_config_cache(pioreactor_unit)

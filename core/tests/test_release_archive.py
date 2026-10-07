@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import hashlib
 import shutil
 import subprocess
 import zipfile
@@ -83,6 +84,7 @@ def test_verify_release_archive_accepts_signed_manifest(
 def test_verify_release_archive_accepts_signed_sidecar_assets(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    payload = bytes(range(256)) * 4097
     archive_path = create_signed_release_archive(
         tmp_path,
         monkeypatch,
@@ -90,10 +92,12 @@ def test_verify_release_archive_accepts_signed_sidecar_assets(
         sidecar_files={
             "helper.sh": b"#!/bin/bash\n",
             "template.yaml": b"name: example\n",
+            "payload.bin": payload,
         },
     )
 
-    verify_release_archive(archive_path, expected_version="26.5.2")
+    manifest = verify_release_archive(archive_path, expected_version="26.5.2")
+    assert manifest.files["payload.bin"] == f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
 def test_verify_release_archive_rejects_tampered_member(

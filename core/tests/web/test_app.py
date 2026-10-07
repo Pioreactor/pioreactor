@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-import os
 import sqlite3
 import zipfile
 from datetime import datetime
@@ -8,6 +7,7 @@ from datetime import UTC
 from email.message import Message
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from flask import Flask
@@ -21,8 +21,6 @@ from pytest import MonkeyPatch
 from .conftest import capture_requests
 from .test_unit_api import _build_valid_calibration_yaml
 from .test_unit_api import FakeTaskResult
-
-IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 huey.immediate = True
 
@@ -145,6 +143,18 @@ def test_get_workers_includes_literal_ipv4_addresses(
     data = {worker["pioreactor_unit"]: worker for worker in response.get_json()}
     assert data["unit1"]["ipv4_address"] == "192.168.1.10"
     assert data["unit2"]["ipv4_address"] is None
+
+
+def test_delete_worker_queues_hostname_guarded_cleanup(client: FlaskClient) -> None:
+    with capture_requests() as requests:
+        response = client.delete("/api/workers/unit1")
+
+    assert response.status_code == 202
+    assert client.get("/api/workers/unit1").status_code == 404
+    assert [(request.method, request.path) for request in requests] == [
+        ("POST", "/unit_api/system/cleanup_after_inventory_removal"),
+    ]
+    assert requests[0].headers["X-Pioreactor-Target"] == "unit1"
 
 
 @pytest.mark.parametrize("pioreactor_unit", ["203.0.113.10", "unknown-worker"])
@@ -695,28 +705,40 @@ def test_upsert_unit_labels(client) -> None:
     assert data["unit1"] == "Updated Reactor 1"
 
 
-@pytest.mark.xfail(reason="need to mock datetime")
 def test_get_logs_for_unit_and_experiment(client) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    # Experiment logs are visible only during the unit's assignment window.
+    modify_app_db(
+        "INSERT INTO experiment_worker_assignments_history "
+        "(experiment, pioreactor_unit, assigned_at, unassigned_at) VALUES (?, ?, ?, ?)",
+        ("exp1", "unit1", "2023-10-01T12:00:00Z", "2023-10-01T13:00:00Z"),
+    )
     response = client.get("/api/workers/unit1/experiments/exp1/logs")
     assert response.status_code == 200
     data = response.get_json()
     assert len(data) == 1  # Only one log entry for unit1 in exp1
     log = data[0]
     assert log["message"] == "Started mixing"
-    assert log["source"] == "mixer"
     assert log["level"] == "INFO"
-    assert log["task"] == "mixing_task"
+    assert log["task"] == "stirring"
+    assert log["pioreactor_unit"] == "unit1"
+    assert log["experiment"] == "exp1"
 
 
-@pytest.mark.xfail(reason="need to mock datetime")
-def test_get_growth_rates(client) -> None:
+def test_get_growth_rates(client, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2023, 10, 1, 14, tzinfo=UTC),
+    )
     response = client.get("/api/experiments/exp1/time_series/growth_rates")
     assert response.status_code == 200
     data = response.get_json()
-    assert len(data) == 2  # Two growth rates for exp1
-    rates = [item["rate"] for item in data]
-    assert 0.02 in rates
-    assert 0.025 in rates
+    assert data["series"] == ["unit1", "unit2"]
+    assert [[point["y"] for point in series] for series in data["data"]] == [
+        [0.01, 0.02],
+        [0.0, 0.0],
+    ]
 
 
 def test_get_system_logs_filters_universal_experiment(client) -> None:
@@ -1331,11 +1353,7 @@ def test_delete_experiment_endpoint_schedules_task(client, monkeypatch: MonkeyPa
         return DummyTask()
 
     monkeypatch.setattr(api.tasks, "delete_experiment_task", fake_delete_experiment_task)
-    monkeypatch.setattr(
-        api.fanout,
-        "broadcast_post_across_cluster",
-        lambda endpoint, json=None: captured.update({"endpoint": endpoint, "json": json}),
-    )
+    monkeypatch.setattr(api, "get_all_units", lambda: ["leader", "unit1", "unit2"])
 
     response = client.delete("/api/experiments/exp1")
 
@@ -1343,9 +1361,7 @@ def test_delete_experiment_endpoint_schedules_task(client, monkeypatch: MonkeyPa
     assert response.get_json()["task_id"] == "delete-experiment-task"
     assert captured == {
         "experiment": "exp1",
-        "units": ["unit1", "unit2"],
-        "endpoint": "/unit_api/jobs/stop",
-        "json": {"experiment": "exp1"},
+        "units": ["leader", "unit1", "unit2"],
     }
 
 
@@ -1358,13 +1374,6 @@ def test_delete_experiment_endpoint_returns_404_without_scheduling_task(
         raise AssertionError("delete task should not be scheduled")
 
     monkeypatch.setattr(api.tasks, "delete_experiment_task", fail_delete_experiment_task)
-    monkeypatch.setattr(
-        api.fanout,
-        "broadcast_post_across_cluster",
-        lambda endpoint, json=None: (_ for _ in ()).throw(
-            AssertionError("stop fanout should not be scheduled")
-        ),
-    )
 
     response = client.delete("/api/experiments/not-real")
 
@@ -1813,6 +1822,89 @@ def test_unit_api_specific_config_round_trip(
     response = client.get("/unit_api/config/merged")
     assert response.status_code == 200
     assert response.get_json()["shared"]["value"] == "unit-local"
+
+
+@pytest.mark.parametrize(
+    ("code", "missing_fields"),
+    [
+        (
+            "[mqtt]\nbroker_address=leader.local\n",
+            "[cluster.topology] leader_hostname, [cluster.topology] leader_address",
+        ),
+        (
+            "[cluster.topology]\nleader_hostname=\nleader_address=leader.local\n[mqtt]\nbroker_address=leader.local\n",
+            "[cluster.topology] leader_hostname",
+        ),
+        (
+            "[cluster.topology]\nleader_hostname=leader\nleader_address=\n[mqtt]\nbroker_address=leader.local\n",
+            "[cluster.topology] leader_address",
+        ),
+        (
+            "[cluster.topology]\nleader_hostname=leader\nleader_address=leader.local\n[mqtt]\nbroker_address=\n",
+            "[mqtt] broker_address",
+        ),
+    ],
+)
+def test_update_shared_config_reports_missing_fields(
+    client: FlaskClient, monkeypatch: MonkeyPatch, code: str, missing_fields: str
+) -> None:
+    logged_messages: list[str] = []
+    monkeypatch.setattr(
+        "pioreactor.web.api.publish_to_error_log",
+        lambda message, _task: logged_messages.append(message),
+    )
+
+    response = client.put("/api/config/shared", json={"code": code})
+
+    expected = f"Missing required field(s): {missing_fields}"
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected
+    assert logged_messages == [expected]
+
+
+def test_update_shared_config_rejects_mismatched_leader_hostname(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import HOSTNAME
+
+    write_config_and_sync = Mock()
+    logged_messages: list[str] = []
+    monkeypatch.setattr("pioreactor.web.api.tasks.write_config_and_sync", write_config_and_sync)
+    monkeypatch.setattr(
+        "pioreactor.web.api.publish_to_error_log",
+        lambda message, _task: logged_messages.append(message),
+    )
+    code = (
+        "[cluster.topology]\nleader_hostname=typo\nleader_address=leader.local\n"
+        "[mqtt]\nbroker_address=leader.local\n"
+    )
+
+    response = client.put("/api/config/shared", json={"code": code})
+
+    expected = f"[cluster.topology] leader_hostname must match this unit's hostname ({HOSTNAME}); got typo."
+    assert response.status_code == 400
+    assert response.get_json()["error"] == expected
+    assert logged_messages == [expected]
+    write_config_and_sync.assert_not_called()
+
+
+def test_update_shared_config_accepts_matching_leader_hostname(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import HOSTNAME
+
+    write_config_and_sync = Mock(return_value=Mock(return_value=(True, "")))
+    monkeypatch.setattr("pioreactor.web.api.tasks.write_config_and_sync", write_config_and_sync)
+    code = (
+        f"[cluster.topology]\nleader_hostname={HOSTNAME}\nleader_address=leader.local\n"
+        "[mqtt]\nbroker_address=leader.local\n"
+    )
+
+    response = client.put("/api/config/shared", json={"code": code})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "success"}
+    write_config_and_sync.assert_called_once()
 
 
 def test_update_specific_config_for_worker_saves_snapshot(
@@ -3370,7 +3462,6 @@ def test_job_settings_unit_api_does_not_advertise_patch(client: FlaskClient) -> 
     assert patch_response.get_json()["error"] == "The method is not allowed for the requested URL."
 
 
-@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
 def test_get_settings_unit_api(client) -> None:
     from pioreactor.background_jobs.stirring import start_stirring
 
@@ -3384,7 +3475,8 @@ def test_get_settings_unit_api(client) -> None:
         r = client.get(
             "/unit_api/jobs/settings/job_name/stirring/setting/target_rpm",
         )
-        r.json["target_rpm"] == "500.0"
+        assert r.status_code == 200
+        assert float(r.json["target_rpm"]) == 500.0
 
 
 def test_get_settings_api(client, monkeypatch: MonkeyPatch) -> None:

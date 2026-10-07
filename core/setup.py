@@ -9,7 +9,7 @@ CORE_REQUIREMENTS = [
     "click==8.5.0",
     "paho-mqtt==2.1.0",
     "colorlog==6.10.1",
-    "msgspec==0.21.1",
+    "msgspec==0.22.0",
     "crudini==0.9.6",
     "iniparse==0.5",
     "blinker==1.9.0",
@@ -19,9 +19,9 @@ CORE_REQUIREMENTS = [
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
     "MarkupSafe==3.0.3",
-    "python-dotenv==1.2.2",
+    "python-dotenv==1.2.3",
     "Werkzeug==3.1.8",
-    "packaging==26.2",
+    "packaging==26.3",
     # preinstalled on base images
     # "pyyaml==6.0.2",
     # "rpi-lgpio==0.6"

@@ -67,6 +67,7 @@ function EditableCodeDiv() {
     snackbarMsg: "",
     saving: false,
     historicalConfigs: [],
+    historyErrorMsg: "",
     selectedVersion: CURRENT_VERSION,
     errorMsg: "",
     isError: false,
@@ -88,20 +89,46 @@ function EditableCodeDiv() {
     const requestId = ++loadRequestId.current;
     const { fetchUrl, historyUrl } = getTargetMetadata(target);
 
-    try {
-      const [configResponse, historyResponse] = await Promise.all([
-        fetch(fetchUrl),
-        fetch(historyUrl),
-      ]);
+    setState(prev => ({
+      ...prev,
+      historicalConfigs: [],
+      historyErrorMsg: "",
+      selectedVersion: CURRENT_VERSION,
+    }));
 
-      if (!configResponse.ok || !historyResponse.ok) {
+    // History must not delay displaying or saving the current config.
+    async function loadHistory() {
+      try {
+        const response = await fetch(historyUrl);
+        if (!response.ok) {
+          throw new Error("Failed to load config history.");
+        }
+        const historicalConfigs = await response.json();
+        if (requestId !== loadRequestId.current) {
+          return;
+        }
+        setState(prev => ({ ...prev, historicalConfigs }));
+      } catch (err) {
+        if (requestId !== loadRequestId.current) {
+          return;
+        }
+        setState(prev => ({
+          ...prev,
+          historyErrorMsg: "Could not load config history. Reload the page to retry.",
+        }));
+        console.error("Failed to fetch config history:", err);
+      }
+    }
+
+    loadHistory();
+
+    try {
+      const configResponse = await fetch(fetchUrl);
+      if (!configResponse.ok) {
         throw new Error(getWorkerReachabilityMessage(target, "Failed to load config data."));
       }
 
-      const [text, listOfHistoricalConfigs] = await Promise.all([
-        configResponse.text(),
-        historyResponse.json(),
-      ]);
+      const text = await configResponse.text();
 
       if (requestId !== loadRequestId.current) {
         return;
@@ -111,7 +138,6 @@ function EditableCodeDiv() {
         ...prev,
         code: text,
         currentCode: text,
-        historicalConfigs: listOfHistoricalConfigs,
         selectedVersion: CURRENT_VERSION,
         hasChangedSinceSave: false,
         isError: false,
@@ -125,12 +151,11 @@ function EditableCodeDiv() {
         ...prev,
         code: "",
         currentCode: "",
-        historicalConfigs: [],
         selectedVersion: CURRENT_VERSION,
         errorMsg: getWorkerReachabilityMessage(target, "Failed to load config."),
         isError: true,
       }));
-      console.error("Failed to fetch config/history:", err);
+      console.error("Failed to fetch config:", err);
     }
   }, []);
 
@@ -184,6 +209,10 @@ function EditableCodeDiv() {
 
   useEffect(() => {
     loadConfigAndHistory(selectedTarget);
+
+    return () => {
+      loadRequestId.current += 1;
+    };
   }, [loadConfigAndHistory, selectedTarget]);
 
   useEffect(() => {
@@ -318,6 +347,7 @@ function EditableCodeDiv() {
               variant="standard"
               value={state.selectedVersion}
               displayEmpty={true}
+              disabled={!isCodeLoaded || state.saving}
               onChange={onSelectionHistoricalChange}
             >
               {versionOptions.map((version) => (
@@ -371,6 +401,7 @@ function EditableCodeDiv() {
             {state.selectedVersion === CURRENT_VERSION ? "Save" : "Revert"}
           </Button>
           <Box sx={{ ml: 1, my: 1 }}>{state.isError ? <Alert severity="error">{state.errorMsg}</Alert> : ""}</Box>
+          {state.historyErrorMsg && <Alert severity="error" sx={{ ml: 1, my: 1 }}>{state.historyErrorMsg}</Alert>}
         </div>
       </Box>
       <Snackbar

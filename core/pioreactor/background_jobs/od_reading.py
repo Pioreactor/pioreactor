@@ -80,6 +80,7 @@ import random
 import threading
 import types
 from collections.abc import Mapping
+from statistics import fmean
 from time import monotonic
 from time import sleep
 from time import time
@@ -241,11 +242,9 @@ class ADCReader(LoggerMixin):
                 try:
                     adcs[c] = curried()
                 except (OSError, exc.HardwareError) as e:
-                    self.logger.error(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver}."
-                    )
+                    self.logger.error(f"Failed to initialize ADC for pd{c}. Check device {curried!r}.")
                     raise exc.HardwareNotFoundError(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver}."
+                        f"Failed to initialize ADC for pd{c}. Check device {curried!r}."
                     ) from e
                 except Exception as e:
                     self.logger.error(f"Unexpected error initializing ADC for pd{c}.")
@@ -318,9 +317,7 @@ class ADCReader(LoggerMixin):
             batched_readings[channel] = structs.RawPDReading(reading=avg_reading_voltage, channel=channel)
 
         for channel, adc in self.adcs.items():
-            self.logger.debug(
-                f"Setting ADC class {adc.__class__.__name__} for pd{channel} with initial gain {adc.gain}."
-            )
+            self.logger.debug(f"Setting ADC {adc!r} for pd{channel} with initial gain {adc.gain}.")
 
         return batched_readings
 
@@ -476,7 +473,7 @@ class ADCReader(LoggerMixin):
             self.logger.debug(f"{y=}")
             return (float(y_.mean()) if y_.size else 0.0, None, None), 1e10
 
-        y_model = C + b * np.sin(freq * tau * x_) + c * np.cos(freq * tau * x_)
+        y_model = C + b * sin_x + c * cos_x
         SSE = np.sum((y_ - y_model) ** 2)
 
         if SSE > 1e-20:
@@ -521,7 +518,7 @@ class ADCReader(LoggerMixin):
         if n == 0:
             return 0.0
 
-        trimmed_mean = mean(y_)
+        trimmed_mean = fmean(y_)
         if prior_C is not None and penalizer_C:
             return (n * trimmed_mean + penalizer_C * prior_C) / (n + penalizer_C)
         return trimmed_mean

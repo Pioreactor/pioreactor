@@ -407,7 +407,9 @@ class ClusterJobManager:
 
         def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
             try:
-                r = post_into(resolve_to_address(unit), endpoint, json=body)
+                r = post_into(
+                    resolve_to_address(unit), endpoint, headers={"X-Pioreactor-Target": unit}, json=body
+                )
                 r.raise_for_status()
                 return True, r.json()
             except Exception as e:

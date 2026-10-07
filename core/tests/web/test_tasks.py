@@ -451,111 +451,89 @@ def test_delete_experiment_task_deletes_and_reports_reclaimable_space(
 
     monkeypatch.setattr(web_db.pioreactor_config, "get", fake_config_get)
 
-    result = tasks.delete_experiment_records_task.call_local([], "exp1", [])
+    result = tasks.delete_experiment_records_task.call_local("exp1")
 
     assert result["result"] is True
     assert result["experiment"] == "exp1"
     assert result["msg"] == "Deleted experiment"
     assert result["database_space"]["reclaimable_bytes"] >= 0
-    assert result["camera_cleanup"] == {}
-    assert result["camera_cleanup_failures"] == []
 
     with sqlite3.connect(db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM experiments WHERE experiment='exp1'").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM logs").fetchone()[0] == 0
 
 
-def test_delete_experiment_records_reports_worker_camera_cleanup_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("units", [[], ["leader"], ["leader", "unit1", "unit2"]])
+@pytest.mark.parametrize("stop_outcome", ["success", "false", "failed", "unreachable", "exception"])
+def test_delete_experiment_through_huey(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, units: list[str], stop_outcome: str
 ) -> None:
     db_path = tmp_path / "app.db"
     with sqlite3.connect(db_path) as conn:
-        conn.execute("CREATE TABLE experiments (experiment TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL)")
-        conn.execute(
-            "INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2026-01-01T00:00:00Z')"
+        conn.execute("CREATE TABLE experiments (experiment TEXT PRIMARY KEY)")
+        conn.execute("INSERT INTO experiments VALUES ('exp1')")
+
+    monkeypatch.setattr(web_db, "get_app_database_path", lambda: db_path)
+    monkeypatch.setattr(tasks.huey, "_immediate", False)
+    monkeypatch.setattr(tasks.huey, "storage", SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"))
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: unit)
+    events: list[str] = []
+
+    def stop_request(address: str, endpoint: str, **kwargs: Any) -> Response:
+        assert endpoint == "/unit_api/jobs/stop"
+        assert kwargs["json"] == {"experiment": "exp1"}
+        events.append(f"stop:{address}")
+        if stop_outcome == "unreachable":
+            raise tasks.HTTPException("offline")
+        if stop_outcome == "exception":
+            raise RuntimeError("unexpected stop failure")
+        return _response(202, {"result_url_path": "/unit_api/task_results/stop"})
+
+    def stop_result(address: str, endpoint: str, **kwargs: Any) -> Response:
+        events.append(f"result:{address}")
+        return _response(
+            200,
+            {
+                "task_id": "stop",
+                "status": "failed" if stop_outcome == "failed" else "succeeded",
+                "result": stop_outcome == "success",
+                "error": "stop failed",
+            },
         )
 
-    original_config_get = web_db.pioreactor_config.get
+    def cleanup_request(address: str, endpoint: str, **kwargs: Any) -> Response:
+        assert endpoint == "/unit_api/camera/experiments/exp1/stills"
+        events.append(f"cleanup:{address}")
+        return _response(200, {"deleted_image_ids": []})
 
-    def fake_config_get(section: str, option: str, *args: Any, **kwargs: Any) -> str:
-        if section == "storage" and option == "database":
-            return str(db_path)
-        return original_config_get(section, option, *args, **kwargs)
+    monkeypatch.setattr(tasks, "post_into", stop_request)
+    monkeypatch.setattr(tasks, "get_from", stop_result)
+    monkeypatch.setattr(tasks, "delete_from", cleanup_request)
 
-    monkeypatch.setattr(web_db.pioreactor_config, "get", fake_config_get)
-    cleanup_results = [
-        (
-            "unit1",
-            tasks.fanout_success("unit1", {"deleted_image_ids": ["image-a"]}),
-        ),
-        (
-            "unit2",
-            tasks.fanout_failure(
-                "unit2",
-                "connection_error",
-                "Could not reach unit2.",
-                retryable=True,
-            ),
-        ),
-    ]
-
-    result = tasks.delete_experiment_records_task.call_local(
-        cleanup_results,
-        "exp1",
-        ["unit1", "unit2"],
-    )
-
-    assert result["result"] is True
-    assert result["camera_cleanup"]["unit1"]["ok"] is True
-    assert result["camera_cleanup"]["unit2"]["ok"] is False
-    assert result["camera_cleanup_failures"] == ["unit2"]
-    assert result["msg"] == "Deleted experiment; camera cleanup failed on unit2"
+    result = tasks.delete_experiment_task("exp1", units)
+    deletion = tasks.huey.dequeue()
+    assert deletion is not None
+    tasks.huey.execute(deletion)
+    payload = result.get(blocking=True, timeout=0.1)
+    assert payload["experiment"] == "exp1"
+    assert payload["result"] is True
+    assert events == []
+    assert "stop_failures" not in payload
     with sqlite3.connect(db_path) as conn:
-        assert conn.execute("SELECT COUNT(*) FROM experiments WHERE experiment='exp1'").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0] == 0
 
-
-def test_delete_experiment_task_fans_out_camera_cleanup_before_database_callback(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, object] = {}
-    enqueued_chord = object()
-    task_result = object()
-
-    class FakeDeleteFromUnitTask:
-        @staticmethod
-        def s(unit: str, endpoint: str) -> tuple[str, str, str]:
-            return ("delete", unit, endpoint)
-
-    class FakeDeleteRecordsTask:
-        @staticmethod
-        def s(experiment: str, units: list[str]) -> tuple[str, str, list[str]]:
-            return ("callback", experiment, units)
-
-    def fake_chord(headers: list[object], callback: object) -> object:
-        captured["headers"] = headers
-        captured["callback"] = callback
-        return enqueued_chord
-
-    def fake_enqueue(chord: object) -> object:
-        captured["enqueued"] = chord
-        return task_result
-
-    monkeypatch.setattr(tasks, "delete_from_unit", FakeDeleteFromUnitTask)
-    monkeypatch.setattr(tasks, "delete_experiment_records_task", FakeDeleteRecordsTask)
-    monkeypatch.setattr(tasks, "huey_chord", fake_chord)
-    monkeypatch.setattr(tasks.huey, "enqueue", fake_enqueue)
-
-    result = tasks.delete_experiment_task("experiment a", ["unit1", "unit2"])
-
-    assert result is task_result
-    assert captured == {
-        "headers": [
-            ("delete", "unit1", "/unit_api/camera/experiments/experiment a/stills"),
-            ("delete", "unit2", "/unit_api/camera/experiments/experiment a/stills"),
-        ],
-        "callback": ("callback", "experiment a", ["unit1", "unit2"]),
-        "enqueued": enqueued_chord,
-    }
+    for _ in range(2 * len(units)):
+        request = tasks.huey.dequeue()
+        assert request is not None
+        assert request.retries == 0
+        tasks.huey.execute(request)
+    assert sorted(event for event in events if event.startswith("stop:")) == [
+        f"stop:{unit}" for unit in sorted(units)
+    ]
+    assert sorted(event for event in events if event.startswith("cleanup:")) == [
+        f"cleanup:{unit}" for unit in sorted(units)
+    ]
+    assert tasks.huey.dequeue() is None
 
 
 def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1192,8 +1170,11 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
     def fake_cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int) -> None:
         captured["copy"] = (unit, localpath, remotepath, timeout)
 
-    def fake_post_into(address: str, endpoint: str, json: dict[str, str], timeout: int) -> FakeResponse:
+    def fake_post_into(
+        address: str, endpoint: str, json: dict[str, str], timeout: int, headers: dict[str, str]
+    ) -> FakeResponse:
         captured["post"] = (address, endpoint, json, timeout)
+        captured["headers"] = headers
         return FakeResponse()
 
     monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_artifact", lambda _filepath: source)
@@ -1204,6 +1185,7 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
     result = tasks._install_plugin_from_leader_usb_on_worker("worker1", source.as_posix())
 
     assert captured["copy"] == ("worker1", source.as_posix(), "/tmp/dropin_plugin.py", 60)
+    assert captured["headers"] == {"X-Pioreactor-Target": "worker1"}
     assert captured["post"] == (
         "worker1.local",
         "/unit_api/plugins/install-python-file-from-leader-copy",

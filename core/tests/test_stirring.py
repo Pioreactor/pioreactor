@@ -55,7 +55,11 @@ def test_stirring_runs() -> None:
     st.clean_up()
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(
+    reason="pio-e3fo: Regression of pio-dtqo: start_stirring calls RPM setup before duplicate-job rejection.",
+    strict=True,
+    raises=AssertionError,
+)
 def test_duplicate_start_does_not_setup_or_clean_up_rpm_calculator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -81,7 +85,11 @@ def test_duplicate_start_does_not_setup_or_clean_up_rpm_calculator(
     assert TrackingRpmCalculator.clean_up_calls == 0
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail(
+    reason="pio-e3fo: Regression of pio-dtqo: RPM setup exception leaves factory-owned calculator without cleanup.",
+    strict=True,
+    raises=AssertionError,
+)
 def test_rpm_calculator_is_cleaned_up_when_setup_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     exp = "test_rpm_calculator_is_cleaned_up_when_setup_fails"
 
@@ -129,7 +137,7 @@ def test_initial_startup_publishes_kick_to_pwm(monkeypatch) -> None:
         if payload:
             observed_dc_payloads.append(json.loads(payload))
 
-    subscribe_and_callback(collect_pwm_dc, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+    subscribe_and_callback(collect_pwm_dc, f"pioreactor/{unit}/{exp}/pwms/channel_dc", allow_retained=False)
 
     with start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=False):
         assert wait_for(
@@ -399,7 +407,7 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
             assert st.currently_dodging_od
             assert st.enable_dodging_od
             time.sleep(15)
-            subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+            subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/channel_dc", allow_retained=False)
 
         time.sleep(2)
     time.sleep(1)

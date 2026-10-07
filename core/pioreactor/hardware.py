@@ -72,6 +72,9 @@ if TYPE_CHECKING:
 
 
 def _load_yaml_if_exists(path: Path) -> dict[str, Any]:
+    """Load a hardware layer, preferring .yaml when both extensions exist."""
+    if not path.is_file():
+        path = path.with_suffix(".yml")
     if path.is_file():
         try:
             return yaml_decode(path.read_bytes()) or {}

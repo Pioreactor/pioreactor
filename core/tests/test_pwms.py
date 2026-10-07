@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 from pioreactor import pubsub
+from pioreactor.exc import NoWorkerFoundError
 from pioreactor.exc import PWMError
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import pwm as pwm_module
@@ -49,6 +50,55 @@ def test_updates_cache() -> None:
         assert 12 not in cache
 
     pwm12.clean_up()
+
+
+def test_channel_telemetry_uses_worker_mapping_and_keeps_pin_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pwm_module, "get_pwm_to_pin_map", lambda: {"1": 22, "4": 23})
+    mqtt_client = FakeMQTTClient()
+    experiment = "test_channel_telemetry_uses_worker_mapping_and_keeps_pin_cache"
+
+    with PWM(22, 10, experiment=experiment, pub_client=mqtt_client) as first:
+        with PWM(23, 10, experiment=experiment, pub_client=mqtt_client) as second:
+            # Wiring is resolved before activation, not during start/stop.
+            monkeypatch.setattr(
+                pwm_module, "get_pwm_to_pin_map", lambda: pytest.fail("Mapping reloaded during activation")
+            )
+            first.start(15)
+            second.start(55)
+            assert json.loads(mqtt_client.published[-1][1]) == {"1": 15, "4": 55}
+            with local_intermittent_storage("pwm_dc") as cache:
+                assert cache[22] == 15
+                assert cache[23] == 55
+            second.stop()
+            assert json.loads(mqtt_client.published[-1][1]) == {"1": 15}
+
+    assert json.loads(mqtt_client.published[-1][1]) == {}
+    assert all(topic.endswith("/pwms/channel_dc") and retain for topic, _, retain in mqtt_client.published)
+
+
+def test_unmapped_pin_is_omitted_from_channel_telemetry(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pwm_module, "get_pwm_to_pin_map", lambda: {"1": 17})
+    mqtt_client = FakeMQTTClient()
+    with PWM(22, 10, experiment="test_unmapped_pin", pub_client=mqtt_client) as pwm:
+        pwm.start(15)
+        assert pwm.duty_cycle == 15
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache[22] == 15
+        assert json.loads(mqtt_client.published[-1][1]) == {}
+
+
+def test_mapping_failure_precedes_hardware_initialization(monkeypatch: pytest.MonkeyPatch) -> None:
+    def missing_model() -> dict[str, int]:
+        raise NoWorkerFoundError("Worker is not registered")
+
+    monkeypatch.setattr(pwm_module, "get_pwm_to_pin_map", missing_model)
+    monkeypatch.setattr(
+        pwm_module, "MockPWMOutputDevice", lambda *args: pytest.fail("Hardware initialized before mapping")
+    )
+    with pytest.raises(NoWorkerFoundError):
+        PWM(17, 10, experiment="test_mapping_failure", pub_client=FakeMQTTClient())
 
 
 def test_change_duty_cycle_is_noop_when_rounded_value_is_unchanged(
@@ -97,7 +147,7 @@ def test_pwm_update_mqtt() -> None:
     def collect(msg) -> None:
         mqtt_items.append(msg.payload.decode())
 
-    pubsub.subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+    pubsub.subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/channel_dc", allow_retained=False)
 
     pwm12 = PWM(12, 10, experiment=exp, unit=unit)
     pwm12.lock()
@@ -107,11 +157,11 @@ def test_pwm_update_mqtt() -> None:
     assert wait_for(lambda: len(mqtt_items) == 3)
 
     assert len(mqtt_items) == 3
-    assert json.loads(mqtt_items[0])["12"] == 50.0
-    assert json.loads(mqtt_items[1])["12"] == 20.0
+    assert json.loads(mqtt_items[0])["4"] == 50.0
+    assert json.loads(mqtt_items[1])["4"] == 20.0
     with pytest.raises(KeyError):
         # we don't publish 0.0
-        assert json.loads(mqtt_items[2])["12"] == 0.0
+        assert json.loads(mqtt_items[2])["4"] == 0.0
 
 
 def test_pwm_update_mqtt_multiple_at_one() -> None:
@@ -123,7 +173,7 @@ def test_pwm_update_mqtt_multiple_at_one() -> None:
     def collect(msg) -> None:
         mqtt_items.append(msg.payload.decode())
 
-    pubsub.subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+    pubsub.subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/channel_dc", allow_retained=False)
 
     pwm12 = PWM(12, 10, experiment=exp, unit=unit)
     pwm12.lock()
@@ -140,14 +190,14 @@ def test_pwm_update_mqtt_multiple_at_one() -> None:
     pause()
 
     assert len(mqtt_items) == 5
-    assert json.loads(mqtt_items[0])["12"] == 50.0
-    assert json.loads(mqtt_items[0]).get("17", 0.0) == 0.0
+    assert json.loads(mqtt_items[0])["4"] == 50.0
+    assert json.loads(mqtt_items[0]).get("1", 0.0) == 0.0
 
-    assert json.loads(mqtt_items[1]).get("17", 0.0) == 34.0
-    assert json.loads(mqtt_items[1]).get("12", 0.0) == 50.0
+    assert json.loads(mqtt_items[1]).get("1", 0.0) == 34.0
+    assert json.loads(mqtt_items[1]).get("4", 0.0) == 50.0
 
-    assert json.loads(mqtt_items[-1]).get("17", 0.0) == 0.0
-    assert json.loads(mqtt_items[-1]).get("12", 0.0) == 0.0
+    assert json.loads(mqtt_items[-1]).get("1", 0.0) == 0.0
+    assert json.loads(mqtt_items[-1]).get("4", 0.0) == 0.0
 
 
 def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:

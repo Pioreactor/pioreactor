@@ -768,7 +768,6 @@ export function UnitSettingDisplay(props) {
     }
 
     const pwmDcs = JSON.parse(value);
-    const PWM_TO_PIN = { 1: "17", 2: "13", 3: "16", 4: "12" };
     const PWMMap = props.config["PWM"] || {};
     const renamed1 = PWMMap[1] ? PWMMap[1].replace("_", " ") : null;
     const renamed2 = PWMMap[2] ? PWMMap[2].replace("_", " ") : null;
@@ -780,18 +779,18 @@ export function UnitSettingDisplay(props) {
         <Box sx={{ fontSize: "13px" }}>
           <div>
             <DisplaySettingsTable>
-              <UnderlineSpan title={renamed1 ? renamed1 : null}>1</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[1]] || 0)}%
+              <UnderlineSpan title={renamed1 ? renamed1 : null}>1</UnderlineSpan>: {prettyPrint(pwmDcs["1"] || 0)}%
             </DisplaySettingsTable>
             <DisplaySettingsTable>
-              <UnderlineSpan title={renamed2 ? renamed2 : null}>2</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[2]] || 0)}%
+              <UnderlineSpan title={renamed2 ? renamed2 : null}>2</UnderlineSpan>: {prettyPrint(pwmDcs["2"] || 0)}%
             </DisplaySettingsTable>
           </div>
           <div>
             <DisplaySettingsTable>
-              <UnderlineSpan title={renamed3 ? renamed3 : null}>3</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[3]] || 0)}%
+              <UnderlineSpan title={renamed3 ? renamed3 : null}>3</UnderlineSpan>: {prettyPrint(pwmDcs["3"] || 0)}%
             </DisplaySettingsTable>
             <DisplaySettingsTable>
-              <UnderlineSpan title={renamed4 ? renamed4 : null}>4</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[4]] || 0)}%
+              <UnderlineSpan title={renamed4 ? renamed4 : null}>4</UnderlineSpan>: {prettyPrint(pwmDcs["4"] || 0)}%
             </DisplaySettingsTable>
           </div>
         </Box>

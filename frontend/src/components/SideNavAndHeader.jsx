@@ -8,7 +8,7 @@ import Divider from '@mui/material/Divider';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuItemMUI from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
-import DownloadIcon from '@mui/icons-material/Download';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import UpdateIcon from '@mui/icons-material/Update';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -575,7 +575,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                 </MenuItem>
 
                 <MenuItem
-                  icon={<DownloadIcon sx={{fontSize: "23px"}}/> }
+                  icon={<DownloadOutlinedIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/export-data" className="link" />}
                   active={isSelected("/export-data")}
 

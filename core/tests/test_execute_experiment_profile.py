@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
 from collections.abc import Callable
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -36,7 +36,6 @@ from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
-from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import ODReading
@@ -140,6 +139,8 @@ def test_execute_experiment_profile_order(
     assert bucket[4].json == {"job_name": "job2", "experiment": "_testing_experiment"}
     assert bucket[0].method == "PUT"
     assert all(request.method == "POST" for request in bucket[1:])
+    assert sorted(request.headers["X-Pioreactor-Target"] for request in bucket[1:3]) == ["unit1", "unit2"]
+    assert all(request.headers["X-Pioreactor-Target"] == "unit1" for request in bucket[3:])
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -266,8 +267,11 @@ def test_execute_experiment_profile_start_failure_is_logged(
     )
     mock__load_experiment_profile.return_value = profile
 
-    def fake_post_into(address: str, endpoint: str, json: dict[str, object]) -> Response:
+    def fake_post_into(
+        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str]
+    ) -> Response:
         assert address == "unit1.local"
+        assert headers == {"X-Pioreactor-Target": "unit1"}
         assert endpoint == "/unit_api/jobs/run/job_name/circulate_alt_media"
         return Response(
             address + endpoint,
@@ -469,9 +473,10 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
     )
 
 
-@pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="flakey test in CI???")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_log_actions(mock__load_experiment_profile, active_workers_in_cluster) -> None:
+def test_execute_experiment_log_actions(
+    mock__load_experiment_profile, active_workers_in_cluster, monkeypatch: pytest.MonkeyPatch
+) -> None:
     experiment = "_testing_experiment"
 
     action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message=r"test ${{unit()}}"))
@@ -486,7 +491,13 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
     unit = "unit1"
     job_name = "job2"
-    publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10.5, retain=True)
+    lookup_topics: list[str] = []
+
+    def fake_subscribe(topic: str, **kwargs: object) -> SimpleNamespace:
+        lookup_topics.append(topic)
+        return SimpleNamespace(payload=b"10.5")
+
+    monkeypatch.setattr("pioreactor.experiment_profiles.parser.subscribe", fake_subscribe)
 
     action4 = Log(
         hours_elapsed=4 / 60 / 60,
@@ -508,20 +519,20 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
     mock__load_experiment_profile.return_value = profile
 
-    with (
-        collect_all_logs_of_level("NOTICE", "unit1", experiment) as notice_bucket,
-        collect_all_logs_of_level("INFO", "unit1", experiment) as info_bucket,
-        collect_all_logs_of_level("DEBUG", "unit1", experiment) as debug_bucket,
-    ):
+    # Log actions POST to the leader API; capture that contract without a webserver
+    # or asynchronous MQTT log subscribers.
+    with capture_requests() as requests:
         execute_experiment_profile("profile.yaml", experiment)
-        assert notice_bucket[0]["message"] == "test unit1"
-        assert [log["message"] for log in info_bucket[:1]] == [
-            "test job2 on unit1",
-        ]
-        assert [log["message"] for log in debug_bucket] == [
-            f"test experiment={experiment}",
-            "dynamic data looks like 10.5",
-        ]
+
+    log_requests = [r for r in requests if r.path.endswith(f"/experiments/{experiment}/logs")]
+    assert [(r.json["level"], r.json["message"]) for r in log_requests] == [
+        ("NOTICE", "test unit1"),
+        ("NOTICE", "test unit2"),
+        ("INFO", "test job2 on unit1"),
+        ("DEBUG", f"test experiment={experiment}"),
+        ("DEBUG", "dynamic data looks like 10.5"),
+    ]
+    assert lookup_topics and set(lookup_topics) == {f"pioreactor/{unit}/{experiment}/{job_name}/target"}
 
 
 @pytest.mark.slow

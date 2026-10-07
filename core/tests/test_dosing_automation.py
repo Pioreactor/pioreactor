@@ -5,6 +5,7 @@ from datetime import timedelta
 from datetime import timezone
 from threading import Event
 from threading import Timer
+from types import SimpleNamespace
 from typing import Any
 from typing import Callable
 from typing import cast
@@ -1152,7 +1153,9 @@ def test_turbidostat_updates_exchange_volume_and_target_biomass_over_mqtt() -> N
     algo.clean_up()
 
 
-@pytest.mark.flakey
+@pytest.mark.flakey(
+    reason="pio-e3fo: Unknown-setting warning races with MQTT listener startup and log delivery; invoke setting callback directly."
+)
 def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
     experiment = "test_changing_parameters_over_mqtt_with_unknown_parameter"
     with pubsub.collect_all_logs_of_level("DEBUG", unit, experiment) as bucket:
@@ -2234,7 +2237,6 @@ def test_chemostat_from_cli() -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.skip()
 @pytest.mark.usefixtures("fast_dosing_timers")
 def test_chemostat_reuses_persisted_alt_media_fraction_between_runs() -> None:
     experiment = "test_pass_in_alt_media_fraction"
@@ -2375,7 +2377,6 @@ def test_execute_io_preserves_alt_media_fraction_across_mixed_media_dilutions() 
 
 
 @pytest.mark.slow
-@pytest.mark.skip()
 @pytest.mark.usefixtures("fast_dosing_timers")
 def test_public_add_media_does_not_double_count_with_running_dosing_automation() -> None:
     experiment = "test_public_add_media_does_not_double_count_with_running_dosing_automation"
@@ -2396,24 +2397,29 @@ def test_public_add_media_does_not_double_count_with_running_dosing_automation()
             )
 
 
-@pytest.mark.slow
-@pytest.mark.skip()
-def test_bioreactor_mqtt_updates_running_dosing_job() -> None:
-    experiment = "test_bioreactor_mqtt_updates_running_dosing_job"
+def test_bioreactor_mqtt_updates_dosing_job() -> None:
+    experiment = "test_bioreactor_mqtt_updates_dosing_job"
+    callbacks: dict[str, Callable] = {}
 
-    with dosing_events_to_bioreactor_projector(unit, experiment):
-        with DosingAutomationJob(unit=unit, experiment=experiment) as job:
-            pubsub.publish(
-                bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"),
-                12.5,
-            )
-            pubsub.publish(
-                bioreactor.get_bioreactor_topic(unit, experiment, "alt_media_fraction"),
-                0.35,
-            )
+    def register_callback(callback: Callable, topic: str, **kwargs: object) -> None:
+        callbacks[topic] = callback
 
-            assert wait_for(lambda: close(job.current_volume_ml, 12.5), timeout=5.0)
-            assert wait_for(lambda: close(job.alt_media_fraction, 0.35), timeout=5.0)
+    job = object.__new__(DosingAutomationJob)
+    object.__setattr__(job, "unit", unit)
+    object.__setattr__(job, "experiment", experiment)
+    object.__setattr__(job, "published_settings", {})
+    object.__setattr__(job, "subscribe_and_callback", register_callback)
+    job.start_passive_listeners()
+
+    callbacks[bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml")](
+        SimpleNamespace(payload=b"12.5")
+    )
+    callbacks[bioreactor.get_bioreactor_topic(unit, experiment, "alt_media_fraction")](
+        SimpleNamespace(payload=b"0.35")
+    )
+
+    assert job.current_volume_ml == pytest.approx(12.5)
+    assert job.alt_media_fraction == pytest.approx(0.35)
 
 
 @pytest.mark.slow
@@ -2479,7 +2485,9 @@ def test_execute_io_action_rejects_invalid_pump_arguments() -> None:
             ca.execute_io_action(waste_ml=1.0, salty_media_ml=1.0)
 
 
-@pytest.mark.flakey
+@pytest.mark.flakey(
+    reason="pio-e3fo: Timeout log delivery races with job and subscriber teardown; capture logger calls synchronously."
+)
 @pytest.mark.usefixtures("fast_dosing_timers")
 def test_run_logs_timeout_when_called_while_sleeping() -> None:
     unit = get_unit_name()

@@ -96,7 +96,7 @@ def _build_estimator_from_records(
         "2",
         "3",
         "5",
-        pytest.param("4", marks=pytest.mark.xfail(reason="loosey")),
+        "4",
     ],
 )
 def test_fusion_model_predicts_expected_concentration_range(instrument: str) -> None:

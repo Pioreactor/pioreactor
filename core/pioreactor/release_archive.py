@@ -44,7 +44,8 @@ def build_release_manifest(version: str, release_assets_dir: Path) -> ReleaseArc
             continue
         if path.name in {RELEASE_MANIFEST_FILENAME, RELEASE_MANIFEST_SIGNATURE_FILENAME}:
             continue
-        files[path.name] = f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+        with path.open("rb") as stream:
+            files[path.name] = f"sha256:{hashlib.file_digest(stream, 'sha256').hexdigest()}"
 
     return ReleaseArchiveManifest(format=1, product="pioreactor", version=version, files=files)
 
@@ -192,7 +193,11 @@ def verify_release_manifest_matches_archive(
             raise ReleaseArchiveVerificationError(
                 f"Release archive manifest has an unsupported hash for {filename}."
             )
-        actual_hash = f"sha256:{hashlib.sha256(archive.read(filename)).hexdigest()}"
+        with archive.open(filename) as stream:
+            digest = hashlib.sha256()
+            while chunk := stream.read(256 * 1024):
+                digest.update(chunk)
+        actual_hash = f"sha256:{digest.hexdigest()}"
         if actual_hash != expected_hash:
             raise ReleaseArchiveVerificationError(
                 f"Release archive member does not match the signed manifest: {filename}"

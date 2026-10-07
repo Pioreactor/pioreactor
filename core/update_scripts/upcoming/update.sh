@@ -21,42 +21,23 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bash "$SCRIPT_DIR/10_install_od_defaults.sh"
+ASSET="$SCRIPT_DIR/ui_settings_13_pwms.yaml"
+SETTINGS_DIR=/home/pioreactor/.pioreactor/ui/settings
 
-require_nonempty_asset() {
-    local path="$1"
-    if [ ! -f "$path" ] || [ ! -s "$path" ]; then
-        sudo -u pioreactor -i pio log -l ERROR -m "Missing or empty Wi-Fi recovery asset: $path"
-        exit 1
-    fi
-}
+# Both leaders and workers serve settings descriptors. Install the new topic
+# descriptor on every unit; there is no legacy pin-keyed telemetry support.
+if [ ! -f "$ASSET" ] || [ ! -s "$ASSET" ] || ! grep -q '  - key: channel_dc' "$ASSET"; then
+    sudo -u pioreactor -i pio log -l ERROR -m "Missing or invalid PWM settings update asset: $ASSET"
+    exit 1
+fi
 
-install_checked_asset() {
-    local src="$1"
-    local dst="$2"
-    local mode="$3"
-    local tmp
+install -d -o pioreactor -g www-data -m 2775 "$SETTINGS_DIR"
+TMP_DESCRIPTOR="$(mktemp "$SETTINGS_DIR/.13_pwms.yaml.XXXXXX")"
+trap 'rm -f "$TMP_DESCRIPTOR"' EXIT
+install -o pioreactor -g www-data -m 0664 "$ASSET" "$TMP_DESCRIPTOR"
+mv "$TMP_DESCRIPTOR" "$SETTINGS_DIR/13_pwms.yaml"
+cmp "$ASSET" "$SETTINGS_DIR/13_pwms.yaml"
 
-    require_nonempty_asset "$src"
-    tmp="$(mktemp)"
-    install -o root -g root -m "$mode" "$src" "$tmp"
-    install -d -o root -g root -m 0755 "$(dirname "$dst")"
-    mv "$tmp" "$dst"
-    [ -s "$dst" ]
-}
+bash "$SCRIPT_DIR/20_install_bootfs_plugins.sh"
 
-install_checked_asset \
-    "$SCRIPT_DIR/wifi_recovery.sh" \
-    /usr/local/bin/pioreactor-wifi-recovery.sh \
-    0755
-install_checked_asset \
-    "$SCRIPT_DIR/pioreactor-wifi-recovery.service" \
-    /etc/systemd/system/pioreactor-wifi-recovery.service \
-    0644
-install_checked_asset \
-    "$SCRIPT_DIR/pioreactor-wifi-recovery.timer" \
-    /etc/systemd/system/pioreactor-wifi-recovery.timer \
-    0644
-
-systemctl daemon-reload
-systemctl enable --now pioreactor-wifi-recovery.timer
-systemctl is-enabled --quiet pioreactor-wifi-recovery.timer
+bash "$SCRIPT_DIR/30_install_bootfs_files.sh"

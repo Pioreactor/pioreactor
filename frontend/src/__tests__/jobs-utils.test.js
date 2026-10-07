@@ -75,7 +75,7 @@ describe("jobs utils", () => {
 
   test("getCardSettingDisplayKind special-cases stable job setting identities", () => {
     expect(getCardSettingDisplayKind("leds", "intensity")).toBe("led_intensity");
-    expect(getCardSettingDisplayKind("pwms", "dc")).toBe("pwm_dc");
+    expect(getCardSettingDisplayKind("pwms", "channel_dc")).toBe("pwm_dc");
     expect(getCardSettingDisplayKind("leds", "renamed_intensity")).toBe("default");
   });
 
@@ -439,7 +439,7 @@ describe("jobs utils", () => {
       });
 
     await expect(
-      runPioreactorJobViaUnitAPI("experiment_profile", ["execute", "/tmp/profile.yaml", "exp-1"]),
+      runPioreactorJobViaUnitAPI("leader-unit", "experiment_profile", ["execute", "/tmp/profile.yaml", "exp-1"]),
     ).resolves.toEqual({ ok: true });
 
     expect(global.fetch).toHaveBeenNthCalledWith(
@@ -452,6 +452,7 @@ describe("jobs utils", () => {
           options: {},
         }),
         headers: {
+          "X-Pioreactor-Target": "leader-unit",
           Accept: "application/json",
           "Content-Type": "application/json",
         },
@@ -502,7 +503,14 @@ describe("jobs utils", () => {
       });
 
     await expect(
-      runPioreactorJobViaUnitAPI("experiment_profile", ["execute", "/tmp/profile.yaml", "exp-1"]),
+      runPioreactorJobViaUnitAPI("leader-unit", "experiment_profile", ["execute", "/tmp/profile.yaml", "exp-1"]),
     ).rejects.toThrow("Profile could not start.");
+  });
+
+  test("direct job launch waits for a known unit hostname", async () => {
+    await expect(
+      runPioreactorJobViaUnitAPI(undefined, "experiment_profile"),
+    ).rejects.toThrow("Pioreactor hostname is unavailable");
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });

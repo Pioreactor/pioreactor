@@ -93,6 +93,31 @@ describe("Start new experiment", () => {
     expect(screen.getByText("latest-tag")).toBeTruthy();
   });
 
+  test("only considers stored experiment names already used", () => {
+    useExperiment.mockReturnValue({
+      allExperiments: [...experiments, { experiment: "constructor" }],
+      updateExperiment: jest.fn(),
+    });
+    render(
+      <MemoryRouter>
+        <StartNewExperiment title="Pioreactor ~ Start new experiment" />
+      </MemoryRouter>,
+    );
+    const input = screen.getByRole("textbox", { name: /Experiment name/ });
+    const save = screen.getByRole("button", { name: "Save" });
+
+    for (const name of ["toString", "__proto__", "new-experiment"]) {
+      fireEvent.change(input, { target: { value: name } });
+      expect(input).toHaveAttribute("aria-invalid", "false");
+      expect(save).toBeEnabled();
+    }
+    for (const name of ["constructor", " latest-exp "]) {
+      fireEvent.change(input, { target: { value: name } });
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(save).toBeDisabled();
+    }
+  });
+
   test("allows choosing which previous experiment to populate from", async () => {
     render(
       <MemoryRouter>

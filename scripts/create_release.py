@@ -5,6 +5,7 @@ Automate the production release flow described in the ops runbook.
 
 The script performs the local git tasks:
  - ensure repository state is suitable (on develop unless --force)
+ - ensure the sibling CustoPiZer checkout is clean and its pioreactor branch is pushed
  - run pre-commit before leaving develop
  - ensure version.py matches the target YY.M.N release (and bump if needed)
  - ensure CHANGELOG top entry matches the same YY.M.N release
@@ -30,6 +31,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+CUSTOPIZER_ROOT = REPO_ROOT.parent / "CustoPiZer"
 VERSION_FILE = REPO_ROOT / "core" / "pioreactor" / "version.py"
 CHANGELOG_FILE = REPO_ROOT / "CHANGELOG.md"
 UPDATE_SCRIPTS_DIR = REPO_ROOT / "core" / "update_scripts"
@@ -126,6 +128,24 @@ def ensure_clean_working_tree() -> None:
     dirty = [line for line in status.splitlines() if (line.strip() and not line.strip().startswith("??"))]
     if dirty:
         raise RuntimeError("Working tree has uncommitted changes. Commit or stash them first.")
+
+
+def ensure_custopizer_ready() -> None:
+    if not CUSTOPIZER_ROOT.is_dir():
+        raise RuntimeError(f"CustoPiZer checkout not found at {CUSTOPIZER_ROOT}.")
+
+    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=CUSTOPIZER_ROOT, text=True)
+    if status:
+        raise RuntimeError("CustoPiZer has uncommitted changes. Commit or stash them first.")
+
+    subprocess.run(["git", "fetch", "--quiet", "origin", "pioreactor"], cwd=CUSTOPIZER_ROOT, check=True)
+    unpushed = subprocess.check_output(
+        ["git", "rev-list", "--count", "origin/pioreactor..pioreactor"],
+        cwd=CUSTOPIZER_ROOT,
+        text=True,
+    ).strip()
+    if int(unpushed) > 0:
+        raise RuntimeError(f"CustoPiZer pioreactor has {unpushed} unpushed commit(s). Push them first.")
 
 
 def compute_series(series_override: str | None = None) -> str:
@@ -366,11 +386,11 @@ def stage_update_scripts_changes(version: str, dry_run: bool) -> None:
     missing_tracked_upcoming_paths = [
         tracked_path for tracked_path in tracked_upcoming_paths if not Path(tracked_path).exists()
     ]
-    for path in missing_tracked_upcoming_paths:
+    for tracked_path in missing_tracked_upcoming_paths:
         if dry_run:
-            print(f"DRY-RUN: $ git rm --cached --ignore-unmatch --quiet {path}")
+            print(f"DRY-RUN: $ git rm --cached --ignore-unmatch --quiet {tracked_path}")
         else:
-            subprocess.run(["git", "rm", "--cached", "--ignore-unmatch", "--quiet", path], check=True)
+            subprocess.run(["git", "rm", "--cached", "--ignore-unmatch", "--quiet", tracked_path], check=True)
 
 
 def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
@@ -407,6 +427,8 @@ def main(argv: list[str]) -> int:
         if input(f"Confirm version {release_version}? y/n: ").strip().lower() not in {"y", "yes"}:
             print('Aborted. Re-run with ARGS="--series YY.M" to choose a different release series.')
             return 1
+
+        ensure_custopizer_ready()
 
         current_branch = get_current_git_branch()
         if current_branch != "develop" and not args.force:

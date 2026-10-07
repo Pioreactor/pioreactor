@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from contextlib import closing
 from importlib import metadata
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -333,8 +334,9 @@ def apply_additional_sql(install_folder: Path, database_path: Path) -> bool:
         return False
 
     sql = additional_sql_path.read_text(encoding="utf-8")
-    with sqlite3.connect(database_path) as db:
-        db.executescript(sql)
+    with closing(sqlite3.connect(database_path)) as db:
+        with db:
+            db.executescript(sql)
 
     return True
 

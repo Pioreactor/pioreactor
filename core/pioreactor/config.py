@@ -79,7 +79,7 @@ class ConfigParserMod(configparser.ConfigParser):
                 from pioreactor.logging import create_logger
 
                 create_logger("read config").error(f"Error in [{section}] parameter {option}: {e}")
-                raise e
+                raise
             return fallback
 
     def getboolean(
@@ -100,7 +100,7 @@ class ConfigParserMod(configparser.ConfigParser):
             else:
                 result = super().getboolean(section, option, **kwargs_for_super)
             return result
-        except (configparser.NoSectionError, configparser.NoOptionError) as e:
+        except (configparser.NoSectionError, configparser.NoOptionError):
             if fallback_provided:
                 return fallback
 
@@ -115,21 +115,21 @@ class ConfigParserMod(configparser.ConfigParser):
 
 """
 
-            logger.warning(msg)
-            raise e
+            logger.debug(msg)
+            raise
 
     def get(self, section: str, option: str, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
         fallback = kwargs.get("fallback", _CONFIGPARSER_UNSET)
 
         try:
             return super().get(section, option, *args, **kwargs)
-        except (configparser.NoSectionError, configparser.NoOptionError) as e:
+        except (configparser.NoSectionError, configparser.NoOptionError):
             if fallback is not _CONFIGPARSER_UNSET:
                 return fallback
 
             from pioreactor.logging import create_logger
 
-            create_logger("read config").warning(
+            create_logger("read config").debug(
                 f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
@@ -137,8 +137,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
 """
             )
-            print(1, e)
-            raise e
+            raise
 
 
 def replace_or_append_config_entry(
@@ -287,13 +286,13 @@ def get_config() -> ConfigParserMod:
         config.read_string(global_config_text)
         if local_config_text.strip():
             config.read_string(local_config_text)
-    except configparser.MissingSectionHeaderError as e:
+    except configparser.MissingSectionHeaderError:
         # this can happen in the following situation:
         # on the leader (as worker) Rpi, the unit_config.ini is malformed. When leader_config.ini is fixed in the UI
         # pios sync tries to run, it uses a malformed unit_config.ini and hence the leader_config.ini can't be deployed
         # to replace the malformed unit_config.ini.
         print(f"Bad config state. Check {local_config_path} on leader for malformed configuration?")
-        raise e
+        raise
     except configparser.DuplicateSectionError as e:
         print(e)
         pass
