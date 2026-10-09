@@ -4,6 +4,7 @@ import { uiColors } from "../theme/colors";
 import React, {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -36,6 +37,11 @@ import { Box } from "@mui/material";
 dayjs.extend(utc);
 
 const sensorRe = /^(.*)-(\d+)$/;
+const MS_PER_HOUR = 60 * 60 * 1000;
+const DOWNSAMPLED_TARGET_POINTS = 1400;
+// Live points are buffered and committed in batches so each MQTT message doesn't redraw the chart.
+const LIVE_FLUSH_INTERVAL_MS = 1000;
+const HIDDEN_LIVE_FLUSH_INTERVAL_MS = 60 * 1000;
 
 function toArray(thing){
    if (Array.isArray(thing)){
@@ -51,6 +57,23 @@ const splitPartitionedName = (name) => {
     return { base: name, suffix: null };
   }
   return { base: match[1], suffix: match[2] };
+};
+
+const dropPointsBefore = (data, cutoff) => {
+  if (!data.length || data[0].x >= cutoff) {
+    return data;
+  }
+  const firstKeptIndex = data.findIndex((point) => point.x >= cutoff);
+  return firstKeptIndex === -1 ? [] : data.slice(firstKeptIndex);
+};
+
+// Halve the resolution once a series outgrows its budget, always keeping the newest point.
+const thinSeriesData = (data, maxPoints) => {
+  if (data.length <= maxPoints) {
+    return data;
+  }
+  const lastIndex = data.length - 1;
+  return data.filter((_, index) => (lastIndex - index) % 2 === 0);
 };
 
 const resolveUnitColor = (name, colorMap) => {
@@ -104,6 +127,8 @@ function Chart(props) {
   const [hiddenSeries, setHiddenSeries] = useState(() => new Set());
   const [fetched, setFetched] = useState(false);
   const [exportAnchorEl, setExportAnchorEl] = useState(null);
+  const pendingPointsRef = useRef(new Map());
+  const flushTimerRef = useRef(null);
 
   const names = useMemo(() => Object.keys(seriesMap), [seriesMap]);
 
@@ -125,10 +150,13 @@ function Chart(props) {
     [yTransformationProp]
   );
 
-  const getUnitColor = useCallback(
-    (name) => resolveUnitColor(name, unitsColorMap),
-    [unitsColorMap]
+  const experimentStartMs = useMemo(
+    () => dayjs.utc(experimentStartTime).valueOf(),
+    [experimentStartTime]
   );
+
+  // An effect event, so a new color map identity doesn't refetch history or resubscribe.
+  const getUnitColor = useEffectEvent((name) => resolveUnitColor(name, unitsColorMap));
 
   const applyAngleAlpha = useCallback(
     (seriesName, color) => {
@@ -213,7 +241,7 @@ function Chart(props) {
         if (byDuration) {
           xValue = `${d.datum.x.toFixed(2)} hours elapsed`;
         } else {
-          xValue = d.datum.x.format("MMM DD HH:mm");
+          xValue = dayjs(d.datum.x).format("MMM DD HH:mm");
         }
       } catch {
         xValue = d.datum.x;
@@ -574,109 +602,155 @@ function Chart(props) {
     [exportChart]
   );
 
-  const onMessage = useCallback(
-    (incomingTopic, message, packet) => {
-      if (!fetched) {
-        return;
-      }
-      if (packet.retain) {
-        return;
-      }
-      if (!message || !incomingTopic) {
-        return;
-      }
+  const flushPendingPoints = useEffectEvent(() => {
+    const pending = pendingPointsRef.current;
+    if (pending.size === 0) {
+      return;
+    }
+    pendingPointsRef.current = new Map();
 
-      const payloadString = message.toString();
-      if (!payloadString) {
-        return;
-      }
+    const lookbackHours = Number(lookback);
+    const nowMs = Date.now();
+    let cutoff = -Infinity;
+    if (Number.isFinite(lookbackHours)) {
+      cutoff = byDuration
+        ? (nowMs - experimentStartMs) / MS_PER_HOUR - lookbackHours
+        : nowMs - lookbackHours * MS_PER_HOUR;
+    }
+    const maxPoints = downSample ? 2 * DOWNSAMPLED_TARGET_POINTS : Infinity;
+    const colorsByName = new Map(
+      Array.from(pending.keys(), (name) => [name, getUnitColor(name)])
+    );
 
-      let timestamp;
-      let yValue;
-      try {
-        if (payloadKey) {
-          const payload = JSON.parse(payloadString);
-          if (!Object.prototype.hasOwnProperty.call(payload, payloadKey)) {
-            throw new Error(`Payload key '${payloadKey}' not found in the message.`);
-          }
-          timestamp = dayjs.utc(payload.timestamp);
-          yValue = parseFloat(payload[payloadKey]);
-        } else {
-          yValue = parseFloat(payloadString);
-          timestamp = dayjs.utc();
-        }
-      } catch (error) {
-        return;
-      }
-
-      const duration = Math.round(
-        timestamp.diff(dayjs.utc(experimentStartTime), "hours", true) * 1e3
-      ) / 1e3;
-      const localTimestamp = timestamp.local();
-      const xValue = byDuration ? duration : localTimestamp;
-
-      const baseUnit = incomingTopic.split("/")[1];
-      const channel = incomingTopic
-        .split("/")[4]
-        .replace("raw_od", "")
-        .replace("od", "");
-      const parsedUnit = isPartitionedBySensor
-        ? mapPartitionedSeriesName(`${baseUnit}-${channel}`)
-        : baseUnit;
-
-      if (!parsedUnit) {
-        return;
-      }
-
-      if (unit) {
-        if (!shouldIncludeUnit(parsedUnit)) {
-          return;
-        }
-      }
-
-      setSeriesMap((prevMap) => {
-        const existingSeries = prevMap[parsedUnit];
-        if (!existingSeries) {
-          return {
-            ...prevMap,
-            [parsedUnit]: {
-              data: [{ x: xValue, y: yValue }],
-              name: parsedUnit,
-              color: getUnitColor(parsedUnit),
-            },
-          };
-        }
-
-        return {
-          ...prevMap,
-          [parsedUnit]: {
-            ...existingSeries,
-            data: [...(existingSeries.data || []), { x: xValue, y: yValue }],
-          },
+    setSeriesMap((prevMap) => {
+      const nextMap = { ...prevMap };
+      for (const [name, points] of pending) {
+        const existingSeries = prevMap[name];
+        const data = existingSeries ? existingSeries.data.concat(points) : points;
+        nextMap[name] = {
+          name,
+          color: colorsByName.get(name),
+          ...existingSeries,
+          data: thinSeriesData(dropPointsBefore(data, cutoff), maxPoints),
         };
-      });
-    },
-    [byDuration, experimentStartTime, fetched, getUnitColor, isPartitionedBySensor, mapPartitionedSeriesName, payloadKey, shouldIncludeUnit, unit]
-  );
+      }
+      return nextMap;
+    });
+  });
 
-  const getHistoricalDataFromServer = useCallback(async () => {
-    if (!experiment) {
+  const onMessage = useEffectEvent((incomingTopic, message, packet) => {
+    if (!fetched) {
+      return;
+    }
+    if (packet.retain) {
+      return;
+    }
+    if (!message || !incomingTopic) {
       return;
     }
 
+    const payloadString = message.toString();
+    if (!payloadString) {
+      return;
+    }
+
+    let timestampMs;
+    let yValue;
+    try {
+      if (payloadKey) {
+        const payload = JSON.parse(payloadString);
+        if (!Object.prototype.hasOwnProperty.call(payload, payloadKey)) {
+          throw new Error(`Payload key '${payloadKey}' not found in the message.`);
+        }
+        timestampMs = dayjs.utc(payload.timestamp).valueOf();
+        yValue = parseFloat(payload[payloadKey]);
+      } else {
+        yValue = parseFloat(payloadString);
+        timestampMs = Date.now();
+      }
+    } catch (error) {
+      return;
+    }
+
+    const xValue = byDuration
+      ? Math.round(((timestampMs - experimentStartMs) / MS_PER_HOUR) * 1e3) / 1e3
+      : timestampMs;
+
+    const baseUnit = incomingTopic.split("/")[1];
+    const channel = incomingTopic
+      .split("/")[4]
+      .replace("raw_od", "")
+      .replace("od", "");
+    const parsedUnit = isPartitionedBySensor
+      ? mapPartitionedSeriesName(`${baseUnit}-${channel}`)
+      : baseUnit;
+
+    if (!parsedUnit) {
+      return;
+    }
+
+    if (unit) {
+      if (!shouldIncludeUnit(parsedUnit)) {
+        return;
+      }
+    }
+
+    const pendingPoints = pendingPointsRef.current.get(parsedUnit);
+    if (pendingPoints) {
+      pendingPoints.push({ x: xValue, y: yValue });
+    } else {
+      pendingPointsRef.current.set(parsedUnit, [{ x: xValue, y: yValue }]);
+    }
+
+    if (flushTimerRef.current === null) {
+      flushTimerRef.current = setTimeout(
+        () => {
+          flushTimerRef.current = null;
+          flushPendingPoints();
+        },
+        document.hidden ? HIDDEN_LIVE_FLUSH_INTERVAL_MS : LIVE_FLUSH_INTERVAL_MS
+      );
+    }
+  });
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden || flushTimerRef.current === null) {
+        return;
+      }
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+      flushPendingPoints();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!experiment) {
+      return undefined;
+    }
+    let isCancelled = false;
+
     const queryParams = new URLSearchParams({
-      target_points: downSample ? 1400 : 1000000,
+      target_points: downSample ? DOWNSAMPLED_TARGET_POINTS : 1000000,
       lookback,
     });
 
+    // Keep x values as numbers: a dayjs object per point is far heavier to retain.
     let transformX;
     if (byDuration) {
-      const experimentStart = dayjs.utc(experimentStartTime);
       transformX = (x) =>
-        Math.round(dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").diff(experimentStart, "hours", true) * 1e3) /
-        1e3;
+        Math.round(
+          ((dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").valueOf() - experimentStartMs) / MS_PER_HOUR) * 1e3
+        ) / 1e3;
     } else {
-      transformX = (x) => dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").local();
+      transformX = (x) => dayjs.utc(x, "YYYY-MM-DDTHH:mm:ss.SSS").valueOf();
     }
 
     const basePath = unit
@@ -685,40 +759,50 @@ function Chart(props) {
     const columnSegment = dataSourceColumn ? `/${dataSourceColumn}` : "";
     const url = `${basePath}${columnSegment}?${queryParams}`;
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      const initialSeriesMap = {};
-      for (const [index, unitName] of data["series"].entries()) {
-        const mappedUnitName = mapPartitionedSeriesName(unitName);
-        if (!mappedUnitName) {
-          continue;
+    async function getHistoricalDataFromServer() {
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (isCancelled) {
+          return;
         }
-        if (!shouldIncludeUnit(mappedUnitName)) {
-          continue;
+        const initialSeriesMap = {};
+        for (const [index, unitName] of data["series"].entries()) {
+          const mappedUnitName = mapPartitionedSeriesName(unitName);
+          if (!mappedUnitName) {
+            continue;
+          }
+          if (!shouldIncludeUnit(mappedUnitName)) {
+            continue;
+          }
+          if (data["data"][index].length > 0) {
+            initialSeriesMap[mappedUnitName] = {
+              data: data["data"][index].map((item) => ({
+                y: item.y,
+                x: transformX(item.x),
+              })),
+              name: mappedUnitName,
+              color: getUnitColor(mappedUnitName),
+            };
+          }
         }
-        if (data["data"][index].length > 0) {
-          initialSeriesMap[mappedUnitName] = {
-            data: data["data"][index].map((item) => ({
-              y: item.y,
-              x: transformX(item.x),
-            })),
-            name: mappedUnitName,
-            color: getUnitColor(mappedUnitName),
-          };
+        pendingPointsRef.current = new Map();
+        setSeriesMap(initialSeriesMap);
+        setFetched(true);
+      } catch (error) {
+        if (isCancelled) {
+          return;
         }
+        console.log(error);
+        setFetched(true);
       }
-      setSeriesMap(initialSeriesMap);
-      setFetched(true);
-    } catch (error) {
-      console.log(error);
-      setFetched(true);
     }
-  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartTime, getUnitColor, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
 
-  useEffect(() => {
     getHistoricalDataFromServer();
-  }, [getHistoricalDataFromServer]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartMs, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
 
   useEffect(() => {
     if (!client || !isLiveChart) {
@@ -735,7 +819,7 @@ function Chart(props) {
         unsubscribeFromTopic(topicPath, "Chart");
       });
     };
-  }, [client, experiment, isLiveChart, onMessage, subscribeToTopic, topics, unit, unsubscribeFromTopic]);
+  }, [client, experiment, isLiveChart, subscribeToTopic, topics, unit, unsubscribeFromTopic]);
 
   const exportMenuOpen = Boolean(exportAnchorEl);
   const chartStateKey = names.join("-");

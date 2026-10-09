@@ -1,13 +1,20 @@
 import React from "react";
-import { render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
 
 jest.mock("victory", () => {
   const MockVictoryComponent = ({ children }) => <div>{children}</div>;
+  const MockVictoryGroup = ({ children, data }) => (
+    <div data-testid="series" data-points={JSON.stringify(data)}>{children}</div>
+  );
 
   return {
     VictoryAxis: MockVictoryComponent,
     VictoryChart: MockVictoryComponent,
-    VictoryGroup: MockVictoryComponent,
+    VictoryGroup: MockVictoryGroup,
     VictoryLabel: MockVictoryComponent,
     VictoryLegend: MockVictoryComponent,
     VictoryLine: MockVictoryComponent,
@@ -31,12 +38,16 @@ beforeAll(() => {
   };
 });
 
-function renderChart(overrides = {}) {
+afterEach(() => {
+  jest.useRealTimers();
+});
+
+function renderChart(overrides = {}, historicalData = { series: [], data: [] }) {
   const subscribeToTopic = jest.fn();
   const unsubscribeFromTopic = jest.fn();
   global.fetch = jest.fn(() =>
     Promise.resolve({
-      json: () => Promise.resolve({ series: [], data: [] }),
+      json: () => Promise.resolve(historicalData),
     }),
   );
 
@@ -91,4 +102,57 @@ test("uses the wildcard unit in overview chart topics", async () => {
 
   await waitFor(() => expect(subscribeToTopic).toHaveBeenCalled());
   expect(subscribeToTopic).toHaveBeenCalledWith("pioreactor/+/exp1/temperature", expect.any(Function), "Chart");
+});
+
+const formatServerTimestamp = (ms) => dayjs.utc(ms).format("YYYY-MM-DDTHH:mm:ss.SSS");
+
+function getRenderedPoints() {
+  return JSON.parse(screen.getByTestId("series").getAttribute("data-points"));
+}
+
+test("batches live points into one update and drops points older than the lookback window", async () => {
+  const now = Date.now();
+  const { subscribeToTopic } = renderChart(
+    { lookback: 1, payloadKey: "temperature" },
+    {
+      series: ["unit1"],
+      data: [[
+        { x: formatServerTimestamp(now - 2 * 60 * 60 * 1000), y: 30 },
+        { x: formatServerTimestamp(now - 10 * 60 * 1000), y: 31 },
+      ]],
+    },
+  );
+
+  await waitFor(() => expect(getRenderedPoints()).toHaveLength(2));
+  const onMessage = subscribeToTopic.mock.calls.at(-1)[1];
+
+  jest.useFakeTimers();
+  act(() => {
+    for (const y of [32, 33, 34]) {
+      onMessage(
+        "pioreactor/unit1/exp1/temperature_automation/temperature",
+        JSON.stringify({ timestamp: new Date(now).toISOString(), temperature: y }),
+        { retain: false },
+      );
+    }
+  });
+  expect(getRenderedPoints()).toHaveLength(2);
+
+  act(() => {
+    jest.advanceTimersByTime(1000);
+  });
+
+  const points = getRenderedPoints();
+  expect(points.map((point) => point.y)).toEqual([31, 32, 33, 34]);
+  expect(points.every((point) => typeof point.x === "number")).toBe(true);
+});
+
+test("does not refetch history when the color map identity changes", async () => {
+  const { rerender, props } = renderChart({ unit: "unit1", unitsColorMap: { unit1: "#000" } });
+
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+  rerender(<Chart {...props} unitsColorMap={{ unit1: "#000" }} />);
+  rerender(<Chart {...props} unitsColorMap={{ unit1: "#000" }} />);
+
+  expect(global.fetch).toHaveBeenCalledTimes(1);
 });

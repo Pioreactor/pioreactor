@@ -2147,6 +2147,8 @@ function Pioreactor({title, cameraUIEnabled = false}) {
   const [isActive, setIsActive] = useState(true)
   const [modelDetails, setModelDetails] = useState({})
   const [error, setError] = useState(null)
+  // Charts refetch their history when this identity changes, so keep it stable across MQTT-driven rerenders.
+  const unitsColorMap = useMemo(() => ({[unit]: colors[0]}), [unit])
 
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
@@ -2289,7 +2291,7 @@ function Pioreactor({title, cameraUIEnabled = false}) {
               xs: 12,
               md: 7
             }}>
-            <Charts chartPreferences={chartPreferences} unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
+            <Charts chartPreferences={chartPreferences} unit={unit} unitsColorMap={unitsColorMap} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
           </Grid>
           <Grid
             container
