@@ -15,8 +15,7 @@ test.each([false, true])("leader USB mutation carries target identity (mounted=%
     }),
   });
   render(<SnackbarProvider><UsbDriveCard leaderHostname="leader-unit" /></SnackbarProvider>);
-  fireEvent.click(await screen.findByRole("button", { name: "More actions for Drive" }));
-  fireEvent.click(screen.getByRole("menuitem", { name: mounted ? "Eject" : "Mount" }));
+  fireEvent.click(await screen.findByRole("button", { name: mounted ? "Eject" : "Mount" }));
 
   await waitFor(() => expect(fetchTaskResult).toHaveBeenCalledWith(
     `/unit_api/usb/${mounted ? "eject" : "mount"}`,

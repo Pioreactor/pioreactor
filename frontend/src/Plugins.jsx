@@ -460,6 +460,8 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
   );
 }
 
+const USB_MOUNTED_STATUSES = ["mounted", "mounted_readonly"];
+
 function ListUsbPlugins({
   selectedTarget,
   installedPlugins,
@@ -467,6 +469,7 @@ function ListUsbPlugins({
   getTask,
   onInstall,
 }) {
+  const [usbState, setUsbState] = React.useState("absent");
   const [usbName, setUsbName] = React.useState("");
   const [usbPlugins, setUsbPlugins] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -489,8 +492,9 @@ function ListUsbPlugins({
         const status = await statusResponse.json();
         const activeMount = status?.active_mount;
 
-        if (!activeMount?.mountpoint || status.status !== "mounted") {
+        if (!activeMount?.mountpoint || !USB_MOUNTED_STATUSES.includes(status.status)) {
           if (isActive) {
+            setUsbState(status?.status === "present_unmounted" ? "unmounted" : "absent");
             setUsbName("");
             setUsbPlugins([]);
           }
@@ -509,6 +513,7 @@ function ListUsbPlugins({
           return;
         }
 
+        setUsbState("mounted");
         setUsbName(activeMount.display_name || "USB");
         setUsbPlugins(Array.isArray(artifacts?.plugins) ? artifacts.plugins : []);
       } catch (err) {
@@ -517,6 +522,7 @@ function ListUsbPlugins({
         }
 
         console.error("Error getting USB plugins:", err);
+        setUsbState("absent");
         setUsbName("");
         setUsbPlugins([]);
         setError(err instanceof Error ? err.message : "Failed to load USB plugins.");
@@ -550,22 +556,49 @@ function ListUsbPlugins({
     return null;
   }
 
+  const usbPluginsDocsLink = (
+    <a
+      href="https://docs.pioreactor.com/user-guide/using-usb-drives#install-plugins-from-usb"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      USB-sourced plugins
+    </a>
+  );
+
+  if (usbState !== "mounted") {
+    return (
+    <>
+      <Typography variant="h6" component="h2">
+        USB device
+      </Typography>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
+        <Typography variant="body2" component="p" color="text.secondary">
+          {usbState === "unmounted" ? (
+            <>
+              A USB drive is detected but not mounted. Mount it from the <Link to="/leader">Leader page</Link>, then reload this page.
+            </>
+          ) : (
+            <>
+              You can attach a USB with Pioreactor plugins to install them on your cluster.
+            </>
+          )}
+          {" "}Learn more about {usbPluginsDocsLink}.
+        </Typography>
+      </Box>
+    </>
+    )
+  }
+
   if (usbPlugins.length === 0) {
     return (
     <>
       <Typography variant="h6" component="h2">
-        USB Device
+        USB device <UnderlineSpan title="Attached to leader">{usbName}</UnderlineSpan>
       </Typography>
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
         <Typography variant="body2" component="p" color="text.secondary">
-           You can attach a USB with Pioreactor plugins to install them on your cluster. Learn more about {" "}
-          <a
-            href="https://docs.pioreactor.com/user-guide/using-usb-drives#install-plugins-from-usb"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-           USB-sourced plugins
-          </a>.
+          No plugins found on {usbName}. Add <code>.whl</code> or <code>.py</code> plugin files to the root of the drive or to <code>pioreactor/plugins/</code>, then reload this page. Learn more about {usbPluginsDocsLink}.
         </Typography>
       </Box>
     </>

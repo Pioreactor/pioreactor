@@ -7,16 +7,12 @@ import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import UsbIcon from "@mui/icons-material/Usb";
 
@@ -56,51 +52,22 @@ function getPartitionStatus(partition) {
   return "Detected";
 }
 
-function UsbPartitionActionMenu({partition, isBusy, onMount, onEject}) {
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const menuOpen = Boolean(anchorEl);
+function UsbPartitionActionButton({partition, isBusy, onMount, onEject}) {
   const canMount = !partition.mounted && !partition.unsupported_reason;
   const canEject = Boolean(partition.mounted);
 
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+  if (!canMount && !canEject) {
+    return null;
+  }
 
   return (
-    <React.Fragment>
-      <span>
-        <IconButton
-          size="small"
-          aria-label={`More actions for ${partition.display_name || partition.device}`}
-          disabled={isBusy || (!canMount && !canEject)}
-          onClick={(event) => setAnchorEl(event.currentTarget)}
-        >
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
-      </span>
-      <Menu anchorEl={anchorEl} open={menuOpen} onClose={handleClose}>
-        {canMount && (
-          <MenuItem
-            onClick={() => {
-              handleClose();
-              onMount(partition.device);
-            }}
-          >
-            Mount
-          </MenuItem>
-        )}
-        {canEject && (
-          <MenuItem
-            onClick={() => {
-              handleClose();
-              onEject(partition.device);
-            }}
-          >
-            Eject
-          </MenuItem>
-        )}
-      </Menu>
-    </React.Fragment>
+    <Button
+      size="small"
+      disabled={isBusy}
+      onClick={() => (canEject ? onEject(partition.device) : onMount(partition.device))}
+    >
+      {canEject ? "Eject" : "Mount"}
+    </Button>
   );
 }
 
@@ -308,7 +275,7 @@ export default function UsbDriveCard({unit, leaderHostname}) {
                       <TableCell sx={{padding: "6px 0px"}}>Name</TableCell>
                       <TableCell>Device</TableCell>
                       <TableCell>Status</TableCell>
-                      <TableCell align="right" sx={{padding: "6px 0px", width: 36}} />
+                      <TableCell align="right" sx={{padding: "6px 0px"}} />
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -320,7 +287,7 @@ export default function UsbDriveCard({unit, leaderHostname}) {
                         <TableCell>{partition.device}</TableCell>
                         <TableCell>{getPartitionStatus(partition)}</TableCell>
                         <TableCell align="right" sx={{padding: "6px 0px"}}>
-                          <UsbPartitionActionMenu
+                          <UsbPartitionActionButton
                             partition={partition}
                             isBusy={isBusy}
                             onMount={handleMount}
