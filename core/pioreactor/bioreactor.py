@@ -15,6 +15,8 @@ from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import get_pioreactor_model
 
 
+_MISSING: t.Final = object()
+
 _BIOREACTOR_VARIABLES: dict[str, structs.BioreactorVariableDefinition] = {
     "current_volume_ml": structs.BioreactorVariableDefinition(
         key="current_volume_ml",
@@ -114,10 +116,12 @@ def validate_bioreactor_value(
 
 
 def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
-    default_value = get_default_bioreactor_value(variable_name)
-
     with local_persistent_storage("bioreactor") as cache:
-        stored_value = cache.getfloat((experiment, variable_name), fallback=default_value)
+        stored_value = cache.get((experiment, variable_name), _MISSING)
+
+    if stored_value is _MISSING:
+        # only resolve (and validate) the default when nothing is stored.
+        return get_default_bioreactor_value(variable_name)
 
     return validate_bioreactor_value(variable_name, stored_value)
 
@@ -262,16 +266,14 @@ def apply_dosing_event_to_bioreactor(
     with local_persistent_storage("bioreactor") as cache:
         try:
             cache.cursor.execute("BEGIN IMMEDIATE")
-            current_state = {
-                variable_name: validate_bioreactor_value(
-                    variable_name,
-                    cache.getfloat(
-                        (experiment, variable_name),
-                        fallback=get_default_bioreactor_value(variable_name),
-                    ),
+            current_state: dict[str, float] = {}
+            for variable_name in _BIOREACTOR_VARIABLES:
+                stored_value = cache.get((experiment, variable_name), _MISSING)
+                current_state[variable_name] = (
+                    get_default_bioreactor_value(variable_name)
+                    if stored_value is _MISSING
+                    else validate_bioreactor_value(variable_name, stored_value)
                 )
-                for variable_name in _BIOREACTOR_VARIABLES
-            }
 
             updated_state = {
                 "alt_media_fraction": calculate_updated_alt_media_fraction(

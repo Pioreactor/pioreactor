@@ -678,3 +678,17 @@ def test_calculate_updated_alt_media_fraction_snaps_extreme_dilutions_to_zero() 
         )
         == 0.0
     )
+
+
+def test_get_bioreactor_value_only_resolves_default_when_value_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    experiment = "test_get_bioreactor_value_only_resolves_default_when_value_is_missing"
+    bioreactor.set_bioreactor_value(experiment, "cumulative_media_added_ml", 3.0)
+
+    def fail_default_lookup(*args: object, **kwargs: object) -> float:
+        raise AssertionError("default should not be resolved when a value is stored")
+
+    monkeypatch.setattr(bioreactor, "get_default_bioreactor_value", fail_default_lookup)
+
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_media_added_ml") == pytest.approx(3.0)

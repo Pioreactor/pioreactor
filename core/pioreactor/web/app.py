@@ -185,7 +185,7 @@ def publish_to_error_log(msg: t.Any, task: str) -> None:
 
 
 def _make_dicts(cursor: sqlite3.Cursor, row: tuple[t.Any, ...]) -> dict[str, t.Any]:
-    return dict((cursor.description[idx][0], value) for idx, value in enumerate(row))
+    return dict(zip([column[0] for column in cursor.description], row))
 
 
 def _get_app_db_connection() -> sqlite3.Connection:

@@ -168,11 +168,7 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
 
     target_unit_name = unit_name or get_unit_name()
 
-    try:
-        name = _get_pioreactor_model_name(target_unit_name)
-        version = _get_pioreactor_model_version(target_unit_name)
-    except NoWorkerFoundError:
-        raise
+    name, version = _get_pioreactor_model_name_and_version(target_unit_name)
 
     if name is None or version is None:
         raise NoModelAssignedError("Unknown Pioreactor model: name and version not set yet.")
@@ -183,12 +179,39 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
         raise UnknownModelAssignedError(f"Unknown Pioreactor model {name} v{version}.")
 
 
-def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
-    # pioreactor model version
-    local_unit_name = get_unit_name()
+def _get_pioreactor_model_name_and_version(unit_name: "pt.Unit") -> tuple[str | None, str | None]:
+    # The local unit's model can be provided by env (jobs launched from the UI/profiles set these).
+    name: str | None = None
+    version: str | None = None
 
-    if unit_name == local_unit_name and os.environ.get("MODEL_VERSION"):
-        return os.environ["MODEL_VERSION"]
+    if unit_name == get_unit_name():
+        name = os.environ.get("MODEL_NAME") or None
+        version = os.environ.get("MODEL_VERSION") or None
+        if name is None and is_testing_env():
+            name = "pioreactor_40ml"
+
+    if name is not None and version is not None:
+        return name, version
+
+    leader_name, leader_version = _get_pioreactor_model_name_and_version_from_leader(unit_name)
+    return name or leader_name, version or leader_version
+
+
+# Model lookups are hot (safety thresholds, bioreactor validation on every dosing event), and
+# a worker's model changes rarely, so we briefly cache complete answers from the leader.
+_MODEL_FROM_LEADER_TTL_SECONDS = 30.0
+_model_from_leader_cache: dict[str, tuple[float, str, str]] = {}
+
+
+def _get_pioreactor_model_name_and_version_from_leader(
+    unit_name: "pt.Unit",
+) -> tuple[str | None, str | None]:
+    use_cache = not is_testing_env()
+
+    if use_cache and (cached := _model_from_leader_cache.get(unit_name)) is not None:
+        cached_at, cached_name, cached_version = cached
+        if time.monotonic() - cached_at < _MODEL_FROM_LEADER_TTL_SECONDS:
+            return cached_name, cached_version
 
     from pioreactor.pubsub import get_from_leader
     from pioreactor.mureq import HTTPErrorStatus
@@ -198,40 +221,24 @@ def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
-        return data["model_version"]
-    except HTTPErrorStatus as e:
-        if e.status_code == 404:
-            raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
-        raise e
-    except HTTPException as e:
-        raise e
-
-
-def _get_pioreactor_model_name(unit_name: "pt.Unit") -> str | None:
-    # pioreactor model name
-    local_unit_name = get_unit_name()
-
-    if unit_name == local_unit_name and (model := os.environ.get("MODEL_NAME")):
-        return model
-    elif unit_name == local_unit_name and is_testing_env():
-        return "pioreactor_40ml"
-
-    from pioreactor.pubsub import get_from_leader
-    from pioreactor.mureq import HTTPErrorStatus
-    from pioreactor.mureq import HTTPException
-
-    try:
-        result = get_from_leader(f"/api/workers/{unit_name}")
-        result.raise_for_status()
-        data = result.json()
-        return data["model_name"]
     except HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not found or not assigned a model.")
-        else:
-            raise e
+        raise e
     except HTTPException as e:
         raise e
+
+    name, version = data["model_name"], data["model_version"]
+
+    if use_cache and name is not None and version is not None:
+        # only cache complete answers, so a newly assigned model is picked up immediately.
+        _model_from_leader_cache[unit_name] = (time.monotonic(), name, version)
+
+    return name, version
+
+
+def clear_pioreactor_model_cache() -> None:
+    _model_from_leader_cache.clear()
 
 
 @cache
