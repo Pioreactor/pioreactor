@@ -1,0 +1,37 @@
+[Unit]
+Description=Experimental Pioreactor WPE display (direct DRM/KMS)
+ConditionPathExists=/boot/firmware/experimental_display
+ConditionPathExists=/run/pioreactor-display-ready
+After=pioreactor-display-boot.service systemd-udev-trigger.service lighttpd.service avahi-daemon.service
+Wants=lighttpd.service avahi-daemon.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pioreactor-display
+Group=pioreactor-display
+SupplementaryGroups=video render input
+RootDirectory=/opt/pioreactor-display/rootfs
+MountAPIVFS=yes
+BindPaths=/dev/dri /dev/input
+BindReadOnlyPaths=-/run/udev -/run/avahi-daemon /etc/resolv.conf /etc/machine-id
+RuntimeDirectory=pioreactor-display
+RuntimeDirectoryMode=0700
+StateDirectory=pioreactor-display
+StateDirectoryMode=0700
+CacheDirectory=pioreactor-display
+CacheDirectoryMode=0700
+Environment=LANG=C.UTF-8
+Environment=HOME=/var/lib/pioreactor-display
+Environment=XDG_DATA_HOME=/var/lib/pioreactor-display/data
+Environment=XDG_CACHE_HOME=/var/cache/pioreactor-display
+Environment=XDG_RUNTIME_DIR=/run/pioreactor-display
+Environment=WPE_PLATFORM=drm
+Environment=PIOREACTOR_DISPLAY_URL=http://localhost/
+EnvironmentFile=-/etc/default/pioreactor-display
+ExecStart=/usr/local/bin/start-pioreactor-display
+Restart=always
+RestartSec=10
+TimeoutStopSec=15
+NoNewPrivileges=yes
+UMask=0077

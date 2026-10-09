@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+url=${PIOREACTOR_DISPLAY_URL:-http://localhost/}
+echo "Waiting for a connected DRM display and $url"
+while :; do
+    connected=false
+    for status in /sys/class/drm/card*-*/status; do
+        [ -r "$status" ] || continue
+        if [ "$(cat "$status")" = connected ]; then
+            connected=true
+            break
+        fi
+    done
+    if [ "$connected" = true ] && curl --fail --silent --output /dev/null --max-time 5 "$url"; then
+        break
+    fi
+    sleep 5
+done
+exec dbus-run-session -- /usr/local/bin/pioreactor-display "$url"

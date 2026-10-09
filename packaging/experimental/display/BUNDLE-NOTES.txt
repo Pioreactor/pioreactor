@@ -1,0 +1,71 @@
+Pioreactor display — ARM64 bundle, WPE 2.54.0
+
+Built and smoke-tested on xr1: Pi 4, 1 GB RAM, Debian 13 ARM64, Linux 6.12.
+HDMI output and mouse scrolling confirmed on xr1 on 2026-10-09.
+Includes dmz-cursor-theme to supply the DRM mouse pointer icons.
+Intended for 64-bit Raspberry Pi OS with systemd and working VC4/V3D DRM/KMS.
+Other Pi models and kernel versions require validation. Not for a 32-bit OS.
+
+Copy this entire directory to the target. It includes the launcher, its isolated
+Debian runtime, systemd unit, installer, and app smoke test. No host WPE package,
+compiler, Chromium, desktop, or compositor is required. Runtime extraction needs
+at least 1.5 GB free disk space in addition to this bundle. Root access is needed.
+The target must already provide systemd, Python 3, tar, gzip and account tools
+(normally present on Raspberry Pi OS Lite). Installation is offline.
+
+On the target:
+
+  sudo ./install.sh --check
+  sudo ./install.sh --enable-hdmi
+
+Omit --enable-hdmi if DRM/KMS and HDMI are already configured. The optional flag
+backs up /boot/firmware/config.txt and removes the Pioreactor image's HDMI-off
+settings. It never reboots automatically. Reboot manually after a boot change.
+The installer refuses to overwrite an existing runtime or display account.
+
+The browser URL defaults to http://localhost/. To display a UI on another machine,
+edit /etc/default/pioreactor-display, then restart pioreactor-display.service.
+Connect an HDMI monitor and USB mouse. The service waits for a connected DRM
+connector and a successful HTTP response, then starts WPE with WPE_PLATFORM=drm.
+It takes over tty1 from the login prompt and uses video/render/input access.
+Do not run another compositor on the same display.
+
+Validate:
+
+  sudo ./smoke-test.sh
+  sudo systemctl status pioreactor-display
+  sudo journalctl -u pioreactor-display -b
+
+The smoke test renders the Pioreactor React UI off-screen, checks #root is
+populated, and exits. It does not prove physical display or touch functionality.
+For a remote Pioreactor UI, supply its URL to smoke-test.sh as the first argument.
+To disable: sudo systemctl disable --now pioreactor-display
+
+The runtime is an isolated Debian unstable userspace, installed under
+/opt/pioreactor-display/rootfs. It shares the target's kernel and network.
+It includes WPE 2.54.0 (not 2.54.1). Host apt updates do not update this runtime.
+Maintain browser/security updates inside the runtime, rebuild and retest.
+Source for the launcher is at /usr/local/src/pioreactor-display inside the runtime.
+Package versions are recorded in runtime-packages.txt; package copyright/license
+files are retained under /usr/share/doc inside the runtime. WPE source:
+https://wpewebkit.org/releases/wpewebkit-2.54.0.tar.xz
+Debian packaging: https://deb.debian.org/debian/pool/main/w/wpewebkit/
+
+Bundle validation on 2026-10-07: a fresh extraction of runtime.tar.gz, launched
+under systemd independently of the original runtime, passed the actual local
+Pioreactor UI smoke test. Checksum verification and installer shell syntax checks
+also passed. Installation on a second physical Pi has not yet been tested.
+
+Mouse movement correction (2026-10-09): the installer applies the small libdrm
+interposer under patches/ to correct WPE's unsigned cursor coordinates at screen
+edges. This runs via LD_PRELOAD in display.env. The supplied source and Makefile
+are installed into the runtime too; rebuilding the interposer requires installing
+libdrm-dev inside the runtime. runtime-packages.txt describes the base runtime
+archive; the interposer is an additional local artifact, not a Debian package.
+600 relative pointer movements across screen edges passed on xr1 with no render
+errors, OOM kills or service restarts after applying this fix.
+
+mDNS fix (2026-10-09): libnss-mdns is included under patches/ and installed
+offline into the runtime. The service exposes the host Avahi socket and DNS
+configuration. For .local broker names, avahi-daemon must be installed on the
+host. WPE successfully opened ws://xr1.local:9001/mqtt in a hostname test.

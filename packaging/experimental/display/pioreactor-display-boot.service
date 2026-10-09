@@ -1,0 +1,9 @@
+[Unit]
+Description=Configure experimental Pioreactor HDMI display for the next boot
+After=local-fs.target firstboot.service everyboot.service getty@tty1.service
+Before=pioreactor-display.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pioreactor-display-configure-boot
+RemainAfterExit=yes
