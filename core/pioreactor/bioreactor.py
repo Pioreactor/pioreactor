@@ -191,7 +191,10 @@ def calculate_updated_current_volume(
     volume, event = float(dosing_event.volume_change), dosing_event.event
 
     if event == "add_alt_media" or event.startswith("add_"):
-        vol = max(current_volume_ml + volume, 0.0)
+        # Liquid beyond the vial's capacity spills over, so cap rather than reject: rejecting would
+        # drop the whole event, and downstream overfill safety checks would never see it.
+        capacity_ml = get_pioreactor_model().reactor_capacity_ml
+        vol = min(max(current_volume_ml + volume, 0.0), capacity_ml)
 
     elif event == "remove_waste":
         # Waste removal is modeled as draining toward the passive overflow / efflux

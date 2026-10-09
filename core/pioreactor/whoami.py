@@ -64,9 +64,11 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
                 data = result.json()
                 raise NotAssignedAnExperimentError(data["error"])
         except HTTPException:
-            raise HTTPException(
-                f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
-            )
+            # connection errors are often transient (e.g. the leader's web server restarting), so retry.
+            if attempt == retries - 1:
+                raise HTTPException(
+                    f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
+                )
         except Exception:
             # some other error? Keep trying
             pass

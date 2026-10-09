@@ -10,6 +10,9 @@
  - Added automatic plugin installation from the SD card's boot partition. Place plugin `.whl` files and any required dependency wheels in `pioreactor/plugins/` (`/boot/firmware/pioreactor/plugins/` on the Pi), then reboot. Existing Raspberry Pi images gain this support after updating and rebooting; new workers retain staged wheels until they join a cluster and reboot. Successful installations remove the wheels, while failed or invalid wheels are saved in `failed/` with diagnostic logs. Wheels declaring direct URL dependencies are rejected, and installation attempts have time limits.
  - Added boot-partition imports for experiment profiles, custom bioreactor models, and hardware definitions on Raspberry Pi images, including existing images after updating and rebooting. Place `.yaml` or `.yml` files under `pioreactor/experiment_profiles/`, `pioreactor/models/`, or `pioreactor/hardware/` on the SD card's boot partition, then reboot. Profiles are imported on leaders only and are never started automatically; models and hardware definitions are imported on either role, preserving nested hardware paths. Imported files replace matching files without backups and are removed from the boot partition. Failed imports retain their input and an adjacent `.log` file for correction and retry on the next boot. Unconfigured workers defer imports until they join a cluster and reboot.
  - Added `.yml` support for HAT and model hardware definitions alongside `.yaml`; `.yaml` takes precedence when both files exist.
+ - Faster experiment data exports, especially for large datasets.
+ - Faster chart loading in the UI, since only the plotted points are now read from the database.
+ - Fewer requests to the leader during dosing and safety checks. A Pioreactor's assigned model is now cached briefly, so model changes may take up to 30 seconds to reach running jobs.
 
 #### Bug fixes
 
@@ -21,6 +24,9 @@
  - Fixed the new-experiment form incorrectly rejecting unused names such as `constructor`, and improved its layout on narrow screens.
  - Fixed OD reader error reporting when an ADC fails to initialize.
  - Fixed Akima calibration fitting with only two data points.
+ - Fixed dosing events being discarded when an addition would overfill the vial. The volume is now capped at the vial's capacity and media totals are still updated, so dosing automations pause correctly.
+ - Fixed jobs failing immediately when the leader's web server is briefly unavailable, for example while restarting. Connection errors are now retried.
+ - Fixed the monitor's heater self-check erroring when the leader is unreachable, which also skipped the MQTT connection check after it.
 
 ### 26.10.0
 

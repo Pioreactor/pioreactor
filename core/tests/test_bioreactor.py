@@ -188,7 +188,7 @@ def test_calculate_updated_current_volume_accepts_add_media_events() -> None:
     ) == pytest.approx(6.0)
 
 
-def test_calculate_updated_current_volume_rejects_additions_above_model_capacity(
+def test_calculate_updated_current_volume_caps_additions_at_model_capacity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -216,12 +216,11 @@ def test_calculate_updated_current_volume_rejects_additions_above_model_capacity
         timestamp=default_datetime_for_pioreactor(),
     )
 
-    with pytest.raises(ValueError):
-        bioreactor.calculate_updated_current_volume(
-            dosing_event,
-            current_volume_ml=19.0,
-            efflux_tube_volume_ml=14.0,
-        )
+    assert bioreactor.calculate_updated_current_volume(
+        dosing_event,
+        current_volume_ml=19.0,
+        efflux_tube_volume_ml=14.0,
+    ) == pytest.approx(20.0)
 
 
 def test_calculate_updated_current_volume_sequence() -> None:
@@ -349,6 +348,27 @@ def test_apply_dosing_event_to_bioreactor_persists_cumulative_volumes() -> None:
         0.75,
         True,
     ) in mqtt_client.published
+
+
+def test_apply_dosing_event_records_additions_that_overflow_model_capacity() -> None:
+    experiment = "test_apply_dosing_event_records_additions_that_overflow_model_capacity"
+    capacity_ml = bioreactor.get_pioreactor_model().reactor_capacity_ml
+    bioreactor.set_bioreactor_value(experiment, "current_volume_ml", capacity_ml - 1.0)
+
+    add_media_event = structs.DosingEvent(
+        volume_change=5.0,
+        event="add_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+    updated = bioreactor.apply_dosing_event_to_bioreactor(
+        "unit", experiment, add_media_event, FakeMQTTClient()
+    )
+
+    assert updated["current_volume_ml"] == pytest.approx(capacity_ml)
+    assert updated["cumulative_media_added_ml"] == pytest.approx(5.0)
+    assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(capacity_ml)
+    assert bioreactor.get_bioreactor_value(experiment, "cumulative_media_added_ml") == pytest.approx(5.0)
 
 
 def test_apply_dosing_event_uses_one_storage_context_and_enqueues_all_publications_before_waiting(

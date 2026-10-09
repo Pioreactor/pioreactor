@@ -88,3 +88,48 @@ def test_get_pioreactor_model_prefers_env_for_local_unit(
     model = whoami.get_pioreactor_model()
     assert (model.model_name, model.model_version) == ("pioreactor_20ml", "1.1")
     assert leader_model_lookup["requested"] == []
+
+
+def test_get_assigned_experiment_name_retries_transient_connection_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pioreactor.mureq import HTTPException
+
+    attempts: list[str] = []
+
+    def flaky_get_from_leader(endpoint: str, **kwargs: Any) -> MagicMock:
+        attempts.append(endpoint)
+        if len(attempts) < 3:
+            raise HTTPException("connection refused")
+        response = MagicMock()
+        response.json.return_value = {"experiment": "exp1"}
+        return response
+
+    monkeypatch.setattr(pubsub, "get_from_leader", flaky_get_from_leader)
+    monkeypatch.setattr(whoami, "is_testing_env", lambda: False)
+    monkeypatch.setattr(whoami.time, "sleep", lambda _: None)
+    monkeypatch.delenv("EXPERIMENT", raising=False)
+
+    assert whoami.get_assigned_experiment_name("unit1") == "exp1"
+    assert len(attempts) == 3
+
+
+def test_get_assigned_experiment_name_raises_http_exception_after_exhausting_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pioreactor.mureq import HTTPException
+
+    attempts: list[str] = []
+
+    def down_get_from_leader(endpoint: str, **kwargs: Any) -> MagicMock:
+        attempts.append(endpoint)
+        raise HTTPException("connection refused")
+
+    monkeypatch.setattr(pubsub, "get_from_leader", down_get_from_leader)
+    monkeypatch.setattr(whoami, "is_testing_env", lambda: False)
+    monkeypatch.setattr(whoami.time, "sleep", lambda _: None)
+    monkeypatch.delenv("EXPERIMENT", raising=False)
+
+    with pytest.raises(HTTPException):
+        whoami.get_assigned_experiment_name("unit1")
+    assert len(attempts) == 6

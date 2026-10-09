@@ -401,11 +401,16 @@ class Monitor(LongRunningBackgroundJob):
         """
         Originally from #220
         """
-        # if no model assigned or missing hardware, skip
+        # if no model assigned, model unreachable, or missing hardware, skip
         model = None
         try:
             model = get_pioreactor_model()
-        except (exc.NoModelAssignedError, exc.UnknownModelAssignedError):
+        except (
+            exc.NoModelAssignedError,
+            exc.UnknownModelAssignedError,
+            exc.NoWorkerFoundError,
+            HTTPException,
+        ):
             return
 
         if model is None:
