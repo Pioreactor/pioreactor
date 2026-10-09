@@ -7,6 +7,7 @@ _DOC_CHECKER.md
 .envrc
 .pioreactor/
 .tickets/
+CLAUDE.md
 experiments/
 jupyter_notebooks/
 plugins_dev
