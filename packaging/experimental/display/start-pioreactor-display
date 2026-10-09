@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-url=${PIOREACTOR_DISPLAY_URL:-http://localhost/}
+url=${PIOREACTOR_DISPLAY_URL:-http://localhost/static/display.html}
 echo "Waiting for a connected DRM display and $url"
 while :; do
     connected=false

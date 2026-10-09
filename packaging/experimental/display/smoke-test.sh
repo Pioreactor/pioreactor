@@ -13,6 +13,6 @@ systemd-run --unit="$unit" --wait --collect \
     --setenv=WPE_PLATFORM=headless \
     --setenv=HOME="/run/$unit" \
     --setenv=XDG_RUNTIME_DIR="/run/$unit" \
-    /usr/bin/dbus-run-session -- /usr/local/bin/pioreactor-display --smoke-test "${1:-http://localhost/}" \
+    /usr/bin/dbus-run-session -- /usr/local/bin/pioreactor-display --smoke-test "${1:-http://localhost/static/display.html}" \
     || { journalctl -u "$unit" --no-pager -n 60; exit 1; }
 journalctl -u "$unit" --no-pager -n 60

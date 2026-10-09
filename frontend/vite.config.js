@@ -42,7 +42,7 @@ export default defineConfig(({ command }) => ({
     react({ include: /\.(js|jsx|ts|tsx)$/ }),
   ],
   optimizeDeps: {
-    entries: ["index.html"],
+    entries: ["index.html", "display.html"],
     esbuildOptions: {
       loader: {
         ".js": "jsx",
@@ -61,6 +61,11 @@ export default defineConfig(({ command }) => ({
     assetsDir: "static",
     outDir: "build",
     rollupOptions: {
+      // display.html is the lean touchscreen UI used by the leader's attached display.
+      input: {
+        main: "index.html",
+        display: "display.html",
+      },
       onwarn(warning, defaultHandler) {
         const source = warning.id?.replaceAll("\\", "/");
         const isKnownLegacyChartEval =

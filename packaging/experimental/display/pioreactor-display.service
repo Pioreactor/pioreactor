@@ -27,7 +27,7 @@ Environment=XDG_DATA_HOME=/var/lib/pioreactor-display/data
 Environment=XDG_CACHE_HOME=/var/cache/pioreactor-display
 Environment=XDG_RUNTIME_DIR=/run/pioreactor-display
 Environment=WPE_PLATFORM=drm
-Environment=PIOREACTOR_DISPLAY_URL=http://localhost/
+Environment=PIOREACTOR_DISPLAY_URL=http://localhost/static/display.html
 EnvironmentFile=-/etc/default/pioreactor-display
 ExecStart=/usr/local/bin/start-pioreactor-display
 Restart=always

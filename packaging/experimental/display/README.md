@@ -25,7 +25,10 @@ Do not create a directory or a file named `experimental_display.txt` instead.
 
 The browser starts only after the boot helper has confirmed the selected HDMI
 configuration was already staged. It waits for a connected DRM display and a
-successful response from `http://localhost/`. The boot helper stops the tty1
+successful response from the display UI, `http://localhost/static/display.html`.
+That page is a lean, touch-first UI built from `frontend/display.html` for small
+landscape screens (designed at 800x480); the full web UI stays at `/` for other
+computers. The boot helper stops the tty1
 login prompt only when display activation is ready. No browser process runs
 without the flag. This controls startup, not live removal of the flag.
 
@@ -71,7 +74,7 @@ sudo journalctl -u pioreactor-display-boot -u pioreactor-display -b
 sudo pioreactor-display-smoke-test
 ```
 
-The smoke test checks off-screen rendering of the local React UI; it does not
+The smoke test checks off-screen rendering of the local display UI; it does not
 prove HDMI, mouse, touch, or boot gating. Image acceptance should exercise both
 leader targets, verify worker exclusion, boot without the flag, add the flag and
 reboot as directed, then remove it and confirm console/headless restoration.

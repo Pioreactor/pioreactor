@@ -28,3 +28,20 @@ Rules
 1. Keep imports at the top of the file
 2. Reference DESIGN.md for visual and interaction design rules
 3. Keep React and ESLint warnings green. Before wrapping up frontend work, run the relevant lint command or `make frontend-build` and fix simple warnings instead of leaving them behind.
+
+Touchscreen display UI
+-------
+
+`display.html` is a second Vite entry (`src/display/`) for the leader's attached
+5" landscape touchscreen (designed at 800x480, rendered by WPE on a Pi; see
+`packaging/experimental/display/`). It is served at `/static/display.html` and is
+deliberately separate from the main app's pages and MUI layout.
+
+- Reuse the main app's data layer (providers, `utils/`, hooks, API calls) and its
+  icons; only the views are display-specific.
+- Touch only: no hover states or tooltips. Targets are at least 44px and give
+  feedback through `:active`/pending states. Avoid shadows, blurs, transitions and
+  animations; the display can be laggy.
+- Text and number entry go through the pop-up keyboard (`useKeyboard` / `EditField`
+  in `src/display/Keyboard.jsx`), never a native input.
+- Develop at `http://localhost:3000/display.html` with the browser viewport set to 800x480.
