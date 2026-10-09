@@ -305,7 +305,7 @@ describe("LogTableByUnit", () => {
     expect(bodyRows[2]).toHaveTextContent("late older experiment event");
   });
 
-  test("keeps paginated log subscriptions stable while live messages use the latest level", async () => {
+  test("subscribes paginated logs to the selected level and above, resubscribing when it changes", async () => {
     const subscribeToTopic = jest.fn();
     const unsubscribeFromTopic = jest.fn();
 
@@ -314,6 +314,11 @@ describe("LogTableByUnit", () => {
       subscribeToTopic,
       unsubscribeFromTopic,
     });
+
+    const infoTopics = ["info", "notice", "warning", "error", "critical"].map(
+      (level) => `pioreactor/unit1/exp1/logs/+/${level}`
+    );
+    const noticeTopics = infoTopics.slice(1);
 
     const { rerender } = render(
       <MemoryRouter>
@@ -331,9 +336,7 @@ describe("LogTableByUnit", () => {
         "/api/workers/unit1/experiments/exp1/logs?min_level=INFO"
       )
     );
-
-    expect(subscribeToTopic).toHaveBeenCalledTimes(1);
-    const onMessage = subscribeToTopic.mock.calls[0][1];
+    expect(subscribeToTopic).toHaveBeenCalledWith(infoTopics, expect.any(Function), "PagLogTable");
 
     rerender(
       <MemoryRouter>
@@ -351,25 +354,10 @@ describe("LogTableByUnit", () => {
         "/api/workers/unit1/experiments/exp1/logs?min_level=NOTICE"
       )
     );
-    expect(subscribeToTopic).toHaveBeenCalledTimes(1);
-    expect(unsubscribeFromTopic).not.toHaveBeenCalled();
+    expect(unsubscribeFromTopic).toHaveBeenCalledWith(infoTopics, "PagLogTable");
+    expect(subscribeToTopic).toHaveBeenLastCalledWith(noticeTopics, expect.any(Function), "PagLogTable");
 
-    await act(async () => {
-      onMessage(
-        "pioreactor/unit1/exp1/logs/app/info",
-        Buffer.from(
-          JSON.stringify({
-            timestamp: "2026-03-23T10:00:00.000Z",
-            message: "filtered info event",
-            task: "app",
-            level: "info",
-          })
-        )
-      );
-    });
-
-    expect(screen.queryByText("filtered info event")).not.toBeInTheDocument();
-
+    const onMessage = subscribeToTopic.mock.calls.at(-1)[1];
     await act(async () => {
       onMessage(
         "pioreactor/unit1/exp1/logs/app/error",
@@ -385,5 +373,50 @@ describe("LogTableByUnit", () => {
     });
 
     expect(await screen.findByText("visible error event")).toBeInTheDocument();
+  });
+
+  test("caps live paginated log rows", async () => {
+    const subscribeToTopic = jest.fn();
+
+    useMQTT.mockReturnValue({
+      client: {},
+      subscribeToTopic,
+      unsubscribeFromTopic: jest.fn(),
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <PaginatedLogsTable
+          pioreactorUnit="unit1"
+          experiment="exp1"
+          relabelMap={{}}
+          logLevel="INFO"
+        />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(subscribeToTopic).toHaveBeenCalled());
+    const onMessage = subscribeToTopic.mock.calls.at(-1)[1];
+
+    await act(async () => {
+      for (let index = 0; index < 505; index += 1) {
+        onMessage(
+          "pioreactor/unit1/exp1/logs/app/info",
+          Buffer.from(
+            JSON.stringify({
+              timestamp: "2026-03-23T10:00:00.000Z",
+              message: `live event ${index}`,
+              task: "app",
+              level: "info",
+            })
+          )
+        );
+      }
+    });
+
+    const bodyRows = container.querySelectorAll("tbody tr");
+    expect(bodyRows).toHaveLength(500);
+    expect(bodyRows[0]).toHaveTextContent("live event 504");
+    expect(bodyRows[499]).toHaveTextContent("live event 5");
   });
 });

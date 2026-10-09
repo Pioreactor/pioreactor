@@ -40,7 +40,7 @@ const sensorRe = /^(.*)-(\d+)$/;
 const MS_PER_HOUR = 60 * 60 * 1000;
 const DOWNSAMPLED_TARGET_POINTS = 1400;
 // Live points are buffered and committed in batches so each MQTT message doesn't redraw the chart.
-const LIVE_FLUSH_INTERVAL_MS = 1000;
+const LIVE_FLUSH_INTERVAL_MS = 5000;
 const HIDDEN_LIVE_FLUSH_INTERVAL_MS = 60 * 1000;
 
 function toArray(thing){

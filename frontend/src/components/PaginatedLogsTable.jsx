@@ -37,6 +37,15 @@ const LEVELS = [
   "ERROR",
   "CRITICAL"
 ]
+// Live logs are prepended as they arrive; older rows remain reachable through "Load older logs".
+const MAX_LIVE_LOG_ROWS = 500;
+
+const getLiveLogTopics = (pioreactorUnit, experiment, logLevel) => {
+  const minLevelIndex = Math.max(0, LEVELS.indexOf(logLevel));
+  return LEVELS.slice(minLevelIndex).map(
+    (level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`
+  );
+};
 const HIGHLIGHTABLE_CHIP_SX = {
   userSelect: "text",
   WebkitUserSelect: "text",
@@ -142,11 +151,6 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
 
     const unit = topic.toString().split('/')[1];
     const payload = JSON.parse(message.toString());
-    const levelOfMessage = payload.level.toUpperCase();
-
-    if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
-      return
-    }
 
     setListOfLogs((currentLogs) =>
       [
@@ -158,22 +162,22 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
           level: payload.level.toUpperCase(),
           key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
         },
-        ...currentLogs,
+        // Never drop rows the user explicitly paged in with "Load older logs".
+        ...currentLogs.slice(0, Math.max(MAX_LIVE_LOG_ROWS, skip) - 1),
       ]);
   });
 
   useEffect(() => {
-    if (experiment && client) {
-      subscribeToTopic(
-        LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
-        onLiveLogMessage,
-        'PagLogTable'
-      );
+    if (!experiment || !client) {
+      return undefined;
     }
+    // Subscribe only to the selected level and above, so the broker doesn't forward logs we'd discard.
+    const topics = getLiveLogTopics(pioreactorUnit, experiment, logLevel);
+    subscribeToTopic(topics, onLiveLogMessage, 'PagLogTable');
     return () => {
-      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
+      unsubscribeFromTopic(topics, 'PagLogTable');
     };
-  }, [client, experiment, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
+  }, [client, experiment, logLevel, pioreactorUnit, subscribeToTopic, unsubscribeFromTopic]);
 
 
   const handleSwitchChange = (event) => {
