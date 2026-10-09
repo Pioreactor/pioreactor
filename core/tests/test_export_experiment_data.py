@@ -193,6 +193,43 @@ def test_export_experiment_data(temp_zipfile) -> None:
 
 
 @pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_experiment_data_rounds_only_float_values(temp_zipfile) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading)")
+    conn.executemany(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES (?, ?, ?, ?)",
+        [
+            (1, "0.30000000000000004", "2025-04-16T04:51:12.858Z", 0.1 + 0.2),
+            (2, "b", "2025-04-16T04:51:13.858Z", 12345678901234567),
+            (3, "c", "2025-04-16T04:51:14.858Z", "text"),
+            (4, "d", "2025-04-16T04:51:15.858Z", None),
+        ],
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiment="test_experiment",
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+        )
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        (csv_filename,) = [f for f in zf.namelist() if f.endswith(".csv")]
+        lines = zf.read(csv_filename).decode("utf-8").strip().split("\r\n")
+
+    assert lines[0] == "id,name,timestamp,reading,timestamp_localtime"
+    assert [line.split(",")[:4] for line in lines[1:]] == [
+        ["1", "0.30000000000000004", "2025-04-16T04:51:12.858Z", "0.3"],
+        ["2", "b", "2025-04-16T04:51:13.858Z", "12345678901234567"],
+        ["3", "c", "2025-04-16T04:51:14.858Z", "text"],
+        ["4", "d", "2025-04-16T04:51:15.858Z", ""],
+    ]
+
+
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
 def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
@@ -561,6 +598,52 @@ def test_export_header_discovery_does_not_execute_aggregate_query(temp_zipfile) 
             name for name in zf.namelist() if name.startswith("plugin_rollup/") and name.endswith(".csv")
         )
         assert zf.read(csv_filename).decode("utf-8").strip().splitlines() == ["total", "6"]
+
+
+def test_export_query_dataset_evaluates_computed_columns_once_and_rounds_floats(temp_zipfile) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE plugin_events (value REAL)")
+    conn.executemany("INSERT INTO plugin_events VALUES (?)", [(0.1,), (0.2,)])
+
+    udf_calls = 0
+
+    def add_point_two(value: float) -> float:
+        nonlocal udf_calls
+        udf_calls += 1
+        return value + 0.2
+
+    conn.create_function("ADD_POINT_TWO", 1, add_point_two)
+    plugin_dataset = Dataset(
+        dataset_name="plugin_computed",
+        display_name="Plugin computed",
+        query="SELECT value, ADD_POINT_TWO(value) AS shifted FROM plugin_events",
+        has_unit=False,
+        has_experiment=False,
+        description="",
+        default_order_by=None,
+    )
+
+    with patch("sqlite3.connect") as mock_connect, patch(
+        "pioreactor.actions.leader.export_experiment_data.load_exportable_datasets",
+        return_value={"plugin_computed": plugin_dataset},
+    ):
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiment="test_experiment",
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["plugin_computed"],
+        )
+
+    assert udf_calls == 2
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        csv_filename = next(name for name in zf.namelist() if name.endswith(".csv"))
+        assert zf.read(csv_filename).decode("utf-8").strip().splitlines() == [
+            "value,shifted",
+            "0.1,0.3",
+            "0.2,0.4",
+        ]
 
 
 @pytest.mark.usefixtures("mock_load_exportable_datasets")

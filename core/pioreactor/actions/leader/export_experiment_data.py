@@ -42,20 +42,30 @@ class ExportResourceLimitError(RuntimeError):
     pass
 
 
+EXPORT_FLOAT_DECIMALS = 12
+
+
+def quote_identifier(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def round_if_real(expression: str) -> str:
+    """
+    Round REAL values in SQL, which is much faster than a Python row factory. This removes float noise,
+    e.g. 0.30000000000000004 -> 0.3. SQLite types are per-value, so check typeof() rather than the column.
+
+    The expression appears more than once, so only use this on plain column references: SQLite flattens
+    subqueries, and a computed column (e.g. a UDF call) would be evaluated multiple times per row.
+    """
+    return (
+        f"CASE WHEN typeof({expression}) = 'real' "
+        f"THEN round({expression}, {EXPORT_FLOAT_DECIMALS}) ELSE {expression} END"
+    )
+
+
 def rounded_row_factory(cursor: sqlite3.Cursor, row: tuple[Any, ...]) -> tuple[Any, ...]:
-    """
-    For each value in row, if it's a Python float, round it to N decimals.
-    Otherwise, leave it alone.
-    Returns a tuple (you could also return a namedtuple or dict if you prefer).
-    """
-    rounded = []
-    for value in row:
-        if isinstance(value, float):
-            # round(..., N) returns a float with N decimals
-            rounded.append(round(value, 12))
-        else:
-            rounded.append(value)
-    return tuple(rounded)
+    # Used for `query:` datasets, whose columns may be computed; see round_if_real.
+    return tuple(round(v, EXPORT_FLOAT_DECIMALS) if isinstance(v, float) else v for v in row)
 
 
 def source_exists(cursor: sqlite3.Cursor, table_name_to_check: str) -> bool:
@@ -80,7 +90,7 @@ def generate_timestamp_to_relative_time_clause(default_order_by: str) -> str:
 
     START_TIME = "created_at"
 
-    clause = f"(unixepoch(T.{default_order_by}) - unixepoch(E.{START_TIME}))/3600.0 as hours_since_experiment_created"
+    clause = f"round((unixepoch(T.{default_order_by}) - unixepoch(E.{START_TIME}))/3600.0, {EXPORT_FLOAT_DECIMALS}) as hours_since_experiment_created"
 
     return clause
 
@@ -446,8 +456,6 @@ def export_experiment_data(
                 "BASE64", 1, decode_base64
             )  # SQLite bundles base64() with its CLI, but not with the library used by Python.
 
-            con.row_factory = rounded_row_factory
-
             cursor = con.cursor()
             cursor.executescript(
                 """
@@ -485,7 +493,7 @@ def export_experiment_data(
                 assert table_or_subquery is not None
 
                 where_clauses: list[str] = []
-                selects = ["T.*"]
+                selects: list[str] = []
 
                 if dataset.timestamp_columns:
                     selects.append(generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns))
@@ -503,6 +511,13 @@ def export_experiment_data(
                         start_time, end_time, dataset.default_order_by, placeholders
                     )
                     where_clauses.append(timespan_clause)
+
+                if dataset.table:
+                    cursor.execute(f"SELECT * FROM ({table_or_subquery}) LIMIT 0", placeholders)
+                    source_columns = [quote_identifier(_[0]) for _ in cursor.description]
+                    selects[:0] = [f"{round_if_real(f'T.{c}')} AS {c}" for c in source_columns]
+                else:
+                    selects.insert(0, "T.*")
 
                 query, placeholders = create_sql_query(
                     selects,
@@ -547,6 +562,7 @@ def export_experiment_data(
                     order_by_cols=order_by_cols,
                     has_experiment=dataset.has_experiment,
                 )
+                cursor.row_factory = None if dataset.table else rounded_row_factory  # type: ignore[assignment]
                 cursor.execute(query, placeholders)
 
                 count = 0

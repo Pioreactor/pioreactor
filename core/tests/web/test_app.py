@@ -1021,6 +1021,55 @@ def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkey
     }
 
 
+def test_time_series_returns_all_rows_at_target_points_and_downsamples_above(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        ("time-series-boundary", "2025-12-31T12:00:00.000Z", ""),
+    )
+
+    # channel 1 has exactly target_points rows; channel 2 has one more.
+    for channel, n_rows in ((1, 4), (2, 5)):
+        for minute in range(n_rows):
+            modify_app_db(
+                """
+                INSERT INTO od_readings (experiment, pioreactor_unit, timestamp, od_reading, angle, channel)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "time-series-boundary",
+                    "unit-a",
+                    f"2025-12-31T23:{minute * 10:02}:00.000Z",
+                    minute + 0.123456789,
+                    90,
+                    channel,
+                ),
+            )
+
+    response = client.get(
+        "/api/experiments/time-series-boundary/time_series/od_readings?lookback=2&target_points=4"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["series"] == ["unit-a-1", "unit-a-2"]
+    assert data["data"][0] == [
+        {"x": f"2025-12-31T23:{minute * 10:02}:00.000Z", "y": round(minute + 0.123456789, 7)}
+        for minute in range(4)
+    ]
+    downsampled = data["data"][1]
+    assert len(downsampled) == 4
+    assert downsampled[0] == {"x": "2025-12-31T23:00:00.000Z", "y": 0.1234568}
+    assert downsampled[-1] == {"x": "2025-12-31T23:40:00.000Z", "y": 4.1234568}
+
+
 def test_time_series_uses_actual_data_duration_and_requested_point_ceiling(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:

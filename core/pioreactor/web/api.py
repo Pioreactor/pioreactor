@@ -189,10 +189,7 @@ def query_time_series_from_database(
     for unit, channel in series:
         channel_filter = "AND channel=?" if partition_by_channel else ""
         channel_args: tuple[t.Any, ...] = (channel,) if partition_by_channel else ()
-        probe_rows = query_app_db(
-            f"""
-            SELECT timestamp,
-                   round({value_column}, ?) AS y
+        series_filter = f"""
             FROM {data_source} INDEXED BY {index}
             WHERE experiment=?
               AND pioreactor_unit=?
@@ -200,25 +197,35 @@ def query_time_series_from_database(
               AND timestamp > ?
               AND timestamp <= ?
             ORDER BY timestamp, rowid
-            LIMIT ?
-            """,
-            (
-                rounding_digits,
-                experiment,
-                unit,
-                *channel_args,
-                cutoff_timestamp,
-                end_timestamp,
-                target_points + 1,
-            ),
-        )
-        assert isinstance(probe_rows, list)
+        """
+        series_args = (experiment, unit, *channel_args, cutoff_timestamp, end_timestamp)
 
-        if not probe_rows:
+        # Count before fetching: most series exceed target_points, and those rows would be discarded.
+        probe = query_app_db(
+            f"""
+            SELECT COUNT(*) AS n, MIN(timestamp) AS first_timestamp
+            FROM (SELECT timestamp {series_filter} LIMIT ?)
+            """,
+            (*series_args, target_points + 1),
+            one=True,
+        )
+        assert isinstance(probe, dict)
+
+        if probe["n"] == 0:
             continue
 
-        if len(probe_rows) <= target_points:
-            rows = probe_rows
+        if probe["n"] <= target_points:
+            all_rows = query_app_db(
+                f"""
+                SELECT timestamp,
+                       round({value_column}, ?) AS y
+                {series_filter}
+                LIMIT ?
+                """,
+                (rounding_digits, *series_args, target_points),
+            )
+            assert isinstance(all_rows, list)
+            rows = all_rows
         else:
             last_row = query_app_db(
                 f"""
@@ -292,12 +299,12 @@ def query_time_series_from_database(
                     ORDER BY unique_chosen.i
                     """,
                     (
-                        probe_rows[0]["timestamp"],
+                        probe["first_timestamp"],
                         target_points,
                         last_row["timestamp"],
-                        probe_rows[0]["timestamp"],
+                        probe["first_timestamp"],
                         last_row["timestamp"],
-                        probe_rows[0]["timestamp"],
+                        probe["first_timestamp"],
                         target_points,
                         target_points,
                         experiment,
