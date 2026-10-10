@@ -1,40 +1,44 @@
 /*
-  Touchscreen display UI. Designed for a 5" landscape panel (800x480 and up)
-  rendered by WPE on a Raspberry Pi, so:
-  - no hover states, tooltips, shadows, blurs, transitions or animations
-  - every target is at least 44px; feedback comes from :active / pressed states
-  - sizes are in rem, and the root size tracks viewport height
-  Colours come from theme/colors.js, applied as --mui-palette-ui-* variables in main.jsx.
+  Per-Pioreactor touchscreen UI (see frontend/KIOSK.md).
+
+  Designed for a 5" 1280x720 panel at 1x, about 290 ppi, rendered by WPE on a
+  Raspberry Pi. One CSS px is about 0.09 mm there, so:
+  - the root size tracks viewport height (30px at 720), and everything is in rem;
+  - touch targets are at least 3.4rem (about 9 mm on the panel);
+  - no hover states, tooltips, shadows, blurs, transitions or animations;
+    feedback comes from :active and explicit pending states.
+  Colours come from theme/colors.js, applied as --ui-* variables by theme.js.
 */
 
 :root {
   --bg: #f6f6f7;
-  --surface: var(--mui-palette-ui-surface);
-  --stripe: var(--mui-palette-ui-stripe);
-  --primary: var(--mui-palette-ui-primary);
+  --surface: var(--ui-surface);
+  --stripe: var(--ui-stripe);
+  --primary: var(--ui-primary);
   --on-primary: #ffffff;
-  --selection: var(--mui-palette-ui-selection);
-  --text: var(--mui-palette-ui-text);
-  --text2: var(--mui-palette-ui-textSecondary);
-  --disabled: var(--mui-palette-ui-disabled);
-  --border: var(--mui-palette-ui-border);
-  --subtle: var(--mui-palette-ui-subtleBackground);
+  --selection: var(--ui-selection);
+  --text: var(--ui-text);
+  --text2: var(--ui-textSecondary);
+  --disabled: var(--ui-disabled);
+  --border: var(--ui-border);
+  --subtle: var(--ui-subtleBackground);
   --pressed: rgba(0, 0, 0, 0.1);
-  --ready: var(--mui-palette-ui-ready);
-  --ready-bg: var(--mui-palette-ui-readyBackground);
-  --off: var(--mui-palette-ui-disconnected);
-  --lost: var(--mui-palette-ui-lost);
-  --lost-bg: var(--mui-palette-ui-lostBackground);
-  --state-bg: var(--mui-palette-ui-stateBackground);
+  --ready: var(--ui-ready);
+  --ready-bg: var(--ui-readyBackground);
+  --off: var(--ui-disconnected);
+  --lost: var(--ui-lost);
+  --lost-bg: var(--ui-lostBackground);
+  --state-bg: var(--ui-stateBackground);
   --danger: #df1a0c;
-  --log-error: var(--mui-palette-ui-logError);
-  --log-warning: var(--mui-palette-ui-logWarning);
-  --log-notice: var(--mui-palette-ui-logNotice);
+  --log-error: var(--ui-logError);
+  --log-warning: var(--ui-logWarning);
+  --log-notice: var(--ui-logNotice);
   --key: #ffffff;
   --key-alt: #d5d6db;
   --keyboard-bg: #e9e9ee;
+  --target: 3.4rem;
 
-  font-size: clamp(14px, 3.34vh, 22px);
+  font-size: clamp(14px, 4.17vh, 34px);
   color-scheme: light;
 }
 
@@ -65,7 +69,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", "Liberation Sans", sans-serif;
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1.3;
   user-select: none;
   -webkit-user-select: none;
@@ -95,6 +99,16 @@ button:disabled {
   cursor: default;
 }
 
+/* Touch and mouse leave no focus ring; a physical keyboard still shows one. */
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 h1,
 h2,
 h3,
@@ -103,16 +117,32 @@ p {
 }
 
 .icon {
-  font-size: 1.35rem;
+  display: inline-flex;
+  width: 1.2em;
+  height: 1.2em;
   flex: none;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .muted {
   color: var(--text2);
 }
 
+.strong {
+  font-weight: 600;
+}
+
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
 }
 
 .truncate {
@@ -120,6 +150,26 @@ p {
   white-space: nowrap;
   text-overflow: ellipsis;
   min-width: 0;
+}
+
+.boot,
+.empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text2);
+}
+
+.boot {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty h1 {
+  font-size: 1.1rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
 }
 
 /* ---------- Shell ---------- */
@@ -130,7 +180,7 @@ p {
 }
 
 .rail {
-  width: 5rem;
+  width: 4.6rem;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -144,15 +194,15 @@ p {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
-  font-size: 0.72rem;
+  gap: 0.15rem;
+  font-size: 0.62rem;
   color: var(--text2);
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
+  border-left: 0.18rem solid transparent;
+  border-right: 0.18rem solid transparent;
 }
 
 .rail-item .icon {
-  font-size: 1.6rem;
+  font-size: 1.35rem;
 }
 
 .rail-item.active {
@@ -174,53 +224,55 @@ p {
 }
 
 .topbar {
-  height: 3.25rem;
+  height: var(--target);
   flex: none;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0 0.5rem 0 0.75rem;
+  gap: 0.6rem;
+  padding: 0 0.75rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
 
 .topbar-title {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   flex: 1;
 }
 
-.topbar .btn.icon-only .icon {
-  font-size: 1.6rem;
-}
-
-.topbar-sub {
-  font-weight: 400;
-  font-size: 0.85rem;
-}
-
-.exp-chip {
+.unit-name {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  height: 2.5rem;
-  max-width: 15rem;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: 11rem;
+  font-weight: 600;
+}
+
+/* The whole bar height is the target; the pill is drawn inside it. */
+.exp-chip {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  max-width: 14rem;
+  min-width: 0;
   flex: none;
-  padding: 0 0.7rem;
+}
+
+.exp-chip .pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0 0.8rem;
   border: 1px solid var(--border);
-  border-radius: 1.2rem;
-  font-size: 0.85rem;
+  border-radius: 1.25rem;
+  font-size: 0.8rem;
 }
 
-.exp-chip:active {
+.exp-chip:active .pill {
   background: var(--pressed);
-}
-
-.clock {
-  font-size: 0.85rem;
-  color: var(--text2);
-  min-width: 3rem;
-  text-align: right;
 }
 
 .content {
@@ -243,18 +295,11 @@ p {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.6rem;
-  min-height: 2.75rem;
-}
-
-.toolbar h1 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  flex: 1;
-  min-width: 0;
+  flex: none;
 }
 
 .section-title {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text2);
   margin: 0.8rem 0 0.4rem;
@@ -274,18 +319,8 @@ p {
   border-radius: 0.4rem;
   background: var(--lost-bg);
   color: var(--text);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   margin-bottom: 0.6rem;
-}
-
-.empty {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--text2);
-}
-
-.empty .btn {
-  margin-top: 1rem;
 }
 
 /* ---------- Buttons ---------- */
@@ -295,14 +330,14 @@ p {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  min-height: 2.75rem;
-  min-width: 2.75rem;
+  min-height: var(--target);
+  min-width: var(--target);
   padding: 0 0.9rem;
   border-radius: 0.4rem;
   border: 1px solid var(--border);
   background: var(--surface);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   white-space: nowrap;
 }
 
@@ -348,13 +383,7 @@ p {
 
 .btn.icon-only {
   padding: 0;
-  width: 2.75rem;
-}
-
-.btn.small {
-  min-height: 2.5rem;
-  padding: 0 0.7rem;
-  font-size: 0.85rem;
+  width: var(--target);
 }
 
 .btn.block {
@@ -367,25 +396,39 @@ p {
 
 .btn-row {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-/* ---------- Segmented controls ---------- */
+.btn-row.end {
+  justify-content: flex-end;
+}
+
+.btn-row.center {
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.spaced {
+  margin-top: 0.75rem;
+}
+
+/* ---------- Segmented controls and chips ---------- */
 
 .segmented {
   display: flex;
-  gap: 0;
   border: 1px solid var(--border);
   border-radius: 0.4rem;
   overflow: hidden;
   flex: none;
+  background: var(--surface);
 }
 
 .segmented button {
-  min-height: 2.5rem;
+  min-height: var(--target);
   padding: 0 0.8rem;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   border-left: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -408,7 +451,6 @@ p {
   display: flex;
   gap: 0.4rem;
   overflow-x: auto;
-  flex: none;
   padding-bottom: 0.1rem;
   scrollbar-width: none;
 }
@@ -417,14 +459,19 @@ p {
   display: none;
 }
 
+.chips.wrap {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
 .chip {
   flex: none;
-  min-height: 2.5rem;
+  min-height: var(--target);
   padding: 0 0.85rem;
-  border-radius: 1.25rem;
+  border-radius: 1.7rem;
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 
@@ -439,42 +486,16 @@ p {
   background: var(--pressed);
 }
 
-.tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  margin: 0 -0.75rem 0.6rem;
-  padding: 0 0.75rem;
-  flex: none;
-}
-
-.tabs button {
-  min-height: 2.75rem;
-  padding: 0 1rem;
-  font-size: 0.9rem;
-  color: var(--text2);
-  border-bottom: 3px solid transparent;
-}
-
-.tabs button.on {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-  font-weight: 600;
-}
-
-.tabs button:active {
-  background: var(--pressed);
-}
-
-/* ---------- Status ---------- */
+/* ---------- Status badges ---------- */
 
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  height: 1.5rem;
+  height: 1.4rem;
   padding: 0 0.5rem;
-  border-radius: 0.75rem;
-  font-size: 0.75rem;
+  border-radius: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
   background: var(--state-bg);
   color: var(--off);
@@ -482,13 +503,6 @@ p {
   flex: none;
 }
 
-.badge::before {
-  content: "";
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: currentColor;
-}
 
 .badge.ready,
 .badge.init {
@@ -502,23 +516,7 @@ p {
 }
 
 .badge.pending {
-  color: var(--primary);
-}
-
-.dot {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 50%;
-  background: var(--off);
-  flex: none;
-}
-
-.dot.ok {
-  background: var(--ready);
-}
-
-.dot.bad {
-  background: var(--lost);
+  color: var(--off);
 }
 
 /* ---------- Cards and lists ---------- */
@@ -527,6 +525,21 @@ p {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card h3 {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.card h3 .badge {
+  margin-left: auto;
 }
 
 .list {
@@ -540,7 +553,7 @@ p {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  min-height: 3.25rem;
+  min-height: var(--target);
   padding: 0.4rem 0.6rem 0.4rem 0.75rem;
   border-top: 1px solid var(--border);
   width: 100%;
@@ -551,129 +564,31 @@ p {
   border-top: 0;
 }
 
-button.list-row:active {
-  background: var(--pressed);
-}
-
-.list-row .grow {
-  flex: 1;
-  min-width: 0;
-}
-
-.list-row .sub {
-  font-size: 0.8rem;
+.sub {
+  font-size: 0.72rem;
   color: var(--text2);
 }
 
-.list-row.selected {
-  background: var(--selection);
-}
-
-/* ---------- Overview tiles ---------- */
-
-.tiles {
+.grid-2,
+.grid-3,
+.grid-4 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
   gap: 0.6rem;
 }
 
-.tile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.6rem 0.7rem;
-  text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 5px solid var(--unit-color, var(--border));
-  border-radius: 0.5rem;
-  min-height: 8.5rem;
-  contain: content;
+.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
 }
 
-.tile:active {
-  background: var(--pressed);
+.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
 }
 
-.tile.inactive {
-  opacity: 0.55;
+.grid-4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
-.tile.lost {
-  border-color: var(--lost);
-  border-left-color: var(--lost);
-}
-
-.tile-head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.tile-name {
-  font-weight: 700;
-  font-size: 1.05rem;
-  flex: 1;
-}
-
-.tile-name .muted {
-  font-weight: 400;
-  font-size: 0.8rem;
-  margin-left: 0.3rem;
-}
-
-.metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.25rem 0.6rem;
-}
-
-.metric-label {
-  font-size: 0.7rem;
-  color: var(--text2);
-}
-
-.metric-value {
-  font-size: 1.05rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.metric-value small {
-  font-size: 0.7rem;
-  font-weight: 400;
-  color: var(--text2);
-  margin-left: 0.15rem;
-}
-
-.job-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: auto;
-}
-
-.job-pill {
-  font-size: 0.68rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 0.3rem;
-  background: var(--state-bg);
-  color: var(--text2);
-}
-
-.job-pill.ready,
-.job-pill.init {
-  background: var(--ready-bg);
-  color: var(--ready);
-  font-weight: 600;
-}
-
-.job-pill.sleeping {
-  outline: 1px dashed var(--off);
-}
-
-/* ---------- Unit activities ---------- */
+/* ---------- Activities ---------- */
 
 .job-row {
   display: flex;
@@ -681,7 +596,8 @@ button.list-row:active {
   gap: 0.6rem;
   padding: 0.45rem 0.6rem 0.45rem 0.75rem;
   border-top: 1px solid var(--border);
-  min-height: 3.75rem;
+  min-height: 4rem;
+  contain: content;
 }
 
 .job-row:first-child {
@@ -689,7 +605,7 @@ button.list-row:active {
 }
 
 .job-name {
-  width: 9.5rem;
+  width: 9rem;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -698,12 +614,8 @@ button.list-row:active {
 }
 
 .job-name strong {
-  font-size: 0.95rem;
-}
-
-.job-name .sub {
-  font-size: 0.75rem;
-  color: var(--text2);
+  font-size: 0.9rem;
+  max-width: 100%;
 }
 
 .job-settings {
@@ -720,12 +632,12 @@ button.list-row:active {
   flex: none;
 }
 
-/* A read-only value or a tappable field that opens the keyboard. */
+/* A read-only value, or a tappable field that opens the keyboard. */
 .field {
   display: inline-flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 2.75rem;
+  min-height: var(--target);
   padding: 0.15rem 0.6rem;
   border-radius: 0.4rem;
   background: var(--subtle);
@@ -734,14 +646,17 @@ button.list-row:active {
   max-width: 100%;
 }
 
-.field .field-label {
-  font-size: 0.68rem;
+.field .field-label,
+.field-label {
+  font-size: 0.65rem;
   color: var(--text2);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .field .field-value {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   display: flex;
@@ -754,7 +669,7 @@ button.list-row:active {
 
 .field .field-value small {
   font-weight: 400;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text2);
 }
 
@@ -764,7 +679,7 @@ button.field {
 }
 
 button.field .field-value .edit {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   margin-left: auto;
   padding-left: 0.2rem;
   color: var(--primary);
@@ -789,44 +704,6 @@ button.field:disabled .field-value .edit {
 .placeholder {
   color: var(--disabled);
   font-weight: 400;
-}
-
-/* ---------- Dosing / LEDs ---------- */
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
-}
-
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.6rem;
-}
-
-.grid-4 {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.6rem;
-}
-
-.action-card {
-  padding: 0.6rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.action-card h3 {
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.action-card h3 .badge {
-  margin-left: auto;
 }
 
 /* ---------- Charts ---------- */
@@ -859,12 +736,24 @@ button.field:disabled .field-value .edit {
   pointer-events: none;
 }
 
+.chart-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  flex: none;
+}
+
+.chart-foot .muted {
+  flex: 1;
+  min-width: 0;
+}
+
 .legend {
   display: flex;
   gap: 0.3rem;
   overflow-x: auto;
-  flex: none;
-  margin-top: 0.45rem;
   scrollbar-width: none;
 }
 
@@ -877,16 +766,16 @@ button.field:disabled .field-value .edit {
   align-items: center;
   gap: 0.35rem;
   flex: none;
-  min-height: 2.5rem;
+  min-height: 2.6rem;
   padding: 0 0.6rem;
   border-radius: 0.4rem;
   border: 1px solid var(--border);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
 .legend button i {
-  width: 0.8rem;
-  height: 0.8rem;
+  width: 0.7rem;
+  height: 0.7rem;
   border-radius: 0.2rem;
 }
 
@@ -907,14 +796,14 @@ button.field:disabled .field-value .edit {
 
 .log-row {
   display: grid;
-  grid-template-columns: 4.4rem 6.5rem 1fr;
+  grid-template-columns: 4.2rem 6rem 1fr;
   gap: 0.5rem;
   padding: 0.45rem 0.6rem;
   border-top: 1px solid var(--border);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   text-align: left;
   width: 100%;
-  border-left: 5px solid transparent;
+  border-left: 0.2rem solid transparent;
 }
 
 .log-row:first-child {
@@ -943,8 +832,6 @@ button.field:disabled .field-value .edit {
 }
 
 .log-row .task {
-  display: block;
-  font-size: 0.72rem;
   color: var(--text2);
 }
 
@@ -972,7 +859,7 @@ button.field:disabled .field-value .edit {
 
 .sheet {
   margin-left: auto;
-  width: min(38rem, 100%);
+  width: min(32rem, 100%);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -984,15 +871,15 @@ button.field:disabled .field-value .edit {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 3.25rem;
-  padding: 0 0.4rem 0 0.9rem;
+  min-height: var(--target);
+  padding: 0 0 0 0.9rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
 .sheet-head h2 {
   flex: 1;
-  font-size: 1.05rem;
+  font-size: 1rem;
   min-width: 0;
 }
 
@@ -1002,10 +889,21 @@ button.field:disabled .field-value .edit {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Scrolling flex columns: children keep their size and the column scrolls,
+   instead of children (like an overflow: hidden .list) shrinking to fit. */
+.sheet-body > *,
+.session-main > * {
+  flex: none;
 }
 
 .sheet-foot {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   justify-content: flex-end;
   padding: 0.5rem 0.9rem;
@@ -1015,7 +913,7 @@ button.field:disabled .field-value .edit {
 
 .dialog {
   margin: auto;
-  width: min(30rem, calc(100% - 2rem));
+  width: min(28rem, calc(100% - 2rem));
   background: var(--surface);
   border-radius: 0.6rem;
   padding: 1rem 1rem 0.75rem;
@@ -1025,16 +923,15 @@ button.field:disabled .field-value .edit {
 }
 
 .dialog h2 {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .dialog p {
   color: var(--text2);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .dialog .btn-row {
-  justify-content: flex-end;
   margin-top: 0.4rem;
 }
 
@@ -1045,14 +942,13 @@ button.field:disabled .field-value .edit {
   bottom: 0.75rem;
   transform: translateX(-50%);
   max-width: calc(100% - 2rem);
-  padding: 0.7rem 1rem;
+  min-height: var(--target);
+  padding: 0.6rem 1rem;
   border-radius: 0.5rem;
   background: #2b2a33;
   color: #fff;
-  font-size: 0.9rem;
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
+  font-size: 0.85rem;
+  text-align: left;
 }
 
 .toast.error {
@@ -1070,13 +966,13 @@ button.field:disabled .field-value .edit {
 }
 
 .description {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text2);
 }
 
 .error-text {
   color: var(--danger);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 /* ---------- Keyboard ---------- */
@@ -1094,7 +990,7 @@ button.field:disabled .field-value .edit {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.4rem 0.5rem;
+  padding: 0.35rem 0.5rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex: none;
@@ -1105,20 +1001,20 @@ button.field:disabled .field-value .edit {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 0.15rem 0.5rem;
+  padding: 0.1rem 0.5rem;
   border-radius: 0.4rem;
   border: 2px solid var(--primary);
-  min-height: 3.1rem;
+  min-height: var(--target);
   justify-content: center;
 }
 
 .kb-label {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   color: var(--text2);
 }
 
 .kb-text {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   white-space: pre;
   overflow: hidden;
   display: flex;
@@ -1126,25 +1022,29 @@ button.field:disabled .field-value .edit {
   font-variant-numeric: tabular-nums;
 }
 
+.kb-text .selected {
+  background: var(--selection);
+}
+
 .kb-text .unit {
   color: var(--text2);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   margin-left: 0.4rem;
 }
 
 .caret {
   display: inline-block;
   width: 2px;
-  height: 1.3rem;
+  height: 1.2rem;
   margin: 0 -1px;
   background: var(--primary);
 }
 
 .kb-message {
   color: var(--text2);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   padding: 0.2rem 0.75rem 0;
-  min-height: 1.2rem;
+  min-height: 1.15rem;
   flex: none;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1161,15 +1061,15 @@ button.field:disabled .field-value .edit {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.35rem;
+  gap: 0.3rem;
+  padding: 0.3rem;
   min-height: 0;
 }
 
 .kb-row {
   flex: 1;
   display: flex;
-  gap: 0.35rem;
+  gap: 0.3rem;
   min-height: 0;
 }
 
@@ -1181,27 +1081,28 @@ button.field:disabled .field-value .edit {
   justify-content: center;
   border-radius: 0.4rem;
   background: var(--key);
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   border-bottom: 2px solid var(--key-alt);
 }
 
 .key.alt {
   background: var(--key-alt);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+}
+
+.key.blank {
+  background: transparent;
+  border: 0;
 }
 
 .key.primary {
   background: var(--primary);
   color: var(--on-primary);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
-.key.on {
-  background: var(--primary);
-  color: var(--on-primary);
-}
-
+.key.on,
 .key.down,
 .key:active {
   background: var(--primary);
@@ -1210,10 +1111,6 @@ button.field:disabled .field-value .edit {
 
 .key.w15 {
   flex-grow: 1.5;
-}
-
-.key.w2 {
-  flex-grow: 2;
 }
 
 .key.w5 {
@@ -1226,13 +1123,13 @@ button.field:disabled .field-value .edit {
   display: grid;
   grid-template-columns: repeat(3, 1fr) 1.3fr;
   grid-template-rows: repeat(4, 1fr);
-  gap: 0.35rem;
-  padding: 0.35rem;
+  gap: 0.3rem;
+  padding: 0.3rem;
   min-height: 0;
 }
 
 .kb-numpad .key {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
 }
 
 .kb-numpad .key.span2 {
@@ -1241,24 +1138,276 @@ button.field:disabled .field-value .edit {
 
 .presets {
   display: flex;
-  gap: 0.35rem;
-  padding: 0.35rem 0.35rem 0;
+  gap: 0.3rem;
+  padding: 0.3rem 0.3rem 0;
   flex: none;
 }
 
 .presets .key {
-  min-height: 2.5rem;
+  min-height: 2.6rem;
+  font-size: 0.85rem;
+}
+
+/* ---------- Calibrations ---------- */
+
+.split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.device-list {
+  width: 12rem;
+  flex: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.device {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--target);
+  padding: 0.35rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  border-left: 0.18rem solid transparent;
+}
+
+.device.on {
+  background: var(--selection);
+  border-left-color: var(--primary);
+  color: var(--primary);
+}
+
+.device:active {
+  background: var(--pressed);
+}
+
+.protocols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.protocol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-height: var(--target);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.protocol .sub {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.protocol:active {
+  background: var(--pressed);
+}
+
+.list-row .icon {
+  color: var(--text2);
+}
+
+button.list-row:active {
+  background: var(--pressed);
+}
+
+.requirements {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+}
+
+.sheet-chart {
+  height: 12rem;
+}
+
+.xy-chart {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.3rem;
+}
+
+.xy-chart figcaption {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.xy-chart canvas {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.xy-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  font-size: 0.68rem;
+  color: var(--text2);
+}
+
+.xy-legend i {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 0.15rem;
+  margin-right: 0.25rem;
+}
+
+/* A running session takes the whole screen, under dialogs and the keyboard. */
+.session {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.session-head,
+.session-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.35rem 0.75rem;
+  background: var(--surface);
+}
+
+.session-head {
+  min-height: calc(var(--target) + 0.7rem);
+  border-bottom: 1px solid var(--border);
+}
+
+.session-head h2 {
+  font-size: 1rem;
+}
+
+.session-foot {
+  border-top: 1px solid var(--border);
+}
+
+.session-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.session-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.session-main h3 {
   font-size: 0.95rem;
 }
 
-.rail-status {
+.session-chart {
+  width: 45%;
   flex: none;
-  height: 2.5rem;
+}
+
+.step-body {
+  white-space: pre-line;
+  font-size: 0.85rem;
+}
+
+.busy-note,
+.done-note,
+.guidance {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.busy-note {
+  background: var(--selection);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.done-note {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  font-size: 0.75rem;
+  gap: 0.4rem;
+  background: var(--ready-bg);
+  color: var(--ready);
+  font-weight: 600;
+}
+
+.guidance {
+  background: var(--subtle);
+}
+
+.guidance p {
   color: var(--text2);
-  border-top: 1px solid var(--border);
+}
+
+.step-image {
+  margin: 0;
+  background: var(--subtle);
+  border-radius: 0.4rem;
+  text-align: center;
+}
+
+.step-image img {
+  display: block;
+  width: 100%;
+  max-height: 8rem;
+  object-fit: contain;
+}
+
+.data-table {
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.25rem 0.75rem 0.25rem 0;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  text-align: left;
+}
+
+.data-table th {
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.float-list .chip .icon {
+  vertical-align: middle;
 }

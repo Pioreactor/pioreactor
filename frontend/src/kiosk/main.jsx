@@ -1,9 +1,11 @@
 import { createRoot } from "react-dom/client";
-import { SnackbarProvider } from "notistack";
+import { KioskProvider } from "./context";
+import KioskErrorBoundary from "./ErrorBoundary";
+import { KeyboardProvider } from "./Keyboard";
+import KioskApp from "./KioskApp";
 import { applyTheme, readTheme } from "./theme";
-import DisplayApp from "./DisplayApp";
-import DisplayErrorBoundary from "./ErrorBoundary";
-import "./display.css";
+import { ConfirmProvider, ToastProvider } from "./ui";
+import "./kiosk.css";
 
 applyTheme(readTheme());
 
@@ -19,9 +21,15 @@ document.addEventListener("touchstart", () => {}, { passive: true });
 document.addEventListener("contextmenu", (event) => event.preventDefault());
 
 createRoot(document.getElementById("root")).render(
-  <SnackbarProvider maxSnack={2} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-    <DisplayErrorBoundary>
-      <DisplayApp />
-    </DisplayErrorBoundary>
-  </SnackbarProvider>,
+  <KioskErrorBoundary>
+    <ToastProvider>
+      <ConfirmProvider>
+        <KeyboardProvider>
+          <KioskProvider>
+            <KioskApp />
+          </KioskProvider>
+        </KeyboardProvider>
+      </ConfirmProvider>
+    </ToastProvider>
+  </KioskErrorBoundary>,
 );

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { getAutomationDescriptors, runPioreactorJob } from "../../utils/jobs";
-import { AsyncButton, Icon, ReadValue, Sheet, useToast } from "../ui";
+import { Icon } from "../icons";
 import { EditField } from "../Keyboard";
+import { getAutomationDescriptors, useJobControl } from "../jobs";
+import { AsyncButton, Empty, ReadValue, Sheet, useToast } from "../ui";
 
 // Same preferred defaults as the main UI's automation dialog.
 const DEFAULT_AUTOMATIONS = { temperature: "thermostat", dosing: "chemostat", led: "light_dark_cycle" };
@@ -13,7 +14,7 @@ function defaultsFor(automation) {
 
 function missingRequired(automation, settings) {
   return (automation?.fields || []).filter(
-    (field) => field.required && !field.disabled && (settings[field.key] === null || settings[field.key] === undefined || settings[field.key] === ""),
+    (field) => field.required && !field.disabled && [null, undefined, ""].includes(settings[field.key]),
   );
 }
 
@@ -23,7 +24,7 @@ function FieldInput({ field, value, onChange }) {
   }
   if (field.type === "boolean") {
     return (
-      <button className={`btn block ${value ? "primary" : ""}`} onClick={() => onChange(!value)}>
+      <button type="button" className={`btn block ${value ? "primary" : ""}`} onClick={() => onChange(!value)}>
         {value ? <Icon name="check" /> : null}
         {field.label}: {value ? "on" : "off"}
       </button>
@@ -32,10 +33,10 @@ function FieldInput({ field, value, onChange }) {
   if (field.type === "select") {
     return (
       <div>
-        <div className="field-label muted">{field.label}</div>
-        <div className="chips" style={{ flexWrap: "wrap" }}>
+        <div className="field-label">{field.label}</div>
+        <div className="chips wrap">
           {(field.options || []).map((option) => (
-            <button key={option} className={`chip ${option === value ? "on" : ""}`} onClick={() => onChange(option)}>
+            <button type="button" key={option} className={`chip ${option === value ? "on" : ""}`} onClick={() => onChange(option)}>
               {option}
             </button>
           ))}
@@ -57,15 +58,16 @@ function FieldInput({ field, value, onChange }) {
   );
 }
 
-export default function AutomationSheet({ unit, experiment, automationType, onClose, onStarted }) {
+export default function AutomationSheet({ automationType, onClose, onStarted }) {
   const toast = useToast();
+  const control = useJobControl();
   const [automations, setAutomations] = useState(null);
   const [selected, setSelected] = useState(null);
   const [settings, setSettings] = useState({});
 
   useEffect(() => {
     let ignore = false;
-    getAutomationDescriptors(unit, automationType)
+    getAutomationDescriptors(automationType)
       .then((list) => {
         if (ignore) return;
         setAutomations(list);
@@ -79,7 +81,7 @@ export default function AutomationSheet({ unit, experiment, automationType, onCl
     return () => {
       ignore = true;
     };
-  }, [unit, automationType, toast]);
+  }, [automationType, toast]);
 
   const automation = automations?.find((a) => a.automation_name === selected);
   const missing = missingRequired(automation, settings);
@@ -91,7 +93,7 @@ export default function AutomationSheet({ unit, experiment, automationType, onCl
 
   const start = async () => {
     const options = Object.fromEntries(Object.entries(settings).filter(([, value]) => value !== null && value !== undefined));
-    await runPioreactorJob(unit, experiment, `${automationType}_automation`, [], { automation_name: selected, ...options });
+    await control.run(`${automationType}_automation`, { options: { automation_name: selected, ...options } });
     toast(`Starting ${automation.display_name}...`);
     onStarted();
   };
@@ -102,8 +104,8 @@ export default function AutomationSheet({ unit, experiment, automationType, onCl
       onClose={onClose}
       footer={
         <>
-          {missing.length > 0 && <span className="error-text" style={{ marginRight: "auto", alignSelf: "center" }}>Set {missing.map((f) => f.label).join(", ")}</span>}
-          <button className="btn" onClick={onClose}>
+          {missing.length > 0 && <span className="error-text grow">Set {missing.map((f) => f.label).join(", ")}</span>}
+          <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
           <AsyncButton className="btn primary" onClick={start} disabled={!automation || missing.length > 0}>
@@ -113,12 +115,13 @@ export default function AutomationSheet({ unit, experiment, automationType, onCl
         </>
       }
     >
-      {!automations && <div className="empty">Loading...</div>}
+      {!automations && <Empty>Loading...</Empty>}
       {automations && (
         <div className="form-grid">
-          <div className="chips" style={{ flexWrap: "wrap" }}>
+          <div className="chips wrap">
             {automations.map((candidate) => (
               <button
+                type="button"
                 key={candidate.automation_name}
                 className={`chip ${candidate.automation_name === selected ? "on" : ""}`}
                 onClick={() => choose(candidate)}

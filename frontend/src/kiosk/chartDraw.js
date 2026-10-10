@@ -1,5 +1,3 @@
-import { lighten } from "@mui/material/styles";
-
 // Canvas line chart. Canvas keeps redraw cost flat no matter how many points
 // there are, which matters far more on a Pi + WPE than SVG chart libraries do.
 
@@ -14,7 +12,7 @@ function niceStep(range, target) {
   return nice * power;
 }
 
-function ticks(min, max, target) {
+export function ticks(min, max, target) {
   if (!(max > min)) return [min];
   const step = niceStep(max - min, target);
   const result = [];
@@ -60,8 +58,10 @@ function formatX(ms, mode, startMs, spanMs, precise = false) {
     const hm = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     return spanMs > 36 * 3600000 ? `${date.getMonth() + 1}/${date.getDate()} ${hm}` : hm;
   }
+  // Precision follows the visible span, so short windows (like "Now") get distinct ticks.
   const hours = (ms - startMs) / 3600000;
-  return `${Number(hours.toFixed(Math.abs(hours) < 10 && spanMs < 6 * 3600000 ? 1 : 0))}h`;
+  const decimals = spanMs < 3600000 ? 2 : spanMs < 6 * 3600000 ? 1 : 0;
+  return `${Number(hours.toFixed(decimals))}h`;
 }
 
 function formatY(value, decimals) {
@@ -228,6 +228,18 @@ export function drawChart(canvas, options) {
   return xValue;
 }
 
+// MUI's lighten() for #rrggbb colours, without importing MUI.
+function lighten(hex, amount) {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return hex;
+  const value = parseInt(match[1], 16);
+  const channel = (shift) => {
+    const c = (value >> shift) & 255;
+    return Math.round(c + (255 - c) * amount);
+  };
+  return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`;
+}
+
 const liftedColors = new Map();
 
 // Same rule as the main UI's chart theme: keep hue, lift dark lines off a dark canvas.
@@ -241,11 +253,11 @@ export function readChartTheme(element) {
   const style = getComputedStyle(element);
   const read = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
   return {
-    text: read("--mui-palette-ui-text", "#222"),
-    text2: read("--mui-palette-ui-textSecondary", "#666"),
-    grid: read("--mui-palette-ui-subtleBackground", "#eee"),
-    axis: read("--mui-palette-ui-border", "#ccc"),
-    surface: read("--mui-palette-ui-surface", "#fff"),
+    text: read("--ui-text", "#222"),
+    text2: read("--ui-textSecondary", "#666"),
+    grid: read("--ui-subtleBackground", "#eee"),
+    axis: read("--ui-border", "#ccc"),
+    surface: read("--ui-surface", "#fff"),
     font: style.fontFamily || "sans-serif",
     series: seriesColor,
     scale: (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16,

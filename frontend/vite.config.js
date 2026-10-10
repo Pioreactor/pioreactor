@@ -34,15 +34,34 @@ function serveStaticPublicAssetsFromProductionPath() {
   };
 }
 
+// The touchscreen UI lives under /k/ (see KIOSK.md). In development, serve its own
+// HTML entry for those paths, so the kiosk never loads the main app's bundle.
+function serveKioskEntryUnderK() {
+  return {
+    name: "serve-kiosk-entry-under-k",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = req.url?.split("?")[0];
+        if (path === "/k" || path?.startsWith("/k/")) {
+          req.url = "/kiosk.html";
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/static/" : "/",
   plugins: [
     serveStaticPublicAssetsFromProductionPath(),
+    serveKioskEntryUnderK(),
     transformJsFilesWithJsx(),
     react({ include: /\.(js|jsx|ts|tsx)$/ }),
   ],
   optimizeDeps: {
-    entries: ["index.html", "display.html"],
+    entries: ["index.html", "kiosk.html"],
     esbuildOptions: {
       loader: {
         ".js": "jsx",
@@ -61,10 +80,10 @@ export default defineConfig(({ command }) => ({
     assetsDir: "static",
     outDir: "build",
     rollupOptions: {
-      // display.html is the lean touchscreen UI used by the leader's attached display.
+      // kiosk.html is the lean touchscreen UI each Pioreactor serves under /k/.
       input: {
         main: "index.html",
-        display: "display.html",
+        kiosk: "kiosk.html",
       },
       onwarn(warning, defaultHandler) {
         const source = warning.id?.replaceAll("\\", "/");

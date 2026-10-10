@@ -1,34 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDisplay } from "../context";
-import { useTopicStream } from "../hooks";
-import { Segmented } from "../ui";
+import { enc, leaderApi } from "../api";
+import { useKiosk } from "../context";
+import { useAsync, useTopicStream } from "../hooks";
 import { computeDomain, drawChart, readChartTheme, seriesColor } from "../chartDraw";
-import useExperimentChartPreferences from "../../hooks/useExperimentChartPreferences";
-import { experimentPathSegment } from "../../utils/url";
+import { Empty, Segmented } from "../ui";
+import { colors } from "../../utils/color";
 
+// History comes from the leader's database once, when the chart opens; after
+// that the chart follows live MQTT. It never polls.
 const TARGET_POINTS = 600;
 const LIVE_REDRAW_MS = 2000;
+const HIDDEN_REDRAW_MS = 60000;
 const CURSOR_CLEAR_MS = 6000;
 const PARTITIONED_CHARTS = new Set(["raw_optical_density", "optical_density"]);
-const CHART_KEY_STORAGE = "pioreactor-display-chart";
+const CHART_KEY_STORAGE = "pioreactor-kiosk-chart";
+const WINDOW_STORAGE = "pioreactor-kiosk-chart-window";
+// Lookback in hours, as in the main UI's Overview. "Now" (0) loads no history and
+// shows only points that arrive while the chart is open.
+const ALL_TIME = 1000000;
 const WINDOWS = [
-  { value: "default", label: "Default" },
-  { value: 6, label: "6 h" },
+  { value: ALL_TIME, label: "All" },
   { value: 24, label: "24 h" },
-  { value: "all", label: "All" },
+  { value: 6, label: "6 h" },
+  { value: 0, label: "Now" },
 ];
-
-// Chart descriptors carry small JavaScript expressions; evaluate them like the main UI does.
-function evaluateLookback(expression, config) {
-  if (typeof expression === "number") return expression;
-  try {
-    // eslint-disable-next-line no-new-func
-    const value = new Function("config", `return (${expression});`)(config);
-    return Number.isFinite(value) && value >= 0 ? value : 100000;
-  } catch (_error) {
-    return 100000;
-  }
-}
 
 function evaluateTransformation(expression) {
   try {
@@ -46,81 +41,111 @@ function parseUtc(timestamp) {
 }
 
 const toArray = (value) => (Array.isArray(value) ? value : [value]);
+const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true });
 
-function readStoredChartKey() {
+function readStored(key) {
   try {
-    return window.localStorage.getItem(CHART_KEY_STORAGE);
+    return window.localStorage.getItem(key);
   } catch (_error) {
     return null;
   }
 }
 
-export default function ChartView({ unit = null }) {
-  const { config, experiment, experimentMetadata, labelFor, unitColor } = useDisplay();
-  const preferences = useExperimentChartPreferences({
-    chartPage: unit ? "pioreactor" : "overview",
-    config,
-    configReady: true,
-    experiment,
-  });
-  const charts = useMemo(() => {
-    const byKey = new Map(preferences.descriptors.map((descriptor) => [descriptor.chart_key, descriptor]));
-    const keys = preferences.selectedChartKeys.length ? preferences.selectedChartKeys : [...byKey.keys()];
-    return keys.map((key) => byKey.get(key)).filter(Boolean);
-  }, [preferences.descriptors, preferences.selectedChartKeys]);
+function store(key, value) {
+  try {
+    window.localStorage.setItem(key, String(value));
+  } catch (_error) {
+    // not critical
+  }
+}
 
-  const [chartKey, setChartKey] = useState(readStoredChartKey);
-  const [windowChoice, setWindowChoice] = useState("default");
+// Defaults to all time, like the main UI.
+function readStoredWindow() {
+  const raw = readStored(WINDOW_STORAGE);
+  const hours = Number(raw);
+  return raw !== null && WINDOWS.some((option) => option.value === hours) ? hours : ALL_TIME;
+}
+
+// Same selection rules as the main UI's Pioreactor page.
+function selectCharts(descriptors, preferences, config) {
+  const available = new Map(descriptors.map((descriptor) => [descriptor.chart_key, descriptor]));
+  const stored = preferences?.pioreactor_chart_keys ?? null;
+  const defaults = Object.entries(config["ui.overview.charts"] || {})
+    .filter(([, enabled]) => enabled === "1")
+    .map(([key]) => key);
+  const keys = (stored ?? defaults).filter((key) => available.has(key));
+  return (keys.length ? keys : [...available.keys()]).map((key) => available.get(key));
+}
+
+export default function Charts() {
+  const { config, experiment, experimentMetadata } = useKiosk();
+  const resource = useAsync(
+    experiment
+      ? (signal) =>
+          Promise.all([
+            leaderApi("/charts/descriptors", { signal }),
+            leaderApi(`/experiments/${enc(experiment)}/chart_preferences`, { signal }).catch(() => null),
+          ])
+      : null,
+    [experiment],
+  );
+  const charts = useMemo(
+    () => (resource.data ? selectCharts(resource.data[0], resource.data[1], config) : []),
+    [resource.data, config],
+  );
+
+  const [chartKey, setChartKey] = useState(() => readStored(CHART_KEY_STORAGE));
+  const [lookbackHours, setLookbackHours] = useState(readStoredWindow);
   const chart = charts.find((candidate) => candidate.chart_key === chartKey) || charts[0];
 
-  const chooseChart = (key) => {
-    setChartKey(key);
-    try {
-      window.localStorage.setItem(CHART_KEY_STORAGE, key);
-    } catch (_error) {
-      // not critical
-    }
-  };
+  if (!experiment) return <Empty>Join an experiment to see charts.</Empty>;
 
   return (
-    <>
-      <div className="toolbar" style={{ marginBottom: "0.5rem" }}>
-        <div className="chips" style={{ flex: 1, minWidth: 0 }}>
+    <div className="content fill">
+      <div className="toolbar">
+        <div className="chips grow">
           {charts.map((candidate) => (
             <button
+              type="button"
               key={candidate.chart_key}
               className={`chip ${candidate === chart ? "on" : ""}`}
-              onClick={() => chooseChart(candidate.chart_key)}
+              onClick={() => {
+                setChartKey(candidate.chart_key);
+                store(CHART_KEY_STORAGE, candidate.chart_key);
+              }}
             >
               {candidate.title}
             </button>
           ))}
         </div>
-        <Segmented options={WINDOWS} value={windowChoice} onChange={setWindowChoice} />
+        <Segmented
+          label="Time window"
+          options={WINDOWS}
+          value={lookbackHours}
+          onChange={(value) => {
+            setLookbackHours(value);
+            store(WINDOW_STORAGE, value);
+          }}
+        />
       </div>
-      {preferences.isLoading && !chart && <div className="empty">Loading charts...</div>}
-      {preferences.error && <div className="empty">{preferences.error}</div>}
-      {!preferences.isLoading && !chart && !preferences.error && <div className="empty">No charts available.</div>}
-      {chart && experiment && (
+      {resource.loading && !chart && <Empty>Loading charts...</Empty>}
+      {resource.error && <Empty>Could not load charts from the leader: {resource.error}</Empty>}
+      {!resource.loading && !resource.error && !chart && <Empty>No charts available.</Empty>}
+      {chart && (
         <CanvasChart
-          key={`${chart.chart_key}-${experiment}-${unit}-${windowChoice}`}
+          key={`${chart.chart_key}-${experiment}-${lookbackHours}`}
           chart={chart}
-          unit={unit}
           experiment={experiment}
           startMs={parseUtc(experimentMetadata?.created_at || new Date().toISOString())}
-          lookbackHours={
-            windowChoice === "default" ? evaluateLookback(chart.lookback, config) : windowChoice === "all" ? 1000000 : windowChoice
-          }
-          config={config}
-          labelFor={labelFor}
-          unitColor={unitColor}
+          lookbackHours={lookbackHours}
         />
       )}
-    </>
+    </div>
   );
 }
 
-function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, labelFor, unitColor }) {
+function CanvasChart({ chart, experiment, startMs, lookbackHours }) {
+  const { unit, config } = useKiosk();
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
   const seriesRef = useRef(new Map());
@@ -139,16 +164,18 @@ function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, 
   const xMode = config["ui.overview.settings"]?.time_display_mode === "clock" ? "clock" : "hours";
   const channelAngles = useMemo(() => config["od_config.photodiode_channel"] || {}, [config]);
 
-  // Map a raw series name ("pio01" or "pio01-2" for photodiode channel 2) to its display entry.
+  // Series are "<unit>" or, for OD, "<unit>-<channel>" mapped to the sensor angle.
+  // REF channels are hidden. Colours follow the series' position.
   const describe = useCallback(
-    (name) => {
+    (name, index) => {
+      const color = colors[index % colors.length];
       const match = partitioned ? name.match(/^(.*)-(\d+)$/) : null;
-      if (!match) return { name, label: labelFor(name), color: unitColor(name) };
+      if (!match) return { name, label: name === unit ? chart.title : name, color };
       const angle = channelAngles[match[2]];
       if (!angle || angle === "REF") return null;
-      return { name, label: `${labelFor(match[1])}-${angle}°`, color: unitColor(match[1]) };
+      return { name, label: `${angle}° sensor`, color };
     },
-    [partitioned, channelAngles, labelFor, unitColor],
+    [partitioned, channelAngles, unit, chart.title],
   );
 
   const scheduleRedraw = useCallback((delay = 0) => {
@@ -159,34 +186,38 @@ function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, 
     }, delay);
   }, []);
 
-  useEffect(() => () => {
-    clearTimeout(redrawTimer.current);
-    clearTimeout(cursorTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      clearTimeout(redrawTimer.current);
+      clearTimeout(cursorTimer.current);
+    },
+    [],
+  );
 
-  // History
+  // History, for this unit only (smaller queries than the cluster-wide endpoints).
   useEffect(() => {
+    if (lookbackHours === 0) {
+      fetchedRef.current = true;
+      setStatus("waiting");
+      return undefined;
+    }
     const controller = new AbortController();
-    const base = unit
-      ? `/api/workers/${unit}/experiments/${experimentPathSegment(experiment)}/time_series/${chart.data_source}`
-      : `/api/experiments/${experimentPathSegment(experiment)}/time_series/${chart.data_source}`;
-    const column = chart.data_source_column ? `/${chart.data_source_column}` : "";
-    fetch(`${base}${column}?target_points=${TARGET_POINTS}&lookback=${lookbackHours}`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Error ${response.status}`);
-        return response.json();
-      })
+    const column = chart.data_source_column ? `/${enc(chart.data_source_column)}` : "";
+    leaderApi(
+      `/workers/${enc(unit)}/experiments/${enc(experiment)}/time_series/${enc(chart.data_source)}${column}?target_points=${TARGET_POINTS}&lookback=${lookbackHours}`,
+      { signal: controller.signal },
+    )
       .then((data) => {
         const map = new Map();
         data.series.forEach((rawName, index) => {
-          const entry = describe(rawName);
+          const entry = describe(rawName, index);
           if (!entry) return;
           const points = data.data[index].map((point) => ({ x: parseUtc(point.x), y: transform(point.y) }));
           map.set(rawName, { ...entry, points });
         });
         seriesRef.current = map;
         fetchedRef.current = true;
-        setNames([...map.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })));
+        setNames([...map.keys()].sort(byName));
         setStatus(map.size ? "ready" : "empty");
         scheduleRedraw();
       })
@@ -200,7 +231,7 @@ function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, 
 
   // Live points, buffered into the series and redrawn at most every few seconds.
   const topics = useMemo(
-    () => toArray(chart.mqtt_topic).map((topic) => `pioreactor/${unit || "+"}/${experiment}/${topic}`),
+    () => toArray(chart.mqtt_topic).map((topic) => `pioreactor/${unit}/${experiment}/${topic}`),
     [chart.mqtt_topic, unit, experiment],
   );
 
@@ -226,23 +257,24 @@ function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, 
     const rawName = partitioned ? `${parts[1]}-${channel}` : parts[1];
     let series = seriesRef.current.get(rawName);
     if (!series) {
-      const entry = describe(rawName);
+      const entry = describe(rawName, seriesRef.current.size);
       if (!entry) return;
       series = { ...entry, points: [] };
       seriesRef.current.set(rawName, series);
-      setNames([...seriesRef.current.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })));
+      setNames([...seriesRef.current.keys()].sort(byName));
       setStatus("ready");
     }
     series.points.push({ x, y: transform(y) });
-    const cutoff = Date.now() - lookbackHours * 3600000;
     if (series.points.length > TARGET_POINTS * 3) {
-      // Thin old points so memory stays bounded during long sessions.
-      series.points = series.points.filter((point, index) => point.x >= cutoff && (index % 2 === 0 || index > series.points.length - 50));
+      // Thin old points so memory stays bounded during long sessions. "Now" keeps
+      // everything since the chart opened, like the main UI.
+      const cutoff = lookbackHours > 0 ? Date.now() - lookbackHours * 3600000 : -Infinity;
+      const keepFrom = series.points.length - 50;
+      series.points = series.points.filter((point, index) => point.x >= cutoff && (index % 2 === 0 || index > keepFrom));
     }
-    scheduleRedraw(document.hidden ? 60000 : LIVE_REDRAW_MS);
+    scheduleRedraw(document.hidden ? HIDDEN_REDRAW_MS : LIVE_REDRAW_MS);
   });
 
-  // Draw
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
@@ -271,6 +303,7 @@ function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, 
     return () => observer.disconnect();
   }, [scheduleRedraw]);
 
+  // "Tap to read" replaces hover tooltips.
   const inspect = (event) => {
     const rect = canvasRef.current.getBoundingClientRect();
     setCursorX(event.clientX - rect.left);
@@ -286,8 +319,6 @@ function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, 
       return next;
     });
 
-  const soloOrAll = () => setHidden((previous) => (previous.size ? new Set() : previous));
-
   return (
     <>
       <div className="chart-wrap" ref={wrapRef}>
@@ -299,26 +330,31 @@ function CanvasChart({ chart, unit, experiment, startMs, lookbackHours, config, 
         />
         {status !== "ready" && (
           <div className="chart-status">
-            {status === "loading" ? "Loading..." : status === "error" ? "Could not load data." : "No data yet."}
+            {
+              {
+                loading: "Loading...",
+                error: "Could not load data from the leader.",
+                waiting: "Waiting for new data...",
+              }[status] || "No data yet."
+            }
           </div>
         )}
       </div>
-      {names.length > 1 && (
-        <div className="legend">
-          {hidden.size > 0 && <button onClick={soloOrAll}>Show all</button>}
-          {names.map((name) => {
-            const series = seriesRef.current.get(name);
-            return (
-              <button key={name} className={hidden.has(name) ? "off" : ""} onClick={() => toggle(name)}>
-                <i style={{ background: seriesColor(series?.color) }} />
-                {series?.label || name}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      <div className="muted" style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
-        {chart.y_axis_label} · tap the chart to read values
+      <div className="chart-foot">
+        <span className="muted">{chart.y_axis_label} · tap the chart to read values</span>
+        {names.length > 1 && (
+          <div className="legend">
+            {names.map((name) => {
+              const series = seriesRef.current.get(name);
+              return (
+                <button type="button" key={name} className={hidden.has(name) ? "off" : ""} onClick={() => toggle(name)}>
+                  <i style={{ background: seriesColor(series?.color) }} />
+                  {series?.label || name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );

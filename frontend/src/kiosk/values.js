@@ -39,24 +39,7 @@ export function firstOd(payload) {
   return null;
 }
 
-const JOB_SHORT_NAMES = {
-  stirring: "Stir",
-  od_reading: "OD",
-  growth_rate_calculating: "Growth",
-  temperature_automation: "Temp",
-  dosing_automation: "Dosing",
-  led_automation: "LED",
-  add_media: "Add media",
-  remove_waste: "Waste",
-  add_alt_media: "Alt media",
-  experiment_profile: "Profile",
-};
-
-export function shortJobName(job) {
-  return JOB_SHORT_NAMES[job] || job.replace(/_/g, " ");
-}
-
-export const ACTIVE_STATES = new Set(["init", "ready", "sleeping", "lost"]);
+export const RUNNING_STATES = new Set(["init", "ready", "sleeping"]);
 
 // Compact numbers for small screens: 3 significant figures, no exponents for normal ranges.
 export function fmt(value, digits = 3) {

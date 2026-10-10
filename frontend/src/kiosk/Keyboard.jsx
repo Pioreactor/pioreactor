@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Icon, useToast } from "./ui";
+import { Icon } from "./icons";
+import { useToast } from "./ui";
 
 // Pop-up keyboard. Fields call openKeyboard({...}) instead of focusing a native
 // input, so the whole screen becomes the editor: the value is always visible
@@ -38,14 +39,14 @@ const KEY_CLASS = {
   RIGHT: "alt",
 };
 
-export function validateNumber(text, { min, max, allowNegative = true, integer = false } = {}) {
+export function validateNumber(text, { min, max, minError, maxError, allowNegative = true, integer = false } = {}) {
   if (text.trim() === "") return "Enter a number.";
   const value = Number(text);
   if (!Number.isFinite(value)) return "Not a valid number.";
   if (!allowNegative && value < 0) return "Must not be negative.";
   if (integer && !Number.isInteger(value)) return "Must be a whole number.";
-  if (min !== undefined && min !== null && value < min) return `Must be at least ${min}.`;
-  if (max !== undefined && max !== null && value > max) return `Must be at most ${max}.`;
+  if (min !== undefined && min !== null && value < min) return minError || `Must be at least ${min}.`;
+  if (max !== undefined && max !== null && value > max) return maxError || `Must be at most ${max}.`;
   return null;
 }
 
@@ -243,7 +244,7 @@ function Editor({ request, onClose }) {
           <span className="kb-label">{request.label}</span>
           <span className="kb-text">
             {state.fresh ? (
-              <span style={{ background: "var(--selection)" }}>{state.text}</span>
+              <span className="selected">{state.text}</span>
             ) : (
               <>
                 {before}
@@ -255,9 +256,6 @@ function Editor({ request, onClose }) {
             {request.unit && <span className="unit">{request.unit}</span>}
           </span>
         </div>
-        <button type="button" className="btn primary" onClick={submit}>
-          {request.submitLabel || "Done"}
-        </button>
       </div>
       <div className={`kb-message ${error ? "error" : ""}`} role={error ? "alert" : undefined}>
         {error || request.hint || ""}
@@ -289,7 +287,7 @@ function Editor({ request, onClose }) {
             {["1", "2", "3"].map((digit) => <Key key={digit} value={digit} onPress={press} />)}
             <Key value="DONE" label={request.submitLabel || "Done"} className="primary span2" onRelease={submit} />
             {request.allowNegative === false ? (
-              <Key value="00" label="" className="alt" />
+              <span className="key blank" aria-hidden="true" />
             ) : (
               <Key value="NEGATE" label="±" ariaLabel="Toggle sign" className="alt" onPress={press} />
             )}
@@ -376,7 +374,7 @@ export function EditField({
     });
 
   return (
-    <button className={`field ${className}`} onClick={open} disabled={disabled}>
+    <button type="button" className={`field ${className}`} onClick={open} disabled={disabled}>
       <span className="field-label">{label}</span>
       <span className="field-value">
         {empty ? <span className="placeholder">{placeholder || "Set"}</span> : shown}
