@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from unittest.mock import Mock
+
+import pytest
+from flask.testing import FlaskClient
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionStep
 from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
+from pioreactor.utils.job_manager import JobManager
 from pioreactor.web import unit_calibration_sessions_api as api
 from pioreactor.web.config import huey
 
@@ -127,6 +132,35 @@ def test_start_calibration_session_success(client, monkeypatch) -> None:
     payload = response.get_json()
     assert payload["session"]["protocol_name"] == DummyProtocol.protocol_name
     assert payload["step"]["step_id"] == "intro"
+
+
+def test_start_pump_session_reports_conflicts_without_saving(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    save_session = Mock()
+    monkeypatch.setattr(api, "save_calibration_session", save_session)
+    with JobManager() as job_manager:
+        for job_name in ["dosing_automation", "remove_waste"]:
+            job_manager.register_and_set_running(
+                unit="unit1",
+                experiment="experiment",
+                job_name=job_name,
+                job_source="test",
+                pid=12345,
+                leader="leader",
+                is_long_running_job=False,
+            )
+
+    response = client.post(
+        "/unit_api/calibrations/sessions",
+        json={"protocol_name": "duration_based", "target_device": "media_pump"},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == (
+        "Stop these jobs before starting pump calibration: dosing_automation, remove_waste."
+    )
+    save_session.assert_not_called()
 
 
 def test_get_calibration_session_not_found(client) -> None:

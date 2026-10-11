@@ -14,11 +14,14 @@
  - Added `.yml` support for HAT and model hardware definitions alongside `.yaml`; `.yaml` takes precedence when both files exist.
  - Faster experiment data exports, especially for large datasets.
  - Faster chart loading in the UI, since only the plotted points are now read from the database.
+ - Reduced browser memory use and rendering overhead for live charts and logs during long experiments, including less frequent chart updates in background tabs. Older logs remain available through **Load older logs**.
+ - Added visible **Mount** and **Eject** buttons for USB drives. The Plugins page now distinguishes missing drives, unmounted drives, and drives without plugins, with guidance for each case.
  - The leader's `/api` now accepts cross-origin requests from Pioreactors in its inventory (`http://<unit>`, `http://<unit>.local`, the unit's address in `[cluster.addresses]`) and from `localhost`, so a page served by one Pioreactor can call the leader. Other origins still get no CORS headers.
  - Fewer requests to the leader during dosing and safety checks. A Pioreactor's assigned model is now cached briefly, so model changes may take up to 30 seconds to reach running jobs.
 
 #### Bug fixes
 
+ - Fixed the Plugins page hiding plugins on USB drives mounted read-only.
  - Added destination hostname checks to leader HTTP commands and leader-local UI actions to prevent requests from running on the wrong Pioreactor when an address is stale or reused. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.
  - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
  - Fixed configuration editing and saving being blocked when configuration history is slow or unavailable. History now loads independently, reports failures separately, preserves edits when it arrives, and ignores late responses from previously selected configuration targets.

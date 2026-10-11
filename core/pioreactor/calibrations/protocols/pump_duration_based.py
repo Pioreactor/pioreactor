@@ -26,6 +26,7 @@ from pioreactor.config import config
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.types import PumpCalibrationDevices
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
 from pioreactor.utils.timing import current_utc_datestamp
@@ -130,6 +131,21 @@ def _execute_pump_for_calibration(
 
 
 def start_duration_based_session(pump_device: PumpCalibrationDevices) -> CalibrationSession:
+    # Calibration needs exclusive control of pumping, including circulation jobs.
+    conflicting_jobs = [
+        "dosing_automation",
+        "add_media",
+        "add_alt_media",
+        "remove_waste",
+        "circulate_media",
+        "circulate_alt_media",
+    ]
+    running_jobs = [
+        job for job, running in zip(conflicting_jobs, is_pio_job_running(conflicting_jobs)) if running
+    ]
+    if running_jobs:
+        raise ValueError(f"Stop these jobs before starting pump calibration: {', '.join(running_jobs)}.")
+
     try:
         channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
     except NoOptionError as exc:
