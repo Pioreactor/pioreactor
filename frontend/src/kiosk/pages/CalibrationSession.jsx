@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { enc, unitApi } from "../api";
+import { enc, unitApi, waitForTask } from "../api";
 import { Icon } from "../icons";
 import { EditField, useKeyboard } from "../Keyboard";
 import { AsyncButton, Empty, Segmented, useConfirm, useToast } from "../ui";
@@ -254,7 +254,9 @@ export default function CalibrationSession({ protocol, sessionId: resumeId, onCl
     setBusy(true);
     setError(null);
     try {
-      apply(await unitApi(`/calibrations/sessions/${enc(sessionId)}/inputs`, { method: "POST", body: { inputs } }));
+      // Steps run as a task on the unit (202), since they can wait minutes on hardware.
+      const reply = await unitApi(`/calibrations/sessions/${enc(sessionId)}/inputs`, { method: "POST", body: { inputs } });
+      apply(reply?.result_url_path ? await waitForTask(reply.result_url_path) : reply);
     } catch (err) {
       setError(err.message);
     } finally {

@@ -3,6 +3,18 @@
 Status: the second iteration is underway in `frontend/kiosk.html` and
 `frontend/src/kiosk/`, served under `/k/` (see "What's built so far").
 
+Groundwork that doesn't depend on the kiosk lands on `develop` first, so the kiosk
+diff stays about the kiosk ("make the change easy, then make the easy change"):
+
+| Commit on `develop` | Change |
+| --- | --- |
+| `c8c57688f` | The leader's `/api` accepts cross-origin requests from cluster members (`web/cors.py`). |
+| `e19b6e585` | Calibration session steps run as a Huey task: advancing answers `202` and clients poll the task. Zero W workers run two Huey workers. The main UI's session dialogs poll through `utils/calibrationSessions.js`. |
+| `4d125316a` | The leader's `/api` rejects mutating requests whose `Origin` is neither the leader nor an allowlisted cluster origin (`403`). |
+
+When this branch is rebased onto `develop`, take `develop`'s `cors.py`, `test_cors.py`
+and `app.py` hook over the earlier copies in this branch's wip commit.
+
 The October 2026 proof of concept was a lean, touch-first port of the cluster UI for a
 5" landscape screen rendered by WPE on a Raspberry Pi. It has been removed from the
 tree; its code (`frontend/display.html`, `frontend/src/display/`) is in git at commit
@@ -166,7 +178,8 @@ New APIs will likely be needed. Those are deferred. Make notes about what is nee
 | Out of scope on worker screens | Experiment profiles (leader screen only). |
 | Viewing other units | The leader's screen probably does not open other units' views. |
 | URL scheme | `/k/` with an implicit self (`/k/`, `/k/dosing`, `/k/charts`, ...), served by a separate HTML entry, `kiosk.html`. |
-| Cross-origin access | Done: the leader's `/api` accepts requests from cluster members' screens (`core/pioreactor/web/cors.py`). |
+| Cross-origin access | Done on `develop`: the leader's `/api` accepts requests from cluster members' screens (`core/pioreactor/web/cors.py`). |
+| Cross-site writes | Done on `develop`: mutating `/api` requests with a foreign `Origin` get `403`. An `Origin` check rather than requiring a JSON content type or custom header, so no existing client (body-less POSTs, uploads, scripts) had to change. |
 | Code | Leaner code than the main app is fine where it helps responsiveness. It need not reuse `MQTTProvider`/MUI. |
 | Access control | The lab is trusted: no screen lock. Destructive actions still ask for confirmation. |
 
@@ -212,11 +225,11 @@ Open points:
 ## Cross-origin access to the leader's API
 
 Implemented as planned below in `core/pioreactor/web/cors.py` (an `after_request`
-hook registered on the leader only; tests in `core/tests/web/test_cors.py`). Cluster
-hosts are cached in-process for 30 s rather than in `web/cache.py`: the set is tiny and
-per-process memory avoids a disk read on every request. `https` origins are accepted
-too, for leaders set up with HTTPS. The related cross-site POST issue below is not
-addressed yet.
+hook registered on the leader only; tests in `core/tests/web/test_cors.py`), on
+`develop`. Cluster hosts are cached in-process for 30 s rather than in `web/cache.py`:
+the set is tiny and per-process memory avoids a disk read on every request. `https`
+origins are accepted too, for leaders set up with HTTPS. The related cross-site POST
+issue below is closed too (see the end of this section).
 
 **Before.** A screen loads from its own unit (`http://localhost/k/...` on that unit), so
 every call to the leader is cross-origin. lighttpd's `51-cors.conf` only covers
@@ -275,11 +288,18 @@ JSON content type:
 - some routes take no body at all (for example
   `POST /api/workers/<unit>/jobs/stop/experiments/<exp>`).
 
-So any web page open on a lab computer can already trigger actions with a "simple"
+So any web page open on a lab computer could trigger actions with a "simple"
 cross-site POST that needs no preflight (it just can't read the response). CORS
-doesn't change that. If it's worth closing, require `Content-Type: application/json`,
-or a custom header, on mutating `/api` routes: that forces a preflight, which only
-allowlisted origins pass.
+doesn't change that.
+
+**Closed on `develop`** with an `Origin` check (`reject_cross_site_writes` in
+`cors.py`, a `before_request` hook): a mutating `/api` request that carries an
+`Origin` must come from the leader itself (same host and port) or an allowlisted
+origin, or it gets `403` before the handler runs. Browsers always send `Origin` on
+cross-site requests; requests without one (scripts, `curl`, other Pioreactors) are
+unaffected. Requiring a JSON content type or a custom header was the alternative, but
+about 18 main-UI calls (body-less POSTs, file uploads), the MCP tools and `pio blink`
+would have had to change. `/unit_api` has no such check yet.
 
 ## Draft: calibrations at the bench
 
@@ -308,39 +328,31 @@ The screen needs a generic step renderer, like the main UI's
   `/unit_api/active_calibrations/<device>/<name>`), alongside estimators.
 
 Things to handle:
-- **Long action steps.** Advancing an `action` step blocks its request until the Huey
-  task finishes (up to 300 s; `task(blocking=True, timeout=300)`). The request holds a
-  web-server thread on the unit and leaves the screen waiting with no progress. Show
-  a busy state with the step title, and keep Abort reachable. Consider making
-  advance return `202` plus a task URL, like the job endpoints, so the screen can poll.
-- **Jobs that interfere.** Calibrations need the related jobs off. The stirring, OD
-  standards, OD fusion standards and camera focus protocols check for running jobs;
-  `pump_duration_based` and `od_fusion_offset` don't. The screen should show the
-  reason and offer to stop the job, and could check before starting the pump and
-  offset protocols too.
+- **Long action steps.** Done on `develop`: advancing a step runs
+  `advance_calibration_session_task` (Huey) and answers `202`; poll `result_url_path`
+  (`/unit_api/task_results/<id>`), whose `result` is `{session, step}`. That task waits
+  on the hardware-action tasks, so consumers need at least two Huey workers (Zero W
+  workers went from one to two). The screen shows a busy note with the step title and
+  keeps Abort reachable; a step aborted while it runs keeps the abort.
 - **Picking a protocol.** Use the protocol list per device (`/unit_api/calibration_protocols`)
   with the protocol descriptions (`calibrations/protocols/README.md`).
 
 ## Draft: experiment assignment from a screen
 
-- Worker screen: shows its current assignment. If unassigned, it lists the leader's
-  experiments (newest first) and the user picks one. Uses the existing
-  `PUT /api/experiments/<exp>/workers`, via whatever cross-origin answer is chosen.
-- Leader screen: can also create an experiment (name via the keyboard) and assign
-  itself to it.
-- Still to decide:
-  - Can a worker screen move itself out of an experiment, or leave one (unassign)? The
-    leader already stops its jobs on reassignment, so it would need a strong confirm.
-  - Can a worker join an experiment that already has other units?
-  - What the screen shows when the global UI reassigns it mid-use: a banner, and the
-    page follows the retained assignment message.
-  - Whether a screen can end an experiment (it affects every unit, so probably the
-    leader's screen at most).
+Decided (see "Decisions so far") and built:
+- Any screen can join, reassign (move) or unassign (leave), including experiments other
+  units are in. Reassigning and unassigning stop the unit's jobs, so they need a danger
+  confirmation.
+- Only the leader's screen creates experiments (name via the keyboard; creating doesn't
+  assign anything) and ends them.
+
+Still open: what the screen shows when the global UI reassigns it mid-use. Today the
+page follows the retained assignment message without a banner.
 
 ## Draft: the leader's screen
 
 Its own worker view, plus a small leader-only section:
-- Create an experiment (and assign self).
+- Create and end experiments: built, in the experiment sheet.
 - Experiment profiles: run and stop. Does running one for the whole experiment from a
   worker-style screen make sense, or only for this unit?
 - Possibly cluster-level power (reboot/shut down all) and a read-only "N units
@@ -396,8 +408,9 @@ For a single unit, this is small:
 dark, against the dev leader (job start/pause/resume/stop, setting edits over MQTT,
 automation start sheet, live logs, experiment sheet, cross-origin GET/PUT).
 
-- **Shell.** Left rail (Activities, Calibrations, Charts, Logs, System) and a top bar
-  with the page title, this unit's name and an experiment chip. No clock, no Identify,
+- **Shell.** Left rail (Control, Charts, Calibrations, Logs, System) and a top bar
+  with the page title, this unit's name (with the Pioreactor icon) and an experiment
+  chip. No clock, no Identify,
   no connection indicator (pages say when the leader is unreachable). Root size `clamp(14px, 4.17vh, 34px)` (30 px at 720 tall);
   targets are at least 3.4rem (about 9 mm on the panel).
 - **Runtime cost.** No MUI or emotion: icons are the same paths as the main UI's,
@@ -406,8 +419,8 @@ automation start sheet, live logs, experiment sheet, cross-origin GET/PUT).
   last payloads replayed, since the broker sends retained messages only once.
 - **Boot.** Retries `/unit_api/health` and `/unit_api/config/merged` until the web
   server answers; an error boundary reloads after 60 s.
-- **Activities** has three tabs: Activities (`/k/`), Dosing (`/k/dosing`) and LEDs
-  (`/k/leds`), with Stop all (confirmed) beside them.
+- **Control** (the Activities page) has three tabs: Activities (`/k/`), Dosing
+  (`/k/dosing`) and LEDs (`/k/leds`), with Stop all (confirmed) beside them.
   - Activities: descriptor-driven job rows (including plugins' jobs) with Start,
     Pause/Resume, Stop and editable settings, the automation start sheet, and Self-test
     / OD blank buttons. Start, stop and descriptors use the local `/unit_api`;
@@ -418,28 +431,28 @@ automation start sheet, live logs, experiment sheet, cross-origin GET/PUT).
 - **Calibrations** (`/k/calibrations`), all unit-local: a device list (with each one's
   active calibration), and per device its protocols, saved calibrations (tap for the
   curve; set or clear active) and estimators (set or clear active).
-  - Starting a protocol shows its description and requirements. For protocols that need
-    jobs off (stirring DC-based, OD standards, OD fusion standards, camera focus) the
-    screen checks `/unit_api/jobs/running` first and offers to stop them. That map is
-    duplicated client-side; the unit stays the authority.
+  - Starting a protocol shows its description and requirements.
   - A session runs full-screen, one step at a time: text, images (first loading frame
     only, no animation), guidance, tables, fields (number pad with the protocol's
     min/max messages, text, yes/no, choices, a list editor for `float_list`) and an XY
-    canvas chart. Long action steps show a busy note while Abort stays reachable.
+    canvas chart. Long action steps show a busy note while Abort stays reachable. The
+    runner follows a `202` task answer (`waitForTask` in `api.js`) and still accepts a
+    direct `200`, so it works before and after the rebase onto `develop`.
   - The session id is kept in `localStorage`, so a reload resumes the session.
-  - Checked in dev: a full stirring DC-based run, including the stop-stirring prompt.
+  - Checked in dev: a full stirring DC-based run.
 - **Charts.** Leader chart descriptors and this experiment's Pioreactor-page
   preferences; per-unit time series from the leader, then live MQTT. Canvas, tap to
   read.
 - **Logs.** This unit's recent logs from the leader plus live MQTT (experiment and
   `$experiment` logs); add a note.
-- **System.** Name, address, version, storage, memory, leader; Light/Dark; reload;
-  reboot and shut down (confirmed, via local `/unit_api/system/...`).
+- **System.** Name, address, version, storage, memory, and the leader (workers only,
+  with "unreachable" when it is); Light/Dark; reload; reboot and shut down (confirmed,
+  via local `/unit_api/system/...`).
 - **Experiment sheet** (the top bar's experiment chip): shows the assignment. An
   unassigned unit can join an experiment; an assigned one can move to another
-  (`PUT /api/experiments/<exp>/workers`) or leave (`DELETE .../workers/<self>`). Both
-  confirmations list this unit's running activities that will stop
-  (`/unit_api/jobs/running/experiments/<exp>`). The leader's screen also has End
+  (`PUT /api/experiments/<exp>/workers`) or leave (`DELETE .../workers/<self>`), both
+  behind a danger confirmation that its running jobs will stop. The leader's screen
+  also has End
   experiment (`DELETE /api/experiments/<exp>/workers`, the main UI's "End experiment"),
   whose confirmation names every assigned unit, and New experiment: a name typed on
   the keyboard (checked against the leader's naming rules), then
@@ -453,8 +466,6 @@ the job doesn't have to ask the leader for them.
 ## Next
 
 Known, not yet done:
-- **Calibration action steps block** a web-server thread for up to 300 s (see the
-  draft above). The screen copes, but `202` plus polling would be better.
 - **Serving `/k/` in production**: the lighttpd rewrite and `no-store` rule above (the
   POC's `display.html` rule was removed from `10-expire.conf`), and pointing the
   display runtime (`packaging/experimental/display/`, still set to
@@ -496,4 +507,3 @@ Options:
 
 - Which `/api` endpoints need unit-scoped variants (time series, logs and export
   already have some `/workers/<unit>/...` forms).
-- Whether to close the existing cross-site POST issue at the same time as adding CORS.

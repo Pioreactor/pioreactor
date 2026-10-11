@@ -2,21 +2,12 @@ import { useMemo, useState } from "react";
 import { enc, unitApi } from "../api";
 import { useAsync } from "../hooks";
 import { Icon } from "../icons";
-import { AsyncButton, Empty, Sheet, useConfirm, useToast } from "../ui";
+import { AsyncButton, Empty, Sheet, useToast } from "../ui";
 import XYChart from "../XYChart";
 import CalibrationSession, { readStoredSession } from "./CalibrationSession";
 
 // Calibrations at the bench. Everything here is unit-local (/unit_api), so it
 // works while the leader is unreachable.
-
-// Jobs a protocol needs off, mirroring the checks the protocols make when a
-// session starts. The unit stays the authority: it refuses to start otherwise.
-const REQUIRES_OFF = {
-  dc_based: ["stirring"],
-  standards: ["stirring", "od_reading"],
-  od_fusion_standards: ["stirring", "od_reading"],
-  manual_focus: ["od_reading", "stirring", "dosing_automation", "led_automation"],
-};
 
 const humanize = (name) => name.replace(/_/g, " ");
 
@@ -27,42 +18,7 @@ function formatDate(timestamp) {
 
 const newestFirst = (a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0);
 
-async function waitUntilStopped(jobs, timeoutMs = 20000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const running = await unitApi("/jobs/running");
-    if (!running.some((row) => jobs.includes(row.job_name))) return;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  throw new Error(`${jobs.map(humanize).join(", ")} didn't stop in time. Check Logs.`);
-}
-
 function ProtocolSheet({ protocol, onClose, onStart }) {
-  const confirm = useConfirm();
-  const toast = useToast();
-  const mustBeOff = REQUIRES_OFF[protocol.protocol_name] || [];
-
-  const start = async () => {
-    if (mustBeOff.length) {
-      const running = (await unitApi("/jobs/running")).map((row) => row.job_name).filter((job) => mustBeOff.includes(job));
-      const conflicting = [...new Set(running)];
-      if (conflicting.length) {
-        const names = conflicting.map(humanize).join(" and ");
-        const ok = await confirm({
-          title: `Stop ${names}?`,
-          message: `This calibration needs ${names} off. Stop ${conflicting.length > 1 ? "them" : "it"} and continue?`,
-          confirmText: "Stop and continue",
-          danger: true,
-        });
-        if (!ok) return;
-        await Promise.all(conflicting.map((job) => unitApi("/jobs/stop", { method: "POST", body: { job_name: job } })));
-        toast(`Stopping ${names}...`);
-        await waitUntilStopped(conflicting);
-      }
-    }
-    onStart(protocol);
-  };
-
   return (
     <Sheet
       title={protocol.title}
@@ -72,10 +28,10 @@ function ProtocolSheet({ protocol, onClose, onStart }) {
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <AsyncButton className="btn primary" onClick={start} busyLabel="Checking...">
+          <button type="button" className="btn primary" onClick={() => onStart(protocol)}>
             <Icon name="play" />
             Start calibration
-          </AsyncButton>
+          </button>
         </>
       }
     >
@@ -90,7 +46,6 @@ function ProtocolSheet({ protocol, onClose, onStart }) {
           </ul>
         </>
       )}
-      {mustBeOff.length > 0 && <p className="muted">Needs {mustBeOff.map(humanize).join(", ")} off while it runs.</p>}
     </Sheet>
   );
 }

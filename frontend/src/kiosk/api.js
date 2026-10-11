@@ -57,6 +57,19 @@ export async function requestJson(url, { method = "GET", body, signal, headers }
 }
 
 export const unitApi = (path, options) => requestJson(`/unit_api${path}`, options);
+
+// Follows a 202 task answer (`result_url_path` on this unit) to its result.
+export async function waitForTask(resultUrlPath, { delayMs = 250, timeoutMs = 330000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const task = await requestJson(resultUrlPath);
+    if (task?.status === "succeeded") return task.result;
+    if (task?.status === "failed") throw new ApiError(task.error || "The task failed.", 200);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  throw new ApiError("Timed out waiting for this Pioreactor.", 0);
+}
+
 export const leaderApi = (path, options) => requestJson(leaderUrl(`/api${path}`), options);
 
 export const enc = encodeURIComponent;
