@@ -81,7 +81,38 @@
           "caughtErrorsIgnorePattern": "^(?:_.*|e|err|error)$"
         }
       ]
-    }
+    },
+    "overrides": [
+      {
+        "files": [
+          "src/kiosk/**/*.{js,jsx}"
+        ],
+        "rules": {
+          "no-restricted-imports": [
+            "error",
+            {
+              "patterns": [
+                {
+                  "group": [
+                    "@mui/*",
+                    "@emotion/*",
+                    "victory",
+                    "victory-*"
+                  ],
+                  "message": "The touchscreen UI stays free of MUI, emotion and Victory at runtime (render cost on WPE). Use plain CSS, plain SVG icons and canvas charts."
+                },
+                {
+                  "group": [
+                    "**/providers/MQTTContext"
+                  ],
+                  "message": "The touchscreen UI uses its own MQTT client, which reconnects forever."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
   },
   "browserslist": {
     "production": [
