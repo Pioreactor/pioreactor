@@ -139,12 +139,39 @@ test("batches live points into one update and drops points older than the lookba
   expect(getRenderedPoints()).toHaveLength(2);
 
   act(() => {
-    jest.advanceTimersByTime(1000);
+    jest.advanceTimersByTime(5000);
   });
 
   const points = getRenderedPoints();
   expect(points.map((point) => point.y)).toEqual([31, 32, 33, 34]);
   expect(points.every((point) => typeof point.x === "number")).toBe(true);
+});
+
+test("keeps every live point when the lookback is 0", async () => {
+  const now = Date.now();
+  const { subscribeToTopic } = renderChart({ lookback: 0, payloadKey: "temperature" });
+
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  // Let the (empty) history fetch resolve so live messages are accepted.
+  await act(async () => {});
+  const onMessage = subscribeToTopic.mock.calls.at(-1)[1];
+
+  jest.useFakeTimers();
+  act(() => {
+    for (const [offsetMs, y] of [[-60 * 1000, 32], [-1000, 33]]) {
+      onMessage(
+        "pioreactor/unit1/exp1/temperature_automation/temperature",
+        JSON.stringify({ timestamp: new Date(now + offsetMs).toISOString(), temperature: y }),
+        { retain: false },
+      );
+    }
+  });
+
+  act(() => {
+    jest.advanceTimersByTime(5000);
+  });
+
+  expect(getRenderedPoints().map((point) => point.y)).toEqual([32, 33]);
 });
 
 test("does not refetch history when the color map identity changes", async () => {

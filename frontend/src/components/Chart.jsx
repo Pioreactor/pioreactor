@@ -611,8 +611,9 @@ function Chart(props) {
 
     const lookbackHours = Number(lookback);
     const nowMs = Date.now();
+    // A lookback of 0 ("Now") keeps every live point that arrives while the chart is open.
     let cutoff = -Infinity;
-    if (Number.isFinite(lookbackHours)) {
+    if (Number.isFinite(lookbackHours) && lookbackHours > 0) {
       cutoff = byDuration
         ? (nowMs - experimentStartMs) / MS_PER_HOUR - lookbackHours
         : nowMs - lookbackHours * MS_PER_HOUR;

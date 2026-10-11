@@ -9,6 +9,7 @@ from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.types import PumpCalibrationDevices
+from pioreactor.utils.job_manager import JobManager
 
 
 def _make_context(data: dict[str, object] | None = None) -> SessionContext:
@@ -28,6 +29,68 @@ def _make_context(data: dict[str, object] | None = None) -> SessionContext:
 def test_get_execute_pump_for_device_unknown_raises() -> None:
     with pytest.raises(ValueError, match="Unknown pump device"):
         pump_duration_based._get_execute_pump_for_device(cast(PumpCalibrationDevices, "unknown"))
+
+
+@pytest.mark.parametrize("pump_device", ["media_pump", "alt_media_pump", "waste_pump"])
+@pytest.mark.parametrize(
+    "running_job",
+    [
+        "dosing_automation",
+        "add_media",
+        "add_alt_media",
+        "remove_waste",
+        "circulate_media",
+        "circulate_alt_media",
+    ],
+)
+def test_start_pump_session_rejects_conflicting_jobs(
+    pump_device: PumpCalibrationDevices, running_job: str
+) -> None:
+    with JobManager() as job_manager:
+        job_manager.register_and_set_running(
+            unit="unit1",
+            experiment="experiment",
+            job_name=running_job,
+            job_source="test",
+            pid=12345,
+            leader="leader",
+            is_long_running_job=False,
+        )
+
+    with pytest.raises(ValueError, match=running_job):
+        pump_duration_based.start_duration_based_session(pump_device)
+
+
+@pytest.mark.parametrize("pump_device", ["media_pump", "alt_media_pump", "waste_pump"])
+def test_start_pump_session_allows_stopped_pumps_and_unrelated_jobs(
+    pump_device: PumpCalibrationDevices, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(pump_duration_based.config["PWM_reverse"], pump_device.removesuffix("_pump"), "4")
+    with JobManager() as job_manager:
+        pump_job_id = job_manager.register_and_set_running(
+            unit="unit1",
+            experiment="experiment",
+            job_name="add_media",
+            job_source="test",
+            pid=12345,
+            leader="leader",
+            is_long_running_job=False,
+        )
+        job_manager.set_not_running(pump_job_id)
+        job_manager.register_and_set_running(
+            unit="unit1",
+            experiment="experiment",
+            job_name="stirring",
+            job_source="test",
+            pid=12346,
+            leader="leader",
+            is_long_running_job=False,
+        )
+
+    session = pump_duration_based.start_duration_based_session(pump_device)
+
+    assert session.target_device == pump_device
+    assert session.status == "in_progress"
 
 
 def test_build_duration_chart_metadata_uses_min_length() -> None:
