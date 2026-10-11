@@ -8,6 +8,9 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.web import unit_calibration_sessions_api as api
+from pioreactor.web.config import huey
+
+huey.immediate = True
 
 
 class IntroStep(SessionStep):
@@ -87,9 +90,24 @@ class FloatListProtocol(DummyProtocol):
         )
 
 
+def _advance(client, session_id: str, inputs) -> dict:
+    """Submit inputs and return the finished task's payload."""
+    response = client.post(f"/unit_api/calibrations/sessions/{session_id}/inputs", json={"inputs": inputs})
+    assert response.status_code == 202
+    task = client.get(response.get_json()["result_url_path"])
+    assert task.status_code == 200
+    return task.get_json()
+
+
+def _use_protocol(monkeypatch, protocol) -> None:
+    monkeypatch.setattr(api, "get_protocol", lambda target_device, protocol_name: protocol)
+    monkeypatch.setattr(api, "get_protocol_for_session", lambda session: protocol)
+    # The advance task looks protocols up through the registry.
+    monkeypatch.setattr("pioreactor.calibrations.registry.get_protocol_for_session", lambda session: protocol)
+
+
 def _patch_protocols(monkeypatch) -> None:
-    monkeypatch.setattr(api, "get_protocol", lambda target_device, protocol_name: DummyProtocol)
-    monkeypatch.setattr(api, "get_protocol_for_session", lambda session: DummyProtocol)
+    _use_protocol(monkeypatch, DummyProtocol)
 
 
 def test_start_calibration_session_missing_payload(client) -> None:
@@ -186,28 +204,51 @@ def test_advance_calibration_session_advances_step(client, monkeypatch) -> None:
     session = DummyProtocol.start_session("device")
     save_calibration_session(session)
 
-    response = client.post(
-        f"/unit_api/calibrations/sessions/{session.session_id}/inputs",
-        json={"inputs": {}},
-    )
-    assert response.status_code == 200
-    payload = response.get_json()
-    assert payload["session"]["step_id"] == "next"
-    assert payload["step"]["step_id"] == "next"
+    task = _advance(client, session.session_id, {})
+    assert task["status"] == "succeeded"
+    assert task["result"]["session"]["step_id"] == "next"
+    assert task["result"]["step"]["step_id"] == "next"
+
+    stored = client.get(f"/unit_api/calibrations/sessions/{session.session_id}").get_json()
+    assert stored["step"]["step_id"] == "next"
 
 
-def test_advance_calibration_session_invalid_float_list_returns_400(client, monkeypatch) -> None:
-    monkeypatch.setattr(api, "get_protocol", lambda target_device, protocol_name: FloatListProtocol)
-    monkeypatch.setattr(api, "get_protocol_for_session", lambda session: FloatListProtocol)
+def test_advance_calibration_session_invalid_float_list_fails_the_task(client, monkeypatch) -> None:
+    _use_protocol(monkeypatch, FloatListProtocol)
 
     session = FloatListProtocol.start_session("device")
     save_calibration_session(session)
 
-    response = client.post(
-        f"/unit_api/calibrations/sessions/{session.session_id}/inputs",
-        json={"inputs": {"values": [1, None]}},
-    )
+    task = _advance(client, session.session_id, {"values": [1, None]})
 
-    assert response.status_code == 400
-    payload = response.get_json()
-    assert "Invalid 'values', expected list of numbers." in payload["error"]
+    assert task["status"] == "failed"
+    assert "Invalid 'values', expected list of numbers." in task["error"]
+
+
+class AbortedDuringStep(SessionStep):
+    step_id = "intro"
+
+    def render(self, ctx: SessionContext):
+        return steps.action("Slow", "Someone aborts while this runs.")
+
+    def advance(self, ctx: SessionContext):
+        aborted = DummyProtocol.start_session("device")
+        aborted.status = "aborted"
+        save_calibration_session(aborted)
+        return NextStep()
+
+
+class AbortedDuringStepProtocol(DummyProtocol):
+    step_registry = {AbortedDuringStep.step_id: AbortedDuringStep, NextStep.step_id: NextStep}
+
+
+def test_abort_while_a_step_runs_is_kept(client, monkeypatch) -> None:
+    _use_protocol(monkeypatch, AbortedDuringStepProtocol)
+
+    session = AbortedDuringStepProtocol.start_session("device")
+    save_calibration_session(session)
+
+    task = _advance(client, session.session_id, {})
+
+    assert task["status"] == "succeeded"
+    assert task["result"]["session"]["status"] == "aborted"
