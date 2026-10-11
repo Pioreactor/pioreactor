@@ -25,10 +25,11 @@ Do not create a directory or a file named `experimental_display.txt` instead.
 
 The browser starts only after the boot helper has confirmed the selected HDMI
 configuration was already staged. It waits for a connected DRM display and a
-successful response from the display UI, `http://localhost/static/display.html`.
-That page is a lean, touch-first UI built from `frontend/display.html` for small
-landscape screens (designed at 800x480); the full web UI stays at `/` for other
-computers. The boot helper stops the tty1
+successful response from the display UI, `http://localhost/k/`.
+That page is the per-Pioreactor touchscreen UI built from `frontend/kiosk.html`
+(see `frontend/KIOSK.md`), for a 1280x720 landscape screen at 1x; the full web UI
+stays at `/` for other computers. lighttpd rewrites `/k/` to `/static/kiosk.html`
+(`packaging/runtime-files/lighttpd/50-pioreactorui.conf`). The boot helper stops the tty1
 login prompt only when display activation is ready. No browser process runs
 without the flag. This controls startup, not live removal of the flag.
 

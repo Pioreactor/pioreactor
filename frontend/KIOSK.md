@@ -11,9 +11,12 @@ diff stays about the kiosk ("make the change easy, then make the easy change"):
 | `c8c57688f` | The leader's `/api` accepts cross-origin requests from cluster members (`web/cors.py`). |
 | `e19b6e585` | Calibration session steps run as a Huey task: advancing answers `202` and clients poll the task. Zero W workers run two Huey workers. The main UI's session dialogs poll through `utils/calibrationSessions.js`. |
 | `4d125316a` | The leader's `/api` rejects mutating requests whose `Origin` is neither the leader nor an allowlisted cluster origin (`403`). |
+| `aba77aa61` | `kiosk.html` as a second Vite entry (with a placeholder `src/kiosk/main.jsx`), the dev `/k/` middleware, and an ESLint override banning MUI, emotion, Victory and `MQTTContext` in `src/kiosk/`. |
+| `784588b90` | lighttpd rewrites `/k` and `/k/...` to `/static/kiosk.html` and marks it `no-store`; `45_serve_kiosk_under_k.sh` applies both to existing installs on every unit. |
 
-When this branch is rebased onto `develop`, take `develop`'s `cors.py`, `test_cors.py`
-and `app.py` hook over the earlier copies in this branch's wip commit.
+The first three are merged into this branch. When merging the rest, keep this branch's
+`src/kiosk/main.jsx` (the real entry) over `develop`'s placeholder; `kiosk.html` and
+`vite.config.js` are identical on both.
 
 The October 2026 proof of concept was a lean, touch-first port of the cluster UI for a
 5" landscape screen rendered by WPE on a Raspberry Pi. It has been removed from the
@@ -362,9 +365,9 @@ Its own worker view, plus a small leader-only section:
 
 `/k/` with an implicit self, from a separate HTML entry (`kiosk.html`), so the screen
 never loads the main app's bundle. In development, a Vite middleware serves
-`kiosk.html` for `/k` and `/k/...`. Production needs a lighttpd rewrite from
-`^/k(/.*)?$` to `/static/kiosk.html` (the main app's SPA fallback otherwise catches
-`/k/...`) and a `no-store` rule for that shell; see "Next".
+`kiosk.html` for `/k` and `/k/...`. In production, lighttpd rewrites `/k` and
+`/k/...` to `/static/kiosk.html` (otherwise the main app's SPA fallback catches them)
+and serves that shell `no-store` (`784588b90` on `develop`).
 
 ## Performance: where it will hurt
 
@@ -466,10 +469,6 @@ the job doesn't have to ask the leader for them.
 ## Next
 
 Known, not yet done:
-- **Serving `/k/` in production**: the lighttpd rewrite and `no-store` rule above (the
-  POC's `display.html` rule was removed from `10-expire.conf`), and pointing the
-  display runtime (`packaging/experimental/display/`, still set to
-  `/static/display.html`) at `http://localhost/k/`. Deferred with packaging.
 - **Self-test results.** The screen shows that a self-test is running and points to
   Logs; it doesn't summarize the published test results yet.
 
