@@ -39,7 +39,12 @@ direction, decisions, and open questions.
 
 - It's deliberately lean: no MUI or emotion at runtime (icons are plain SVG in
   `src/kiosk/icons.jsx`), its own MQTT client that reconnects forever
-  (`src/kiosk/mqtt.js`), and plain CSS in `src/kiosk/kiosk.css`.
+  (`src/kiosk/mqtt.js`), and plain CSS in `src/kiosk/kiosk.css`. ESLint enforces
+  this: `src/kiosk/` can't import `@mui/*`, `@emotion/*`, `victory` or
+  `providers/MQTTContext`.
+- In production lighttpd serves `kiosk.html` for `/k` and `/k/...`
+  (`packaging/runtime-files/lighttpd/50-pioreactorui.conf`); in development the Vite
+  middleware does.
 - Unit-local actions go to the unit's own `/unit_api`; cluster data comes from the
   leader's `/api` via `leaderApi()` (cross-origin on workers). Running jobs'
   settings change by publishing `.../<setting>/set` over MQTT.

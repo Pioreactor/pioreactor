@@ -14,9 +14,11 @@ diff stays about the kiosk ("make the change easy, then make the easy change"):
 | `aba77aa61` | `kiosk.html` as a second Vite entry (with a placeholder `src/kiosk/main.jsx`), the dev `/k/` middleware, and an ESLint override banning MUI, emotion, Victory and `MQTTContext` in `src/kiosk/`. |
 | `784588b90` | lighttpd rewrites `/k` and `/k/...` to `/static/kiosk.html` and marks it `no-store`; `45_serve_kiosk_under_k.sh` applies both to existing installs on every unit. |
 
-The first three are merged into this branch. When merging the rest, keep this branch's
-`src/kiosk/main.jsx` (the real entry) over `develop`'s placeholder; `kiosk.html` and
-`vite.config.js` are identical on both.
+All of them are merged into this branch (last in `eee57aba3`). On later merges from
+`develop`, keep this branch's `src/kiosk/main.jsx` (the real entry) over `develop`'s
+placeholder; `kiosk.html` and `vite.config.js` are identical on both. What this
+branch adds beyond `develop` is `src/kiosk/` itself, its tests, the AGENTS.md section,
+this file, and the WPE display runtime (`packaging/experimental/display/`).
 
 The October 2026 proof of concept was a lean, touch-first port of the cluster UI for a
 5" landscape screen rendered by WPE on a Raspberry Pi. It has been removed from the
@@ -172,7 +174,7 @@ New APIs will likely be needed. Those are deferred. Make notes about what is nee
 | Topic | Decision |
 | --- | --- |
 | Data sources | Live data and cluster state come from the leader (MQTT broker, `/api`). Unit-local actions go through the worker's own `/unit_api`. Details are still being worked out; see the draft below. |
-| USB export | The worker fetches its own rows from the leader and writes them to the USB stick. |
+| USB export | Parked, together with keeping data locally on each Pioreactor (see "Draft: local data on each Pioreactor"). |
 | Creating experiments | Only on the leader's screen. |
 | Experiment assignment | Any screen can join, move to another experiment, or leave (unassign), including experiments other units are in. Moving and leaving name the jobs they will stop and need a danger confirmation. |
 | Ending experiments | Only the leader's screen. (UI policy: the leader's `/api` doesn't check which screen asked.) |
@@ -208,7 +210,7 @@ on the leader.
 | Start/stop jobs, job descriptors, automations | Local `/unit_api/jobs/...` (keeps working when the leader is down, as long as the experiment is known) |
 | Change a running job's settings | MQTT publish to `pioreactor/<self>/<exp>/<job>/<setting>/set` (what the leader's PATCH endpoint does anyway) |
 | Bioreactor values, calibrations, self-test, OD blank | Local `/unit_api` |
-| Charts (history), logs, experiment list, labels | Leader `/api`, called directly from the screen (needs the CORS change below), filtered to this unit |
+| Charts (history), logs, experiment list, labels | Leader `/api`, called directly from the screen (cross-origin on workers; see below), filtered to this unit |
 | USB export | Worker asks the leader for its own rows, writes them locally (new API) |
 
 Open points:
@@ -413,13 +415,15 @@ automation start sheet, live logs, experiment sheet, cross-origin GET/PUT).
 
 - **Shell.** Left rail (Control, Charts, Calibrations, Logs, System) and a top bar
   with the page title, this unit's name (with the Pioreactor icon) and an experiment
-  chip. No clock, no Identify,
-  no connection indicator (pages say when the leader is unreachable). Root size `clamp(14px, 4.17vh, 34px)` (30 px at 720 tall);
-  targets are at least 3.4rem (about 9 mm on the panel).
+  chip. No clock, no Identify, no connection indicator (pages say when the leader is
+  unreachable). Root size `clamp(14px, 4.17vh, 34px)` (30 px at 720 tall); targets
+  are at least 3.4rem (about 9 mm on the panel).
 - **Runtime cost.** No MUI or emotion: icons are the same paths as the main UI's,
-  drawn as plain SVG. The kiosk's own JS chunk is about 59 kB (21 kB gzipped) plus
-  React. One MQTT connection; a handler joining an already-subscribed pattern gets the
-  last payloads replayed, since the broker sends retained messages only once.
+  drawn as plain SVG, and an ESLint override (`package.json`) rejects MUI, emotion,
+  Victory and `MQTTContext` imports in `src/kiosk/`. The kiosk's own JS chunk is about
+  77 kB (26.5 kB gzipped) plus React. One MQTT connection; a handler joining an
+  already-subscribed pattern gets the last payloads replayed, since the broker sends
+  retained messages only once.
 - **Boot.** Retries `/unit_api/health` and `/unit_api/config/merged` until the web
   server answers; an error boundary reloads after 60 s.
 - **Control** (the Activities page) has three tabs: Activities (`/k/`), Dosing
@@ -472,8 +476,9 @@ Known, not yet done:
 - **Self-test results.** The screen shows that a self-test is running and points to
   Logs; it doesn't summarize the published test results yet.
 
-Waiting on decisions: USB export and local data on each Pioreactor (see the draft
-below), and the leader-only section (create experiment, profiles, cluster power).
+Waiting on decisions: USB export and local data on each Pioreactor (parked; see the
+draft below), and the rest of the leader-only section (experiment profiles, cluster
+power). Creating and ending experiments on the leader's screen are built.
 
 ## Draft: local data on each Pioreactor
 
