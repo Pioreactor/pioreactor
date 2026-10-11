@@ -65,10 +65,13 @@ def create_app() -> Flask:
 
     if am_I_leader():
         from pioreactor.web.api import api_bp
+        from pioreactor.web.cors import add_cors_headers
         from pioreactor.web.mcp import mcp_bp
 
         app.register_blueprint(api_bp)
         app.register_blueprint(mcp_bp)
+        # Lets each Pioreactor's touchscreen call the leader's /api.
+        app.after_request(add_cors_headers)
 
     @app.teardown_appcontext
     def close_connection(exception: BaseException | None) -> None:

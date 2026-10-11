@@ -12,6 +12,7 @@
  - Added `.yml` support for HAT and model hardware definitions alongside `.yaml`; `.yaml` takes precedence when both files exist.
  - Faster experiment data exports, especially for large datasets.
  - Faster chart loading in the UI, since only the plotted points are now read from the database.
+ - The leader's `/api` now accepts cross-origin requests from Pioreactors in its inventory (`http://<unit>`, `http://<unit>.local`, the unit's address in `[cluster.addresses]`) and from `localhost`, so a page served by one Pioreactor can call the leader. Other origins still get no CORS headers.
  - Fewer requests to the leader during dosing and safety checks. A Pioreactor's assigned model is now cached briefly, so model changes may take up to 30 seconds to reach running jobs.
 
 #### Bug fixes
