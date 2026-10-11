@@ -96,3 +96,59 @@ def test_unit_api_is_unaffected(client: FlaskClient) -> None:
     response = client.get("/unit_api/health", headers={"Origin": "http://unit1.local"})
 
     assert "Access-Control-Allow-Origin" not in response.headers
+
+
+def _create_experiment(client: FlaskClient, name: str, origin: str | None, **kwargs):
+    headers = {"Origin": origin} if origin else {}
+    return client.post("/api/experiments", json={"experiment": name}, headers=headers, **kwargs)
+
+
+def _experiment_names(client: FlaskClient) -> set[str]:
+    return {row["experiment"] for row in client.get("/api/experiments").get_json()}
+
+
+@pytest.mark.parametrize("origin", ["https://evil.example.com", "null", "http://unit1:8080"])
+def test_cross_site_writes_are_rejected_before_they_run(client: FlaskClient, origin: str) -> None:
+    response = _create_experiment(client, "csrf-attempt", origin)
+
+    assert response.status_code == 403
+    assert "csrf-attempt" not in _experiment_names(client)
+
+
+def test_cross_site_form_post_is_rejected(client: FlaskClient) -> None:
+    # A plain HTML form can send this without a CORS preflight.
+    response = client.post(
+        "/api/experiments",
+        data='{"experiment": "csrf-form"}',
+        content_type="text/plain",
+        headers={"Origin": "https://evil.example.com"},
+    )
+
+    assert response.status_code == 403
+    assert "csrf-form" not in _experiment_names(client)
+
+
+@pytest.mark.parametrize("origin", [None, "http://unit1.local", "http://localhost:3000"])
+def test_writes_without_origin_or_from_allowed_origins_still_work(
+    client: FlaskClient, origin: str | None
+) -> None:
+    name = f"allowed-{origin or 'no-origin'}".replace("/", "").replace(":", "")
+    response = _create_experiment(client, name, origin)
+
+    assert response.status_code == 201
+    assert name in _experiment_names(client)
+
+
+def test_same_origin_writes_still_work(client: FlaskClient) -> None:
+    response = _create_experiment(
+        client, "same-origin", "http://leader.example", base_url="http://leader.example"
+    )
+
+    assert response.status_code == 201
+
+
+def test_cross_site_reads_are_unaffected(client: FlaskClient) -> None:
+    response = client.get("/api/experiments", headers={"Origin": "https://evil.example.com"})
+
+    assert response.status_code == 200
+    assert "Access-Control-Allow-Origin" not in response.headers
