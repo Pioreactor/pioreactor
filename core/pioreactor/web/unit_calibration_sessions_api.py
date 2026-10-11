@@ -5,7 +5,8 @@ Calibration session HTTP API.
 Uses step registries from calibration protocols and dispatches hardware actions
 through Huey tasks defined in `core/pioreactor/web/tasks.py`.
 The unit API routes here for session start/advance/abort and invokes the
-calibration action executor to perform privileged hardware work.
+calibration action executor to perform privileged hardware work. Advancing a step
+runs as a Huey task, since steps can wait minutes on hardware.
 """
 # -*- coding: utf-8 -*-
 from typing import Any
@@ -14,34 +15,25 @@ from flask import Blueprint
 from flask import jsonify
 from flask import request
 from flask.typing import ResponseReturnValue
-from huey.exceptions import HueyException
-from huey.exceptions import TaskException
 from msgspec import to_builtins
 from pioreactor.calibrations.registry import get_protocol
 from pioreactor.calibrations.registry import get_protocol_for_session
-from pioreactor.calibrations.session_flow import advance_session
 from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.logging import create_logger
-from pioreactor.web.tasks import get_calibration_action
+from pioreactor.web import tasks
 from pioreactor.web.utils import abort_with
+from pioreactor.web.utils import create_task_response
+from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 logger = create_logger("unit_calibration_sessions_api", experiment=UNIVERSAL_EXPERIMENT)
 
 
 def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-    handler = get_calibration_action(action)
-    task, error_label, normalize = handler(payload)
-    try:
-        result = task(blocking=True, timeout=300)
-    except TaskException as exc:
-        raise ValueError(f"{error_label} failed: {exc}") from exc
-    except HueyException as exc:
-        raise ValueError(f"{error_label} timed out.") from exc
-    return normalize(result)
+    return tasks.execute_calibration_action(action, payload)
 
 
 def _get_step_registry(protocol: Any) -> Any:
@@ -141,7 +133,7 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
     return response
 
 
-def advance_calibration_session(session_id: str) -> ResponseReturnValue:
+def advance_calibration_session(session_id: str) -> DelayedResponseReturnValue:
     """
     Submit inputs for the current step of a calibration session on this unit.
 
@@ -151,6 +143,10 @@ def advance_calibration_session(session_id: str) -> ResponseReturnValue:
         "field_name": "field value"
       }
     }
+
+    Answers 202 with a task: poll `result_url_path` (or the leader's
+    /api/workers/<unit>/task_results/<task_id>). Its `result` is
+    {"session", "step"}; a rejected input or failed action reports `failed`.
     """
     session = load_calibration_session(session_id)
     if session is None:
@@ -164,22 +160,7 @@ def advance_calibration_session(session_id: str) -> ResponseReturnValue:
     if not isinstance(inputs, dict):
         abort_with(400, description="Invalid inputs payload.")
 
-    try:
-        protocol = get_protocol_for_session(session)
-        step_registry = _get_step_registry(protocol)
-        session = advance_session(step_registry, session, inputs, executor=_execute_calibration_action)
-    except ValueError as exc:
-        abort_with(400, description=str(exc))
-    except KeyError as exc:
-        abort_with(400, description=str(exc))
-
-    save_calibration_session(session)
-    step = _get_calibration_step(session)
-    response = jsonify(
-        {"session": to_builtins(session), "step": to_builtins(step) if step is not None else None}
-    )
-    response.status_code = 200
-    return response
+    return create_task_response(tasks.advance_calibration_session_task(session_id, inputs))
 
 
 def register_calibration_session_routes(unit_api_bp: Blueprint) -> None:

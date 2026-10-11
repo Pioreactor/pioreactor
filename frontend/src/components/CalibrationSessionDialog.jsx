@@ -13,11 +13,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import CalibrationSessionFields from "./CalibrationSessionFields";
 import CalibrationSessionResultLinks from "./CalibrationSessionResultLinks";
 import CalibrationSessionStepContent from "./CalibrationSessionStepContent";
+import { advanceCalibrationSession } from "../utils/calibrationSessions";
 
 const sessionStartEndpoint = (unit) =>
   `/api/workers/${unit}/calibrations/sessions`;
-const sessionAdvanceEndpoint = (unit, sessionId) =>
-  `/api/workers/${unit}/calibrations/sessions/${sessionId}/inputs`;
 const sessionAbortEndpoint = (unit, sessionId) =>
   `/api/workers/${unit}/calibrations/sessions/${sessionId}/abort`;
 
@@ -272,27 +271,7 @@ export default function CalibrationSessionDialog({
     setSessionError("");
     try {
       const inputs = overrideInputs ?? formatInputs(sessionStep, sessionValues);
-      const response = await fetch(sessionAdvanceEndpoint(unit, effectiveSessionId), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = `Failed to advance session (${response.status}).`;
-        try {
-          const payload = await response.json();
-          errorMessage = payload.error || JSON.stringify(payload);
-        } catch (_error) {
-          // Keep the fallback message.
-        }
-        throw new Error(errorMessage);
-      }
-
-      const payload = await response.json();
+      const payload = await advanceCalibrationSession(unit, effectiveSessionId, inputs);
       setSessionStep(payload.step);
       setSessionValues(buildInitialValues(payload.step));
     } catch (err) {

@@ -1110,6 +1110,55 @@ def _register_core_calibration_actions() -> None:
 _register_core_calibration_actions()
 
 
+def execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+    from huey.exceptions import HueyException
+    from huey.exceptions import TaskException
+
+    handler = get_calibration_action(action)
+    task, error_label, normalize = handler(payload)
+    try:
+        result = task(blocking=True, timeout=300)
+    except TaskException as exc:
+        raise ValueError(f"{error_label} failed: {exc}") from exc
+    except HueyException as exc:
+        raise ValueError(f"{error_label} timed out.") from exc
+    return normalize(result)
+
+
+@huey.task()
+def advance_calibration_session_task(session_id: str, inputs: dict[str, Any]) -> dict[str, Any]:
+    """
+    Advance a calibration session by one step and return {"session", "step"}.
+
+    Steps can wait minutes on hardware actions, which are Huey tasks themselves, so
+    this needs a consumer with at least two workers.
+    """
+    from pioreactor.calibrations.registry import get_protocol_for_session
+    from pioreactor.calibrations.session_flow import advance_session
+    from pioreactor.calibrations.session_flow import get_session_step
+    from pioreactor.calibrations.structured_session import load_calibration_session
+    from pioreactor.calibrations.structured_session import save_calibration_session
+
+    session = load_calibration_session(session_id)
+    if session is None:
+        raise ValueError("Calibration session not found.")
+    step_registry = getattr(get_protocol_for_session(session), "step_registry", None)
+    if step_registry is None:
+        raise ValueError("Protocol does not define a step registry.")
+
+    session = advance_session(step_registry, session, inputs, executor=execute_calibration_action)
+
+    current = load_calibration_session(session_id)
+    if current is not None and current.status == "aborted":
+        # Aborted while this step ran: keep the abort.
+        session = current
+    else:
+        save_calibration_session(session)
+
+    step = get_session_step(step_registry, session)
+    return {"session": to_builtins(session), "step": to_builtins(step) if step is not None else None}
+
+
 def require_export_disk_space(output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     free_bytes = shutil.disk_usage(output_dir).free

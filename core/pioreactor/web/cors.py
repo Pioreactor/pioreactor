@@ -6,6 +6,11 @@ Each Pioreactor's touchscreen loads its UI from its own web server, so every cal
 makes to the leader is cross-origin. Origins are allowlisted from the cluster
 inventory (never `*`), so a random website open on a lab computer can't read
 cluster data or send JSON commands.
+
+CORS alone doesn't stop a "simple" cross-site POST (a form post, or fetch without a
+JSON content type), which the browser sends without asking. So mutating requests
+that carry an `Origin` must come from the leader itself or an allowlisted origin.
+Clients without an `Origin` (curl, Python, other Pioreactors) are unaffected.
 """
 import typing as t
 from time import monotonic
@@ -14,6 +19,7 @@ from urllib.parse import urlsplit
 from flask import request
 from pioreactor.config import ConfigParserMod
 from pioreactor.paths import get_dot_pioreactor_path
+from pioreactor.web.utils import abort_with
 
 # Where each kiosk loads its UI from. Any port is allowed (useful in development).
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1"})
@@ -26,6 +32,8 @@ ALLOW_HEADERS = "Content-Type, Accept, X-Pioreactor-Target"
 MAX_AGE_S = "600"
 
 ALLOWED_HOSTS_TTL_S = 30.0
+
+MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 _allowed_hosts_cache: tuple[float, frozenset[str]] | None = None
 
@@ -104,3 +112,28 @@ def add_cors_headers(response: t.Any) -> t.Any:
     response.headers["Access-Control-Allow-Headers"] = ALLOW_HEADERS
     response.headers["Access-Control-Max-Age"] = MAX_AGE_S
     return response
+
+
+def _is_same_origin(origin: str) -> bool:
+    # Compare host and port only: behind lighttpd (and HTTPS termination) the
+    # scheme Flask sees may differ from the browser's.
+    try:
+        return urlsplit(origin).netloc.lower() == request.host.lower()
+    except ValueError:
+        return False
+
+
+def reject_cross_site_writes() -> None:
+    if request.method not in MUTATING_METHODS or not request.path.startswith("/api/"):
+        return
+
+    origin = request.headers.get("Origin")
+    if origin is None or _is_same_origin(origin) or is_allowed_origin(origin):
+        return
+
+    abort_with(
+        403,
+        "Cross-site request rejected.",
+        cause=f"Requests from {origin} can't change this cluster.",
+        remediation="Use the Pioreactor web interface, or call the API from a Pioreactor in the inventory.",
+    )

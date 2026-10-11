@@ -23,10 +23,9 @@ import Typography from "@mui/material/Typography";
 import CalibrationIcon from "./CalibrationIcon";
 import CloseIcon from "@mui/icons-material/Close";
 import { Link as RouterLink } from "react-router";
+import { advanceCalibrationSession } from "../utils/calibrationSessions";
 
 const START_SESSION_ENDPOINT = (unit) => `/api/workers/${unit}/calibrations/sessions`;
-const ADVANCE_SESSION_ENDPOINT = (unit, sessionId) =>
-  `/api/workers/${unit}/calibrations/sessions/${sessionId}/inputs`;
 const ABORT_SESSION_ENDPOINT = (unit, sessionId) =>
   `/api/workers/${unit}/calibrations/sessions/${sessionId}/abort`;
 
@@ -216,15 +215,7 @@ export default function StirringCalibrationBatchDialog({
       error: undefined,
     }));
 
-    const advance = async (message) =>
-      fetch(ADVANCE_SESSION_ENDPOINT(unit, sessionId), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs: {} }),
-      }).then((response) => responseToJson(response, message));
+    const advance = (message) => advanceCalibrationSession(unit, sessionId, {}, message);
 
     await advance(`Failed to advance stirring session for ${unit}.`);
     if (abortRequestedRef.current || runId !== runIdRef.current) {
