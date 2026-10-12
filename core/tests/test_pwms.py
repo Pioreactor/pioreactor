@@ -67,14 +67,14 @@ def test_channel_telemetry_uses_worker_mapping_and_keeps_pin_cache(
             )
             first.start(15)
             second.start(55)
-            assert json.loads(mqtt_client.published[-1][1]) == {"1": 15, "4": 55}
+            assert json.loads(mqtt_client.published[-1][1])["channels"] == {"1": 15, "4": 55}
             with local_intermittent_storage("pwm_dc") as cache:
                 assert cache[22] == 15
                 assert cache[23] == 55
             second.stop()
-            assert json.loads(mqtt_client.published[-1][1]) == {"1": 15}
+            assert json.loads(mqtt_client.published[-1][1])["channels"] == {"1": 15}
 
-    assert json.loads(mqtt_client.published[-1][1]) == {}
+    assert json.loads(mqtt_client.published[-1][1])["channels"] == {}
     assert all(topic.endswith("/pwms/channel_dc") and retain for topic, _, retain in mqtt_client.published)
 
 
@@ -86,7 +86,7 @@ def test_unmapped_pin_is_omitted_from_channel_telemetry(monkeypatch: pytest.Monk
         assert pwm.duty_cycle == 15
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache[22] == 15
-        assert json.loads(mqtt_client.published[-1][1]) == {}
+        assert json.loads(mqtt_client.published[-1][1])["channels"] == {}
 
 
 def test_mapping_failure_precedes_hardware_initialization(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,11 +157,11 @@ def test_pwm_update_mqtt() -> None:
     assert wait_for(lambda: len(mqtt_items) == 3)
 
     assert len(mqtt_items) == 3
-    assert json.loads(mqtt_items[0])["4"] == 50.0
-    assert json.loads(mqtt_items[1])["4"] == 20.0
+    assert json.loads(mqtt_items[0])["channels"]["4"] == 50.0
+    assert json.loads(mqtt_items[1])["channels"]["4"] == 20.0
     with pytest.raises(KeyError):
         # we don't publish 0.0
-        assert json.loads(mqtt_items[2])["4"] == 0.0
+        assert json.loads(mqtt_items[2])["channels"]["4"] == 0.0
 
 
 def test_pwm_update_mqtt_multiple_at_one() -> None:
@@ -190,14 +190,14 @@ def test_pwm_update_mqtt_multiple_at_one() -> None:
     pause()
 
     assert len(mqtt_items) == 5
-    assert json.loads(mqtt_items[0])["4"] == 50.0
-    assert json.loads(mqtt_items[0]).get("1", 0.0) == 0.0
+    assert json.loads(mqtt_items[0])["channels"]["4"] == 50.0
+    assert json.loads(mqtt_items[0])["channels"].get("1", 0.0) == 0.0
 
-    assert json.loads(mqtt_items[1]).get("1", 0.0) == 34.0
-    assert json.loads(mqtt_items[1]).get("4", 0.0) == 50.0
+    assert json.loads(mqtt_items[1])["channels"].get("1", 0.0) == 34.0
+    assert json.loads(mqtt_items[1])["channels"].get("4", 0.0) == 50.0
 
-    assert json.loads(mqtt_items[-1]).get("1", 0.0) == 0.0
-    assert json.loads(mqtt_items[-1]).get("4", 0.0) == 0.0
+    assert json.loads(mqtt_items[-1])["channels"].get("1", 0.0) == 0.0
+    assert json.loads(mqtt_items[-1])["channels"].get("4", 0.0) == 0.0
 
 
 def _install_fake_lgpio(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:

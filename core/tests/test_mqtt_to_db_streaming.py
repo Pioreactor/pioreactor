@@ -36,9 +36,14 @@ def test_pwm_channels_parse_without_leader_hardware_or_model(
     monkeypatch.setattr(
         "pioreactor.hardware.get_pwm_to_pin_map", lambda: pytest.fail("Leader hardware lookup")
     )
-    row = m2db.parse_pwm_channel_dcs("pioreactor/worker01/experiment/pwms/channel_dc", encode(values))
+    timestamp = current_utc_datetime()
+    row = m2db.parse_pwm_channel_dcs(
+        "pioreactor/worker01/experiment/pwms/channel_dc",
+        encode(structs.PWMDutyCycles(timestamp=timestamp, channels=values)),
+    )
     assert row["pioreactor_unit"] == "worker01"
     assert row["experiment"] == "experiment"
+    assert row["timestamp"] == timestamp
     assert {key: row[key] for key in row if key.startswith("channel_")} == {
         f"channel_{channel}": values.get(str(channel), 0.0) for channel in range(1, 6)
     }
@@ -129,7 +134,7 @@ def test_updated_heater_dc() -> None:
         sleep(1)
         publish(
             f"pioreactor/{unit}/test/temperature_automation/latest_event",
-            '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}',
+            '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125},"timestamp":"2026-01-01T12:00:00.000Z"}',
         )
         assert wait_for(
             lambda: cursor.execute(
@@ -138,9 +143,9 @@ def test_updated_heater_dc() -> None:
             == 1
         )
 
-    cursor.execute("SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?", (unit,))
+    cursor.execute("SELECT timestamp FROM temperature_automation_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()
-    assert len(results) == 1
+    assert results == [("2026-01-01T12:00:00.000Z",)]
 
 
 def test_dosing_events_land_in_db() -> None:
@@ -248,8 +253,14 @@ def test_bioreactor_topics_land_in_db() -> None:
 
     with m2db.MqttToDBStreamer(unit, exp, parsers):
         sleep(1)
-        publish(f"pioreactor/{unit}/{exp}/bioreactor/current_volume_ml", 13.5)
-        publish(f"pioreactor/{unit}/{exp}/bioreactor/alt_media_fraction", 0.25)
+        publish(
+            f"pioreactor/{unit}/{exp}/bioreactor/current_volume_ml",
+            encode(structs.BioreactorValue(timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc), value=13.5)),
+        )
+        publish(
+            f"pioreactor/{unit}/{exp}/bioreactor/alt_media_fraction",
+            encode(structs.BioreactorValue(timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc), value=0.25)),
+        )
         assert wait_for(
             lambda: cursor.execute(
                 "SELECT liquid_volume FROM liquid_volumes WHERE experiment=?", (exp,)
@@ -261,13 +272,13 @@ def test_bioreactor_topics_land_in_db() -> None:
             == [(0.25,)]
         )
 
-    cursor.execute("SELECT liquid_volume FROM liquid_volumes WHERE experiment=?", (exp,))
+    cursor.execute("SELECT timestamp, liquid_volume FROM liquid_volumes WHERE experiment=?", (exp,))
     liquid_volume_results = cursor.fetchall()
-    assert liquid_volume_results == [(13.5,)]
+    assert liquid_volume_results == [("2026-01-01T00:00:00.000Z", 13.5)]
 
-    cursor.execute("SELECT alt_media_fraction FROM alt_media_fractions WHERE experiment=?", (exp,))
+    cursor.execute("SELECT timestamp, alt_media_fraction FROM alt_media_fractions WHERE experiment=?", (exp,))
     alt_media_results = cursor.fetchall()
-    assert alt_media_results == [(0.25,)]
+    assert alt_media_results == [("2026-01-01T00:00:00.000Z", 0.25)]
 
 
 def test_empty_payload_is_filtered_early() -> None:

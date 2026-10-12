@@ -1492,7 +1492,9 @@ def test_current_volume_mqtt_update_at_stop_threshold_sleeps_and_stops_active_pu
             pass
 
     class Message:
-        payload = str(DosingAutomationJob.MAX_VIAL_VOLUME_TO_STOP).encode()
+        payload = bioreactor.encode_bioreactor_payload(
+            DosingAutomationJob.MAX_VIAL_VOLUME_TO_STOP, current_utc_datetime()
+        )
 
     def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
         if topic.endswith("/$state/set"):
@@ -1533,7 +1535,7 @@ def test_current_volume_mqtt_update_at_warning_threshold_warns_without_stopping(
     ) / 2
 
     class Message:
-        payload = str(warning_volume).encode()
+        payload = bioreactor.encode_bioreactor_payload(warning_volume, current_utc_datetime())
 
     def record_stop_message(topic: str, payload=None, qos: int = 0, **kwargs) -> None:
         if topic.endswith("/$state/set"):
@@ -2162,7 +2164,9 @@ def test_chemostat_seeds_explicit_current_volume_before_retained_volume_listener
             if topic == bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml"):
                 retained_value = bioreactor.get_bioreactor_value(experiment, "current_volume_ml")
                 delivered_current_volume_payloads.append(retained_value)
-                callback(Message(str(retained_value).encode()))
+                callback(
+                    Message(bioreactor.encode_bioreactor_payload(retained_value, current_utc_datetime()))
+                )
 
     monkeypatch.setattr(
         DosingAutomationJob,
@@ -2412,10 +2416,10 @@ def test_bioreactor_mqtt_updates_dosing_job() -> None:
     job.start_passive_listeners()
 
     callbacks[bioreactor.get_bioreactor_topic(unit, experiment, "current_volume_ml")](
-        SimpleNamespace(payload=b"12.5")
+        SimpleNamespace(payload=bioreactor.encode_bioreactor_payload(12.5, current_utc_datetime()))
     )
     callbacks[bioreactor.get_bioreactor_topic(unit, experiment, "alt_media_fraction")](
-        SimpleNamespace(payload=b"0.35")
+        SimpleNamespace(payload=bioreactor.encode_bioreactor_payload(0.35, current_utc_datetime()))
     )
 
     assert job.current_volume_ml == pytest.approx(12.5)

@@ -427,13 +427,13 @@ class DosingAutomationJob(AutomationJob):
         if not message.payload:
             return
 
-        self.alt_media_fraction = bioreactor.validate_bioreactor_value("alt_media_fraction", message.payload)
+        self.alt_media_fraction = bioreactor.decode_bioreactor_payload("alt_media_fraction", message.payload)
 
     def _set_current_volume_ml_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
             return
 
-        self.current_volume_ml = bioreactor.validate_bioreactor_value("current_volume_ml", message.payload)
+        self.current_volume_ml = bioreactor.decode_bioreactor_payload("current_volume_ml", message.payload)
 
         if self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
             self.logger.error(
@@ -453,7 +453,7 @@ class DosingAutomationJob(AutomationJob):
         if not message.payload:
             return
 
-        self.efflux_tube_volume_ml = bioreactor.validate_bioreactor_value(
+        self.efflux_tube_volume_ml = bioreactor.decode_bioreactor_payload(
             "efflux_tube_volume_ml", message.payload
         )
 

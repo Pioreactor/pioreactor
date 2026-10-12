@@ -17,6 +17,7 @@ import PioreactorsIcon from "./PioreactorsIcon"
 import { useMQTT } from '../providers/MQTTContext';
 import { Link } from 'react-router';
 import { experimentPathSegment } from "../utils/url";
+import { parseBioreactorPayload } from "../utils/bioreactor";
 
 
 function MediaCard({experiment, relabelMap, activeUnits}) {
@@ -37,11 +38,11 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
       if (!message || !topic) return;
 
       const topicParts = topic.toString().split('/');
-      const payload = Number.parseFloat(message.toString());
+      const payload = parseBioreactorPayload(message);
       const unit = topicParts[1];
       const throughputKey = topicParts.at(-1) === 'cumulative_alt_media_added_ml' ? 'altMedia' : 'media';
 
-      if (Number.isNaN(payload)) {
+      if (payload === null) {
         return;
       }
 

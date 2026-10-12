@@ -345,7 +345,7 @@ def test_apply_dosing_event_to_bioreactor_persists_cumulative_volumes() -> None:
     assert bioreactor.get_bioreactor_value(experiment, "cumulative_waste_removed_ml") == pytest.approx(0.75)
     assert (
         bioreactor.get_bioreactor_topic("unit", experiment, "cumulative_waste_removed_ml"),
-        0.75,
+        bioreactor.encode_bioreactor_payload(0.75, remove_waste_event.timestamp),
         True,
     ) in mqtt_client.published
 

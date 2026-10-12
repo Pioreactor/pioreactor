@@ -74,7 +74,7 @@ import {
   buildBioreactorSettingsCollection,
   getBioreactorConfirmedValue,
   mergeSettingsCollections,
-  parseNumericValue,
+  parseBioreactorPayload,
 } from "./utils/bioreactor";
 import { getConfig, getRelabelMap } from "./utils/config";
 import {
@@ -2640,7 +2640,7 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
     const topicName = topic.toString()
     const parts = topicName.split('/');
     const variableName = parts[4];
-    const parsedValue = parseNumericValue(message.toString());
+    const parsedValue = parseBioreactorPayload(message);
 
     if (!variableName || parsedValue === null) {
       return;

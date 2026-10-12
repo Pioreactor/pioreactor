@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import typing as t
+from datetime import datetime
 from time import monotonic
 
+from msgspec.json import decode
+from msgspec.json import encode
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
@@ -12,6 +15,7 @@ from pioreactor.pubsub import publish as mqtt_publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import clamp
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_pioreactor_model
 
 
@@ -146,6 +150,14 @@ def get_bioreactor_topic(unit: pt.Unit, experiment: pt.Experiment, variable_name
     return f"pioreactor/{unit}/{experiment}/bioreactor/{variable_name}"
 
 
+def encode_bioreactor_payload(value: float, timestamp: datetime) -> bytes:
+    return encode(structs.BioreactorValue(timestamp=timestamp, value=value))
+
+
+def decode_bioreactor_payload(variable_name: str, payload: pt.MQTTMessagePayload) -> float:
+    return validate_bioreactor_value(variable_name, decode(payload, type=structs.BioreactorValue).value)
+
+
 def publish_bioreactor_value(
     mqtt_client: Client,
     unit: pt.Unit,
@@ -156,7 +168,7 @@ def publish_bioreactor_value(
     parsed_value = validate_bioreactor_value(variable_name, value)
     msg_info = mqtt_client.publish(
         get_bioreactor_topic(unit, experiment, variable_name),
-        parsed_value,
+        encode_bioreactor_payload(parsed_value, current_utc_datetime()),
         qos=QOS.EXACTLY_ONCE,
         retain=True,
     )
@@ -317,12 +329,11 @@ def apply_dosing_event_to_bioreactor(
 
     if mqtt_client is None:
         for variable_name, updated_value in updated_state.items():
-            _publish_updated_bioreactor_value(
-                unit,
-                experiment,
-                variable_name,
-                updated_value,
-                mqtt_client=None,
+            mqtt_publish(
+                get_bioreactor_topic(unit, experiment, variable_name),
+                encode_bioreactor_payload(updated_value, dosing_event.timestamp),
+                qos=QOS.EXACTLY_ONCE,
+                retain=True,
             )
         return updated_state
 
@@ -334,7 +345,7 @@ def apply_dosing_event_to_bioreactor(
                 topic,
                 mqtt_client.publish(
                     topic,
-                    updated_value,
+                    encode_bioreactor_payload(updated_value, dosing_event.timestamp),
                     qos=QOS.EXACTLY_ONCE,
                     retain=True,
                 ),
@@ -397,22 +408,3 @@ def _coerce_to_float(value: object) -> float:
         return float(value)
 
     return float(t.cast(t.SupportsFloat, value))
-
-
-def _publish_updated_bioreactor_value(
-    unit: pt.Unit,
-    experiment: pt.Experiment,
-    variable_name: str,
-    value: float,
-    mqtt_client: Client | None = None,
-) -> None:
-    if mqtt_client is not None:
-        publish_bioreactor_value(mqtt_client, unit, experiment, variable_name, value)
-        return
-
-    mqtt_publish(
-        get_bioreactor_topic(unit, experiment, variable_name),
-        value,
-        qos=QOS.EXACTLY_ONCE,
-        retain=True,
-    )

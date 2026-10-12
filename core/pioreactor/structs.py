@@ -18,6 +18,7 @@ from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.logging import create_logger
 from pioreactor.utils.files import is_valid_unix_filename
+from pioreactor.utils.timing import current_utc_datetime
 
 
 T = t.TypeVar("T")
@@ -108,6 +109,7 @@ class AutomationEvent(JSONPrintedStruct, tag=True, tag_field="event_name"):
 
     message: str | None = None
     data: dict | None = None
+    timestamp: t.Annotated[datetime, Meta(tz=True)] = field(default_factory=current_utc_datetime)
 
     def display(self) -> str:
         if self.message:
@@ -205,6 +207,16 @@ class Temperature(JSONPrintedStruct):
 class Voltage(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     voltage: pt.Voltage
+
+
+class BioreactorValue(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    value: float
+
+
+class PWMDutyCycles(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    channels: dict[pt.PwmChannel, float]
 
 
 class BioreactorVariableDefinition(Struct, frozen=True):
