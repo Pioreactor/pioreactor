@@ -857,13 +857,16 @@ def test_reboot_leader_delays_inside_task_not_http_handler(client, monkeypatch: 
     assert captured == {"wait": 5}
 
 
-def test_get_clock_time_success(client) -> None:
+@pytest.mark.parametrize("synchronized", [True, False, None])
+def test_get_clock_time_success(client, monkeypatch: pytest.MonkeyPatch, synchronized: bool | None) -> None:
     """GET clock time returns success and a timestamp."""
+    monkeypatch.setattr("pioreactor.web.unit_api.is_clock_synchronized", lambda: synchronized)
     resp = client.get("/unit_api/system/utc_clock")
     assert resp.status_code == 200
     data = resp.get_json()
     assert data.get("status") == "success"
     assert "clock_time" in data
+    assert data["synchronized"] is synchronized
 
 
 def test_get_disk_space(client, monkeypatch: pytest.MonkeyPatch) -> None:

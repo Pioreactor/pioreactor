@@ -65,6 +65,7 @@ from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import usb as usb_utils
+from pioreactor.utils.clock import is_clock_synchronized
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
@@ -1094,7 +1095,12 @@ def cleanup_after_inventory_removal() -> ResponseReturnValue:
 def get_clock_time() -> ResponseReturnValue:
     try:
         current_time = current_utc_timestamp()
-        return jsonify({"status": "success", "clock_time": current_time}), 200
+        return (
+            jsonify(
+                {"status": "success", "clock_time": current_time, "synchronized": is_clock_synchronized()}
+            ),
+            200,
+        )
     except Exception as e:
         abort_with(
             500,

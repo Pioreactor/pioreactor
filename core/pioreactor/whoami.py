@@ -30,6 +30,55 @@ def get_testing_experiment_name() -> "pt.Experiment":
         return f"_testing_{NO_EXPERIMENT}"
 
 
+def cache_membership(unit: str, values: dict[str, str | bool]) -> None:
+    """Persist only this unit's membership; remote lookups must stay leader-only."""
+    if unit != get_unit_name():
+        return
+
+    # Lazy imports avoid the config/utils -> whoami import cycle.
+    from msgspec.json import encode
+    from pioreactor.utils import local_persistent_storage
+    from pioreactor.utils.timing import current_utc_timestamp
+
+    updated_at = current_utc_timestamp()
+    with local_persistent_storage("cluster_membership") as storage:
+        for field, value in values.items():
+            storage[field] = encode((value, updated_at))
+
+
+def clear_cached_membership(unit: str) -> None:
+    if unit != get_unit_name():
+        return
+
+    from pioreactor.utils import local_persistent_storage
+
+    with local_persistent_storage("cluster_membership") as storage:
+        storage.pop("experiment")
+        storage.pop("is_active")
+
+
+def cached_membership(unit: str, field: str) -> str | bool | None:
+    """Only use after a local-unit transport failure; HTTP responses remain authoritative."""
+    if unit != get_unit_name():
+        return None
+
+    from msgspec.json import decode
+    from pioreactor.logging import create_logger
+    from pioreactor.utils import local_persistent_storage
+
+    with local_persistent_storage("cluster_membership") as storage:
+        record = storage.get(field)
+    if record is None:
+        return None
+    assert isinstance(record, bytes)
+    value, updated_at = decode(record, type=tuple[str | bool, str])
+    # Logging must neither look up the assignment again nor connect to the leader.
+    create_logger("whoami", unit=unit, experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False).warning(
+        f"Leader unreachable, using last known {field} {value!r} for {unit} from {updated_at}."
+    )
+    return value
+
+
 def get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
     return _get_assigned_experiment_name(unit_name)
 
@@ -53,7 +102,9 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
             result = get_from_leader(f"/api/workers/{unit_name}/experiment")
             result.raise_for_status()
             data = result.json()
-            return data["experiment"]
+            experiment = data["experiment"]
+            cache_membership(unit_name, {"experiment": experiment, "is_active": bool(data["is_active"])})
+            return experiment
         except HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
@@ -61,11 +112,16 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
                     f"Error in authentication to UI. Check http://{leader_address} and config.ini for api_key."
                 )
             elif e.status_code == 404:
+                clear_cached_membership(unit_name)
                 data = result.json()
                 raise NotAssignedAnExperimentError(data["error"])
         except HTTPException:
             # connection errors are often transient (e.g. the leader's web server restarting), so retry.
             if attempt == retries - 1:
+                experiment = cached_membership(unit_name, "experiment")
+                if experiment is not None:
+                    assert isinstance(experiment, str)
+                    return experiment
                 raise HTTPException(
                     f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
                 )
@@ -97,14 +153,21 @@ def _is_active(unit_name: "pt.Unit") -> bool:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
-        return bool(data["is_active"])
+        active = bool(data["is_active"])
+        cache_membership(unit_name, {"is_active": active})
+        return active
     except HTTPErrorStatus as e:
         if e.status_code == 404:
+            clear_cached_membership(unit_name)
             raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
         else:
             raise e
-    except HTTPException as e:
-        raise e
+    except HTTPException:
+        cached_active = cached_membership(unit_name, "is_active")
+        if cached_active is not None:
+            assert isinstance(cached_active, bool)
+            return cached_active
+        raise
 
 
 def is_testing_env() -> bool:
