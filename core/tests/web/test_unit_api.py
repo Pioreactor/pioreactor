@@ -857,13 +857,16 @@ def test_reboot_leader_delays_inside_task_not_http_handler(client, monkeypatch: 
     assert captured == {"wait": 5}
 
 
-def test_get_clock_time_success(client) -> None:
+@pytest.mark.parametrize("synchronized", [True, False, None])
+def test_get_clock_time_success(client, monkeypatch: pytest.MonkeyPatch, synchronized: bool | None) -> None:
     """GET clock time returns success and a timestamp."""
+    monkeypatch.setattr("pioreactor.web.unit_api.is_clock_synchronized", lambda: synchronized)
     resp = client.get("/unit_api/system/utc_clock")
     assert resp.status_code == 200
     data = resp.get_json()
     assert data.get("status") == "success"
     assert "clock_time" in data
+    assert data["synchronized"] is synchronized
 
 
 def test_get_disk_space(client, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1112,6 +1115,9 @@ def test_update_bioreactor_values_endpoint_rejects_out_of_range_values(client, m
 
 
 def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, monkeypatch) -> None:
+    from pioreactor.unit_model import save_local_model
+
+    save_local_model("pioreactor_20ml", "1.5")
     import pioreactor.web.unit_api as mod
 
     set_bioreactor_value("exp1", "current_volume_ml", 12.0)
@@ -1158,6 +1164,9 @@ def test_run_job_rejects_unknown_request_fields(client, monkeypatch) -> None:
 
 
 def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypatch) -> None:
+    from pioreactor.unit_model import save_local_model
+
+    save_local_model("pioreactor_20ml", "1.5")
     import pioreactor.web.unit_api as mod
 
     class DummyTask:
@@ -1180,34 +1189,23 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
     assert response.status_code == 202
 
 
-def test_run_job_rejects_manual_add_media_for_unknown_model(client, monkeypatch) -> None:
-    import pioreactor.web.unit_api as mod
+def test_manual_dosing_ignores_stale_request_model(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.unit_model import save_local_model
 
-    monkeypatch.setattr(mod, "is_rate_limited", lambda _job_name: False)
-    monkeypatch.setattr(
-        mod.tasks,
-        "pio_run",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
-    )
-
+    save_local_model("pioreactor_20ml", "1.5")
+    set_bioreactor_value("exp1", "current_volume_ml", 17.0)
+    monkeypatch.setattr(unit_api, "is_rate_limited", lambda _job_name: False)
     response = client.post(
         "/unit_api/jobs/run/job_name/add_media",
         json={
             "args": [],
-            "options": {"ml": 1.0},
-            "env": {
-                "EXPERIMENT": "exp1",
-                "MODEL_NAME": "unknown_model",
-                "MODEL_VERSION": "1.0",
-            },
+            "options": {"ml": 2.0},
+            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_40ml", "MODEL_VERSION": "1.5"},
             "config_overrides": [],
         },
     )
-
     assert response.status_code == 400
-    data = response.get_json()
-    assert data["error"] == "Unknown Pioreactor model."
-    assert data["cause"] == "Unknown model 'unknown_model' with version '1.0'."
+    assert "safety threshold" in response.get_json()["error"]
 
 
 def test_hardware_check_requires_model_payload(client) -> None:

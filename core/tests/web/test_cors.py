@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from flask.testing import FlaskClient
+from pioreactor import whoami
+from pioreactor.web import app as web_app
 from pioreactor.web import cors
+from pioreactor.web import unit_api
 from pytest import MonkeyPatch
 
 
@@ -152,3 +156,55 @@ def test_cross_site_reads_are_unaffected(client: FlaskClient) -> None:
 
     assert response.status_code == 200
     assert "Access-Control-Allow-Origin" not in response.headers
+
+
+@pytest.mark.parametrize("leader", [True, False])
+@pytest.mark.parametrize(
+    "origin,allowed_on_worker,allowed_on_leader",
+    [
+        ("https://foreign.example", False, False),
+        ("null", False, False),
+        (None, True, True),
+        ("http://this-unit.local", True, True),
+        ("http://localhost:3000", True, True),
+        ("https://127.0.0.1:8443", True, True),
+        ("http://unit1.local", False, True),
+    ],
+)
+@pytest.mark.parametrize("method", ["POST", "PATCH"])
+def test_unit_writes_check_origin_before_queuing_task(
+    monkeypatch: MonkeyPatch,
+    leader: bool,
+    origin: str | None,
+    allowed_on_worker: bool,
+    allowed_on_leader: bool,
+    method: str,
+) -> None:
+    monkeypatch.setattr(web_app, "am_I_leader", lambda: leader)
+    monkeypatch.setattr(whoami, "am_I_leader", lambda: leader)
+    cluster_hosts = Mock(return_value=frozenset({"unit1.local"}))
+    monkeypatch.setattr(cors, "get_cluster_hosts", cluster_hosts)
+    monkeypatch.setattr(unit_api, "_task_is_locked", lambda _: False)
+    reboot = Mock(return_value=Mock(id="mock-reboot"))
+    monkeypatch.setattr(unit_api.tasks, "reboot", reboot)
+
+    response = (
+        web_app.create_app()
+        .test_client()
+        .open(
+            "/unit_api/system/reboot",
+            method=method,
+            base_url="http://this-unit.local",
+            headers={"Origin": origin} if origin is not None else {},
+            content_type="application/x-www-form-urlencoded",
+            data="",
+        )
+    )
+
+    allowed = allowed_on_leader if leader else allowed_on_worker
+    assert response.status_code == (202 if allowed else 403)
+    assert reboot.call_count == int(allowed)
+    if not allowed:
+        assert response.get_json()["error"] == "Cross-site request rejected."
+    if not leader:
+        cluster_hosts.assert_not_called()

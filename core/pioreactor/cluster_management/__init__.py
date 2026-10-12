@@ -109,18 +109,6 @@ def add_worker(
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
-    # validate combo against registry
-    from pioreactor.models import get_registered_models
-
-    registered_models = get_registered_models()
-
-    if model_name and model_version and ((model_name, model_version) not in registered_models):
-        click.echo(
-            f"Invalid model/version: {model_name} v{model_version}."
-            f" Valid options: {sorted(registered_models.keys())}"
-        )
-        raise click.Abort()
-
     if hostname.endswith(".local"):
         # exit with message
         click.echo("Please provide the hostname without the `.local` suffix.")
@@ -160,6 +148,8 @@ def add_worker(
                 hostname,
                 password,
                 possible_address,
+                model_name or "",
+                model_version or "",
             ],
             capture_output=True,
             text=True,
@@ -167,6 +157,9 @@ def add_worker(
         if res.returncode > 0:
             logger.error(res.stderr)
             raise BashScriptError(res.stderr)
+
+        assigned = loads(res.stdout, type=dict[str, str | None])
+        model_name, model_version = assigned["model_name"], assigned["model_version"]
 
     try:
         r = put_into_leader(
@@ -270,17 +263,6 @@ def update_active(worker: pt.Unit, active: int) -> None:
 @click.option("--model-name", "-m", required=True)
 @click.option("--model-version", "-v", required=True)
 def update_model(worker: pt.Unit, model_name: str, model_version: str) -> None:
-    from pioreactor.models import get_registered_models
-
-    registered_models = get_registered_models()
-
-    if (model_name, model_version) not in registered_models:
-        click.echo(
-            f"Invalid model/version: {model_name} v{model_version}."
-            f" Valid options: {sorted(registered_models.keys())}"
-        )
-        raise click.Abort()
-
     try:
         r = put_into_leader(
             f"/api/workers/{worker}/model",

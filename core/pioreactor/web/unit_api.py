@@ -28,6 +28,7 @@ from huey.exceptions import HueyException
 from huey.exceptions import TaskException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
+from pioreactor import exc
 from pioreactor import structs
 from pioreactor import whoami
 from pioreactor.background_jobs.base import format_with_optional_units
@@ -63,8 +64,11 @@ from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.pubsub import create_client
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
+from pioreactor.unit_model import get_local_model
+from pioreactor.unit_model import save_local_model
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import usb as usb_utils
+from pioreactor.utils.clock import is_clock_synchronized
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
@@ -180,6 +184,32 @@ def health_check() -> ResponseReturnValue:
 @unit_api_bp.route("/system/ipv4", methods=["GET"])
 def get_system_ipv4() -> ResponseReturnValue:
     return attach_cache_control(jsonify({"ipv4_address": get_ip()}), max_age=0)
+
+
+@unit_api_bp.route("/model", methods=["GET"])
+def get_unit_model() -> ResponseReturnValue:
+    model = get_local_model()
+    if model is None:
+        abort_with(404, "No model assigned to this unit.")
+    return {"model_name": model[0], "model_version": model[1]}, 200
+
+
+@unit_api_bp.route("/model", methods=["PUT"])
+def set_unit_model() -> ResponseReturnValue:
+    body = decode_request_body(structs.ChangeWorkerModelRequest)
+    try:
+        save_local_model(body.model_name, body.model_version)
+    except exc.UnknownModelAssignedError as error:
+        abort_with(400, str(error))
+    except RuntimeError as error:
+        abort_with(409, str(error))
+    tasks.check_model_hardware(body.model_name, body.model_version)
+    publish_to_log(
+        f"Set {HOSTNAME} to {body.model_name}, {body.model_version}.",
+        task="worker_model",
+        level="INFO",
+    )
+    return {"model_name": body.model_name, "model_version": body.model_version}, 200
 
 
 @unit_api_bp.route("/hardware/check", methods=["POST", "PATCH"])
@@ -1094,7 +1124,12 @@ def cleanup_after_inventory_removal() -> ResponseReturnValue:
 def get_clock_time() -> ResponseReturnValue:
     try:
         current_time = current_utc_timestamp()
-        return jsonify({"status": "success", "clock_time": current_time}), 200
+        return (
+            jsonify(
+                {"status": "success", "clock_time": current_time, "synchronized": is_clock_synchronized()}
+            ),
+            200,
+        )
     except Exception as e:
         abort_with(
             500,
@@ -1280,25 +1315,15 @@ def is_manual_dosing_volume_unsafe(
     if addition_ml < 0:
         return False
 
-    model_name = env.get("MODEL_NAME")
-    model_version = env.get("MODEL_VERSION")
-
-    if model_name and model_version:
-        try:
-            safety_threshold_ml = get_registered_models()[
-                (model_name, model_version)
-            ].reactor_max_fill_volume_ml
-        except KeyError:
-            # Current invariant: manual dosing fails closed when this worker
-            # cannot resolve the supplied model metadata locally.
-            abort_with(
-                400,
-                "Unknown Pioreactor model.",
-                cause=f"Unknown model '{model_name}' with version '{model_version}'.",
-                remediation="Assign a model available on this worker before dosing.",
-            )
-    else:
-        safety_threshold_ml = whoami.get_pioreactor_model(whoami.get_unit_name()).reactor_max_fill_volume_ml
+    try:
+        safety_threshold_ml = whoami.get_pioreactor_model().reactor_max_fill_volume_ml
+    except (exc.NoModelAssignedError, exc.UnknownModelAssignedError, exc.NoWorkerFoundError) as error:
+        abort_with(
+            400,
+            "Unknown Pioreactor model.",
+            cause=str(error),
+            remediation="Assign a model available on this worker before dosing.",
+        )
 
     current_volume_ml = get_bioreactor_value(experiment, "current_volume_ml")
 
