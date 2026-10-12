@@ -25,3 +25,10 @@ cmp "$ASSET" "$SETTINGS_DIR/13_pwms.yaml"
 bash "$SCRIPT_DIR/20_install_bootfs_plugins.sh"
 
 bash "$SCRIPT_DIR/30_install_bootfs_files.sh"
+
+# Onboarding saves the unit model over SSH before requesting its reboot.
+WORKER_SETUP="$SCRIPT_DIR/add_new_pioreactor_worker_from_leader.sh"
+test -s "$WORKER_SETUP"
+TMP_WORKER_SETUP="$(mktemp /usr/local/bin/.worker-setup.XXXXXX)"
+install -o root -g root -m 0755 "$WORKER_SETUP" "$TMP_WORKER_SETUP"
+mv "$TMP_WORKER_SETUP" /usr/local/bin/add_new_pioreactor_worker_from_leader.sh

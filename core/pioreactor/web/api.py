@@ -4541,43 +4541,27 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
 def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     registered_worker_or_abort(pioreactor_unit)
 
-    # Get the new status from the request body
     data = decode_request_body(structs.ChangeWorkerModelRequest)
-    model_version, model_name = data.model_version, data.model_name
-
-    if (model_name, model_version) not in get_registered_models():
-        abort_with(
-            400,
-            "Model name or version not found in available models.",
-            cause=f"Unknown model '{model_name}' with version '{model_version}'.",
-            remediation="Use a model_name and model_version from the registered models list.",
+    response: MureqResponse | None = None
+    try:
+        response = put_into(
+            resolve_to_address(pioreactor_unit),
+            "/unit_api/model",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
+            json=to_builtins(data),
+            timeout=5,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException):
+        abort_with_worker_error(
+            response, f"Could not update {pioreactor_unit}'s model. Check its connection and retry."
         )
 
-    # Update the status of the worker in the database
-    row_count = modify_app_db(
-        "UPDATE workers SET model_name = (?), model_version= (?) WHERE pioreactor_unit = (?)",
-        (model_name, model_version, pioreactor_unit),
+    modify_app_db(
+        "UPDATE workers SET model_name=?, model_version=? WHERE pioreactor_unit=?",
+        (data.model_name, data.model_version, pioreactor_unit),
     )
-
-    if row_count > 0:
-        publish_to_log(
-            f"Set {pioreactor_unit} to {model_name}, {model_version}.",
-            task="worker_model",
-            level="INFO",
-        )
-        tasks.post_into_unit(
-            pioreactor_unit,
-            "/unit_api/hardware/check",
-            json={"model_name": model_name, "model_version": model_version},
-        )
-        return {"status": "success"}, 200
-    else:
-        abort_with(
-            404,
-            f"Worker {pioreactor_unit} not found",
-            cause="Worker name not found in database.",
-            remediation="Check the unit name or add the worker to the inventory.",
-        )
+    return {"status": "success"}, 200
 
 
 @api_bp.route("/workers/<pioreactor_unit>/model", methods=["GET"])

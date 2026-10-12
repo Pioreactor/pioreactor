@@ -2,11 +2,17 @@
 # this script "connects" the leader to the worker.
 # first argument is the name of the new/hostname pioreactor worker
 # second optional argument is the worker password, default "raspberry"
-# third optional argument is the Pioreactor version, default "1.1"
+# third optional argument is the worker address
+# fourth and fifth optional arguments are the model name and version
+# stdout returns the model JSON; provisioning diagnostics go to stderr.
 
 set -x
 set -e
 export LC_ALL=C
+
+# Reserve stdout for the model JSON returned to the caller.
+# Send setup command output to stderr, and keep the original stdout on fd 3.
+exec 3>&1 1>&2
 
 # shellcheck source=/dev/null
 source /etc/pioreactor.env 2>/dev/null || true
@@ -16,6 +22,12 @@ PIO="$VENV_BIN/pio"
 HOSTNAME=$1
 SSHPASS=${2:-raspberry}
 ADDRESS=${3:-"$HOSTNAME".local}
+MODEL_NAME=${4:-}
+MODEL_VERSION=${5:-}
+if { [ -n "$MODEL_NAME" ] && [ -z "$MODEL_VERSION" ]; } || { [ -z "$MODEL_NAME" ] && [ -n "$MODEL_VERSION" ]; }; then
+    echo "Provide both model name and version." >&2
+    exit 1
+fi
 
 LEADER_ADDRESS=$(sudo -u pioreactor "$PIO" config get cluster.topology leader_address --shared)
 
@@ -124,8 +136,16 @@ ssh pioreactor@"$ADDRESS" "sudo date --set \"$(date)\""
 ssh pioreactor@"$ADDRESS" "echo \"server $LEADER_ADDRESS iburst prefer\" | sudo tee -a /etc/chrony/chrony.conf || :"
 
 
-# reboot to set configuration
-# the || true is because the connection fails, which returns as -1.
-ssh pioreactor@"$ADDRESS" 'sudo reboot;' || true
+# Save the model before rebooting, or read the worker's existing selection.
+if [ -n "$MODEL_NAME" ]; then
+    printf -v MODEL_ARGS '%q ' "$MODEL_NAME" "$MODEL_VERSION"
+    # shellcheck disable=SC2029
+    MODEL_JSON=$(ssh pioreactor@"$ADDRESS" "/opt/pioreactor/venv/bin/pio model set $MODEL_ARGS")
+else
+    MODEL_JSON=$(ssh pioreactor@"$ADDRESS" '/opt/pioreactor/venv/bin/pio model get')
+fi
 
+# SSH may disconnect as the reboot starts.
+ssh pioreactor@"$ADDRESS" 'sudo reboot;' || true
+printf '%s\n' "$MODEL_JSON" >&3
 exit 0

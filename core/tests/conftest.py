@@ -32,6 +32,9 @@ def _clear_test_artifacts(test_name: str) -> None:
     with local_intermittent_storage("leds") as cache:
         cache.empty()
 
+    with local_persistent_storage("pioreactor_model") as cache:
+        cache.empty()
+
     with local_persistent_storage("active_calibrations") as cache:
         cache.empty()
 

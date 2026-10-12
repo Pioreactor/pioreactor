@@ -186,6 +186,14 @@ class JobManager:
     def is_job_running(self, job_name: str) -> bool:
         return self.get_running_job_id(job_name) is not None
 
+    def count_running_jobs(self, *, include_long_running_jobs: bool) -> int:
+        """Count running jobs, optionally excluding long-running services."""
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM pio_job_metadata WHERE is_running=1 AND (? OR is_long_running_job=0)",
+            (include_long_running_jobs,),
+        )
+        return int(self.cursor.fetchone()[0])
+
     def get_running_job_id(self, job_name: str) -> int | None:
         select_query = """
             SELECT job_id

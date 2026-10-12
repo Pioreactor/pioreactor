@@ -2,6 +2,7 @@
 
 #### Breaking changes
 
+ - Changing a Pioreactor's model now requires the unit to be reachable and its activities to be stopped. Long-running services, including Monitor, can remain running. Update workers before changing their models through the leader.
  - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`. Payload keys now identify PWM channels instead of GPIO pins, for example `{"1": 15.0, "4": 55.0, "5": 23.49}`. Update any plugins or scripts that consume this topic. Upgrade the leader/UI and all workers together, restart active worker jobs, and reload browser tabs; mixed versions are not supported for PWM telemetry.
  - Renamed the unit API endpoint `POST /unit_api/system/remove_from_inventory/<expected_hostname>` to `POST /unit_api/system/cleanup_after_inventory_removal`. API clients should send the intended hostname in the `X-Pioreactor-Target` header; requests with a mismatched hostname return HTTP `409` before stopping jobs or removing configuration.
  - `POST /unit_api/calibrations/sessions/<session_id>/inputs` (and the leader's `/api/workers/<unit>/calibrations/sessions/<session_id>/inputs`) now answers `202` with a task instead of waiting for the step to finish. Poll `result_url_path` (or the leader's `/api/workers/<unit>/task_results/<task_id>`); the task's `result` is `{"session", "step"}`, and rejected inputs or failed actions report `status: "failed"` with the error. Pioreactor Zero W workers now run two Huey workers, which this needs.
@@ -19,7 +20,8 @@
  - Reduced browser memory use and rendering overhead for live charts and logs during long experiments, including less frequent chart updates in background tabs. Older logs remain available through **Load older logs**.
  - Added visible **Mount** and **Eject** buttons for USB drives. The Plugins page now distinguishes missing drives, unmounted drives, and drives without plugins, with guidance for each case.
  - The leader's `/api` now accepts cross-origin requests from Pioreactors in its inventory (`http://<unit>`, `http://<unit>.local`, the unit's address in `[cluster.addresses]`) and from `localhost`, so a page served by one Pioreactor can call the leader. Other origins still get no CORS headers.
- - Fewer requests to the leader during dosing and safety checks. A Pioreactor's assigned model is now cached briefly, so model changes may take up to 30 seconds to reach running jobs.
+ - Saved each Pioreactor's model assignment on the unit so it survives reboots and remains available when the leader is unreachable. Existing assignments are adopted automatically when the leader is reachable; newly added workers save their selected model before rebooting.
+ - Added `pio model get` and `pio model set <name> <version>` to inspect or change the local unit's model, for example `pio model set pioreactor_20ml 1.5`.
 
 #### Bug fixes
 

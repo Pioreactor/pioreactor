@@ -280,3 +280,13 @@ def test_retrieve_setting_with_zero_timeout(
     assert job_manager.get_setting_from_running_job("test_job", "interval", timeout=0) == 5
     with pytest.raises(NameError, match="missing"):
         job_manager.get_setting_from_running_job("test_job", "missing", timeout=0)
+
+
+def test_count_running_jobs_excludes_stopped_jobs_and_optionally_services(job_manager: JobManager) -> None:
+    ordinary = job_manager.register_and_set_running("unit", "exp", "stirring", "test", 12345, "leader", False)
+    job_manager.register_and_set_running("unit", "exp", "monitor", "test", 12346, "leader", True)
+    assert job_manager.count_running_jobs(include_long_running_jobs=True) == 2
+    assert job_manager.count_running_jobs(include_long_running_jobs=False) == 1
+    job_manager.set_not_running(ordinary)
+    assert job_manager.count_running_jobs(include_long_running_jobs=True) == 1
+    assert job_manager.count_running_jobs(include_long_running_jobs=False) == 0

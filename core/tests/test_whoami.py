@@ -51,10 +51,13 @@ def test_get_pioreactor_model_uses_one_leader_request_and_caches(leader_model_lo
     assert len(requested) == 1
 
 
-def test_get_pioreactor_model_cache_expires(leader_model_lookup: dict[str, Any]) -> None:
+def test_get_pioreactor_model_cache_expires(
+    leader_model_lookup: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOSTNAME", "other-unit")
     requested = leader_model_lookup["requested"]
 
-    whoami.get_pioreactor_model()
+    whoami.get_pioreactor_model("unit1")
     cached_at, name, version = whoami._model_from_leader_cache["unit1"]
     whoami._model_from_leader_cache["unit1"] = (
         cached_at - whoami._MODEL_FROM_LEADER_TTL_SECONDS - 1,
@@ -63,7 +66,7 @@ def test_get_pioreactor_model_cache_expires(leader_model_lookup: dict[str, Any])
     )
     leader_model_lookup["workers"]["unit1"] = {"model_name": "pioreactor_20ml", "model_version": "1.1"}
 
-    model = whoami.get_pioreactor_model()
+    model = whoami.get_pioreactor_model("unit1")
     assert (model.model_name, model.model_version) == ("pioreactor_20ml", "1.1")
     assert len(requested) == 2
 
@@ -281,3 +284,46 @@ def test_remote_lookups_do_not_change_or_use_local_cache(
     membership_lookup.side_effect = HTTPException("connection refused")
     assert whoami.get_assigned_experiment_name("unit1") == "exp1"
     assert whoami.is_active("unit1") is False
+
+
+def test_local_model_survives_leader_loss_and_overrides_env(
+    leader_model_lookup: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor.unit_model import get_local_model
+
+    whoami.get_pioreactor_model()
+    assert get_local_model() == ("pioreactor_40ml", "1.5")
+    whoami.clear_pioreactor_model_cache()
+    monkeypatch.setattr(pubsub, "get_from_leader", lambda *a, **kw: pytest.fail("must be offline"))
+    monkeypatch.setenv("MODEL_NAME", "pioreactor_20ml")
+    monkeypatch.setenv("MODEL_VERSION", "1.1")
+    assert whoami.get_pioreactor_model().model_name == "pioreactor_40ml"
+
+
+def test_adoption_ignores_env_and_never_overwrites_local(
+    leader_model_lookup: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pioreactor.unit_model import adopt_model_from_leader, save_local_model
+
+    monkeypatch.setenv("MODEL_NAME", "pioreactor_20ml")
+    monkeypatch.setenv("MODEL_VERSION", "1.1")
+    assert adopt_model_from_leader() == ("pioreactor_40ml", "1.5")
+    save_local_model("pioreactor_20ml", "1.1")
+    assert adopt_model_from_leader() == ("pioreactor_20ml", "1.1")
+
+
+def test_remote_lookup_does_not_adopt_model(leader_model_lookup: dict[str, Any]) -> None:
+    from pioreactor.unit_model import get_local_model
+
+    leader_model_lookup["workers"]["unit2"] = {"model_name": "pioreactor_40ml", "model_version": "1.5"}
+    whoami.get_pioreactor_model("unit2")
+    assert get_local_model() is None
+
+
+def test_invalid_leader_model_is_not_persisted(leader_model_lookup: dict[str, Any]) -> None:
+    from pioreactor.unit_model import get_local_model
+
+    leader_model_lookup["workers"]["unit1"] = {"model_name": "unknown", "model_version": "1.5"}
+    with pytest.raises(exc.UnknownModelAssignedError):
+        whoami.get_pioreactor_model()
+    assert get_local_model() is None

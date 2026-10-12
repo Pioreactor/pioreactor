@@ -77,6 +77,7 @@ def test_add_worker_falls_back_from_stale_config_address_to_discovered_ipv4(monk
     class FakeCompletedProcess:
         returncode = 0
         stderr = ""
+        stdout = '{"model_name":null,"model_version":null}'
 
     class FakeLeaderResponse:
         def raise_for_status(self) -> None:
@@ -109,7 +110,8 @@ def test_add_worker_falls_back_from_stale_config_address_to_discovered_ipv4(monk
     monkeypatch.setattr(cluster_management, "put_into_leader", lambda *_args, **_kwargs: FakeLeaderResponse())
 
     def fake_run(args: list[str], **_kwargs: object) -> FakeCompletedProcess:
-        captured_run_args.extend(args)
+        if args[0] == "bash":
+            captured_run_args.extend(args)
         return FakeCompletedProcess()
 
     monkeypatch.setattr(cluster_management.subprocess, "run", fake_run)
@@ -123,6 +125,8 @@ def test_add_worker_falls_back_from_stale_config_address_to_discovered_ipv4(monk
         "unit1",
         "raspberry",
         "192.168.1.99",
+        "",
+        "",
     ]
 
 
@@ -133,6 +137,7 @@ def test_add_worker_explicit_address_does_not_try_config_or_discovery(monkeypatc
     class FakeCompletedProcess:
         returncode = 0
         stderr = ""
+        stdout = '{"model_name":null,"model_version":null}'
 
     class FakeLeaderResponse:
         def raise_for_status(self) -> None:
@@ -179,3 +184,43 @@ def test_add_worker_explicit_address_does_not_try_config_or_discovery(monkeypatc
     assert result.exit_code == 0
     assert captured_addresses == ["unit1.local"]
     assert discovery_was_called is False
+
+
+@pytest.mark.parametrize("selected", [True, False])
+@pytest.mark.parametrize("fails", [True, False])
+def test_add_worker_uses_script_model_result(
+    monkeypatch: pytest.MonkeyPatch, selected: bool, fails: bool
+) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    monkeypatch.setattr(cluster_management.whoami, "is_testing_env", lambda: False)
+    monkeypatch.setattr(cluster_management.whoami, "get_unit_name", lambda: "leader")
+    monkeypatch.setattr(cluster_management, "create_logger", lambda *a, **kw: Mock())
+    monkeypatch.setattr(
+        cluster_management, "_unique_worker_add_address_candidates", lambda *a: ("unit.local",)
+    )
+    monkeypatch.setattr(cluster_management, "_find_reachable_worker_add_address", lambda *a: "unit.local")
+    run = Mock(
+        return_value=SimpleNamespace(
+            returncode=1 if fails else 0,
+            stderr="model setup failed",
+            stdout='{"model_name":"pioreactor_40ml","model_version":"1.5"}',
+        )
+    )
+    register = Mock(return_value=Response("http://leader", 201, {}, b"{}"))
+    monkeypatch.setattr(cluster_management.subprocess, "run", run)
+    monkeypatch.setattr(cluster_management, "put_into_leader", register)
+    args = ["unit1", "-m", "pioreactor_40ml", "-v", "1.5"] if selected else ["unit1"]
+    result = CliRunner().invoke(add_worker, args)
+    assert result.exit_code == (1 if fails else 0), result.output
+    run.assert_called_once()
+    assert run.call_args.args[0][-2:] == (["pioreactor_40ml", "1.5"] if selected else ["", ""])
+    if fails:
+        register.assert_not_called()
+    else:
+        assert register.call_args.kwargs["json"] == {
+            "pioreactor_unit": "unit1",
+            "model_name": "pioreactor_40ml",
+            "model_version": "1.5",
+        }

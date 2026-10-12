@@ -245,6 +245,13 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
 
 
 def _get_pioreactor_model_name_and_version(unit_name: "pt.Unit") -> tuple[str | None, str | None]:
+    # Lazy import avoids the config/utils -> whoami import cycle.
+    from pioreactor.unit_model import get_local_model
+    from pioreactor.unit_model import save_local_model
+
+    if unit_name == get_unit_name() and (local := get_local_model()) is not None:
+        return local
+
     # The local unit's model can be provided by env (jobs launched from the UI/profiles set these).
     name: str | None = None
     version: str | None = None
@@ -259,6 +266,8 @@ def _get_pioreactor_model_name_and_version(unit_name: "pt.Unit") -> tuple[str | 
         return name, version
 
     leader_name, leader_version = _get_pioreactor_model_name_and_version_from_leader(unit_name)
+    if unit_name == get_unit_name() and leader_name is not None and leader_version is not None:
+        return save_local_model(leader_name, leader_version, only_if_unset=True)
     return name or leader_name, version or leader_version
 
 
