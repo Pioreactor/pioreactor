@@ -248,6 +248,9 @@ buffered and sent on return). S3: by restoring a backup onto a new leader (D5).
 - **A worker keeps its own broker after joining.** It's already there from standalone
   mode. Jobs and the screen use the local broker, and a bridge forwards to the leader
   and buffers during outages. This is the L1/L2 data path (A2), at little extra cost.
+  Invariant: **jobs and the screen always talk to `localhost`**, whatever the role.
+  Only the bridge knows where the leader is. Joining a cluster adds the bridge;
+  leaving removes it. `mqtt.broker_address` stops depending on the role.
 - **Joining and leaving happen between experiments only** (a unit is busy while
   assigned).
 - **The leader's screen gets cluster abilities:** create experiments, add units to the
