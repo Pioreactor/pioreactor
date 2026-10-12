@@ -44,6 +44,10 @@ fi
 bash "$SCRIPT_DIR/20_install_bootfs_plugins.sh"
 
 bash "$SCRIPT_DIR/30_install_bootfs_files.sh"
+bash "$SCRIPT_DIR/40_huey_two_workers_on_zero_w.sh"
+bash "$SCRIPT_DIR/45_serve_kiosk_under_k.sh"
+
+bash "$SCRIPT_DIR/50_install_mosquitto.sh"
 
 # Onboarding saves the unit model over SSH before requesting its reboot.
 WORKER_SETUP="$SCRIPT_DIR/add_new_pioreactor_worker_from_leader.sh"
