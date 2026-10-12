@@ -181,7 +181,7 @@ New APIs will likely be needed. Those are deferred. Make notes about what is nee
 | Leader's screen | Mostly its own worker view, plus a few leader-only abilities (experiment creation, profiles). Details are still being worked out; see the draft below. |
 | In scope on every screen | Self-test, OD blank, pumps, LEDs, plugins' jobs (along with the core jobs and automations), and **calibrations at the bench**. |
 | Out of scope on worker screens | Experiment profiles (leader screen only). |
-| Viewing other units | The leader's screen probably does not open other units' views. |
+| Viewing other units | The leader's screen assigns units and shows a status tile per unit, but doesn't control other units' jobs. See `CLUSTER_MODEL.md` (repo root) for this and the wider cluster decisions. |
 | URL scheme | `/k/` with an implicit self (`/k/`, `/k/dosing`, `/k/charts`, ...), served by a separate HTML entry, `kiosk.html`. |
 | Cross-origin access | Done on `develop`: the leader's `/api` accepts requests from cluster members' screens (`core/pioreactor/web/cors.py`). |
 | Cross-site writes | Done on `develop`: mutating `/api` requests with a foreign `Origin` get `403`. An `Origin` check rather than requiring a JSON content type or custom header, so no existing client (body-less POSTs, uploads, scripts) had to change. |
