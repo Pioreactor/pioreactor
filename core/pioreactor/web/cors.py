@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Cross-origin access to the leader's /api.
+Cross-origin access to the leader's /api and write protection on every unit.
 
 Each Pioreactor's touchscreen loads its UI from its own web server, so every call it
 makes to the leader is cross-origin. Origins are allowlisted from the cluster
@@ -11,12 +11,15 @@ CORS alone doesn't stop a "simple" cross-site POST (a form post, or fetch withou
 JSON content type), which the browser sends without asking. So mutating requests
 that carry an `Origin` must come from the leader itself or an allowlisted origin.
 Clients without an `Origin` (curl, Python, other Pioreactors) are unaffected.
+Workers allow only same-origin or localhost browser writes to /unit_api; only
+leaders consult the cluster inventory for additional allowed origins.
 """
 import typing as t
 from time import monotonic
 from urllib.parse import urlsplit
 
 from flask import request
+from pioreactor import whoami
 from pioreactor.config import ConfigParserMod
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.web.utils import abort_with
@@ -91,6 +94,9 @@ def is_allowed_origin(origin: str) -> bool:
     if port is not None:
         return False
 
+    if not whoami.am_I_leader():
+        return False
+
     try:
         return host in get_cluster_hosts()
     except Exception:
@@ -124,7 +130,7 @@ def _is_same_origin(origin: str) -> bool:
 
 
 def reject_cross_site_writes() -> None:
-    if request.method not in MUTATING_METHODS or not request.path.startswith("/api/"):
+    if request.method not in MUTATING_METHODS or not request.path.startswith(("/api/", "/unit_api/")):
         return
 
     origin = request.headers.get("Origin")
