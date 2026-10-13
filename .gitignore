@@ -134,6 +134,7 @@ __pypackages__/
 #
 # Tooling / editors
 #
+.DS_Store
 .ropeproject
 .spyderproject
 .spyproject

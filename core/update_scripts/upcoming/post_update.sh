@@ -17,7 +17,7 @@ fi
 
 # Retained bioreactor values were published as bare floats; republish them as timestamped
 # payloads so restarted dosing automations and the UI can decode them.
-sudo -u pioreactor -i /opt/pioreactor/venv/bin/python -c '
+sudo -u pioreactor -i /opt/pioreactor/venv/bin/python - <<'PYTHON' || :
 from pioreactor import bioreactor
 from pioreactor.pubsub import create_client
 from pioreactor.whoami import get_assigned_experiment_name, get_unit_name
@@ -27,4 +27,4 @@ experiment = get_assigned_experiment_name(unit)
 with create_client() as client:
     for variable_name, value in bioreactor.get_all_bioreactor_values(experiment).items():
         bioreactor.publish_bioreactor_value(client, unit, experiment, variable_name, value)
-' || :
+PYTHON

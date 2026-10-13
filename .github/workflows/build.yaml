@@ -93,7 +93,7 @@ jobs:
       - name: Zip the wheels
         run: |
           cd wheels
-          zip -r ../wheels_${{ github.event.release.tag_name }}.zip .
+          zip -r ../wheels_${{ github.event.release.tag_name }}.zip . -x '.DS_Store' '*/.DS_Store'
       - name: Upload zipped wheels artifact
         uses: actions/upload-artifact@v4
         with:
@@ -140,6 +140,7 @@ jobs:
           cp "dist/pioreactor-$tag-py3-none-any.whl" release_assets/
           cp "wheels_${tag}.zip" "release_assets/wheels_${tag}.zip"
           cp "$update_dir"/* release_assets/
+          find release_assets -type f -name .DS_Store -delete
 
           for filename in $required_update_files; do
             [ -f "release_assets/$filename" ] || : > "release_assets/$filename"
