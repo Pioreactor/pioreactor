@@ -38,6 +38,6 @@ so they always reach the unit that served the page.
 SSH and rsync operations are outside this HTTP contract, including shared-config
 sync, `pios cp`, and staging USB plugin files before installation. They need a
 separate destination guard. Inventory cleanup uses
-`POST /unit_api/system/cleanup_after_inventory_removal` with the same optional header;
-it only stops worker jobs and removes shared config. The leader's
+`POST /unit_api/cluster/leave` with the same optional header;
+the worker undoes its join (stops jobs, removes shared config and its chrony source) and reboots. The leader's
 `DELETE /api/workers/<unit>` owns deletion of the inventory database record.

@@ -5,7 +5,7 @@ set -xeu
 export LC_ALL=C
 
 # Adding a worker used to append `server <leader> iburst prefer` to chrony.conf, once per add.
-# `pio join-cluster` now owns a drop-in instead, so move the most recent line there.
+# `pio cluster join` now owns a drop-in instead, so move the most recent line there.
 # Leaders, and workers added since, have no such line.
 CHRONY_CONFIG=/etc/chrony/chrony.conf
 LEADER_SOURCE=/etc/chrony/conf.d/pioreactor-leader.conf

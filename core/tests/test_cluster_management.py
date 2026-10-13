@@ -191,8 +191,8 @@ def test_add_worker_registers_before_configuring_then_reboots(
     _, join_command, detached = events.events[4]
     assert detached is False
     assert events.events[5] == ("reboot", "10.0.0.5", True)
-    assert join_command.startswith('set -a; . /etc/pioreactor.env; set +a; "$PIO_EXECUTABLE" join-cluster ')
-    assert ("--model pioreactor_40ml 1.5" in join_command) is selected
+    assert join_command.startswith('set -a; . /etc/pioreactor.env; set +a; "$PIO_EXECUTABLE" cluster join ')
+    assert ("--model-name pioreactor_40ml --model-version 1.5" in join_command) is selected
 
 
 def test_add_worker_failed_join_does_not_reboot(monkeypatch: pytest.MonkeyPatch) -> None:

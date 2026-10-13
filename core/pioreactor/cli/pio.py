@@ -33,6 +33,7 @@ lazy_subcommands = {
     "estimators": "pioreactor.cli.estimators.estimators",
     "usb": "pioreactor.cli.usb.usb",
     "model": "pioreactor.cli.model.model",
+    "cluster": "pioreactor.cli.cluster.cluster",
 }
 
 if whoami.am_I_leader():
@@ -802,24 +803,6 @@ def show_config(
 
         if section_index < len(sections) - 1:
             click.echo("")
-
-
-@pio.command(name="join-cluster", hidden=True, short_help="point this unit at its new leader")
-@click.option("--leader-time", type=int, required=True, help="the leader's clock, in Unix seconds")
-@click.option("--model", nargs=2, type=str, default=None, help="model name and version to save")
-def join_cluster(leader_time: int, model: tuple[str, str] | None) -> None:
-    """
-    Run over SSH by the leader's `pio workers add`, after it copies its shared config.ini here.
-    """
-    from pioreactor.cluster_membership import join_cluster as join
-    from pioreactor.exc import UnknownModelAssignedError
-
-    try:
-        assigned = join(leader_time, model)
-    except (UnknownModelAssignedError, RuntimeError) as error:
-        raise click.ClickException(str(error)) from error
-
-    click.echo(f"Joined the cluster with model {assigned}.")
 
 
 @pio.command(name="logs", short_help="show recent logs")

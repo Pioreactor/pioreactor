@@ -1722,6 +1722,15 @@ def reboot(wait: int = 0) -> bool:
 
 
 @huey.task()
+def leave_cluster_and_reboot(stop_activities: bool) -> bool:
+    from pioreactor.cluster_membership import leave_cluster
+
+    leave_cluster(stop_activities=stop_activities)
+    logger.info(f"{get_unit_name()} left the cluster.")
+    return reboot.call_local()
+
+
+@huey.task()
 @huey.rate_limit("web-restart", limit=1, per=15, retry=False)
 @huey.lock_task("web-restart-lock")
 def restart_pioreactor_web_target() -> bool:

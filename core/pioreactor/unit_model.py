@@ -18,10 +18,10 @@ def get_local_model() -> tuple[str, str] | None:
     return model["model_name"], model["model_version"]
 
 
-def save_local_model(name: str, version: str, *, only_if_unset: bool = False) -> tuple[str, str]:
-    if (name, version) not in get_registered_models():
-        raise UnknownModelAssignedError(f"Unknown Pioreactor model {name} v{version}.")
-    value = encode({"model_name": name, "model_version": version})
+def save_local_model(model_name: str, model_version: str, *, only_if_unset: bool = False) -> tuple[str, str]:
+    if (model_name, model_version) not in get_registered_models():
+        raise UnknownModelAssignedError(f"Unknown Pioreactor model {model_name} v{model_version}.")
+    value = encode({"model_name": model_name, "model_version": model_version})
     with JobManager() as manager, local_persistent_storage("pioreactor_model") as storage:
         if only_if_unset:
             storage.set_if_absent("model", value)
@@ -33,7 +33,7 @@ def save_local_model(name: str, version: str, *, only_if_unset: bool = False) ->
     return saved["model_name"], saved["model_version"]
 
 
-def report_model_to_leader(leader_address: str, name: str, version: str) -> bool:
+def report_model_to_leader(leader_address: str, model_name: str, model_version: str) -> bool:
     """Best-effort update of the leader's mirror of this unit's model."""
     # Lazy imports avoid the whoami/config initialization cycle.
     from pioreactor.mureq import HTTPException
@@ -44,7 +44,7 @@ def report_model_to_leader(leader_address: str, name: str, version: str) -> bool
         put_into(
             leader_address,
             f"/api/workers/{get_unit_name()}/reported_model",
-            json={"model_name": name, "model_version": version},
+            json={"model_name": model_name, "model_version": model_version},
             timeout=5,
         ).raise_for_status()
     except HTTPException:

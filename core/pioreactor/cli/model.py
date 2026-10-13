@@ -16,16 +16,16 @@ def model() -> None:
 
 @model.command(name="get", short_help="print the local model assignment as JSON")
 def get_model() -> None:
-    name, version = get_local_model() or (None, None)
-    click.echo(json.dumps({"model_name": name, "model_version": version}))
+    model_name, model_version = get_local_model() or (None, None)
+    click.echo(json.dumps({"model_name": model_name, "model_version": model_version}))
 
 
 @model.command(name="set", short_help="save this unit's model and print it as JSON")
-@click.argument("name")
-@click.argument("version")
-def set_model(name: str, version: str) -> None:
+@click.argument("model_name")
+@click.argument("model_version")
+def set_model(model_name: str, model_version: str) -> None:
     try:
-        save_local_model(name, version)
+        save_local_model(model_name, model_version)
     except (UnknownModelAssignedError, RuntimeError) as error:
         raise click.ClickException(str(error)) from error
 
@@ -33,6 +33,6 @@ def set_model(name: str, version: str) -> None:
     from pioreactor.config import leader_address
     from pioreactor.web.tasks import check_model_hardware
 
-    check_model_hardware(name, version)
-    report_model_to_leader(leader_address, name, version)
-    click.echo(json.dumps({"model_name": name, "model_version": version}))
+    check_model_hardware(model_name, model_version)
+    report_model_to_leader(leader_address, model_name, model_version)
+    click.echo(json.dumps({"model_name": model_name, "model_version": model_version}))

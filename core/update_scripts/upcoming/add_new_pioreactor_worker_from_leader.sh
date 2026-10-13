@@ -1,6 +1,6 @@
 #!/bin/bash
 # Set up SSH from the leader to a new worker, so the leader can configure it.
-# `pio workers add` runs this, then copies config.ini over and runs `pio join-cluster` on the worker.
+# `pio workers add` runs this, then copies config.ini over and runs `pio cluster join` on the worker.
 # first argument is the hostname of the new pioreactor worker
 # second argument is the worker address
 # the worker password is read from $SSHPASS, default "raspberry"

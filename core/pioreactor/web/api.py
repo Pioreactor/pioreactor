@@ -35,6 +35,7 @@ from pioreactor import structs
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import remove_config_values_in_file
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.validate import validate_profile
 from pioreactor.http_response import decode_unit_api_error_payload
@@ -4451,10 +4452,14 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
                 ),
             )
 
-            # The worker must verify its own hostname before stopping jobs or deleting config.
+            remove_config_values_in_file(_get_shared_config_path(), [("cluster.addresses", pioreactor_unit)])
+
+            # The worker checks the target hostname before leaving. Removal is the leader's call, so it
+            # stops the worker's activities. An unreachable worker keeps its config until `pio cluster leave`.
             tasks.multicast_post(
-                "/unit_api/system/cleanup_after_inventory_removal",
+                "/unit_api/cluster/leave",
                 _single_unit(pioreactor_unit),
+                json={"stop_activities": True},
             )
 
         cache.invalidate_merged_config_cache(pioreactor_unit)

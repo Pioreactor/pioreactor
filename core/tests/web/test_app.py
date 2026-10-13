@@ -144,16 +144,24 @@ def test_get_workers_includes_literal_ipv4_addresses(
     assert data["unit2"]["ipv4_address"] is None
 
 
-def test_delete_worker_queues_hostname_guarded_cleanup(client: FlaskClient) -> None:
+def test_delete_worker_asks_it_to_leave_and_forgets_its_address(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    shared_config = dot_pioreactor / "config.ini"
+    shared_config.write_text("[cluster.addresses]\n# keep\nunit1=10.0.0.5\nunit2=10.0.0.6\n")
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+
     with capture_requests() as requests:
         response = client.delete("/api/workers/unit1")
 
     assert response.status_code == 202
     assert client.get("/api/workers/unit1").status_code == 404
-    assert [(request.method, request.path) for request in requests] == [
-        ("POST", "/unit_api/system/cleanup_after_inventory_removal"),
-    ]
+    assert [(request.method, request.path) for request in requests] == [("POST", "/unit_api/cluster/leave")]
     assert requests[0].headers["X-Pioreactor-Target"] == "unit1"
+    assert requests[0].json == {"stop_activities": True}
+    assert shared_config.read_text() == "[cluster.addresses]\n# keep\nunit2=10.0.0.6\n"
 
 
 @pytest.mark.parametrize("pioreactor_unit", ["203.0.113.10", "unknown-worker"])

@@ -54,6 +54,7 @@ from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
 from pioreactor.cli.pio import validate_github_repo
+from pioreactor.cluster_membership import activities_are_running
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
@@ -191,12 +192,13 @@ def get_unit_model() -> ResponseReturnValue:
     model = get_local_model()
     if model is None:
         abort_with(404, "No model assigned to this unit.")
+    model_name, model_version = model
     # The unit's registry is authoritative, so include its definition for the leader's mirror.
-    definition = get_registered_models().get(model)
+    definition = get_registered_models().get((model_name, model_version))
     return {
         **(to_builtins(definition) if definition is not None else {}),
-        "model_name": model[0],
-        "model_version": model[1],
+        "model_name": model_name,
+        "model_version": model_version,
     }, 200
 
 
@@ -1108,9 +1110,14 @@ def remove_file() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api_bp.route("/system/cleanup_after_inventory_removal", methods=["POST"])
-def cleanup_after_inventory_removal() -> ResponseReturnValue:
-    """Stop jobs and remove shared config after removal from inventory."""
+@unit_api_bp.route("/cluster/leave", methods=["POST"])
+def leave_cluster() -> DelayedResponseReturnValue:
+    """
+    Leave this unit's cluster, then reboot. See `pio cluster leave`.
+
+    Optional JSON body: {"stop_activities": true} stops running activities; without it,
+    they must be stopped first.
+    """
     disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
     if disallow_file.is_file():
         abort_with(
@@ -1120,9 +1127,16 @@ def cleanup_after_inventory_removal() -> ResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the action locally via SSH.",
         )
 
-    tasks.kill_jobs_task(all_jobs=True)
-    tasks.rm(str(get_dot_pioreactor_path() / "config.ini"))
-    return {"status": "accepted"}, 202
+    body = decode_request_body(structs.LeaveClusterRequest) if request.data else structs.LeaveClusterRequest()
+    if not body.stop_activities and activities_are_running():
+        abort_with(
+            409,
+            "Stop activities before leaving the cluster.",
+            cause="Activities are running on this unit.",
+            remediation="Stop them, then try again.",
+        )
+
+    return create_task_response(tasks.leave_cluster_and_reboot(body.stop_activities))
 
 
 # GET clock time

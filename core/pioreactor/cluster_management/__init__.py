@@ -119,9 +119,9 @@ def _set_up_ssh_to_worker(logger: CustomLogger, hostname: str, password: str, ad
 def _join_worker_to_cluster(
     logger: CustomLogger, hostname: str, address: str, model_name: str | None, model_version: str | None
 ) -> None:
-    args = ["join-cluster", "--leader-time", str(int(time()))]
+    args = ["cluster", "join", "--leader-time", str(int(time()))]
     if model_name and model_version:
-        args.extend(["--model", model_name, model_version])
+        args.extend(["--model-name", model_name, "--model-version", model_version])
     try:
         # Pass the address, not the hostname: this process's config predates its new cluster.addresses entry.
         networking.cp_file_across_cluster(
@@ -159,7 +159,7 @@ def add_worker(
     Steps, each safe to retry:
       1. find the worker on the network, and set up SSH keys to it
       2. register it with the leader
-      3. copy the shared config.ini to it, and run `pio join-cluster` on it
+      3. copy the shared config.ini to it, and run `pio cluster join` on it
       4. reboot it
     """
     if hostname.endswith(".local"):

@@ -858,5 +858,10 @@ class ChangeWorkerModelRequest(Struct, forbid_unknown_fields=True):
     model_version: str
 
 
+class LeaveClusterRequest(Struct, forbid_unknown_fields=True):
+    # The leader removing a unit stops its activities; a unit leaving on its own asks for them to be stopped first.
+    stop_activities: bool = False
+
+
 class AddWorkerToExperimentRequest(Struct, forbid_unknown_fields=True):
     pioreactor_unit: str

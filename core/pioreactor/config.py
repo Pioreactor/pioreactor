@@ -204,6 +204,26 @@ def write_config_text(config_path: Path, config_text: str) -> None:
     temporary_path.replace(config_path)
 
 
+def remove_config_values_in_file(config_path: Path, entries: list[tuple[str, str]]) -> None:
+    """Remove (section, key) entries from a config file, keeping its comments and layout."""
+    # iniparse, unlike configparser, keeps comments and layout when written back.
+    from iniparse import INIConfig  # type: ignore[import-untyped]
+
+    if not config_path.is_file():
+        return
+
+    with config_path.open(encoding="utf-8") as file:
+        ini = INIConfig(file)
+    sections = list(ini)
+    present = [
+        (section, key) for section, key in entries if section in sections and key in list(ini[section])
+    ]
+    for section, key in present:
+        del ini[section][key]
+    if present:
+        write_config_text(config_path, str(ini))
+
+
 def set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
     current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
     write_config_text(
