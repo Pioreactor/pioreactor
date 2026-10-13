@@ -32,10 +32,6 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 logger = create_logger("unit_calibration_sessions_api", experiment=UNIVERSAL_EXPERIMENT)
 
 
-def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-    return tasks.execute_calibration_action(action, payload)
-
-
 def _get_step_registry(protocol: Any) -> Any:
     step_registry = getattr(protocol, "step_registry", None)
     if step_registry is None:
@@ -120,7 +116,7 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
     session.error = "Calibration aborted by user."
     try:
         protocol = get_protocol_for_session(session)
-        protocol.on_session_abort(session, executor=_execute_calibration_action)
+        protocol.on_session_abort(session, executor=tasks.execute_calibration_action)
     except Exception as exc:
         logger.exception("Calibration abort cleanup failed for session %s", session_id)
         session.error = f"Calibration aborted by user. Cleanup failed: {exc}"

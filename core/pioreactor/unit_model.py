@@ -46,19 +46,7 @@ def report_model_to_leader(name: str, version: str) -> bool:
             json={"model_name": name, "model_version": version},
         ).raise_for_status()
     except HTTPException:
-        # Unreachable, an older leader, or a worker the leader hasn't added yet.
-        # Monitor reports again at the next boot.
+        # Unreachable, or a worker the leader hasn't added yet. The leader's
+        # GET /api/workers/<unit>/model asks the unit directly, so a stale mirror is tolerated.
         return False
     return True
-
-
-def adopt_model_from_leader() -> tuple[str, str] | None:
-    # Lazy import avoids the whoami/config initialization cycle.
-    from pioreactor import whoami
-
-    if (local := get_local_model()) is not None:
-        return local
-    name, version = whoami._get_pioreactor_model_name_and_version_from_leader(whoami.get_unit_name())
-    if name is None or version is None:
-        return None
-    return save_local_model(name, version, only_if_unset=True)

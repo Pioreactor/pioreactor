@@ -1133,7 +1133,7 @@ def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, 
         json={
             "args": [],
             "options": {"ml": 6.0},
-            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "env": {"EXPERIMENT": "exp1"},
             "config_overrides": [],
         },
     )
@@ -1181,7 +1181,7 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
         json={
             "args": [],
             "options": {"ml": 5.9},
-            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "env": {"EXPERIMENT": "exp1"},
             "config_overrides": [],
         },
     )

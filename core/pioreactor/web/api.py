@@ -1184,7 +1184,7 @@ def run_job_on_unit_in_experiment(
         if pioreactor_unit == UNIVERSAL_IDENTIFIER:
             assigned_workers = query_app_db(
                 """
-                SELECT pioreactor_unit, is_active, model_name, model_version
+                SELECT pioreactor_unit, is_active
                 FROM workers
                 WHERE is_active = 1
                 """
@@ -1194,7 +1194,7 @@ def run_job_on_unit_in_experiment(
             # universal experiment, specific worker
             worker = query_app_db(
                 """
-                SELECT pioreactor_unit, is_active, model_name, model_version
+                SELECT pioreactor_unit, is_active
                 FROM workers
                 WHERE pioreactor_unit = ? AND is_active = 1
                 """,
@@ -1210,7 +1210,7 @@ def run_job_on_unit_in_experiment(
             # specific experiment, all workers
             assigned_workers = query_app_db(
                 """
-                SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
+                SELECT a.pioreactor_unit, w.is_active
                 FROM experiment_worker_assignments a
                 JOIN workers w
                    on w.pioreactor_unit = a.pioreactor_unit
@@ -1224,7 +1224,7 @@ def run_job_on_unit_in_experiment(
             # check if worker is part of experiment
             worker = query_app_db(
                 """
-                SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
+                SELECT a.pioreactor_unit, w.is_active
                 FROM experiment_worker_assignments a
                 JOIN workers w
                    on w.pioreactor_unit = a.pioreactor_unit
@@ -1263,17 +1263,7 @@ def run_job_on_unit_in_experiment(
                     "HOSTNAME": worker["pioreactor_unit"],
                     "ACTIVE": str(int(worker["is_active"])),
                     "TESTING": str(int(is_testing_env())),
-                }
-                # Current invariant: model metadata is forwarded only as a
-                # complete, non-null pair.
-                | (
-                    {
-                        "MODEL_NAME": worker["model_name"],
-                        "MODEL_VERSION": worker["model_version"],
-                    }
-                    if worker["model_name"] is not None and worker["model_version"] is not None
-                    else {}
-                ),
+                },
             }
             for worker in assigned_workers
         ],
@@ -4628,7 +4618,7 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
 
 def _get_worker_model_definition(pioreactor_unit: str, model_name: str, model_version: str) -> structs.Model:
     # The unit owns its model, so its answer wins. The leader's registry covers
-    # offline units and older units that report only a name and version.
+    # offline units and units whose registry lacks their model's definition.
     try:
         response = get_from(
             resolve_to_address(pioreactor_unit),

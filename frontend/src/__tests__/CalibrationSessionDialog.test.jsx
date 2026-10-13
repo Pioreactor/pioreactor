@@ -220,9 +220,19 @@ describe("CalibrationSessionDialog", () => {
       if (url === "/api/workers/unit-1/calibrations/sessions/session-1/inputs") {
         return Promise.resolve({
           ok: true,
+          status: 202,
+          json: () => Promise.resolve({ task_id: "task-1" }),
+        });
+      }
+
+      if (url === "/api/workers/unit-1/task_results/task-1") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
           json: () =>
             Promise.resolve({
-              step: focusStep("blurrier", "Blurrier — turn back slightly.", 2),
+              status: "succeeded",
+              result: { step: focusStep("blurrier", "Blurrier — turn back slightly.", 2) },
             }),
         });
       }

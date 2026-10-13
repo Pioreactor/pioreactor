@@ -185,8 +185,7 @@ class Monitor(LongRunningBackgroundJob):
         else:
             self.logger.debug("Pioreactor HAT not detected. Skipping LED / button controls.")
 
-        self.clock_sync_timer: RepeatedTimer | None = None
-        self.start_clock_sync_check()
+        self.check_clock_sync()
         self.self_check_thread = self.start_self_check_thread()
 
         self.add_pre_button_callback(self._republish_state)
@@ -235,26 +234,10 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.warning(f"{e} Defaulting to enabled.")
             return True
 
-    def start_clock_sync_check(self) -> None:
+    def check_clock_sync(self) -> None:
         # Leaders (including leader-workers) may intentionally have no upstream time source.
-        if whoami.am_I_leader() or is_clock_synchronized() is not False:
-            return
-
-        self.logger.warning("Clock is not synchronised. Measurement timestamps may be incorrect.")
-        self.clock_sync_timer = RepeatedTimer(
-            3 * 60,
-            self.check_for_clock_sync_recovery,
-            job_name=self.job_name,
-            run_immediately=False,
-            logger=self.logger,
-        )
-        self.clock_sync_timer.start()
-
-    def check_for_clock_sync_recovery(self) -> None:
-        if is_clock_synchronized() is True:
-            self.logger.info("Clock is now synchronised.")
-            if self.clock_sync_timer is not None:
-                self.clock_sync_timer.cancel()
+        if not whoami.am_I_leader() and is_clock_synchronized() is False:
+            self.logger.warning("Clock is not synchronised. Measurement timestamps may be incorrect.")
 
     def self_check_interval_hours(self) -> float:
         config_value = config.get("monitor.config", "self_check_interval_hours", fallback="12")
@@ -539,10 +522,6 @@ class Monitor(LongRunningBackgroundJob):
             Thread(target=self.announce_new_workers, daemon=True).start()
 
     def on_disconnected(self) -> None:
-        with suppress(AttributeError):
-            if self.clock_sync_timer is not None:
-                self.clock_sync_timer.cancel()
-
         import lgpio
 
         self.led_off()

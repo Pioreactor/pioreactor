@@ -371,6 +371,35 @@ def test_apply_dosing_event_records_additions_that_overflow_model_capacity() -> 
     assert bioreactor.get_bioreactor_value(experiment, "cumulative_media_added_ml") == pytest.approx(5.0)
 
 
+def test_apply_dosing_event_adopts_model_from_leader_outside_storage_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A freshly upgraded unit saves its model on first lookup, to the same database the
+    # dosing transaction write-locks.
+    from pioreactor import whoami
+    from pioreactor.unit_model import get_local_model
+
+    monkeypatch.delenv("MODEL_NAME", raising=False)
+    monkeypatch.delenv("MODEL_VERSION", raising=False)
+    monkeypatch.setattr(
+        whoami, "_get_pioreactor_model_name_and_version_from_leader", lambda _unit: ("pioreactor_40ml", "1.5")
+    )
+    assert get_local_model() is None
+
+    add_media_event = structs.DosingEvent(
+        volume_change=1.0,
+        event="add_media",
+        source_of_event="test",
+        timestamp=default_datetime_for_pioreactor(),
+    )
+    updated = bioreactor.apply_dosing_event_to_bioreactor(
+        "unit", "test_apply_dosing_event_adopts_model", add_media_event, FakeMQTTClient()
+    )
+
+    assert updated["cumulative_media_added_ml"] == pytest.approx(1.0)
+    assert get_local_model() == ("pioreactor_40ml", "1.5")
+
+
 def test_apply_dosing_event_uses_one_storage_context_and_enqueues_all_publications_before_waiting(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

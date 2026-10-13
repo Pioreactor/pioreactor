@@ -55,16 +55,28 @@ describe("StirringCalibrationBatchDialog", () => {
         expect(options.method).toBe("POST");
         return Promise.resolve({
           ok: true,
+          status: 202,
+          json: () => Promise.resolve({ task_id: "task-1" }),
+        });
+      }
+
+      if (url === "/api/workers/unit-1/task_results/task-1") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
           json: () =>
             Promise.resolve({
-              step: {
-                result: {
-                  calibrations: [
-                    {
-                      device: "stirring",
-                      calibration_name: "stirring-calibration-unit-1",
-                    },
-                  ],
+              status: "succeeded",
+              result: {
+                step: {
+                  result: {
+                    calibrations: [
+                      {
+                        device: "stirring",
+                        calibration_name: "stirring-calibration-unit-1",
+                      },
+                    ],
+                  },
                 },
               },
             }),
@@ -117,16 +129,28 @@ describe("StirringCalibrationBatchDialog", () => {
         expect(options.method).toBe("POST");
         return Promise.resolve({
           ok: true,
+          status: 202,
+          json: () => Promise.resolve({ task_id: "task-1" }),
+        });
+      }
+
+      if (url === "/api/workers/unit-1/task_results/task-1") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
           json: () =>
             Promise.resolve({
-              step: {
-                result: {
-                  calibrations: [
-                    {
-                      device: "stirring",
-                      calibration_name: "stirring-calibration-unit-1",
-                    },
-                  ],
+              status: "succeeded",
+              result: {
+                step: {
+                  result: {
+                    calibrations: [
+                      {
+                        device: "stirring",
+                        calibration_name: "stirring-calibration-unit-1",
+                      },
+                    ],
+                  },
                 },
               },
             }),

@@ -119,15 +119,17 @@ def validate_bioreactor_value(
     return parsed
 
 
-def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
-    with local_persistent_storage("bioreactor") as cache:
-        stored_value = cache.get((experiment, variable_name), _MISSING)
-
+def _read_bioreactor_value(cache: t.Any, experiment: pt.Experiment, variable_name: str) -> float:
+    stored_value = cache.get((experiment, variable_name), _MISSING)
     if stored_value is _MISSING:
         # only resolve (and validate) the default when nothing is stored.
         return get_default_bioreactor_value(variable_name)
-
     return validate_bioreactor_value(variable_name, stored_value)
+
+
+def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
+    with local_persistent_storage("bioreactor") as cache:
+        return _read_bioreactor_value(cache, experiment, variable_name)
 
 
 def get_all_bioreactor_values(experiment: pt.Experiment) -> dict[str, float]:
@@ -278,17 +280,17 @@ def apply_dosing_event_to_bioreactor(
     dosing_event: structs.DosingEvent,
     mqtt_client: Client | None = None,
 ) -> dict[str, float]:
+    # Resolve the model before taking the write lock: a unit's first lookup saves its model
+    # to this same database, which would block on our own lock.
+    get_pioreactor_model()
+
     with local_persistent_storage("bioreactor") as cache:
         try:
             cache.cursor.execute("BEGIN IMMEDIATE")
-            current_state: dict[str, float] = {}
-            for variable_name in _BIOREACTOR_VARIABLES:
-                stored_value = cache.get((experiment, variable_name), _MISSING)
-                current_state[variable_name] = (
-                    get_default_bioreactor_value(variable_name)
-                    if stored_value is _MISSING
-                    else validate_bioreactor_value(variable_name, stored_value)
-                )
+            current_state = {
+                variable_name: _read_bioreactor_value(cache, experiment, variable_name)
+                for variable_name in _BIOREACTOR_VARIABLES
+            }
 
             updated_state = {
                 "alt_media_fraction": calculate_updated_alt_media_fraction(

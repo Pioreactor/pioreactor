@@ -2320,8 +2320,6 @@ def test_broadcast_in_manage_all(client) -> None:
         "env": {
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },
@@ -2831,8 +2829,6 @@ def test_run_job(client) -> None:
         "env": {
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },
@@ -2866,25 +2862,6 @@ def test_run_job_rejects_unknown_request_fields(client) -> None:
     assert response.get_json()["status"] == 400
 
 
-def test_run_job_omits_incomplete_model_metadata(client) -> None:
-    from pioreactor.web.app import modify_app_db
-
-    modify_app_db(
-        "UPDATE workers SET model_name = NULL, model_version = NULL WHERE pioreactor_unit = ?",
-        ("unit1",),
-    )
-
-    with capture_requests() as bucket:
-        client.post(
-            "/api/workers/unit1/jobs/run/job_name/stirring/experiments/exp1",
-            json={},
-        )
-
-    assert len(bucket) == 1
-    assert "MODEL_NAME" not in bucket[0].json["env"]
-    assert "MODEL_VERSION" not in bucket[0].json["env"]
-
-
 def test_run_job_with_job_source(client) -> None:
     # regression test
     with capture_requests() as bucket:
@@ -2903,8 +2880,6 @@ def test_run_job_with_job_source(client) -> None:
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
             "JOB_SOURCE": "experiment_profile",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },

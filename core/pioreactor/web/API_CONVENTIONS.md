@@ -24,8 +24,7 @@ individual hostname, never `$broadcast`.
 
 The header is optional for direct API clients: requests without it retain their
 existing behavior. Read requests are unchanged. This guards accidental address
-reuse, not authentication, and assumes workers run a version supporting the
-check; older workers may ignore the header.
+reuse, not authentication.
 
 Covered callers include Huey fanout, direct leader API proxies (including
 unit-specific config, calibration sessions, camera files, and archive imports),

@@ -33,13 +33,4 @@ describe("advanceCalibrationSession", () => {
 
     await expect(advanceCalibrationSession("pio01", "s1", {})).rejects.toThrow("Stirring must be off before starting.");
   });
-
-  it("accepts an older unit's direct 200 answer", async () => {
-    global.fetch = jest.fn().mockResolvedValueOnce(jsonResponse(200, { step: { step_id: "next" } }));
-
-    const payload = await advanceCalibrationSession("pio01", "s1", {});
-
-    expect(payload.step.step_id).toBe("next");
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-  });
 });

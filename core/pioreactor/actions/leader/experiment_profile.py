@@ -160,14 +160,6 @@ def _get_worker_env_for_start(
     except HTTPException:
         return job_env
 
-    model_name = worker.get("model_name")
-    if model_name:
-        job_env["MODEL_NAME"] = model_name
-
-    model_version = worker.get("model_version")
-    if model_version:
-        job_env["MODEL_VERSION"] = model_version
-
     if "is_active" in worker:
         job_env["ACTIVE"] = str(int(bool(worker["is_active"])))
 
