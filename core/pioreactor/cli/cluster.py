@@ -41,15 +41,18 @@ def leave(yes: bool) -> None:
     Keeps this unit's model, calibrations, estimators and unit_config.ini. Afterwards the
     unit waits to be added to a cluster again. Stop activities first.
     """
-    from pioreactor.cluster_membership import activities_are_running
+    from pioreactor.cluster_membership import check_can_leave
     from pioreactor.cluster_membership import leave_cluster
     from pioreactor.mureq import HTTPException
     from pioreactor.pubsub import delete_from_leader
     from pioreactor.whoami import get_unit_name
 
     unit = get_unit_name()
-    if activities_are_running():
-        raise click.ClickException("Stop activities before leaving the cluster.")
+    try:
+        # Before telling the leader, which would remove this unit from its inventory.
+        check_can_leave()
+    except RuntimeError as error:
+        raise click.ClickException(str(error)) from error
     if not yes:
         click.confirm(f"Remove {unit} from its cluster and reboot it?", abort=True)
 

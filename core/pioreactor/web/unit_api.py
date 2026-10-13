@@ -54,7 +54,7 @@ from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
 from pioreactor.cli.pio import validate_github_repo
-from pioreactor.cluster_membership import activities_are_running
+from pioreactor.cluster_membership import check_can_leave
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
@@ -1128,13 +1128,10 @@ def leave_cluster() -> DelayedResponseReturnValue:
         )
 
     body = decode_request_body(structs.LeaveClusterRequest) if request.data else structs.LeaveClusterRequest()
-    if not body.stop_activities and activities_are_running():
-        abort_with(
-            409,
-            "Stop activities before leaving the cluster.",
-            cause="Activities are running on this unit.",
-            remediation="Stop them, then try again.",
-        )
+    try:
+        check_can_leave(body.stop_activities)
+    except RuntimeError as error:
+        abort_with(409, str(error))
 
     return create_task_response(tasks.leave_cluster_and_reboot(body.stop_activities))
 

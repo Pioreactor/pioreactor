@@ -40,6 +40,14 @@ def activities_are_running() -> bool:
         return manager.count_running_jobs(include_long_running_jobs=False) > 0
 
 
+def check_can_leave(stop_activities: bool = False) -> None:
+    """Raise if this unit can't leave its cluster. Callers check before telling the leader."""
+    if _read_shared_config().get("cluster.topology", "leader_hostname", fallback=None) == get_unit_name():
+        raise RuntimeError("This unit is its cluster's leader, so it can't leave it.")
+    if not stop_activities and activities_are_running():
+        raise RuntimeError("Stop activities before leaving the cluster.")
+
+
 def clear_previous_leader_overrides(unit_config_path: Path) -> None:
     """unit_config.ini overrides the shared config.ini, so remove the keys that point at a previous leader."""
     unit_config = ConfigParserMod(strict=False)
@@ -97,10 +105,7 @@ def leave_cluster(stop_activities: bool = False) -> None:
     Undo `join_cluster`. Keeps this unit's model, calibrations, estimators and unit_config.ini.
     The caller reboots afterwards, so no service keeps the old leader in memory.
     """
-    if _read_shared_config().get("cluster.topology", "leader_hostname", fallback=None) == get_unit_name():
-        raise RuntimeError("This unit is its cluster's leader, so it can't leave it.")
-    if not stop_activities and activities_are_running():
-        raise RuntimeError("Stop activities before leaving the cluster.")
+    check_can_leave(stop_activities)
 
     with JobManager() as manager:
         manager.kill_jobs(all_jobs=True)

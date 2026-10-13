@@ -19,6 +19,7 @@ from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
 from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import store_camera_still
+from pioreactor.config import ConfigParserMod
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
@@ -148,7 +149,8 @@ def test_leave_cluster_queues_leave_unless_activities_are_running(
 ) -> None:
     leave = Mock(return_value=SimpleNamespace(id="leave-task"))
     monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
-    monkeypatch.setattr(unit_api, "activities_are_running", lambda: running)
+    monkeypatch.setattr("pioreactor.cluster_membership.activities_are_running", lambda: running)
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", ConfigParserMod)
 
     headers = {} if target is None else {"X-Pioreactor-Target": target}
     response = client.post("/unit_api/cluster/leave", headers=headers, json=body)
@@ -158,6 +160,20 @@ def test_leave_cluster_queues_leave_unless_activities_are_running(
         leave.assert_not_called()
     else:
         leave.assert_called_once_with(queued_with)
+
+
+def test_leave_cluster_refuses_on_the_leader(client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
+    shared_config = ConfigParserMod()
+    shared_config.read_dict({"cluster.topology": {"leader_hostname": HOSTNAME}})
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", lambda: shared_config)
+
+    response = client.post("/unit_api/cluster/leave", json={"stop_activities": True})
+
+    assert response.status_code == 409
+    assert "leader" in response.get_json()["error"]
+    leave.assert_not_called()
 
 
 def test_leave_cluster_respects_file_system_lock(

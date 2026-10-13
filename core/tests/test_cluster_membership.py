@@ -7,6 +7,7 @@ import pytest
 from click.testing import CliRunner
 from pioreactor import cluster_membership
 from pioreactor.cli.pio import pio
+from pioreactor.config import ConfigParserMod
 from pioreactor.exc import UnknownModelAssignedError
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
@@ -136,6 +137,7 @@ def leave_cli(monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]:
     monkeypatch.setattr("pioreactor.pubsub.delete_from_leader", mocks["delete"])
     monkeypatch.setattr("pioreactor.cluster_membership.leave_cluster", mocks["leave"])
     monkeypatch.setattr("pioreactor.cluster_membership.activities_are_running", lambda: False)
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", ConfigParserMod)
     monkeypatch.setattr("pioreactor.cli.cluster.subprocess.run", mocks["run"])
     return mocks
 
@@ -168,5 +170,20 @@ def test_cluster_leave_refuses_while_activities_run(
 
     assert result.exit_code == 1
     assert "Stop activities before leaving the cluster." in result.output
+    leave_cli["delete"].assert_not_called()
+    leave_cli["leave"].assert_not_called()
+
+
+def test_cluster_leave_on_the_leader_refuses_before_telling_the_leader(
+    leave_cli: dict[str, Mock], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shared_config = ConfigParserMod()
+    shared_config.read_dict({"cluster.topology": {"leader_hostname": get_unit_name()}})
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", lambda: shared_config)
+
+    result = CliRunner().invoke(pio, ["cluster", "leave", "-y"])
+
+    assert result.exit_code == 1
+    assert "leader" in result.output
     leave_cli["delete"].assert_not_called()
     leave_cli["leave"].assert_not_called()
