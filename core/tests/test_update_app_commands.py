@@ -473,8 +473,8 @@ def test_app_commands_with_release_zip_for_worker_excludes_leader_steps(monkeypa
 
     assert ver == version
     lines = command_lines(cmds)
-    assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for line in lines)
-    assert not any("[leader_worker]" in line for line in lines)
+    assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[leader_worker]") for line in lines)
+    assert not any("[worker]" in line for line in lines)
     assert not any("update.sql" in line for line in lines)
 
 
@@ -526,8 +526,8 @@ def test_app_commands_from_release_metadata_for_worker_uses_release_archive(monk
 
     assert ver == version
     lines = command_lines(cmds)
-    assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[worker]") for line in lines)
-    assert not any("[leader_worker]" in line for line in lines)
+    assert any(line.endswith(f"pioreactor-{version}-py3-none-any.whl[leader_worker]") for line in lines)
+    assert not any("[worker]" in line for line in lines)
     assert not any("update.sql" in line for line in lines)
 
 

@@ -386,9 +386,11 @@ def get_update_app_commands(
     pio_venv_bin = get_pio_venv_path() / "bin"
 
     def get_install_extra_for_this_unit() -> str:
-        if whoami.am_I_leader():
-            return "leader_worker" if whoami.am_I_a_worker() else "leader"
-        return "worker"
+        # The extra depends on whether this unit has Pioreactor hardware, not on its role. Use the
+        # role-named extras: they exist in older releases too, so installing an older version still
+        # pulls in its leader and hardware dependencies.
+        has_hardware = not whoami.am_I_leader() or whoami.am_I_a_worker()
+        return "leader_worker" if has_hardware else "leader"
 
     def create_commands_for_release_archive(
         archive_location: str, release_version: str

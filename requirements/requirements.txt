@@ -14,6 +14,7 @@ python-dotenv==1.2.3
 Werkzeug==3.1.8
 itsdangerous==2.2.0
 blinker==1.9.0
+mcp-utils-msgspec==3.0.1
 # preinstalled on base image
 # pyyaml==6.0.2
 # rpi-lgpio==0.6

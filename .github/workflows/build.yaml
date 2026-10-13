@@ -64,7 +64,7 @@ jobs:
         run: |
           pip download -d wheels \
             --find-links wheels \
-            -r requirements/requirements_leader_worker.txt \
+            -r requirements/requirements_hardware.txt \
             --index-url https://piwheels.org/simple \
             --platform linux_armv7l \
             --platform linux_armv6l \
@@ -75,7 +75,7 @@ jobs:
 
           pip download -d wheels \
             --find-links wheels \
-            -r requirements/requirements_leader_worker.txt \
+            -r requirements/requirements_hardware.txt \
             --index-url https://piwheels.org/simple \
             --platform linux_aarch64 \
             --platform manylinux_2_17_aarch64 \
