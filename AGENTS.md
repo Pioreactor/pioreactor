@@ -27,6 +27,8 @@ Read the nearest `AGENTS.md` or `README.md` when working in a subtree.
 - `packaging/shared-assets/pioreactor/exportable_datasets/README.md`: built-in export dataset descriptor seed files.
 - `packaging/shared-assets/pioreactor/ui/README.md`: built-in UI descriptor seed assets.
 
+Look for skills in `.agents/`.
+
 ---
 
 ## Key components

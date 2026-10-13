@@ -2,6 +2,7 @@
 # test_cli.py
 import json
 import re
+import sqlite3
 import stat
 import subprocess
 import time
@@ -41,6 +42,7 @@ from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.networking import DiscoveredWorker
 from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.sqlite_cache import cache as sqlite_cache
 from tests.conftest import capture_requests
 from tests.utils import wait_for
 
@@ -950,6 +952,46 @@ def test_pio_repair_does_not_check_mqtt_to_db_streaming_on_workers(
         "restart",
         "pioreactor_startup_run@monitor.service",
     ] in commands
+
+
+def test_pio_cache_list_combines_sorts_and_deduplicates_names(tmp_path: Path) -> None:
+    temporary_path = tmp_path / "temporary.sqlite"
+    persistent_path = tmp_path / "persistent.sqlite"
+    config = get_config()
+
+    with temporary_config_change(config, "storage", "temporary_cache", str(temporary_path)):
+        with temporary_config_change(config, "storage", "persistent_cache", str(persistent_path)):
+            with sqlite_cache("shared", str(temporary_path)) as c:
+                c[12] = 0.5
+            with sqlite_cache("shared", str(persistent_path)) as c:
+                c[("experiment", "setting")] = "value"
+            with sqlite_cache("other", str(persistent_path)) as c:
+                c["key"] = "value"
+            with sqlite_cache("temporary_only", str(temporary_path)):
+                pass
+
+            result = CliRunner().invoke(pio, ["cache", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines() == ["other", "shared", "temporary_only"]
+
+
+def test_pio_cache_list_skips_missing_stores_and_non_cache_tables(tmp_path: Path) -> None:
+    temporary_path = tmp_path / "missing.sqlite"
+    persistent_path = tmp_path / "persistent.sqlite"
+    config = get_config()
+    with sqlite3.connect(persistent_path) as conn:
+        conn.execute("CREATE TABLE unrelated (id INTEGER)")
+        conn.execute("CREATE TABLE cacheish (id INTEGER)")
+        conn.execute("CREATE TABLE cache_empty (key BLOB, value BLOB)")
+
+    with temporary_config_change(config, "storage", "temporary_cache", str(temporary_path)):
+        with temporary_config_change(config, "storage", "persistent_cache", str(persistent_path)):
+            result = CliRunner().invoke(pio, ["cache", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert result.output == "empty\n"
+    assert not temporary_path.exists()
 
 
 def test_pio_cache_view_without_key_shows_all_keys() -> None:

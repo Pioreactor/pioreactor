@@ -4,10 +4,12 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import stat
 import subprocess
 import tempfile
 import typing as t
+from contextlib import closing
 from os import geteuid
 from pathlib import Path
 from shlex import join
@@ -19,6 +21,7 @@ import click
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
+from pioreactor.config import get_config
 from pioreactor.config import replace_or_append_config_entry
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.paths import get_pio_venv_path
@@ -663,18 +666,6 @@ def _get_config_value_from_file(config_path: Path, section_name: str, parameter_
     return config.get(section_name, parameter_name)
 
 
-def _refresh_config_caches() -> None:
-    import pioreactor.config as config_module
-    from pioreactor import whoami
-
-    config_module.get_config.cache_clear()
-    config_module.get_leader_hostname.cache_clear()
-    config_module._get_leader_address.cache_clear()
-    config_module._get_mqtt_address.cache_clear()
-    whoami.am_I_leader.cache_clear()
-    config_module.config = config_module.get_config()
-
-
 def _set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
     from pioreactor.config import ConfigParserMod
 
@@ -697,7 +688,6 @@ def _set_config_value_in_file(config_path: Path, section_name: str, parameter_na
         temporary_path = Path(temporary_file.name)
 
     temporary_path.replace(config_path)
-    _refresh_config_caches()
 
 
 @pio.group(name="config", short_help="inspect effective configuration")
@@ -1685,6 +1675,26 @@ def repair() -> None:
 def cache() -> None:
     """Inspect or clear local caches."""
     pass
+
+
+@cache.command(name="list", short_help="list local cache names")
+def list_caches() -> None:
+    """Print sorted, unique cache names from persistent and intermittent storage."""
+    config = get_config()
+    cache_names: set[str] = set()
+    for storage in ("temporary_cache", "persistent_cache"):
+        db_path = Path(config.get("storage", storage))
+        if not db_path.exists():
+            continue
+
+        with closing(sqlite3.connect(f"{db_path.absolute().as_uri()}?mode=ro", uri=True)) as conn:
+            tables = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB 'cache_*'"
+            ).fetchall()
+            cache_names.update(table_name.removeprefix("cache_") for (table_name,) in tables)
+
+    for cache_name in sorted(cache_names):
+        click.echo(cache_name)
 
 
 def _cache_key_candidates(key: str, as_int: bool = False) -> list[Any]:
