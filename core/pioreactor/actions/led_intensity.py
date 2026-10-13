@@ -59,13 +59,13 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[str]:
     lock_id = f"{os.getpid()}:{time_ns()}"
     acquired_channels: list[LedChannel] = []
     try:
-        with local_intermittent_storage("led_locks") as cache:
+        with local_intermittent_storage("led_locks") as cache, cache.transaction():
             for c in channels:
                 if cache.set_if_absent(c, lock_id):
                     acquired_channels.append(c)
         yield lock_id
     finally:
-        with local_intermittent_storage("led_locks") as cache:
+        with local_intermittent_storage("led_locks") as cache, cache.transaction():
             for c in acquired_channels:
                 if cache.get(c) == lock_id:
                     cache.pop(c)

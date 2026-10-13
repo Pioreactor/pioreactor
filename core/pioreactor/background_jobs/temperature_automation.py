@@ -126,6 +126,11 @@ class TemperatureAutomationJob(AutomationJob):
         else:
             from pioreactor.utils.temps import TMP1075  # type: ignore
 
+        # the model can't change while this job runs, so don't re-read it for every temperature sample.
+        self._max_temp_to_shutdown = self.MAX_TEMP_TO_SHUTDOWN
+        self._max_temp_to_disable_heating = self.MAX_TEMP_TO_DISABLE_HEATING
+        self._max_temp_to_reduce_heating = self.MAX_TEMP_TO_REDUCE_HEATING
+
         self.inference_total_time = self.INFERENCE_SAMPLES_EVERY_T_SECONDS * self.INFERENCE_N_SAMPLES
         assert self.INFERENCE_EVERY_N_SECONDS > self.inference_total_time
         # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
@@ -266,9 +271,9 @@ class TemperatureAutomationJob(AutomationJob):
         return True
 
     def _check_if_exceeds_max_temp(self, temp: float) -> float:
-        if temp > self.MAX_TEMP_TO_SHUTDOWN:
+        if temp > self._max_temp_to_shutdown:
             self.logger.error(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self._max_temp_to_shutdown}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
             )
             self._update_heater(0)
 
@@ -278,18 +283,18 @@ class TemperatureAutomationJob(AutomationJob):
 
             call("sudo shutdown now --poweroff", shell=True)
 
-        elif temp > self.MAX_TEMP_TO_DISABLE_HEATING:
+        elif temp > self._max_temp_to_disable_heating:
             self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self._max_temp_to_disable_heating}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
 
-        elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
+        elif temp > self._max_temp_to_reduce_heating:
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self._max_temp_to_reduce_heating}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(self.heater_duty_cycle * 0.9)

@@ -13,9 +13,7 @@ if [ "$UNIT_HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     systemctl restart pioreactor_startup_run@mqtt_to_db_streaming.service
 fi
 
-# Best-effort adoption from the existing leader; disconnected updates still succeed.
-# The runtime retries adoption on its first successful leader model lookup.
-sudo -u pioreactor -i /opt/pioreactor/venv/bin/python -c 'from pioreactor.unit_model import adopt_model_from_leader; adopt_model_from_leader()' || :
+
 
 # Retained bioreactor values were published as bare floats; republish them as timestamped
 # payloads so restarted dosing automations and the UI can decode them.

@@ -68,6 +68,9 @@ class ConfigParserMod(configparser.ConfigParser):
         **kwargs: Any,
     ) -> Any:
         fallback_provided = fallback is not _FALLBACK_SENTINEL and fallback is not _CONFIGPARSER_UNSET
+        if fallback_provided and vars is None and not self.has_option(section, option):
+            # configparser doesn't pass the fallback down to `get`, which would log the option as missing.
+            return fallback
 
         try:
             if not fallback_provided:

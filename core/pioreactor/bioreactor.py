@@ -284,50 +284,43 @@ def apply_dosing_event_to_bioreactor(
     # to this same database, which would block on our own lock.
     get_pioreactor_model()
 
-    with local_persistent_storage("bioreactor") as cache:
-        try:
-            cache.cursor.execute("BEGIN IMMEDIATE")
-            current_state = {
-                variable_name: _read_bioreactor_value(cache, experiment, variable_name)
-                for variable_name in _BIOREACTOR_VARIABLES
-            }
+    with local_persistent_storage("bioreactor") as cache, cache.transaction():
+        current_state = {
+            variable_name: _read_bioreactor_value(cache, experiment, variable_name)
+            for variable_name in _BIOREACTOR_VARIABLES
+        }
 
-            updated_state = {
-                "alt_media_fraction": calculate_updated_alt_media_fraction(
-                    dosing_event,
-                    current_alt_media_fraction=current_state["alt_media_fraction"],
-                    current_volume_ml=current_state["current_volume_ml"],
-                ),
-                "current_volume_ml": calculate_updated_current_volume(
-                    dosing_event,
-                    current_volume_ml=current_state["current_volume_ml"],
-                    efflux_tube_volume_ml=current_state["efflux_tube_volume_ml"],
-                ),
-                "cumulative_media_added_ml": calculate_updated_cumulative_volume(
-                    "cumulative_media_added_ml",
-                    dosing_event,
-                    current_state["cumulative_media_added_ml"],
-                ),
-                "cumulative_alt_media_added_ml": calculate_updated_cumulative_volume(
-                    "cumulative_alt_media_added_ml",
-                    dosing_event,
-                    current_state["cumulative_alt_media_added_ml"],
-                ),
-                "cumulative_waste_removed_ml": calculate_updated_cumulative_volume(
-                    "cumulative_waste_removed_ml",
-                    dosing_event,
-                    current_state["cumulative_waste_removed_ml"],
-                ),
-            }
+        updated_state = {
+            "alt_media_fraction": calculate_updated_alt_media_fraction(
+                dosing_event,
+                current_alt_media_fraction=current_state["alt_media_fraction"],
+                current_volume_ml=current_state["current_volume_ml"],
+            ),
+            "current_volume_ml": calculate_updated_current_volume(
+                dosing_event,
+                current_volume_ml=current_state["current_volume_ml"],
+                efflux_tube_volume_ml=current_state["efflux_tube_volume_ml"],
+            ),
+            "cumulative_media_added_ml": calculate_updated_cumulative_volume(
+                "cumulative_media_added_ml",
+                dosing_event,
+                current_state["cumulative_media_added_ml"],
+            ),
+            "cumulative_alt_media_added_ml": calculate_updated_cumulative_volume(
+                "cumulative_alt_media_added_ml",
+                dosing_event,
+                current_state["cumulative_alt_media_added_ml"],
+            ),
+            "cumulative_waste_removed_ml": calculate_updated_cumulative_volume(
+                "cumulative_waste_removed_ml",
+                dosing_event,
+                current_state["cumulative_waste_removed_ml"],
+            ),
+        }
 
-            for variable_name, updated_value in updated_state.items():
-                if updated_value != current_state[variable_name]:
-                    cache[(experiment, variable_name)] = updated_value
-
-            cache.conn.commit()
-        except Exception:
-            cache.conn.rollback()
-            raise
+        for variable_name, updated_value in updated_state.items():
+            if updated_value != current_state[variable_name]:
+                cache[(experiment, variable_name)] = updated_value
 
     if mqtt_client is None:
         for variable_name, updated_value in updated_state.items():
