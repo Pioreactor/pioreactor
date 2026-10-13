@@ -191,7 +191,13 @@ def get_unit_model() -> ResponseReturnValue:
     model = get_local_model()
     if model is None:
         abort_with(404, "No model assigned to this unit.")
-    return {"model_name": model[0], "model_version": model[1]}, 200
+    # The unit's registry is authoritative, so include its definition for the leader's mirror.
+    definition = get_registered_models().get(model)
+    return {
+        **(to_builtins(definition) if definition is not None else {}),
+        "model_name": model[0],
+        "model_version": model[1],
+    }, 200
 
 
 @unit_api_bp.route("/model", methods=["PUT"])

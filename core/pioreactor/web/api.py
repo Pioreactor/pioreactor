@@ -23,6 +23,7 @@ from flask import send_file
 from flask.typing import ResponseReturnValue
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
+from msgspec import convert
 from msgspec import DecodeError
 from msgspec import to_builtins
 from msgspec import UNSET
@@ -4593,15 +4594,42 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
             remediation="Set the model of this worker.",
         )
     else:
+        definition = _get_worker_model_definition(
+            pioreactor_unit, result["model_name"], result["model_version"]
+        )
         return attach_cache_control(
             jsonify(
                 {
                     "pioreactor_unit": result["pioreactor_unit"],
-                    "model_name": result["model_name"],
-                    "model_version": result["model_version"],
-                    **to_builtins(get_registered_models()[(result["model_name"], result["model_version"])]),
+                    **to_builtins(definition),
                 }
             )
+        )
+
+
+def _get_worker_model_definition(pioreactor_unit: str, model_name: str, model_version: str) -> structs.Model:
+    # The unit owns its model, so its answer wins. The leader's registry covers
+    # offline units and older units that report only a name and version.
+    try:
+        response = get_from(
+            resolve_to_address(pioreactor_unit),
+            "/unit_api/model",
+            headers={"X-Pioreactor-Target": pioreactor_unit},
+            timeout=2,
+        )
+        response.raise_for_status()
+        return convert(response.json(), type=structs.Model)
+    except (HTTPException, HTTPErrorStatus, DecodeError, ValidationError):
+        pass
+
+    try:
+        return get_registered_models()[(model_name, model_version)]
+    except KeyError:
+        abort_with(
+            409,
+            f"Model {model_name} v{model_version} for {pioreactor_unit} is not defined on the leader, and {pioreactor_unit} did not provide its definition.",
+            cause="The model is missing from the leader's registry and the worker is unreachable or doesn't define it.",
+            remediation=f"Bring {pioreactor_unit} online, or add the model's YAML file to the leader's ~/.pioreactor/models/.",
         )
 
 

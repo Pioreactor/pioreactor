@@ -26,7 +26,7 @@ jest.mock("victory", () => {
   };
 });
 
-import Chart from "../components/Chart";
+import Chart, { thinSeriesData } from "../components/Chart";
 
 beforeAll(() => {
   HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
@@ -182,4 +182,35 @@ test("does not refetch history when the color map identity changes", async () =>
   rerender(<Chart {...props} unitsColorMap={{ unit1: "#000" }} />);
 
   expect(global.fetch).toHaveBeenCalledTimes(1);
+});
+
+test("repeated thinning keeps coverage of history while live points keep arriving", () => {
+  const maxPoints = 2800;
+  const targetPoints = maxPoints / 2;
+  // Server history: 1,400 evenly sampled points, then live points one at a time, flushed in batches.
+  let data = Array.from({ length: 1400 }, (_, x) => ({ x, y: x }));
+  for (let batchStart = 1400; batchStart < 30000; batchStart += 10) {
+    const batch = Array.from({ length: 10 }, (_, offset) => ({ x: batchStart + offset, y: batchStart + offset }));
+    data = thinSeriesData(data.concat(batch), maxPoints);
+    expect(data.length).toBeLessThanOrEqual(maxPoints);
+  }
+
+  const xs = data.map((point) => point.x);
+  expect(xs[0]).toBe(0);
+  expect(xs.at(-1)).toBe(29999);
+  expect(xs.every((x, i) => i === 0 || x > xs[i - 1])).toBe(true);
+
+  // History covers ~4.7% of the span, so it should keep roughly that share of the grid, not one point.
+  expect(xs.filter((x) => x < 1400).length).toBeGreaterThanOrEqual(60);
+
+  // No stretch of the interval, old or new, is left much sparser than the grid spacing.
+  const gridSpacing = 29999 / (targetPoints - 1);
+  const maxGap = Math.max(...xs.slice(1).map((x, i) => x - xs[i]));
+  expect(maxGap).toBeLessThanOrEqual(2 * gridSpacing);
+});
+
+test("thinning leaves series within budget untouched", () => {
+  const data = [{ x: 0, y: 1 }, { x: 1, y: 2 }];
+  expect(thinSeriesData(data, 2)).toBe(data);
+  expect(thinSeriesData(data, Infinity)).toBe(data);
 });
