@@ -213,8 +213,8 @@ def test_report_model_to_leader_is_best_effort(
     monkeypatch: pytest.MonkeyPatch, outcome: Response | HTTPException, reported: bool
 ) -> None:
     put = Mock(side_effect=outcome) if isinstance(outcome, HTTPException) else Mock(return_value=outcome)
-    monkeypatch.setattr("pioreactor.pubsub.put_into_leader", put)
+    monkeypatch.setattr("pioreactor.pubsub.put_into", put)
 
-    assert report_model_to_leader("pioreactor_20ml", "1.5") is reported
-    assert put.call_args.args[0] == f"/api/workers/{get_unit_name()}/reported_model"
+    assert report_model_to_leader("10.0.0.1", "pioreactor_20ml", "1.5") is reported
+    assert put.call_args.args == ("10.0.0.1", f"/api/workers/{get_unit_name()}/reported_model")
     assert put.call_args.kwargs["json"] == MODEL

@@ -1105,8 +1105,6 @@ def best_static_response_example(route: RouteInfo) -> dict[str, Any]:
             "status": 201,
             "body": {"message": "File successfully uploaded", "save_path": "/tmp/file.zip"},
         }
-    if route.function_name == "setup_worker_pioreactor":
-        return {"status": 200, "body": {"msg": "Worker pio02 added successfully."}}
     if route.function_name == "preview_exportable_dataset":
         return {
             "status": 200,

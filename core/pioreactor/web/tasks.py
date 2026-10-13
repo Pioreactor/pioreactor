@@ -661,7 +661,10 @@ def add_new_pioreactor(
     if address:
         command.extend(["--address", address])
     logger.debug(f"Executing `{join(command)}`")
-    check_call(command)
+    result = run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        # `pio workers add` ends with `Error: <reason>`; the full output is in its logs.
+        raise RuntimeError(result.stderr.strip().splitlines()[-1].removeprefix("Error: "))
     return True
 
 

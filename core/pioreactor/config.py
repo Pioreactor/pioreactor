@@ -2,6 +2,7 @@
 import configparser
 import os
 import re
+import tempfile
 from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
@@ -182,6 +183,32 @@ def replace_or_append_config_entry(
     new_lines.append(section_header)
     new_lines.append(f"{parameter_name}={value}")
     return newline.join(new_lines) + newline
+
+
+def write_config_text(config_path: Path, config_text: str) -> None:
+    """Atomically replace a config file, after checking that the new text parses."""
+    ConfigParserMod(strict=False).read_string(config_text)
+
+    existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=config_path.parent,
+        delete=False,
+    ) as temporary_file:
+        temporary_file.write(config_text)
+        os.fchmod(temporary_file.fileno(), existing_mode)
+        temporary_path = Path(temporary_file.name)
+
+    temporary_path.replace(config_path)
+
+
+def set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
+    current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    write_config_text(
+        config_path, replace_or_append_config_entry(current_text, section_name, parameter_name, value)
+    )
 
 
 def _apply_runtime_config_sections(config: ConfigParserMod) -> ConfigParserMod:

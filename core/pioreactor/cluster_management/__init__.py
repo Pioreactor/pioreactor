@@ -1,20 +1,27 @@
 # -*- coding: utf-8 -*-
+import os
+import shlex
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
+from time import time
+from typing import NoReturn
 
 import click
-from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
-from pioreactor.exc import BashScriptError
+from pioreactor.config import resolve_global_config_path
+from pioreactor.config import set_config_value_in_file
+from pioreactor.exc import RsyncError
+from pioreactor.exc import SSHError
 from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
+from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import delete_from_leader
@@ -24,6 +31,8 @@ from pioreactor.pubsub import put_into_leader
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import networking
 from pioreactor.utils.timing import catchtime
+
+WORKER_SSH_SETUP_SCRIPT = "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh"
 
 
 def get_workers_in_inventory() -> tuple[pt.Unit, ...]:
@@ -91,6 +100,40 @@ def _find_reachable_worker_add_address(hostname: str, candidates: tuple[str, ...
     return None
 
 
+def _fail(logger: CustomLogger, message: str) -> NoReturn:
+    logger.error(message)
+    raise click.ClickException(message)
+
+
+def _set_up_ssh_to_worker(logger: CustomLogger, hostname: str, password: str, address: str) -> None:
+    res = subprocess.run(
+        ["bash", WORKER_SSH_SETUP_SCRIPT, hostname, address],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "SSHPASS": password},
+    )
+    if res.returncode != 0:
+        _fail(logger, f"Unable to set up SSH to {hostname}: {res.stderr.strip()}")
+
+
+def _join_worker_to_cluster(
+    logger: CustomLogger, hostname: str, address: str, model_name: str | None, model_version: str | None
+) -> None:
+    args = ["join-cluster", "--leader-time", str(int(time()))]
+    if model_name and model_version:
+        args.extend(["--model", model_name, model_version])
+    try:
+        # Pass the address, not the hostname: this process's config predates its new cluster.addresses entry.
+        networking.cp_file_across_cluster(
+            address, str(resolve_global_config_path()), ".pioreactor/config.ini", timeout=15
+        )
+        networking.ssh(
+            address, f'source /etc/pioreactor.env; "$PIO_VENV/bin/pio" {shlex.join(args)}', detach=False
+        )
+    except (RsyncError, SSHError) as error:
+        _fail(logger, f"Unable to configure {hostname}: {error}")
+
+
 @click.command(name="add", short_help="add a pioreactor worker")
 @click.argument("hostname")
 @click.option("--password", "-p", default="raspberry")
@@ -108,6 +151,13 @@ def add_worker(
 ) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
+
+    \b
+    Steps, each safe to retry:
+      1. find the worker on the network, and set up SSH keys to it
+      2. register it with the leader
+      3. copy the shared config.ini to it, and run `pio join-cluster` on it
+      4. reboot it
     """
     if hostname.endswith(".local"):
         # exit with message
@@ -120,7 +170,8 @@ def add_worker(
         )
         raise click.Abort()
 
-    import socket
+    if (model_name is None) != (model_version is None):
+        raise click.BadParameter("Provide both --model-name and --model-version.")
 
     logger = create_logger(
         "add_pioreactor",
@@ -130,37 +181,22 @@ def add_worker(
     logger.info(f"Adding new pioreactor {hostname} to cluster.")
 
     address_candidates = _unique_worker_add_address_candidates(hostname, address)
+    worker_address: str | None = None
 
     if not whoami.is_testing_env():
         with catchtime() as elapsed:
-            possible_address = _find_reachable_worker_add_address(hostname, address_candidates)
-        if possible_address is None:
-            logger.error(
+            worker_address = _find_reachable_worker_add_address(hostname, address_candidates)
+        if worker_address is None:
+            _fail(
+                logger,
                 f"`{hostname}` not found on network after {round(elapsed())} seconds. "
-                f"Checked: {', '.join(address_candidates)}. Check that i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
+                f"Checked: {', '.join(address_candidates)}. Check that i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct.",
             )
-            raise click.Abort()
 
-        res = subprocess.run(
-            [
-                "bash",
-                "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh",
-                hostname,
-                password,
-                possible_address,
-                model_name or "",
-                model_version or "",
-            ],
-            capture_output=True,
-            text=True,
-        )
-        if res.returncode > 0:
-            logger.error(res.stderr)
-            raise BashScriptError(res.stderr)
+        _set_up_ssh_to_worker(logger, hostname, password, worker_address)
+        set_config_value_in_file(resolve_global_config_path(), "cluster.addresses", hostname, worker_address)
 
-        assigned = loads(res.stdout, type=dict[str, str | None])
-        model_name, model_version = assigned["model_name"], assigned["model_version"]
-
+    # Register before configuring the worker, so it can report its model to the leader.
     try:
         r = put_into_leader(
             "/api/workers",
@@ -176,6 +212,10 @@ def add_worker(
     except HTTPException:
         logger.error(f"Not able to connect to leader's backend at {leader_address}.")
         raise HTTPException(f"Not able to connect to leader's backend at {leader_address}.")
+
+    if worker_address is not None:
+        _join_worker_to_cluster(logger, hostname, worker_address, model_name, model_version)
+        networking.ssh(worker_address, "sudo reboot")
 
     logger.notice(f"New pioreactor {hostname} successfully added to cluster.")
 

@@ -53,7 +53,7 @@ function renderAddNewPioreactor() {
   return { setWorkers };
 }
 
-function setupFetchMocks() {
+function setupFetchMocks({taskResult = {status: "succeeded", result: true}} = {}) {
   global.fetch = jest.fn((url) => {
     if (url === "/api/models") {
       return Promise.resolve({
@@ -72,7 +72,16 @@ function setupFetchMocks() {
     if (url === "/api/workers/setup") {
       return Promise.resolve({
         ok: true,
-        json: async () => ({ msg: "ok" }),
+        status: 202,
+        json: async () => ({ status: "accepted", result_url_path: "/unit_api/task_results/setup-task" }),
+      });
+    }
+
+    if (url === "/unit_api/task_results/setup-task") {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => taskResult,
       });
     }
 
@@ -302,6 +311,32 @@ describe("AddNewPioreactor", () => {
 
     await screen.findByText(
       "Unable to complete connection. Failed to add worker new-unit. Cause: ssh connection refused Remediation: Check the Pioreactor logs for the full worker setup command output.",
+    );
+  });
+
+  test("waits for the setup task, then reports success", async () => {
+    renderAddNewPioreactor();
+
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
+    fireEvent.change(await screen.findByRole("textbox", { name: /hostname/i }), { target: { value: "new-unit" } });
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
+
+    await screen.findByText("Success! Rebooting new-unit now. Add another?");
+    expect(global.fetch).toHaveBeenCalledWith("/unit_api/task_results/setup-task");
+  });
+
+  test("shows the setup task's failure", async () => {
+    setupFetchMocks({
+      taskResult: {status: "failed", error: "Unable to configure new-unit: Error: Stop activities before changing the model."},
+    });
+    renderAddNewPioreactor();
+
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
+    fireEvent.change(await screen.findByRole("textbox", { name: /hostname/i }), { target: { value: "new-unit" } });
+    fireEvent.click(screen.getByRole("button", { name: /^add new pioreactor$/i }));
+
+    await screen.findByText(
+      "Unable to configure new-unit: Error: Stop activities before changing the model.",
     );
   });
 

@@ -33,17 +33,19 @@ def save_local_model(name: str, version: str, *, only_if_unset: bool = False) ->
     return saved["model_name"], saved["model_version"]
 
 
-def report_model_to_leader(name: str, version: str) -> bool:
+def report_model_to_leader(leader_address: str, name: str, version: str) -> bool:
     """Best-effort update of the leader's mirror of this unit's model."""
     # Lazy imports avoid the whoami/config initialization cycle.
     from pioreactor.mureq import HTTPException
-    from pioreactor.pubsub import put_into_leader
+    from pioreactor.pubsub import put_into
     from pioreactor.whoami import get_unit_name
 
     try:
-        put_into_leader(
+        put_into(
+            leader_address,
             f"/api/workers/{get_unit_name()}/reported_model",
             json={"model_name": name, "model_version": version},
+            timeout=5,
         ).raise_for_status()
     except HTTPException:
         # Unreachable, or a worker the leader hasn't added yet. The leader's

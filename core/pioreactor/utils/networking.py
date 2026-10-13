@@ -20,18 +20,20 @@ class DiscoveredWorker(msgspec.Struct, frozen=True):
     ipv4_address: str
 
 
-def ssh(address: str, command: str) -> None:
+def ssh(address: str, command: str, detach: bool = True) -> None:
+    """Run `command` on `address`. Detached, it returns once started; otherwise it waits and raises on failure."""
+    if detach:
+        command = f"nohup {command} > /dev/null 2>&1 &"
     try:
-        detached_command = f"nohup {command} > /dev/null 2>&1 &"  # this assumes I want to detach!
         subprocess.run(
-            ["ssh", "-o", "ConnectTimeout=5", address, detached_command],
+            ["ssh", "-o", "ConnectTimeout=5", address, command],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        raise SSHError(f"SSH command failed: {e.stderr}") from e
+        raise SSHError(f"SSH command failed: {e.stderr.strip()}") from e
 
 
 def rsync(*args: str) -> None:

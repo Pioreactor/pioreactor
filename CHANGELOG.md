@@ -9,6 +9,7 @@
  - `POST /unit_api/calibrations/sessions/<session_id>/inputs` (and the leader's `/api/workers/<unit>/calibrations/sessions/<session_id>/inputs`) now answers `202` with a task instead of waiting for the step to finish. Poll `result_url_path` (or the leader's `/api/workers/<unit>/task_results/<task_id>`); the task's `result` is `{"session", "step"}`, and rejected inputs or failed actions report `status: "failed"` with the error. Pioreactor Zero W workers now run two Huey workers, which this needs.
  - The leader's `/api` now rejects `POST`, `PUT`, `PATCH` and `DELETE` requests sent by a browser from another website (an `Origin` that is neither the leader nor a Pioreactor in its inventory) with `403`. This stops a web page open on a lab computer from triggering actions with a plain cross-site form post. Requests without an `Origin` header, such as from scripts, `curl` and other Pioreactors, are unaffected.
  - Every Pioreactor's `/unit_api` now also rejects `POST`, `PUT`, `PATCH` and `DELETE` requests sent by a browser from another website with `403`. Workers accept browser writes only from pages they serve themselves or from `localhost`; leaders also accept Pioreactors in their inventory. Requests without an `Origin` header are unaffected.
+ - Adding a worker now requires it to run the same software version as the leader; an older worker is rejected with a message to update it first. `POST /api/workers/setup` now answers `202` with a task instead of waiting for setup to finish. Poll `result_url_path`.
 
 #### Enhancements
 
@@ -29,9 +30,12 @@
  - Added `pio model get` and `pio model set <name> <version>` to inspect or change the local unit's model, for example `pio model set pioreactor_20ml 1.5`.
  - `pio model set` on a unit now updates the leader's inventory too. Each unit also reports its model to the leader when it boots, so a change made while the leader was unreachable shows up after the unit's next reboot. New leader endpoint: `PUT /api/workers/<unit>/reported_model`.
  - Custom models defined only on a worker, in its `~/.pioreactor/models/`, can now be assigned to that worker without a copy on the leader. The Pioreactor page shows the model limits (capacity, max fill volume, temperature limits) that the worker itself uses, read from the worker, and falls back to the leader's definition when the worker is offline. `GET /unit_api/model` now returns the full model definition, not just its name and version.
+ - Adding a worker is more reliable. The leader registers the worker first, then the worker configures itself with the new internal command `pio join-cluster` and reports its model, so a failed step can be retried. A wrong SSH password now fails right away, and the UI no longer gives up after 90 seconds while setup is still running. A worker's time source is now `/etc/chrony/conf.d/pioreactor-leader.conf`, replaced on every join, instead of a line appended to `chrony.conf` on every add. Updating moves an existing worker's line into that file.
 
 #### Bug fixes
 
+ - Fixed `pio workers add -p <password>` writing the worker's SSH password to the logs when setup failed.
+ - Fixed a re-added worker keeping a `[mqtt] broker_address` override in its `unit_config.ini` that pointed at its previous leader.
  - Automation events, bioreactor values and PWM duty cycles are now stored in the database with the time they were produced on the worker, not the time the leader received them.
  - Fixed the Plugins page hiding plugins on USB drives mounted read-only.
  - Added destination hostname checks to leader HTTP commands to prevent requests from running on the wrong Pioreactor when an address is stale or reused. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.

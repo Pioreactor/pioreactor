@@ -1563,3 +1563,18 @@ def test_update_app_from_release_archive_updates_leader_when_selected(
         ["sudo", "systemctl", "restart", "pioreactor-web.target"],
     ]
     assert run_calls == []
+
+
+def test_add_new_pioreactor_raises_the_commands_error_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout="",
+            stderr="Adding new pioreactor unit1\nError: Unable to configure unit1: boom\n",
+        )
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="^Unable to configure unit1: boom$"):
+        tasks.add_new_pioreactor.call_local("unit1", "1.5", "pioreactor_40ml")

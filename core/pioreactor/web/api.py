@@ -4359,9 +4359,9 @@ def discover_available_workers() -> ResponseReturnValue:
 
 
 @api_bp.route("/workers/setup", methods=["POST"])
-def setup_worker_pioreactor() -> ResponseReturnValue:
+def setup_worker_pioreactor() -> DelayedResponseReturnValue:
     """
-    Provision and register a newly discovered worker.
+    Provision and register a newly discovered worker. Returns 202 with a task to poll.
 
     JSON body:
     {
@@ -4393,26 +4393,12 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
             abort_with(400, "Invalid IPv4 address")
 
     try:
-        result = tasks.add_new_pioreactor(new_name, version, model, ipv4_address or None)
+        task = tasks.add_new_pioreactor(new_name, version, model, ipv4_address or None)
     except Exception as e:
         return abort_with(404, str(e))
 
-    setup_error: str | None = None
-    try:
-        status = result(blocking=True, timeout=90)
-    except (HueyException, TaskException) as exc:
-        status = False
-        setup_error = str(exc)
-
-    if status:
-        return {"msg": f"Worker {new_name} added successfully."}, 200
-    else:
-        abort_with(
-            404,
-            f"Failed to add worker {new_name}.",
-            cause=setup_error or "The worker setup task did not complete successfully.",
-            remediation="Check the Pioreactor logs for the full worker setup command output.",
-        )
+    # Setup can take minutes, so don't hold the single FastCGI process; the UI polls the task.
+    return create_task_response(task)
 
 
 @api_bp.route("/workers", methods=["PUT"])

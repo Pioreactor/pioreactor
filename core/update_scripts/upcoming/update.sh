@@ -48,8 +48,9 @@ bash "$SCRIPT_DIR/40_huey_two_workers_on_zero_w.sh"
 bash "$SCRIPT_DIR/45_serve_kiosk_under_k.sh"
 
 bash "$SCRIPT_DIR/50_install_mosquitto.sh"
+bash "$SCRIPT_DIR/55_move_chrony_leader_source.sh"
 
-# Onboarding saves the unit model over SSH before requesting its reboot.
+# Onboarding uses this script to set up SSH to a new worker.
 WORKER_SETUP="$SCRIPT_DIR/add_new_pioreactor_worker_from_leader.sh"
 test -s "$WORKER_SETUP"
 TMP_WORKER_SETUP="$(mktemp /usr/local/bin/.worker-setup.XXXXXX)"

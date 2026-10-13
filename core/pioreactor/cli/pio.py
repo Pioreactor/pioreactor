@@ -22,7 +22,7 @@ from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import get_config
-from pioreactor.config import replace_or_append_config_entry
+from pioreactor.config import set_config_value_in_file
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.paths import get_pio_venv_path
 
@@ -666,30 +666,6 @@ def _get_config_value_from_file(config_path: Path, section_name: str, parameter_
     return config.get(section_name, parameter_name)
 
 
-def _set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
-    from pioreactor.config import ConfigParserMod
-
-    existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
-    current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
-    updated_text = replace_or_append_config_entry(current_text, section_name, parameter_name, value)
-
-    parser = ConfigParserMod(strict=False)
-    parser.read_string(updated_text)
-
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        dir=config_path.parent,
-        delete=False,
-    ) as temporary_file:
-        temporary_file.write(updated_text)
-        os.fchmod(temporary_file.fileno(), existing_mode)
-        temporary_path = Path(temporary_file.name)
-
-    temporary_path.replace(config_path)
-
-
 @pio.group(name="config", short_help="inspect effective configuration")
 def config_group() -> None:
     """Show effective configuration values."""
@@ -747,7 +723,7 @@ def set_config_value(
     else:
         target_config_path = local_config_path
 
-    _set_config_value_in_file(target_config_path, section_name, parameter_name, value)
+    set_config_value_in_file(target_config_path, section_name, parameter_name, value)
 
 
 @config_group.command(name="show", short_help="show the effective merged config")
@@ -826,6 +802,24 @@ def show_config(
 
         if section_index < len(sections) - 1:
             click.echo("")
+
+
+@pio.command(name="join-cluster", hidden=True, short_help="point this unit at its new leader")
+@click.option("--leader-time", type=int, required=True, help="the leader's clock, in Unix seconds")
+@click.option("--model", nargs=2, type=str, default=None, help="model name and version to save")
+def join_cluster(leader_time: int, model: tuple[str, str] | None) -> None:
+    """
+    Run over SSH by the leader's `pio workers add`, after it copies its shared config.ini here.
+    """
+    from pioreactor.cluster_membership import join_cluster as join
+    from pioreactor.exc import UnknownModelAssignedError
+
+    try:
+        assigned = join(leader_time, model)
+    except (UnknownModelAssignedError, RuntimeError) as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(f"Joined the cluster with model {assigned}.")
 
 
 @pio.command(name="logs", short_help="show recent logs")

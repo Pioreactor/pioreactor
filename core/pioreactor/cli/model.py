@@ -29,9 +29,10 @@ def set_model(name: str, version: str) -> None:
     except (UnknownModelAssignedError, RuntimeError) as error:
         raise click.ClickException(str(error)) from error
 
-    # Lazy import keeps GET independent of the web/task infrastructure.
+    # Lazy imports keep GET independent of the leader's config and the web/task infrastructure.
+    from pioreactor.config import leader_address
     from pioreactor.web.tasks import check_model_hardware
 
     check_model_hardware(name, version)
-    report_model_to_leader(name, version)
+    report_model_to_leader(leader_address, name, version)
     click.echo(json.dumps({"model_name": name, "model_version": version}))

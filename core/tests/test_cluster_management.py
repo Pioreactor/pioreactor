@@ -71,28 +71,56 @@ def test_cluster_status_surfaces_structured_api_error(monkeypatch) -> None:
     )
 
 
+class _AddWorkerEvents:
+    """Stubs everything `pio workers add` touches outside the process, and records the calls."""
+
+    def __init__(self, monkeypatch, join_error: str | None = None) -> None:
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from pioreactor.exc import SSHError
+
+        self.events: list[tuple] = []
+
+        def run(args: list[str], **kwargs: object) -> SimpleNamespace:
+            assert args[0] == "bash"
+            self.events.append(("ssh_setup", tuple(args[2:]), kwargs["env"]["SSHPASS"]))
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        def ssh(address: str, command: str, detach: bool = True) -> None:
+            if command == "sudo reboot":
+                self.events.append(("reboot", address, detach))
+                return
+            self.events.append(("join", command, detach))
+            if join_error is not None:
+                raise SSHError(f"SSH command failed: {join_error}")
+
+        def register(endpoint: str, json: dict) -> Response:
+            self.events.append(("register", json))
+            return Response("http://leader/api/workers", 201, {}, b"{}")
+
+        monkeypatch.setattr(cluster_management.whoami, "get_unit_name", lambda: "leader")
+        monkeypatch.setattr(cluster_management.whoami, "is_testing_env", lambda: False)
+        monkeypatch.setattr(cluster_management, "create_logger", lambda *_args, **_kwargs: Mock())
+        monkeypatch.setattr(cluster_management, "put_into_leader", register)
+        monkeypatch.setattr(
+            cluster_management,
+            "set_config_value_in_file",
+            lambda _path, section, key, value: self.events.append(("address", section, key, value)),
+        )
+        monkeypatch.setattr(
+            cluster_management.networking,
+            "cp_file_across_cluster",
+            lambda unit, _localpath, remotepath, timeout: self.events.append(("copy", unit, remotepath)),
+        )
+        monkeypatch.setattr(cluster_management.networking, "ssh", ssh)
+        monkeypatch.setattr(cluster_management.subprocess, "run", run)
+
+    def names(self) -> list[str]:
+        return [event[0] for event in self.events]
+
+
 def test_add_worker_falls_back_from_stale_config_address_to_discovered_ipv4(monkeypatch) -> None:
-    captured_run_args: list[str] = []
-
-    class FakeCompletedProcess:
-        returncode = 0
-        stderr = ""
-        stdout = '{"model_name":null,"model_version":null}'
-
-    class FakeLeaderResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-    class FakeLogger:
-        def info(self, *_args: object, **_kwargs: object) -> None:
-            return None
-
-        def error(self, *_args: object, **_kwargs: object) -> None:
-            return None
-
-        def notice(self, *_args: object, **_kwargs: object) -> None:
-            return None
-
+    events = _AddWorkerEvents(monkeypatch)
     monkeypatch.setattr(cluster_management.config, "get", lambda *_args, **_kwargs: "192.168.1.50")
     monkeypatch.setattr(
         cluster_management.networking,
@@ -104,59 +132,28 @@ def test_add_worker_falls_back_from_stale_config_address_to_discovered_ipv4(monk
         "is_address_on_network",
         lambda address, timeout=10.0: address == "192.168.1.99",
     )
-    monkeypatch.setattr(cluster_management.whoami, "get_unit_name", lambda: "leader")
-    monkeypatch.setattr(cluster_management.whoami, "is_testing_env", lambda: False)
-    monkeypatch.setattr(cluster_management, "create_logger", lambda *_args, **_kwargs: FakeLogger())
-    monkeypatch.setattr(cluster_management, "put_into_leader", lambda *_args, **_kwargs: FakeLeaderResponse())
-
-    def fake_run(args: list[str], **_kwargs: object) -> FakeCompletedProcess:
-        if args[0] == "bash":
-            captured_run_args.extend(args)
-        return FakeCompletedProcess()
-
-    monkeypatch.setattr(cluster_management.subprocess, "run", fake_run)
 
     result = CliRunner().invoke(add_worker, ["unit1"])
 
-    assert result.exit_code == 0
-    assert captured_run_args == [
-        "bash",
-        "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh",
-        "unit1",
-        "raspberry",
-        "192.168.1.99",
-        "",
-        "",
-    ]
+    assert result.exit_code == 0, result.output
+    assert events.events[0] == ("ssh_setup", ("unit1", "192.168.1.99"), "raspberry")
+    assert events.events[1] == ("address", "cluster.addresses", "unit1", "192.168.1.99")
+    assert ("copy", "192.168.1.99", ".pioreactor/config.ini") in events.events
 
 
 def test_add_worker_explicit_address_does_not_try_config_or_discovery(monkeypatch) -> None:
+    _AddWorkerEvents(monkeypatch)
     captured_addresses: list[str] = []
     discovery_was_called = False
-
-    class FakeCompletedProcess:
-        returncode = 0
-        stderr = ""
-        stdout = '{"model_name":null,"model_version":null}'
-
-    class FakeLeaderResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-    class FakeLogger:
-        def info(self, *_args: object, **_kwargs: object) -> None:
-            return None
-
-        def error(self, *_args: object, **_kwargs: object) -> None:
-            return None
-
-        def notice(self, *_args: object, **_kwargs: object) -> None:
-            return None
 
     def discover_workers_on_network(terminate: bool):
         nonlocal discovery_was_called
         discovery_was_called = True
         return iter([DiscoveredWorker(hostname="unit1", ipv4_address="192.168.1.99")])
+
+    def fake_is_address_on_network(address: str, timeout: float = 10.0) -> bool:
+        captured_addresses.append(address)
+        return True
 
     monkeypatch.setattr(cluster_management.config, "get", lambda *_args, **_kwargs: "192.168.1.50")
     monkeypatch.setattr(
@@ -164,63 +161,46 @@ def test_add_worker_explicit_address_does_not_try_config_or_discovery(monkeypatc
         "discover_workers_on_network",
         discover_workers_on_network,
     )
-    monkeypatch.setattr(cluster_management.whoami, "get_unit_name", lambda: "leader")
-    monkeypatch.setattr(cluster_management.whoami, "is_testing_env", lambda: False)
-    monkeypatch.setattr(cluster_management, "create_logger", lambda *_args, **_kwargs: FakeLogger())
-    monkeypatch.setattr(cluster_management, "put_into_leader", lambda *_args, **_kwargs: FakeLeaderResponse())
-
-    def fake_is_address_on_network(address: str, timeout: float = 10.0) -> bool:
-        captured_addresses.append(address)
-        return True
-
-    def fake_run(_args: list[str], **_kwargs: object) -> FakeCompletedProcess:
-        return FakeCompletedProcess()
-
     monkeypatch.setattr(cluster_management.networking, "is_address_on_network", fake_is_address_on_network)
-    monkeypatch.setattr(cluster_management.subprocess, "run", fake_run)
 
-    result = CliRunner().invoke(add_worker, ["unit1", "--address", "unit1.local"])
+    result = CliRunner().invoke(add_worker, ["unit1", "--address", "unit1.local", "-p", "secret"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     assert captured_addresses == ["unit1.local"]
     assert discovery_was_called is False
 
 
 @pytest.mark.parametrize("selected", [True, False])
-@pytest.mark.parametrize("fails", [True, False])
-def test_add_worker_uses_script_model_result(
-    monkeypatch: pytest.MonkeyPatch, selected: bool, fails: bool
+def test_add_worker_registers_before_configuring_then_reboots(
+    monkeypatch: pytest.MonkeyPatch, selected: bool
 ) -> None:
-    from types import SimpleNamespace
-    from unittest.mock import Mock
+    events = _AddWorkerEvents(monkeypatch)
+    monkeypatch.setattr(cluster_management, "_find_reachable_worker_add_address", lambda *a: "10.0.0.5")
 
-    monkeypatch.setattr(cluster_management.whoami, "is_testing_env", lambda: False)
-    monkeypatch.setattr(cluster_management.whoami, "get_unit_name", lambda: "leader")
-    monkeypatch.setattr(cluster_management, "create_logger", lambda *a, **kw: Mock())
-    monkeypatch.setattr(
-        cluster_management, "_unique_worker_add_address_candidates", lambda *a: ("unit.local",)
-    )
-    monkeypatch.setattr(cluster_management, "_find_reachable_worker_add_address", lambda *a: "unit.local")
-    run = Mock(
-        return_value=SimpleNamespace(
-            returncode=1 if fails else 0,
-            stderr="model setup failed",
-            stdout='{"model_name":"pioreactor_40ml","model_version":"1.5"}',
-        )
-    )
-    register = Mock(return_value=Response("http://leader", 201, {}, b"{}"))
-    monkeypatch.setattr(cluster_management.subprocess, "run", run)
-    monkeypatch.setattr(cluster_management, "put_into_leader", register)
     args = ["unit1", "-m", "pioreactor_40ml", "-v", "1.5"] if selected else ["unit1"]
     result = CliRunner().invoke(add_worker, args)
-    assert result.exit_code == (1 if fails else 0), result.output
-    run.assert_called_once()
-    assert run.call_args.args[0][-2:] == (["pioreactor_40ml", "1.5"] if selected else ["", ""])
-    if fails:
-        register.assert_not_called()
-    else:
-        assert register.call_args.kwargs["json"] == {
-            "pioreactor_unit": "unit1",
-            "model_name": "pioreactor_40ml",
-            "model_version": "1.5",
-        }
+
+    assert result.exit_code == 0, result.output
+    assert events.names() == ["ssh_setup", "address", "register", "copy", "join", "reboot"]
+    register = events.events[2]
+    assert register[1] == {
+        "pioreactor_unit": "unit1",
+        "model_name": "pioreactor_40ml" if selected else None,
+        "model_version": "1.5" if selected else None,
+    }
+    _, join_command, detached = events.events[4]
+    assert detached is False
+    assert events.events[5] == ("reboot", "10.0.0.5", True)
+    assert "join-cluster --leader-time " in join_command
+    assert ("--model pioreactor_40ml 1.5" in join_command) is selected
+
+
+def test_add_worker_failed_join_does_not_reboot(monkeypatch: pytest.MonkeyPatch) -> None:
+    events = _AddWorkerEvents(monkeypatch, join_error="Error: Stop activities before changing the model.")
+    monkeypatch.setattr(cluster_management, "_find_reachable_worker_add_address", lambda *a: "10.0.0.5")
+
+    result = CliRunner().invoke(add_worker, ["unit1"])
+
+    assert result.exit_code == 1
+    assert "Unable to configure unit1: SSH command failed: Error: Stop activities" in result.output
+    assert events.names() == ["ssh_setup", "address", "register", "copy", "join"]
