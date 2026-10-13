@@ -127,8 +127,11 @@ def _join_worker_to_cluster(
         networking.cp_file_across_cluster(
             address, str(resolve_global_config_path()), ".pioreactor/config.ini", timeout=15
         )
+        # pioreactor.env has no `export`s, and a non-interactive SSH session doesn't load it, so export it here.
         networking.ssh(
-            address, f'source /etc/pioreactor.env; "$PIO_VENV/bin/pio" {shlex.join(args)}', detach=False
+            address,
+            f'set -a; . /etc/pioreactor.env; set +a; "$PIO_EXECUTABLE" {shlex.join(args)}',
+            detach=False,
         )
     except (RsyncError, SSHError) as error:
         _fail(logger, f"Unable to configure {hostname}: {error}")

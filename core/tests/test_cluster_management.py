@@ -191,7 +191,7 @@ def test_add_worker_registers_before_configuring_then_reboots(
     _, join_command, detached = events.events[4]
     assert detached is False
     assert events.events[5] == ("reboot", "10.0.0.5", True)
-    assert "join-cluster --leader-time " in join_command
+    assert join_command.startswith('set -a; . /etc/pioreactor.env; set +a; "$PIO_EXECUTABLE" join-cluster ')
     assert ("--model pioreactor_40ml 1.5" in join_command) is selected
 
 
