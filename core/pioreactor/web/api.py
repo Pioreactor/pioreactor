@@ -4565,6 +4565,25 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
+@api_bp.route("/workers/<pioreactor_unit>/reported_model", methods=["PUT"])
+def update_reported_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
+    # A unit reports the model it stores. Mirror-only: forwarding to the unit would loop. Not
+    # checked against the leader's registry, since the unit's registry decides what's valid.
+    registered_worker_or_abort(pioreactor_unit)
+
+    data = decode_request_body(structs.ChangeWorkerModelRequest)
+    row_count = modify_app_db(
+        """
+        UPDATE workers SET model_name=?, model_version=?
+        WHERE pioreactor_unit=? AND (model_name IS NOT ? OR model_version IS NOT ?)
+        """,
+        (data.model_name, data.model_version, pioreactor_unit, data.model_name, data.model_version),
+    )
+    if row_count > 0:
+        logger.debug(f"{pioreactor_unit} reported its model: {data.model_name} v{data.model_version}.")
+    return {"status": "success"}, 200
+
+
 @api_bp.route("/workers/<pioreactor_unit>/model", methods=["GET"])
 def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
     # Query the database for a worker's model and metadata

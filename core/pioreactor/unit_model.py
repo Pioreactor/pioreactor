@@ -33,6 +33,25 @@ def save_local_model(name: str, version: str, *, only_if_unset: bool = False) ->
     return saved["model_name"], saved["model_version"]
 
 
+def report_model_to_leader(name: str, version: str) -> bool:
+    """Best-effort update of the leader's mirror of this unit's model."""
+    # Lazy imports avoid the whoami/config initialization cycle.
+    from pioreactor.mureq import HTTPException
+    from pioreactor.pubsub import put_into_leader
+    from pioreactor.whoami import get_unit_name
+
+    try:
+        put_into_leader(
+            f"/api/workers/{get_unit_name()}/reported_model",
+            json={"model_name": name, "model_version": version},
+        ).raise_for_status()
+    except HTTPException:
+        # Unreachable, an older leader, or a worker the leader hasn't added yet.
+        # Monitor reports again at the next boot.
+        return False
+    return True
+
+
 def adopt_model_from_leader() -> tuple[str, str] | None:
     # Lazy import avoids the whoami/config initialization cycle.
     from pioreactor import whoami

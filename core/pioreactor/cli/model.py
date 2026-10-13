@@ -5,6 +5,7 @@ import json
 import click
 from pioreactor.exc import UnknownModelAssignedError
 from pioreactor.unit_model import get_local_model
+from pioreactor.unit_model import report_model_to_leader
 from pioreactor.unit_model import save_local_model
 
 
@@ -32,4 +33,5 @@ def set_model(name: str, version: str) -> None:
     from pioreactor.web.tasks import check_model_hardware
 
     check_model_hardware(name, version)
+    report_model_to_leader(name, version)
     click.echo(json.dumps({"model_name": name, "model_version": version}))

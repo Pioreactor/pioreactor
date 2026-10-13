@@ -11,6 +11,8 @@ from pioreactor.unit_model import get_local_model
 
 def test_model_cli_roundtrip_and_validation(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pioreactor.web.tasks.check_model_hardware", Mock())
+    report = Mock()
+    monkeypatch.setattr("pioreactor.cli.model.report_model_to_leader", report)
     runner = CliRunner()
     result = runner.invoke(pio, ["model", "set", "unknown", "1.5"])
     assert result.exit_code != 0
@@ -19,6 +21,7 @@ def test_model_cli_roundtrip_and_validation(monkeypatch: pytest.MonkeyPatch) -> 
     assert result.exit_code == 0, result.output
     assert runner.invoke(pio, ["model", "get"]).output == result.output
     assert get_local_model() == ("pioreactor_20ml", "1.5")
+    report.assert_called_once_with("pioreactor_20ml", "1.5")
 
 
 def test_provisioning_script_saves_before_reboot_and_update_copy_matches() -> None:

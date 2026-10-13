@@ -9,9 +9,11 @@ from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
 from pioreactor.unit_model import get_local_model
+from pioreactor.unit_model import report_model_to_leader
 from pioreactor.unit_model import save_local_model
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.web import tasks
+from pioreactor.whoami import get_unit_name
 
 MODEL = {"model_name": "pioreactor_20ml", "model_version": "1.5"}
 WORKER_ONLY_MODEL = {
@@ -173,3 +175,46 @@ def test_leader_registry_covers_offline_and_older_workers(
         "pioreactor_unit": "unit1",
         **to_builtins(get_registered_models()[("pioreactor_20ml", "1.5")]),
     }
+
+
+def test_reported_model_updates_only_the_mirror(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, unit_model_reads: Mock
+) -> None:
+    forward = Mock(side_effect=AssertionError("must not forward to the unit"))
+    monkeypatch.setattr("pioreactor.web.api.put_into", forward)
+    body = {
+        "model_name": WORKER_ONLY_MODEL["model_name"],
+        "model_version": WORKER_ONLY_MODEL["model_version"],
+    }
+
+    # The unit's registry decides what's valid, so a model unknown to the leader is accepted.
+    assert client.put("/api/workers/unit1/reported_model", json=body).status_code == 200
+    assert client.put("/api/workers/unit1/reported_model", json=body).status_code == 200
+
+    unit_model_reads.return_value = WORKER_ONLY_MODEL
+    assert client.get("/api/workers/unit1/model").get_json()["model_name"] == "custom_bench_reactor"
+    forward.assert_not_called()
+
+
+def test_reported_model_from_unknown_worker_is_rejected(client: FlaskClient) -> None:
+    response = client.put("/api/workers/not_a_worker/reported_model", json=MODEL)
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reported"),
+    [
+        (Response("http://leader", 200, {}, b"{}"), True),
+        (Response("http://leader", 404, {}, b"{}"), False),
+        (HTTPException("offline"), False),
+    ],
+)
+def test_report_model_to_leader_is_best_effort(
+    monkeypatch: pytest.MonkeyPatch, outcome: Response | HTTPException, reported: bool
+) -> None:
+    put = Mock(side_effect=outcome) if isinstance(outcome, HTTPException) else Mock(return_value=outcome)
+    monkeypatch.setattr("pioreactor.pubsub.put_into_leader", put)
+
+    assert report_model_to_leader("pioreactor_20ml", "1.5") is reported
+    assert put.call_args.args[0] == f"/api/workers/{get_unit_name()}/reported_model"
+    assert put.call_args.kwargs["json"] == MODEL

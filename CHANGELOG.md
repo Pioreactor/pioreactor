@@ -24,6 +24,7 @@
  - The leader's `/api` now accepts cross-origin requests from Pioreactors in its inventory (`http://<unit>`, `http://<unit>.local`, the unit's address in `[cluster.addresses]`) and from `localhost`, so a page served by one Pioreactor can call the leader. Other origins still get no CORS headers.
  - Saved each Pioreactor's model assignment on the unit so it survives reboots and remains available when the leader is unreachable. Existing assignments are adopted automatically when the leader is reachable; newly added workers save their selected model before rebooting.
  - Added `pio model get` and `pio model set <name> <version>` to inspect or change the local unit's model, for example `pio model set pioreactor_20ml 1.5`.
+ - `pio model set` on a unit now updates the leader's inventory too. Each unit also reports its model to the leader when it boots, so a change made while the leader was unreachable shows up after the unit's next reboot. New leader endpoint: `PUT /api/workers/<unit>/reported_model`.
  - Custom models defined only on a worker, in its `~/.pioreactor/models/`, can now be assigned to that worker without a copy on the leader. The Pioreactor page shows the model limits (capacity, max fill volume, temperature limits) that the worker itself uses, read from the worker, and falls back to the leader's definition when the worker is offline. `GET /unit_api/model` now returns the full model definition, not just its name and version.
 
 #### Bug fixes
