@@ -1001,10 +1001,6 @@ def _voltages_normalizer(result: Any) -> dict[str, Any]:
     return {"voltages": result}
 
 
-def _od_readings_normalizer(result: Any) -> dict[str, Any]:
-    return {"od_readings": result}
-
-
 def _register_core_calibration_actions() -> None:
     register_calibration_action(
         "pump",

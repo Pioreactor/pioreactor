@@ -1576,15 +1576,6 @@ def get_settings_descriptors() -> ResponseReturnValue:
 ### PLUGINS
 
 
-def _canonicalize_package_name(raw: str) -> str:
-    # normalize to something close to pip's canonical form for comparison
-    name = raw.strip()
-    for sep in ("[", "==", ">=", "<=", "~=", "!=", ">", "<"):
-        if sep in name:
-            name = name.split(sep, 1)[0]
-    return name.replace("_", "-").lower()
-
-
 @unit_api_bp.route("/plugins/installed", methods=["GET"])
 def get_installed_plugins() -> ResponseReturnValue:
     result = tasks.list_plugins_installed()
@@ -1662,13 +1653,6 @@ def install_plugin() -> DelayedResponseReturnValue:
             remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
         )
 
-    # allowlist = _load_plugin_allowlist()
-    # if not allowlist:
-    #    abort_with(
-    #        403,
-    #        "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
-    #    )
-
     body = decode_request_body(structs.ArgsOptionsEnvs)
 
     if not body.args:
@@ -1685,13 +1669,6 @@ def install_plugin() -> DelayedResponseReturnValue:
             cause=f"Received {len(body.args)} plugin arguments.",
             remediation="Provide exactly one plugin name in args.",
         )
-
-    # requested_plugin = _canonicalize_package_name(body.args[0])
-    # if requested_plugin not in allowlist:
-    #    abort_with(
-    #        403,
-    #        f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
-    #    )
 
     source = body.options.get("source")
     version = body.options.get("version")
