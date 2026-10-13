@@ -31,7 +31,7 @@
 
  - Automation events, bioreactor values and PWM duty cycles are now stored in the database with the time they were produced on the worker, not the time the leader received them.
  - Fixed the Plugins page hiding plugins on USB drives mounted read-only.
- - Added destination hostname checks to leader HTTP commands and leader-local UI actions to prevent requests from running on the wrong Pioreactor when an address is stale or reused. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.
+ - Added destination hostname checks to leader HTTP commands to prevent requests from running on the wrong Pioreactor when an address is stale or reused. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.
  - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
  - Fixed configuration editing and saving being blocked when configuration history is slow or unavailable. History now loads independently, reports failures separately, preserves edits when it arrives, and ignores late responses from previously selected configuration targets.
  - Fixed circulation actions accepting empty, malformed, or negative durations.

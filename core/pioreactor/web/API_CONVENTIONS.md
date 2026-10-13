@@ -33,10 +33,8 @@ USB plugin installation HTTP commands, `pios` HTTP commands, cluster job stops,
 and experiment-profile starts/stops. An HTTP 409 from `pios update app` must not
 trigger its SSH fallback.
 
-The frontend also supplies the configured leader hostname for direct, leader-local
-`/unit_api` mutations: USB mount/eject, profile start/stop, long-running job and
-web-server restarts, and system archive import. It does not send these mutations
-until the target hostname is available; read requests remain unchanged.
+The frontend does not send the header. Its `/unit_api` requests are same-origin,
+so they always reach the unit that served the page.
 
 SSH and rsync operations are outside this HTTP contract, including shared-config
 sync, `pios cp`, and staging USB plugin files before installation. They need a

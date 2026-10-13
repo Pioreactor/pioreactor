@@ -18,7 +18,6 @@ import UsbIcon from "@mui/icons-material/Usb";
 
 import Snackbar from "./Snackbar";
 import { assertUnitTaskResultSucceeded, fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
-import { unitTargetHeaders } from "../utils/unitApi";
 
 function getUsbRows(status) {
   if (!status) {
@@ -71,7 +70,7 @@ function UsbPartitionActionButton({partition, isBusy, onMount, onEject}) {
   );
 }
 
-export default function UsbDriveCard({unit, leaderHostname}) {
+export default function UsbDriveCard({unit}) {
   const [usbStatus, setUsbStatus] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -169,10 +168,7 @@ export default function UsbDriveCard({unit, leaderHostname}) {
         assertUnitTaskResultSucceeded(payload, unit, "Failed to mount USB drive.");
       } else {
         await fetchTaskResult("/unit_api/usb/mount", {
-          fetchOptions: {
-            ...fetchOptions,
-            headers: {...fetchOptions.headers, ...unitTargetHeaders(leaderHostname)},
-          },
+          fetchOptions,
           maxRetries: 300,
           delayMs: 200,
         });
@@ -208,10 +204,7 @@ export default function UsbDriveCard({unit, leaderHostname}) {
         assertUnitTaskResultSucceeded(payload, unit, "Failed to eject USB drive.");
       } else {
         await fetchTaskResult("/unit_api/usb/eject", {
-          fetchOptions: {
-            ...fetchOptions,
-            headers: {...fetchOptions.headers, ...unitTargetHeaders(leaderHostname)},
-          },
+          fetchOptions,
           maxRetries: 300,
           delayMs: 200,
         });

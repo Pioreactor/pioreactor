@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {runPioreactorJobViaUnitAPI} from "../utils/jobs"
-import {unitTargetHeaders} from "../utils/unitApi"
 
 
 // Create the context
@@ -14,7 +13,7 @@ export function useRunningProfiles() {
 }
 
 // Create a provider component
-export function RunningProfilesProvider({ children, experiment, leaderHostname }) {
+export function RunningProfilesProvider({ children, experiment }) {
   const [runningProfiles, setRunningProfiles] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -62,7 +61,6 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
           method: 'POST',
           body: JSON.stringify({ job_id: job_id }),
           headers: {
-            ...unitTargetHeaders(leaderHostname),
             Accept: 'application/json',
             'Content-Type': 'application/json'
           }
@@ -81,7 +79,7 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
         throw error;
       }
     },
-    [refreshRunningProfiles, leaderHostname]
+    [refreshRunningProfiles]
   );
 
   // Start a profile (or run a job) — for example:
@@ -90,7 +88,6 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
       try {
         const params = dryRun ? { 'dry-run': null } : {};
         await runPioreactorJobViaUnitAPI(
-          leaderHostname,
           'experiment_profile',
           ['execute', selectedExperimentProfile, experiment],
           params
@@ -105,7 +102,7 @@ export function RunningProfilesProvider({ children, experiment, leaderHostname }
         throw error;
       }
     },
-    [refreshRunningProfiles, leaderHostname]
+    [refreshRunningProfiles]
   );
 
   // The value exposed by the context
