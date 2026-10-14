@@ -4547,7 +4547,7 @@ def update_reported_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
         (data.model_name, data.model_version, pioreactor_unit, data.model_name, data.model_version),
     )
     if row_count > 0:
-        logger.debug(f"{pioreactor_unit} reported its model: {data.model_name} v{data.model_version}.")
+        logger.debug(f"`{pioreactor_unit}` reported its model: {data.model_name} v{data.model_version}.")
     return {"status": "success"}, 200
 
 
@@ -4663,7 +4663,7 @@ def publish_worker_experiment_assignment(
         publish(topic, encode(payload), retain=True)
     except Exception as error:
         logger.error(
-            f"Unable to publish retained experiment assignment for {pioreactor_unit}: {error}",
+            f"Unable to publish retained experiment assignment for `{pioreactor_unit}`: {error}",
             exc_info=True,
         )
 

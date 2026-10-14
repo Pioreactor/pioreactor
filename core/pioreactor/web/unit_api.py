@@ -269,7 +269,7 @@ def update_camera_settings() -> ResponseReturnValue:
     previous_enabled = camera_auto_capture_is_enabled()
     updated_enabled = set_camera_auto_capture_enabled(body.auto_capture_enabled)
     logger.debug(
-        f"User {'enabled' if updated_enabled else 'disabled'} automatic camera snapshots on {HOSTNAME} "
+        f"User {'enabled' if updated_enabled else 'disabled'} automatic camera snapshots on `{HOSTNAME}` "
         f"(was {'enabled' if previous_enabled else 'disabled'})."
     )
     return jsonify(
@@ -400,7 +400,7 @@ def delete_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
             remediation="Refresh the experiment camera stills list.",
         )
 
-    logger.debug(f"User deleted camera snapshot {image_id} on {HOSTNAME} for experiment {experiment}.")
+    logger.debug(f"User deleted camera snapshot {image_id} on `{HOSTNAME}` for experiment `{experiment}`.")
     tasks.enqueue_latest_camera_still_publication(
         HOSTNAME,
         experiment,
@@ -446,8 +446,8 @@ def rename_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
         )
 
     logger.debug(
-        f"User renamed camera snapshot {image_id} to {new_image_id} on {HOSTNAME} "
-        f"for experiment {experiment}."
+        f"User renamed camera snapshot {image_id} to {new_image_id} on `{HOSTNAME}` "
+        f"for experiment `{experiment}`."
     )
     tasks.enqueue_latest_camera_still_publication(
         HOSTNAME,
@@ -461,7 +461,7 @@ def rename_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
 def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
     metadata = list_camera_still_metadata(HOSTNAME, experiment=experiment, sort_order="asc")
     logger.debug(
-        f"User requested all camera snapshots on {HOSTNAME} for experiment `{experiment}` to be downloaded."
+        f"User requested all camera snapshots on `{HOSTNAME}` for experiment `{experiment}` to be downloaded."
     )
     archive_file = NamedTemporaryFile(
         prefix=f"{HOSTNAME}_camera_stills_",
@@ -494,7 +494,7 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
 
         logger.debug(
             f"Sending {number_of_stills_in_archive} camera snapshot"
-            f"{'s' if number_of_stills_in_archive != 1 else ''} from {HOSTNAME} "
+            f"{'s' if number_of_stills_in_archive != 1 else ''} from `{HOSTNAME}` "
             f"for experiment `{experiment}`."
         )
 

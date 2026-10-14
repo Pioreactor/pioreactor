@@ -433,7 +433,7 @@ class Monitor(LongRunningBackgroundJob):
             except ImportError:
                 # leader-only is a worker?
                 self.logger.debug(
-                    f"{self.unit} doesn't have TMP1075 software installed, but is acting as a worker."
+                    f"`{self.unit}` doesn't have TMP1075 software installed, but is acting as a worker."
                 )
                 return
 
@@ -513,7 +513,7 @@ class Monitor(LongRunningBackgroundJob):
 
     def on_ready(self) -> None:
         self.flicker_led_response_okay()
-        self.logger.notice(f"{self.unit} is online and ready.")
+        self.logger.notice(f"`{self.unit}` is online and ready.")
 
         # we can delay this check until ready.
 
@@ -699,7 +699,7 @@ class Monitor(LongRunningBackgroundJob):
             and (unit != self.unit)
             and (unit in get_workers_in_inventory())
         ):
-            self.logger.warning(f"{unit} seems to be lost.")
+            self.logger.warning(f"`{unit}` seems to be lost.")
 
     def announce_new_workers(self) -> None:
         sleep(10)  # wait for the web server to be available

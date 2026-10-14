@@ -459,7 +459,7 @@ def _prepare_action_execution(
 
     if get_assigned_experiment_name(unit) != experiment:
         logger.debug(
-            f"Skipping {action_name} action on {unit} due to not being assigned to experiment {experiment}."
+            f"Skipping {action_name} action on `{unit}` due to not being assigned to experiment `{experiment}`."
         )
         return None
 
@@ -584,7 +584,7 @@ def repeat(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping repeat action on {unit} due to not being assigned to experiment {experiment}."
+                f"Skipping repeat action on `{unit}` due to not being assigned to experiment `{experiment}`."
             )
             return
 
@@ -714,13 +714,13 @@ def start_job(
         if dry_run:
             evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.info(
-                f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}, and overrides {evaluated_config_overrides}."
+                f"{action_count}. Dry-run: Starting {job_name} on `{unit}` with options {evaluate_options(options, env)} and args {args}, and overrides {evaluated_config_overrides}."
             )
         else:
             evaluated_options = evaluate_options(options, env)
             evaluated_config_overrides = evaluate_options(config_overrides, env)
             logger.debug(
-                f"{action_count}. Starting {job_name} on {unit} with options {evaluated_options}, args {args}, and overrides {evaluated_config_overrides}."
+                f"{action_count}. Starting {job_name} on `{unit}` with options {evaluated_options}, args {args}, and overrides {evaluated_config_overrides}."
             )
             address = resolve_to_address(unit)
             for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
@@ -743,10 +743,10 @@ def start_job(
                 except HTTPException as exc:
                     if attempt == START_JOB_SUBMIT_MAX_ATTEMPTS:
                         raise HTTPException(
-                            f"Unable to submit start command for `{job_name}` to {unit} at {address} after {attempt} attempts. Is it online?"
+                            f"Unable to submit start command for `{job_name}` to `{unit}` at {address} after {attempt} attempts. Is it online?"
                         ) from exc
                     logger.debug(
-                        f"Unable to submit start command for `{job_name}` to {unit} at {address}. Retrying ({attempt + 1}/{START_JOB_SUBMIT_MAX_ATTEMPTS})."
+                        f"Unable to submit start command for `{job_name}` to `{unit}` at {address}. Retrying ({attempt + 1}/{START_JOB_SUBMIT_MAX_ATTEMPTS})."
                     )
                     time.sleep(START_JOB_SUBMIT_RETRY_SLEEP_SECONDS)
 
@@ -760,7 +760,7 @@ def start_job(
                     f"Submitted start command for `{job_name}` to {unit} at {address}, but couldn't read the task result. The job may still have started."
                 ) from exc
             if task_result is not None and not task_result["ok"]:
-                logger.error(f"Failed to start `{job_name}` on {unit}. {task_result.get('error')}")
+                logger.error(f"Failed to start `{job_name}` on `{unit}`. {task_result.get('error')}")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -790,9 +790,9 @@ def pause_job(
             return
 
         if dry_run:
-            logger.info(f"{action_count}. Dry-run: Pausing {job_name} on {unit}.")
+            logger.info(f"{action_count}. Dry-run: Pausing {job_name} on `{unit}`.")
         else:
-            logger.debug(f"{action_count}. Pausing {job_name} on {unit}.")
+            logger.debug(f"{action_count}. Pausing {job_name} on `{unit}`.")
             response = patch_into_leader(
                 f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                 json={"settings": {"$state": "sleeping"}},
@@ -828,9 +828,9 @@ def resume_job(
             return
 
         if dry_run:
-            logger.info(f"{action_count}. Dry-run: Resuming {job_name} on {unit}.")
+            logger.info(f"{action_count}. Dry-run: Resuming {job_name} on `{unit}`.")
         else:
-            logger.debug(f"{action_count}. Resuming {job_name} on {unit}.")
+            logger.debug(f"{action_count}. Resuming {job_name} on `{unit}`.")
             response = patch_into_leader(
                 f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                 json={"settings": {"$state": "ready"}},
@@ -866,9 +866,9 @@ def stop_job(
             return
 
         if dry_run:
-            logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
+            logger.info(f"{action_count}. Dry-run: Stopping {job_name} on `{unit}`.")
         else:
-            logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
+            logger.debug(f"{action_count}. Stopping {job_name} on `{unit}`.")
             response = post_into_unit(
                 unit,
                 "/unit_api/jobs/stop",
@@ -910,7 +910,7 @@ def update_job(
         if dry_run:
             for setting, value in evaluated_options.items():
                 logger.info(
-                    f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on {unit}."
+                    f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on `{unit}`."
                 )
             return
 
@@ -918,7 +918,7 @@ def update_job(
             return
 
         for setting, value in evaluated_options.items():
-            logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
+            logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on `{unit}`.")
 
         response = patch_into_leader(
             f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
@@ -972,7 +972,7 @@ def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str], log
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
         except HTTPException as e:
-            logger.warning(f"Unable to set label `{label}` for {unit_name}: {e}")
+            logger.warning(f"Unable to set label `{label}` for `{unit_name}`: {e}")
 
 
 def get_installed_plugins_and_versions() -> dict[str, str]:
@@ -1086,7 +1086,7 @@ def execute_experiment_profile(
 
             if (assigned_experiment != experiment) and not is_testing_env():
                 logger.warning(
-                    f"There exists profile actions for {unit_}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
+                    f"There exists profile actions for `{unit_}`, but it's not assigned to experiment `{experiment}`. Skipping scheduling actions."
                 )
                 continue
 

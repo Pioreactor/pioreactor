@@ -127,7 +127,7 @@ def publish_latest_camera_still_task(
             retain=True,
         )
     except ConnectionRefusedError:
-        logger.debug(f"Unable to publish the latest camera still for {unit} in experiment `{experiment}`.")
+        logger.debug(f"Unable to publish the latest camera still for `{unit}` in experiment `{experiment}`.")
 
 
 def enqueue_latest_camera_still_publication(
@@ -154,7 +154,7 @@ def capture_camera_still_task(
         capture_reason="manual",
     )
     logger.debug(
-        f"User requested a manual camera snapshot {metadata.image_id} on {unit} "
+        f"User requested a manual camera snapshot {metadata.image_id} on `{unit}` "
         f"for experiment `{experiment}`."
     )
     if experiment is not None:
@@ -169,7 +169,7 @@ def capture_camera_focus_preview_task(
     session_id: str,
 ) -> dict[str, bool | int | None]:
     _, focus_score = capture_camera_focus_preview(unit, session_id)
-    logger.debug(f"User requested a manual-focus camera preview on {unit} for session `{session_id}`.")
+    logger.debug(f"User requested a manual-focus camera preview on `{unit}` for session `{session_id}`.")
     return {"captured": True, "focus_score": focus_score}
 
 
@@ -177,7 +177,7 @@ def capture_camera_focus_preview_task(
 def delete_camera_focus_preview_task(unit: str, session_id: str) -> dict[str, bool]:
     deleted = delete_camera_focus_preview(session_id)
     if deleted:
-        logger.debug(f"Deleted the manual-focus camera preview on {unit} for session `{session_id}`.")
+        logger.debug(f"Deleted the manual-focus camera preview on `{unit}` for session `{session_id}`.")
     return {"deleted": deleted}
 
 
@@ -233,7 +233,7 @@ def capture_camera_still_periodic_task() -> dict[str, Any]:
     except CameraUnavailableError:
         return {"captured": False, "reason": "camera_unavailable"}
     except CameraCaptureError as error:
-        logger.debug(f"Scheduled camera capture failed on {unit}: {error}")
+        logger.debug(f"Scheduled camera capture failed on `{unit}`: {error}")
         return {"captured": False, "reason": "capture_failed", "error": str(error)}
 
     enqueue_latest_camera_still_publication(unit, experiment, metadata)
@@ -546,7 +546,7 @@ def _process_delayed_json_response(
             data = response.json()
         except (HTTPErrorStatus, HTTPException) as e:
             logger.debug(
-                f"Could not get from {unit}'s {address=}, {endpoint=}, sent json=None and returned {e}."
+                f"Could not get from `{unit}`'s {address=}, {endpoint=}, sent json=None and returned {e}."
                 f"{_summarize_unit_api_error(delayed_response)}"
             )
             return unit, _fanout_failure_from_response(
@@ -558,7 +558,7 @@ def _process_delayed_json_response(
             )
         except DecodeError:
             logger.debug(
-                f"Could not decode response from {unit}'s {endpoint=}, sent json=None and returned {_response_body_for_logging(delayed_response)}."
+                f"Could not decode response from `{unit}`'s {endpoint=}, sent json=None and returned {_response_body_for_logging(delayed_response)}."
             )
             return unit, fanout_failure(
                 unit,
@@ -1316,11 +1316,11 @@ def delete_experiment_records_task(experiment: str) -> dict[str, Any]:
         cursor = conn.execute("DELETE FROM experiments WHERE experiment=?;", (experiment,))
         deleted = cursor.rowcount > 0
         logger.debug(
-            f"Deleting experiment {experiment!r}: SQL deletion finished in {monotonic() - started:.3f}s; committing."
+            f"Deleting experiment `{experiment}`: SQL deletion finished in {monotonic() - started:.3f}s; committing."
         )
         started = monotonic()
         conn.commit()
-        logger.debug(f"Deleting experiment {experiment!r}: commit finished in {monotonic() - started:.3f}s.")
+        logger.debug(f"Deleting experiment `{experiment}`: commit finished in {monotonic() - started:.3f}s.")
 
         if not deleted:
             raise ValueError(f"Experiment {experiment} not found.")
@@ -1340,7 +1340,7 @@ def delete_experiment_records_task(experiment: str) -> dict[str, Any]:
 @huey.task()
 def delete_experiment_task(experiment: str, units: list[str]) -> dict[str, Any]:
     started = monotonic()
-    logger.debug(f"Deleting experiment {experiment!r}: task started.")
+    logger.debug(f"Deleting experiment `{experiment}`: task started.")
     # Stops and camera cleanup are best effort; deletion does not wait for their results.
     endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
     try:
@@ -1349,10 +1349,10 @@ def delete_experiment_task(experiment: str, units: list[str]) -> dict[str, Any]:
             delete_from_unit_task(unit, endpoint)
         result = delete_experiment_records_task.call_local(experiment)
     except Exception:
-        logger.exception(f"Deleting experiment {experiment!r}: failed after {monotonic() - started:.3f}s.")
+        logger.exception(f"Deleting experiment `{experiment}`: failed after {monotonic() - started:.3f}s.")
         raise
     logger.debug(
-        f"Deleting experiment {experiment!r}: completed in {monotonic() - started:.3f}s (background stop and camera cleanup may still be running)."
+        f"Deleting experiment `{experiment}`: completed in {monotonic() - started:.3f}s (background stop and camera cleanup may still be running)."
     )
     return result
 
@@ -1442,7 +1442,7 @@ def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> d
         payload = {"filename": plugin_path.name}
         install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
 
-    logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
+    logger.debug(f"Installing USB plugin {plugin_name} on `{unit}` from {remote_source}.")
     response = post_into_unit(unit, install_endpoint, json=payload, timeout=60)
     response.raise_for_status()
 
@@ -1474,7 +1474,7 @@ def install_plugin_from_leader_usb_across_units_task(
             else:
                 ordered_results.append(_install_plugin_from_leader_usb_on_worker(unit, filepath))
         except Exception as exc:
-            logger.debug(f"Installing USB plugin on {unit} failed: {exc}", exc_info=True)
+            logger.debug(f"Installing USB plugin on `{unit}` failed: {exc}", exc_info=True)
             ordered_results.append(exc)
 
     return _reduce_multicast_results(units, False, ordered_results)
@@ -1871,7 +1871,7 @@ def post_into_unit_task(
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not post to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
+            f"Could not post to `{unit}`'s {address=}/{endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
         return unit, _fanout_failure_from_response(
@@ -1883,7 +1883,7 @@ def post_into_unit_task(
         )
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
+            f"Could not decode response from `{unit}`'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, fanout_failure(
             unit,
@@ -2097,7 +2097,7 @@ def _get_from_unit(
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not get from {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}."
+            f"Could not get from `{unit}`'s {address=}, {endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
         return unit, _fanout_failure_from_response(
@@ -2109,7 +2109,7 @@ def _get_from_unit(
         )
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
+            f"Could not decode response from `{unit}`'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, fanout_failure(
             unit,
@@ -2225,7 +2225,7 @@ def patch_into_unit_task(
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not PATCH to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}."
+            f"Could not PATCH to `{unit}`'s {address=}/{endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
         return unit, _fanout_failure_from_response(
@@ -2237,7 +2237,7 @@ def patch_into_unit_task(
         )
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
+            f"Could not decode response from `{unit}`'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, fanout_failure(
             unit,
@@ -2274,7 +2274,7 @@ def delete_from_unit_task(unit: str, endpoint: str, json: dict[str, Any] | None 
         return unit, fanout_success(unit, r.json() if r.content else None)
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not DELETE {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection?"
+            f"Could not DELETE `{unit}`'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection?"
             f"{_summarize_unit_api_error(r)}"
         )
         return unit, _fanout_failure_from_response(
@@ -2286,7 +2286,7 @@ def delete_from_unit_task(unit: str, endpoint: str, json: dict[str, Any] | None 
         )
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
+            f"Could not decode response from `{unit}`'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
         return unit, fanout_failure(
             unit,

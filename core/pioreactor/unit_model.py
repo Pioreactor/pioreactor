@@ -78,12 +78,12 @@ def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
     result = check_model_hardware_compatibility(model_name, model_version)
 
     if result["status"] == "skipped":
-        logger.debug(f"Hardware check skipped on {unit}: {result['reason']}")
+        logger.debug(f"Hardware check skipped on `{unit}`: {result['reason']}")
     elif result["status"] == "warning":
-        logger.warning(f"Hardware check failed on {unit}: {result['reason']}")
+        logger.warning(f"Hardware check failed on `{unit}`: {result['reason']}")
         result = {**result, "reason": result["reason"].split(": ", 1)[-1]}
     elif result["status"] == "ok":
-        logger.notice(f"Correct hardware found for {model_name} {model_version} on {unit}.")
+        logger.notice(f"Correct hardware found for {model_name} {model_version} on `{unit}`.")
 
     return result
 

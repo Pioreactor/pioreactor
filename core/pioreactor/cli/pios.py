@@ -490,7 +490,7 @@ if am_I_leader() or is_testing_env():
                 cp_file_across_cluster(unit, src, remotepath, timeout=15)
                 return True
             except Exception as e:
-                logger.error(f"Error occurred copying to {unit}. See logs for more.")
+                logger.error(f"Error occurred copying to `{unit}`. See logs for more.")
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
                 return False
 
@@ -545,7 +545,7 @@ if am_I_leader() or is_testing_env():
                 return True
 
             except HTTPException as e:
-                logger.error(f"Unable to remove file on {unit} at {address} due to server error: {e}")
+                logger.error(f"Unable to remove file on `{unit}` at {address} due to server error: {e}")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -653,19 +653,19 @@ if am_I_leader() or is_testing_env():
                 if not r.ok:
                     if r.status_code == 409:
                         # An identity rejection must not fall back to an unguarded SSH command.
-                        logger.error(f"Unable to update {unit}: {summarize_error_response(r)}")
+                        logger.error(f"Unable to update `{unit}`: {summarize_error_response(r)}")
                         return False, {"unit": unit}
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
                 logger.warning(
-                    f"Unable to update on {unit} at {address} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
+                    f"Unable to update on `{unit}` at {address} due to server error: {e} Attempting SSH method to execute `pio update app {args}`..."
                 )
                 try:
                     ssh(address, f"pio update app {args}")
                     return True, {"unit": unit}
                 except SSHError as e:
-                    logger.error(f"Unable to update on {unit} at {address} due to error: {e}.")
+                    logger.error(f"Unable to update on `{unit}` at {address} due to error: {e}.")
                     return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -757,7 +757,7 @@ if am_I_leader() or is_testing_env():
                     raise HTTPException(summarize_error_response(r))
                 return True, r.json()
             except HTTPException as e:
-                logger.error(f"Unable to install plugin on {unit} at {address} due to server error: {e}")
+                logger.error(f"Unable to install plugin on `{unit}` at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -816,7 +816,7 @@ if am_I_leader() or is_testing_env():
                 return True, r.json()
 
             except HTTPException as e:
-                logger.error(f"Unable to uninstall plugin on {unit} at {address} due to server error: {e}")
+                logger.error(f"Unable to uninstall plugin on `{unit}` at {address} due to server error: {e}")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -877,20 +877,20 @@ if am_I_leader() or is_testing_env():
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         def _thread_function(unit: str) -> bool:
-            logger.debug(f"Syncing configs on {unit}...")
+            logger.debug(f"Syncing configs on `{unit}`...")
             try:
                 sync_config_files(unit, shared, specific, persist=not skip_save)
                 return True
             except RsyncError as e:
-                logger.warning(f"Could not transfer config to {unit}.")
+                logger.warning(f"Could not transfer config to `{unit}`.")
                 logger.debug(e, exc_info=True)
                 return False
             except HTTPException as e:
-                logger.warning(f"Could not refresh unit-specific config snapshot from {unit}: {e}")
+                logger.warning(f"Could not refresh unit-specific config snapshot from `{unit}`: {e}")
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
-                logger.warning(f"Encountered error syncing configs to {unit}: {e}")
+                logger.warning(f"Encountered error syncing configs to `{unit}`: {e}")
                 logger.debug(e, exc_info=True)
                 return False
 

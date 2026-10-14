@@ -343,7 +343,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
     ):
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert "Failed to start `circulate_alt_media` on unit1." in caplog.text
+    assert "Failed to start `circulate_alt_media` on `unit1`." in caplog.text
     assert "Command exited during startup grace window." in caplog.text
 
 
@@ -418,7 +418,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
         execute_experiment_profile("profile.yaml", experiment)
 
     assert (
-        "Unable to submit start command for `circulate_alt_media` to unit1 at unit1.local after 3 attempts. Is it online?"
+        "Unable to submit start command for `circulate_alt_media` to `unit1` at unit1.local after 3 attempts. Is it online?"
         in caplog.text
     )
 
@@ -673,8 +673,8 @@ def test_update_job_evaluates_dry_run_settings_once_without_http() -> None:
 
     mock_evaluate_options.assert_called_once()
     assert [call.args[0] for call in logger.info.call_args_list] == [
-        "1. Dry-run: Updating target_rpm to 500.0 in stirring on unit1.",
-        "1. Dry-run: Updating duration to 2.5 in stirring on unit1.",
+        "1. Dry-run: Updating target_rpm to 500.0 in stirring on `unit1`.",
+        "1. Dry-run: Updating duration to 2.5 in stirring on `unit1`.",
     ]
     mock_patch.assert_not_called()
 

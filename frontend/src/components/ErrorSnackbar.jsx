@@ -10,6 +10,7 @@ import { useExperiment } from '../providers/ExperimentContext';
 import { Box, Chip } from "@mui/material";
 import PioreactorIcon from "./PioreactorIcon";
 import PioreactorsIcon from "./PioreactorsIcon";
+import LogMessage, { useClusterUnits } from "./LogMessage";
 
 const HEAD_LINE_COUNT = 2;
 const TAIL_LINE_COUNT = 5;
@@ -108,6 +109,7 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
   alertLevel,
   alertTitle,
   unit,
+  experiment,
   displayUnit,
   formattedMessage,
   showLogsHelper,
@@ -122,6 +124,7 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
     React.useCallback(() => alertStore.get(dedupeKey), [alertStore, dedupeKey]),
   );
   const count = activeAlert?.count ?? 1;
+  const clusterUnits = useClusterUnits();
 
   return (
     <Box ref={ref} sx={{maxWidth: "500px"}}>
@@ -153,7 +156,7 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
             wordBreak: "break-word",
           }}
         >
-          {formattedMessage}
+          <LogMessage message={formattedMessage} units={clusterUnits} experiment={experiment} />
         </Box>
         {showLogsHelper && (
           <Box sx={{ mt: 8 }}>
@@ -249,6 +252,7 @@ function ErrorSnackbar() {
           alertLevel={alertLevel}
           alertTitle={alertTitle}
           unit={unit}
+          experiment={experiment}
           displayUnit={displayUnit}
           formattedMessage={formattedMessage}
           showLogsHelper={showLogsHelper}

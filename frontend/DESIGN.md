@@ -318,6 +318,13 @@ Rules:
   `All assigned Pioreactors`.
 - Do not use a Chip for arbitrary prose.
 - Tags use small `variant="outlined"` Chips and do not need entity icons.
+- Log messages mark entity names with backticks, such as ``Saved calibration
+  `od-cal-1` ``. `LogMessage` renders these as compact inline Chips: Pioreactors
+  are recognized from the cluster's units or a preceding `Pioreactor`, `worker`,
+  or `unit`; experiments, calibrations, and estimators from the preceding word
+  `experiment`, `calibration`, or `estimator`, and experiments also by the row's
+  experiment. Other backticked text renders as inline code. Copying a log row
+  copies the raw message.
 
 Exceptions:
 

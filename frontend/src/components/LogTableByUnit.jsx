@@ -24,6 +24,7 @@ import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
 
 import { experimentPathSegment } from "../utils/url";
+import LogMessage, { useClusterUnits } from "./LogMessage";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -51,6 +52,7 @@ const LEVELS = [
 function LogTableByUnit({ experiment, unit, level="info", byDuration=false, experimentStartTime=null }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const clusterUnits = useClusterUnits();
   const experimentStart = experimentStartTime ? dayjs.utc(experimentStartTime) : null;
 
   useEffect(() => {
@@ -102,6 +104,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
         {
           timestamp: toTimestampObject(payload.timestamp),
           pioreactor_unit: unit,
+          experiment: topic.toString().split('/')[2],
           message: String(payload.message),
           task: payload.task,
           level: payload.level.toUpperCase(),
@@ -178,7 +181,9 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
                   <ZebraTableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                    <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
+                    <StyledTableCell level={log.level} data-copy-value={log.message}>
+                      <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} />
+                    </StyledTableCell>
                   </ZebraTableRow>
                   {listOfLogs[i + 1] &&
                     toTimestampObject(log.timestamp).diff(

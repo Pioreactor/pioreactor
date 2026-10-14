@@ -177,7 +177,7 @@ def add_worker(
         unit=whoami.get_unit_name(),
         experiment=whoami.UNIVERSAL_EXPERIMENT,
     )
-    logger.info(f"Adding new pioreactor {hostname} to cluster.")
+    logger.info(f"Adding new pioreactor `{hostname}` to cluster.")
 
     address_candidates = _unique_worker_add_address_candidates(hostname, address)
     worker_address: str | None = None
@@ -223,7 +223,7 @@ def add_worker(
             logger.error(message)
             raise click.ClickException(message) from error
 
-    logger.notice(f"New pioreactor {hostname} successfully added to cluster. {hostname} will reboot now.")
+    logger.notice(f"New pioreactor `{hostname}` successfully added to cluster. `{hostname}` will reboot now.")
 
 
 @click.command(name="remove", short_help="remove a pioreactor worker")
