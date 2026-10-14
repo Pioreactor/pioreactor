@@ -18,6 +18,7 @@ from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_config
 from pioreactor.config import replace_or_append_config_entry
 from pioreactor.paths import get_dot_pioreactor_path
+from pioreactor.plugin_management.utils import get_package_plugin_display_name
 from pioreactor.whoami import am_I_leader
 
 if TYPE_CHECKING:
@@ -147,7 +148,9 @@ def install_plugin_assets(
     is_leader = am_I_leader() if is_leader is None else is_leader
 
     install_folder = get_plugin_install_folder(plugin_name, site_packages_dir)
-    logger.debug(f"Resolved plugin {plugin_name} package directory to {install_folder}.")
+    logger.debug(
+        f"Resolved plugin `{get_package_plugin_display_name(plugin_name)}` package directory to {install_folder}."
+    )
 
     merge_plugin_ui_assets(install_folder, dot_pioreactor_dir)
     merge_additional_config(install_folder, dot_pioreactor_dir, is_leader=is_leader)
@@ -182,15 +185,19 @@ def uninstall_plugin_assets(
     try:
         install_folder = get_plugin_install_folder(plugin_name, site_packages_dir)
     except metadata.PackageNotFoundError:
-        logger.debug(f"Distribution metadata for plugin {plugin_name} was not found; skipping asset cleanup.")
+        logger.debug(
+            f"Distribution metadata for plugin `{plugin_name}` was not found; skipping asset cleanup."
+        )
         return
     except FileNotFoundError:
         logger.debug(
-            f"Plugin package directory for plugin {plugin_name} was not found; skipping asset cleanup."
+            f"Plugin package directory for plugin `{get_package_plugin_display_name(plugin_name)}` was not found; skipping asset cleanup."
         )
         return
 
-    logger.debug(f"Resolved plugin {plugin_name} package directory to {install_folder}.")
+    logger.debug(
+        f"Resolved plugin `{get_package_plugin_display_name(plugin_name)}` package directory to {install_folder}."
+    )
 
     run_pre_uninstall_hook(install_folder, logger)
     remove_plugin_ui_assets(install_folder, dot_pioreactor_dir)

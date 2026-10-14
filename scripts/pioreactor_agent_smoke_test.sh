@@ -1194,7 +1194,7 @@ SQL
   IFS='|' read -r model_name model_version <<< "$result"
 
   if [[ -z "${model_name// }" || -z "${model_version// }" ]]; then
-    fix_command="pio workers update-model ${hostname} -m pioreactor_40ml -v 1.5"
+    fix_command="pio workers model set ${hostname} pioreactor_40ml 1.5"
     fail "Worker model metadata missing for ${hostname}. Populate it with: ${fix_command}"
     return
   fi

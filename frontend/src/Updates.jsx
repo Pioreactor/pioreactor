@@ -33,7 +33,7 @@ import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import CloseIcon from '@mui/icons-material/Close';
 import { useMQTT } from './providers/MQTTContext';
-import { getConfig } from "./utils/config";
+import useLeaderHostname from "./hooks/useLeaderHostname";
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -745,10 +745,9 @@ function UpdateSoftwareConfirmDialog() {
 
 function UpdatesHeader() {
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
-  const [config, setConfig] = React.useState({})
   const [version, setVersion] = React.useState("")
   const [latestVersion, setLatestVersion] = React.useState("")
-  const leaderHostname = config['cluster.topology']?.leader_hostname;
+  const leaderHostname = useLeaderHostname();
 
   const onLeaderMonitorData = React.useCallback((topic, message, _packet) => {
     if (!message || !topic) return;
@@ -760,10 +759,6 @@ function UpdatesHeader() {
       setVersion("");
     }
   }, []);
-
-  React.useEffect(() => {
-    getConfig(setConfig)
-  }, [])
 
   React.useEffect(() => {
     if (!client || !leaderHostname) {

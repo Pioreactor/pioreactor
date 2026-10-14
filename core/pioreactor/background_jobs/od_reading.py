@@ -1005,8 +1005,8 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
         if (
             calibration_data.y != "Voltage"
         ):  # don't check for OD600 - we can allow other non-OD600 calibrations
-            self.logger.error(f"Calibration {calibration_data.calibration_name} has wrong type.")
-            raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} has wrong type.")
+            self.logger.error(f"Calibration `{calibration_data.calibration_name}` has wrong type.")
+            raise exc.CalibrationError(f"Calibration `{calibration_data.calibration_name}` has wrong type.")
 
         if calibration_data.curve_data_.type == "poly":
             coefficients = calibration_data.curve_data_.coefficients

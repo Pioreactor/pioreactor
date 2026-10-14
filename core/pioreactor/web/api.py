@@ -3447,7 +3447,7 @@ def create_experiment() -> ResponseReturnValue:
             )
 
         publish_to_experiment_log(
-            f"New experiment created: {body.experiment}",
+            f"New experiment created: `{body.experiment}`",
             proposed_experiment_name,
             "create_experiment",
             level="INFO",
@@ -4457,7 +4457,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
         cache.invalidate_merged_config_cache(pioreactor_unit)
         publish_to_log(
-            f"Removed {pioreactor_unit} from inventory.",
+            f"Removed `{pioreactor_unit}` from inventory.",
             level="INFO",
             task="assignment",
         )
@@ -4496,7 +4496,7 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
 
     if row_count > 0:
         publish_to_log(
-            f"Set {pioreactor_unit} to {'Active' if new_status else 'Inactive'}.",
+            f"Set `{pioreactor_unit}` to {'Active' if new_status else 'Inactive'}.",
             task="worker_status",
             level="INFO",
         )
@@ -4553,7 +4553,7 @@ def update_reported_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
         (data.model_name, data.model_version, pioreactor_unit, data.model_name, data.model_version),
     )
     if row_count > 0:
-        logger.debug(f"{pioreactor_unit} reported its model: {data.model_name} v{data.model_version}.")
+        logger.debug(f"`{pioreactor_unit}` reported its model: {data.model_name} v{data.model_version}.")
     return {"status": "success"}, 200
 
 
@@ -4669,7 +4669,7 @@ def publish_worker_experiment_assignment(
         publish(topic, encode(payload), retain=True)
     except Exception as error:
         logger.error(
-            f"Unable to publish retained experiment assignment for {pioreactor_unit}: {error}",
+            f"Unable to publish retained experiment assignment for `{pioreactor_unit}`: {error}",
             exc_info=True,
         )
 
@@ -4881,7 +4881,7 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
             )
 
         publish_to_experiment_log(
-            f"Assigned pioreactor {pioreactor_unit} to experiment {experiment}.",
+            f"Assigned pioreactor `{pioreactor_unit}` to experiment `{experiment}`.",
             experiment=experiment,
             task="assignment",
             level="INFO",
@@ -4920,7 +4920,7 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
         publish_worker_experiment_assignment(pioreactor_unit, None, None)
         multicast_post_to_worker(pioreactor_unit, "/unit_api/jobs/stop", json={"experiment": experiment})
         publish_to_experiment_log(
-            f"Removed {pioreactor_unit} from {experiment}.",
+            f"Removed `{pioreactor_unit}` from `{experiment}`.",
             experiment=experiment,
             level="INFO",
             task="assignment",
@@ -4953,7 +4953,7 @@ def remove_workers_from_experiment(experiment: str) -> DelayedResponseReturnValu
 
     task = fanout.broadcast_post_across_workers("/unit_api/jobs/stop", json={"experiment": experiment})
     publish_to_experiment_log(
-        f"Removed all workers from {experiment}.",
+        f"Removed all workers from `{experiment}`.",
         experiment=experiment,
         level="INFO",
         task="assignment",

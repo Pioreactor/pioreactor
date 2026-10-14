@@ -22,6 +22,7 @@ import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
 import { experimentPathSegment } from "../utils/url";
 import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
+import LogMessage, { useClusterUnits } from "./LogMessage";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -77,6 +78,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     return EMPTY_STATE_ILLUSTRATIONS[randomIndex];
   }, []);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const clusterUnits = useClusterUnits();
 
   const getAPIURL = (unit, onlyAssignedLogs, experiment) => {
     if (unit && experiment === "$experiment"){
@@ -141,7 +143,9 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
   };
 
   const toTimestampObject = (timestamp) => {
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+    // Parse ISO 8601 without a format string: when customParseFormat is loaded, a format
+    // makes parsing strict and rejects dayjs objects and timestamps without milliseconds.
+    return dayjs.utc(timestamp);
   };
 
 
@@ -157,6 +161,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
         {
           timestamp: toTimestampObject(payload.timestamp),
           pioreactor_unit: unit,
+          experiment: topic.toString().split('/')[2],
           message: String(payload.message),
           task: payload.task,
           level: payload.level.toUpperCase(),
@@ -237,7 +242,9 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                         />
                       </StyledTableCell>
                       <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                      <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
+                      <StyledTableCell level={log.level} data-copy-value={log.message}>
+                        <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
+                      </StyledTableCell>
                     </ZebraTableRow>
                   ))}
                 </TableBody>

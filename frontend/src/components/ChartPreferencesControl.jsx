@@ -19,6 +19,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import SettingsIcon from '@mui/icons-material/SettingsOutlined';
 import Snackbar from "./Snackbar";
+import PluginChip from "./PluginChip";
 import Chip from '@mui/material/Chip';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
@@ -118,7 +119,7 @@ function ChartPreferencesDialog({
   const chartLabel = (descriptor) => descriptor.title
   const sublabel = (descriptor) => {
     if (descriptor.source !== "app"){
-      return `Provided by ${descriptor.source}`
+      return <>Provided by <PluginChip name={descriptor.source} /></>
     }
   }
 

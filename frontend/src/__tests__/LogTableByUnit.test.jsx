@@ -1,6 +1,11 @@
 import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "util";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+
+dayjs.extend(utc);
 
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
@@ -418,5 +423,50 @@ describe("LogTableByUnit", () => {
     expect(bodyRows).toHaveLength(500);
     expect(bodyRows[0]).toHaveTextContent("live event 504");
     expect(bodyRows[499]).toHaveTextContent("live event 5");
+  });
+
+  test("shows valid times for live and millisecond-free paginated log rows", async () => {
+    // The Logs page loads customParseFormat (via RecordEventLogDialog), which makes formatted parsing strict.
+    dayjs.extend(customParseFormat);
+    const subscribeToTopic = jest.fn();
+
+    useMQTT.mockReturnValue({
+      client: {},
+      subscribeToTopic,
+      unsubscribeFromTopic: jest.fn(),
+    });
+    global.fetch.mockImplementation((url) =>
+      Promise.resolve({
+        json: () =>
+          Promise.resolve(
+            url.startsWith("/api/workers/unit1/")
+              ? [{ timestamp: "2026-03-20T17:14:00Z", pioreactor_unit: "unit1", level: "INFO", message: "stored event", task: "app" }]
+              : []
+          ),
+      })
+    );
+
+    const { container } = render(
+      <MemoryRouter>
+        <PaginatedLogsTable pioreactorUnit="unit1" experiment="exp1" relabelMap={{}} logLevel="INFO" />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText("stored event")).toBeInTheDocument());
+    const onMessage = subscribeToTopic.mock.calls.at(-1)[1];
+    await act(async () => {
+      onMessage(
+        "pioreactor/unit1/exp1/logs/app/info",
+        Buffer.from(
+          JSON.stringify({ timestamp: "2026-03-23T10:00:00.000Z", message: "live event", task: "app", level: "info" })
+        )
+      );
+    });
+
+    const bodyRows = Array.from(container.querySelectorAll("tbody tr"));
+    expect(bodyRows).toHaveLength(2);
+    bodyRows.forEach((row) => expect(row).not.toHaveTextContent("Invalid Date"));
+    expect(bodyRows[0]).toHaveTextContent(dayjs.utc("2026-03-23T10:00:00.000Z").local().format("YYYY-MM-DD HH:mm:ss"));
+    expect(bodyRows[1]).toHaveTextContent(dayjs.utc("2026-03-20T17:14:00Z").local().format("YYYY-MM-DD HH:mm:ss"));
   });
 });

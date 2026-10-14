@@ -214,7 +214,7 @@ def set_unit_model() -> ResponseReturnValue:
         abort_with(409, str(error))
     tasks.check_model_hardware(body.model_name, body.model_version)
     publish_to_log(
-        f"Set {HOSTNAME} to {body.model_name}, {body.model_version}.",
+        f"Set `{HOSTNAME}` to {body.model_name}, {body.model_version}.",
         task="worker_model",
         level="INFO",
     )
@@ -269,7 +269,7 @@ def update_camera_settings() -> ResponseReturnValue:
     previous_enabled = camera_auto_capture_is_enabled()
     updated_enabled = set_camera_auto_capture_enabled(body.auto_capture_enabled)
     logger.debug(
-        f"User {'enabled' if updated_enabled else 'disabled'} automatic camera snapshots on {HOSTNAME} "
+        f"User {'enabled' if updated_enabled else 'disabled'} automatic camera snapshots on `{HOSTNAME}` "
         f"(was {'enabled' if previous_enabled else 'disabled'})."
     )
     return jsonify(
@@ -400,7 +400,7 @@ def delete_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
             remediation="Refresh the experiment camera stills list.",
         )
 
-    logger.debug(f"User deleted camera snapshot {image_id} on {HOSTNAME} for experiment {experiment}.")
+    logger.debug(f"User deleted camera snapshot {image_id} on `{HOSTNAME}` for experiment `{experiment}`.")
     tasks.enqueue_latest_camera_still_publication(
         HOSTNAME,
         experiment,
@@ -446,8 +446,8 @@ def rename_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
         )
 
     logger.debug(
-        f"User renamed camera snapshot {image_id} to {new_image_id} on {HOSTNAME} "
-        f"for experiment {experiment}."
+        f"User renamed camera snapshot {image_id} to {new_image_id} on `{HOSTNAME}` "
+        f"for experiment `{experiment}`."
     )
     tasks.enqueue_latest_camera_still_publication(
         HOSTNAME,
@@ -461,7 +461,7 @@ def rename_camera_still_for_experiment(experiment: str, image_id: str) -> Respon
 def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
     metadata = list_camera_still_metadata(HOSTNAME, experiment=experiment, sort_order="asc")
     logger.debug(
-        f"User requested all camera snapshots on {HOSTNAME} for experiment `{experiment}` to be downloaded."
+        f"User requested all camera snapshots on `{HOSTNAME}` for experiment `{experiment}` to be downloaded."
     )
     archive_file = NamedTemporaryFile(
         prefix=f"{HOSTNAME}_camera_stills_",
@@ -494,7 +494,7 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
 
         logger.debug(
             f"Sending {number_of_stills_in_archive} camera snapshot"
-            f"{'s' if number_of_stills_in_archive != 1 else ''} from {HOSTNAME} "
+            f"{'s' if number_of_stills_in_archive != 1 else ''} from `{HOSTNAME}` "
             f"for experiment `{experiment}`."
         )
 
@@ -1947,7 +1947,7 @@ def get_all_calibrations() -> ResponseReturnValue:
                 else:
                     all_calibrations[device] = [cal]
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_all_calibrations")
+                publish_to_error_log(f"Error reading calibration `{file.stem}`: {e}", "get_all_calibrations")
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
 
@@ -1978,7 +1978,7 @@ def get_all_active_calibrations() -> ResponseReturnValue:
                 all_calibrations[device] = cal
             except Exception as e:
                 publish_to_error_log(
-                    f"Error reading {cal_file_path.stem}: {e}", "get_all_active_calibrations"
+                    f"Error reading calibration `{cal_file_path.stem}`: {e}", "get_all_active_calibrations"
                 )
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
@@ -2007,7 +2007,7 @@ def get_all_active_estimators() -> ResponseReturnValue:
                 all_estimators[device] = estimator
             except Exception as e:
                 publish_to_error_log(
-                    f"Error reading {estimator_file_path.stem}: {e}", "get_all_active_estimators"
+                    f"Error reading estimator `{estimator_file_path.stem}`: {e}", "get_all_active_estimators"
                 )
 
     return attach_cache_control(jsonify(all_estimators), max_age=10)
@@ -2035,7 +2035,7 @@ def get_all_estimators() -> ResponseReturnValue:
                 else:
                     all_estimators[device] = [estimator]
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_all_estimators")
+                publish_to_error_log(f"Error reading estimator `{file.stem}`: {e}", "get_all_estimators")
 
     return attach_cache_control(jsonify(all_estimators), max_age=10)
 
@@ -2319,7 +2319,9 @@ def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
             cal["pioreactor_unit"] = HOSTNAME
             return attach_cache_control(jsonify(cal), max_age=10)
         except Exception as e:
-            publish_to_error_log(f"Error reading {calibration_path.stem}: {e}", "get_calibration")
+            publish_to_error_log(
+                f"Error reading calibration `{calibration_path.stem}`: {e}", "get_calibration"
+            )
             abort_with(
                 500,
                 "Failed to read calibration file.",
@@ -2374,7 +2376,7 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
             estimator["device"] = device
             return attach_cache_control(jsonify(estimator), max_age=10)
         except Exception as e:
-            publish_to_error_log(f"Error reading {estimator_path.stem}: {e}", "get_estimator")
+            publish_to_error_log(f"Error reading estimator `{estimator_path.stem}`: {e}", "get_estimator")
             abort_with(
                 500,
                 "Failed to read estimator file.",

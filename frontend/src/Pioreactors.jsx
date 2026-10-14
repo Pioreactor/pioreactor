@@ -64,6 +64,7 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
+import PluginChip from "./components/PluginChip"
 import PioreactorsIcon from "./components/PioreactorsIcon"
 import RequirementsAlert from "./components/RequirementsAlert"
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
@@ -978,9 +979,12 @@ function SettingsActionsDialog({
                 </Typography>
                 <StateTypography state={job.state}/>
               </Box>
-              <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
-                {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
-              </Typography>
+              {job.metadata.source !== "app" && (
+                <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
+                  Installed by{" "}
+                  {job.metadata.source ? <PluginChip name={job.metadata.source} unit={unit} /> : "an unknown plugin"}
+                </Typography>
+              )}
               <Typography variant="body2" component="div" gutterBottom>
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>

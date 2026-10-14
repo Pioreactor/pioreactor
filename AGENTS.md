@@ -128,6 +128,7 @@ Available commands are listed in the `Makefile`.
 ## Logging
 
 * All logs are written to **`pioreactor.log`**.
+* Wrap entity names in log messages in backticks, and put the entity word directly before calibrations, estimators, and experiments: ``f"Saved calibration `{name}`"``, ``f"... on `{unit}` for experiment `{experiment}`"``. The UI renders these as Chips (see `frontend/src/components/LogMessage.jsx`); the raw log stays plain text.
 * To view recent logs:
 
   ```bash

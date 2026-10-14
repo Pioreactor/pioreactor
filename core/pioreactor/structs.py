@@ -269,7 +269,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         with out_file.open("wb") as f:
             f.write(yaml_encode(self))
 
-        logger.info(f"Saved calibration {self.calibration_name} to {out_file}")
+        logger.info(f"Saved calibration `{self.calibration_name}` to {out_file}")
         return str(out_file)
 
     def set_as_active_calibration_for_device(self, device: str) -> None:
@@ -285,7 +285,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         with local_persistent_storage("active_calibrations") as c:
             c[device] = calibration_name
 
-        logger.info(f"Set {self.calibration_name} as active calibration for {device}")
+        logger.info(f"Set calibration `{self.calibration_name}` as active for {device}")
 
     def remove_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
@@ -297,7 +297,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         with local_persistent_storage("active_calibrations") as c:
             if c.get(device) == calibration_name:
                 del c[device]
-                logger.info(f"Removed {self.calibration_name} as active calibration for {device}")
+                logger.info(f"Removed calibration `{self.calibration_name}` as active for {device}")
 
     def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.calibrations import CALIBRATION_PATH
@@ -433,7 +433,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         with out_file.open("wb") as f:
             f.write(yaml_encode(self))
 
-        logger.info(f"Saved estimator {self.estimator_name} to {out_file}")
+        logger.info(f"Saved estimator `{self.estimator_name}` to {out_file}")
         return str(out_file)
 
     def set_as_active_calibration_for_device(self, device: str) -> None:
@@ -449,7 +449,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         with local_persistent_storage("active_estimators") as c:
             c[device] = estimator_name
 
-        logger.info(f"Set {self.estimator_name} as active estimator for {device}")
+        logger.info(f"Set estimator `{self.estimator_name}` as active for {device}")
 
     def remove_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
@@ -461,7 +461,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
         with local_persistent_storage("active_estimators") as c:
             if c.get(device) == estimator_name:
                 del c[device]
-                logger.info(f"Removed {self.estimator_name} as active estimator for {device}")
+                logger.info(f"Removed estimator `{self.estimator_name}` as active for {device}")
 
     def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.estimators import ESTIMATOR_PATH

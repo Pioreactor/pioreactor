@@ -27,6 +27,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { experimentPathSegment } from "../utils/url";
 import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
+import LogMessage, { useClusterUnits } from "./LogMessage";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -64,6 +65,7 @@ const HIGHLIGHTABLE_CHIP_SX = {
 function LogTable({ units, byDuration, experimentStartTime, experiment, config, relabelMap }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const clusterUnits = useClusterUnits();
 
   useEffect(() => {
     const getData = async () => {
@@ -101,7 +103,9 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
     if (dayjs.isDayjs(timestamp)) {
       return timestamp;
     }
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+    // Parse ISO 8601 without a format string: when customParseFormat is loaded, a format
+    // makes parsing strict and rejects dayjs objects and timestamps without milliseconds.
+    return dayjs.utc(timestamp);
   };
 
   const timestampCell = (timestamp) => {
@@ -125,6 +129,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         {
           timestamp: toTimestampObject(payload.timestamp),
           pioreactor_unit: unit,
+          experiment: topic.toString().split('/')[2],
           message: String(payload.message),
           task: payload.task,
           level: payload.level.toUpperCase(),
@@ -198,7 +203,9 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                       />
                     </StyledTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                    <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
+                    <StyledTableCell level={log.level} data-copy-value={log.message}>
+                      <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
+                    </StyledTableCell>
                   </ZebraTableRow>
                   {listOfLogs[i + 1] &&
                     toTimestampObject(log.timestamp).diff(

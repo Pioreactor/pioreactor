@@ -38,13 +38,13 @@ logger = create_logger(
 )
 
 
-logger.debug(f"Starting {NAME}={VERSION} on {HOSTNAME}...")
+logger.debug(f"Starting {NAME}={VERSION} on unit {HOSTNAME}...")
 
 
 try:
     plugins = get_plugins()
     for plugin in plugins:
-        logger.debug(f"Loading plugin {plugin}")
+        logger.debug(f"Loading plugin `{plugin}`")
 except BaseException as e:
     # BaseExpection since some plugins might use SystemExit, which isn't an Exception.
     logger.debug(f"Web-server encountered error {e} when loading plugins.")

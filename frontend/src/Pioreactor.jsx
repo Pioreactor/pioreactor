@@ -57,6 +57,7 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
+import PluginChip from "./components/PluginChip"
 import RequirementsAlert from "./components/RequirementsAlert";
 import BioreactorDiagramPanel from "./components/BioreactorDiagramPanel";
 import Chart from "./components/Chart";
@@ -156,10 +157,6 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
           </Button>
         )}
       />
-
-        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-          {unit}
-        </Typography>
         <Box sx={{mb: 0, display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
@@ -639,9 +636,12 @@ function SettingsActionsDialog(props) {
                 </Typography>
                 <StateTypography state={job.state}/>
               </Box>
-              <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
-                {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
-              </Typography>
+              {job.metadata.source !== "app" && (
+                <Typography variant="caption" gutterBottom color="textSecondary" sx={{ display: "block" }}>
+                  Installed by{" "}
+                  {job.metadata.source ? <PluginChip name={job.metadata.source} unit={props.unit} /> : "an unknown plugin"}
+                </Typography>
+              )}
               <Typography variant="body2" component="div" gutterBottom>
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>

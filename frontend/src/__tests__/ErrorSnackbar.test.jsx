@@ -55,6 +55,7 @@ function publishLog(handler, { unit = "unit-1", experiment = "experiment-1", tas
 
 describe("ErrorSnackbar", () => {
   beforeEach(() => {
+    global.fetch = jest.fn(() => Promise.resolve({ json: () => Promise.resolve([]) }));
     mockSnackbarId = 0;
     mockSubscribeToTopic.mockClear();
     mockUnsubscribeFromTopic.mockClear();
