@@ -1,0 +1,1 @@
+import{j as o}from"./client-DvmDbv1Z.js";import{e as t}from"./main-DrEMk5vp.js";const m=t(o.jsx("path",{d:"M7 11v2h10v-2zm5-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"}));export{m as D};

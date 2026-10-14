@@ -5,6 +5,7 @@ import { useTopicStream } from "../hooks";
 import { Icon } from "../icons";
 import { useKeyboard } from "../Keyboard";
 import { Empty, Segmented, useToast } from "../ui";
+import { parseLogMessage, splitTraceback } from "../../utils/logMessage";
 
 const LEVELS = ["info", "notice", "warning", "error"];
 // Where a log came from: this experiment's activities, or this unit's system
@@ -35,6 +36,28 @@ function formatTime(ms) {
 }
 
 let liveKey = 0;
+
+// Entity names arrive wrapped in backticks, e.g. "Assigned pioreactor `pio01`". Show them as
+// inline tags instead of raw backticks. A traceback only shows when the row is expanded.
+function LogText({ message, unit, experiment, expanded }) {
+  const { summary, exceptionLine, traceback } = splitTraceback(message);
+  const segments = parseLogMessage(summary || exceptionLine || "", { units: new Set([unit]), experiment });
+  return (
+    <>
+      {segments.map((segment, index) =>
+        segment.type === "text" ? (
+          segment.text
+        ) : (
+          <span key={index} className={`log-entity ${segment.type}`}>
+            {segment.text}
+          </span>
+        ),
+      )}
+      {summary && exceptionLine && <span className="log-exception">{exceptionLine}</span>}
+      {expanded && traceback && <pre className="log-traceback">{traceback}</pre>}
+    </>
+  );
+}
 
 export default function Logs() {
   const { unit, experiment } = useKiosk();
@@ -159,7 +182,7 @@ export default function Logs() {
                 {log.level === "error" || log.level === "warning" ? (
                   <strong>{log.level === "error" ? "Error: " : "Warning: "}</strong>
                 ) : null}
-                {log.message}
+                <LogText message={log.message} unit={unit} experiment={experiment} expanded={expanded === log.key} />
               </span>
             </button>
           ))}

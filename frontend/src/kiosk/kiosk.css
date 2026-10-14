@@ -1051,6 +1051,31 @@ button.field:disabled .field-value .edit {
   color: var(--text2);
 }
 
+.log-entity {
+  padding: 0 0.3em;
+  border-radius: 0.3em;
+  background: var(--pressed);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.log-entity.code {
+  font-family: ui-monospace, "DejaVu Sans Mono", monospace;
+}
+
+.log-exception {
+  display: block;
+  color: var(--text2);
+}
+
+.log-traceback {
+  margin: 0.4rem 0 0;
+  font-family: ui-monospace, "DejaVu Sans Mono", monospace;
+  font-size: 0.7rem;
+  white-space: pre-wrap;
+  color: var(--text2);
+}
+
 .log-row.error {
   border-left-color: var(--log-error);
 }
