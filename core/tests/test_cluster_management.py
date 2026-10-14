@@ -74,7 +74,7 @@ def test_cluster_status_surfaces_structured_api_error(monkeypatch) -> None:
 class _AddWorkerEvents:
     """Stubs everything `pio workers add` touches outside the process, and records the calls."""
 
-    def __init__(self, monkeypatch, join_error: str | None = None) -> None:
+    def __init__(self, monkeypatch, join_error: str | None = None, register_status: int = 201) -> None:
         from types import SimpleNamespace
         from unittest.mock import Mock
         from pioreactor.exc import SSHError
@@ -96,7 +96,7 @@ class _AddWorkerEvents:
 
         def register(endpoint: str, json: dict) -> Response:
             self.events.append(("register", json))
-            return Response("http://leader/api/workers", 201, {}, b"{}")
+            return Response("http://leader/api/workers", register_status, {}, b"{}")
 
         monkeypatch.setattr(cluster_management.whoami, "get_unit_name", lambda: "leader")
         monkeypatch.setattr(cluster_management.whoami, "is_testing_env", lambda: False)
@@ -137,7 +137,8 @@ def test_add_worker_falls_back_from_stale_config_address_to_discovered_ipv4(monk
 
     assert result.exit_code == 0, result.output
     assert events.events[0] == ("ssh_setup", ("unit1", "192.168.1.99"), "raspberry")
-    assert events.events[1] == ("address", "cluster.addresses", "unit1", "192.168.1.99")
+    # A discovered address may be a DHCP lease, so it isn't pinned in config.ini.
+    assert "address" not in events.names()
     assert ("copy", "192.168.1.99", ".pioreactor/config.ini") in events.events
 
 
@@ -181,16 +182,16 @@ def test_add_worker_registers_before_configuring_then_reboots(
     result = CliRunner().invoke(add_worker, args)
 
     assert result.exit_code == 0, result.output
-    assert events.names() == ["ssh_setup", "address", "register", "copy", "join", "reboot"]
-    register = events.events[2]
+    assert events.names() == ["ssh_setup", "register", "copy", "join", "reboot"]
+    register = events.events[1]
     assert register[1] == {
         "pioreactor_unit": "unit1",
         "model_name": "pioreactor_40ml" if selected else None,
         "model_version": "1.5" if selected else None,
     }
-    _, join_command, detached = events.events[4]
+    _, join_command, detached = events.events[3]
     assert detached is False
-    assert events.events[5] == ("reboot", "10.0.0.5", True)
+    assert events.events[4] == ("reboot", "10.0.0.5", True)
     assert join_command.startswith('set -a; . /etc/pioreactor.env; set +a; "$PIO_EXECUTABLE" cluster join ')
     assert ("--model-name pioreactor_40ml --model-version 1.5" in join_command) is selected
 
@@ -203,4 +204,40 @@ def test_add_worker_failed_join_does_not_reboot(monkeypatch: pytest.MonkeyPatch)
 
     assert result.exit_code == 1
     assert "Unable to configure unit1: SSH command failed: Error: Stop activities" in result.output
-    assert events.names() == ["ssh_setup", "address", "register", "copy", "join"]
+    assert events.names() == ["ssh_setup", "register", "copy", "join"]
+
+
+@pytest.mark.parametrize(
+    "address, pinned", [("10.0.0.5", True), ("unit1.local", False), ("2001:db8::5", False)]
+)
+def test_add_worker_pins_only_a_user_provided_ipv4_address(
+    monkeypatch: pytest.MonkeyPatch, address: str, pinned: bool
+) -> None:
+    events = _AddWorkerEvents(monkeypatch)
+    monkeypatch.setattr(cluster_management, "_find_reachable_worker_add_address", lambda *a: address)
+
+    result = CliRunner().invoke(add_worker, ["unit1", "--address", address])
+
+    assert result.exit_code == 0, result.output
+    assert (("address", "cluster.addresses", "unit1", address) in events.events) is pinned
+
+
+@pytest.mark.parametrize(
+    "args, register_status, expected_error",
+    [
+        (["unit1.local"], 201, "Error: Please provide the hostname without the `.local` suffix."),
+        (["leader"], 201, "Error: You cannot add the current leader Pioreactor as a worker this way."),
+        (["unit1"], 400, "Error: Did not add worker unit1 to the inventory. HTTP 400."),
+    ],
+)
+def test_add_worker_failures_end_with_an_error_line(
+    monkeypatch: pytest.MonkeyPatch, args: list[str], register_status: int, expected_error: str
+) -> None:
+    # The UI shows the last `Error: ` line of `pio workers add`, so every failure must end with one.
+    _AddWorkerEvents(monkeypatch, register_status=register_status)
+    monkeypatch.setattr(cluster_management, "_find_reachable_worker_add_address", lambda *a: "10.0.0.5")
+
+    result = CliRunner().invoke(add_worker, args)
+
+    assert result.exit_code == 1
+    assert result.output.strip().splitlines()[-1].startswith(expected_error)

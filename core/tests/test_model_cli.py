@@ -10,7 +10,7 @@ from pioreactor.unit_model import get_local_model
 
 
 def test_model_cli_roundtrip_and_validation(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("pioreactor.web.tasks.check_model_hardware", Mock())
+    monkeypatch.setattr("pioreactor.cli.model.check_model_hardware", Mock())
     report = Mock()
     monkeypatch.setattr("pioreactor.cli.model.report_model_to_leader", report)
     runner = CliRunner()

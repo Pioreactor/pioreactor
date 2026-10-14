@@ -14,6 +14,8 @@ from typing import Any
 import pytest
 from huey.exceptions import RateLimitExceeded
 from huey.storage import SqliteStorage
+from pioreactor import hardware
+from pioreactor import pubsub
 from pioreactor.camera import CameraStillMetadata
 from pioreactor.mureq import Response
 from pioreactor.web import db as web_db
@@ -506,9 +508,9 @@ def test_delete_experiment_through_huey(
         events.append(f"cleanup:{address}")
         return _response(200, {"deleted_image_ids": []})
 
-    monkeypatch.setattr(tasks, "post_into", stop_request)
-    monkeypatch.setattr(tasks, "get_from", stop_result)
-    monkeypatch.setattr(tasks, "delete_from", cleanup_request)
+    monkeypatch.setattr(pubsub, "post_into", stop_request)
+    monkeypatch.setattr(pubsub, "get_from", stop_result)
+    monkeypatch.setattr(pubsub, "delete_from", cleanup_request)
 
     result = tasks.delete_experiment_task("exp1", units)
     deletion = tasks.huey.dequeue()
@@ -547,12 +549,12 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
 
     # Each request pops the next response in sequence.
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
     ) -> Response:
         events.append("get")
         return responses.pop(0)
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     # Avoid test delays from retry sleeps.
     monkeypatch.setattr(tasks, "sleep", lambda _: events.append("sleep"))
@@ -576,11 +578,11 @@ def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     responses.append(_response(200, {"task_id": "abc", "status": "succeeded", "result": {"ok": True}}))
 
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
     ) -> Response:
         return responses.pop(0)
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
@@ -600,11 +602,11 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
 
     # Each request pops the next response in sequence.
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
     ) -> Response:
         return responses.pop(0)
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     # Avoid test delays from retry sleeps.
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
@@ -637,11 +639,11 @@ def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPat
     ]
 
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
     ) -> Response:
         return responses.pop(0)
 
-    monkeypatch.setattr(tasks, "get_from", fake_get_from)
+    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
@@ -678,9 +680,9 @@ def test_fanout_success_strips_generic_success_status() -> None:
 
 
 def test_check_model_hardware_skips_non_v1_hat(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (2, 0))
+    monkeypatch.setattr(hardware, "hardware_version_info", (2, 0))
     monkeypatch.setattr(
-        tasks.hardware,
+        hardware,
         "get_adc_addresses_for_model",
         lambda *_args: (_ for _ in ()).throw(AssertionError("should not inspect ADCs")),
     )
@@ -760,9 +762,9 @@ def test_repair_system_logs_failed_repair_command(monkeypatch: pytest.MonkeyPatc
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(tasks.hardware, "hardware_version_info", (1, 2))
-    monkeypatch.setattr(tasks.hardware, "get_adc_addresses_for_model", lambda *_args: {0x48})
-    monkeypatch.setattr(tasks.hardware, "is_i2c_device_present", lambda address: address == 0x48)
+    monkeypatch.setattr(hardware, "hardware_version_info", (1, 2))
+    monkeypatch.setattr(hardware, "get_adc_addresses_for_model", lambda *_args: {0x48})
+    monkeypatch.setattr(hardware, "is_i2c_device_present", lambda address: address == 0x48)
 
     assert tasks.check_model_hardware.call_local("pioreactor_20ml", "1.1") == {"status": "ok"}
 
@@ -822,9 +824,9 @@ def test_multicast_chord_deletes_child_results_and_preserves_callback_result(
     )
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: f"http://{unit}.local")
     monkeypatch.setattr(
-        tasks,
+        pubsub,
         "get_from",
-        lambda address, endpoint, json=None, timeout=5.0: _response(
+        lambda address, endpoint, json=None, timeout=5.0, **_kwargs: _response(
             200, {"address": address, "endpoint": endpoint}
         ),
     )
@@ -1171,7 +1173,7 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
         captured["copy"] = (unit, localpath, remotepath, timeout)
 
     def fake_post_into(
-        address: str, endpoint: str, json: dict[str, str], timeout: int, headers: dict[str, str]
+        address: str, endpoint: str, json: dict[str, str], timeout: int, headers: dict[str, str], body: None
     ) -> FakeResponse:
         captured["post"] = (address, endpoint, json, timeout)
         captured["headers"] = headers
@@ -1179,8 +1181,8 @@ def test_install_plugin_from_leader_usb_on_worker_copies_python_file_to_tmp_then
 
     monkeypatch.setattr(tasks.usb_utils, "resolve_usb_plugin_artifact", lambda _filepath: source)
     monkeypatch.setattr(tasks, "cp_file_across_cluster", fake_cp_file_across_cluster)
-    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(tasks, "post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr(pubsub, "post_into", fake_post_into)
 
     result = tasks._install_plugin_from_leader_usb_on_worker("worker1", source.as_posix())
 
@@ -1577,4 +1579,23 @@ def test_add_new_pioreactor_raises_the_commands_error_line(monkeypatch: pytest.M
     monkeypatch.setattr(tasks, "run", fake_run)
 
     with pytest.raises(RuntimeError, match="^Unable to configure unit1: boom$"):
+        tasks.add_new_pioreactor.call_local("unit1", "1.5", "pioreactor_40ml")
+
+
+@pytest.mark.parametrize(
+    "stderr, expected_error",
+    [
+        ("Traceback (most recent call last):\nValueError: boom\n", "^ValueError: boom$"),
+        ("", "^`pio workers add` exited with code 1.$"),
+    ],
+)
+def test_add_new_pioreactor_without_an_error_line(
+    monkeypatch: pytest.MonkeyPatch, stderr: str, expected_error: str
+) -> None:
+    def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr=stderr)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match=expected_error):
         tasks.add_new_pioreactor.call_local("unit1", "1.5", "pioreactor_40ml")

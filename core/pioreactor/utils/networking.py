@@ -70,6 +70,13 @@ def is_using_local_access_point() -> bool:
     return Path("/boot/firmware/local_access_point").exists()
 
 
+def is_ipv4_address(address: str) -> bool:
+    try:
+        return isinstance(ip_address(address), IPv4Address)
+    except ValueError:
+        return False
+
+
 def is_address_on_network(address: str, timeout: float = 10.0) -> bool:
     import socket
 

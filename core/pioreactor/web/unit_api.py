@@ -63,6 +63,7 @@ from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import TARGET_UNIT_HEADER
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
 from pioreactor.unit_model import get_local_model
@@ -108,8 +109,8 @@ def check_mutation_target() -> None:
     if request.method not in {"POST", "PATCH", "PUT", "DELETE"}:
         return
 
-    expected_hostname = request.headers.get("X-Pioreactor-Target")
-    # Direct API clients may omit the header; cluster callers supply the intended unit.
+    expected_hostname = request.headers.get(TARGET_UNIT_HEADER)
+    # Direct API clients may omit the header; cluster callers use the pubsub *_unit helpers, which send it.
     if expected_hostname is not None and expected_hostname != HOSTNAME:
         abort_with(
             409,

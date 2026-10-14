@@ -60,14 +60,14 @@ def join_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]
     monkeypatch.setattr(cluster_membership, "JobManager", mocks["jobs"])
     monkeypatch.setattr(cluster_membership, "activities_are_running", lambda: False)
     monkeypatch.setattr(cluster_membership, "report_model_to_leader", mocks["report"])
-    monkeypatch.setattr("pioreactor.web.tasks.check_model_hardware", mocks["check"])
+    monkeypatch.setattr(cluster_membership, "check_model_hardware", mocks["check"])
     return mocks
 
 
 def test_join_cluster_points_unit_at_leader_and_reports_model(join_env: dict[str, Mock]) -> None:
     cluster_membership.join_cluster(1700000000, "pioreactor_20ml", "1.5")
 
-    join_env["check"].call_local.assert_called_once_with("pioreactor_20ml", "1.5")
+    join_env["check"].assert_called_once_with("pioreactor_20ml", "1.5")
     assert [call.args[0] for call in join_env["sudo"].call_args_list] == ["date", "tee"]
     assert join_env["sudo"].call_args_list[0].args == ("date", "-u", "--set", "@1700000000")
     assert join_env["sudo"].call_args_list[1].kwargs == {"input": "server 10.0.0.1 iburst prefer\n"}

@@ -1267,7 +1267,7 @@ def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPa
         lambda units, experiments: ["unit1"],
     )
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: "unit1.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fake_post_into)
 
     result = CliRunner().invoke(
         pios,
@@ -1289,6 +1289,7 @@ def test_pios_plugin_install_forwards_exact_version(monkeypatch: pytest.MonkeyPa
             "unit1.local",
             "/unit_api/plugins/install",
             {
+                "body": None,
                 "headers": {"X-Pioreactor-Target": "unit1"},
                 "json": {
                     "args": ["pioreactor-air-bubbler"],
@@ -1483,7 +1484,7 @@ def test_pios_run_requests_with_config_override() -> None:
 
 def test_pios_run_surfaces_structured_unit_api_error(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
-        "pioreactor.cli.pios.post_into",
+        "pioreactor.pubsub.post_into",
         lambda *_args, **_kwargs: Response(
             "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring",
             409,
@@ -1731,7 +1732,7 @@ def test_pios_update_app_ssh_fallback_includes_repo(monkeypatch) -> None:
     def record_ssh(_address: str, command: str) -> None:
         commands.append(command)
 
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fail_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fail_post_into)
     monkeypatch.setattr("pioreactor.cli.pios.ssh", record_ssh)
 
     result = runner.invoke(
@@ -1756,7 +1757,7 @@ def test_pios_update_app_identity_rejection_does_not_fall_back_to_ssh(
             b'{"error":"Worker hostname mismatch"}',
         )
     )
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", request)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", request)
     monkeypatch.setattr("pioreactor.cli.pios.ssh", ssh)
 
     result = CliRunner().invoke(pios, ["update", "app", "--units", "unit1", "-y"])
@@ -1802,7 +1803,7 @@ def test_pios_update_app_explicit_units_include_leader_when_named(
     monkeypatch.setattr("pioreactor.cli.pios.get_workers_in_inventory", lambda: ("worker1",))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"http://{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fake_post_into)
 
     result = runner.invoke(
         pios,
@@ -1858,7 +1859,7 @@ def test_pios_update_app_experiments_include_leader_when_assigned(
     monkeypatch.setattr("pioreactor.cli.pios.get_active_workers_in_inventory", lambda: ("leader", "worker1"))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"http://{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", fake_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fake_post_into)
 
     result = runner.invoke(
         pios,
@@ -1909,7 +1910,7 @@ def test_pios_jobs_list_requests_history_endpoint(monkeypatch) -> None:
         captured.append((address, endpoint))
         return DummyResponse()
 
-    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     runner = CliRunner()
     result = runner.invoke(pios, ["jobs", "list", "--units", "unit1"])
@@ -1943,7 +1944,7 @@ def test_pios_jobs_list_running_requests_running_endpoint(monkeypatch) -> None:
         captured.append((address, endpoint))
         return DummyResponse()
 
-    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     runner = CliRunner()
     result = runner.invoke(pios, ["jobs", "list", "running", "--units", "unit1"])
@@ -1997,7 +1998,7 @@ def test_pios_jobs_list_partitions_output_by_unit(monkeypatch) -> None:
         assert endpoint == "/unit_api/jobs"
         return responses[address]
 
-    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     runner = CliRunner()
     result = runner.invoke(pios, ["jobs", "list", "--units", "unit1", "--units", "unit2"])
@@ -2044,7 +2045,7 @@ database={db_path}
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
     monkeypatch.setattr("pioreactor.cli.pios.get_leader_hostname", lambda: "leader")
     monkeypatch.setattr(
-        "pioreactor.cli.pios.get_from",
+        "pioreactor.pubsub.get_from",
         lambda address, endpoint, **_kwargs: Response(
             f"http://{address}:4999{endpoint}",
             200,
@@ -2340,7 +2341,7 @@ def test_pios_system_actions_dispatch_explicit_leader_targets(
     )
     monkeypatch.setattr("pioreactor.cli.pios.resolve_all_worker_units", resolve_all_worker_units)
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", post_into)
 
     ctx = click.Context(command, allow_extra_args=True)
     ctx.forward(command, yes=True, units=selected_units, experiments=())
@@ -2378,7 +2379,7 @@ def test_pios_system_actions_keep_worker_targets_worker_only(
         "pioreactor.cli.pios.resolve_all_worker_units", lambda _units, _experiments: ("worker1",)
     )
     monkeypatch.setattr("pioreactor.cli.pios.resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr("pioreactor.cli.pios.post_into", post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", post_into)
 
     ctx = click.Context(command, allow_extra_args=True)
     ctx.forward(command, yes=True, units=selected_units, experiments=())
@@ -2411,7 +2412,7 @@ def test_pio_blink_surfaces_structured_api_error(monkeypatch) -> None:
 
 def test_pios_reboot_surfaces_structured_unit_api_error(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
-        "pioreactor.cli.pios.post_into",
+        "pioreactor.pubsub.post_into",
         lambda *_args, **_kwargs: Response(
             "http://unit1.local:4999/unit_api/system/reboot",
             409,

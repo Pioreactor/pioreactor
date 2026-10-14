@@ -22,6 +22,7 @@ from flask import request
 from pioreactor import whoami
 from pioreactor.config import ConfigParserMod
 from pioreactor.paths import get_dot_pioreactor_path
+from pioreactor.pubsub import TARGET_UNIT_HEADER
 from pioreactor.web.utils import abort_with
 
 # Where each kiosk loads its UI from. Any port is allowed (useful in development).
@@ -29,7 +30,7 @@ LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1"})
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 
 ALLOW_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-ALLOW_HEADERS = "Content-Type, Accept, X-Pioreactor-Target"
+ALLOW_HEADERS = f"Content-Type, Accept, {TARGET_UNIT_HEADER}"
 # Preflight caching matters on a slow screen: without it, every JSON write costs an
 # extra round trip. WebKit caps this at 600 s.
 MAX_AGE_S = "600"

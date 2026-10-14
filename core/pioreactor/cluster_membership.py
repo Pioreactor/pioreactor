@@ -15,6 +15,7 @@ from pioreactor.config import ConfigParserMod
 from pioreactor.config import remove_config_values_in_file
 from pioreactor.config import resolve_global_config_path
 from pioreactor.config import resolve_local_config_path
+from pioreactor.unit_model import check_model_hardware
 from pioreactor.unit_model import get_local_model
 from pioreactor.unit_model import report_model_to_leader
 from pioreactor.unit_model import save_local_model
@@ -76,10 +77,7 @@ def join_cluster(leader_time: int, model_name: str | None = None, model_version:
     if model_name is not None and model_version is not None:
         # First, since it's the step most likely to fail (unknown model, jobs running).
         save_local_model(model_name, model_version)
-        from pioreactor.web.tasks import check_model_hardware
-
-        # Run it now: Huey's queue is on tmpfs, and the leader reboots this unit next.
-        check_model_hardware.call_local(model_name, model_version)
+        check_model_hardware(model_name, model_version)
 
     leader_address = _read_shared_config().get("cluster.topology", "leader_address")
 

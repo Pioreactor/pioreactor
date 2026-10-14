@@ -119,7 +119,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
 """
 
-            logger.debug(msg)
+            logger.warning(msg)
             raise
 
     def get(self, section: str, option: str, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
@@ -133,7 +133,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
             from pioreactor.logging import create_logger
 
-            create_logger("read config").debug(
+            create_logger("read config").warning(
                 f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]

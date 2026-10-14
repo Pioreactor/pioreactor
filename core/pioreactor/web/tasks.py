@@ -44,7 +44,6 @@ from msgspec import to_builtins
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor import exc
-from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.camera import camera_auto_capture_is_enabled
@@ -70,10 +69,10 @@ from pioreactor.mureq import Response
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.plugin_management import get_plugins
-from pioreactor.pubsub import delete_from
-from pioreactor.pubsub import get_from
-from pioreactor.pubsub import patch_into
-from pioreactor.pubsub import post_into
+from pioreactor.pubsub import delete_from_unit
+from pioreactor.pubsub import get_from_unit
+from pioreactor.pubsub import patch_into_unit
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import publish
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import EstimatorBase
@@ -541,7 +540,7 @@ def _process_delayed_json_response(
 
         delayed_response: Response | None = None
         try:
-            delayed_response = get_from(address, endpoint, timeout=timeout)
+            delayed_response = get_from_unit(unit, endpoint, address=address, timeout=timeout)
             delayed_response.raise_for_status()
             response = delayed_response
             data = response.json()
@@ -663,25 +662,21 @@ def add_new_pioreactor(
     logger.debug(f"Executing `{join(command)}`")
     result = run(command, capture_output=True, text=True)
     if result.returncode != 0:
-        # `pio workers add` ends with `Error: <reason>`; the full output is in its logs.
-        raise RuntimeError(result.stderr.strip().splitlines()[-1].removeprefix("Error: "))
+        # `pio workers add` ends with `Error: <reason>`; the full output is in its logs. Fall back
+        # to the last line of output, e.g. a traceback's, or the exit code if there is none.
+        lines = result.stderr.strip().splitlines() or result.stdout.strip().splitlines()
+        error_lines = [line for line in lines if line.startswith("Error: ")]
+        if error_lines:
+            raise RuntimeError(error_lines[-1].removeprefix("Error: "))
+        raise RuntimeError(lines[-1] if lines else f"`pio workers add` exited with code {result.returncode}.")
     return True
 
 
 @huey.task(priority=10)
 def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
-    result = hardware.check_model_hardware_compatibility(model_name, model_version)
-    result_status = result["status"]
+    from pioreactor.unit_model import check_model_hardware as _check_model_hardware
 
-    if result_status == "skipped":
-        logger.debug(f"Hardware check skipped on {get_unit_name()}: {result['reason']}")
-    elif result_status == "warning":
-        logger.warning(f"Hardware check failed on {get_unit_name()}: {result['reason']}")
-        result = {**result, "reason": result["reason"].split(": ", 1)[-1]}
-    elif result_status == "ok":
-        logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
-
-    return result
+    return _check_model_hardware(model_name, model_version)
 
 
 @huey.task()
@@ -1350,8 +1345,8 @@ def delete_experiment_task(experiment: str, units: list[str]) -> dict[str, Any]:
     endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
     try:
         for unit in units:
-            post_into_unit(unit, "/unit_api/jobs/stop", {"experiment": experiment})
-            delete_from_unit(unit, endpoint)
+            post_into_unit_task(unit, "/unit_api/jobs/stop", {"experiment": experiment})
+            delete_from_unit_task(unit, endpoint)
         result = delete_experiment_records_task.call_local(experiment)
     except Exception:
         logger.exception(f"Deleting experiment {experiment!r}: failed after {monotonic() - started:.3f}s.")
@@ -1448,13 +1443,7 @@ def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> d
         install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
 
     logger.debug(f"Installing USB plugin {plugin_name} on {unit} from {remote_source}.")
-    response = post_into(
-        resolve_to_address(unit),
-        install_endpoint,
-        headers={"X-Pioreactor-Target": unit},
-        json=payload,
-        timeout=60,
-    )
+    response = post_into_unit(unit, install_endpoint, json=payload, timeout=60)
     response.raise_for_status()
 
     return {
@@ -1854,7 +1843,7 @@ def write_config_and_sync(
 
 
 @huey.task(priority=10)
-def post_into_unit(
+def post_into_unit_task(
     unit: str,
     endpoint: str,
     json: dict[str, Any] | None = None,
@@ -1865,9 +1854,7 @@ def post_into_unit(
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = post_into(
-            address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, params=params, timeout=2.0
-        )
+        r = post_into_unit(unit, endpoint, json=json, params=params, address=address, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
@@ -2061,14 +2048,14 @@ def multicast_post(
         return reduce_multicast_results(units, False, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
-        [post_into_unit.s(units[i], endpoint, json[i], params[i], timeout) for i in range(len(units))],
+        [post_into_unit_task.s(units[i], endpoint, json[i], params[i], timeout) for i in range(len(units))],
         units,
         False,
     )
 
 
 @huey.task(priority=10)
-def get_from_unit(
+def get_from_unit_task(
     unit: str,
     endpoint: str,
     json: dict[str, Any] | None = None,
@@ -2091,7 +2078,7 @@ def _get_from_unit(
     try:
         address = resolve_to_address(unit)
 
-        r = get_from(address, endpoint, json=json, timeout=timeout)
+        r = get_from_unit(unit, endpoint, address=address, json=json, timeout=timeout)
         r.raise_for_status()
 
         if return_raw:
@@ -2149,7 +2136,7 @@ def _multicast_get_uncached(
         return {}
 
     result = _enqueue_multicast_chord(
-        [get_from_unit.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
+        [get_from_unit_task.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
         units,
         True,
     )
@@ -2187,7 +2174,7 @@ def multicast_get(
         return reduce_multicast_results(units, True, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
-        [get_from_unit.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
+        [get_from_unit_task.s(units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))],
         units,
         True,
     )
@@ -2214,14 +2201,14 @@ def multicast_get_with_leader_cache(
 
 
 @huey.task(priority=50)
-def patch_into_unit(
+def patch_into_unit_task(
     unit: str, endpoint: str, json: dict[str, Any] | None = None, timeout: float = 30.0
 ) -> tuple[str, Any]:
     r: Response | None = None
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = patch_into(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
+        r = patch_into_unit(unit, endpoint, json=json, address=address, timeout=2.0)
         r.raise_for_status()
 
         if r.content is None:
@@ -2270,19 +2257,19 @@ def multicast_patch(
         return reduce_multicast_results(units, False, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
-        [patch_into_unit.s(unit, endpoint, json, timeout) for unit in units],
+        [patch_into_unit_task.s(unit, endpoint, json, timeout) for unit in units],
         units,
         False,
     )
 
 
 @huey.task(priority=10)
-def delete_from_unit(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
+def delete_from_unit_task(unit: str, endpoint: str, json: dict[str, Any] | None = None) -> tuple[str, Any]:
     r: Response | None = None
     address: str | None = None
     try:
         address = resolve_to_address(unit)
-        r = delete_from(address, endpoint, headers={"X-Pioreactor-Target": unit}, json=json, timeout=2.0)
+        r = delete_from_unit(unit, endpoint, json=json, address=address, timeout=2.0)
         r.raise_for_status()
         return unit, fanout_success(unit, r.json() if r.content else None)
     except (HTTPErrorStatus, HTTPException) as e:
@@ -2319,7 +2306,7 @@ def multicast_delete(
         return reduce_multicast_results(units, False, [], child_task_ids=[])
 
     return _enqueue_multicast_chord(
-        [delete_from_unit.s(unit, endpoint, json) for unit in units],
+        [delete_from_unit_task.s(unit, endpoint, json) for unit in units],
         units,
         False,
     )

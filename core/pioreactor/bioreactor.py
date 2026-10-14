@@ -194,6 +194,7 @@ def calculate_updated_current_volume(
     dosing_event: structs.DosingEvent,
     current_volume_ml: float,
     efflux_tube_volume_ml: float,
+    capacity_ml: float,
 ) -> float:
     """
     Project the vial volume after a dosing event.
@@ -207,7 +208,6 @@ def calculate_updated_current_volume(
     if event == "add_alt_media" or event.startswith("add_"):
         # Liquid beyond the vial's capacity spills over, so cap rather than reject: rejecting would
         # drop the whole event, and downstream overfill safety checks would never see it.
-        capacity_ml = get_pioreactor_model().reactor_capacity_ml
         vol = min(max(current_volume_ml + volume, 0.0), capacity_ml)
 
     elif event == "remove_waste":
@@ -280,9 +280,7 @@ def apply_dosing_event_to_bioreactor(
     dosing_event: structs.DosingEvent,
     mqtt_client: Client | None = None,
 ) -> dict[str, float]:
-    # Resolve the model before taking the write lock: a unit's first lookup saves its model
-    # to this same database, which would block on our own lock.
-    get_pioreactor_model()
+    capacity_ml = get_pioreactor_model().reactor_capacity_ml
 
     with local_persistent_storage("bioreactor") as cache, cache.transaction():
         current_state = {
@@ -300,6 +298,7 @@ def apply_dosing_event_to_bioreactor(
                 dosing_event,
                 current_volume_ml=current_state["current_volume_ml"],
                 efflux_tube_volume_ml=current_state["efflux_tube_volume_ml"],
+                capacity_ml=capacity_ml,
             ),
             "cumulative_media_added_ml": calculate_updated_cumulative_volume(
                 "cumulative_media_added_ml",

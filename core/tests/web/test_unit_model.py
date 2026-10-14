@@ -36,19 +36,19 @@ def unit_model_reads(monkeypatch: pytest.MonkeyPatch) -> Mock:
     """The worker's GET /unit_api/model, offline unless a test sets a return value."""
     reported = Mock(return_value=None)
 
-    def get_from(address: str, endpoint: str, **kwargs: object) -> Response:
+    def get_from_unit(unit: str, endpoint: str, **kwargs: object) -> Response:
         assert endpoint == "/unit_api/model"
         if reported() is None:
             raise HTTPException("offline")
         return Response("http://unit", 200, {}, encode(reported()))
 
-    monkeypatch.setattr("pioreactor.web.api.get_from", get_from)
+    monkeypatch.setattr("pioreactor.web.api.get_from_unit", get_from_unit)
     return reported
 
 
 def accept_assignment(client: FlaskClient, monkeypatch: pytest.MonkeyPatch, model: dict) -> None:
     accepted = Response("http://unit", 200, {}, b"{}")
-    monkeypatch.setattr("pioreactor.web.api.put_into", Mock(return_value=accepted))
+    monkeypatch.setattr("pioreactor.web.api.put_into_unit", Mock(return_value=accepted))
     body = {"model_name": model["model_name"], "model_version": model["model_version"]}
     assert client.put("/api/workers/unit1/model", json=body).status_code == 200
 
@@ -99,13 +99,13 @@ def test_leader_only_updates_mirror_after_success(
         b'{"error":"Stop activities before changing the model.","status":409}',
     )
     put = Mock(side_effect=HTTPException("offline")) if status is None else Mock(return_value=response)
-    monkeypatch.setattr("pioreactor.web.api.put_into", put)
+    monkeypatch.setattr("pioreactor.web.api.put_into_unit", put)
     result = client.put("/api/workers/unit1/model", json=MODEL)
     assert result.status_code == (status if status is not None else 502)
     after = client.get("/api/workers/unit1/model").get_json()
     assert after["model_name"] == (MODEL["model_name"] if status == 200 else before["model_name"])
     assert after["model_version"] == (MODEL["model_version"] if status == 200 else before["model_version"])
-    assert put.call_args.kwargs["headers"] == {"X-Pioreactor-Target": "unit1"}
+    assert put.call_args.args[0] == "unit1"
 
 
 def test_unit_model_includes_its_registry_definition(client: FlaskClient) -> None:
@@ -181,7 +181,7 @@ def test_reported_model_updates_only_the_mirror(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch, unit_model_reads: Mock
 ) -> None:
     forward = Mock(side_effect=AssertionError("must not forward to the unit"))
-    monkeypatch.setattr("pioreactor.web.api.put_into", forward)
+    monkeypatch.setattr("pioreactor.web.api.put_into_unit", forward)
     body = {
         "model_name": WORKER_ONLY_MODEL["model_name"],
         "model_version": WORKER_ONLY_MODEL["model_version"],

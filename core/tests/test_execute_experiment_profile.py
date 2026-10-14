@@ -262,7 +262,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
     mock__load_experiment_profile.return_value = profile
 
     def fake_post_into(
-        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str]
+        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str], body: None
     ) -> Response:
         assert address == "unit1.local"
         assert headers == {"X-Pioreactor-Target": "unit1"}
@@ -275,7 +275,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
         )
 
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: object
     ) -> Response:
         assert address == "unit1.local"
         assert endpoint == "/unit_api/task_results/task-1"
@@ -297,11 +297,11 @@ def test_execute_experiment_profile_start_failure_is_logged(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=fake_post_into,
         ),
         patch(
-            "pioreactor.actions.leader.experiment_profile.get_from",
+            "pioreactor.pubsub.get_from",
             side_effect=fake_get_from,
         ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
@@ -331,7 +331,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             return_value=Response(
                 "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
                 409,
@@ -374,7 +374,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=HTTPException("[Errno 101] Network is unreachable"),
         ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
@@ -407,7 +407,7 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=[
                 HTTPException("[Errno 111] Connection refused"),
                 Response(
@@ -444,7 +444,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             return_value=Response(
                 "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
                 202,
@@ -453,7 +453,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
             ),
         ) as mock_post_into,
         patch(
-            "pioreactor.actions.leader.experiment_profile.get_from",
+            "pioreactor.pubsub.get_from",
             side_effect=HTTPException("timed out"),
         ),
         caplog.at_level("ERROR"),

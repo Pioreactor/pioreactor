@@ -26,11 +26,11 @@ from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import get_from
 from pioreactor.pubsub import get_from_leader
+from pioreactor.pubsub import get_from_unit
 from pioreactor.pubsub import patch_into_leader
-from pioreactor.pubsub import post_into
 from pioreactor.pubsub import post_into_leader
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.job_manager import ClusterJobManager
@@ -184,10 +184,8 @@ def _wait_for_unit_task_result(
             return {"ok": True}
         return None
 
-    address = resolve_to_address(unit)
-
     for _ in range(max_attempts):
-        response = get_from(address, result_url_path, timeout=timeout)
+        response = get_from_unit(unit, result_url_path, timeout=timeout)
         if not response.ok:
             raise HTTPException(summarize_error_response(response))
 
@@ -735,10 +733,10 @@ def start_job(
             address = resolve_to_address(unit)
             for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
                 try:
-                    response = post_into(
-                        address,
+                    response = post_into_unit(
+                        unit,
                         f"/unit_api/jobs/run/job_name/{job_name}",
-                        headers={"X-Pioreactor-Target": unit},
+                        address=address,
                         json={
                             "options": evaluated_options,
                             "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
@@ -879,10 +877,9 @@ def stop_job(
             logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
         else:
             logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
-            response = post_into(
-                resolve_to_address(unit),
+            response = post_into_unit(
+                unit,
                 "/unit_api/jobs/stop",
-                headers={"X-Pioreactor-Target": unit},
                 json={"job_name": job_name, "experiment": experiment},
             )
             if not response.ok:

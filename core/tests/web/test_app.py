@@ -216,7 +216,7 @@ def test_system_fanout_task_result_returns_unit_envelope(
             return {"success": True}
 
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
-    monkeypatch.setattr(tasks, "post_into", lambda *_args, **_kwargs: DummyUnitResponse())
+    monkeypatch.setattr("pioreactor.pubsub.post_into", lambda *_args, **_kwargs: DummyUnitResponse())
 
     response = client.post("/api/units/unit1/system/reboot")
 
@@ -236,7 +236,7 @@ def test_config_proxy_rejects_unregistered_unit_target(client: FlaskClient, monk
     def fail_get_from(*_args, **_kwargs) -> None:
         raise AssertionError("invalid unit target should not be proxied")
 
-    monkeypatch.setattr("pioreactor.web.api.get_from", fail_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fail_get_from)
 
     response = client.get("/api/config/units/203.0.113.10/specific")
 
@@ -249,7 +249,7 @@ def test_calibration_session_proxy_rejects_unregistered_worker_target(
     def fail_post_into(*_args, **_kwargs) -> None:
         raise AssertionError("invalid worker target should not be proxied")
 
-    monkeypatch.setattr("pioreactor.web.api.post_into", fail_post_into)
+    monkeypatch.setattr("pioreactor.pubsub.post_into", fail_post_into)
 
     response = client.post(
         "/api/workers/203.0.113.10/calibrations/sessions",
@@ -1889,9 +1889,10 @@ def test_update_specific_config_for_worker_saves_snapshot(
     from pioreactor.mureq import Response as MureqResponse
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
-        mod,
-        "put_into",
+        "pioreactor.pubsub.put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             200,
@@ -1990,9 +1991,10 @@ def test_update_specific_config_for_worker_propagates_validation_error(
     from pioreactor.mureq import Response as MureqResponse
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
-        mod,
-        "put_into",
+        "pioreactor.pubsub.put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             400,
@@ -2023,9 +2025,10 @@ def test_update_specific_config_for_worker_rejects_unstructured_worker_error(
     from pioreactor.mureq import Response as MureqResponse
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
-        mod,
-        "put_into",
+        "pioreactor.pubsub.put_into",
         lambda *_args, **_kwargs: MureqResponse(
             "http://unit1.local:4999/unit_api/config/specific",
             400,
@@ -2419,7 +2422,9 @@ def test_experiment_camera_status_proxy_fetches_worker_experiment_status(
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/status")
 
@@ -2463,6 +2468,8 @@ def test_camera_focus_preview_proxy_preserves_image_content_type(client, monkeyp
     FakeStreamingResponse.headers["Content-Length"] = "13"
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
         mod,
         "yield_response",
@@ -2510,7 +2517,9 @@ def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatc
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills")
 
@@ -2572,7 +2581,9 @@ def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: Mo
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg")
 
@@ -2608,7 +2619,9 @@ def test_delete_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "delete_from", fake_delete_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.delete_from", fake_delete_from)
 
     response = client.delete("/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg")
 
@@ -2648,7 +2661,9 @@ def test_rename_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "patch_into", fake_patch_into)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.patch_into", fake_patch_into)
 
     response = client.patch(
         "/api/workers/unit1/camera/experiments/experiment%20a/stills/image%201.jpg",
@@ -2700,6 +2715,8 @@ def test_zipped_camera_stills_proxy_preserves_zip_content_type(client, monkeypat
         return FakeStreamingResponseContext()
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(mod, "yield_response", fake_yield_response)
 
     response = client.get("/api/workers/unit1/camera/experiments/experiment%20a/stills.zip")
@@ -2743,6 +2760,8 @@ def test_zipped_camera_stills_proxy_preserves_worker_error_details(client, monke
             return None
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
     monkeypatch.setattr(
         mod,
         "yield_response",
@@ -2781,7 +2800,9 @@ def test_task_result_proxy_fetches_worker_task_result(client, monkeypatch: Monke
         )
 
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     response = client.get("/api/workers/unit1/task_results/task-1")
 
@@ -3451,7 +3472,7 @@ def test_get_settings_api(client, monkeypatch: MonkeyPatch) -> None:
         )
 
     monkeypatch.setattr("pioreactor.web.tasks.resolve_to_address", lambda unit: unit)
-    monkeypatch.setattr("pioreactor.web.tasks.get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
 
     r = client.get("/api/workers/$broadcast/jobs/settings/job_name/stirring/experiments/exp1")
     r = client.get(r.json["result_url_path"])
@@ -3486,8 +3507,9 @@ def test_get_job_descriptors_for_worker_proxies_unit_api(client, monkeypatch: Mo
             b'[{"job_name":"worker_plugin","display_name":"Worker plugin","display":true,"published_settings":[]}]',
         )
 
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
 
     response = client.get("/api/workers/unit1/jobs/descriptors")
 
@@ -3514,8 +3536,9 @@ def test_get_settings_descriptors_for_worker_proxies_unit_api(client, monkeypatc
             b'[{"key":"worker_settings","display_name":"Worker settings","display":true,"published_settings":[]}]',
         )
 
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
 
     response = client.get("/api/workers/unit1/settings/descriptors")
 
@@ -3562,8 +3585,9 @@ def test_get_automation_descriptors_for_worker_proxies_unit_api(client, monkeypa
             b'[{"automation_name":"worker_automation","display_name":"Worker automation","description":"Worker-only automation","fields":[]}]',
         )
 
-    monkeypatch.setattr(mod, "get_from", fake_get_from)
+    monkeypatch.setattr("pioreactor.pubsub.get_from", fake_get_from)
     monkeypatch.setattr(mod, "resolve_to_address", lambda unit: f"{unit}.local")
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
 
     response = client.get("/api/workers/unit1/automations/descriptors/dosing")
 

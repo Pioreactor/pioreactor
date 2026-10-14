@@ -1326,7 +1326,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
 
   const handleRemove = () => {
     confirm({
-      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove its inventory record and shared configuration. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
+      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, remove shared configuration, and reboot. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
