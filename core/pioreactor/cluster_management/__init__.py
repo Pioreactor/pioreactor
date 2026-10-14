@@ -223,7 +223,7 @@ def add_worker(
             logger.error(message)
             raise click.ClickException(message) from error
 
-    logger.notice(f"New pioreactor {hostname} successfully added to cluster.")
+    logger.notice(f"New pioreactor {hostname} successfully added to cluster. {hostname} will reboot now.")
 
 
 @click.command(name="remove", short_help="remove a pioreactor worker")
