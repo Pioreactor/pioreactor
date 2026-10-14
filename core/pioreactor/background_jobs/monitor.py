@@ -513,7 +513,7 @@ class Monitor(LongRunningBackgroundJob):
 
     def on_ready(self) -> None:
         self.flicker_led_response_okay()
-        self.logger.notice(f"`{self.unit}` is online and ready.")
+        self.logger.notice("Online and ready.")
 
         # we can delay this check until ready.
 

@@ -38,7 +38,7 @@ logger = create_logger(
 )
 
 
-logger.debug(f"Starting {NAME}={VERSION} on {HOSTNAME}...")
+logger.debug(f"Starting {NAME}={VERSION} on unit {HOSTNAME}...")
 
 
 try:

@@ -9,6 +9,7 @@ const KEYWORD_ENTITY_TYPES = {
   pioreactor: "pioreactor",
   worker: "pioreactor",
   unit: "pioreactor",
+  leader: "pioreactor",
 };
 
 // Matches the word directly before an opening backtick, allowing a plural such as "workers" or "Worker(s)".

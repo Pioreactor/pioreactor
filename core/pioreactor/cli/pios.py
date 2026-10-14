@@ -877,7 +877,7 @@ if am_I_leader() or is_testing_env():
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         def _thread_function(unit: str) -> bool:
-            logger.debug(f"Syncing configs on `{unit}`...")
+            logger.debug(f"Syncing configs on unit `{unit}`...")
             try:
                 sync_config_files(unit, shared, specific, persist=not skip_save)
                 return True
