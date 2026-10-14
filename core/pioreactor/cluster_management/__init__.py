@@ -304,11 +304,31 @@ def update_active(worker: pt.Unit, active: int) -> None:
         click.echo(f"Updated {worker}'s active to {bool(active)}")
 
 
-@click.command(name="update-model", short_help="update worker model metadata")
+@click.group(name="model", short_help="get or set a worker's model")
+def worker_model() -> None:
+    pass
+
+
+@worker_model.command(name="get", short_help="print the worker's model assignment as JSON")
 @click.argument("worker")
-@click.option("--model-name", "-m", required=True)
-@click.option("--model-version", "-v", required=True)
-def update_model(worker: pt.Unit, model_name: str, model_version: str) -> None:
+def get_worker_model(worker: pt.Unit) -> None:
+    try:
+        r = get_from_leader(f"/api/workers/{worker}/model")
+        r.raise_for_status()
+    except HTTPErrorStatus:
+        raise click.ClickException(summarize_error_response(r))
+    except HTTPException:
+        raise click.ClickException("Not able to connect to leader's backend.")
+
+    data = r.json()
+    click.echo(dumps({"model_name": data["model_name"], "model_version": data["model_version"]}).decode())
+
+
+@worker_model.command(name="set", short_help="update a worker's model")
+@click.argument("worker")
+@click.argument("model_name")
+@click.argument("model_version")
+def set_worker_model(worker: pt.Unit, model_name: str, model_version: str) -> None:
     try:
         r = put_into_leader(
             f"/api/workers/{worker}/model",

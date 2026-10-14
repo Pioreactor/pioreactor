@@ -156,10 +156,6 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
           </Button>
         )}
       />
-
-        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
-          {unit}
-        </Typography>
         <Box sx={{mb: 0, display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>

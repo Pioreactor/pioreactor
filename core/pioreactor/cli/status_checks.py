@@ -58,6 +58,7 @@ def collect_status_checks() -> list[StatusCheck]:
 
     checks = [
         identity_check,
+        check_is_active(),
         model_check,
         check_hardware_model(model),
         check_version(),
@@ -136,6 +137,21 @@ def check_identity() -> tuple[StatusCheck, str]:
     if problems:
         return StatusCheck("identity", "WARN", f"{details} ({'; '.join(problems)})"), role
     return StatusCheck("identity", "OK", details), role
+
+
+def check_is_active() -> StatusCheck:
+    try:
+        is_active = whoami.is_active(whoami.get_unit_name())
+    except exc.NoWorkerFoundError:
+        # ex: a leader that isn't also a worker.
+        return StatusCheck("worker:active", "OK", "N/A")
+    except Exception as e:
+        return StatusCheck("worker:active", "WARN", f"lookup failed ({e})")
+
+    if not is_active:
+        # inactive workers refuse to start activities.
+        return StatusCheck("worker:active", "WARN", "inactive")
+    return StatusCheck("worker:active", "OK", "active")
 
 
 def check_model() -> tuple[StatusCheck, Model | None]:

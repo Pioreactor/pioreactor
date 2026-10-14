@@ -3,12 +3,15 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from pioreactor import exc
+from pioreactor.cli.status_checks import check_is_active
 from pioreactor.cli.status_checks import check_sqlite_storage
 from pioreactor.cli.status_checks import ExpectedOwner
 from pioreactor.cli.status_checks import StatusCheck
 from pioreactor.cli.status_checks import worst_status
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
+from pioreactor.mureq import HTTPException
 
 UNKNOWN_OWNER = ExpectedOwner(ids=None, description="pioreactor:www-data (missing on this system)")
 
@@ -76,3 +79,29 @@ def test_check_sqlite_storage_warns_on_wrong_owner(tmp_path: Path) -> None:
     assert check.status == "WARN"
     assert "dir_owner!= pioreactor:www-data" in check.details
     assert "db_owner!= pioreactor:www-data" in check.details
+
+
+def raise_error(error: Exception):
+    def _raise(_unit: str) -> bool:
+        raise error
+
+    return _raise
+
+
+@pytest.mark.parametrize(
+    ("is_active", "expected"),
+    [
+        (lambda _unit: True, StatusCheck("worker:active", "OK", "active")),
+        (lambda _unit: False, StatusCheck("worker:active", "WARN", "inactive")),
+        (raise_error(exc.NoWorkerFoundError("not in inventory")), StatusCheck("worker:active", "OK", "N/A")),
+        (
+            raise_error(HTTPException("connection refused")),
+            StatusCheck("worker:active", "WARN", "lookup failed (connection refused)"),
+        ),
+    ],
+)
+def test_check_is_active_reports_worker_active_state(
+    monkeypatch: pytest.MonkeyPatch, is_active, expected: StatusCheck
+) -> None:
+    monkeypatch.setattr("pioreactor.whoami.is_active", is_active)
+    assert check_is_active() == expected

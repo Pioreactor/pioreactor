@@ -2,6 +2,7 @@
 
 #### Breaking changes
 
+ - Replaced `pio workers update-model WORKER -m NAME -v VERSION` with `pio workers model set WORKER NAME VERSION`. Added `pio workers model get WORKER` to print the worker's model assignment as JSON.
  - Adding a worker now requires it to run the same software version as the leader; an older worker is rejected with a message to update it first.
  - Changing a Pioreactor's model now requires the unit to be reachable and its activities to be stopped. Update workers before changing their models through the leader.
  - Bioreactor MQTT topics, `pioreactor/<unit>/<experiment>/bioreactor/<variable>`, now publish `{"timestamp": ..., "value": ...}` instead of a bare number. Experiment profile expressions that read these topics need `.value`, for example `${{ ::bioreactor:current_volume_ml.value }}`.
