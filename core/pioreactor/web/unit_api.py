@@ -1947,7 +1947,7 @@ def get_all_calibrations() -> ResponseReturnValue:
                 else:
                     all_calibrations[device] = [cal]
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_all_calibrations")
+                publish_to_error_log(f"Error reading calibration `{file.stem}`: {e}", "get_all_calibrations")
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
 
@@ -2035,7 +2035,7 @@ def get_all_estimators() -> ResponseReturnValue:
                 else:
                     all_estimators[device] = [estimator]
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_all_estimators")
+                publish_to_error_log(f"Error reading estimator `{file.stem}`: {e}", "get_all_estimators")
 
     return attach_cache_control(jsonify(all_estimators), max_age=10)
 

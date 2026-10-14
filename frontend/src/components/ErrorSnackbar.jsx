@@ -11,6 +11,7 @@ import { Box, Chip } from "@mui/material";
 import PioreactorIcon from "./PioreactorIcon";
 import PioreactorsIcon from "./PioreactorsIcon";
 import LogMessage, { useClusterUnits } from "./LogMessage";
+import { splitTraceback } from "../utils/logMessage";
 
 const HEAD_LINE_COUNT = 2;
 const TAIL_LINE_COUNT = 5;
@@ -156,7 +157,7 @@ const LogAlertContent = React.forwardRef(function LogAlertContent({
             wordBreak: "break-word",
           }}
         >
-          <LogMessage message={formattedMessage} units={clusterUnits} experiment={experiment} />
+          <LogMessage message={formattedMessage} units={clusterUnits} experiment={experiment} unit={unit} showTraceback={false} />
         </Box>
         {showLogsHelper && (
           <Box sx={{ mt: 8 }}>
@@ -221,7 +222,8 @@ function ErrorSnackbar() {
     const alertStore = alertStoreRef.current;
     const alertLevel = level === "NOTICE" ? "SUCCESS" : level;
     const displayUnit = unit === "$broadcast" ? "All Pioreactors" : unit;
-    const formattedMessage = formatLogMessage(message);
+    // Line truncation would cut a traceback apart; LogMessage drops the traceback itself instead.
+    const formattedMessage = splitTraceback(message).traceback === null ? formatLogMessage(message) : message;
     const dedupeKey = getDedupeKey({ unit, experiment, task, level, message });
     const previousAlert = alertStore.get(dedupeKey);
     const count = (previousAlert?.count ?? 0) + 1;

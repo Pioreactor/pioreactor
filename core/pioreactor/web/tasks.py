@@ -69,6 +69,10 @@ from pioreactor.mureq import Response
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.plugin_management import get_plugins
+from pioreactor.plugin_management.utils import get_package_plugin_display_name
+from pioreactor.plugin_management.utils import get_plugin_artifact_display_name
+from pioreactor.plugin_management.utils import get_plugin_display_name
+from pioreactor.plugin_management.utils import get_python_plugin_file_display_name
 from pioreactor.pubsub import delete_from_unit
 from pioreactor.pubsub import get_from_unit
 from pioreactor.pubsub import patch_into_unit
@@ -584,7 +588,7 @@ def initialized() -> None:
     try:
         plugins = get_plugins()
         for plugin in plugins:
-            logger.debug(f"Loading plugin {plugin}")
+            logger.debug(f"Loading plugin `{plugin}`")
         start_camera_warmer()
     except Exception:
         raise
@@ -1392,7 +1396,7 @@ def kill_jobs_task(
 def install_plugin_task(name: str, source: str | None = None, version: str | None = None) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
-    logger.debug(f"Installing plugin {name}.")
+    logger.debug(f"Installing plugin `{get_package_plugin_display_name(name)}`.")
     try:
         install_plugin(name, source=source, version=version)
         return True
@@ -1412,7 +1416,8 @@ def _install_plugin_from_usb(filepath: str) -> bool:
     from pioreactor.plugin_management.install_plugin import install_plugin
 
     plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
-    logger.debug(f"Installing plugin from USB {plugin_path}.")
+    display_name = get_plugin_artifact_display_name(plugin_path)
+    logger.debug(f"Installing plugin `{display_name}` from USB.")
     try:
         if plugin_path.suffix == ".whl":
             plugin_name, _version = usb_utils.parse_wheel_name(plugin_path.name)
@@ -1422,15 +1427,16 @@ def _install_plugin_from_usb(filepath: str) -> bool:
         clear_plugin_cache()
         return True
     except Exception as exc:
-        logger.debug(f"Installing plugin from USB {plugin_path} failed: {exc}")
+        logger.debug(f"Installing plugin `{display_name}` from USB failed: {exc}")
         return False
 
 
 def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> dict[str, Any]:
     plugin_path = usb_utils.resolve_usb_plugin_artifact(filepath)
     remote_source = f"/tmp/{plugin_path.name}"
+    display_name = get_plugin_artifact_display_name(plugin_path)
 
-    logger.debug(f"Copying USB plugin {plugin_path} to {unit}:{remote_source}.")
+    logger.debug(f"Copying plugin `{display_name}` from USB to `{unit}`.")
     cp_file_across_cluster(unit, plugin_path.as_posix(), remote_source, timeout=60)
 
     if plugin_path.suffix == ".whl":
@@ -1442,7 +1448,7 @@ def _install_plugin_from_leader_usb_on_worker(unit: pt.Unit, filepath: str) -> d
         payload = {"filename": plugin_path.name}
         install_endpoint = "/unit_api/plugins/install-python-file-from-leader-copy"
 
-    logger.debug(f"Installing USB plugin {plugin_name} on `{unit}` from {remote_source}.")
+    logger.debug(f"Installing plugin `{display_name}` from USB on `{unit}`.")
     response = post_into_unit(unit, install_endpoint, json=payload, timeout=60)
     response.raise_for_status()
 
@@ -1466,6 +1472,8 @@ def install_plugin_from_leader_usb_across_units_task(
     if not units:
         return _reduce_multicast_results(units, False, [])
 
+    # only for log messages; each unit validates the path itself, so don't fail the whole task here.
+    display_name = get_plugin_artifact_display_name(Path(filepath))
     ordered_results: list[Any] = []
     for unit in units:
         try:
@@ -1474,7 +1482,9 @@ def install_plugin_from_leader_usb_across_units_task(
             else:
                 ordered_results.append(_install_plugin_from_leader_usb_on_worker(unit, filepath))
         except Exception as exc:
-            logger.debug(f"Installing USB plugin on `{unit}` failed: {exc}", exc_info=True)
+            logger.debug(
+                f"Installing plugin `{display_name}` from USB on `{unit}` failed: {exc}", exc_info=True
+            )
             ordered_results.append(exc)
 
     return _reduce_multicast_results(units, False, ordered_results)
@@ -1500,7 +1510,9 @@ def install_python_plugin_file_from_leader_copy_task(filename: str) -> bool:
         clear_plugin_cache()
         return True
     except Exception as exc:
-        logger.debug(f"Installing copied Python plugin {plugin_path} failed: {exc}")
+        logger.debug(
+            f"Installing plugin `{get_python_plugin_file_display_name(plugin_path)}` from USB failed: {exc}"
+        )
         return False
 
 
@@ -1523,7 +1535,7 @@ def clear_plugin_cache() -> None:
 def uninstall_plugin_task(name: str) -> bool:
     from pioreactor.plugin_management.uninstall_plugin import uninstall_plugin
 
-    logger.debug(f"Uninstalling plugin {name}.")
+    logger.debug(f"Uninstalling plugin `{get_plugin_display_name(name)}`.")
     try:
         uninstall_plugin(name)
         return True

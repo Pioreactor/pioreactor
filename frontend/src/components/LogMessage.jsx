@@ -1,18 +1,25 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import Collapse from "@mui/material/Collapse";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PlayCircleOutlinedIcon from "@mui/icons-material/PlayCircleOutlined";
 import { Link } from "react-router";
 import PioreactorIcon from "./PioreactorIcon";
 import CalibrationIcon from "./CalibrationIcon";
 import EstimatorIcon from "./EstimatorIcon";
-import { parseLogMessage } from "../utils/logMessage";
+import PluginIcon from "./PluginIcon";
+import { useExperiment } from "../providers/ExperimentContext";
+import { parseLogMessage, splitTraceback } from "../utils/logMessage";
 
 const ENTITY_ICONS = {
   pioreactor: PioreactorIcon,
   experiment: PlayCircleOutlinedIcon,
   calibration: CalibrationIcon,
   estimator: EstimatorIcon,
+  plugin: PluginIcon,
 };
 
 // Compact enough to sit inside a line of 13px log text without stretching the row much.
@@ -69,13 +76,15 @@ export function useClusterUnits() {
   return units;
 }
 
-function EntityChip({ type, label }) {
+function EntityChip({ type, label, unit }) {
+  const { allExperiments, selectExperiment } = useExperiment() ?? {};
   const Icon = ENTITY_ICONS[type];
   const dataProps = {
     pioreactor: { "data-pioreactor-unit": label },
-    experiment: { "data-experiment": label },
+    experiment: { "data-experiment-name": label },
     calibration: { "data-calibration-name": label },
     estimator: { "data-estimator-name": label },
+    plugin: { "data-plugin-name": label },
   }[type];
 
   if (type === "pioreactor") {
@@ -93,13 +102,48 @@ function EntityChip({ type, label }) {
     );
   }
 
+  // Experiments have no URL of their own: like the Experiments page, select the experiment and open its overview.
+  if (type === "experiment" && allExperiments?.some((experiment) => experiment.experiment === label)) {
+    return (
+      <Chip
+        size="small"
+        icon={<Icon />}
+        label={label}
+        clickable
+        component={Link}
+        to="/overview"
+        onClick={() => selectExperiment(label)}
+        sx={INLINE_CHIP_SX}
+        {...dataProps}
+      />
+    );
+  }
+
+  // Plugins have no page of their own: open the Plugins page for the Pioreactor that logged the message.
+  if (type === "plugin" && unit) {
+    return (
+      <Chip
+        size="small"
+        icon={<Icon />}
+        label={label}
+        clickable
+        component={Link}
+        to={`/plugins/${unit}`}
+        sx={INLINE_CHIP_SX}
+        {...dataProps}
+      />
+    );
+  }
+
   return <Chip size="small" icon={<Icon />} label={label} sx={INLINE_CHIP_SX} {...dataProps} />;
 }
 
-function LogMessage({ message, units, experiment }) {
+const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
+
+function MessageSegments({ text, units, experiment, unit }) {
   const segments = useMemo(
-    () => parseLogMessage(message, { units, experiment }),
-    [message, units, experiment]
+    () => parseLogMessage(text, { units, experiment }),
+    [text, units, experiment]
   );
 
   return segments.map((segment, index) => {
@@ -113,8 +157,70 @@ function LogMessage({ message, units, experiment }) {
         </Box>
       );
     }
-    return <EntityChip key={index} type={segment.type} label={segment.text} />;
+    return <EntityChip key={index} type={segment.type} label={segment.text} unit={unit} />;
   });
+}
+
+function TracebackToggle({ traceback }) {
+  const [open, setOpen] = useState(false);
+  const ToggleIcon = open ? ExpandLessIcon : ExpandMoreIcon;
+
+  return (
+    <>
+      <Box>
+        <Button
+          size="small"
+          onClick={() => setOpen((isOpen) => !isOpen)}
+          aria-expanded={open}
+          sx={{ p: 0, minWidth: 0, fontSize: "inherit" }}
+        >
+          <ToggleIcon fontSize="small" sx={textIcon} /> {open ? "Hide traceback" : "Show traceback"}
+        </Button>
+      </Box>
+      <Collapse in={open} unmountOnExit>
+        <Box
+          component="pre"
+          sx={{
+            m: 0,
+            mt: 0.5,
+            p: 1,
+            fontFamily: "monospace",
+            fontSize: 12,
+            whiteSpace: "pre",
+            overflowX: "auto",
+            maxWidth: "100%",
+            bgcolor: "action.hover",
+            borderRadius: 1,
+          }}
+        >
+          {traceback}
+        </Box>
+      </Collapse>
+    </>
+  );
+}
+
+// Renders a log message with entity Chips. An appended traceback is reduced to its exception line,
+// with the full traceback behind a toggle, or omitted where there is no room for it (showTraceback={false}).
+function LogMessage({ message, units, experiment, unit, showTraceback = true }) {
+  const { summary, exceptionLine, traceback } = useMemo(() => splitTraceback(message), [message]);
+  const segmentProps = { units, experiment, unit };
+
+  if (traceback === null) {
+    return <MessageSegments text={summary} {...segmentProps} />;
+  }
+
+  return (
+    <>
+      {summary && <MessageSegments text={summary} {...segmentProps} />}
+      {exceptionLine && (
+        <Box component="span" sx={{ display: "block", fontFamily: "monospace", fontSize: "0.95em" }}>
+          <MessageSegments text={exceptionLine} {...segmentProps} />
+        </Box>
+      )}
+      {showTraceback && <TracebackToggle traceback={traceback} />}
+    </>
+  );
 }
 
 export default LogMessage;

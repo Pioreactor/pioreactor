@@ -278,6 +278,8 @@ from surrounding prose.
 | Experiment collection | `ExperimentsIcon` |
 | Calibration | `CalibrationIcon` |
 | Estimator | `EstimatorIcon` |
+| Plugin | `PluginIcon` |
+| Plugin collection | `PluginsIcon` |
 | Experiment profile | `ExperimentProfileIcon` |
 
 Standard Pioreactor label:
@@ -321,10 +323,11 @@ Rules:
 - Log messages mark entity names with backticks, such as ``Saved calibration
   `od-cal-1` ``. `LogMessage` renders these as compact inline Chips: Pioreactors
   are recognized from the cluster's units or a preceding `Pioreactor`, `worker`,
-  or `unit`; experiments, calibrations, and estimators from the preceding word
-  `experiment`, `calibration`, or `estimator`, and experiments also by the row's
-  experiment. Other backticked text renders as inline code. Copying a log row
-  copies the raw message.
+  or `unit`; experiments, calibrations, estimators, and plugins from the
+  preceding word `experiment`, `calibration`, `estimator`, or `plugin`, and
+  experiments also by the row's experiment. Plugin Chips link to the Plugins
+  page for the row's Pioreactor. Other backticked text renders as inline code.
+  Copying a log row copies the raw message.
 
 Exceptions:
 

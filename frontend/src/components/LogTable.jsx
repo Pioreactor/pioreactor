@@ -204,7 +204,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                     </StyledTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level} data-copy-value={log.message}>
-                      <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} />
+                      <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
                     </StyledTableCell>
                   </ZebraTableRow>
                   {listOfLogs[i + 1] &&

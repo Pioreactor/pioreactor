@@ -184,7 +184,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level} data-copy-value={log.message}>
-                      <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} />
+                      <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={unit} />
                     </StyledTableCell>
                   </ZebraTableRow>
                   {listOfLogs[i + 1] &&

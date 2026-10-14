@@ -240,7 +240,7 @@ def test_plugin_assets_use_entry_point_module_when_distribution_name_differs(
     assert result.returncode == 0, result.stderr
     assert_plugin_install_contract(environment)
     environment.logger.debug.assert_any_call(
-        f"Resolved plugin {environment.plugin_name} package directory to {environment.install_folder}."
+        f"Resolved plugin `{environment.plugin_name}` package directory to {environment.install_folder}."
     )
     environment.logger.debug.assert_any_call(
         f"Running plugin post-install hook {environment.install_folder / 'post_install.sh'}."
@@ -480,7 +480,7 @@ def test_uninstall_plugin_warns_when_package_is_not_installed(
     uninstall_plugin_module.uninstall_plugin("pioreactor-demo-plugin")
 
     uninstall_package.assert_called_once_with("pioreactor-demo-plugin")
-    assert "Unable to uninstall: plugin pioreactor-demo-plugin is not installed." in caplog.text
+    assert "Unable to uninstall: plugin `pioreactor-demo-plugin` is not installed." in caplog.text
 
 
 def assert_plugin_install_contract(plugin_package_environment: PluginPackageEnvironment) -> None:
