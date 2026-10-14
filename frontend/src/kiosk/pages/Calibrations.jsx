@@ -29,7 +29,6 @@ function ProtocolSheet({ protocol, onClose, onStart }) {
             Cancel
           </button>
           <button type="button" className="btn primary" onClick={() => onStart(protocol)}>
-            <Icon name="play" />
             Start calibration
           </button>
         </>

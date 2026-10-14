@@ -4354,9 +4354,12 @@ def setup_worker_pioreactor() -> DelayedResponseReturnValue:
     JSON body:
     {
       "name": "pio01",
-      "version": "24.0.0",
+      "version": "1.5",
       "model": "pioreactor_40ml"
     }
+
+    `model` and `version` (the model's version) are optional, together: without them, the
+    unit keeps the model it already has and reports it while joining.
     """
     data = decode_request_body(structs.SetupWorkerRequest)
     new_name = data.name
@@ -4371,6 +4374,9 @@ def setup_worker_pioreactor() -> DelayedResponseReturnValue:
             cause="Worker names must be alphanumeric hostnames.",
             remediation="Use the Pioreactor hostname, without a .local suffix. Don't use the IP address, or any non-alphanumeric characters.",
         )
+
+    if (model is None) != (version is None):
+        abort_with(400, "Provide both model and version, or neither.")
 
     if ipv4_address:
         try:

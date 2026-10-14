@@ -357,6 +357,29 @@ def test_setup_worker_returns_a_task_to_poll(client: FlaskClient, monkeypatch: M
     assert captured["address"] == "192.168.1.22"
 
 
+def test_setup_worker_without_a_model_lets_the_unit_report_its_own(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    captured: dict[str, object] = {}
+
+    def fake_add_new_pioreactor(
+        name: str, version: str | None, model: str | None, address: str | None = None
+    ) -> SimpleNamespace:
+        captured["model"] = (model, version)
+        return SimpleNamespace(id="setup-task")
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.add_new_pioreactor", fake_add_new_pioreactor)
+
+    response = client.post("/api/workers/setup", json={"name": "new-unit"})
+    assert response.status_code == 202
+    assert captured["model"] == (None, None)
+
+    response = client.post("/api/workers/setup", json={"name": "new-unit", "model": "pioreactor_40ml"})
+    assert response.status_code == 400
+
+
 @pytest.mark.parametrize("ipv4_address", ["999.1.1.1", "not-an-ip", "2001:db8::1"])
 def test_setup_worker_rejects_invalid_ipv4_address(
     client: FlaskClient, monkeypatch: MonkeyPatch, ipv4_address: str

@@ -6,14 +6,22 @@ import { Icon } from "../icons";
 import { useKeyboard } from "../Keyboard";
 import { Empty, Segmented, useToast } from "../ui";
 
-const LEVELS = ["debug", "info", "notice", "warning", "error"];
-const LEVEL_OPTIONS = [
-  { value: "info", label: "All" },
-  { value: "notice", label: "Notice+" },
-  { value: "warning", label: "Warnings" },
-  { value: "error", label: "Errors" },
+const LEVELS = ["info", "notice", "warning", "error"];
+// Where a log came from: this experiment's activities, or this unit's system
+// (updates, cluster membership, the monitor), which logs under "$experiment".
+const SOURCES = [
+  { value: "all", label: "All" },
+  { value: "experiment", label: "Experiment" },
+  { value: "system", label: "System" },
 ];
-const MAX_ROWS = 100; // recent_logs caps lines at 100 and covers the last 24 hours
+const MAX_ROWS = 100; // each history endpoint returns at most 100 rows
+
+function historyPath(source, unit, experiment) {
+  if (source === "system") return `/units/${enc(unit)}/system_logs?min_level=info`;
+  if (source === "experiment") return `/workers/${enc(unit)}/experiments/${enc(experiment)}/logs?min_level=info`;
+  // This experiment and system logs together, from the last 24 hours.
+  return `/workers/${enc(unit)}/experiments/${enc(experiment)}/recent_logs?min_level=info&lines=${MAX_ROWS}`;
+}
 const FLUSH_MS = 500;
 
 function parseUtc(timestamp) {
@@ -32,7 +40,9 @@ export default function Logs() {
   const { unit, experiment } = useKiosk();
   const openKeyboard = useKeyboard();
   const toast = useToast();
-  const [minLevel, setMinLevel] = useState("info");
+  const [chosenSource, setSource] = useState("all");
+  // System logs don't need an experiment; the others do.
+  const source = experiment ? chosenSource : "system";
   const [logs, setLogs] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
@@ -40,13 +50,11 @@ export default function Logs() {
   const timer = useRef(null);
 
   useEffect(() => {
-    if (!experiment) return undefined;
+    if (experiment === undefined) return undefined;
     const controller = new AbortController();
     setLogs(null);
     setError(null);
-    leaderApi(`/workers/${enc(unit)}/experiments/${enc(experiment)}/recent_logs?min_level=${minLevel}&lines=${MAX_ROWS}`, {
-      signal: controller.signal,
-    })
+    leaderApi(historyPath(source, unit, experiment), { signal: controller.signal })
       .then((rows) =>
         setLogs(
           rows.map((row, index) => ({
@@ -64,16 +72,15 @@ export default function Logs() {
         setLogs([]);
       });
     return () => controller.abort();
-  }, [unit, experiment, minLevel]);
+  }, [unit, experiment, source]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  // This unit's logs for the experiment, plus its experiment-independent logs.
   const topics = useMemo(() => {
-    if (!experiment) return [];
-    const levels = LEVELS.slice(LEVELS.indexOf(minLevel));
-    return [experiment, "$experiment"].flatMap((exp) => levels.map((level) => `pioreactor/${unit}/${exp}/logs/+/${level}`));
-  }, [unit, experiment, minLevel]);
+    if (experiment === undefined) return [];
+    const experiments = { all: [experiment, "$experiment"], experiment: [experiment], system: ["$experiment"] }[source];
+    return experiments.flatMap((exp) => LEVELS.map((level) => `pioreactor/${unit}/${exp}/logs/+/${level}`));
+  }, [unit, experiment, source]);
 
   // New entries are buffered and added in one update, so a burst doesn't re-render per line.
   useTopicStream(topics, (_topic, payload, packet) => {
@@ -120,21 +127,23 @@ export default function Logs() {
       },
     });
 
-  if (!experiment) return <Empty>Join an experiment to see its logs.</Empty>;
-
   return (
     <div className="content">
-      <div className="toolbar">
-        <Segmented label="Minimum level" options={LEVEL_OPTIONS} value={minLevel} onChange={setMinLevel} />
-        <span className="grow" />
-        <button type="button" className="btn" onClick={addNote}>
-          <Icon name="add" />
-          Add note
-        </button>
-      </div>
+      {experiment && (
+        <div className="toolbar">
+          <Segmented label="Source" options={SOURCES} value={source} onChange={setSource} />
+          <span className="grow" />
+          <button type="button" className="btn" onClick={addNote}>
+            <Icon name="add" />
+            Add note
+          </button>
+        </div>
+      )}
       {error && <div className="banner">Could not load earlier logs from the leader: {error}</div>}
       {logs === null && <Empty>Loading...</Empty>}
-      {logs !== null && logs.length === 0 && !error && <Empty>No logs in the last 24 hours.</Empty>}
+      {logs !== null && logs.length === 0 && !error && (
+        <Empty>{source === "all" ? "No logs in the last 24 hours." : "No logs yet."}</Empty>
+      )}
       {logs?.length > 0 && (
         <div className="list">
           {logs.map((log) => (

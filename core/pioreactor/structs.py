@@ -826,8 +826,9 @@ class UpdateAppFromReleaseArchiveRequest(Struct, forbid_unknown_fields=True):
 
 class SetupWorkerRequest(Struct, forbid_unknown_fields=True):
     name: str
-    version: str
-    model: str
+    # Both or neither. Without them, the unit keeps (and reports) the model it already has.
+    version: str | None = None
+    model: str | None = None
     ipv4_address: str | None = None
 
 

@@ -10,12 +10,12 @@ import { navigate, usePage } from "../router";
 import { fmt, readDisplay, RUNNING_STATES } from "../values";
 import AutomationSheet from "./AutomationSheet";
 import Dosing from "./Dosing";
-import Leds from "./Leds";
+import Leds, { AllLedsOff } from "./Leds";
 
 // One-shot actions at the bench. Their descriptors have display: false.
 const TOOLS = [
-  { job: "self_test", label: "Self-test" },
-  { job: "od_blank", label: "OD blank" },
+  { job: "self_test", label: "Self-test", action: "Run self-test" },
+  { job: "od_blank", label: "OD blank", action: "Run OD blank" },
 ];
 
 const PENDING_LABELS = { sleeping: "Pausing...", ready: "Resuming...", disconnected: "Stopping..." };
@@ -59,7 +59,6 @@ const JobRow = memo(function JobRow({ descriptor, state, pendingLabel, subtext, 
       <div className="job-actions">
         {!running && state !== "lost" && (
           <button type="button" className="btn primary" disabled={busy} onClick={() => onStart(descriptor)}>
-            <Icon name="play" />
             Start
           </button>
         )}
@@ -210,7 +209,7 @@ function Tools({ get }) {
               }}
             >
               <Icon name="tools" />
-              {running ? `${tool.label} running...` : `Run ${tool.label.toLowerCase()}`}
+              {running ? `${tool.label} running...` : tool.action}
             </AsyncButton>
           );
         })}
@@ -219,8 +218,9 @@ function Tools({ get }) {
   );
 }
 
-// The broker lives on the leader. Without it there are no live states, but this
-// unit still knows what it's running and can stop it.
+// Without the broker there are no live states, but this unit still knows what
+// it's running and can stop it. (Once workers bridge a local broker, losing the
+// leader no longer lands here: the screen keeps its broker and full control.)
 function OfflineJobs() {
   const toast = useToast();
   const running = useAsync((signal) => unitApi("/jobs/running", { signal }), [], { refreshMs: 5000 });
@@ -236,7 +236,8 @@ function OfflineJobs() {
   return (
     <>
       <div className="banner">
-        Can't reach the leader. Live readings are unavailable; activities running on this Pioreactor are listed below.
+        Can't reach the message broker, so live readings are unavailable. Activities running on this Pioreactor are
+        listed below.
       </div>
       {running.data && rows.length === 0 && <Empty>No activities are running.</Empty>}
       <div className="list">
@@ -290,7 +291,7 @@ const TABS = [
 ];
 
 export default function Activities() {
-  const { experiment, worker } = useKiosk();
+  const { experiment, role } = useKiosk();
   const connected = useBrokerConnected();
   const page = usePage();
   const tab = TABS.some((t) => t.value === page) ? page : "";
@@ -303,17 +304,26 @@ export default function Activities() {
       </div>
     );
   }
+  if (role === "unjoined") return <Empty>Activities start once this Pioreactor is in a cluster and an experiment.</Empty>;
   if (experiment === undefined) return <Empty>Waiting for the leader...</Empty>;
   if (experiment === null) {
-    return <Empty>This Pioreactor isn't assigned to an experiment. Tap the experiment button above to join one.</Empty>;
+    return (
+      <Empty>
+        <Icon name="experiment" className="empty-icon" />
+        <h1>Not in an experiment</h1>
+        {role === "worker"
+          ? "Tap the experiment button above to join one."
+          : "Tap the experiment button above to start a new one or join one."}
+      </Empty>
+    );
   }
 
   return (
     <div className="content">
-      {worker && !worker.is_active && <div className="banner">This Pioreactor is inactive. Activities can't be started.</div>}
       <div className="toolbar">
         <Segmented label="Activities section" options={TABS} value={tab} onChange={navigate} />
         <span className="grow" />
+        {tab === "leds" && <AllLedsOff />}
         <StopAll />
       </div>
       {tab === "" && (

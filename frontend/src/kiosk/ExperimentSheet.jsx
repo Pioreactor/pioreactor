@@ -1,47 +1,35 @@
 import { useState } from "react";
 import { useKiosk } from "./context";
 import { useAsync } from "./hooks";
-import { enc, leaderApi } from "./api";
+import {
+  assignUnit,
+  createExperiment,
+  endExperiment,
+  formatDate,
+  listExperiments,
+  listUnitsIn,
+  unassignUnit,
+  validateExperimentName,
+} from "./cluster";
 import { Icon } from "./icons";
 import { useKeyboard } from "./Keyboard";
-import { AsyncButton, Empty, ReadValue, Sheet, useConfirm, useToast } from "./ui";
+import { AsyncButton, Empty, ExperimentName, ReadValue, Sheet, useConfirm, useToast } from "./ui";
 
-function formatDate(timestamp) {
-  const ms = Date.parse(timestamp);
-  return Number.isFinite(ms) ? new Date(ms).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" }) : null;
-}
-
-const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
-// The leader's own rules (api.py _validate_experiment_name), checked before sending.
-function validateExperimentName(raw) {
-  const name = raw.trim();
-  if (!name) return "Enter a name.";
-  if (name.length >= 200) return "Use fewer than 200 characters.";
-  if (name.toLowerCase() === "current") return "\"current\" is reserved. Choose another name.";
-  if (name.startsWith("_testing")) return "Names can't start with \"_testing\".";
-  if (/[#$%+/?\\]/.test(name)) return "Names can't contain # $ % + / ? or \\.";
-  return null;
-}
-
-
-function ExperimentList({ exclude, actionLabel, onPick }) {
-  const experiments = useAsync((signal) => leaderApi("/experiments", { signal }), []);
+export function ExperimentList({ exclude, actionLabel, onPick, emptyText }) {
+  const experiments = useAsync((signal) => listExperiments(signal), []);
   const rows = (experiments.data || []).filter((row) => row.experiment !== exclude);
 
   if (experiments.error) return <Empty>Could not load experiments: {experiments.error}</Empty>;
   if (!experiments.data) return <Empty>Loading experiments...</Empty>;
-  if (rows.length === 0) return <Empty>No other experiments. Create one in the main web interface.</Empty>;
+  if (rows.length === 0) return <Empty>{emptyText}</Empty>;
 
   return (
     <div className="list">
       {rows.map((row) => (
         <div className="list-row" key={row.experiment}>
           <div className="grow">
-            <div className="truncate strong">{row.experiment}</div>
-            <div className="sub">
-              {formatDate(row.created_at)} · {plural(row.worker_count, "Pioreactor")}
-            </div>
+            <ExperimentName name={row.experiment} className="strong" />
+            <div className="sub">{formatDate(row.created_at)}</div>
           </div>
           <AsyncButton className="btn primary" onClick={() => onPick(row.experiment)}>
             {actionLabel}
@@ -52,20 +40,39 @@ function ExperimentList({ exclude, actionLabel, onPick }) {
   );
 }
 
-// Assignment for this unit: join, move, leave. Only the leader's screen can end
-// an experiment, since that stops and unassigns every unit in it.
+// Asks for a name, creates the experiment on the leader, then calls onCreated(name).
+export function useCreateExperiment(onCreated) {
+  const openKeyboard = useKeyboard();
+  const toast = useToast();
+  return () =>
+    openKeyboard({
+      label: "New experiment name",
+      type: "text",
+      submitLabel: "Create",
+      validate: validateExperimentName,
+      onSubmit: async (raw) => {
+        const name = raw.trim();
+        try {
+          await createExperiment(name);
+          await onCreated(name);
+        } catch (error) {
+          toast.error(error);
+        }
+      },
+    });
+}
+
+// This unit's experiment: join, reassign, leave. Every screen can do that (KIOSK.md).
+// Only leaders' screens create and end experiments; there, "New experiment"
+// also assigns this unit, since it was asked from this unit's experiment chip.
 export default function ExperimentSheet({ onClose }) {
-  const { unit, isLeader, experiment, experimentMetadata, worker, refreshAssignment } = useKiosk();
+  const { unit, role, isLeader, leaderHostname, leaderReachable, experiment, experimentMetadata, worker, refreshAssignment } =
+    useKiosk();
   const confirm = useConfirm();
   const toast = useToast();
-  const openKeyboard = useKeyboard();
   const [choosing, setChoosing] = useState(false);
-  const [listVersion, setListVersion] = useState(0);
-  // Fetched up front so the leader's End confirmation opens instantly.
-  const members = useAsync(
-    isLeader && experiment ? (signal) => leaderApi(`/experiments/${enc(experiment)}/workers`, { signal }) : null,
-    [isLeader, experiment],
-  );
+  // Fetched up front so the End confirmation opens instantly.
+  const members = useAsync(isLeader && experiment ? (signal) => listUnitsIn(experiment, signal) : null, [isLeader, experiment]);
 
   const done = (message) => {
     toast(message);
@@ -79,50 +86,36 @@ export default function ExperimentSheet({ onClose }) {
       moving
         ? {
             title: `Reassign ${unit} to ${target}?`,
-            message: `${unit} leaves ${experiment}. All running jobs will be stopped.`,
-            confirmText: `Reassign`,
+            message: `${unit} leaves ${experiment}. All its running activities stop.`,
+            confirmText: "Reassign",
             danger: true,
           }
         : {
-            title: `Assign to ${target}?`,
+            title: `Join ${target}?`,
             message: `${unit} will be assigned to this experiment.`,
-            confirmText: "Assign",
+            confirmText: "Join",
           },
     );
     if (!ok) return;
-    await leaderApi(`/experiments/${enc(target)}/workers`, { method: "PUT", body: { pioreactor_unit: unit } });
-    done(moving ? `Reassigned to ${target}` : `Assigned to ${target}`);
+    await assignUnit(target, unit);
+    done(moving ? `Reassigned to ${target}` : `Joined ${target}`);
   };
 
-  // Leader's screen only. Creating doesn't assign anything: the new experiment
-  // appears in the list, to assign from there like any other.
-  const createExperiment = () =>
-    openKeyboard({
-      label: "New experiment name",
-      type: "text",
-      submitLabel: "Create",
-      validate: validateExperimentName,
-      onSubmit: async (raw) => {
-        const name = raw.trim();
-        try {
-          await leaderApi("/experiments", { method: "POST", body: { experiment: name } });
-          toast(`Created ${name}`);
-          setListVersion((v) => v + 1);
-        } catch (error) {
-          toast.error(error);
-        }
-      },
-    });
+  const createAndJoin = useCreateExperiment(async (name) => {
+    await assignUnit(name, unit);
+    done(`Created ${name}`);
+  });
 
   const leave = async () => {
     const ok = await confirm({
-      title: `Unassign from ${experiment}?`,
-      message: `${unit} will be unassigned. All running jobs will be stopped.`,
-      confirmText: "Unassign",
+      title: `Leave ${experiment}?`,
+      message: `${unit} will be unassigned. All its running activities stop.`,
+      confirmText: "Leave experiment",
       danger: true,
     });
     if (!ok) return;
-    await leaderApi(`/experiments/${enc(experiment)}/workers/${enc(unit)}`, { method: "DELETE" });
+    await unassignUnit(experiment, unit);
+    done(`Left ${experiment}`);
   };
 
   const end = async () => {
@@ -134,21 +127,36 @@ export default function ExperimentSheet({ onClose }) {
       danger: true,
     });
     if (!ok) return;
-    await leaderApi(`/experiments/${enc(experiment)}/workers`, { method: "DELETE" });
+    await endExperiment(experiment);
     done(`Ended ${experiment}`);
   };
 
+  if (role === "worker" && leaderReachable === false) {
+    return (
+      <Sheet title="Experiment" icon="experiment" onClose={onClose}>
+        <div className="banner">
+          Can't reach the leader, {leaderHostname}. Joining or leaving an experiment needs it. Activities here keep running.
+        </div>
+        {experiment && <ReadValue label="Assigned to" value={<ExperimentName name={experiment} />} />}
+      </Sheet>
+    );
+  }
+
   if (worker === null) {
     return (
-      <Sheet title="Experiment" onClose={onClose}>
-        <div className="banner">{unit} isn't in the leader's inventory. Add it from the main web interface first.</div>
+      <Sheet title="Experiment" icon="experiment" onClose={onClose}>
+        <div className="banner">
+          {isLeader
+            ? `${unit} isn't one of this cluster's Pioreactors, so it can't join experiments.`
+            : `${leaderHostname} doesn't list ${unit}. Add it again from the leader's screen or web interface.`}
+        </div>
       </Sheet>
     );
   }
 
   if (experiment === undefined) {
     return (
-      <Sheet title="Experiment" onClose={onClose}>
+      <Sheet title="Experiment" icon="experiment" onClose={onClose}>
         <Empty>Waiting for the leader...</Empty>
       </Sheet>
     );
@@ -157,7 +165,8 @@ export default function ExperimentSheet({ onClose }) {
   if (experiment === null || choosing) {
     return (
       <Sheet
-        title={experiment ? "Reassign to another experiment" : "Assign to an experiment"}
+        title={experiment ? "Reassign to another experiment" : "Join an experiment"}
+        icon="experiment"
         onClose={onClose}
         footer={
           experiment || isLeader ? (
@@ -169,8 +178,8 @@ export default function ExperimentSheet({ onClose }) {
                 </button>
               )}
               <span className="grow" />
-              {isLeader && (
-                <button type="button" className="btn primary" onClick={createExperiment}>
+              {isLeader && !experiment && (
+                <button type="button" className="btn primary" onClick={createAndJoin}>
                   <Icon name="add" />
                   New experiment
                 </button>
@@ -179,8 +188,23 @@ export default function ExperimentSheet({ onClose }) {
           ) : null
         }
       >
-        {!experiment && <p className="muted">{unit} isn't assigned to an experiment. Choose one to join.</p>}
-        <ExperimentList key={listVersion} exclude={experiment} actionLabel={"Assign"} onPick={assign} />
+        {!experiment && (
+          <p className="muted">
+            {role === "standalone"
+              ? `Start a new experiment, or continue one from before.`
+              : `${unit} isn't in an experiment. Choose one to join.`}
+          </p>
+        )}
+        <ExperimentList
+          exclude={experiment}
+          actionLabel={experiment ? "Reassign" : "Join"}
+          onPick={assign}
+          emptyText={
+            isLeader
+              ? "No other experiments. Create one with New experiment."
+              : "No other experiments. Create one on the leader's screen or web interface."
+          }
+        />
       </Sheet>
     );
   }
@@ -188,6 +212,7 @@ export default function ExperimentSheet({ onClose }) {
   return (
     <Sheet
       title="Experiment"
+      icon="experiment"
       onClose={onClose}
       footer={
         <>
@@ -197,17 +222,21 @@ export default function ExperimentSheet({ onClose }) {
             </AsyncButton>
           )}
           <span className="grow" />
-          <AsyncButton className="btn danger" onClick={leave}>
-            Unassign
-          </AsyncButton>
-          <button type="button" className="btn primary" onClick={() => setChoosing(true)}>
-            Reassign
-          </button>
+          {role !== "standalone" && (
+            <>
+              <AsyncButton className="btn" onClick={leave}>
+                Leave
+              </AsyncButton>
+              <button type="button" className="btn primary" onClick={() => setChoosing(true)}>
+                Reassign...
+              </button>
+            </>
+          )}
         </>
       }
     >
       <div className="grid-2">
-        <ReadValue label="Assigned to" value={experiment} />
+        <ReadValue label="Assigned to" value={<ExperimentName name={experiment} />} />
         <ReadValue label="Started" value={formatDate(experimentMetadata?.created_at)} />
       </div>
       {experimentMetadata?.description && <p className="description">{experimentMetadata.description}</p>}

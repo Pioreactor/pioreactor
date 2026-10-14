@@ -120,11 +120,12 @@ export function AsyncButton({ onClick, className = "btn", children, disabled, bu
   );
 }
 
-export function Sheet({ title, onClose, children, footer }) {
+export function Sheet({ title, icon, onClose, children, footer }) {
   return (
     <div className="backdrop" onClick={onClose}>
       <div className="sheet" role="dialog" aria-label={typeof title === "string" ? title : undefined} onClick={(event) => event.stopPropagation()}>
         <div className="sheet-head">
+          {icon && <Icon name={icon} className="sheet-icon" />}
           <h2 className="truncate">{title}</h2>
           <button type="button" className="btn ghost icon-only" onClick={onClose} aria-label="Close">
             <Icon name="close" />
@@ -180,6 +181,16 @@ export const ReadValue = memo(function ReadValue({ label, value, unit, className
         {!empty && unit && <small>{unit}</small>}
       </span>
     </div>
+  );
+});
+
+// An experiment's name with the main UI's experiment icon (PlayCircleOutlined).
+export const ExperimentName = memo(function ExperimentName({ name, className = "" }) {
+  return (
+    <span className={`exp-name ${className}`}>
+      <Icon name="experiment" />
+      <span className="truncate">{name}</span>
+    </span>
   );
 });
 

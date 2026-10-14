@@ -29,6 +29,9 @@ const PATHS = {
     "M13 3h-2v10h2zm4.83 2.17-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83",
   restart:
     "M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 2.97-2.17 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93 0-4.42-3.58-8-8-8m-6 8c0-1.65.67-3.15 1.76-4.24L6.34 7.34C4.9 8.79 4 10.79 4 13c0 4.08 3.05 7.44 7 7.93v-2.02c-2.83-.48-5-2.94-5-5.91",
+  // ExperimentProfileIcon.
+  profile: "M3 15V8h6V3h7v8h5v2h-7V5h-3v5H5v5zm0 3h14v-2l4 3-4 3v-2H3z",
+  usb: "M15 7v4h1v2h-3V5h2l-3-4-3 4h2v8H8v-2.07c.7-.37 1.2-1.08 1.2-1.93 0-1.21-.99-2.2-2.2-2.2S4.8 7.79 4.8 9c0 .85.5 1.56 1.2 1.93V13c0 1.11.89 2 2 2h3v3.05c-.71.37-1.2 1.1-1.2 1.95 0 1.22.99 2.2 2.2 2.2s2.2-.98 2.2-2.2c0-.85-.49-1.58-1.2-1.95V15h3c1.11 0 2-.89 2-2v-2h1V7z",
   tools: "M13 11.33 18 18H6l5-6.67V6h2m2.96-2H8.04c-.42 0-.65.48-.39.81L9 6.5v4.17L3.2 18.4c-.49.66-.02 1.6.8 1.6h16c.82 0 1.29-.94.8-1.6L15 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81",
 };
 
@@ -38,6 +41,17 @@ function PioreactorGlyph() {
     <svg viewBox="-3.5 -2.5 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
       <path d="M1.4 18.9L1.4 14.7L0 14.7L0 11.2L2.8 11.2L2.8 0H14v11.2h2.8v3.5h-1.4v4.2H1.4z" />
       <circle cx="8.4" cy="13.3" r="2.1" />
+    </svg>
+  );
+}
+
+// PioreactorsIcon, the main UI's Inventory icon.
+function ClusterGlyph() {
+  return (
+    <svg viewBox="-2.5 -3 28 28" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round">
+      <path d="m1.94,21.13l0,-4.2l-1.4,0l0,-3.5l2.8,0l0,-11.2l11.2,0l0,11.2l2.8,0l0,3.5l-1.4,0l0,4.2l-14,0z" />
+      <circle cx="8.94" cy="15.53" r="2.1" />
+      <path d="m8.55,1.92l-0.06,-1.36l11.2,0l0,11.25l2.8,0l0,3.51l-1.4,0l0,4.22l-4.92,0.01" />
     </svg>
   );
 }
@@ -66,6 +80,7 @@ function ControlGlyph() {
 
 const CUSTOM = {
   calibration: CalibrationGlyph,
+  cluster: ClusterGlyph,
   control: ControlGlyph,
   pioreactor: PioreactorGlyph,
 };

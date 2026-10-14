@@ -159,6 +159,11 @@ p {
   color: var(--text2);
 }
 
+.empty .empty-icon {
+  display: flex;
+  margin: 0 auto 0.4rem;
+}
+
 .boot {
   height: 100%;
   display: flex;
@@ -212,6 +217,10 @@ p {
   font-weight: 600;
 }
 
+.rail-item:disabled {
+  opacity: 0.35;
+}
+
 .rail-item:active {
   background: var(--pressed);
 }
@@ -245,7 +254,7 @@ p {
   align-items: center;
   gap: 0.3rem;
   min-width: 0;
-  max-width: 11rem;
+  max-width: 15rem;
   font-weight: 600;
 }
 
@@ -280,6 +289,8 @@ p {
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+  /* Right-aligned buttons stay put whether or not the page scrolls. */
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
   padding: 0.6rem 0.75rem 0.75rem;
 }
@@ -296,6 +307,24 @@ p {
   gap: 0.5rem;
   margin-bottom: 0.6rem;
   flex: none;
+}
+
+/* A page's toolbar (tabs and page actions, like Stop all) stays in view while
+   the page scrolls under it. */
+.content > .toolbar:first-child {
+  position: sticky;
+  /* Sticky offsets are measured inside .content's padding; this cancels it. */
+  top: -0.6rem;
+  z-index: 2;
+  margin: -0.6rem 0 0;
+  padding: 0.6rem 0;
+  background: var(--bg);
+}
+
+.content.fill > .toolbar:first-child {
+  position: static;
+  margin: 0 0 0.6rem;
+  padding: 0;
 }
 
 .section-title {
@@ -321,6 +350,26 @@ p {
   color: var(--text);
   font-size: 0.8rem;
   margin-bottom: 0.6rem;
+}
+
+/* The cluster status line under the top bar (leader unreachable, inactive...).
+   It's a button: tapping it opens System. */
+.status-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.6rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--lost-bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  text-align: left;
+  width: 100%;
+}
+
+.status-banner:active {
+  background: var(--pressed);
 }
 
 /* ---------- Buttons ---------- */
@@ -369,6 +418,11 @@ p {
 .btn.danger {
   color: var(--danger);
   border-color: var(--danger);
+}
+
+.btn.danger:disabled {
+  color: var(--disabled);
+  border-color: var(--subtle);
 }
 
 .btn.danger.solid {
@@ -588,6 +642,167 @@ p {
   grid-template-columns: repeat(4, 1fr);
 }
 
+button.list-row:active {
+  background: var(--pressed);
+}
+
+/* Two stacked lines in a row's text column. */
+.list-row .grow > span {
+  display: block;
+}
+
+/* Settings-style rows: what it is on the left, its controls on the right. */
+.list-row .row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+}
+
+/* The last row of a list that adds to it ("Assign Pioreactors..."). */
+.list-row.add-row {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.list-row.add-row .icon {
+  color: var(--primary);
+}
+
+.list-row.add-row:disabled {
+  color: var(--disabled);
+}
+
+.list-row.add-row:disabled .icon {
+  color: var(--disabled);
+}
+
+/* A row toggled on and off in a multi-pick list. */
+.list-row .check {
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border);
+  border-radius: 0.3rem;
+}
+
+.list-row .check .icon {
+  color: inherit;
+}
+
+.list-row.pick.on .check {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+/* ---------- Cluster ---------- */
+
+/* An experiment's name after the play-circle icon. Stays one line. */
+.exp-name {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.exp-name .icon {
+  color: var(--text2);
+}
+
+.list-row .grow > .exp-name {
+  display: flex;
+}
+
+.sheet-head .sheet-icon {
+  font-size: 1.1rem;
+  color: var(--text2);
+}
+
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.empty-icon {
+  font-size: 2.6rem;
+  margin-bottom: 0.4rem;
+  color: var(--text2);
+}
+
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  gap: 0.6rem;
+}
+
+.unit-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+  min-height: 6.4rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  text-align: left;
+  contain: content;
+}
+
+.unit-tile:active {
+  background: var(--pressed);
+}
+
+.unit-tile.offline {
+  border-style: dashed;
+}
+
+.unit-tile.offline .tile-exp,
+.unit-tile.offline .tile-head strong {
+  color: var(--text2);
+}
+
+.unit-tile.add {
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  gap: 0.4rem;
+  border-style: dashed;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.tile-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.tile-head strong {
+  flex: 1;
+  font-size: 0.95rem;
+}
+
+.tile-exp {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.tile-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: auto;
+  min-height: 1.4rem;
+}
+
 /* ---------- Activities ---------- */
 
 .job-row {
@@ -796,7 +1011,8 @@ button.field:disabled .field-value .edit {
 
 .log-row {
   display: grid;
-  grid-template-columns: 4.2rem 6rem 1fr;
+  /* Wide enough for "12/14 10:26 PM": system logs are often older than a day. */
+  grid-template-columns: 6.2rem 6rem 1fr;
   gap: 0.5rem;
   padding: 0.45rem 0.6rem;
   border-top: 1px solid var(--border);
@@ -899,6 +1115,17 @@ button.field:disabled .field-value .edit {
 .sheet-body > *,
 .session-main > * {
   flex: none;
+}
+
+/* Segmented controls keep their natural width in sheets' flex columns. */
+.sheet-body > .segmented {
+  align-self: flex-start;
+}
+
+/* Footer and dialog buttons share one width, so "Start" isn't smaller than "Cancel". */
+.sheet-foot .btn,
+.dialog .btn-row .btn {
+  min-width: 7rem;
 }
 
 .sheet-foot {

@@ -1,4 +1,5 @@
-import { jobEnv } from "../kiosk/context";
+import { validateExperimentName, validateUnitName } from "../kiosk/cluster";
+import { jobEnv, parseAssignment, roleOf } from "../kiosk/context";
 import { applyKey, validateNumber } from "../kiosk/Keyboard";
 import { topicMatches } from "../kiosk/mqtt";
 
@@ -15,15 +16,35 @@ describe("kiosk topicMatches", () => {
 });
 
 describe("kiosk jobEnv", () => {
-  it("adds the values the leader would add when it knows the worker", () => {
+  it("passes the experiment and active flag the leader would pass, not the model", () => {
     expect(jobEnv({ experiment: "exp", worker: { is_active: 1, model_name: "pioreactor_40ml", model_version: "1.5" } })).toEqual({
       EXPERIMENT: "exp",
       JOB_SOURCE: "user",
       ACTIVE: "1",
-      MODEL_NAME: "pioreactor_40ml",
-      MODEL_VERSION: "1.5",
     });
     expect(jobEnv({ experiment: "exp", worker: undefined })).toEqual({ EXPERIMENT: "exp", JOB_SOURCE: "user" });
+  });
+});
+
+describe("kiosk roles", () => {
+  it("tells standalone units, leaders, workers and unjoined units apart", () => {
+    expect(roleOf({ leaderHostname: "pio1", isLeader: true, otherUnits: 0 })).toBe("standalone");
+    expect(roleOf({ leaderHostname: "pio1", isLeader: true, otherUnits: 2 })).toBe("leader");
+    expect(roleOf({ leaderHostname: "pio1", isLeader: false, otherUnits: 0 })).toBe("worker");
+    expect(roleOf({ leaderHostname: null, isLeader: false, otherUnits: 0 })).toBe("unjoined");
+  });
+
+  it("reads the retained assignment message", () => {
+    expect(parseAssignment('{"pioreactor_unit": "pio2", "experiment": "exp1"}')).toBe("exp1");
+    expect(parseAssignment('{"pioreactor_unit": "pio2", "experiment": null}')).toBeNull();
+    expect(parseAssignment("not json")).toBeUndefined();
+  });
+
+  it("validates names before asking the leader", () => {
+    expect(validateExperimentName("current")).toMatch(/reserved/);
+    expect(validateExperimentName("growth run 1")).toBeNull();
+    expect(validateUnitName("pio2.local")).toMatch(/hostname/);
+    expect(validateUnitName("pio-2")).toBeNull();
   });
 });
 

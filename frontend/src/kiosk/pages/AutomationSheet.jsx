@@ -109,7 +109,6 @@ export default function AutomationSheet({ automationType, onClose, onStarted }) 
             Cancel
           </button>
           <AsyncButton className="btn primary" onClick={start} disabled={!automation || missing.length > 0}>
-            <Icon name="play" />
             Start
           </AsyncButton>
         </>

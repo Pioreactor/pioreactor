@@ -53,4 +53,21 @@ direction, decisions, and open questions.
   states. Avoid shadows, blurs, transitions and animations.
 - Text and number entry go through the pop-up keyboard (`useKeyboard` /
   `EditField` in `src/kiosk/Keyboard.jsx`), never a native input.
+- The screen has a role (standalone, leader, worker, not in a cluster; see
+  `KIOSK.md`, "Roles"). Leaders' screens get the Cluster page; worker screens only
+  ever control their own unit. Leader reachability comes from asking the leader, not
+  from the broker connection. Experiment and membership calls are in
+  `src/kiosk/cluster.js`.
+- Layout conventions:
+  - A page's tabs and page-level actions (Stop all, Add note, New experiment) go in
+    its first `.toolbar`, which stays pinned while the page scrolls; actions sit on
+    the right.
+  - Settings-like content is a `.list` of rows: label and sub-text on the left,
+    controls on the right (`.row-actions`). Adding to a list is its last row
+    (`.list-row.add-row`), not a button beside the section title.
+  - Sheet footers: destructive action or Back on the left, the primary action on the
+    right. Only one red button per footer; an action whose confirmation is already a
+    danger dialog (Leave, Unassign) can be a plain button.
+  - A choice inside a sheet (pick an experiment, a profile, units) replaces the sheet
+    with its own sheet that has Back in the footer.
 - Develop at `http://localhost:3000/k/` with the browser viewport set to 1280x720.

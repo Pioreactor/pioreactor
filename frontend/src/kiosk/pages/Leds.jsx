@@ -6,18 +6,37 @@ import { fmt, parsePayload } from "../values";
 const CHANNELS = ["A", "B", "C", "D"];
 const PRESETS = [0, 5, 10, 25, 50, 100];
 
-// A tab of Activities, which handles the no-experiment and offline cases.
-export default function Leds({ get }) {
-  const toast = useToast();
+function useSetIntensity() {
   const control = useJobControl();
-
-  const intensities = parsePayload(get("leds", "intensity"));
-  const current = intensities && typeof intensities === "object" ? intensities : {};
-
-  const setIntensity = (channels, value) =>
+  return (channels, value) =>
     control.run("led_intensity", {
       options: { ...Object.fromEntries(channels.map((channel) => [channel, value])), source_of_event: "UI" },
     });
+}
+
+// Lives in the Control toolbar while the LEDs tab is open.
+export function AllLedsOff() {
+  const toast = useToast();
+  const setIntensity = useSetIntensity();
+  return (
+    <AsyncButton
+      className="btn"
+      onClick={async () => {
+        await setIntensity(CHANNELS, 0);
+        toast("Turning all LEDs off...");
+      }}
+    >
+      All LEDs off
+    </AsyncButton>
+  );
+}
+
+// A tab of Activities, which handles the no-experiment and offline cases.
+export default function Leds({ get }) {
+  const setIntensity = useSetIntensity();
+
+  const intensities = parsePayload(get("leds", "intensity"));
+  const current = intensities && typeof intensities === "object" ? intensities : {};
 
   return (
     <>
@@ -40,17 +59,6 @@ export default function Leds({ get }) {
             />
           </div>
         ))}
-      </div>
-      <div className="btn-row spaced">
-        <AsyncButton
-          className="btn"
-          onClick={async () => {
-            await setIntensity(CHANNELS, 0);
-            toast("Turning all LEDs off...");
-          }}
-        >
-          Turn all LEDs off
-        </AsyncButton>
       </div>
     </>
   );
