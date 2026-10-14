@@ -38,7 +38,7 @@ import { Link, useLocation } from 'react-router';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import AddIcon from '@mui/icons-material/Add';
-import CalibrationIcon from './CalibrationIcon';
+import CalibrationsIcon from './CalibrationsIcon';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import ExperimentsIcon from './ExperimentsIcon';
@@ -544,7 +544,7 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                     pathnameMatchesAnySubmenu(location.pathname, ["calibrations", "protocols", "estimators"]) ||
                     isSelected("/calibration-coverage")
                   }
-                  icon={<CalibrationIcon sx={{fontSize: "23px"}}/> }
+                  icon={<CalibrationsIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/calibrations" className="link" />}
                   active={isSelected("/calibrations") || isSelected("/estimators") || isSelected("/protocols") || isSelected("/calibration-coverage")}
 
@@ -574,15 +574,6 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
                   Experiments
                 </MenuItem>
 
-                <MenuItem
-                  icon={<DownloadOutlinedIcon sx={{fontSize: "23px"}}/> }
-                  component={<Link to="/export-data" className="link" />}
-                  active={isSelected("/export-data")}
-
-                  >
-                  Export data
-                </MenuItem>
-
 
                 <MenuItem
                   icon={<PluginsIcon sx={{fontSize: "23px"}}/> }
@@ -591,6 +582,16 @@ export default function SideNavAndHeader({ cameraUIEnabled = false }) {
 
                   >
                   Plugins
+                </MenuItem>
+
+
+                <MenuItem
+                  icon={<DownloadOutlinedIcon sx={{fontSize: "23px"}}/> }
+                  component={<Link to="/export-data" className="link" />}
+                  active={isSelected("/export-data")}
+
+                  >
+                  Export data
                 </MenuItem>
 
                 <MenuItem
