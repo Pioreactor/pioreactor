@@ -2,55 +2,44 @@
 
 #### Breaking changes
 
- - Changing a Pioreactor's model now requires the unit to be reachable and its activities to be stopped. Long-running services, including Monitor, can remain running. Update workers before changing their models through the leader.
- - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`. The payload is now timestamped and keyed by PWM channel instead of GPIO pin, for example `{"timestamp": "2026-10-12T15:00:00.000Z", "channels": {"1": 15.0, "4": 55.0, "5": 23.49}}`. Update any plugins or scripts that consume this topic. Upgrade the leader/UI and all workers together, restart active worker jobs, and reload browser tabs; mixed versions are not supported for PWM telemetry.
- - Bioreactor MQTT topics, `pioreactor/<unit>/<experiment>/bioreactor/<variable>`, now publish `{"timestamp": ..., "value": ...}` instead of a bare number. Experiment profile expressions that read these topics need `.value`, for example `${{ ::bioreactor:current_volume_ml.value }}`. Update any plugins or scripts that consume these topics. The update republishes each unit's retained values in the new format.
- - Renamed the unit API endpoint `POST /unit_api/system/remove_from_inventory/<expected_hostname>` to `POST /unit_api/cluster/leave`. The worker now also removes its chrony time source and reboots. It takes an optional JSON body, `{"stop_activities": true}`; without it, the request is refused with `409` while activities are running. API clients should send the intended hostname in the `X-Pioreactor-Target` header; requests with a mismatched hostname return HTTP `409` before stopping jobs or removing configuration.
- - `POST /unit_api/calibrations/sessions/<session_id>/inputs` (and the leader's `/api/workers/<unit>/calibrations/sessions/<session_id>/inputs`) now answers `202` with a task instead of waiting for the step to finish. Poll `result_url_path` (or the leader's `/api/workers/<unit>/task_results/<task_id>`); the task's `result` is `{"session", "step"}`, and rejected inputs or failed actions report `status: "failed"` with the error. Pioreactor Zero W workers now run two Huey workers, which this needs.
- - The leader's `/api` now rejects `POST`, `PUT`, `PATCH` and `DELETE` requests sent by a browser from another website (an `Origin` that is neither the leader nor a Pioreactor in its inventory) with `403`. This stops a web page open on a lab computer from triggering actions with a plain cross-site form post. Requests without an `Origin` header, such as from scripts, `curl` and other Pioreactors, are unaffected.
- - Every Pioreactor's `/unit_api` now also rejects `POST`, `PUT`, `PATCH` and `DELETE` requests sent by a browser from another website with `403`. Workers accept browser writes only from pages they serve themselves or from `localhost`; leaders also accept Pioreactors in their inventory. Requests without an `Origin` header are unaffected.
- - Adding a worker now requires it to run the same software version as the leader; an older worker is rejected with a message to update it first. `POST /api/workers/setup` now answers `202` with a task instead of waiting for setup to finish. Poll `result_url_path`.
+ - Adding a worker now requires it to run the same software version as the leader; an older worker is rejected with a message to update it first.
+ - Changing a Pioreactor's model now requires the unit to be reachable and its activities to be stopped. Update workers before changing their models through the leader.
+ - Bioreactor MQTT topics, `pioreactor/<unit>/<experiment>/bioreactor/<variable>`, now publish `{"timestamp": ..., "value": ...}` instead of a bare number. Experiment profile expressions that read these topics need `.value`, for example `${{ ::bioreactor:current_volume_ml.value }}`.
+ - Replaced the PWM MQTT topic `pioreactor/<unit>/<experiment>/pwms/dc` with `pioreactor/<unit>/<experiment>/pwms/channel_dc`, keyed by PWM channel instead of GPIO pin. Update any plugins or scripts that consume this topic. Upgrade the leader and all workers together, then reload browser tabs.
 
 #### Enhancements
 
- - Each job now buffers up to 10,000 MQTT messages (was 100) while the broker is unreachable, so a leader reboot or a short Wi-Fi drop loses far fewer readings. The buffer is in memory, so a job restarted during the outage still loses its unsent messages.
- - Workers now log a warning when Monitor starts and the system clock isn't synchronised, for example after booting while the leader was unreachable, since measurement timestamps may be wrong. `GET /unit_api/system/utc_clock` now includes `synchronized` (`true`, `false`, or `null` when unknown).
- - Added persistent caching of each Pioreactor’s own experiment assignment and active status from successful leader lookups. If the leader becomes unreachable, workers use the last known values with a warning; a leader response confirming an unassigned or removed worker clears the cache.
+ - Added `pio cluster leave` to remove a worker from its cluster from the worker itself, for example before moving it to another lab. It keeps the worker's model, calibrations, estimators and `unit_config.ini`.
+ - Adding a worker is more reliable: a failed step can be retried, a wrong SSH password fails right away, and the UI no longer gives up after 90 seconds while setup is still running.
+ - Added automatic imports from the SD card's boot partition. Place files in these folders on the boot partition, then reboot:
+   - `pioreactor/plugins/`: plugin `.whl` files (and any dependency wheels) are installed.
+   - `pioreactor/experiment_profiles/` (leaders only), `pioreactor/models/`, `pioreactor/hardware/`: `.yaml` files are imported.
 
- - Added automatic plugin installation from the SD card's boot partition. Place plugin `.whl` files and any required dependency wheels in `pioreactor/plugins/` (`/boot/firmware/pioreactor/plugins/` on the Pi), then reboot. Existing Raspberry Pi images gain this support after updating and rebooting; new workers retain staged wheels until they join a cluster and reboot. Successful installations remove the wheels, while failed or invalid wheels are saved in `failed/` with diagnostic logs. Wheels declaring direct URL dependencies are rejected, and installation attempts have time limits.
- - Added boot-partition imports for experiment profiles, custom bioreactor models, and hardware definitions on Raspberry Pi images, including existing images after updating and rebooting. Place `.yaml` or `.yml` files under `pioreactor/experiment_profiles/`, `pioreactor/models/`, or `pioreactor/hardware/` on the SD card's boot partition, then reboot. Profiles are imported on leaders only and are never started automatically; models and hardware definitions are imported on either role, preserving nested hardware paths. Imported files replace matching files without backups and are removed from the boot partition. Failed imports retain their input and an adjacent `.log` file for correction and retry on the next boot. Unconfigured workers defer imports until they join a cluster and reboot.
- - Added `.yml` support for HAT and model hardware definitions alongside `.yaml`; `.yaml` takes precedence when both files exist.
- - The Mosquitto MQTT broker and clients are now installed and configured on workers as well as leaders, but the broker only runs on leaders. Existing workers get the packages from the update itself, so no internet connection is needed.
- - Faster experiment data exports, especially for large datasets.
- - Faster chart loading in the UI, since only the plotted points are now read from the database.
- - Reduced browser memory use and rendering overhead for live charts and logs during long experiments, including less frequent chart updates in background tabs. Older logs remain available through **Load older logs**.
- - Added visible **Mount** and **Eject** buttons for USB drives. The Plugins page now distinguishes missing drives, unmounted drives, and drives without plugins, with guidance for each case.
- - The leader's `/api` now accepts cross-origin requests from Pioreactors in its inventory (`http://<unit>`, `http://<unit>.local`, the unit's address in `[cluster.addresses]`) and from `localhost`, so a page served by one Pioreactor can call the leader. Other origins still get no CORS headers.
- - Saved each Pioreactor's model assignment on the unit so it survives reboots and remains available when the leader is unreachable. Existing assignments are adopted automatically when the leader is reachable; newly added workers save their selected model before rebooting.
- - Added `pio model get` and `pio model set <name> <version>` to inspect or change the local unit's model, for example `pio model set pioreactor_20ml 1.5`.
- - Every Pioreactor now installs the leader's Python dependencies, so a worker can become a leader without installing extra packages. Python package extras now depend on whether the machine has Pioreactor hardware, not on its role: use `pip install "pioreactor[hardware]"` for a Pioreactor, or plain `pioreactor` for a leader without hardware. The `worker`, `leader_worker` and `leader` extras still work as aliases.
- - `pio model set` on a unit now updates the leader's inventory too. Each unit also reports its model to the leader when it boots, so a change made while the leader was unreachable shows up after the unit's next reboot. New leader endpoint: `PUT /api/workers/<unit>/reported_model`.
- - Custom models defined only on a worker, in its `~/.pioreactor/models/`, can now be assigned to that worker without a copy on the leader. The Pioreactor page shows the model limits (capacity, max fill volume, temperature limits) that the worker itself uses, read from the worker, and falls back to the leader's definition when the worker is offline. `GET /unit_api/model` now returns the full model definition, not just its name and version.
- - Added `pio cluster leave` to remove a worker from its cluster from the worker itself, for example before moving it to another lab. It removes the worker from the leader's inventory (or warns if the leader is unreachable), undoes the join, and reboots, keeping the worker's model, calibrations, estimators and `unit_config.ini`. Stop activities first. Removing a worker from the leader now also forgets its address in `[cluster.addresses]`.
- - Adding a worker is more reliable. The leader registers the worker first, then the worker configures itself with the new internal command `pio cluster join` and reports its model, so a failed step can be retried. A wrong SSH password now fails right away, and the UI no longer gives up after 90 seconds while setup is still running. A worker's time source is now `/etc/chrony/conf.d/pioreactor-leader.conf`, replaced on every join, instead of a line appended to `chrony.conf` on every add. Updating moves an existing worker's line into that file.
+   Successful imports are removed from the boot partition; failed ones are kept with a `.log` file explaining why.
+ - Each Pioreactor now stores its own model, so it survives reboots and is available when the leader is unreachable. Custom models defined only on a worker can now be assigned to it. New CLI commands to inspect or change the local model:
+
+   ```
+   pio model get
+   pio model set pioreactor_20ml 1.5
+   ```
+ - Jobs now buffer up to 10,000 MQTT messages (was 100) while the broker is unreachable, so a leader reboot or short Wi-Fi drop loses far fewer readings.
+ - Workers now log a warning at startup if the system clock isn't synchronised, since measurement timestamps may be wrong.
+ - Faster data exports and chart loading, and lower browser memory use for live charts and logs during long experiments.
+ - Added **Mount** and **Eject** buttons for USB drives on the Plugins page, with clearer guidance when a drive is missing, unmounted, or has no plugins.
 
 #### Bug fixes
 
  - Fixed `pio workers add -p <password>` writing the worker's SSH password to the logs when setup failed.
- - Fixed a re-added worker keeping a `[mqtt] broker_address` override in its `unit_config.ini` that pointed at its previous leader.
- - Automation events, bioreactor values and PWM duty cycles are now stored in the database with the time they were produced on the worker, not the time the leader received them.
- - Fixed the Plugins page hiding plugins on USB drives mounted read-only.
- - Added destination hostname checks to leader HTTP commands to prevent requests from running on the wrong Pioreactor when an address is stale or reused. Direct API requests without a target header retain their existing behavior; SSH and file-copy operations are unchanged.
- - Fixed PWM duty-cycle history failing to save when a leader-only unit has no assigned Pioreactor model. PWM card values and diagram activity now also use the sending worker's channel mapping, including custom pin assignments.
- - Fixed configuration editing and saving being blocked when configuration history is slow or unavailable. History now loads independently, reports failures separately, preserves edits when it arrives, and ignores late responses from previously selected configuration targets.
- - Fixed circulation actions accepting empty, malformed, or negative durations.
- - Fixed event recording accepting invalid local timestamps or messages containing only whitespace.
- - Fixed the new-experiment form incorrectly rejecting unused names such as `constructor`, and improved its layout on narrow screens.
- - Fixed OD reader error reporting when an ADC fails to initialize.
+ - Fixed commands from the leader possibly running on the wrong Pioreactor when an address is stale or reused.
+ - Fixed dosing events being discarded when an addition would overfill the vial, which could stop dosing automations from pausing correctly.
+ - Fixed jobs failing immediately when the leader's web server is briefly unavailable, for example while restarting.
+ - Automation events, bioreactor values and PWM duty cycles are now stored with the time they were produced on the worker, not the time the leader received them.
+ - Fixed a re-added worker still pointing at its previous leader's MQTT broker.
+ - Fixed configuration editing being blocked when configuration history is slow or unavailable.
+ - Fixed the Plugins page hiding plugins on read-only USB drives.
+ - Fixed PWM duty-cycle history failing to save on a leader-only unit with no assigned model.
+ - Fixed the monitor's self-checks erroring when the leader is unreachable.
  - Fixed Akima calibration fitting with only two data points.
- - Fixed dosing events being discarded when an addition would overfill the vial. The volume is now capped at the vial's capacity and media totals are still updated, so dosing automations pause correctly.
- - Fixed jobs failing immediately when the leader's web server is briefly unavailable, for example while restarting. Connection errors are now retried.
- - Fixed the monitor's heater self-check erroring when the leader is unreachable, which also skipped the MQTT connection check after it.
 
 ### 26.10.0
 

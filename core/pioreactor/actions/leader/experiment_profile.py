@@ -221,18 +221,9 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | No
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
-    # treat it as one.
+    # treat it as one. Container actions pass through: their nested actions come back through here when they fire.
     match action:
-        case struct.Log(_, _, _):
-            # noop
-            return action
-
-        case struct.Start(_, _, _, _):
-            # noop
-            return action
-
-        case struct.Repeat(_, _, _, _, _, _):
-            # noop
+        case struct.Log() | struct.Start() | struct.Repeat() | struct.When():
             return action
 
         case struct.Pause(hours, t, if_) | struct.Stop(hours, t, if_):
@@ -243,7 +234,8 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             return struct.Start(hours, t, if_, options, [])
 
         case _:
-            raise ValueError()
+            # ex: resume, as there are no prior intensities to restore.
+            raise ValueError(f"`{action}` is not supported for led_intensity.")
 
 
 def get_simple_priority(action: struct.Action) -> int:
@@ -969,17 +961,18 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
     return profile
 
 
-def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str]) -> None:
-    try:
-        for unit_name, label in labels_map.items():
+def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str], logger: CustomLogger) -> None:
+    # labels are cosmetic, so a failure shouldn't stop the profile, or the remaining labels.
+    for unit_name, label in labels_map.items():
+        try:
             response = put_into_leader(
                 f"/api/experiments/{experiment}/unit_labels",
                 json={"unit": unit_name, "label": label},
             )
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
-    except Exception:
-        pass
+        except HTTPException as e:
+            logger.warning(f"Unable to set label `{label}` for {unit_name}: {e}")
 
 
 def get_installed_plugins_and_versions() -> dict[str, str]:
@@ -1100,7 +1093,7 @@ def execute_experiment_profile(
             pioreactor_specific_block = profile.pioreactors[unit_]
             if pioreactor_specific_block.label is not None:
                 label = pioreactor_specific_block.label
-                push_labels_to_ui(experiment, {unit_: label})
+                push_labels_to_ui(experiment, {unit_: label}, logger)
 
             for job_name, job in pioreactor_specific_block.jobs.items():
                 for action in job.actions:
