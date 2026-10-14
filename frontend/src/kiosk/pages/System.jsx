@@ -2,6 +2,7 @@ import { useState } from "react";
 import { unitApi, waitForTask } from "../api";
 import { activitiesRunningHere, leaveCluster } from "../cluster";
 import { useKiosk } from "../context";
+import { useRestartSetup } from "../Onboarding";
 import { useAsync, useTopicValues } from "../hooks";
 import { Icon } from "../icons";
 import { applyTheme, readTheme } from "../theme";
@@ -147,6 +148,7 @@ function SettingRow({ title, sub, children }) {
 export default function System() {
   const { unit, role, leaderHostname, leaderReachable, isLeader, experiment, config } = useKiosk();
   const [theme, setTheme] = useState(readTheme);
+  const restartSetup = useRestartSetup();
   const version = useAsync((signal) => unitApi("/versions/app", { signal }), []);
   const ip = useAsync((signal) => unitApi("/system/ipv4", { signal }), []);
   const disk = useAsync((signal) => unitApi("/system/disk_space", { signal }), [], { refreshMs: 60000 });
@@ -210,6 +212,11 @@ export default function System() {
       <div className="list">
         <SettingRow title="Appearance">
           <Segmented label="Appearance" options={THEMES} value={theme} onChange={chooseTheme} />
+        </SettingRow>
+        <SettingRow title="Setup" sub="Name, Wi-Fi and model.">
+          <AsyncButton className="btn" onClick={restartSetup}>
+            Run setup again
+          </AsyncButton>
         </SettingRow>
         <SettingRow title="Reload screen" sub="If the screen looks stuck.">
           <button type="button" className="btn" onClick={() => window.location.reload()}>

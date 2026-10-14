@@ -1638,3 +1638,123 @@ button.list-row:active {
 .float-list .chip .icon {
   vertical-align: middle;
 }
+
+/* ---------- Onboarding (first-boot setup) ---------- */
+
+.onboarding {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.ob-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--target);
+  padding: 0 0.9rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.ob-head h1 {
+  flex: 1;
+  font-size: 1.05rem;
+}
+
+.steps {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2.2rem;
+  padding: 0 0.75rem;
+  border-radius: 1.1rem;
+  font-size: 0.75rem;
+  color: var(--text2);
+}
+
+.step .num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.65rem;
+}
+
+.step.done {
+  color: var(--primary);
+}
+
+.step.current {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+}
+
+.ob-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem 0.9rem;
+}
+
+.ob-inner {
+  max-width: 44rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ob-inner > * {
+  flex: none;
+}
+
+.ob-inner h2 {
+  font-size: 1.25rem;
+}
+
+.ob-inner .section-title {
+  margin: 0.4rem 0 0;
+}
+
+.ob-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding-top: 2.5rem;
+  text-align: center;
+}
+
+.ob-hero {
+  font-size: 4rem;
+}
+
+.ob-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.ob-foot .btn {
+  min-width: 7rem;
+}

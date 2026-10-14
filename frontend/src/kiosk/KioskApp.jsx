@@ -3,6 +3,7 @@ import { useKiosk } from "./context";
 import { Icon } from "./icons";
 import { navigate, usePage } from "./router";
 import ExperimentSheet from "./ExperimentSheet";
+import { OnboardingGate } from "./Onboarding";
 import Activities from "./pages/Activities";
 import Calibrations from "./pages/Calibrations";
 import Charts from "./pages/Charts";
@@ -108,13 +109,15 @@ export default function KioskApp() {
   const { Component } = current;
 
   return (
-    <div className="app">
-      <Rail pages={pages} active={current.page} />
-      <main className="main">
-        <TopBar title={current.label} />
-        <StatusBanner />
-        <Component />
-      </main>
-    </div>
+    <OnboardingGate>
+      <div className="app">
+        <Rail pages={pages} active={current.page} />
+        <main className="main">
+          <TopBar title={current.label} />
+          <StatusBanner />
+          <Component />
+        </main>
+      </div>
+    </OnboardingGate>
   );
 }
