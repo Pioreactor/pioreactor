@@ -143,7 +143,9 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
   };
 
   const toTimestampObject = (timestamp) => {
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+    // Parse ISO 8601 without a format string: when customParseFormat is loaded, a format
+    // makes parsing strict and rejects dayjs objects and timestamps without milliseconds.
+    return dayjs.utc(timestamp);
   };
 
 

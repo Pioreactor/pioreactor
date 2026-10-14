@@ -103,7 +103,9 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
     if (dayjs.isDayjs(timestamp)) {
       return timestamp;
     }
-    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+    // Parse ISO 8601 without a format string: when customParseFormat is loaded, a format
+    // makes parsing strict and rejects dayjs objects and timestamps without milliseconds.
+    return dayjs.utc(timestamp);
   };
 
   const timestampCell = (timestamp) => {

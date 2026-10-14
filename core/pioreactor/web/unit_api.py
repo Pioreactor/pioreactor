@@ -214,7 +214,7 @@ def set_unit_model() -> ResponseReturnValue:
         abort_with(409, str(error))
     tasks.check_model_hardware(body.model_name, body.model_version)
     publish_to_log(
-        f"Set {HOSTNAME} to {body.model_name}, {body.model_version}.",
+        f"Set `{HOSTNAME}` to {body.model_name}, {body.model_version}.",
         task="worker_model",
         level="INFO",
     )
@@ -1978,7 +1978,7 @@ def get_all_active_calibrations() -> ResponseReturnValue:
                 all_calibrations[device] = cal
             except Exception as e:
                 publish_to_error_log(
-                    f"Error reading {cal_file_path.stem}: {e}", "get_all_active_calibrations"
+                    f"Error reading calibration `{cal_file_path.stem}`: {e}", "get_all_active_calibrations"
                 )
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
@@ -2007,7 +2007,7 @@ def get_all_active_estimators() -> ResponseReturnValue:
                 all_estimators[device] = estimator
             except Exception as e:
                 publish_to_error_log(
-                    f"Error reading {estimator_file_path.stem}: {e}", "get_all_active_estimators"
+                    f"Error reading estimator `{estimator_file_path.stem}`: {e}", "get_all_active_estimators"
                 )
 
     return attach_cache_control(jsonify(all_estimators), max_age=10)
@@ -2319,7 +2319,9 @@ def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
             cal["pioreactor_unit"] = HOSTNAME
             return attach_cache_control(jsonify(cal), max_age=10)
         except Exception as e:
-            publish_to_error_log(f"Error reading {calibration_path.stem}: {e}", "get_calibration")
+            publish_to_error_log(
+                f"Error reading calibration `{calibration_path.stem}`: {e}", "get_calibration"
+            )
             abort_with(
                 500,
                 "Failed to read calibration file.",
@@ -2374,7 +2376,7 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
             estimator["device"] = device
             return attach_cache_control(jsonify(estimator), max_age=10)
         except Exception as e:
-            publish_to_error_log(f"Error reading {estimator_path.stem}: {e}", "get_estimator")
+            publish_to_error_log(f"Error reading estimator `{estimator_path.stem}`: {e}", "get_estimator")
             abort_with(
                 500,
                 "Failed to read estimator file.",
