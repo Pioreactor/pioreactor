@@ -112,6 +112,13 @@ def collect_stirring_measurements(
 
         # drop any 0 in RPM, too little DC
         filtered = [(dc, rpm) for dc, rpm in zip(dcs, measured_rpms) if rpm > 0]
+        if not filtered:
+            message = (
+                f"No positive RPM readings were detected between {min_dc:g}% and {max_dc:g}% duty cycle. "
+                "Check that the stirring motor turns and the heating PCB is connected."
+            )
+            logger.error(message)
+            raise ValueError(message)
         filtered_dcs, filtered_measured_rpms = zip(*filtered)
         return list(filtered_dcs), list(filtered_measured_rpms)
 
