@@ -24,6 +24,7 @@ import { useLocation } from "react-router";
 import { fetchTaskResult } from "./utils/tasks";
 import Snackbar from './components/Snackbar';
 import SelectButton from "./components/SelectButton";
+import PluginChip from "./components/PluginChip";
 import { useExperiment } from './providers/ExperimentContext';
 
 
@@ -230,13 +231,13 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
       />
       {dataset.source !== "app" && (
         <Typography
-          sx={{ ml: "30px" }}
+          sx={{ ml: "30px", display: "block" }}
           variant="caption"
-          display="block"
+          component="div"
           gutterBottom
           color="textSecondary"
         >
-          {`Provided by ${dataset.source}`}
+          Provided by <PluginChip name={dataset.source} />
         </Typography>
       )}
       <Typography sx={datasetDescription}>{dataset.description}</Typography>

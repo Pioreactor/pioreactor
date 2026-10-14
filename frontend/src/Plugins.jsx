@@ -1,5 +1,4 @@
 import { uiColors } from "./theme/colors";
-import Avatar from "boring-avatars";
 import React from "react";
 import UnderlineSpan from "./components/UnderlineSpan";
 
@@ -15,6 +14,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Snackbar from "./components/Snackbar";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
+import Avatar from "@mui/material/Avatar";
 import ListItemAvatar from "@mui/material/ListItemAvatar";
 import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import ListItemText from "@mui/material/ListItemText";
@@ -24,6 +24,7 @@ import { Link, useParams, useNavigate } from "react-router";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { styled } from "@mui/material/styles";
 import PioreactorsIcon from "./components/PioreactorsIcon";
+import PluginIcon from "./components/PluginIcon";
 
 const BROADCAST_TARGET = "$broadcast";
 const PLUGIN_ROW_CONTENT_INSET = "2%";
@@ -147,13 +148,12 @@ function assertPluginTaskResultSucceeded(taskPayload, failureMessage) {
   }
 }
 
-function PluginAvatar({ name, source = "community" }) {
-  const colors =
-    source === "installed"
-      ? ["#5332ca", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]
-      : ["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"];
-
-  return <Avatar name={`${name}${source}`} size={40} colors={colors} variant="bauhaus" />;
+function PluginAvatar() {
+  return (
+    <Avatar sx={{ bgcolor: uiColors.selection, color: "primary.main" }}>
+      <PluginIcon sx={{ fontSize: 22 }} />
+    </Avatar>
+  );
 }
 
 function InstallButton({
@@ -293,7 +293,7 @@ function ListSuggestedPlugins({
               return (
                 <ListItemStyled key={plugin.name}>
                   <ListItemAvatar>
-                    <PluginAvatar name={plugin.name} />
+                    <PluginAvatar />
                   </ListItemAvatar>
                   <ListItemText
                     primary={plugin.name}
@@ -396,7 +396,7 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
           return (
             <ListItemStyled key={plugin.name}>
               <ListItemAvatar>
-                <PluginAvatar name={plugin.name} source="installed" />
+                <PluginAvatar />
               </ListItemAvatar>
               <ListItemText
                 primary={plugin.name}
@@ -624,7 +624,7 @@ function ListUsbPlugins({
             return (
               <ListItemStyled key={plugin.path}>
                 <ListItemAvatar>
-                  <PluginAvatar name={plugin.name} source="usb" />
+                  <PluginAvatar />
                 </ListItemAvatar>
                 <ListItemText
                   primary={plugin.name}

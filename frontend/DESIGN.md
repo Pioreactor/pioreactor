@@ -320,6 +320,9 @@ Rules:
   `All assigned Pioreactors`.
 - Do not use a Chip for arbitrary prose.
 - Tags use small `variant="outlined"` Chips and do not need entity icons.
+- Use `src/components/PluginChip.jsx` for plugin attribution, such as
+  `Installed by` or `Provided by` labels. The Chip links to the Plugins page
+  for `unit` when a Pioreactor is in context, and for the leader otherwise.
 - Log messages mark entity names with backticks, such as ``Saved calibration
   `od-cal-1` ``. `LogMessage` renders these as compact inline Chips: Pioreactors
   are recognized from the cluster's units or a preceding `Pioreactor`, `worker`,
