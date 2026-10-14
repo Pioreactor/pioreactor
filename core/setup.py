@@ -22,6 +22,7 @@ CORE_REQUIREMENTS = [
     "python-dotenv==1.2.3",
     "Werkzeug==3.1.8",
     "packaging==26.3",
+    "mcp-utils-msgspec==3.0.1",
     # preinstalled on base images
     # "pyyaml==6.0.2",
     # "rpi-lgpio==0.6"
@@ -31,12 +32,9 @@ CORE_REQUIREMENTS = [
 ]
 
 
-LEADER_REQUIREMENTS: list[str] = [
-    "mcp-utils-msgspec==3.0.1",
-]
-
-
-WORKER_REQUIREMENTS = [
+# Every unit can be a leader, so leader dependencies live in CORE_REQUIREMENTS. This
+# extra is for machines with Pioreactor hardware attached, regardless of role.
+HARDWARE_REQUIREMENTS = [
     "numpy==2.3.2",
     "grpredict==26.4.7",
     "Adafruit-Blinka==9.1.0",
@@ -93,8 +91,10 @@ setup(
     """,
     python_requires=">=3.13",
     extras_require={
-        "worker": WORKER_REQUIREMENTS,
-        "leader_worker": LEADER_REQUIREMENTS + WORKER_REQUIREMENTS,
-        "leader": LEADER_REQUIREMENTS,
+        "hardware": HARDWARE_REQUIREMENTS,
+        # role-named aliases, kept for existing images, installers, and updates to or from older releases
+        "worker": HARDWARE_REQUIREMENTS,
+        "leader_worker": HARDWARE_REQUIREMENTS,
+        "leader": [],
     },
 )

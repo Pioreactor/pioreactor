@@ -165,7 +165,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
           aria-controls="experiment-description-content"
           sx={{ width: '100%', minHeight: 44, px: 2, justifyContent: 'space-between' }}
         >
-          <Typography component="span" variant="body2" color="text.secondary">Description</Typography>
+          <Typography  sx={{ fontWeight: 700 }} component="span" variant="body2" color="text.secondary" >Description</Typography>
           <ExpandMoreIcon sx={{ transform: descriptionOpen ? 'rotate(180deg)' : 'none', color: 'text.secondary' }} />
         </ButtonBase>
         <CardContent id="experiment-description-content" hidden={!descriptionOpen} sx={{p: 1, pt: 0, '&:last-child': { pb: 1 }}}>

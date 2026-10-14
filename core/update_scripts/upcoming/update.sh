@@ -22,12 +22,35 @@ install -o pioreactor -g www-data -m 0664 "$ASSET" "$TMP_DESCRIPTOR"
 mv "$TMP_DESCRIPTOR" "$SETTINGS_DIR/13_pwms.yaml"
 cmp "$ASSET" "$SETTINGS_DIR/13_pwms.yaml"
 
+# Bioreactor topics now carry {"timestamp", "value"} payloads, so the leader's live
+# volume and alt-media charts need to read the `value` key.
+LEADER_HOSTNAME=$(sudo -u pioreactor -i pio config get cluster.topology leader_hostname)
+if [ "$(hostname)" = "$LEADER_HOSTNAME" ]; then
+    CHARTS_DIR=/home/pioreactor/.pioreactor/ui/charts
+    install -d -o pioreactor -g www-data -m 2775 "$CHARTS_DIR"
+    for CHART in 03_alt_media_fraction.yaml 08_current_volume_ml.yaml; do
+        CHART_ASSET="$SCRIPT_DIR/ui_charts_$CHART"
+        if [ ! -s "$CHART_ASSET" ] || ! grep -q '^payload_key: value$' "$CHART_ASSET"; then
+            sudo -u pioreactor -i pio log -l ERROR -m "Missing or invalid chart update asset: $CHART_ASSET"
+            exit 1
+        fi
+        TMP_CHART="$(mktemp "$CHARTS_DIR/.$CHART.XXXXXX")"
+        install -o pioreactor -g www-data -m 0664 "$CHART_ASSET" "$TMP_CHART"
+        mv "$TMP_CHART" "$CHARTS_DIR/$CHART"
+        cmp "$CHART_ASSET" "$CHARTS_DIR/$CHART"
+    done
+fi
+
 bash "$SCRIPT_DIR/20_install_bootfs_plugins.sh"
 
 bash "$SCRIPT_DIR/30_install_bootfs_files.sh"
+bash "$SCRIPT_DIR/40_huey_two_workers_on_zero_w.sh"
+bash "$SCRIPT_DIR/45_serve_kiosk_under_k.sh"
 
+bash "$SCRIPT_DIR/50_install_mosquitto.sh"
+bash "$SCRIPT_DIR/55_move_chrony_leader_source.sh"
 
-# Onboarding saves the unit model over SSH before requesting its reboot.
+# Onboarding uses this script to set up SSH to a new worker.
 WORKER_SETUP="$SCRIPT_DIR/add_new_pioreactor_worker_from_leader.sh"
 test -s "$WORKER_SETUP"
 TMP_WORKER_SETUP="$(mktemp /usr/local/bin/.worker-setup.XXXXXX)"

@@ -26,11 +26,11 @@ from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import get_from
 from pioreactor.pubsub import get_from_leader
+from pioreactor.pubsub import get_from_unit
 from pioreactor.pubsub import patch_into_leader
-from pioreactor.pubsub import post_into
 from pioreactor.pubsub import post_into_leader
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.job_manager import ClusterJobManager
@@ -160,14 +160,6 @@ def _get_worker_env_for_start(
     except HTTPException:
         return job_env
 
-    model_name = worker.get("model_name")
-    if model_name:
-        job_env["MODEL_NAME"] = model_name
-
-    model_version = worker.get("model_version")
-    if model_version:
-        job_env["MODEL_VERSION"] = model_version
-
     if "is_active" in worker:
         job_env["ACTIVE"] = str(int(bool(worker["is_active"])))
 
@@ -192,10 +184,8 @@ def _wait_for_unit_task_result(
             return {"ok": True}
         return None
 
-    address = resolve_to_address(unit)
-
     for _ in range(max_attempts):
-        response = get_from(address, result_url_path, timeout=timeout)
+        response = get_from_unit(unit, result_url_path, timeout=timeout)
         if not response.ok:
             raise HTTPException(summarize_error_response(response))
 
@@ -231,18 +221,9 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | No
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
-    # treat it as one.
+    # treat it as one. Container actions pass through: their nested actions come back through here when they fire.
     match action:
-        case struct.Log(_, _, _):
-            # noop
-            return action
-
-        case struct.Start(_, _, _, _):
-            # noop
-            return action
-
-        case struct.Repeat(_, _, _, _, _, _):
-            # noop
+        case struct.Log() | struct.Start() | struct.Repeat() | struct.When():
             return action
 
         case struct.Pause(hours, t, if_) | struct.Stop(hours, t, if_):
@@ -253,7 +234,8 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             return struct.Start(hours, t, if_, options, [])
 
         case _:
-            raise ValueError()
+            # ex: resume, as there are no prior intensities to restore.
+            raise ValueError(f"`{action}` is not supported for led_intensity.")
 
 
 def get_simple_priority(action: struct.Action) -> int:
@@ -743,10 +725,10 @@ def start_job(
             address = resolve_to_address(unit)
             for attempt in range(1, START_JOB_SUBMIT_MAX_ATTEMPTS + 1):
                 try:
-                    response = post_into(
-                        address,
+                    response = post_into_unit(
+                        unit,
                         f"/unit_api/jobs/run/job_name/{job_name}",
-                        headers={"X-Pioreactor-Target": unit},
+                        address=address,
                         json={
                             "options": evaluated_options,
                             "env": _get_worker_env_for_start(unit, experiment, parent_job.job_key),
@@ -887,10 +869,9 @@ def stop_job(
             logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
         else:
             logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
-            response = post_into(
-                resolve_to_address(unit),
+            response = post_into_unit(
+                unit,
                 "/unit_api/jobs/stop",
-                headers={"X-Pioreactor-Target": unit},
                 json={"job_name": job_name, "experiment": experiment},
             )
             if not response.ok:
@@ -980,17 +961,18 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
     return profile
 
 
-def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str]) -> None:
-    try:
-        for unit_name, label in labels_map.items():
+def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str], logger: CustomLogger) -> None:
+    # labels are cosmetic, so a failure shouldn't stop the profile, or the remaining labels.
+    for unit_name, label in labels_map.items():
+        try:
             response = put_into_leader(
                 f"/api/experiments/{experiment}/unit_labels",
                 json={"unit": unit_name, "label": label},
             )
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
-    except Exception:
-        pass
+        except HTTPException as e:
+            logger.warning(f"Unable to set label `{label}` for {unit_name}: {e}")
 
 
 def get_installed_plugins_and_versions() -> dict[str, str]:
@@ -1111,7 +1093,7 @@ def execute_experiment_profile(
             pioreactor_specific_block = profile.pioreactors[unit_]
             if pioreactor_specific_block.label is not None:
                 label = pioreactor_specific_block.label
-                push_labels_to_ui(experiment, {unit_: label})
+                push_labels_to_ui(experiment, {unit_: label}, logger)
 
             for job_name, job in pioreactor_specific_block.jobs.items():
                 for action in job.actions:

@@ -118,7 +118,7 @@ def create_client(
     )
     # set a finite queue for QOS>0 messages, so that if we lose connection, we don't store an unlimited number of messages. When the network comes back on, we don't want
     # a storm of messages (it also causes problems when multiple triggers are sent to execute methods.)
-    client.max_queued_messages_set(100)
+    client.max_queued_messages_set(10_000)
 
     if tls:
         import ssl
@@ -527,3 +527,73 @@ def delete_from(address: str, endpoint: str, **kwargs: Any) -> "mureq.Response":
 
 def delete_from_leader(endpoint: str, timeout: int = 5, **kwargs: Any) -> "mureq.Response":
     return delete_from(leader_address, endpoint, timeout=timeout, **kwargs)
+
+
+# Use the *_unit helpers for every request to a unit's /unit_api. They name the intended unit in
+# this header, and the unit rejects mutations meant for another hostname (e.g. after an IP is reused).
+TARGET_UNIT_HEADER = "X-Pioreactor-Target"
+
+
+def _unit_address_and_kwargs(
+    unit: pt.Unit, address: str | None, kwargs: dict[str, Any]
+) -> tuple[str, dict[str, Any]]:
+    if address is None:
+        # Lazy import: pioreactor.utils imports this module.
+        from pioreactor.utils.networking import resolve_to_address
+
+        address = resolve_to_address(unit)
+    headers = (kwargs.pop("headers", None) or {}) | {TARGET_UNIT_HEADER: unit}
+    return address, kwargs | {"headers": headers}
+
+
+def get_from_unit(
+    unit: pt.Unit, endpoint: str, *, address: str | None = None, **kwargs: Any
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return get_from(address, endpoint, **kwargs)
+
+
+def put_into_unit(
+    unit: pt.Unit,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    *,
+    address: str | None = None,
+    **kwargs: Any,
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return put_into(address, endpoint, body=body, json=json, **kwargs)
+
+
+def patch_into_unit(
+    unit: pt.Unit,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    *,
+    address: str | None = None,
+    **kwargs: Any,
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return patch_into(address, endpoint, body=body, json=json, **kwargs)
+
+
+def post_into_unit(
+    unit: pt.Unit,
+    endpoint: str,
+    body: bytes | None = None,
+    json: dict[str, Any] | Struct | None = None,
+    *,
+    address: str | None = None,
+    **kwargs: Any,
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return post_into(address, endpoint, body=body, json=json, **kwargs)
+
+
+def delete_from_unit(
+    unit: pt.Unit, endpoint: str, *, address: str | None = None, **kwargs: Any
+) -> "mureq.Response":
+    address, kwargs = _unit_address_and_kwargs(unit, address, kwargs)
+    return delete_from(address, endpoint, **kwargs)

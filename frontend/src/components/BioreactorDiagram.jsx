@@ -134,7 +134,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
     const messageString = message.toString();
 
     if (topicString.endsWith('pwms/channel_dc')) {
-      setDutyCyclesByChannel(messageString ? JSON.parse(messageString) : {});
+      setDutyCyclesByChannel(messageString ? JSON.parse(messageString).channels : {});
     } else if (topicString.endsWith('temperature_automation/temperature')) {
       setTemperature(messageString ? JSON.parse(messageString).temperature : null);
     } else if (topicString.endsWith('growth_rate_calculating/od_filtered')) {

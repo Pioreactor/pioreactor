@@ -256,7 +256,7 @@ function Overview(props) {
 
         {( cardsConfig['profiles'] === "1") &&
         <Grid size={12}>
-          <RunningProfilesProvider experiment={experimentMetadata.experiment} leaderHostname={config['cluster.topology']?.leader_hostname}>
+          <RunningProfilesProvider experiment={experimentMetadata.experiment}>
             <RunningProfilesContainer/>
           </RunningProfilesProvider>
         </Grid>

@@ -95,6 +95,27 @@ class cache:
     def __exit__(self, _exc_type: object, _exc_val: object, _tb: object) -> None:
         self.conn.close()
 
+    @contextmanager
+    def transaction(self) -> Generator[Self, None, None]:
+        """
+        Group several reads and writes into one write transaction: a single commit instead of one
+        per write, and other connections see all of the changes or none of them.
+
+        > with local_intermittent_storage("led_locks") as cache, cache.transaction():
+        >     for channel in channels:
+        >         cache.set_if_absent(channel, owner)
+
+        The write lock is taken up front, so read-then-write logic inside the block can't race other writers.
+        """
+        self.cursor.execute("BEGIN IMMEDIATE")
+        try:
+            yield self
+        except BaseException:
+            if self.conn.in_transaction:
+                self.cursor.execute("ROLLBACK")
+            raise
+        self.cursor.execute("COMMIT")
+
     def _initialize_table(self) -> None:
         self.cursor.execute(
             f"""

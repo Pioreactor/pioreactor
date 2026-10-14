@@ -24,8 +24,7 @@ individual hostname, never `$broadcast`.
 
 The header is optional for direct API clients: requests without it retain their
 existing behavior. Read requests are unchanged. This guards accidental address
-reuse, not authentication, and assumes workers run a version supporting the
-check; older workers may ignore the header.
+reuse, not authentication.
 
 Covered callers include Huey fanout, direct leader API proxies (including
 unit-specific config, calibration sessions, camera files, and archive imports),
@@ -33,14 +32,12 @@ USB plugin installation HTTP commands, `pios` HTTP commands, cluster job stops,
 and experiment-profile starts/stops. An HTTP 409 from `pios update app` must not
 trigger its SSH fallback.
 
-The frontend also supplies the configured leader hostname for direct, leader-local
-`/unit_api` mutations: USB mount/eject, profile start/stop, long-running job and
-web-server restarts, and system archive import. It does not send these mutations
-until the target hostname is available; read requests remain unchanged.
+The frontend does not send the header. Its `/unit_api` requests are same-origin,
+so they always reach the unit that served the page.
 
 SSH and rsync operations are outside this HTTP contract, including shared-config
 sync, `pios cp`, and staging USB plugin files before installation. They need a
 separate destination guard. Inventory cleanup uses
-`POST /unit_api/system/cleanup_after_inventory_removal` with the same optional header;
-it only stops worker jobs and removes shared config. The leader's
+`POST /unit_api/cluster/leave` with the same optional header;
+the worker undoes its join (stops jobs, removes shared config and its chrony source) and reboots. The leader's
 `DELETE /api/workers/<unit>` owns deletion of the inventory database record.

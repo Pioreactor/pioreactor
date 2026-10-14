@@ -767,7 +767,7 @@ export function UnitSettingDisplay(props) {
       return <Box sx={{ color: disconnectedGrey, fontSize: "13px" }}> {props.default} </Box>;
     }
 
-    const pwmDcs = JSON.parse(value);
+    const pwmDcs = JSON.parse(value).channels;
     const PWMMap = props.config["PWM"] || {};
     const renamed1 = PWMMap[1] ? PWMMap[1].replace("_", " ") : null;
     const renamed2 = PWMMap[2] ? PWMMap[2].replace("_", " ") : null;

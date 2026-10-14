@@ -329,7 +329,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> Parsed
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": current_utc_datetime(),
+        "timestamp": event.timestamp,
         "message": event.message,
         "data": dumps(event.data) if (event.data is not None) else "",
         "event_name": event.human_readable_name,
@@ -338,25 +338,25 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> Parsed
 
 def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    payload = msgspec_loads(payload)
+    bioreactor_value = msgspec_loads(payload, type=structs.BioreactorValue)
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": current_utc_datetime(),
-        "alt_media_fraction": float(payload),
+        "timestamp": bioreactor_value.timestamp,
+        "alt_media_fraction": bioreactor_value.value,
     }
 
 
 def parse_liquid_volume(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    payload = msgspec_loads(payload)
+    bioreactor_value = msgspec_loads(payload, type=structs.BioreactorValue)
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": current_utc_datetime(),
-        "liquid_volume": float(payload),
+        "timestamp": bioreactor_value.timestamp,
+        "liquid_volume": bioreactor_value.value,
     }
 
 
@@ -393,17 +393,17 @@ def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSq
 
 def parse_pwm_channel_dcs(topic: str, payload: pt.MQTTMessagePayload) -> ParsedSqliteRow:
     metadata = produce_metadata(topic)
-    channel_to_dc = msgspec_loads(payload, type=dict[str, float])
+    duty_cycles = msgspec_loads(payload, type=structs.PWMDutyCycles)
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": current_utc_datetime(),
-        "channel_1": channel_to_dc.get("1", 0.0),
-        "channel_2": channel_to_dc.get("2", 0.0),
-        "channel_3": channel_to_dc.get("3", 0.0),
-        "channel_4": channel_to_dc.get("4", 0.0),
-        "channel_5": channel_to_dc.get("5", 0.0),
+        "timestamp": duty_cycles.timestamp,
+        "channel_1": duty_cycles.channels.get("1", 0.0),
+        "channel_2": duty_cycles.channels.get("2", 0.0),
+        "channel_3": duty_cycles.channels.get("3", 0.0),
+        "channel_4": duty_cycles.channels.get("4", 0.0),
+        "channel_5": duty_cycles.channels.get("5", 0.0),
     }
 
 

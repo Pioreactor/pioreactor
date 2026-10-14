@@ -4,7 +4,6 @@ import signal
 import threading
 from contextlib import contextmanager
 from contextlib import suppress
-from json import dumps
 from os import getpid
 from time import sleep
 from typing import Any
@@ -12,6 +11,7 @@ from typing import Callable
 from typing import cast
 from typing import Iterator
 
+from msgspec.json import encode
 from pioreactor import types as pt
 from pioreactor.exc import PWMError
 from pioreactor.hardware import determine_gpiochip
@@ -20,11 +20,13 @@ from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
+from pioreactor.structs import PWMDutyCycles
 from pioreactor.types import GpioPin
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import remove_signal_handlers
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -324,7 +326,9 @@ class PWM:
             channel: current_values[pin] for channel, pin in self._pwm_to_pin.items() if pin in current_values
         }
         self.pub_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/pwms/channel_dc", dumps(channel_values), retain=True
+            f"pioreactor/{self.unit}/{self.experiment}/pwms/channel_dc",
+            encode(PWMDutyCycles(timestamp=current_utc_datetime(), channels=channel_values)),
+            retain=True,
         )
 
     def start(self, duty_cycle: pt.FloatBetween0and100) -> None:

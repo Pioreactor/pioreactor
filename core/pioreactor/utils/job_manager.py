@@ -12,8 +12,7 @@ from pioreactor import whoami
 from pioreactor.config import config
 from pioreactor.exc import JobRequiredError
 from pioreactor.exc import RoleError
-from pioreactor.pubsub import post_into
-from pioreactor.utils.networking import resolve_to_address
+from pioreactor.pubsub import post_into_unit
 from pioreactor.utils.timing import catchtime
 
 
@@ -415,9 +414,7 @@ class ClusterJobManager:
 
         def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
             try:
-                r = post_into(
-                    resolve_to_address(unit), endpoint, headers={"X-Pioreactor-Target": unit}, json=body
-                )
+                r = post_into_unit(unit, endpoint, json=body)
                 r.raise_for_status()
                 return True, r.json()
             except Exception as e:

@@ -27,7 +27,7 @@ from werkzeug.exceptions import HTTPException
 
 VERSION = __version__
 HOSTNAME = get_unit_name()
-NAME = f"pioreactor-{HOSTNAME}-api"
+NAME = "pioreactor-api"
 APP_DATABASE_QUERY_TIMEOUT_SECONDS = 30.0
 APP_DATABASE_QUERY_PROGRESS_HANDLER_INSTRUCTIONS = 50_000
 

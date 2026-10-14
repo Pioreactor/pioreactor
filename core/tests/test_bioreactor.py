@@ -155,6 +155,7 @@ def test_calculate_updated_current_volume_respects_max_working_volume_on_remove_
         dosing_event,
         current_volume_ml=15.0,
         efflux_tube_volume_ml=14.0,
+        capacity_ml=40.0,
     ) == pytest.approx(14.0)
 
 
@@ -170,6 +171,7 @@ def test_calculate_updated_current_volume_does_not_go_below_efflux_level_on_remo
         dosing_event,
         current_volume_ml=3.0,
         efflux_tube_volume_ml=3.0,
+        capacity_ml=40.0,
     ) == pytest.approx(3.0)
 
 
@@ -185,30 +187,11 @@ def test_calculate_updated_current_volume_accepts_add_media_events() -> None:
         dosing_event,
         current_volume_ml=0.0,
         efflux_tube_volume_ml=14.0,
+        capacity_ml=40.0,
     ) == pytest.approx(6.0)
 
 
-def test_calculate_updated_current_volume_caps_additions_at_model_capacity(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        bioreactor,
-        "get_pioreactor_model",
-        lambda: structs.Model(
-            model_name="test_model",
-            model_version="1.0",
-            display_name="Test model",
-            reactor_capacity_ml=20.0,
-            reactor_max_fill_volume_ml=18.0,
-            reactor_diameter_mm=27.0,
-            max_temp_to_reduce_heating=63.0,
-            max_temp_to_disable_heating=65.0,
-            max_temp_to_shutdown=66.0,
-            is_legacy=False,
-            is_contrib=False,
-        ),
-    )
-
+def test_calculate_updated_current_volume_caps_additions_at_model_capacity() -> None:
     dosing_event = structs.DosingEvent(
         volume_change=2.0,
         event="add_media",
@@ -220,6 +203,7 @@ def test_calculate_updated_current_volume_caps_additions_at_model_capacity(
         dosing_event,
         current_volume_ml=19.0,
         efflux_tube_volume_ml=14.0,
+        capacity_ml=20.0,
     ) == pytest.approx(20.0)
 
 
@@ -245,6 +229,7 @@ def test_calculate_updated_current_volume_sequence() -> None:
             dosing_event,
             current_volume_ml=current_volume,
             efflux_tube_volume_ml=max_volume,
+            capacity_ml=40.0,
         )
         assert current_volume == pytest.approx(target)
 
@@ -266,6 +251,7 @@ def test_calculate_updated_current_volume_with_negative_add_media_values() -> No
             dosing_event,
             current_volume_ml=current_volume,
             efflux_tube_volume_ml=max_volume,
+            capacity_ml=40.0,
         )
         assert current_volume == pytest.approx(target)
 
@@ -345,7 +331,7 @@ def test_apply_dosing_event_to_bioreactor_persists_cumulative_volumes() -> None:
     assert bioreactor.get_bioreactor_value(experiment, "cumulative_waste_removed_ml") == pytest.approx(0.75)
     assert (
         bioreactor.get_bioreactor_topic("unit", experiment, "cumulative_waste_removed_ml"),
-        0.75,
+        bioreactor.encode_bioreactor_payload(0.75, remove_waste_event.timestamp),
         True,
     ) in mqtt_client.published
 
@@ -584,6 +570,7 @@ def test_calculate_updated_alt_media_fraction_sequence() -> None:
             dosing_event,
             current_volume_ml=current_volume,
             efflux_tube_volume_ml=max_volume,
+            capacity_ml=40.0,
         )
         assert current_alt_media_fraction == pytest.approx(target)
 
@@ -603,6 +590,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
         event,
         current_volume_ml=current_volume,
         efflux_tube_volume_ml=max_volume,
+        capacity_ml=40.0,
     )
 
     event = structs.DosingEvent(6, "add_alt_media", "test", default_datetime_for_pioreactor(1))
@@ -615,6 +603,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
         event,
         current_volume_ml=current_volume,
         efflux_tube_volume_ml=max_volume,
+        capacity_ml=40.0,
     )
 
     event = structs.DosingEvent(6, "add_alt_media", "test", default_datetime_for_pioreactor(2))
@@ -627,6 +616,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
         event,
         current_volume_ml=current_volume,
         efflux_tube_volume_ml=max_volume,
+        capacity_ml=40.0,
     )
 
     correction_event = structs.DosingEvent(-3, "add_alt_media", "test", default_datetime_for_pioreactor(3))
@@ -639,6 +629,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
         correction_event,
         current_volume_ml=branch_a_volume,
         efflux_tube_volume_ml=max_volume,
+        capacity_ml=40.0,
     )
 
     direct_event = structs.DosingEvent(3, "add_alt_media", "test", default_datetime_for_pioreactor(2))
@@ -651,6 +642,7 @@ def test_calculate_updated_alt_media_fraction_with_negative_alt_media_dose() -> 
         direct_event,
         current_volume_ml=current_volume,
         efflux_tube_volume_ml=max_volume,
+        capacity_ml=40.0,
     )
 
     assert corrected_fraction == pytest.approx(direct_fraction)

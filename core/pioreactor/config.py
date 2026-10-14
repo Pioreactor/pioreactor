@@ -2,6 +2,7 @@
 import configparser
 import os
 import re
+import tempfile
 from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
@@ -68,6 +69,9 @@ class ConfigParserMod(configparser.ConfigParser):
         **kwargs: Any,
     ) -> Any:
         fallback_provided = fallback is not _FALLBACK_SENTINEL and fallback is not _CONFIGPARSER_UNSET
+        if fallback_provided and vars is None and not self.has_option(section, option):
+            # configparser doesn't pass the fallback down to `get`, which would log the option as missing.
+            return fallback
 
         try:
             if not fallback_provided:
@@ -115,7 +119,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
 """
 
-            logger.debug(msg)
+            logger.warning(msg)
             raise
 
     def get(self, section: str, option: str, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
@@ -129,7 +133,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
             from pioreactor.logging import create_logger
 
-            create_logger("read config").debug(
+            create_logger("read config").warning(
                 f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
@@ -179,6 +183,52 @@ def replace_or_append_config_entry(
     new_lines.append(section_header)
     new_lines.append(f"{parameter_name}={value}")
     return newline.join(new_lines) + newline
+
+
+def write_config_text(config_path: Path, config_text: str) -> None:
+    """Atomically replace a config file, after checking that the new text parses."""
+    ConfigParserMod(strict=False).read_string(config_text)
+
+    existing_mode = config_path.stat().st_mode & 0o777 if config_path.exists() else 0o664
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=config_path.parent,
+        delete=False,
+    ) as temporary_file:
+        temporary_file.write(config_text)
+        os.fchmod(temporary_file.fileno(), existing_mode)
+        temporary_path = Path(temporary_file.name)
+
+    temporary_path.replace(config_path)
+
+
+def remove_config_values_in_file(config_path: Path, entries: list[tuple[str, str]]) -> None:
+    """Remove (section, key) entries from a config file, keeping its comments and layout."""
+    # iniparse, unlike configparser, keeps comments and layout when written back.
+    from iniparse import INIConfig  # type: ignore[import-untyped]
+
+    if not config_path.is_file():
+        return
+
+    with config_path.open(encoding="utf-8") as file:
+        ini = INIConfig(file)
+    sections = list(ini)
+    present = [
+        (section, key) for section, key in entries if section in sections and key in list(ini[section])
+    ]
+    for section, key in present:
+        del ini[section][key]
+    if present:
+        write_config_text(config_path, str(ini))
+
+
+def set_config_value_in_file(config_path: Path, section_name: str, parameter_name: str, value: str) -> None:
+    current_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    write_config_text(
+        config_path, replace_or_append_config_entry(current_text, section_name, parameter_name, value)
+    )
 
 
 def _apply_runtime_config_sections(config: ConfigParserMod) -> ConfigParserMod:

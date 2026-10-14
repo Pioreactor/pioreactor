@@ -27,6 +27,8 @@ Read the nearest `AGENTS.md` or `README.md` when working in a subtree.
 - `packaging/shared-assets/pioreactor/exportable_datasets/README.md`: built-in export dataset descriptor seed files.
 - `packaging/shared-assets/pioreactor/ui/README.md`: built-in UI descriptor seed assets.
 
+Look for skills in `.agents/`.
+
 ---
 
 ## Key components
@@ -85,6 +87,14 @@ Do not assume bare `python`, `pytest`, or `mypy` point at the correct interprete
 
 `DOT_PIOREACTOR` is the effective data root for much of the application. When debugging filesystem, calibration, profile, plugin, backup/restore, or config issues, confirm which `DOT_PIOREACTOR` root the process is using before changing code.
 
+The local development environment is defined in `.envrc` (gitignored; `.envrc.example` is the template) and loaded by direnv. direnv only loads it through a hook in an interactive shell, so agent and other non-interactive shells start without it: `DOT_PIOREACTOR`, `GLOBAL_CONFIG`, `HARDWARE`, `MODEL_NAME`, `PLUGINS_DEV`, and the rest are unset. Run commands through direnv to load it:
+
+```bash
+direnv exec . .venv/bin/pytest core/tests/test_cli.py
+```
+
+Symptoms of a missing environment include `HardwareNotFoundError: HAT not found`, "No Pioreactor model assigned", "Missing plugins", and `FileNotFoundError` for `/run/pioreactor/...`. If a test fails this way, rerun it under `direnv exec .` before treating the failure as a regression or as pre-existing.
+
 
 ## Tools & commands
 
@@ -97,7 +107,7 @@ Available commands are listed in the `Makefile`.
  - Use **pytest** for Python tests. Running all tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
 
   ```bash
-  .venv/bin/pytest core/tests/test_cli.py
+  direnv exec . .venv/bin/pytest core/tests/test_cli.py
   ```
  - Don't run tests in parallel.
  - Reasons to delete a test include:

@@ -54,6 +54,7 @@ from pioreactor.camera import set_camera_auto_capture_enabled
 from pioreactor.cli.pio import validate_git_ref
 from pioreactor.cli.pio import validate_git_sha
 from pioreactor.cli.pio import validate_github_repo
+from pioreactor.cluster_membership import check_can_leave
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
@@ -62,6 +63,7 @@ from pioreactor.logging import create_logger
 from pioreactor.models import get_registered_models
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import TARGET_UNIT_HEADER
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
 from pioreactor.unit_model import get_local_model
@@ -107,8 +109,8 @@ def check_mutation_target() -> None:
     if request.method not in {"POST", "PATCH", "PUT", "DELETE"}:
         return
 
-    expected_hostname = request.headers.get("X-Pioreactor-Target")
-    # Direct API clients may omit the header; cluster callers supply the intended unit.
+    expected_hostname = request.headers.get(TARGET_UNIT_HEADER)
+    # Direct API clients may omit the header; cluster callers use the pubsub *_unit helpers, which send it.
     if expected_hostname is not None and expected_hostname != HOSTNAME:
         abort_with(
             409,
@@ -191,7 +193,14 @@ def get_unit_model() -> ResponseReturnValue:
     model = get_local_model()
     if model is None:
         abort_with(404, "No model assigned to this unit.")
-    return {"model_name": model[0], "model_version": model[1]}, 200
+    model_name, model_version = model
+    # The unit's registry is authoritative, so include its definition for the leader's mirror.
+    definition = get_registered_models().get((model_name, model_version))
+    return {
+        **(to_builtins(definition) if definition is not None else {}),
+        "model_name": model_name,
+        "model_version": model_version,
+    }, 200
 
 
 @unit_api_bp.route("/model", methods=["PUT"])
@@ -1102,9 +1111,14 @@ def remove_file() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api_bp.route("/system/cleanup_after_inventory_removal", methods=["POST"])
-def cleanup_after_inventory_removal() -> ResponseReturnValue:
-    """Stop jobs and remove shared config after removal from inventory."""
+@unit_api_bp.route("/cluster/leave", methods=["POST"])
+def leave_cluster() -> DelayedResponseReturnValue:
+    """
+    Leave this unit's cluster, then reboot. See `pio cluster leave`.
+
+    Optional JSON body: {"stop_activities": true} stops running activities; without it,
+    they must be stopped first.
+    """
     disallow_file = get_dot_pioreactor_path() / "DISALLOW_UI_FILE_SYSTEM"
     if disallow_file.is_file():
         abort_with(
@@ -1114,9 +1128,13 @@ def cleanup_after_inventory_removal() -> ResponseReturnValue:
             remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the action locally via SSH.",
         )
 
-    tasks.kill_jobs_task(all_jobs=True)
-    tasks.rm(str(get_dot_pioreactor_path() / "config.ini"))
-    return {"status": "accepted"}, 202
+    body = decode_request_body(structs.LeaveClusterRequest) if request.data else structs.LeaveClusterRequest()
+    try:
+        check_can_leave(body.stop_activities)
+    except RuntimeError as error:
+        abort_with(409, str(error))
+
+    return create_task_response(tasks.leave_cluster_and_reboot(body.stop_activities))
 
 
 # GET clock time
@@ -1570,15 +1588,6 @@ def get_settings_descriptors() -> ResponseReturnValue:
 ### PLUGINS
 
 
-def _canonicalize_package_name(raw: str) -> str:
-    # normalize to something close to pip's canonical form for comparison
-    name = raw.strip()
-    for sep in ("[", "==", ">=", "<=", "~=", "!=", ">", "<"):
-        if sep in name:
-            name = name.split(sep, 1)[0]
-    return name.replace("_", "-").lower()
-
-
 @unit_api_bp.route("/plugins/installed", methods=["GET"])
 def get_installed_plugins() -> ResponseReturnValue:
     result = tasks.list_plugins_installed()
@@ -1656,13 +1665,6 @@ def install_plugin() -> DelayedResponseReturnValue:
             remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
         )
 
-    # allowlist = _load_plugin_allowlist()
-    # if not allowlist:
-    #    abort_with(
-    #        403,
-    #        "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
-    #    )
-
     body = decode_request_body(structs.ArgsOptionsEnvs)
 
     if not body.args:
@@ -1679,13 +1681,6 @@ def install_plugin() -> DelayedResponseReturnValue:
             cause=f"Received {len(body.args)} plugin arguments.",
             remediation="Provide exactly one plugin name in args.",
         )
-
-    # requested_plugin = _canonicalize_package_name(body.args[0])
-    # if requested_plugin not in allowlist:
-    #    abort_with(
-    #        403,
-    #        f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
-    #    )
 
     source = body.options.get("source")
     version = body.options.get("version")

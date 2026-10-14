@@ -67,13 +67,43 @@ const dropPointsBefore = (data, cutoff) => {
   return firstKeptIndex === -1 ? [] : data.slice(firstKeptIndex);
 };
 
-// Halve the resolution once a series outgrows its budget, always keeping the newest point.
-const thinSeriesData = (data, maxPoints) => {
+// Once a series outgrows its budget, resample it to half the budget on an even time grid,
+// keeping the point nearest each grid time and always the newest point. Sampling by time
+// rather than by index means repeated compaction doesn't keep thinning older history while
+// dense recent live points survive; nearest (not first-after) avoids losing already-sparse
+// points to aliasing on each pass.
+export const thinSeriesData = (data, maxPoints) => {
   if (data.length <= maxPoints) {
     return data;
   }
+  const targetPoints = Math.floor(maxPoints / 2);
   const lastIndex = data.length - 1;
-  return data.filter((_, index) => (lastIndex - index) % 2 === 0);
+  const firstX = data[0].x;
+  const span = data[lastIndex].x - firstX;
+  const thinned = [];
+  let index = 0;
+  for (let i = 0; i < targetPoints - 1; i++) {
+    const targetX = firstX + (span * i) / (targetPoints - 1);
+    while (index < lastIndex && data[index].x < targetX) {
+      index++;
+    }
+    const previous = data[index - 1];
+    if (
+      previous &&
+      previous !== thinned[thinned.length - 1] &&
+      targetX - previous.x < data[index].x - targetX
+    ) {
+      index--;
+    }
+    if (index === lastIndex) {
+      break;
+    }
+    if (thinned[thinned.length - 1] !== data[index]) {
+      thinned.push(data[index]);
+    }
+  }
+  thinned.push(data[lastIndex]);
+  return thinned;
 };
 
 const resolveUnitColor = (name, colorMap) => {

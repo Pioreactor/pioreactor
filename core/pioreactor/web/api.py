@@ -23,6 +23,7 @@ from flask import send_file
 from flask.typing import ResponseReturnValue
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
+from msgspec import convert
 from msgspec import DecodeError
 from msgspec import to_builtins
 from msgspec import UNSET
@@ -34,6 +35,7 @@ from pioreactor import structs
 from pioreactor.config import build_config
 from pioreactor.config import ConfigParserMod
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import remove_config_values_in_file
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.validate import validate_profile
 from pioreactor.http_response import decode_unit_api_error_payload
@@ -46,12 +48,12 @@ from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.paths import get_run_pioreactor_path
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import create_webserver_path
-from pioreactor.pubsub import delete_from
-from pioreactor.pubsub import get_from
-from pioreactor.pubsub import patch_into
-from pioreactor.pubsub import post_into
+from pioreactor.pubsub import delete_from_unit
+from pioreactor.pubsub import get_from_unit
+from pioreactor.pubsub import patch_into_unit
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import publish
-from pioreactor.pubsub import put_into
+from pioreactor.pubsub import put_into_unit
 from pioreactor.pubsub import QOS
 from pioreactor.release_archive import ReleaseArchiveVerificationError
 from pioreactor.release_archive import verify_release_archive
@@ -651,10 +653,6 @@ def _single_registered_worker(pioreactor_unit: str) -> list[str]:
     return _single_unit(registered_worker_or_abort(pioreactor_unit))
 
 
-def resolve_registered_unit_address(pioreactor_unit: str) -> str:
-    return resolve_to_address(registered_unit_or_abort(pioreactor_unit))
-
-
 def resolve_registered_worker_address(pioreactor_unit: str) -> str:
     return resolve_to_address(registered_worker_or_abort(pioreactor_unit))
 
@@ -715,8 +713,8 @@ def get_camera_worker_response(
 ) -> Response:
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = get_from_unit(
+            registered_worker_or_abort(pioreactor_unit),
             worker_endpoint,
             timeout=timeout,
         )
@@ -936,10 +934,9 @@ def delete_camera_still_for_worker_experiment(
 
     response: MureqResponse | None = None
     try:
-        response = delete_from(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = delete_from_unit(
+            registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
-            headers={"X-Pioreactor-Target": pioreactor_unit},
             timeout=20,
         )
         response.raise_for_status()
@@ -971,10 +968,9 @@ def rename_camera_still_for_worker_experiment(
     body = decode_request_body(structs.RenameCameraStillRequest)
     response: MureqResponse | None = None
     try:
-        response = patch_into(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = patch_into_unit(
+            registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
-            headers={"X-Pioreactor-Target": pioreactor_unit},
             json=body,
             timeout=20,
         )
@@ -1067,8 +1063,8 @@ def get_task_result_for_worker(pioreactor_unit: str, task_id: str) -> ResponseRe
 
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = get_from_unit(
+            registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/task_results/{task_id}",
             timeout=10,
         )
@@ -1183,7 +1179,7 @@ def run_job_on_unit_in_experiment(
         if pioreactor_unit == UNIVERSAL_IDENTIFIER:
             assigned_workers = query_app_db(
                 """
-                SELECT pioreactor_unit, is_active, model_name, model_version
+                SELECT pioreactor_unit, is_active
                 FROM workers
                 WHERE is_active = 1
                 """
@@ -1193,7 +1189,7 @@ def run_job_on_unit_in_experiment(
             # universal experiment, specific worker
             worker = query_app_db(
                 """
-                SELECT pioreactor_unit, is_active, model_name, model_version
+                SELECT pioreactor_unit, is_active
                 FROM workers
                 WHERE pioreactor_unit = ? AND is_active = 1
                 """,
@@ -1209,7 +1205,7 @@ def run_job_on_unit_in_experiment(
             # specific experiment, all workers
             assigned_workers = query_app_db(
                 """
-                SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
+                SELECT a.pioreactor_unit, w.is_active
                 FROM experiment_worker_assignments a
                 JOIN workers w
                    on w.pioreactor_unit = a.pioreactor_unit
@@ -1223,7 +1219,7 @@ def run_job_on_unit_in_experiment(
             # check if worker is part of experiment
             worker = query_app_db(
                 """
-                SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
+                SELECT a.pioreactor_unit, w.is_active
                 FROM experiment_worker_assignments a
                 JOIN workers w
                    on w.pioreactor_unit = a.pioreactor_unit
@@ -1262,17 +1258,7 @@ def run_job_on_unit_in_experiment(
                     "HOSTNAME": worker["pioreactor_unit"],
                     "ACTIVE": str(int(worker["is_active"])),
                     "TESTING": str(int(is_testing_env())),
-                }
-                # Current invariant: model metadata is forwarded only as a
-                # complete, non-null pair.
-                | (
-                    {
-                        "MODEL_NAME": worker["model_name"],
-                        "MODEL_VERSION": worker["model_version"],
-                    }
-                    if worker["model_name"] is not None and worker["model_version"] is not None
-                    else {}
-                ),
+                },
             }
             for worker in assigned_workers
         ],
@@ -2377,14 +2363,11 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
     )
 
     try:
-        response = post_into(
-            resolve_registered_unit_address(pioreactor_unit),
+        response = post_into_unit(
+            registered_unit_or_abort(pioreactor_unit),
             "/unit_api/import_zipped_dot_pioreactor",
             body=body,
-            headers={
-                "X-Pioreactor-Target": pioreactor_unit,
-                "Content-Type": f"multipart/form-data; boundary={boundary}",
-            },
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
             timeout=120,
         )
         response.raise_for_status()
@@ -2509,10 +2492,9 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
 
     response: MureqResponse | None = None
     try:
-        response = post_into(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = post_into_unit(
+            registered_worker_or_abort(pioreactor_unit),
             "/unit_api/calibrations/sessions",
-            headers={"X-Pioreactor-Target": pioreactor_unit},
             json=payload,
             timeout=30,
         )
@@ -2539,8 +2521,8 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
 
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = get_from_unit(
+            registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}",
             timeout=30,
         )
@@ -2579,10 +2561,9 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
 
     response: MureqResponse | None = None
     try:
-        response = post_into(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = post_into_unit(
+            registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/inputs",
-            headers={"X-Pioreactor-Target": pioreactor_unit},
             json={"inputs": body.inputs},
             timeout=300,
         )
@@ -2614,10 +2595,9 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
 
     response: MureqResponse | None = None
     try:
-        response = post_into(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = post_into_unit(
+            registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/abort",
-            headers={"X-Pioreactor-Target": pioreactor_unit},
             timeout=30,
         )
         response.raise_for_status()
@@ -3055,8 +3035,8 @@ def get_automation_descriptors_for_worker(pioreactor_unit: str, automation_type:
 
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = get_from_unit(
+            registered_worker_or_abort(pioreactor_unit),
             f"/unit_api/automations/descriptors/{automation_type}",
             timeout=10,
         )
@@ -3113,8 +3093,8 @@ def get_job_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = get_from_unit(
+            registered_worker_or_abort(pioreactor_unit),
             "/unit_api/jobs/descriptors",
             timeout=10,
         )
@@ -3164,8 +3144,8 @@ def get_settings_descriptors_for_worker(pioreactor_unit: str) -> ResponseReturnV
 
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_worker_address(pioreactor_unit),
+        response = get_from_unit(
+            registered_worker_or_abort(pioreactor_unit),
             "/unit_api/settings/descriptors",
             timeout=10,
         )
@@ -3974,8 +3954,8 @@ def get_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseRet
 
     response: MureqResponse | None = None
     try:
-        response = get_from(
-            resolve_registered_unit_address(pioreactor_unit), "/unit_api/config/specific", timeout=10
+        response = get_from_unit(
+            registered_unit_or_abort(pioreactor_unit), "/unit_api/config/specific", timeout=10
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException):
@@ -4008,10 +3988,9 @@ def update_specific_config_for_pioreactor_unit(pioreactor_unit: str) -> Response
             build_config(_read_text(_get_shared_config_path()), code)
             _get_leader_unit_specific_config_path().write_text(code, encoding="utf-8")
         else:
-            response = put_into(
-                resolve_registered_unit_address(pioreactor_unit),
+            response = put_into_unit(
+                registered_unit_or_abort(pioreactor_unit),
                 "/unit_api/config/specific",
-                headers={"X-Pioreactor-Target": pioreactor_unit},
                 json={"code": code},
                 timeout=30,
             )
@@ -4368,9 +4347,9 @@ def discover_available_workers() -> ResponseReturnValue:
 
 
 @api_bp.route("/workers/setup", methods=["POST"])
-def setup_worker_pioreactor() -> ResponseReturnValue:
+def setup_worker_pioreactor() -> DelayedResponseReturnValue:
     """
-    Provision and register a newly discovered worker.
+    Provision and register a newly discovered worker. Returns 202 with a task to poll.
 
     JSON body:
     {
@@ -4402,26 +4381,12 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
             abort_with(400, "Invalid IPv4 address")
 
     try:
-        result = tasks.add_new_pioreactor(new_name, version, model, ipv4_address or None)
+        task = tasks.add_new_pioreactor(new_name, version, model, ipv4_address or None)
     except Exception as e:
         return abort_with(404, str(e))
 
-    setup_error: str | None = None
-    try:
-        status = result(blocking=True, timeout=90)
-    except (HueyException, TaskException) as exc:
-        status = False
-        setup_error = str(exc)
-
-    if status:
-        return {"msg": f"Worker {new_name} added successfully."}, 200
-    else:
-        abort_with(
-            404,
-            f"Failed to add worker {new_name}.",
-            cause=setup_error or "The worker setup task did not complete successfully.",
-            remediation="Check the Pioreactor logs for the full worker setup command output.",
-        )
+    # Setup can take minutes, so don't hold the single FastCGI process; the UI polls the task.
+    return create_task_response(task)
 
 
 @api_bp.route("/workers", methods=["PUT"])
@@ -4474,10 +4439,14 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
                 ),
             )
 
-            # The worker must verify its own hostname before stopping jobs or deleting config.
+            remove_config_values_in_file(_get_shared_config_path(), [("cluster.addresses", pioreactor_unit)])
+
+            # The worker checks the target hostname before leaving. Removal is the leader's call, so it
+            # stops the worker's activities. An unreachable worker keeps its config until `pio cluster leave`.
             tasks.multicast_post(
-                "/unit_api/system/cleanup_after_inventory_removal",
+                "/unit_api/cluster/leave",
                 _single_unit(pioreactor_unit),
+                json={"stop_activities": True},
             )
 
         cache.invalidate_merged_config_cache(pioreactor_unit)
@@ -4544,10 +4513,9 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     data = decode_request_body(structs.ChangeWorkerModelRequest)
     response: MureqResponse | None = None
     try:
-        response = put_into(
-            resolve_to_address(pioreactor_unit),
+        response = put_into_unit(
+            pioreactor_unit,
             "/unit_api/model",
-            headers={"X-Pioreactor-Target": pioreactor_unit},
             json=to_builtins(data),
             timeout=5,
         )
@@ -4561,6 +4529,25 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
         "UPDATE workers SET model_name=?, model_version=? WHERE pioreactor_unit=?",
         (data.model_name, data.model_version, pioreactor_unit),
     )
+    return {"status": "success"}, 200
+
+
+@api_bp.route("/workers/<pioreactor_unit>/reported_model", methods=["PUT"])
+def update_reported_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
+    # A unit reports the model it stores. Mirror-only: forwarding to the unit would loop. Not
+    # checked against the leader's registry, since the unit's registry decides what's valid.
+    registered_worker_or_abort(pioreactor_unit)
+
+    data = decode_request_body(structs.ChangeWorkerModelRequest)
+    row_count = modify_app_db(
+        """
+        UPDATE workers SET model_name=?, model_version=?
+        WHERE pioreactor_unit=? AND (model_name IS NOT ? OR model_version IS NOT ?)
+        """,
+        (data.model_name, data.model_version, pioreactor_unit, data.model_name, data.model_version),
+    )
+    if row_count > 0:
+        logger.debug(f"{pioreactor_unit} reported its model: {data.model_name} v{data.model_version}.")
     return {"status": "success"}, 200
 
 
@@ -4593,15 +4580,41 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
             remediation="Set the model of this worker.",
         )
     else:
+        definition = _get_worker_model_definition(
+            pioreactor_unit, result["model_name"], result["model_version"]
+        )
         return attach_cache_control(
             jsonify(
                 {
                     "pioreactor_unit": result["pioreactor_unit"],
-                    "model_name": result["model_name"],
-                    "model_version": result["model_version"],
-                    **to_builtins(get_registered_models()[(result["model_name"], result["model_version"])]),
+                    **to_builtins(definition),
                 }
             )
+        )
+
+
+def _get_worker_model_definition(pioreactor_unit: str, model_name: str, model_version: str) -> structs.Model:
+    # The unit owns its model, so its answer wins. The leader's registry covers
+    # offline units and units whose registry lacks their model's definition.
+    try:
+        response = get_from_unit(
+            pioreactor_unit,
+            "/unit_api/model",
+            timeout=2,
+        )
+        response.raise_for_status()
+        return convert(response.json(), type=structs.Model)
+    except (HTTPException, HTTPErrorStatus, DecodeError, ValidationError):
+        pass
+
+    try:
+        return get_registered_models()[(model_name, model_version)]
+    except KeyError:
+        abort_with(
+            409,
+            f"Model {model_name} v{model_version} for {pioreactor_unit} is not defined on the leader, and {pioreactor_unit} did not provide its definition.",
+            cause="The model is missing from the leader's registry and the worker is unreachable or doesn't define it.",
+            remediation=f"Bring {pioreactor_unit} online, or add the model's YAML file to the leader's ~/.pioreactor/models/.",
         )
 
 

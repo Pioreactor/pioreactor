@@ -2,7 +2,8 @@
 #
 # Project-specific files
 #
-_DOC_CHECKER.md
+*.tar
+.agents/skills/**.zip
 .codex
 .envrc
 .pioreactor/
@@ -134,6 +135,7 @@ __pypackages__/
 #
 # Tooling / editors
 #
+.DS_Store
 .ropeproject
 .spyderproject
 .spyproject

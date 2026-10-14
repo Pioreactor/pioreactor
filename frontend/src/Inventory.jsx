@@ -48,7 +48,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Alert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SelfTestDialog from "./components/SelfTestDialog";
-import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
+import { checkTaskCallback, fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { experimentPathSegment } from "./utils/url";
 import { getJobDescriptor } from "./utils/jobs";
 
@@ -214,28 +214,37 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
           'Content-Type': 'application/json'
         },
     })
-    .then(response => {
+    .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(formatWorkerSetupErrorMessage(data))
+        }
+        // Setup can take a few minutes: finding the worker, SSH, then the worker configures itself.
+        await checkTaskCallback(data.result_url_path, {maxRetries: 600, delayMs: 1000})
+    })
+    .then(() => {
+        setIsSuccess(true)
+        setName("")
+        setIpv4Address("")
+        setWorkers((prevWorkers) => [
+          ...prevWorkers,
+          {
+            pioreactor_unit: name,
+            is_active: true,
+            model_name: model[0],
+            model_version: model[1],
+            ipv4_address: requestBody.ipv4_address || null,
+          },
+        ].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
+        setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
+    })
+    .catch((err) => {
+        setIsError(true)
+        setErrorMsg(err.message)
+    })
+    .finally(() => {
         setIsRunning(false)
         setExpectedPathMsg("")
-        if(!response.ok){
-          setIsError(true)
-          response.json().then(data => setErrorMsg(formatWorkerSetupErrorMessage(data)))
-        } else {
-          setIsSuccess(true)
-          setName("")
-          setIpv4Address("")
-          setWorkers((prevWorkers) => [
-            ...prevWorkers,
-            {
-              pioreactor_unit: name,
-              is_active: true,
-              model_name: model[0],
-              model_version: model[1],
-              ipv4_address: requestBody.ipv4_address || null,
-            },
-          ].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
-          setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
-        }
     })
   }
 
@@ -1317,7 +1326,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
 
   const handleRemove = () => {
     confirm({
-      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove its inventory record and shared configuration. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
+      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, remove shared configuration, and reboot. No experiment data is removed, and unit-local calibration and estimator artifacts remain on the worker.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},

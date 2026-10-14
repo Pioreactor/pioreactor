@@ -1,4 +1,4 @@
--r requirements_leader_worker.txt
+-r requirements_hardware.txt
 pytest
 pytest-timeout
 pytest-random-order

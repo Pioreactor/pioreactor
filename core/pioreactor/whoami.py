@@ -30,55 +30,6 @@ def get_testing_experiment_name() -> "pt.Experiment":
         return f"_testing_{NO_EXPERIMENT}"
 
 
-def cache_membership(unit: str, values: dict[str, str | bool]) -> None:
-    """Persist only this unit's membership; remote lookups must stay leader-only."""
-    if unit != get_unit_name():
-        return
-
-    # Lazy imports avoid the config/utils -> whoami import cycle.
-    from msgspec.json import encode
-    from pioreactor.utils import local_persistent_storage
-    from pioreactor.utils.timing import current_utc_timestamp
-
-    updated_at = current_utc_timestamp()
-    with local_persistent_storage("cluster_membership") as storage:
-        for field, value in values.items():
-            storage[field] = encode((value, updated_at))
-
-
-def clear_cached_membership(unit: str) -> None:
-    if unit != get_unit_name():
-        return
-
-    from pioreactor.utils import local_persistent_storage
-
-    with local_persistent_storage("cluster_membership") as storage:
-        storage.pop("experiment")
-        storage.pop("is_active")
-
-
-def cached_membership(unit: str, field: str) -> str | bool | None:
-    """Only use after a local-unit transport failure; HTTP responses remain authoritative."""
-    if unit != get_unit_name():
-        return None
-
-    from msgspec.json import decode
-    from pioreactor.logging import create_logger
-    from pioreactor.utils import local_persistent_storage
-
-    with local_persistent_storage("cluster_membership") as storage:
-        record = storage.get(field)
-    if record is None:
-        return None
-    assert isinstance(record, bytes)
-    value, updated_at = decode(record, type=tuple[str | bool, str])
-    # Logging must neither look up the assignment again nor connect to the leader.
-    create_logger("whoami", unit=unit, experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False).warning(
-        f"Leader unreachable, using last known {field} {value!r} for {unit} from {updated_at}."
-    )
-    return value
-
-
 def get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
     return _get_assigned_experiment_name(unit_name)
 
@@ -102,9 +53,7 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
             result = get_from_leader(f"/api/workers/{unit_name}/experiment")
             result.raise_for_status()
             data = result.json()
-            experiment = data["experiment"]
-            cache_membership(unit_name, {"experiment": experiment, "is_active": bool(data["is_active"])})
-            return experiment
+            return data["experiment"]
         except HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
@@ -112,19 +61,12 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
                     f"Error in authentication to UI. Check http://{leader_address} and config.ini for api_key."
                 )
             elif e.status_code == 404:
-                clear_cached_membership(unit_name)
                 data = result.json()
                 raise NotAssignedAnExperimentError(data["error"])
         except HTTPException:
-            # connection errors are often transient (e.g. the leader's web server restarting), so retry.
-            if attempt == retries - 1:
-                experiment = cached_membership(unit_name, "experiment")
-                if experiment is not None:
-                    assert isinstance(experiment, str)
-                    return experiment
-                raise HTTPException(
-                    f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
-                )
+            raise HTTPException(
+                f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
+            )
         except Exception:
             # some other error? Keep trying
             pass
@@ -153,21 +95,14 @@ def _is_active(unit_name: "pt.Unit") -> bool:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
-        active = bool(data["is_active"])
-        cache_membership(unit_name, {"is_active": active})
-        return active
+        return bool(data["is_active"])
     except HTTPErrorStatus as e:
         if e.status_code == 404:
-            clear_cached_membership(unit_name)
             raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
         else:
             raise e
-    except HTTPException:
-        cached_active = cached_membership(unit_name, "is_active")
-        if cached_active is not None:
-            assert isinstance(cached_active, bool)
-            return cached_active
-        raise
+    except HTTPException as e:
+        raise e
 
 
 def is_testing_env() -> bool:
@@ -236,7 +171,9 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
     name, version = _get_pioreactor_model_name_and_version(target_unit_name)
 
     if name is None or version is None:
-        raise NoModelAssignedError("Unknown Pioreactor model: name and version not set yet.")
+        raise NoModelAssignedError(
+            f"No Pioreactor model assigned to {target_unit_name}. Assign one from the leader's Inventory page, or run `pio model set <name> <version>` on {target_unit_name}."
+        )
 
     try:
         return get_registered_models()[(name, version)]
@@ -245,74 +182,37 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
 
 
 def _get_pioreactor_model_name_and_version(unit_name: "pt.Unit") -> tuple[str | None, str | None]:
+    if unit_name != get_unit_name():
+        # The leader mirrors each unit's model.
+        return _get_pioreactor_model_name_and_version_from_leader(unit_name)
+
     # Lazy import avoids the config/utils -> whoami import cycle.
     from pioreactor.unit_model import get_local_model
-    from pioreactor.unit_model import save_local_model
 
-    if unit_name == get_unit_name() and (local := get_local_model()) is not None:
+    # Each unit owns its model, saved when it joins a cluster or its model is set. Reads never write.
+    if (local := get_local_model()) is not None:
         return local
 
-    # The local unit's model can be provided by env (jobs launched from the UI/profiles set these).
-    name: str | None = None
-    version: str | None = None
-
-    if unit_name == get_unit_name():
-        name = os.environ.get("MODEL_NAME") or None
-        version = os.environ.get("MODEL_VERSION") or None
-        if name is None and is_testing_env():
-            name = "pioreactor_40ml"
-
-    if name is not None and version is not None:
-        return name, version
-
-    leader_name, leader_version = _get_pioreactor_model_name_and_version_from_leader(unit_name)
-    if unit_name == get_unit_name() and leader_name is not None and leader_version is not None:
-        return save_local_model(leader_name, leader_version, only_if_unset=True)
-    return name or leader_name, version or leader_version
-
-
-# Model lookups are hot (safety thresholds, bioreactor validation on every dosing event), and
-# a worker's model changes rarely, so we briefly cache complete answers from the leader.
-_MODEL_FROM_LEADER_TTL_SECONDS = 30.0
-_model_from_leader_cache: dict[str, tuple[float, str, str]] = {}
+    # Development and CI environments set the model in the environment.
+    return os.environ.get("MODEL_NAME") or None, os.environ.get("MODEL_VERSION") or None
 
 
 def _get_pioreactor_model_name_and_version_from_leader(
     unit_name: "pt.Unit",
 ) -> tuple[str | None, str | None]:
-    use_cache = not is_testing_env()
-
-    if use_cache and (cached := _model_from_leader_cache.get(unit_name)) is not None:
-        cached_at, cached_name, cached_version = cached
-        if time.monotonic() - cached_at < _MODEL_FROM_LEADER_TTL_SECONDS:
-            return cached_name, cached_version
-
     from pioreactor.pubsub import get_from_leader
     from pioreactor.mureq import HTTPErrorStatus
-    from pioreactor.mureq import HTTPException
 
     try:
         result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
-        data = result.json()
     except HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {unit_name} is not found or not assigned a model.")
-        raise e
-    except HTTPException as e:
-        raise e
+        raise
 
-    name, version = data["model_name"], data["model_version"]
-
-    if use_cache and name is not None and version is not None:
-        # only cache complete answers, so a newly assigned model is picked up immediately.
-        _model_from_leader_cache[unit_name] = (time.monotonic(), name, version)
-
-    return name, version
-
-
-def clear_pioreactor_model_cache() -> None:
-    _model_from_leader_cache.clear()
+    data = result.json()
+    return data["model_name"], data["model_version"]
 
 
 @cache

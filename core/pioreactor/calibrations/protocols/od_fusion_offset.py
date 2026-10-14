@@ -29,7 +29,7 @@ from pioreactor.config import config
 from pioreactor.estimators import list_of_estimators_by_device
 from pioreactor.estimators import load_estimator
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import get_from
+from pioreactor.pubsub import get_from_unit
 from pioreactor.utils.od_fusion import compute_fused_od
 from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.timing import current_utc_datestamp
@@ -76,7 +76,7 @@ def _list_estimators_for_worker(worker: str) -> tuple[list[str], str | None]:
             estimators = list_of_estimators_by_device(pt.OD_FUSED_DEVICE)
             return sorted(estimators), None
 
-        response = get_from(worker, f"/unit_api/estimators/{pt.OD_FUSED_DEVICE}")
+        response = get_from_unit(worker, f"/unit_api/estimators/{pt.OD_FUSED_DEVICE}")
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, list):
@@ -100,7 +100,7 @@ def _load_estimator_for_worker(worker: str, estimator_name: str) -> structs.ODFu
         assert isinstance(estimator, structs.ODFusionEstimator)
         return estimator
 
-    response = get_from(worker, f"/unit_api/estimators/{pt.OD_FUSED_DEVICE}/{estimator_name}")
+    response = get_from_unit(worker, f"/unit_api/estimators/{pt.OD_FUSED_DEVICE}/{estimator_name}")
     response.raise_for_status()
     payload = response.json()
     payload.pop("is_active", None)

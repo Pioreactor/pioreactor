@@ -13,6 +13,7 @@
 # - Run as the `pioreactor` user (not root).
 # - Assumes official image with `pio` CLI installed.
 # - Requires `curl`. `jq` is optional for prettier JSON checks.
+# - Worker packaging checks use the leader's SSH key to workers when available.
 
 set -uo pipefail
 
@@ -31,15 +32,21 @@ declare -a TEST_SEQUENCE=(
   check_configuration_files
   check_config_api_endpoints
   check_services
+  check_runtime_packaging
   check_ui_static_assets
+  check_kiosk_route
   check_mqtt_logging
   check_monitor_job
   check_database_access
   check_worker_model_metadata
+  check_unit_model_contract
   check_unit_api_core
   check_registered_target_validation
+  check_mutation_target_guard
+  check_cross_site_write_protection
   check_usb_status_surface
   check_descriptor_endpoints
+  check_calibration_session_tasks
   check_camera_contract
   check_unit_api_job_history
   check_blink
@@ -48,6 +55,7 @@ declare -a TEST_SEQUENCE=(
   check_pio_usb_cli
   check_update_cli_contract
   check_leader_api
+  check_time_series_endpoints
   check_experiment_cli
   check_stirring_job
   check_experiment_scoping
@@ -62,6 +70,7 @@ declare -a TEST_SEQUENCE=(
   check_broadcast_endpoints
   check_thermostat_job
   check_pump_actions
+  check_bioreactor_topic_payloads
   check_plugin_install_cycle
   check_pios_cli
   check_pios_cp_target_help
@@ -245,6 +254,97 @@ http_status_is() {
   local status
   status="$(curl -sS -o /dev/null -w "%{http_code}" "$@" "$url")"
   [[ "$status" == "$expected_status" ]]
+}
+
+http_header_value() {
+  # Usage: http_header_value HEADER_NAME URL [curl args...]
+  # Prints the response header's value, or nothing when the header is absent.
+  local header_name="${1,,}"
+  local url="$2"
+  shift 2
+
+  curl -sS -D - -o /dev/null "$@" "$url" | tr -d '\r' | \
+    awk -v name="$header_name" '
+      {
+        split($0, parts, ":")
+        if (tolower(parts[1]) == name) {
+          value = $0
+          sub(/^[^:]*:[[:space:]]*/, "", value)
+        }
+      }
+      END { print value }
+    '
+}
+
+mqtt_read_one() {
+  # Usage: mqtt_read_one TOPIC [TIMEOUT_SECONDS]
+  # Prints the first payload on TOPIC (for retained topics, the retained message).
+  local topic="$1"
+  local timeout_seconds="${2:-5}"
+  local host port username password
+
+  host="$(pio config get mqtt broker_address 2>/dev/null | tr -d '[:space:]')"
+  port="$(pio config get mqtt broker_port 2>/dev/null | tr -d '[:space:]')"
+  username="$(pio config get mqtt username 2>/dev/null | tr -d '[:space:]')"
+  password="$(pio config get mqtt password 2>/dev/null | tr -d '[:space:]')"
+
+  mosquitto_sub \
+    -h "${host:-localhost}" \
+    -p "${port:-1883}" \
+    -u "${username:-pioreactor}" \
+    -P "${password:-raspberry}" \
+    -t "$topic" \
+    -C 1 \
+    -W "$timeout_seconds"
+}
+
+mqtt_checks_available() {
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping MQTT payload checks"
+    return 1
+  fi
+
+  if ! command -v mosquitto_sub >/dev/null 2>&1; then
+    fail "mosquitto_sub missing; mosquitto-clients should be installed on every unit"
+    return 1
+  fi
+
+  if [[ "$(pio config get mqtt use_tls 2>/dev/null | tr -d '[:space:]')" == "1" ]]; then
+    warn "MQTT uses TLS; skipping MQTT payload checks"
+    return 1
+  fi
+}
+
+get_assigned_experiment_via_api() {
+  # Prints the experiment assigned to a unit, or nothing when it is unassigned.
+  local unit="$1"
+  local response_file status
+  response_file="$(mktemp)"
+
+  status="$(curl -sS -o "$response_file" -w "%{http_code}" "http://localhost/api/workers/$unit/experiment")"
+  case "$status" in
+    200)
+      jq -r '.experiment // empty' "$response_file"
+      ;;
+    404)
+      ;;
+    *)
+      rm -f "$response_file"
+      return 1
+      ;;
+  esac
+  rm -f "$response_file"
+}
+
+uri_encode() {
+  jq -rn --arg value "$1" '$value | @uri'
+}
+
+no_short_lived_jobs_running() {
+  # Model changes are refused while activities (anything except long-running services) run.
+  local jobs_json
+  jobs_json="$(fetch_running_jobs)" || return 1
+  jq -e 'all(.[]; (.is_long_running_job // 0) == 1)' <<< "$jobs_json" >/dev/null
 }
 
 fetch_running_jobs() {
@@ -900,6 +1000,78 @@ check_services() {
   done
 }
 
+check_runtime_packaging() {
+  info "Checking runtime packaging (mosquitto clients, Huey workers, boot partition imports)"
+
+  if command -v mosquitto_sub >/dev/null 2>&1 && command -v mosquitto_pub >/dev/null 2>&1; then
+    ok "mosquitto clients installed"
+  else
+    fail "mosquitto clients missing; they are installed on every unit"
+  fi
+
+  # Calibration steps run as a Huey task that waits on other Huey tasks, so one worker deadlocks.
+  local huey_launcher="/usr/local/bin/start_pioreactor_huey.sh"
+  if [[ ! -f "$huey_launcher" ]]; then
+    warn "$huey_launcher not found; skipping Huey worker count check"
+  elif grep -Eq 'huey_consumer.*[[:space:]]-w[[:space:]]+1([[:space:]]|$)' "$huey_launcher"; then
+    fail "$huey_launcher starts a single Huey worker; calibration session steps need at least two"
+  else
+    ok "Huey launcher starts at least two workers for every image profile"
+  fi
+
+  if ! grep -qs 'Raspberry Pi' /proc/device-tree/model; then
+    warn "Not a Raspberry Pi image; skipping boot partition import checks"
+    return
+  fi
+
+  if [[ "$HAS_SYSTEMCTL" != true ]]; then
+    warn "systemctl not available; skipping boot partition import checks"
+    return
+  fi
+
+  local target_wants service
+  target_wants="$(systemctl show -p Wants --value pioreactor.target 2>/dev/null)"
+  for service in bootfs_plugins bootfs_files; do
+    if ! systemctl cat "$service.service" >/dev/null 2>&1; then
+      fail "$service.service is not installed"
+      continue
+    fi
+
+    if [[ -x "/usr/local/bin/$service.sh" ]]; then
+      ok "/usr/local/bin/$service.sh installed"
+    else
+      fail "/usr/local/bin/$service.sh missing or not executable"
+    fi
+
+    if grep -qw "$service.service" <<< "$target_wants"; then
+      ok "pioreactor.target pulls in $service.service"
+    else
+      fail "pioreactor.target does not pull in $service.service"
+    fi
+
+    if systemctl is-failed --quiet "$service.service"; then
+      fail "$service.service failed this boot; see: journalctl -u $service.service"
+    else
+      ok "$service.service did not fail this boot"
+    fi
+  done
+
+  if systemctl cat bootfs_plugins.path >/dev/null 2>&1; then
+    fail "retired bootfs_plugins.path is still installed"
+  fi
+
+  local boot_dir="/boot/firmware/pioreactor" leftovers
+  if [[ -d "$boot_dir" ]]; then
+    leftovers="$(find "$boot_dir" -type f \( -name '*.log' -o -path '*/failed/*' \) 2>/dev/null | head -n 5)"
+    if [[ -n "$leftovers" ]]; then
+      warn "Boot partition has failed imports awaiting correction:"
+      while IFS= read -r line; do
+        warn "  $line"
+      done <<< "$leftovers"
+    fi
+  fi
+}
+
 check_ui_static_assets() {
   info "Checking UI entrypoint and built assets"
 
@@ -921,6 +1093,46 @@ check_ui_static_assets() {
     ok "UI entrypoint references loadable JavaScript and CSS assets"
   else
     fail "UI JavaScript or CSS asset failed to load"
+  fi
+}
+
+check_kiosk_route() {
+  info "Checking the touchscreen UI served under /k/"
+
+  local kiosk_html path cache_control javascript_path
+  if http_status_is 404 http://localhost/static/kiosk.html; then
+    warn "kiosk.html is not part of the installed UI build; skipping /k/ checks"
+    return
+  fi
+
+  if ! kiosk_html="$(curl -fsS http://localhost/static/kiosk.html)"; then
+    fail "/static/kiosk.html request failed"
+    return
+  fi
+
+  for path in /k /k/ /k/agent/smoke "/k?agent=smoke"; do
+    if [[ "$(curl -fsS "http://localhost$path")" == "$kiosk_html" ]]; then
+      ok "$path serves kiosk.html"
+    else
+      fail "$path does not serve kiosk.html"
+    fi
+  done
+
+  # A cached shell would keep pointing at hashed assets that an update removed.
+  for path in /k/ /static/kiosk.html; do
+    cache_control="$(http_header_value Cache-Control "http://localhost$path")"
+    if [[ "$cache_control" == *no-store* ]]; then
+      ok "$path is served with Cache-Control: no-store"
+    else
+      fail "$path Cache-Control is '${cache_control:-<missing>}', expected no-store"
+    fi
+  done
+
+  javascript_path="$(grep -Eo '/static/static/[^"]+\.js' <<< "$kiosk_html" | head -n 1)"
+  if [[ -n "$javascript_path" ]] && curl -fsS "http://localhost${javascript_path}" >/dev/null; then
+    ok "kiosk.html references a loadable JavaScript bundle"
+  else
+    fail "kiosk.html does not reference a loadable JavaScript bundle"
   fi
 }
 
@@ -990,11 +1202,98 @@ SQL
   ok "Worker ${hostname} registered as ${model_name} v${model_version}"
 }
 
+check_unit_model_contract() {
+  local hostname local_model model_name model_version model_filter payload
+  hostname="$(hostname)"
+
+  info "Checking the unit-owned model assignment"
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping unit model checks"
+    return
+  fi
+
+  if ! local_model="$(pio model get)"; then
+    fail "pio model get failed"
+    return
+  fi
+
+  model_name="$(jq -r '.model_name // empty' <<< "$local_model")"
+  model_version="$(jq -r '.model_version // empty' <<< "$local_model")"
+  if [[ -z "$model_name" || -z "$model_version" ]]; then
+    fail "No model saved on ${hostname}. Set it with: pio model set <model_name> <model_version>"
+    return
+  fi
+  ok "pio model get reports ${model_name} v${model_version}"
+
+  model_filter=".model_name==\"$model_name\" and .model_version==\"$model_version\" and (.display_name | type==\"string\") and (.reactor_capacity_ml | type==\"number\") and (.reactor_max_fill_volume_ml | type==\"number\")"
+  run_step \
+    "Checking /unit_api/model returns the local model definition" \
+    curl_check \
+    http://localhost/unit_api/model \
+    "$model_filter"
+  run_step \
+    "Checking /api/workers/$hostname/model matches the unit's model" \
+    curl_check \
+    "http://localhost/api/workers/$hostname/model" \
+    "$model_filter and .pioreactor_unit==\"$hostname\""
+  run_step \
+    "Checking leader inventory mirrors the unit's model" \
+    curl_check \
+    http://localhost/api/workers \
+    "any(.[]; .pioreactor_unit==\"$hostname\" and .model_name==\"$model_name\" and .model_version==\"$model_version\")"
+
+  payload="{\"model_name\":\"$model_name\",\"model_version\":\"$model_version\"}"
+  run_step \
+    "Checking PUT /api/workers/$hostname/reported_model accepts the current model" \
+    http_status_is \
+    200 \
+    "http://localhost/api/workers/$hostname/reported_model" \
+    -X PUT \
+    -H "Content-Type: application/json" \
+    -d "$payload"
+  run_step \
+    "Checking PUT /unit_api/model rejects an unknown model" \
+    http_status_is \
+    400 \
+    http://localhost/unit_api/model \
+    -X PUT \
+    -H "Content-Type: application/json" \
+    -d '{"model_name":"agent_smoke_unknown_model","model_version":"0.0"}'
+  run_step \
+    "Checking /unit_api/model is unchanged after the rejected update" \
+    curl_check \
+    http://localhost/unit_api/model \
+    "$model_filter"
+
+  if pio cache list | grep -qx pioreactor_model; then
+    ok "pio cache list includes pioreactor_model"
+  else
+    fail "pio cache list does not include pioreactor_model"
+  fi
+
+  if ! no_short_lived_jobs_running; then
+    warn "Activities are running; skipping idempotent pio model set"
+    return
+  fi
+
+  local set_output
+  if set_output="$(pio model set "$model_name" "$model_version")" && \
+     jq -e ".model_name==\"$model_name\" and .model_version==\"$model_version\"" <<< "$set_output" >/dev/null; then
+    ok "pio model set re-saved ${model_name} v${model_version}"
+  else
+    fail "pio model set ${model_name} ${model_version} failed"
+  fi
+}
+
 check_unit_api_core() {
   run_step "Checking /unit_api/versions/app" curl_check http://localhost/unit_api/versions/app
   run_step "Checking /unit_api/jobs/running" curl_check http://localhost/unit_api/jobs/running 'type=="array"'
   run_step "Checking /unit_api/capabilities" curl_check http://localhost/unit_api/capabilities
-  run_step "Checking /unit_api/system/utc_clock" curl_check http://localhost/unit_api/system/utc_clock
+  run_step \
+    "Checking /unit_api/system/utc_clock" \
+    curl_check \
+    http://localhost/unit_api/system/utc_clock \
+    '(.clock_time | type=="string") and has("synchronized") and (.synchronized | type=="boolean" or type=="null")'
   run_step \
     "Checking /unit_api/system/ipv4" \
     curl_check \
@@ -1022,6 +1321,176 @@ check_registered_target_validation() {
     http://localhost/api/units/203.0.113.10/system/reboot \
     -H "Content-Length: 0" \
     -X POST
+}
+
+# A stop request that matches no jobs: harmless if a guard under test fails open.
+NOOP_STOP_PAYLOAD='{"experiment":"agent-smoke-no-such-experiment"}'
+
+check_mutation_target_guard() {
+  local hostname
+  hostname="$(hostname)"
+
+  run_step \
+    "Checking /unit_api rejects writes addressed to another unit" \
+    http_status_is \
+    409 \
+    http://localhost/unit_api/jobs/stop \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "X-Pioreactor-Target: agent-smoke-not-$hostname" \
+    -d "$NOOP_STOP_PAYLOAD"
+  run_step \
+    "Checking /unit_api accepts writes addressed to $hostname" \
+    http_status_is \
+    202 \
+    http://localhost/unit_api/jobs/stop \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "X-Pioreactor-Target: $hostname" \
+    -d "$NOOP_STOP_PAYLOAD"
+  run_step \
+    "Checking /unit_api accepts writes without a target header" \
+    http_status_is \
+    202 \
+    http://localhost/unit_api/jobs/stop \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -d "$NOOP_STOP_PAYLOAD"
+  run_step \
+    "Checking /unit_api reads ignore a mismatched target" \
+    http_status_is \
+    200 \
+    http://localhost/unit_api/jobs/running \
+    -H "X-Pioreactor-Target: agent-smoke-not-$hostname"
+  run_step \
+    "Checking renamed remove_from_inventory route is gone" \
+    http_status_is \
+    404 \
+    "http://localhost/unit_api/system/remove_from_inventory/agent-smoke-not-$hostname" \
+    -X POST \
+    -H "Content-Length: 0"
+}
+
+check_cross_site_write_protection() {
+  local hostname foreign_origin cluster_origin allow_origin allow_headers vary
+  hostname="$(hostname)"
+  foreign_origin="https://agent-smoke.invalid"
+  cluster_origin="http://$hostname.local"
+
+  info "Testing CORS and cross-site write protection"
+
+  allow_origin="$(http_header_value Access-Control-Allow-Origin http://localhost/api/workers -H "Origin: $cluster_origin")"
+  if [[ "$allow_origin" == "$cluster_origin" ]]; then
+    ok "/api allows reads from cluster origin $cluster_origin"
+  else
+    fail "/api Access-Control-Allow-Origin for $cluster_origin was '${allow_origin:-<missing>}'"
+  fi
+
+  allow_origin="$(http_header_value Access-Control-Allow-Origin http://localhost/api/workers -H "Origin: http://localhost:5173")"
+  if [[ "$allow_origin" == "http://localhost:5173" ]]; then
+    ok "/api allows reads from localhost on any port"
+  else
+    fail "/api Access-Control-Allow-Origin for http://localhost:5173 was '${allow_origin:-<missing>}'"
+  fi
+
+  allow_origin="$(http_header_value Access-Control-Allow-Origin http://localhost/api/workers -H "Origin: $foreign_origin")"
+  if [[ -z "$allow_origin" ]]; then
+    ok "/api sends no CORS headers to foreign origins"
+  else
+    fail "/api allowed foreign origin $foreign_origin ($allow_origin)"
+  fi
+
+  allow_origin="$(http_header_value Access-Control-Allow-Origin http://localhost/api/workers -H "Origin: $cluster_origin:8080")"
+  if [[ -z "$allow_origin" ]]; then
+    ok "/api rejects cluster origins on non-default ports"
+  else
+    fail "/api allowed $cluster_origin:8080 ($allow_origin)"
+  fi
+
+  vary="$(http_header_value Vary http://localhost/api/workers -H "Origin: $foreign_origin")"
+  if [[ "${vary,,}" == *origin* ]]; then
+    ok "/api responses vary on Origin"
+  else
+    fail "/api Vary header was '${vary:-<missing>}', expected Origin"
+  fi
+
+  allow_headers="$(http_header_value Access-Control-Allow-Headers http://localhost/api/workers \
+    -X OPTIONS \
+    -H "Origin: $cluster_origin" \
+    -H "Access-Control-Request-Method: PUT" \
+    -H "Access-Control-Request-Headers: content-type, x-pioreactor-target")"
+  if [[ "$allow_headers" == *X-Pioreactor-Target* ]]; then
+    ok "/api preflight allows the X-Pioreactor-Target header"
+  else
+    fail "/api preflight Access-Control-Allow-Headers was '${allow_headers:-<missing>}'"
+  fi
+
+  run_step \
+    "Checking /unit_api rejects browser writes from foreign origins" \
+    http_status_is \
+    403 \
+    http://localhost/unit_api/jobs/stop \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "Origin: $foreign_origin" \
+    -d "$NOOP_STOP_PAYLOAD"
+  run_step \
+    "Checking /unit_api rejects simple form posts from foreign origins" \
+    http_status_is \
+    403 \
+    http://localhost/unit_api/jobs/stop \
+    -X POST \
+    -H "Origin: $foreign_origin" \
+    --data-urlencode "experiment=agent-smoke-no-such-experiment"
+  run_step \
+    "Checking /unit_api accepts browser writes from localhost" \
+    http_status_is \
+    202 \
+    http://localhost/unit_api/jobs/stop \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "Origin: http://localhost" \
+    -d "$NOOP_STOP_PAYLOAD"
+
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping /api cross-site write checks"
+    return
+  fi
+
+  local local_model model_payload
+  if ! local_model="$(pio model get)" || \
+     ! jq -e '.model_name and .model_version' <<< "$local_model" >/dev/null; then
+    warn "No local model saved; skipping /api cross-site write checks"
+    return
+  fi
+  model_payload="$(jq -c '{model_name, model_version}' <<< "$local_model")"
+
+  run_step \
+    "Checking /api rejects browser writes from foreign origins" \
+    http_status_is \
+    403 \
+    "http://localhost/api/workers/$hostname/reported_model" \
+    -X PUT \
+    -H "Content-Type: application/json" \
+    -H "Origin: $foreign_origin" \
+    -d "$model_payload"
+  run_step \
+    "Checking /api accepts browser writes from cluster origin $cluster_origin" \
+    http_status_is \
+    200 \
+    "http://localhost/api/workers/$hostname/reported_model" \
+    -X PUT \
+    -H "Content-Type: application/json" \
+    -H "Origin: $cluster_origin" \
+    -d "$model_payload"
+  run_step \
+    "Checking /api accepts writes without an Origin" \
+    http_status_is \
+    200 \
+    "http://localhost/api/workers/$hostname/reported_model" \
+    -X PUT \
+    -H "Content-Type: application/json" \
+    -d "$model_payload"
 }
 
 check_usb_status_surface() {
@@ -1093,6 +1562,96 @@ check_descriptor_endpoints() {
     curl_check \
     http://localhost/api/automations/descriptors/dosing \
     'type=="array" and any(.automation_name=="chemostat")'
+}
+
+check_calibration_session_tasks() {
+  # The stirring DC-based intro step advances without hardware; the session is aborted
+  # before its "Run calibration" step.
+  local hostname sessions_url response_file status session_id task_id task_status
+  hostname="$(hostname)"
+  sessions_url="http://localhost/api/workers/$hostname/calibrations/sessions"
+
+  info "Testing calibration session steps run as Huey tasks"
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping calibration session checks"
+    return
+  fi
+
+  local jobs_json
+  if ! jobs_json="$(fetch_running_jobs)"; then
+    fail "Unable to fetch running jobs"
+    return
+  fi
+  if jobs_contain "$jobs_json" 'any(.[]; .job_name=="stirring")'; then
+    warn "stirring is running; skipping calibration session checks"
+    return
+  fi
+
+  response_file="$(mktemp)"
+  status="$(curl -sS -o "$response_file" -w "%{http_code}" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"target_device":"stirring","protocol_name":"dc_based"}' \
+    "$sessions_url")"
+  session_id="$(jq -r '.session.session_id // empty' "$response_file" 2>/dev/null)"
+  if [[ "$status" == "201" && -n "$session_id" ]] && \
+     jq -e '.step.step_id=="intro"' "$response_file" >/dev/null; then
+    ok "started stirring calibration session $session_id"
+  else
+    fail "starting a stirring calibration session returned HTTP $status"
+    print_prefixed_file_excerpt "session start response: " "$response_file" 2000
+    rm -f "$response_file"
+    return
+  fi
+
+  status="$(curl -sS -o "$response_file" -w "%{http_code}" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"inputs":{}}' \
+    "$sessions_url/$session_id/inputs")"
+  task_id="$(jq -r '.task_id // empty' "$response_file" 2>/dev/null)"
+  if [[ "$status" == "202" && -n "$task_id" ]] && \
+     jq -e '.status=="accepted" and (.result_url_path | type=="string")' "$response_file" >/dev/null; then
+    ok "advancing the session answered 202 with task $task_id"
+  else
+    fail "advancing the session returned HTTP $status, expected 202 with a task"
+    print_prefixed_file_excerpt "session inputs response: " "$response_file" 2000
+    task_id=""
+  fi
+
+  if [[ -n "$task_id" ]]; then
+    for _ in {1..60}; do
+      if curl -fsS "http://localhost/api/workers/$hostname/task_results/$task_id" > "$response_file"; then
+        task_status="$(jq -r '.status // empty' "$response_file")"
+        [[ "$task_status" == "succeeded" || "$task_status" == "failed" ]] && break
+      fi
+      sleep 0.5
+    done
+
+    if jq -e '.status=="succeeded" and .result.session.step_id=="run_calibration" and .result.step.step_id=="run_calibration"' \
+      "$response_file" >/dev/null; then
+      ok "session step task succeeded with {session, step} result"
+    else
+      fail "session step task did not succeed with the next step (last status: ${task_status:-unknown})"
+      print_prefixed_file_excerpt "task result: " "$response_file" 2000
+    fi
+
+    run_step \
+      "Checking the stored session advanced" \
+      curl_check \
+      "$sessions_url/$session_id" \
+      '.step.step_id=="run_calibration"'
+  fi
+
+  if curl -fsS -X POST -H "Content-Length: 0" "$sessions_url/$session_id/abort" > "$response_file" && \
+     jq -e '.session.status=="aborted"' "$response_file" >/dev/null; then
+    ok "aborted calibration session $session_id"
+  else
+    fail "unable to abort calibration session $session_id"
+    print_prefixed_file_excerpt "session abort response: " "$response_file" 2000
+  fi
+
+  rm -f "$response_file"
 }
 
 check_camera_contract() {
@@ -1555,6 +2114,52 @@ check_leader_api() {
   run_step "Checking /api/local_access_point" curl_check http://localhost/api/local_access_point '.active | type=="boolean"'
 }
 
+check_time_series_endpoints() {
+  local hostname experiment experiment_path source target_points=25 series_filter
+  hostname="$(hostname)"
+
+  info "Testing chart time series downsampling"
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping time series checks"
+    return
+  fi
+
+  if ! experiment="$(get_assigned_experiment_via_api "$hostname")"; then
+    fail "Unable to read the experiment assigned to $hostname"
+    return
+  fi
+  if [[ -z "$experiment" ]]; then
+    warn "$hostname is not assigned to an experiment; skipping time series checks"
+    return
+  fi
+  experiment_path="$(uri_encode "$experiment")"
+
+  # Each series holds at most target_points rows, in time order.
+  series_filter=". as \$r | (\$r.series | type==\"array\") and (\$r.data | type==\"array\" and length==(\$r.series | length)) and all(\$r.data[]; length <= $target_points and ([.[].x] == ([.[].x] | sort)) and all(.[]; (.x | type==\"string\") and (.y | type==\"number\" or type==\"null\")))"
+
+  for source in growth_rates temperature_readings od_readings_filtered od_readings od_readings_fused raw_od_readings; do
+    run_step \
+      "Checking /api/experiments/<experiment>/time_series/$source" \
+      curl_check \
+      "http://localhost/api/experiments/$experiment_path/time_series/$source?lookback=24&target_points=$target_points" \
+      "$series_filter"
+  done
+
+  for source in growth_rates od_readings; do
+    run_step \
+      "Checking /api/workers/$hostname/experiments/<experiment>/time_series/$source" \
+      curl_check \
+      "http://localhost/api/workers/$hostname/experiments/$experiment_path/time_series/$source?lookback=24&target_points=$target_points" \
+      "$series_filter"
+  done
+
+  run_step \
+    "Checking time series rejects target_points=0" \
+    http_status_is \
+    400 \
+    "http://localhost/api/experiments/$experiment_path/time_series/od_readings?target_points=0"
+}
+
 
 check_experiment_cli() {
   info "Testing pio experiments management CLI"
@@ -1612,6 +2217,8 @@ check_stirring_job() {
     else
       fail "Unable to read stirring PWM duty cycle"
     fi
+
+    check_pwm_channel_dc_topic "$jobs_json"
   else
     fail "stirring job not running"
   fi
@@ -1628,6 +2235,40 @@ check_stirring_job() {
     ok "stopped all jobs"
   else
     fail "stop jobs failed"
+  fi
+}
+
+check_pwm_channel_dc_topic() {
+  local jobs_json="$1"
+  local hostname experiment topic payload
+  hostname="$(hostname)"
+
+  mqtt_checks_available || return
+
+  experiment="$(jq -r 'first(.[] | select(.job_name=="stirring") | .experiment) // empty' <<< "$jobs_json")"
+  if [[ -z "$experiment" ]]; then
+    fail "Unable to determine the stirring job's experiment"
+    return
+  fi
+
+  topic="pioreactor/$hostname/$experiment/pwms/channel_dc"
+  info "Checking retained PWM telemetry on $topic"
+  if ! payload="$(mqtt_read_one "$topic")" || [[ -z "$payload" ]]; then
+    fail "No retained message on $topic"
+    return
+  fi
+
+  # Keyed by PWM channel (not GPIO pin) and timestamped by the worker.
+  if jq -e '
+    (.timestamp | type=="string" and length > 0)
+    and (.channels | type=="object" and length > 0)
+    and (.channels | keys | all(test("^[0-9]+$")))
+    and (.channels | all(.[]; type=="number"))
+    and (.channels | any(.[]; . > 0))
+  ' <<< "$payload" >/dev/null; then
+    ok "pwms/channel_dc publishes timestamped, channel-keyed duty cycles"
+  else
+    fail "pwms/channel_dc payload has an unexpected shape: $payload"
   fi
 }
 
@@ -2080,6 +2721,38 @@ check_pump_actions() {
   done
 }
 
+check_bioreactor_topic_payloads() {
+  local hostname experiment variable topic payload
+  hostname="$(hostname)"
+
+  info "Checking retained bioreactor values are timestamped"
+  mqtt_checks_available || return
+
+  if ! experiment="$(get_assigned_experiment_via_api "$hostname")"; then
+    fail "Unable to read the experiment assigned to $hostname"
+    return
+  fi
+  if [[ -z "$experiment" ]]; then
+    warn "$hostname is not assigned to an experiment; skipping bioreactor topic checks"
+    return
+  fi
+
+  for variable in current_volume_ml alt_media_fraction; do
+    topic="pioreactor/$hostname/$experiment/bioreactor/$variable"
+    if ! payload="$(mqtt_read_one "$topic" 3)" || [[ -z "$payload" ]]; then
+      warn "No retained value on $topic"
+      continue
+    fi
+
+    if jq -e '(.timestamp | type=="string" and length > 0) and (.value | type=="number")' \
+      <<< "$payload" >/dev/null 2>&1; then
+      ok "$variable publishes {timestamp, value}"
+    else
+      fail "$topic payload is not {timestamp, value}: $payload"
+    fi
+  done
+}
+
 check_plugin_install_cycle() {
   # This distribution intentionally keeps its assets under the differently named
   # `oled_status_display` entry-point package.
@@ -2268,6 +2941,8 @@ check_available_worker_remove_add() {
   else
     fail "worker $worker missing after add-back"
   fi
+
+  check_available_worker_model_after_add
 }
 
 check_available_worker_plugin_install() {
@@ -2514,6 +3189,167 @@ check_available_worker_job_cycle() {
   fi
 }
 
+check_available_worker_identity() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local base_url="$1"
+  local leader clock_json synchronized worker_model model_name model_version capacity
+  leader="$(hostname)"
+
+  info "Testing clock, model, and request guards on worker $worker"
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping worker identity checks"
+    return
+  fi
+
+  if clock_json="$(curl -fsS --max-time 5 "$base_url/unit_api/system/utc_clock")"; then
+    synchronized="$(jq -r 'if has("synchronized") then (.synchronized | tostring) else "missing" end' <<< "$clock_json")"
+    case "$synchronized" in
+      true)
+        ok "$worker clock is synchronised"
+        ;;
+      false)
+        fail "$worker clock is not synchronised; measurement timestamps may be wrong"
+        ;;
+      null)
+        warn "$worker clock synchronisation state is unknown"
+        ;;
+      *)
+        fail "$worker /unit_api/system/utc_clock is missing 'synchronized'"
+        ;;
+    esac
+  else
+    fail "unable to read $worker /unit_api/system/utc_clock"
+  fi
+
+  if worker_model="$(curl -fsS --max-time 5 "$base_url/unit_api/model")" && \
+     jq -e '(.model_name | type=="string") and (.model_version | type=="string") and (.reactor_capacity_ml | type=="number")' \
+       <<< "$worker_model" >/dev/null; then
+    model_name="$(jq -r '.model_name' <<< "$worker_model")"
+    model_version="$(jq -r '.model_version' <<< "$worker_model")"
+    capacity="$(jq -r '.reactor_capacity_ml' <<< "$worker_model")"
+    ok "$worker saved its own model: $model_name v$model_version"
+
+    # The leader reads the definition from the worker, so worker-only models work too.
+    run_step \
+      "Checking leader's /api/workers/$worker/model matches the worker's definition" \
+      curl_check \
+      "http://localhost/api/workers/$worker/model" \
+      ".model_name==\"$model_name\" and .model_version==\"$model_version\" and .reactor_capacity_ml==$capacity"
+    run_step \
+      "Checking leader inventory mirrors $worker's model" \
+      curl_check \
+      http://localhost/api/workers \
+      "any(.[]; .pioreactor_unit==\"$worker\" and .model_name==\"$model_name\" and .model_version==\"$model_version\")"
+  else
+    fail "$worker has no saved model at /unit_api/model; set it with: pio model set <name> <version> on $worker"
+  fi
+
+  run_step \
+    "Checking $worker rejects writes addressed to $leader" \
+    http_status_is \
+    409 \
+    "$base_url/unit_api/jobs/stop" \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "X-Pioreactor-Target: $leader" \
+    -d "$NOOP_STOP_PAYLOAD"
+  run_step \
+    "Checking $worker accepts writes addressed to itself" \
+    http_status_is \
+    202 \
+    "$base_url/unit_api/jobs/stop" \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "X-Pioreactor-Target: $worker" \
+    -d "$NOOP_STOP_PAYLOAD"
+
+  # Workers don't consult the inventory: only their own pages and localhost may write.
+  run_step \
+    "Checking $worker rejects browser writes from another Pioreactor's page" \
+    http_status_is \
+    403 \
+    "$base_url/unit_api/jobs/stop" \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "Origin: http://$leader.local" \
+    -d "$NOOP_STOP_PAYLOAD"
+  run_step \
+    "Checking $worker accepts browser writes from its own page" \
+    http_status_is \
+    202 \
+    "$base_url/unit_api/jobs/stop" \
+    -X PATCH \
+    -H "Content-Type: application/json" \
+    -H "Origin: $base_url" \
+    -d "$NOOP_STOP_PAYLOAD"
+}
+
+check_available_worker_packaging() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local host="${AVAILABLE_WORKER_ADDRESS#http://}"
+  host="${host#https://}"
+  local -a ssh_cmd=(ssh -o BatchMode=yes -o ConnectTimeout=5 "pioreactor@$host")
+
+  info "Testing runtime packaging on worker $worker over SSH"
+  if ! "${ssh_cmd[@]}" true >/dev/null 2>&1; then
+    warn "SSH to $worker unavailable; skipping worker packaging checks"
+    return
+  fi
+
+  if "${ssh_cmd[@]}" 'test -x /usr/sbin/mosquitto && command -v mosquitto_sub >/dev/null && command -v mosquitto_pub >/dev/null'; then
+    ok "$worker has the mosquitto broker and clients installed"
+  else
+    fail "$worker is missing mosquitto packages"
+  fi
+
+  if "${ssh_cmd[@]}" 'systemctl is-active --quiet mosquitto'; then
+    fail "mosquitto broker is running on non-leader worker $worker"
+  else
+    ok "mosquitto broker is not running on $worker"
+  fi
+
+  if "${ssh_cmd[@]}" 'grep -Eq "huey_consumer.*[[:space:]]-w[[:space:]]+1([[:space:]]|$)" /usr/local/bin/start_pioreactor_huey.sh'; then
+    fail "$worker Huey launcher starts a single worker"
+  else
+    ok "$worker Huey launcher starts at least two workers"
+  fi
+
+  # Set by the worker's own experiment lookups, e.g. during the job cycle above.
+  # shellcheck disable=SC2016 # Expanded on the worker.
+  if "${ssh_cmd[@]}" 'source /etc/pioreactor.env 2>/dev/null; "${PIO_VENV:-/opt/pioreactor/venv}/bin/pio" cache list' | \
+    grep -qx cluster_membership; then
+    ok "$worker caches its last known cluster membership"
+  else
+    fail "$worker has no cluster_membership cache"
+  fi
+}
+
+check_available_worker_model_after_add() {
+  local worker="$AVAILABLE_WORKER_NAME"
+  local model_name="$AVAILABLE_WORKER_MODEL_NAME"
+  local model_version="$AVAILABLE_WORKER_MODEL_VERSION"
+  local base_url
+
+  if [[ "$HAS_JQ" != true || -z "$model_name" || -z "$model_version" ]]; then
+    return
+  fi
+
+  # Adding a worker saves its model on the worker and reboots it.
+  wait_for_available_worker_api "$worker" || return
+  base_url="$(worker_base_url "$AVAILABLE_WORKER_ADDRESS")"
+
+  run_step \
+    "Checking $worker kept model $model_name v$model_version across add-back and reboot" \
+    curl_check \
+    "$base_url/unit_api/model" \
+    ".model_name==\"$model_name\" and .model_version==\"$model_version\""
+  run_step \
+    "Checking leader inventory has $worker's model after add-back" \
+    curl_check \
+    http://localhost/api/workers \
+    "any(.[]; .pioreactor_unit==\"$worker\" and .model_name==\"$model_name\" and .model_version==\"$model_version\")"
+}
+
 check_available_worker_cluster_branch() {
   info "Checking for an available non-leader worker"
   if ! select_available_worker; then
@@ -2529,10 +3365,12 @@ check_available_worker_cluster_branch() {
   run_step "Checking targeted worker clock through leader API" curl_check "http://localhost/api/units/$worker/system/utc_clock"
   run_step "Checking targeted worker plugins route through leader API" curl_check "http://localhost/api/units/$worker/plugins/installed"
 
+  check_available_worker_identity "$base_url"
   check_available_worker_plugin_install "$base_url"
   check_available_worker_pios_cp "$base_url" "$token"
   check_available_worker_config_edit "$token"
   check_available_worker_job_cycle "$base_url"
+  check_available_worker_packaging
   check_available_worker_remove_add
 }
 

@@ -173,3 +173,38 @@ def test_typed_cache_helpers_require_explicit_fallback(tmp_path: Path) -> None:
 
         with pytest.raises(KeyError):
             c.getboolean("missing_bool")
+
+
+def test_cache_transaction_commits_all_writes_together(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "cache.sqlite")
+
+    with sqlite_cache("example", db_path=db_path) as c:
+        c["B"] = "old"
+
+    with sqlite_cache("example", db_path=db_path) as c, c.transaction():
+        c["A"] = "1"
+        assert c.set_if_absent("C", "3") is True
+        assert c.pop("B") == "old"
+
+        with sqlite_cache("example", db_path=db_path) as other:
+            assert "A" not in other
+
+    with sqlite_cache("example", db_path=db_path) as c:
+        assert set(c.iterkeys()) == {"A", "C"}
+
+
+def test_cache_transaction_rolls_back_on_error(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "cache.sqlite")
+
+    with sqlite_cache("example", db_path=db_path) as c:
+        c["A"] = "1"
+
+    with pytest.raises(RuntimeError):
+        with sqlite_cache("example", db_path=db_path) as c, c.transaction():
+            c["A"] = "2"
+            c["B"] = "2"
+            raise RuntimeError("boom")
+
+    with sqlite_cache("example", db_path=db_path) as c:
+        assert c["A"] == "1"
+        assert "B" not in c

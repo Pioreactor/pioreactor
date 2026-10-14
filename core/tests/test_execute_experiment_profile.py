@@ -175,8 +175,6 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "ACTIVE": "1",
         },
         "config_overrides": [],
@@ -191,8 +189,6 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "ACTIVE": "1",
         },
         "config_overrides": [],
@@ -206,13 +202,46 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "ACTIVE": "1",
         },
         "args": [],
         "config_overrides": [],
     }
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_hack_for_led_intensity_translates_actions_nested_in_when(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    action = When(
+        hours_elapsed=0.0,
+        condition_="1 == 1",
+        actions=[
+            Update(hours_elapsed=0.0, options={"A": 40}),
+            Stop(hours_elapsed=0.1 / 60 / 60),
+        ],
+    )
+
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={"unit1": PioreactorSpecificBlock(jobs={"led_intensity": Job(actions=[action])})},
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert [request.url for request in bucket] == [
+        "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity",
+        "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity",
+    ]
+    assert bucket[0].json["options"] == {"A": 40}
+    assert bucket[1].json["options"] == {"A": 0, "B": 0, "C": 0, "D": 0}
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -268,7 +297,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
     mock__load_experiment_profile.return_value = profile
 
     def fake_post_into(
-        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str]
+        address: str, endpoint: str, json: dict[str, object], headers: dict[str, str], body: None
     ) -> Response:
         assert address == "unit1.local"
         assert headers == {"X-Pioreactor-Target": "unit1"}
@@ -281,7 +310,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
         )
 
     def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0
+        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: object
     ) -> Response:
         assert address == "unit1.local"
         assert endpoint == "/unit_api/task_results/task-1"
@@ -303,11 +332,11 @@ def test_execute_experiment_profile_start_failure_is_logged(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=fake_post_into,
         ),
         patch(
-            "pioreactor.actions.leader.experiment_profile.get_from",
+            "pioreactor.pubsub.get_from",
             side_effect=fake_get_from,
         ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
@@ -337,7 +366,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             return_value=Response(
                 "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
                 409,
@@ -380,7 +409,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=HTTPException("[Errno 101] Network is unreachable"),
         ),
         patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
@@ -413,7 +442,7 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             side_effect=[
                 HTTPException("[Errno 111] Connection refused"),
                 Response(
@@ -450,7 +479,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
 
     with (
         patch(
-            "pioreactor.actions.leader.experiment_profile.post_into",
+            "pioreactor.pubsub.post_into",
             return_value=Response(
                 "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
                 202,
@@ -459,7 +488,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
             ),
         ) as mock_post_into,
         patch(
-            "pioreactor.actions.leader.experiment_profile.get_from",
+            "pioreactor.pubsub.get_from",
             side_effect=HTTPException("timed out"),
         ),
         caplog.at_level("ERROR"),
@@ -991,8 +1020,6 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
             "JOB_SOURCE": "experiment_profile/1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "ACTIVE": "1",
         },
         "args": [],
@@ -1273,14 +1300,6 @@ def test_execute_experiment_profile_expression_in_common(
                 "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
                 "TESTING": "1",
                 "ACTIVE": "1",
-                "MODEL_NAME": (
-                    "pioreactor_20ml"
-                    if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1"
-                    else "pioreactor_40ml"
-                ),
-                "MODEL_VERSION": (
-                    "1.1" if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1" else "1.0"
-                ),
             },
             "options": {
                 "target": 11.0,
@@ -1335,14 +1354,6 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
                 "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
                 "TESTING": "1",
                 "ACTIVE": "1",
-                "MODEL_NAME": (
-                    "pioreactor_20ml"
-                    if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1"
-                    else "pioreactor_40ml"
-                ),
-                "MODEL_VERSION": (
-                    "1.1" if item.url.split("//", 1)[1].split(".local", 1)[0] == "unit1" else "1.0"
-                ),
             },
             "options": {
                 "target": 11.0,
@@ -1855,8 +1866,6 @@ def test_execute_experiment_profile_with_config_overrides(
             "JOB_SOURCE": "experiment_profile/1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
             "ACTIVE": "1",
         },
         "args": [],
@@ -1866,3 +1875,28 @@ def test_execute_experiment_profile_with_config_overrides(
             ["jobbing.config", "option3", "100"],
         ],
     }
+
+
+def test_push_labels_to_ui_logs_failures_and_continues_to_remaining_labels() -> None:
+    from pioreactor.actions.leader.experiment_profile import push_labels_to_ui
+
+    error_response = Response(
+        "leader.local/api/experiments/exp/unit_labels",
+        500,
+        {},
+        encode({"status": 500, "error": "Database is locked."}),
+    )
+    ok_response = Response("leader.local/api/experiments/exp/unit_labels", 200, {}, b"{}")
+    logger = MagicMock()
+
+    with patch(
+        "pioreactor.actions.leader.experiment_profile.put_into_leader",
+        side_effect=[HTTPException("connection refused"), error_response, ok_response],
+    ) as mock_put:
+        push_labels_to_ui("exp", {"unit1": "a", "unit2": "b", "unit3": "c"}, logger)
+
+    assert [call.kwargs["json"]["unit"] for call in mock_put.call_args_list] == ["unit1", "unit2", "unit3"]
+    assert logger.warning.call_count == 2
+    first_warning, second_warning = (call.args[0] for call in logger.warning.call_args_list)
+    assert "unit1" in first_warning and "connection refused" in first_warning
+    assert "unit2" in second_warning and "Database is locked." in second_warning

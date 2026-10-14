@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import typing as t
+from datetime import datetime
 from time import monotonic
 
+from msgspec.json import decode
+from msgspec.json import encode
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
@@ -12,6 +15,7 @@ from pioreactor.pubsub import publish as mqtt_publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import clamp
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_pioreactor_model
 
 
@@ -115,15 +119,17 @@ def validate_bioreactor_value(
     return parsed
 
 
-def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
-    with local_persistent_storage("bioreactor") as cache:
-        stored_value = cache.get((experiment, variable_name), _MISSING)
-
+def _read_bioreactor_value(cache: t.Any, experiment: pt.Experiment, variable_name: str) -> float:
+    stored_value = cache.get((experiment, variable_name), _MISSING)
     if stored_value is _MISSING:
         # only resolve (and validate) the default when nothing is stored.
         return get_default_bioreactor_value(variable_name)
-
     return validate_bioreactor_value(variable_name, stored_value)
+
+
+def get_bioreactor_value(experiment: pt.Experiment, variable_name: str) -> float:
+    with local_persistent_storage("bioreactor") as cache:
+        return _read_bioreactor_value(cache, experiment, variable_name)
 
 
 def get_all_bioreactor_values(experiment: pt.Experiment) -> dict[str, float]:
@@ -146,6 +152,14 @@ def get_bioreactor_topic(unit: pt.Unit, experiment: pt.Experiment, variable_name
     return f"pioreactor/{unit}/{experiment}/bioreactor/{variable_name}"
 
 
+def encode_bioreactor_payload(value: float, timestamp: datetime) -> bytes:
+    return encode(structs.BioreactorValue(timestamp=timestamp, value=value))
+
+
+def decode_bioreactor_payload(variable_name: str, payload: pt.MQTTMessagePayload) -> float:
+    return validate_bioreactor_value(variable_name, decode(payload, type=structs.BioreactorValue).value)
+
+
 def publish_bioreactor_value(
     mqtt_client: Client,
     unit: pt.Unit,
@@ -156,7 +170,7 @@ def publish_bioreactor_value(
     parsed_value = validate_bioreactor_value(variable_name, value)
     msg_info = mqtt_client.publish(
         get_bioreactor_topic(unit, experiment, variable_name),
-        parsed_value,
+        encode_bioreactor_payload(parsed_value, current_utc_datetime()),
         qos=QOS.EXACTLY_ONCE,
         retain=True,
     )
@@ -180,6 +194,7 @@ def calculate_updated_current_volume(
     dosing_event: structs.DosingEvent,
     current_volume_ml: float,
     efflux_tube_volume_ml: float,
+    capacity_ml: float,
 ) -> float:
     """
     Project the vial volume after a dosing event.
@@ -193,7 +208,6 @@ def calculate_updated_current_volume(
     if event == "add_alt_media" or event.startswith("add_"):
         # Liquid beyond the vial's capacity spills over, so cap rather than reject: rejecting would
         # drop the whole event, and downstream overfill safety checks would never see it.
-        capacity_ml = get_pioreactor_model().reactor_capacity_ml
         vol = min(max(current_volume_ml + volume, 0.0), capacity_ml)
 
     elif event == "remove_waste":
@@ -266,63 +280,54 @@ def apply_dosing_event_to_bioreactor(
     dosing_event: structs.DosingEvent,
     mqtt_client: Client | None = None,
 ) -> dict[str, float]:
-    with local_persistent_storage("bioreactor") as cache:
-        try:
-            cache.cursor.execute("BEGIN IMMEDIATE")
-            current_state: dict[str, float] = {}
-            for variable_name in _BIOREACTOR_VARIABLES:
-                stored_value = cache.get((experiment, variable_name), _MISSING)
-                current_state[variable_name] = (
-                    get_default_bioreactor_value(variable_name)
-                    if stored_value is _MISSING
-                    else validate_bioreactor_value(variable_name, stored_value)
-                )
+    capacity_ml = get_pioreactor_model().reactor_capacity_ml
 
-            updated_state = {
-                "alt_media_fraction": calculate_updated_alt_media_fraction(
-                    dosing_event,
-                    current_alt_media_fraction=current_state["alt_media_fraction"],
-                    current_volume_ml=current_state["current_volume_ml"],
-                ),
-                "current_volume_ml": calculate_updated_current_volume(
-                    dosing_event,
-                    current_volume_ml=current_state["current_volume_ml"],
-                    efflux_tube_volume_ml=current_state["efflux_tube_volume_ml"],
-                ),
-                "cumulative_media_added_ml": calculate_updated_cumulative_volume(
-                    "cumulative_media_added_ml",
-                    dosing_event,
-                    current_state["cumulative_media_added_ml"],
-                ),
-                "cumulative_alt_media_added_ml": calculate_updated_cumulative_volume(
-                    "cumulative_alt_media_added_ml",
-                    dosing_event,
-                    current_state["cumulative_alt_media_added_ml"],
-                ),
-                "cumulative_waste_removed_ml": calculate_updated_cumulative_volume(
-                    "cumulative_waste_removed_ml",
-                    dosing_event,
-                    current_state["cumulative_waste_removed_ml"],
-                ),
-            }
+    with local_persistent_storage("bioreactor") as cache, cache.transaction():
+        current_state = {
+            variable_name: _read_bioreactor_value(cache, experiment, variable_name)
+            for variable_name in _BIOREACTOR_VARIABLES
+        }
 
-            for variable_name, updated_value in updated_state.items():
-                if updated_value != current_state[variable_name]:
-                    cache[(experiment, variable_name)] = updated_value
+        updated_state = {
+            "alt_media_fraction": calculate_updated_alt_media_fraction(
+                dosing_event,
+                current_alt_media_fraction=current_state["alt_media_fraction"],
+                current_volume_ml=current_state["current_volume_ml"],
+            ),
+            "current_volume_ml": calculate_updated_current_volume(
+                dosing_event,
+                current_volume_ml=current_state["current_volume_ml"],
+                efflux_tube_volume_ml=current_state["efflux_tube_volume_ml"],
+                capacity_ml=capacity_ml,
+            ),
+            "cumulative_media_added_ml": calculate_updated_cumulative_volume(
+                "cumulative_media_added_ml",
+                dosing_event,
+                current_state["cumulative_media_added_ml"],
+            ),
+            "cumulative_alt_media_added_ml": calculate_updated_cumulative_volume(
+                "cumulative_alt_media_added_ml",
+                dosing_event,
+                current_state["cumulative_alt_media_added_ml"],
+            ),
+            "cumulative_waste_removed_ml": calculate_updated_cumulative_volume(
+                "cumulative_waste_removed_ml",
+                dosing_event,
+                current_state["cumulative_waste_removed_ml"],
+            ),
+        }
 
-            cache.conn.commit()
-        except Exception:
-            cache.conn.rollback()
-            raise
+        for variable_name, updated_value in updated_state.items():
+            if updated_value != current_state[variable_name]:
+                cache[(experiment, variable_name)] = updated_value
 
     if mqtt_client is None:
         for variable_name, updated_value in updated_state.items():
-            _publish_updated_bioreactor_value(
-                unit,
-                experiment,
-                variable_name,
-                updated_value,
-                mqtt_client=None,
+            mqtt_publish(
+                get_bioreactor_topic(unit, experiment, variable_name),
+                encode_bioreactor_payload(updated_value, dosing_event.timestamp),
+                qos=QOS.EXACTLY_ONCE,
+                retain=True,
             )
         return updated_state
 
@@ -334,7 +339,7 @@ def apply_dosing_event_to_bioreactor(
                 topic,
                 mqtt_client.publish(
                     topic,
-                    updated_value,
+                    encode_bioreactor_payload(updated_value, dosing_event.timestamp),
                     qos=QOS.EXACTLY_ONCE,
                     retain=True,
                 ),
@@ -397,22 +402,3 @@ def _coerce_to_float(value: object) -> float:
         return float(value)
 
     return float(t.cast(t.SupportsFloat, value))
-
-
-def _publish_updated_bioreactor_value(
-    unit: pt.Unit,
-    experiment: pt.Experiment,
-    variable_name: str,
-    value: float,
-    mqtt_client: Client | None = None,
-) -> None:
-    if mqtt_client is not None:
-        publish_bioreactor_value(mqtt_client, unit, experiment, variable_name, value)
-        return
-
-    mqtt_publish(
-        get_bioreactor_topic(unit, experiment, variable_name),
-        value,
-        qos=QOS.EXACTLY_ONCE,
-        retain=True,
-    )

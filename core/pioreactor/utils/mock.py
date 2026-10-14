@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 
 import pioreactor.types as pt
 from pioreactor.config import config
-from pioreactor.whoami import is_testing_env
 
 if TYPE_CHECKING:
     from pioreactor.utils.adcs import _I2C_ADC as _MockADCBase
@@ -253,24 +252,3 @@ class MockRpmCalculator:
 
     def clean_up(self) -> None:
         pass
-
-
-if is_testing_env():
-
-    class MockHardwarePWM:
-        def __init__(self, pwm_channel: int, hz: float, _chip: int = 0) -> None:
-            self.pwm_channel = pwm_channel
-            self._hz = hz
-            self.pwm_dir = ""
-
-        def is_overlay_loaded(self) -> bool:
-            return True
-
-        def is_export_writable(self) -> bool:
-            return True
-
-        def does_pwmX_exists(self) -> bool:
-            return True
-
-        def echo(self, m: int, _fil: str) -> None:
-            pass

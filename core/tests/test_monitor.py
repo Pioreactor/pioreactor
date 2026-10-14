@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_monitor
-import sys
 import time
 from queue import Queue
 from threading import Event
@@ -38,64 +37,26 @@ def test_clock_sync_check_is_quiet(
 ) -> None:
     monitor = object.__new__(Monitor)
     monitor.logger = Mock()
-    monitor.clock_sync_timer = None
     probe = Mock(return_value=status)
     monkeypatch.setattr("pioreactor.background_jobs.monitor.whoami.am_I_leader", lambda: leader)
     monkeypatch.setattr("pioreactor.background_jobs.monitor.is_clock_synchronized", probe)
 
-    monitor.start_clock_sync_check()
+    monitor.check_clock_sync()
 
     monitor.logger.warning.assert_not_called()
-    assert monitor.clock_sync_timer is None
     if leader:
         probe.assert_not_called()
 
 
-def test_clock_sync_warning_and_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_clock_sync_warns_when_unsynchronised(monkeypatch: pytest.MonkeyPatch) -> None:
     monitor = object.__new__(Monitor)
     monitor.logger = Mock()
-    monitor.clock_sync_timer = None
-    monkeypatch.setattr("pioreactor.background_jobs.monitor.whoami.am_I_leader", lambda: False)
-    monkeypatch.setattr(
-        "pioreactor.background_jobs.monitor.is_clock_synchronized",
-        Mock(side_effect=[False, False, None, True]),
-    )
-
-    monitor.start_clock_sync_check()
-    timer = monitor.clock_sync_timer
-    assert timer is not None
-    try:
-        assert timer.interval == 180
-        monitor.check_for_clock_sync_recovery()
-        monitor.check_for_clock_sync_recovery()
-        monitor.logger.warning.assert_called_once()
-        monitor.logger.info.assert_not_called()
-        assert timer.is_alive()
-
-        monitor.check_for_clock_sync_recovery()
-        monitor.logger.info.assert_called_once_with("Clock is now synchronised.")
-        assert not timer.is_alive()
-    finally:
-        timer.cancel()
-
-
-def test_clock_sync_timer_stops_on_disconnect(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(sys.modules, "lgpio", Mock())
-    monitor = object.__new__(Monitor)
-    monitor.logger = Mock()
-    monitor.clock_sync_timer = None
     monkeypatch.setattr("pioreactor.background_jobs.monitor.whoami.am_I_leader", lambda: False)
     monkeypatch.setattr("pioreactor.background_jobs.monitor.is_clock_synchronized", lambda: False)
-    monkeypatch.setattr(monitor, "led_off", lambda: None)
 
-    monitor.start_clock_sync_check()
-    timer = monitor.clock_sync_timer
-    assert timer is not None
-    try:
-        monitor.on_disconnected()
-        assert not timer.is_alive()
-    finally:
-        timer.cancel()
+    monitor.check_clock_sync()
+
+    monitor.logger.warning.assert_called_once()
 
 
 @pytest.mark.parametrize(

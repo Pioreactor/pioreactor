@@ -18,6 +18,7 @@ from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.logging import create_logger
 from pioreactor.utils.files import is_valid_unix_filename
+from pioreactor.utils.timing import current_utc_datetime
 
 
 T = t.TypeVar("T")
@@ -108,6 +109,7 @@ class AutomationEvent(JSONPrintedStruct, tag=True, tag_field="event_name"):
 
     message: str | None = None
     data: dict | None = None
+    timestamp: t.Annotated[datetime, Meta(tz=True)] = field(default_factory=current_utc_datetime)
 
     def display(self) -> str:
         if self.message:
@@ -205,6 +207,16 @@ class Temperature(JSONPrintedStruct):
 class Voltage(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     voltage: pt.Voltage
+
+
+class BioreactorValue(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    value: float
+
+
+class PWMDutyCycles(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    channels: dict[pt.PwmChannel, float]
 
 
 class BioreactorVariableDefinition(Struct, frozen=True):
@@ -367,35 +379,23 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             raise exc.NoSolutionsFoundError("No solutions found")
         elif len(plausible_sols_) == 1:
             sol = plausible_sols_[0]
+        else:
+            # closest solution can be inside or outside domain.
+            sol = closest_point_to_domain(plausible_sols_, (min_X, max_X))
 
-            if not enforce_bounds:
-                return round(sol, 10)
+        if not enforce_bounds:
+            return round(sol, 10)
 
-            # if we are here, we let the downstream code decide how to proceed
-
-            domain_tolerance = 1e-12  # numpy.roots can return a solution like -1e-16 for a true zero root due to floating‑point noise.
-            if min_X <= sol <= max_X:
-                return round(sol, 10)
-            elif sol < min_X and abs(sol - min_X) <= domain_tolerance:
-                return round(min_X, 10)
-            elif sol > max_X and abs(sol - max_X) <= domain_tolerance:
-                return round(max_X, 10)
-            elif sol < min_X:
-                raise exc.SolutionBelowDomainError(f"Solution below domain [{min_X}, {max_X}]")
-            else:
-                raise exc.SolutionAboveDomainError(f"Solution above domain [{min_X}, {max_X}]")
-
-        # what do we do with multiple solutions?
-        closest_sol = closest_point_to_domain(plausible_sols_, (min_X, max_X))
-        # closet sol can be inside or outside domain. If inside, happy path:
-        if (min_X <= closest_sol <= max_X) or not enforce_bounds:
-            return round(closest_sol, 10)
+        # numpy.roots can return a solution like -1e-16 for a true zero root due to floating‑point noise.
+        domain_tolerance = 1e-12
+        if min_X - domain_tolerance <= sol <= max_X + domain_tolerance:
+            return round(min(max(sol, min_X), max_X), 10)
 
         # if we are here, we let the downstream code decide how to proceed
-        elif closest_sol < min_X:
-            raise exc.SolutionBelowDomainError("Solution below domain")
+        elif sol < min_X:
+            raise exc.SolutionBelowDomainError(f"Solution below domain [{min_X}, {max_X}]")
         else:
-            raise exc.SolutionAboveDomainError("Solution below domain")
+            raise exc.SolutionAboveDomainError(f"Solution above domain [{min_X}, {max_X}]")
 
     def is_active(self, device: str) -> bool:
         from pioreactor.utils import local_persistent_storage
@@ -844,6 +844,11 @@ class ChangeWorkerStatusRequest(Struct, forbid_unknown_fields=True):
 class ChangeWorkerModelRequest(Struct, forbid_unknown_fields=True):
     model_name: str
     model_version: str
+
+
+class LeaveClusterRequest(Struct, forbid_unknown_fields=True):
+    # The leader removing a unit stops its activities; a unit leaving on its own asks for them to be stopped first.
+    stop_activities: bool = False
 
 
 class AddWorkerToExperimentRequest(Struct, forbid_unknown_fields=True):

@@ -1041,15 +1041,9 @@ def rename_camera_still(
 
     source_image_path.rename(destination_image_path)
     try:
-        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage:
-            storage.cursor.execute("BEGIN IMMEDIATE")
-            try:
-                storage[new_image_id] = json_encode(renamed_metadata)
-                storage.pop(image_id)
-                storage.conn.commit()
-            except Exception:
-                storage.conn.rollback()
-                raise
+        with local_persistent_storage(CAMERA_STILLS_CACHE_NAME) as storage, storage.transaction():
+            storage[new_image_id] = json_encode(renamed_metadata)
+            storage.pop(image_id)
     except Exception:
         destination_image_path.rename(source_image_path)
         raise

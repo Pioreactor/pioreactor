@@ -135,7 +135,7 @@ def test_initial_startup_publishes_kick_to_pwm(monkeypatch) -> None:
     def collect_pwm_dc(msg) -> None:
         payload = msg.payload.decode()
         if payload:
-            observed_dc_payloads.append(json.loads(payload))
+            observed_dc_payloads.append(json.loads(payload)["channels"])
 
     subscribe_and_callback(collect_pwm_dc, f"pioreactor/{unit}/{exp}/pwms/channel_dc", allow_retained=False)
 
@@ -388,8 +388,8 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
 
     def collect(msg):
         payload = msg.payload.decode()
-        if payload and json.loads(payload):
-            bucket.append(json.loads(payload))
+        if payload and json.loads(payload)["channels"]:
+            bucket.append(json.loads(payload)["channels"])
 
     with start_stirring(
         target_rpm=500,

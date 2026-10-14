@@ -19,6 +19,7 @@ from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
 from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import store_camera_still
+from pioreactor.config import ConfigParserMod
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
@@ -65,21 +66,16 @@ def test_system_ipv4_returns_local_ip(client, monkeypatch: pytest.MonkeyPatch) -
     assert resp.get_json() == {"ipv4_address": "192.168.1.5"}
 
 
-def test_cleanup_after_inventory_removal_rejects_different_hostname(
+def test_leave_cluster_rejects_different_hostname(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    stop_jobs = Mock()
-    remove_config = Mock()
-    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
-    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
 
-    response = client.post(
-        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": "nightlytest"}
-    )
+    response = client.post("/unit_api/cluster/leave", headers={"X-Pioreactor-Target": "nightlytest"})
 
     assert response.status_code == 409
-    stop_jobs.assert_not_called()
-    remove_config.assert_not_called()
+    leave.assert_not_called()
 
 
 @pytest.mark.parametrize("target", ["another-worker", ""])
@@ -91,6 +87,7 @@ def test_cleanup_after_inventory_removal_rejects_different_hostname(
         ("POST", "/unit_api/jobs/run/job_name/stirring"),
         ("POST", "/unit_api/system/reboot"),
         ("POST", "/unit_api/system/shutdown"),
+        ("POST", "/unit_api/cluster/leave"),
         ("POST", "/unit_api/system/remove_file"),
         ("PUT", "/unit_api/config/specific"),
         ("DELETE", "/unit_api/calibrations/stirring/example"),
@@ -133,44 +130,66 @@ def test_read_requests_are_not_subject_to_mutation_target_check(client: FlaskCli
 
 
 @pytest.mark.parametrize("target", [None, HOSTNAME])
-def test_cleanup_after_inventory_removal_cleans_up_matching_or_unspecified_worker(
-    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, target: str | None
+@pytest.mark.parametrize(
+    "body, running, status, queued_with",
+    [
+        (None, False, 202, False),
+        ({"stop_activities": True}, True, 202, True),
+        (None, True, 409, None),
+    ],
+)
+def test_leave_cluster_queues_leave_unless_activities_are_running(
+    client: FlaskClient,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str | None,
+    body: dict | None,
+    running: bool,
+    status: int,
+    queued_with: bool | None,
 ) -> None:
-    dot_pioreactor = tmp_path / ".pioreactor"
-    dot_pioreactor.mkdir()
-    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    stop_jobs = Mock()
-    remove_config = Mock()
-    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
-    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+    leave = Mock(return_value=SimpleNamespace(id="leave-task"))
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
+    monkeypatch.setattr("pioreactor.cluster_membership.activities_are_running", lambda: running)
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", ConfigParserMod)
 
     headers = {} if target is None else {"X-Pioreactor-Target": target}
-    response = client.post("/unit_api/system/cleanup_after_inventory_removal", headers=headers)
+    response = client.post("/unit_api/cluster/leave", headers=headers, json=body)
 
-    assert response.status_code == 202
-    stop_jobs.assert_called_once_with(all_jobs=True)
-    remove_config.assert_called_once_with(str(dot_pioreactor / "config.ini"))
+    assert response.status_code == status
+    if queued_with is None:
+        leave.assert_not_called()
+    else:
+        leave.assert_called_once_with(queued_with)
 
 
-def test_cleanup_after_inventory_removal_respects_file_system_lock(
+def test_leave_cluster_refuses_on_the_leader(client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
+    shared_config = ConfigParserMod()
+    shared_config.read_dict({"cluster.topology": {"leader_hostname": HOSTNAME}})
+    monkeypatch.setattr("pioreactor.cluster_membership._read_shared_config", lambda: shared_config)
+
+    response = client.post("/unit_api/cluster/leave", json={"stop_activities": True})
+
+    assert response.status_code == 409
+    assert "leader" in response.get_json()["error"]
+    leave.assert_not_called()
+
+
+def test_leave_cluster_respects_file_system_lock(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     dot_pioreactor = tmp_path / ".pioreactor"
     dot_pioreactor.mkdir()
     (dot_pioreactor / "DISALLOW_UI_FILE_SYSTEM").touch()
     monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
-    stop_jobs = Mock()
-    remove_config = Mock()
-    monkeypatch.setattr(unit_api.tasks, "kill_jobs_task", stop_jobs)
-    monkeypatch.setattr(unit_api.tasks, "rm", remove_config)
+    leave = Mock()
+    monkeypatch.setattr(unit_api.tasks, "leave_cluster_and_reboot", leave)
 
-    response = client.post(
-        "/unit_api/system/cleanup_after_inventory_removal", headers={"X-Pioreactor-Target": HOSTNAME}
-    )
+    response = client.post("/unit_api/cluster/leave", headers={"X-Pioreactor-Target": HOSTNAME})
 
     assert response.status_code == 403
-    stop_jobs.assert_not_called()
-    remove_config.assert_not_called()
+    leave.assert_not_called()
 
 
 def test_unscoped_camera_status_route_is_not_available(client) -> None:
@@ -1133,7 +1152,7 @@ def test_run_job_rejects_manual_add_media_that_reaches_safety_threshold(client, 
         json={
             "args": [],
             "options": {"ml": 6.0},
-            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "env": {"EXPERIMENT": "exp1"},
             "config_overrides": [],
         },
     )
@@ -1181,7 +1200,7 @@ def test_run_job_allows_manual_add_media_below_safety_threshold(client, monkeypa
         json={
             "args": [],
             "options": {"ml": 5.9},
-            "env": {"EXPERIMENT": "exp1", "MODEL_NAME": "pioreactor_20ml", "MODEL_VERSION": "1.5"},
+            "env": {"EXPERIMENT": "exp1"},
             "config_overrides": [],
         },
     )

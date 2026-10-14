@@ -15,9 +15,9 @@ from .conftest import capture_requests
 @pytest.mark.parametrize(
     "task_name, method, path",
     [
-        ("post_into_unit", "POST", "/unit_api/jobs/stop/all"),
-        ("patch_into_unit", "PATCH", "/unit_api/jobs/stop/all"),
-        ("delete_from_unit", "DELETE", "/unit_api/calibrations/stirring/example"),
+        ("post_into_unit_task", "POST", "/unit_api/jobs/stop/all"),
+        ("patch_into_unit_task", "PATCH", "/unit_api/jobs/stop/all"),
+        ("delete_from_unit_task", "DELETE", "/unit_api/calibrations/stirring/example"),
     ],
 )
 @pytest.mark.parametrize("target", [HOSTNAME, "other-worker"])
@@ -84,3 +84,17 @@ def test_broadcast_sends_each_workers_hostname(monkeypatch: pytest.MonkeyPatch) 
     assert result["worker-a"]["ok"] is True
     assert result["worker-b"]["ok"] is True
     assert [request.headers["X-Pioreactor-Target"] for request in requests] == ["worker-a", "worker-b"]
+
+
+def test_unit_helpers_name_the_target_and_keep_caller_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor import pubsub
+
+    monkeypatch.setattr("pioreactor.utils.networking.resolve_to_address", lambda unit: f"{unit}.local")
+    with capture_requests() as requests:
+        pubsub.post_into_unit("unit1", "/unit_api/upload", body=b"", headers={"Content-Type": "text/plain"})
+        pubsub.get_from_unit("unit2", "/unit_api/model", address="192.0.2.42")
+
+    assert urlparse(requests[0].url).hostname == "unit1.local"
+    assert requests[0].headers == {"Content-Type": "text/plain", "X-Pioreactor-Target": "unit1"}
+    assert urlparse(requests[1].url).hostname == "192.0.2.42"
+    assert requests[1].headers == {"X-Pioreactor-Target": "unit2"}

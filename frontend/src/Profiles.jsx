@@ -569,7 +569,7 @@ function Profiles(props) {
   }, [selectedExperimentProfile]);
 
   return (
-    <RunningProfilesProvider experiment={experimentMetadata.experiment} leaderHostname={props.leaderHostname}>
+    <RunningProfilesProvider experiment={experimentMetadata.experiment}>
       <Grid container spacing={2}>
         <Grid
           size={{
