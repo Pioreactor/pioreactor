@@ -77,7 +77,8 @@ function selectCharts(descriptors, preferences, config) {
   return (keys.length ? keys : [...available.keys()]).map((key) => available.get(key));
 }
 
-export default function Charts() {
+// `tabs` is Culture's Charts/Camera switch, shown at the start of the toolbar.
+export default function Charts({ tabs = null }) {
   const { config, experiment, experimentMetadata } = useKiosk();
   const resource = useAsync(
     experiment
@@ -103,6 +104,7 @@ export default function Charts() {
   return (
     <div className="content fill">
       <div className="toolbar">
+        {tabs}
         <div className="chips grow">
           {charts.map((candidate) => (
             <button

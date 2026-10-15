@@ -6,19 +6,20 @@ import ExperimentSheet from "./ExperimentSheet";
 import { OnboardingGate } from "./Onboarding";
 import Activities from "./pages/Activities";
 import Calibrations from "./pages/Calibrations";
-import Charts from "./pages/Charts";
 import Cluster from "./pages/Cluster";
+import Culture from "./pages/Culture";
 import Logs from "./pages/Logs";
 import System from "./pages/System";
 import Usb from "./pages/Usb";
 import { hasDrive } from "./usb";
 
 // Control (the Activities page) also owns /k/dosing and /k/leds, its other tabs;
-// Cluster owns /k/experiments. Cluster is on leaders' screens only (standalone
-// included): a worker's screen controls only its own unit.
+// Culture owns /k/charts and /k/camera; Cluster owns /k/experiments. Cluster is
+// on leaders' screens only (standalone included): a worker's screen controls only
+// its own unit.
 const PAGES = [
   { page: "", label: "Control", icon: "control", Component: Activities, also: ["dosing", "leds"] },
-  { page: "charts", label: "Charts", icon: "chart", Component: Charts },
+  { page: "charts", label: "Culture", icon: "chart", Component: Culture, also: ["camera"] },
   { page: "calibrations", label: "Calibrations", icon: "calibration", Component: Calibrations },
   { page: "logs", label: "Logs", icon: "logs", Component: Logs },
   { page: "cluster", label: "Cluster", icon: "cluster", Component: Cluster, also: ["experiments"], leaderOnly: true },

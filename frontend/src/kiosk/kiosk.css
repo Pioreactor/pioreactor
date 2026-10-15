@@ -965,6 +965,52 @@ button.field:disabled .field-value .edit {
   min-width: 0;
 }
 
+/* Camera snapshots: one photo fills the space a chart would. */
+.photo-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.photo-wrap img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Snapshot history: times on the left, the selected photo on the right. */
+.sheet.wide {
+  width: 100%;
+}
+
+.sheet-body > .photo-history {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.photo-list {
+  width: 15rem;
+  flex: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.list-row.selected {
+  background: var(--selection);
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .legend {
   display: flex;
   gap: 0.3rem;

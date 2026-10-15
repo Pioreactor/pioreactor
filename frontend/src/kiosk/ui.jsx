@@ -120,10 +120,11 @@ export function AsyncButton({ onClick, className = "btn", children, disabled, bu
   );
 }
 
-export function Sheet({ title, icon, onClose, children, footer }) {
+// A wide sheet covers the whole screen (for photos); the default slides in from the right.
+export function Sheet({ title, icon, onClose, children, footer, wide = false }) {
   return (
     <div className="backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-label={typeof title === "string" ? title : undefined} onClick={(event) => event.stopPropagation()}>
+      <div className={`sheet ${wide ? "wide" : ""}`} role="dialog" aria-label={typeof title === "string" ? title : undefined} onClick={(event) => event.stopPropagation()}>
         <div className="sheet-head">
           {icon && <Icon name={icon} className="sheet-icon" />}
           <h2 className="truncate">{title}</h2>

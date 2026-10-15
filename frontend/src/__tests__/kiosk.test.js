@@ -1,3 +1,4 @@
+import { captureTime, parseLatestStill, stillUrl } from "../kiosk/camera";
 import { validateExperimentName, validateUnitName } from "../kiosk/cluster";
 import { jobEnv, parseAssignment, roleOf } from "../kiosk/context";
 import { applyKey, validateNumber } from "../kiosk/Keyboard";
@@ -100,5 +101,25 @@ describe("kiosk onboarding (mocked backend)", () => {
 
   it("lists built-in models off the leader", async () => {
     await expect(settle(listModels({ isLeader: false }))).resolves.toEqual(MOCK_MODELS);
+  });
+});
+
+describe("kiosk camera", () => {
+  it("reads the retained latest_still message, and its clearing", () => {
+    const still = { image_id: "20261015T141200Z", captured_at: "2026-10-15T14:12:00Z", capture_reason: "manual" };
+    expect(parseLatestStill(JSON.stringify(still))).toEqual(still);
+    expect(parseLatestStill("")).toBeNull();
+    expect(parseLatestStill("not json")).toBeNull();
+    expect(parseLatestStill("{}")).toBeNull();
+  });
+
+  it("serves stills from this unit's own API", () => {
+    expect(stillUrl("exp 1", "img_1")).toBe("/unit_api/camera/experiments/exp%201/stills/img_1.jpg");
+  });
+
+  it("adds the date to snapshots older than a day", () => {
+    const still = { image_id: "a", captured_at: "2026-10-14T12:00:00Z" };
+    expect(captureTime(still, Date.parse("2026-10-14T13:00:00Z"))).not.toMatch(/^10\/14 /);
+    expect(captureTime(still, Date.parse("2026-10-15T12:00:00Z"))).toMatch(/^10\/14 /);
   });
 });
