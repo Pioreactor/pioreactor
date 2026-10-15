@@ -278,7 +278,6 @@ ALLOWED_ENV = (
     "TESTING",
     "HOSTNAME",
     "HARDWARE",
-    "ACTIVE",
     "FIRMWARE",
     "DEBUG",
     "MODEL_NAME",
@@ -681,6 +680,16 @@ def check_model_hardware(model_name: str, model_version: str) -> dict[str, str]:
     from pioreactor.unit_model import check_model_hardware as _check_model_hardware
 
     return _check_model_hardware(model_name, model_version)
+
+
+@huey.task(priority=10)
+def report_active_to_leader(is_active: bool) -> bool:
+    # A task, not inline, so the caller doesn't wait on the leader: up to the timeout when the
+    # leader is down, and inside the leader's own timeout when it forwarded the change.
+    from pioreactor.config import leader_address
+    from pioreactor.unit_active import report_active_to_leader as _report_active_to_leader
+
+    return _report_active_to_leader(leader_address, is_active)
 
 
 @huey.task()

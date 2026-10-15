@@ -1134,7 +1134,7 @@ class BackgroundJob(_BackgroundJob):
         # Current invariant: worker jobs cannot start on an inactive unit.
         if not is_active(unit):
             raise NotActiveWorkerError(
-                f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
+                f"{unit} is not active. Make it active from the leader's Inventory page, or run `pio active set 1` on {unit}."
             )
         super().__init__(unit, experiment, source="app")
 
@@ -1252,7 +1252,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # Current invariant: OD-dodging worker jobs cannot start on an inactive unit.
         if not is_active(unit):
             raise NotActiveWorkerError(
-                f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
+                f"{unit} is not active. Make it active from the leader's Inventory page, or run `pio active set 1` on {unit}."
             )
 
         super().__init__(unit, experiment, source=source)

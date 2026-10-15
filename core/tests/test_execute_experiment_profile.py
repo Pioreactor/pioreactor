@@ -175,7 +175,6 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "ACTIVE": "1",
         },
         "config_overrides": [],
     }
@@ -189,7 +188,6 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "ACTIVE": "1",
         },
         "config_overrides": [],
     }
@@ -202,7 +200,6 @@ def test_execute_experiment_profile_hack_for_led_intensity(
             "EXPERIMENT": "_testing_experiment",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "ACTIVE": "1",
         },
         "args": [],
         "config_overrides": [],
@@ -1020,7 +1017,6 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
             "JOB_SOURCE": "experiment_profile/1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "ACTIVE": "1",
         },
         "args": [],
         "config_overrides": [],
@@ -1299,7 +1295,6 @@ def test_execute_experiment_profile_expression_in_common(
                 "JOB_SOURCE": "experiment_profile/1",
                 "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
                 "TESTING": "1",
-                "ACTIVE": "1",
             },
             "options": {
                 "target": 11.0,
@@ -1353,7 +1348,6 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
                 "JOB_SOURCE": "experiment_profile/1",
                 "HOSTNAME": item.url.split("//", 1)[1].split(".local", 1)[0],
                 "TESTING": "1",
-                "ACTIVE": "1",
             },
             "options": {
                 "target": 11.0,
@@ -1866,7 +1860,6 @@ def test_execute_experiment_profile_with_config_overrides(
             "JOB_SOURCE": "experiment_profile/1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
-            "ACTIVE": "1",
         },
         "args": [],
         "config_overrides": [

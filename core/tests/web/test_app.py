@@ -2300,7 +2300,6 @@ def test_broadcast_in_manage_all(client) -> None:
         "config_overrides": [],
         "env": {
             "EXPERIMENT": "exp1",
-            "ACTIVE": "1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },
@@ -2827,7 +2826,6 @@ def test_run_job(client) -> None:
         "config_overrides": [],
         "env": {
             "EXPERIMENT": "exp1",
-            "ACTIVE": "1",
             "HOSTNAME": "unit1",
             "TESTING": "1",
         },
@@ -2877,7 +2875,6 @@ def test_run_job_with_job_source(client) -> None:
         "config_overrides": [],
         "env": {
             "EXPERIMENT": "exp1",
-            "ACTIVE": "1",
             "JOB_SOURCE": "experiment_profile",
             "HOSTNAME": "unit1",
             "TESTING": "1",

@@ -275,7 +275,8 @@ def click_led_intensity(
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
 
-    if not is_active(unit):
+    # Turning LEDs off is always allowed: stopping an inactive unit's activities does it.
+    if not is_active(unit) and any(v for v in (a, b, c, d)):
         return False
 
     state: LEDsToIntensityMapping = {}

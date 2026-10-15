@@ -15,6 +15,8 @@ from pioreactor.config import ConfigParserMod
 from pioreactor.config import remove_config_values_in_file
 from pioreactor.config import resolve_global_config_path
 from pioreactor.config import resolve_local_config_path
+from pioreactor.unit_active import is_locally_active
+from pioreactor.unit_active import report_active_to_leader
 from pioreactor.unit_model import check_model_hardware
 from pioreactor.unit_model import get_local_model
 from pioreactor.unit_model import report_model_to_leader
@@ -72,7 +74,7 @@ def point_clock_at_leader(leader_address: str, leader_time: int) -> None:
 
 def join_cluster(leader_time: int, model_name: str | None = None, model_version: str | None = None) -> None:
     """
-    Point this unit at the leader named in its shared config.ini, and report its model there.
+    Point this unit at the leader named in its shared config.ini, and report its active state and model there.
     """
     if model_name is not None and model_version is not None:
         # First, since it's the step most likely to fail (unknown model, jobs running).
@@ -83,6 +85,9 @@ def join_cluster(leader_time: int, model_name: str | None = None, model_version:
 
     clear_previous_leader_overrides(resolve_local_config_path())
     point_clock_at_leader(leader_address, leader_time)
+
+    if not report_active_to_leader(leader_address, is_locally_active()):
+        raise RuntimeError(f"Unable to report whether this unit is active to the leader at {leader_address}.")
 
     assigned = get_local_model()
     if assigned is None:

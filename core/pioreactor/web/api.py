@@ -1256,7 +1256,6 @@ def run_job_on_unit_in_experiment(
                 | {
                     "EXPERIMENT": experiment,
                     "HOSTNAME": worker["pioreactor_unit"],
-                    "ACTIVE": str(int(worker["is_active"])),
                     "TESTING": str(int(is_testing_env())),
                 },
             }
@@ -4482,28 +4481,53 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
             remediation="Send is_active as 0 or 1.",
         )
 
-    # Update the status of the worker in the database
-    row_count = modify_app_db(
+    # The unit owns whether it's active, and stops its own activities when deactivated.
+    response: MureqResponse | None = None
+    try:
+        response = put_into_unit(
+            pioreactor_unit,
+            "/unit_api/active",
+            json={"is_active": new_status},
+            timeout=5,
+        )
+        response.raise_for_status()
+    except HTTPErrorStatus:
+        abort_with_worker_error(response, f"Could not update {pioreactor_unit}. Check its logs and retry.")
+    except HTTPException:
+        if new_status == 1:
+            abort_with_worker_error(
+                None, f"Could not activate {pioreactor_unit}. Check its connection and retry."
+            )
+        # Deactivating an unreachable unit changes only the mirror, so the leader skips it until
+        # it's set active again.
+        publish_to_log(
+            f"`{pioreactor_unit}` is unreachable, so it's Inactive on the leader only. The leader skips it until it's set Active again.",
+            task="worker_status",
+            level="WARNING",
+        )
+
+    modify_app_db(
         "UPDATE workers SET is_active = (?) WHERE pioreactor_unit = (?)",
         (new_status, pioreactor_unit),
     )
+    return {"status": "success"}, 200
 
+
+@api_bp.route("/workers/<pioreactor_unit>/reported_active", methods=["PUT"])
+def update_reported_worker_active(pioreactor_unit: str) -> ResponseReturnValue:
+    # A unit reports whether it's active. Mirror-only: forwarding to the unit would loop.
+    registered_worker_or_abort(pioreactor_unit)
+
+    data = decode_request_body(structs.ChangeWorkerStatusRequest)
+    if data.is_active not in [0, 1]:
+        abort_with(400, "Invalid status. Status must be integer 0 or 1.")
+    row_count = modify_app_db(
+        "UPDATE workers SET is_active = ? WHERE pioreactor_unit = ? AND is_active != ?",
+        (data.is_active, pioreactor_unit, data.is_active),
+    )
     if row_count > 0:
-        publish_to_log(
-            f"Set `{pioreactor_unit}` to {'Active' if new_status else 'Inactive'}.",
-            task="worker_status",
-            level="INFO",
-        )
-        if new_status == 0:
-            multicast_post_to_worker(pioreactor_unit, "/unit_api/jobs/stop/all")
-        return {"status": "success"}, 200
-    else:
-        abort_with(
-            404,
-            f"Worker {pioreactor_unit} not found",
-            cause="Worker name not found in database.",
-            remediation="Check the unit name or add the worker to the inventory.",
-        )
+        logger.debug(f"`{pioreactor_unit}` reported it's {'active' if data.is_active else 'inactive'}.")
+    return {"status": "success"}, 200
 
 
 @api_bp.route("/workers/<pioreactor_unit>/model", methods=["PUT"])

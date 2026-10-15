@@ -32,6 +32,7 @@ lazy_subcommands = {
     "estimators": "pioreactor.cli.estimators.estimators",
     "usb": "pioreactor.cli.usb.usb",
     "model": "pioreactor.cli.model.model",
+    "active": "pioreactor.cli.active.active",
     "cluster": "pioreactor.cli.cluster.cluster",
 }
 
