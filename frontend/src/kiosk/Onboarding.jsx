@@ -23,7 +23,7 @@ import { AsyncButton, Empty, useToast } from "./ui";
 // First-boot setup, full screen: Name, Wi-Fi (optional), Model, Ready. Shown on
 // every boot until finished, and again from System. See KIOSK.md, "Onboarding".
 
-const STEPS = ["Name", "Wi-Fi", "Model", "Ready"];
+const STEPS = ["Name", "Wi-Fi", "Model", "Finalize"];
 
 function StepIndicator({ current }) {
   return (
@@ -90,14 +90,14 @@ function Welcome({ onNext }) {
         <>
           <span className="grow" />
           <button type="button" className="btn primary" onClick={onNext}>
-            Get started
+            Next
           </button>
         </>
       }
     >
       <div className="ob-welcome">
         <Icon name="pioreactor" className="ob-hero" />
-        <h2>Welcome</h2>
+        <h2>Set up your Pioreactor</h2>
       </div>
     </Frame>
   );
@@ -335,13 +335,6 @@ function ReadyStep({ summary, onBack, onDone }) {
   const { unit, role, leaderHostname } = useKiosk();
   const name = summary.name;
 
-  const lead = {
-    standalone: `${name} is ready.`,
-    leader: `${name} is ready, and leads a cluster.`,
-    worker: `${name} is ready, in ${leaderHostname}'s cluster.`,
-    unjoined: `${name} is ready. Add it from a leader's Cluster page.`,
-  }[role];
-
   const finish = async () => {
     await finishOnboarding();
     navigate("");
@@ -361,8 +354,7 @@ function ReadyStep({ summary, onBack, onDone }) {
         </>
       }
     >
-      <h2>Ready</h2>
-      <p className="muted">{lead}</p>
+      <h2>Finalize</h2>
       <div className="list">
         <Row title="Name" sub={name !== unit ? `${name}, after the next restart` : name} />
         <Row title="Network" sub={summary.network} />

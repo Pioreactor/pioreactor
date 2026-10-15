@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { enc, unitApi } from "../api";
 import { useAsync } from "../hooks";
 import { Icon } from "../icons";
-import { AsyncButton, Empty, Sheet, useToast } from "../ui";
+import { ActiveBadge, AsyncButton, Empty, Sheet, useToast } from "../ui";
 import XYChart from "../XYChart";
 import CalibrationSession, { readStoredSession } from "./CalibrationSession";
 
@@ -111,7 +111,7 @@ function SavedRow({ name, createdAt, active, onClick }) {
         <div className="truncate strong">{name}</div>
         <div className="sub">{formatDate(createdAt)}</div>
       </div>
-      {active && <span className="badge ready">Active</span>}
+      {active && <ActiveBadge />}
       <Icon name="forward" />
     </button>
   );
@@ -178,7 +178,7 @@ function DevicePanel({ device, protocols, calibrations, estimators, activeEstima
                     <div className="truncate strong">{estimator.estimator_name}</div>
                     <div className="sub">{formatDate(estimator.created_at)}</div>
                   </div>
-                  {active && <span className="badge ready">Active</span>}
+                  {active && <ActiveBadge />}
                   <AsyncButton className="btn" onClick={() => activateEstimator(estimator)}>
                     {active ? "Set inactive" : "Set active"}
                   </AsyncButton>

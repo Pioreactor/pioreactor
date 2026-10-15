@@ -422,8 +422,8 @@ function UnitSheet({ row, onClose, onChanged }) {
               <div className="strong">Remove from cluster</div>
               <div className="sub">
                 {row.experiment
-                  ? "Unassign it first: Pioreactors leave between experiments."
-                  : "It restarts as a standalone Pioreactor."}
+                  ? "Unassign it first."
+                  : "Convert to a standalone Pioreactor."}
               </div>
             </div>
             <AsyncButton className="btn danger" disabled={Boolean(row.experiment)} onClick={remove}>

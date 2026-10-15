@@ -153,6 +153,15 @@ export const StateBadge = memo(function StateBadge({ state, pending }) {
   return <span className={`badge ${key}`}>{STATE_LABELS[key]}</span>;
 });
 
+export function ActiveBadge() {
+  return (
+    <span className="badge active">
+      <Icon name="checkCircle" />
+      Active
+    </span>
+  );
+}
+
 export function Segmented({ options, value, onChange, label }) {
   return (
     <div className="segmented" role="radiogroup" aria-label={label}>

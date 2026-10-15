@@ -15,14 +15,13 @@ const CURSOR_CLEAR_MS = 6000;
 const PARTITIONED_CHARTS = new Set(["raw_optical_density", "optical_density"]);
 const CHART_KEY_STORAGE = "pioreactor-kiosk-chart";
 const WINDOW_STORAGE = "pioreactor-kiosk-chart-window";
-// Lookback in hours, as in the main UI's Overview. "Now" (0) loads no history and
-// shows only points that arrive while the chart is open.
+// Lookback in hours, as in the main UI's Overview (without its "Now", which
+// starts empty).
 const ALL_TIME = 1000000;
 const WINDOWS = [
   { value: ALL_TIME, label: "All" },
   { value: 24, label: "24 h" },
   { value: 6, label: "6 h" },
-  { value: 0, label: "Now" },
 ];
 
 function evaluateTransformation(expression) {
@@ -198,11 +197,6 @@ function CanvasChart({ chart, experiment, startMs, lookbackHours }) {
 
   // History, for this unit only (smaller queries than the cluster-wide endpoints).
   useEffect(() => {
-    if (lookbackHours === 0) {
-      fetchedRef.current = true;
-      setStatus("waiting");
-      return undefined;
-    }
     const controller = new AbortController();
     const column = chart.data_source_column ? `/${enc(chart.data_source_column)}` : "";
     leaderApi(
@@ -268,9 +262,8 @@ function CanvasChart({ chart, experiment, startMs, lookbackHours }) {
     }
     series.points.push({ x, y: transform(y) });
     if (series.points.length > TARGET_POINTS * 3) {
-      // Thin old points so memory stays bounded during long sessions. "Now" keeps
-      // everything since the chart opened, like the main UI.
-      const cutoff = lookbackHours > 0 ? Date.now() - lookbackHours * 3600000 : -Infinity;
+      // Thin old points so memory stays bounded during long sessions.
+      const cutoff = Date.now() - lookbackHours * 3600000;
       const keepFrom = series.points.length - 50;
       series.points = series.points.filter((point, index) => point.x >= cutoff && (index % 2 === 0 || index > keepFrom));
     }
@@ -336,7 +329,6 @@ function CanvasChart({ chart, experiment, startMs, lookbackHours }) {
               {
                 loading: "Loading...",
                 error: "Could not load data from the leader.",
-                waiting: "Waiting for new data...",
               }[status] || "No data yet."
             }
           </div>

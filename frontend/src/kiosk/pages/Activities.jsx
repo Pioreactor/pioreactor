@@ -5,7 +5,7 @@ import { useAsync, useBrokerConnected, usePendingStates } from "../hooks";
 import { Icon } from "../icons";
 import { EditField } from "../Keyboard";
 import { getAutomationDescriptors, getJobDescriptors, useJobControl, useUnitValues } from "../jobs";
-import { AsyncButton, Empty, ReadValue, Segmented, StateBadge, useConfirm, useToast } from "../ui";
+import { AsyncButton, Empty, ReadValue, Segmented, Sheet, StateBadge, useConfirm, useToast } from "../ui";
 import { navigate, usePage } from "../router";
 import { fmt, readDisplay, RUNNING_STATES } from "../values";
 import AutomationSheet from "./AutomationSheet";
@@ -20,42 +20,35 @@ const TOOLS = [
 
 const PENDING_LABELS = { sleeping: "Pausing...", ready: "Resuming...", disconnected: "Stopping..." };
 
+const shownSettings = (descriptor) =>
+  descriptor.published_settings.filter((setting) => setting.display && setting.key !== descriptor.subtext);
+
 // Props are primitives (plus stable callbacks) so memo() skips unchanged rows.
-const JobRow = memo(function JobRow({ descriptor, state, pendingLabel, subtext, settingValues, onStart, onSetState, onStop, onEdit }) {
+// A row shows what the job is doing; its settings open in a sheet, so the list
+// stays short and doesn't re-render as settings change.
+const JobRow = memo(function JobRow({ descriptor, state, pendingLabel, subtext, onStart, onSetState, onStop, onOpen }) {
   const job = descriptor.job_name;
   const running = RUNNING_STATES.has(state);
   const busy = Boolean(pendingLabel);
-  const settings = descriptor.published_settings.filter((setting) => setting.display && setting.key !== descriptor.subtext);
-  const values = settingValues.split("\u0000");
+  const openable = running && shownSettings(descriptor).length > 0;
+  const name = (
+    <span className="job-name">
+      <strong className="truncate">{descriptor.display_name}</strong>
+      <StateBadge state={state} pending={pendingLabel} />
+      {running && subtext && <span className="sub truncate">{subtext.replace(/_/g, " ")}</span>}
+    </span>
+  );
 
   return (
     <div className="job-row">
-      <div className="job-name">
-        <strong className="truncate">{descriptor.display_name}</strong>
-        <StateBadge state={state} pending={pendingLabel} />
-        {running && subtext && <span className="sub truncate">{subtext.replace(/_/g, " ")}</span>}
-      </div>
-      <div className="job-settings">
-        {running &&
-          settings.map((setting, index) => {
-            const value = values[index] || null;
-            if (setting.editable === false) {
-              return <ReadValue key={setting.key} label={setting.label} value={value} unit={setting.unit} />;
-            }
-            const numeric = setting.type === "numeric";
-            return (
-              <EditField
-                key={setting.key}
-                label={setting.label}
-                value={numeric && value !== null ? fmt(value, 4) : value}
-                unit={setting.unit}
-                type={numeric ? "number" : "text"}
-                hint={setting.description}
-                onCommit={(next) => onEdit(job, setting.key, next)}
-              />
-            );
-          })}
-      </div>
+      {openable ? (
+        <button type="button" className="job-main" onClick={() => onOpen(job)}>
+          {name}
+          <Icon name="forward" className="job-open" />
+        </button>
+      ) : (
+        <div className="job-main">{name}</div>
+      )}
       <div className="job-actions">
         {!running && state !== "lost" && (
           <button type="button" className="btn primary" disabled={busy} onClick={() => onStart(descriptor)}>
@@ -85,11 +78,40 @@ const JobRow = memo(function JobRow({ descriptor, state, pendingLabel, subtext, 
   );
 });
 
+// A running job's displayed settings, live; editable ones open the keyboard.
+function JobSettingsSheet({ descriptor, get, onEdit, onClose }) {
+  const job = descriptor.job_name;
+  return (
+    <Sheet title={descriptor.display_name} onClose={onClose}>
+      {shownSettings(descriptor).map((setting) => {
+        const value = readDisplay(get(job, setting.key), setting.key);
+        if (setting.editable === false) {
+          return <ReadValue key={setting.key} className="wide" label={setting.label} value={value} unit={setting.unit} />;
+        }
+        const numeric = setting.type === "numeric";
+        return (
+          <EditField
+            key={setting.key}
+            className="wide"
+            label={setting.label}
+            value={numeric && value !== null ? fmt(value, 4) : value}
+            unit={setting.unit}
+            type={numeric ? "number" : "text"}
+            hint={setting.description}
+            onCommit={(next) => onEdit(job, setting.key, next)}
+          />
+        );
+      })}
+    </Sheet>
+  );
+}
+
 function JobList({ get }) {
   const toast = useToast();
   const control = useJobControl();
   const descriptors = useAsync(() => getJobDescriptors(), []);
   const [automationType, setAutomationType] = useState(null);
+  const [openJob, setOpenJob] = useState(null);
 
   const shown = useMemo(() => (descriptors.data || []).filter((descriptor) => descriptor.display), [descriptors.data]);
   const states = useMemo(() => Object.fromEntries(shown.map((d) => [d.job_name, get(d.job_name, "$state")])), [shown, get]);
@@ -146,6 +168,12 @@ function JobList({ get }) {
 
   const onEdit = useCallback((job, key, value) => control.set(job, key, value), [control]);
 
+  // The settings sheet closes when its job stops.
+  const openDescriptor = openJob && RUNNING_STATES.has(states[openJob]) ? shown.find((d) => d.job_name === openJob) : null;
+  useEffect(() => {
+    if (openJob && !openDescriptor) setOpenJob(null);
+  }, [openJob, openDescriptor]);
+
   if (descriptors.error) return <Empty>Could not load activities: {descriptors.error}</Empty>;
   if (!descriptors.data) return <Empty>Loading activities...</Empty>;
 
@@ -154,10 +182,6 @@ function JobList({ get }) {
       <div className="list">
         {shown.map((descriptor) => {
           const job = descriptor.job_name;
-          const settingValues = descriptor.published_settings
-            .filter((setting) => setting.display && setting.key !== descriptor.subtext)
-            .map((setting) => readDisplay(get(job, setting.key), setting.key) ?? "")
-            .join("\u0000");
           return (
             <JobRow
               key={job}
@@ -165,15 +189,17 @@ function JobList({ get }) {
               state={states[job]}
               pendingLabel={pending[job]?.label}
               subtext={descriptor.subtext ? readDisplay(get(job, descriptor.subtext), descriptor.subtext) : null}
-              settingValues={settingValues}
               onStart={onStart}
               onSetState={onSetState}
               onStop={onStop}
-              onEdit={onEdit}
+              onOpen={setOpenJob}
             />
           );
         })}
       </div>
+      {openDescriptor && (
+        <JobSettingsSheet descriptor={openDescriptor} get={get} onEdit={onEdit} onClose={() => setOpenJob(null)} />
+      )}
       {automationType && (
         <AutomationSheet
           automationType={automationType}

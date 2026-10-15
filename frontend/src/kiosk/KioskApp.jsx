@@ -23,23 +23,23 @@ const PAGES = [
   { page: "calibrations", label: "Calibrations", icon: "calibration", Component: Calibrations },
   { page: "logs", label: "Logs", icon: "logs", Component: Logs },
   { page: "cluster", label: "Cluster", icon: "cluster", Component: Cluster, also: ["experiments"], leaderOnly: true },
-  // Enabled while a drive is plugged in.
-  { page: "usb", label: "USB", icon: "usb", Component: Usb, needsDrive: true },
   { page: "system", label: "System", icon: "system", Component: System },
+  // In the rail only while a drive is plugged in (a toast says when one arrives).
+  { page: "usb", label: "USB", icon: "usb", Component: Usb, needsDrive: true },
 ];
 
 function Rail({ pages, active }) {
   const { usb } = useKiosk();
   const drive = hasDrive(usb);
+  const shown = pages.filter((item) => !item.needsDrive || drive || active === item.page);
   return (
     <nav className="rail" aria-label="Pages">
-      {pages.map((item) => (
+      {shown.map((item) => (
         <button
           type="button"
           key={item.page}
           className={`rail-item ${active === item.page ? "active" : ""}`}
           aria-current={active === item.page ? "page" : undefined}
-          disabled={item.needsDrive && !drive && active !== item.page}
           onClick={() => navigate(item.page)}
         >
           <Icon name={item.icon} />

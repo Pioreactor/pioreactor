@@ -213,7 +213,7 @@ export default function System() {
         <SettingRow title="Appearance">
           <Segmented label="Appearance" options={THEMES} value={theme} onChange={chooseTheme} />
         </SettingRow>
-        <SettingRow title="Setup" sub="Name, Wi-Fi and model.">
+        <SettingRow title="Setup" sub="Edit name, Wi-Fi and model.">
           <AsyncButton className="btn" onClick={restartSetup}>
             Run setup again
           </AsyncButton>

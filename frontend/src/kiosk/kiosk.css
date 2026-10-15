@@ -217,10 +217,6 @@ p {
   font-weight: 600;
 }
 
-.rail-item:disabled {
-  opacity: 0.35;
-}
-
 .rail-item:active {
   background: var(--pressed);
 }
@@ -328,12 +324,10 @@ p {
 }
 
 .section-title {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text2);
   margin: 0.8rem 0 0.4rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .section-title:first-child {
@@ -571,6 +565,13 @@ p {
 
 .badge.pending {
   color: var(--off);
+}
+
+/* The main UI's Active chip: green text and icon, no fill. */
+.badge.active {
+  background: transparent;
+  color: var(--ready);
+  padding: 0 0.2rem;
 }
 
 /* ---------- Cards and lists ---------- */
@@ -819,9 +820,24 @@ button.list-row:active {
   border-top: 0;
 }
 
+/* Name, state and subtext; a running job with settings opens them on tap. */
+.job-main {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+}
+
+button.job-main:active {
+  background: var(--pressed);
+}
+
 .job-name {
-  width: 9rem;
-  flex: none;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -833,12 +849,9 @@ button.list-row:active {
   max-width: 100%;
 }
 
-.job-settings {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+.job-open {
+  color: var(--text2);
+  flex: none;
 }
 
 .job-actions {
