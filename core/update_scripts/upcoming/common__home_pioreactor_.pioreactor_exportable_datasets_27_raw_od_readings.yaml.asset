@@ -1,0 +1,22 @@
+dataset_name: raw_od_readings
+default_order_by: timestamp
+description: This dataset includes a time series of raw readings provided by the sensors
+  (that is, not transformed by a calibration curve).
+display_name: Raw optical density (uncalibrated)
+has_experiment: true
+has_unit: true
+source: app
+table: raw_od_readings
+timestamp_columns:
+- timestamp
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp for the raw OD reading.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  od_reading: Uncalibrated OD reading for one photodiode channel, after IR-reference normalization and blank correction but before calibration transformation.
+  channel: Photodiode channel number.
+column_units:
+  hours_since_experiment_created: h
+  od_reading: AU

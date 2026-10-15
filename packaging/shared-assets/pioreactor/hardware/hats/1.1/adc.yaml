@@ -1,0 +1,16 @@
+aux:
+  driver: pico
+  address: 0x2C
+  channel: 1
+version:
+  driver: pico
+  address: 0x2C
+  channel: 0
+pd1:
+  driver: pico
+  address: 0x2C
+  channel: 2
+pd2:
+  driver: pico
+  address: 0x2C
+  channel: 3

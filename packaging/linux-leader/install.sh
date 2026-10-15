@@ -260,7 +260,13 @@ install_static_asset_link() {
 
 install_system_files() {
   install -d -o root -g root -m 0755 /etc/systemd/system
-  install -m 0644 "$RUNTIME_FILES_DIR"/systemd/* /etc/systemd/system/
+  # Select units explicitly: shared sources also include Raspberry Pi boot services.
+  for unit in bootfs_files.service huey.service lighttpd.service pioreactor-web.target \
+    pioreactor-wifi-recovery.service pioreactor-wifi-recovery.timer \
+    backup-database.service backup-database.timer ui-exports-cleanup.service \
+    ui-exports-cleanup.timer pioreactor-leader.target; do
+    install -m 0644 "$RUNTIME_FILES_DIR/systemd/$unit" /etc/systemd/system/
+  done
   install -m 0644 "$INSTALLER_FILES_DIR"/systemd/* /etc/systemd/system/
 
   install -d -o root -g root -m 0755 /etc/lighttpd
@@ -291,18 +297,7 @@ configure_mosquitto() {
   chmod 0700 /etc/mosquitto/pw.txt
 
   install -d -o root -g root -m 0755 /etc/mosquitto/conf.d
-  cat >/etc/mosquitto/conf.d/pioreactor.conf <<'EOF'
-log_type error
-log_type warning
-persistence false
-listener 1883
-protocol mqtt
-listener 9001
-protocol websockets
-allow_anonymous false
-max_inflight_messages 1000
-password_file /etc/mosquitto/pw.txt
-EOF
+  install -m 0644 "$RUNTIME_FILES_DIR/mosquitto/pioreactor.conf" /etc/mosquitto/conf.d/pioreactor.conf
 }
 
 create_dot_pioreactor_tree() {

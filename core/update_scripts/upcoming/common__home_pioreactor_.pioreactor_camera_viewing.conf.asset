@@ -1,0 +1,16 @@
+# Native rpicam-still options for human viewing.
+# Relative paths are resolved from this profile directory.
+tuning-file=ov5647_noir_200ms.json
+mode=2592:1944:10:P
+width=2592
+height=1944
+buffer-count=2
+framerate=0
+metering=spot
+awbgains=1,1
+brightness=0
+contrast=1.1
+saturation=0
+sharpness=0
+denoise=cdn_hq
+quality=75

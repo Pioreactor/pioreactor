@@ -1,0 +1,20 @@
+dataset_name: stirring_rates
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: stirring_rates
+timestamp_columns:
+- timestamp
+description: This dataset includes the measured RPM of the onboard stirring.
+display_name: Stirring rates
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp from the published stirring RPM measurement.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  measured_rpm: Measured onboard stirring speed.
+column_units:
+  hours_since_experiment_created: h
+  measured_rpm: RPM

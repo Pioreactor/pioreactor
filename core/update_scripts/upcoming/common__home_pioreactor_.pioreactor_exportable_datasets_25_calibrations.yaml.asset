@@ -1,0 +1,21 @@
+dataset_name: calibrations
+default_order_by: created_at
+has_experiment: false
+has_unit: true
+source: app
+table: calibrations
+timestamp_columns:
+- created_at
+- set_to_current_at
+display_name: Calibrations
+description: This dataset includes all the calibrations produced by Pioreactors in your cluster.
+column_descriptions:
+  pioreactor_unit: Pioreactor unit name.
+  created_at: UTC timestamp when the calibration was created.
+  created_at_localtime: Local-time rendering of created_at.
+  type: Calibration type or device family.
+  data: Serialized calibration payload.
+  name: Calibration name.
+  is_current: Whether this calibration is the active calibration for its type on this unit.
+  set_to_current_at: UTC timestamp when this calibration was last set as current.
+  set_to_current_at_localtime: Local-time rendering of set_to_current_at.

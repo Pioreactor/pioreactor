@@ -1,0 +1,34 @@
+---
+display_name: Dosing automation
+job_name: dosing_automation
+display: true
+source: app
+description: Start a dosing automation (chemostat, turbidostat, fed-batch, etc.).
+subtext: automation_name
+published_settings:
+  - key: duration
+    unit: min
+    label: Time between dosing
+    type: numeric
+    display: true
+    description: Change how long to wait between dilutions. Typically between 0.5 and 60 minutes. Changing may immediately trigger a dosing event.
+  - key: exchange_volume_ml
+    unit: mL
+    label: Exchange volume
+    type: numeric
+    display: true
+    description: Change the volume per dilution. Typical values are between 0.0mL and 2.0mL.
+  - key: target_biomass
+    unit: OD/AU
+    label: Target biomass
+    type: numeric
+    display: true
+    description: Change the target biomass value, in the units of the selected biomass signal.
+  - key: biomass_signal
+    label: Biomass signal
+    type: string
+    display: true
+    description: One of normalized_od, od_fused, or od. If multiple OD signal channels exist, prefer normalized_od or od_fused.
+  - key: automation_name
+    type: string
+    display: false

@@ -1,0 +1,20 @@
+dataset_name: od_readings_fused
+default_order_by: timestamp
+description: This dataset includes a time series of fused optical density readings.
+display_name: Fused optical density
+has_experiment: true
+has_unit: true
+source: app
+table: od_readings_fused
+timestamp_columns:
+- timestamp
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp for the fused OD reading.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  od_reading: Fused optical-density estimate computed from raw OD readings across photodiode angles by the active OD-fusion estimator.
+column_units:
+  hours_since_experiment_created: h
+  od_reading: OD

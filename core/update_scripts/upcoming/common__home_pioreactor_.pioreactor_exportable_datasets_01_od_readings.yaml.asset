@@ -1,0 +1,25 @@
+dataset_name: od_readings
+default_order_by: timestamp
+description: This dataset includes a time series of readings provided by the sensors
+  (transformed via a calibration curve, if available), the inputs for growth calculations
+  and normalized optical density.
+display_name: Optical density
+has_experiment: true
+has_unit: true
+source: app
+table: od_readings
+timestamp_columns:
+- timestamp
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp for the OD reading.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  od_reading: Optical-density reading for one photodiode channel, after IR-reference normalization and blank correction, and transformed by a calibration curve when available.
+  angle: Photodiode angle associated with the reading.
+  channel: Photodiode channel number.
+column_units:
+  hours_since_experiment_created: h
+  od_reading: OD or AU
+  angle: degrees

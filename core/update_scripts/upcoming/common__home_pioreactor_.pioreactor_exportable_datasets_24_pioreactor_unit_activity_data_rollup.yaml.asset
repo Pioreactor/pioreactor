@@ -1,0 +1,37 @@
+dataset_name: pioreactor_unit_activity_data_rollup
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: pioreactor_unit_activity_data_rollup
+timestamp_columns:
+- timestamp
+description: This dataset is a rolled-up version of Pioreactor unit activity data (above) aggregated to the minute level. This is useful for reducing the size of the exported dataset.
+display_name: Pioreactor unit activity data roll-up
+always_partition_by_unit: true
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp truncated to the minute.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  avg_od_reading: Minute-level average of od_reading.
+  avg_od_fused: Minute-level average of od_fused.
+  avg_normalized_od_reading: Minute-level average of normalized_od_reading.
+  avg_temperature_c: Minute-level average inferred vial temperature.
+  avg_growth_rate: Minute-level average implied growth rate.
+  avg_measured_rpm: Minute-level average measured stirring speed.
+  sum_add_media_ml: Minute-level total added media volume.
+  sum_remove_waste_ml: Minute-level total removed waste volume.
+  sum_add_alt_media_ml: Minute-level total added alternate media volume.
+column_units:
+  hours_since_experiment_created: h
+  avg_od_reading: OD or AU
+  avg_od_fused: OD
+  avg_normalized_od_reading: nOD
+  avg_temperature_c: degC
+  avg_growth_rate: h^-1
+  avg_measured_rpm: RPM
+  sum_add_media_ml: mL
+  sum_remove_waste_ml: mL
+  sum_add_alt_media_ml: mL

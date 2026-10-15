@@ -1,0 +1,23 @@
+dataset_name: logs
+default_order_by: timestamp
+description: This dataset includes the append-only collection of logs from all Pioreactors.
+  A subset of these logs are displayed in the Log Table in the Experiment Overview.
+display_name: Pioreactor logs
+has_experiment: true
+has_unit: true
+source: app
+table: logs
+timestamp_columns:
+- timestamp
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp for the log record.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  message: Log message text.
+  source: Log source, such as app or UI.
+  level: Uppercase log level.
+  task: Task or job name associated with the log record.
+column_units:
+  hours_since_experiment_created: h

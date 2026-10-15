@@ -1,0 +1,36 @@
+---
+display_name: Bioreactor
+key: bioreactor
+display: true
+source: app
+description: Per-unit bioreactor settings.
+published_settings:
+  - key: current_volume_ml
+    label: Current volume
+    description: Current estimated liquid volume in the vial.
+    unit: mL
+    type: numeric
+    display: true
+  - key: efflux_tube_volume_ml
+    label: Efflux tube level
+    description: Liquid volume equivalent to the height of the waste/efflux tube.
+    unit: mL
+    type: numeric
+    display: true
+  - key: alt_media_fraction
+    label: Alt media fraction
+    description: Fraction of the current volume estimated to be alt media.
+    type: numeric
+    display: true
+  - key: cumulative_media_added_ml
+    label: Cumulative media added
+    description: Total regular media added during this experiment.
+    unit: mL
+    type: numeric
+    display: true
+  - key: cumulative_waste_removed_ml
+    label: Cumulative waste removed
+    description: Total waste removed during this experiment.
+    unit: mL
+    type: numeric
+    display: true

@@ -1,0 +1,16 @@
+aux:
+  driver: ads1115
+  address: 0x48
+  channel: 3
+version:
+  driver: ads1115
+  address: 0x48
+  channel: 2
+pd1:
+  driver: ads1115
+  address: 0x48
+  channel: 1
+pd2:
+  driver: ads1115
+  address: 0x48
+  channel: 0

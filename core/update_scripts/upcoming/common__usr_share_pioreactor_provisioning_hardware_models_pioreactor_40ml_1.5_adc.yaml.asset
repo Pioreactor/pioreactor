@@ -1,0 +1,8 @@
+pd1:
+  driver: ads1114
+  address: 0x49
+  channel: 0
+pd2:
+  driver: ads1114
+  address: 0x4a
+  channel: 0

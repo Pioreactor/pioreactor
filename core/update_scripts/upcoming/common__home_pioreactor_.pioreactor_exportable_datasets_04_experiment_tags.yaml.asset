@@ -1,0 +1,18 @@
+dataset_name: experiment_tags
+default_order_by: created_at
+has_experiment: true
+has_unit: false
+source: app
+table: experiment_tags
+timestamp_columns:
+- created_at
+description: This dataset includes tags assigned to experiments.
+display_name: Experiment tags
+column_descriptions:
+  experiment: Experiment name.
+  tag: User-assigned tag for the experiment.
+  created_at: UTC timestamp when the tag was assigned to the experiment.
+  created_at_localtime: Local-time rendering of created_at.
+  hours_since_experiment_created: Hours from experiment creation to created_at.
+column_units:
+  hours_since_experiment_created: h

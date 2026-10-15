@@ -1,0 +1,7 @@
+[Unit]
+Description=Pioreactor Leader Services
+After=pioreactor.target
+Wants=mosquitto.service pioreactor_startup_run@mqtt_to_db_streaming.service backup-database.timer ui-exports-cleanup.timer
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+---
+display_name: Turbidostat
+automation_name: turbidostat
+description: >
+  When the selected biomass signal reaches or exceeds the target value, exchange the configured volume.
+
+fields:
+  - key: target_biomass
+    default: null
+    unit: OD/AU
+    label: Target
+    type: numeric
+  - key: exchange_volume_ml
+    default: 1.0
+    unit: mL
+    label: Exchange volume
+    type: numeric
+  - key: biomass_signal
+    default: auto
+    label: Biomass signal
+    type: string

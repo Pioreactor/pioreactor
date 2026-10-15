@@ -1,0 +1,7 @@
+## All GPIO pins below are BCM numbered
+
+pcb_led_pin: 23
+pcb_button_pin: 4
+hall_sensor_pin: 21
+sda_pin: 2
+scl_pin: 3

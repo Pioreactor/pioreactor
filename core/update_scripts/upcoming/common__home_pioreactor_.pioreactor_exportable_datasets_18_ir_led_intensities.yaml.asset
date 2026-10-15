@@ -1,0 +1,20 @@
+dataset_name: ir_led_intensities
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: ir_led_intensities
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of the relative IR intensities used to normalize OD readings. Useful for debugging OD readings.
+display_name: IR LED intensities
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp when the relative IR LED intensity diagnostic was logged.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  relative_intensity: Relative IR LED intensity used for OD normalization.
+column_units:
+  hours_since_experiment_created: h
+  relative_intensity: ratio

@@ -1,0 +1,22 @@
+dataset_name: dosing_events
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: dosing_events
+timestamp_columns:
+- timestamp
+description: In this dataset, you'll find a detailed log table of all dosing events, including the volume exchanged, and the source that triggered the event.
+display_name: Dosing event log
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp from the pump action event.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  event: Dosing action name, such as add_media, add_alt_media, or remove_waste.
+  volume_change_ml: Volume moved by the dosing action. Positive values add volume and negative values remove volume.
+  source_of_event: Job, automation, calibration, or user source that triggered the dosing action.
+column_units:
+  hours_since_experiment_created: h
+  volume_change_ml: mL

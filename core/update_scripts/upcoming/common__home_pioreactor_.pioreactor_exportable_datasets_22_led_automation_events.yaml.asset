@@ -1,0 +1,21 @@
+dataset_name: led_automation_events
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: led_automation_events
+timestamp_columns:
+- timestamp
+description: This dataset includes a log of automation events created by LED automations.
+display_name: LED automation events
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp when the leader stored the automation latest_event message.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  event_name: Automation event class or name.
+  message: Optional human-readable automation event message.
+  data: Optional JSON-encoded automation event payload.
+column_units:
+  hours_since_experiment_created: h

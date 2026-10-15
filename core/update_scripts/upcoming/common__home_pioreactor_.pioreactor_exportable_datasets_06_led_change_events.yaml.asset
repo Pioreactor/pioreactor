@@ -1,0 +1,22 @@
+dataset_name: led_change_events
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: led_change_events
+timestamp_columns:
+- timestamp
+description: In this dataset, you'll find a log table of all LED events, including the channel, intensity, and the source that triggered the event.
+display_name: LED event log
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp from the LED change event.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  channel: LED channel, one of A, B, C, or D.
+  intensity: LED intensity setpoint.
+  source_of_event: Job, automation, or user source that triggered the LED change.
+column_units:
+  hours_since_experiment_created: h
+  intensity: percent

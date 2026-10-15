@@ -1,0 +1,24 @@
+dataset_name: temperature_automation_settings
+default_order_by: started_at
+has_experiment: true
+has_unit: true
+source: app
+query: SELECT *, BASE64(settings) as json_settings FROM temperature_automation_settings
+timestamp_columns:
+- started_at
+- ended_at
+description: This dataset includes a history of the settings from temperature automations.
+display_name: Temperature automation settings
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  started_at: UTC timestamp when this automation settings interval started.
+  started_at_localtime: Local-time rendering of started_at.
+  ended_at: UTC timestamp when this automation settings interval ended; null if still current.
+  ended_at_localtime: Local-time rendering of ended_at.
+  hours_since_experiment_created: Hours from experiment creation to started_at.
+  automation_name: Automation implementation name.
+  settings: Raw stored automation settings payload.
+  json_settings: Decoded JSON settings for settable published settings.
+column_units:
+  hours_since_experiment_created: h

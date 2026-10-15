@@ -37,6 +37,24 @@ the next boot.
 
 ## Ownership Boundary
 
+Installation parity between roles uses the shared payload described in
+[`shared-assets/provisioning/README.md`](shared-assets/provisioning/README.md).
+New images and release updates install missing descriptors on both roles and
+stage inactive SQL/config/service templates for later role-switching work.
+Existing configuration, databases, service enablement and custom files are preserved.
+
+Canonical hardware YAMLs live in `shared-assets/pioreactor/hardware/`. CustoPiZer
+uses them for fresh images; updates stage an inactive copy rather than adding
+capability files to a customized hardware tree. Camera defaults are installed only
+when missing.
+
+`runtime-files/` owns the bootfs plugin installer, worker lighttpd access config,
+Mosquitto defaults, and shared backup/export/leader service templates. CustoPiZer
+syncs these sources before building. The generic Linux installer shares the
+applicable units but keeps its own common target and startup-job ordering.
+Changes to active runtime files need explicit upgrade steps; the additive common
+asset installer is for missing seeds and inactive provisioning copies.
+
 The Pioreactor repo owns these files because they describe the Pioreactor application runtime contract. CustoPiZer consumes selected files from here when building Raspberry Pi images, but CustoPiZer still owns Raspberry Pi image-specific boot, hardware, networking, service ordering, and firstboot behavior.
 
 Wi-Fi recovery's script and systemd units live in `runtime-files/bash/pioreactor-wifi-recovery.sh` and `runtime-files/systemd/pioreactor-wifi-recovery.*`. CustoPiZer's asset sync copies them into every Raspberry Pi image build; its common `pioreactor.target` starts the timer. When changing recovery, also bundle matching copies in the next release's update scripts for existing installations. The recovery retries disconnected autoconnect client profiles at most every five minutes, respects intentional disconnects, and retains separate hardware-error checks for SDIO resets.

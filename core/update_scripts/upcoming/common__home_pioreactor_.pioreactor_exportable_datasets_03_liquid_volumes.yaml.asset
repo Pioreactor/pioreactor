@@ -1,0 +1,20 @@
+dataset_name: liquid_volumes
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: liquid_volumes
+timestamp_columns:
+- timestamp
+description: This dataset contains time series for the amount of volume calculated to be in the Pioreactors during experiments.
+display_name: Liquid volumes
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp when the leader stored the current-volume MQTT value.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  liquid_volume: Calculated current liquid volume in the Pioreactor vial.
+column_units:
+  hours_since_experiment_created: h
+  liquid_volume: mL

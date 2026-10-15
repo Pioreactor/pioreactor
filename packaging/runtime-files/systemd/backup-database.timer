@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly database backup
+
+[Timer]
+OnCalendar=*-*-01 00:00:00
+RandomizedDelaySec=5m
+Persistent=false
+Unit=backup-database.service
+
+[Install]
+WantedBy=timers.target

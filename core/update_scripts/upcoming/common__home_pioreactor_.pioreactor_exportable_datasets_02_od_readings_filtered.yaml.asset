@@ -1,0 +1,20 @@
+dataset_name: od_readings_filtered
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: od_readings_filtered
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of normalized optical densities. This data matches what's presented in the "Normalized optical density" chart in the Experiment Overview.
+display_name: Normalized optical density
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp for the filtered OD estimate.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  normalized_od_reading: Normalized optical-density estimate emitted by growth_rate_calculating.
+column_units:
+  hours_since_experiment_created: h
+  normalized_od_reading: nOD

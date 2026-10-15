@@ -17,7 +17,11 @@ The installer expects to be run from the repository checkout or release archive 
 
 - `packaging/shared-assets/` for one-time provisioning seed data.
 - `packaging/runtime-files/` for shared Linux runtime files also consumed by CustoPiZer Raspberry Pi images, including the common web systemd units.
-- `packaging/linux-leader/files/` for Linux leader installer helpers and leader-only service templates.
+- `packaging/linux-leader/files/` for platform-specific common-target and startup-job ordering.
+
+Backup/export services and the leader target use the canonical templates in
+`packaging/runtime-files/systemd/`. The installer selects its shared units
+explicitly, so Raspberry Pi boot services added there are not installed implicitly.
 
 ## Usage
 

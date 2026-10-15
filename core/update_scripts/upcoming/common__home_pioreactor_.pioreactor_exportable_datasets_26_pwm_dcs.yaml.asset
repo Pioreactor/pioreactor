@@ -1,0 +1,28 @@
+dataset_name: pwm_dcs
+default_order_by: timestamp
+has_experiment: true
+has_unit: true
+source: app
+table: pwm_dcs
+timestamp_columns:
+- timestamp
+description: This dataset includes a time series of the PWMs duty cycle percentages. Useful for debugging PWM use.
+display_name: PWM duty cycles
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp when the leader stored the PWM duty-cycle state.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  channel_1: PWM channel 1 duty cycle.
+  channel_2: PWM channel 2 duty cycle.
+  channel_3: PWM channel 3 duty cycle.
+  channel_4: PWM channel 4 duty cycle.
+  channel_5: PWM channel 5 duty cycle.
+column_units:
+  hours_since_experiment_created: h
+  channel_1: percent
+  channel_2: percent
+  channel_3: percent
+  channel_4: percent
+  channel_5: percent

@@ -1,0 +1,11 @@
+---
+display_name: led intensity
+key: leds
+display: false
+source: app
+published_settings:
+  - key: intensity
+    label: LED intensity
+    type: string
+    display: true
+    editable: false

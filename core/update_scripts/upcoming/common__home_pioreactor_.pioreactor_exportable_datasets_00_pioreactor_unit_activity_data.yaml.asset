@@ -1,0 +1,46 @@
+dataset_name: pioreactor_unit_activity_data
+default_order_by: timestamp
+description: This dataset includes most of your experiment data, including the time
+  series of OD metrics, temperature, stirring rates, LED updates, and dosings. See also "Pioreactor unit activity data roll-up" for a rolled-up version of this dataset.
+display_name: Pioreactor unit activity timeline (recommended)
+has_experiment: true
+has_unit: true
+source: app
+table: pioreactor_unit_activity_data
+timestamp_columns:
+- timestamp
+always_partition_by_unit: true
+column_descriptions:
+  experiment: Experiment name.
+  pioreactor_unit: Pioreactor unit name.
+  timestamp: UTC timestamp for the activity row.
+  timestamp_localtime: Local-time rendering of timestamp.
+  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  od_reading: OD reading copied from od_readings.
+  od_fused: Fused OD reading copied from od_readings_fused.
+  normalized_od_reading: Filtered and normalized OD reading copied from od_readings_filtered.
+  temperature_c: Inferred vial temperature.
+  growth_rate: Calculated implied growth rate.
+  measured_rpm: Measured onboard stirring speed.
+  led_a_intensity_update: LED channel A intensity update.
+  led_b_intensity_update: LED channel B intensity update.
+  led_c_intensity_update: LED channel C intensity update.
+  led_d_intensity_update: LED channel D intensity update.
+  add_media_ml: Added media volume from add_media dosing events.
+  remove_waste_ml: Removed waste volume from remove_waste dosing events.
+  add_alt_media_ml: Added alternate media volume from add_alt_media dosing events.
+column_units:
+  hours_since_experiment_created: h
+  od_reading: OD or AU
+  od_fused: OD
+  normalized_od_reading: nOD
+  temperature_c: degC
+  growth_rate: h^-1
+  measured_rpm: RPM
+  led_a_intensity_update: percent
+  led_b_intensity_update: percent
+  led_c_intensity_update: percent
+  led_d_intensity_update: percent
+  add_media_ml: mL
+  remove_waste_ml: mL
+  add_alt_media_ml: mL
