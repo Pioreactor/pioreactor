@@ -82,11 +82,16 @@ def is_active(unit_name: "pt.Unit") -> bool:
 
 
 def _is_active(unit_name: "pt.Unit") -> bool:
-    if os.environ.get("ACTIVE") == "1" or is_testing_env():
-        return True
-    elif os.environ.get("ACTIVE") == "0":
-        return False
+    if unit_name == get_unit_name():
+        # Lazy import avoids the config/utils -> whoami import cycle.
+        from pioreactor.unit_active import is_locally_active
 
+        # Each unit owns whether it's active. Reads never write.
+        return is_locally_active()
+    elif is_testing_env():
+        return True
+
+    # The leader mirrors each unit's value.
     from pioreactor.pubsub import get_from_leader
     from pioreactor.mureq import HTTPErrorStatus
     from pioreactor.mureq import HTTPException

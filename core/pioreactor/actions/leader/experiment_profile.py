@@ -26,7 +26,6 @@ from pioreactor.http_response import summarize_error_response
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import get_from_leader
 from pioreactor.pubsub import get_from_unit
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import post_into_leader
@@ -152,17 +151,6 @@ def _get_worker_env_for_start(
         "HOSTNAME": unit,
         "TESTING": str(int(is_testing_env())),
     }
-
-    try:
-        response = get_from_leader(f"/api/workers/{unit}")
-        response.raise_for_status()
-        worker = response.json()
-    except HTTPException:
-        return job_env
-
-    if "is_active" in worker:
-        job_env["ACTIVE"] = str(int(bool(worker["is_active"])))
-
     return job_env
 
 

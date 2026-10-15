@@ -1468,7 +1468,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         calibration_name="linear",
         ir_led_intensity=90.0,
         angle="90",
-        recorded_data={"x": [0, 2], "y": [0, 1]},
+        recorded_data={"x": [0, 2], "y": [0, 4]},
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
@@ -1494,8 +1494,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment=experiment) as bucket:
             voltage = 10.0
             assert od.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
-            assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
-            assert any("Signal above" in log["message"] for log in bucket)
+            assert wait_for(lambda: any("Signal above" in log["message"] for log in bucket), timeout=3.0)
 
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:

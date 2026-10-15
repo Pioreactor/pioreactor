@@ -25,7 +25,7 @@ def test_get_bioreactor_value_uses_defaults() -> None:
 def test_set_bioreactor_value_persists() -> None:
     experiment = "test_set_bioreactor_value_persists"
 
-    bioreactor.set_bioreactor_value(experiment, "current_volume_ml", 12.5)
+    bioreactor.set_bioreactor_value(experiment, "current_volume_ml", 12.4999993)
 
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(12.5)
     assert bioreactor.get_all_bioreactor_values(experiment)["current_volume_ml"] == pytest.approx(12.5)
@@ -412,7 +412,7 @@ def test_apply_dosing_event_uses_one_storage_context_and_enqueues_all_publicatio
     assert storage_context_count == 1
     assert updated == pytest.approx(
         {
-            "alt_media_fraction": 2.5 / 12.0,
+            "alt_media_fraction": 0.2083,
             "current_volume_ml": 12.0,
             "cumulative_media_added_ml": 5.0,
             "cumulative_alt_media_added_ml": 4.0,

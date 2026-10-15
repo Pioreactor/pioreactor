@@ -1,8 +1,14 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SnackbarProvider } from "notistack";
+import { MemoryRouter } from "react-router";
 
 import ChartPreferencesControl from "../components/ChartPreferencesControl";
+
+jest.mock("../hooks/useLeaderHostname", () => ({
+  __esModule: true,
+  default: () => "leader",
+}));
 
 
 const descriptors = [
@@ -26,13 +32,15 @@ function renderControl(overrides = {}) {
   };
 
   render(
-    <SnackbarProvider>
-      <ChartPreferencesControl
-        chartPageLabel="Overview"
-        chartPreferences={chartPreferences}
-        experiment="exp1"
-      />
-    </SnackbarProvider>,
+    <MemoryRouter>
+      <SnackbarProvider>
+        <ChartPreferencesControl
+          chartPageLabel="Overview"
+          chartPreferences={chartPreferences}
+          experiment="exp1"
+        />
+      </SnackbarProvider>
+    </MemoryRouter>,
   );
 
   return { save };

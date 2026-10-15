@@ -116,7 +116,7 @@ def validate_bioreactor_value(
     if maximum is not None and parsed > maximum:
         raise ValueError(f"Value for bioreactor variable `{variable_name}` must be <= {maximum}.")
 
-    return parsed
+    return round(parsed, 4)
 
 
 def _read_bioreactor_value(cache: t.Any, experiment: pt.Experiment, variable_name: str) -> float:

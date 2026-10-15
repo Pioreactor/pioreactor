@@ -66,6 +66,8 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import TARGET_UNIT_HEADER
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
+from pioreactor.unit_active import is_locally_active
+from pioreactor.unit_active import save_local_active
 from pioreactor.unit_model import get_local_model
 from pioreactor.unit_model import save_local_model
 from pioreactor.utils import local_persistent_storage
@@ -219,6 +221,30 @@ def set_unit_model() -> ResponseReturnValue:
         level="INFO",
     )
     return {"model_name": body.model_name, "model_version": body.model_version}, 200
+
+
+@unit_api_bp.route("/active", methods=["GET"])
+def get_unit_active() -> ResponseReturnValue:
+    return {"is_active": int(is_locally_active())}, 200
+
+
+@unit_api_bp.route("/active", methods=["PUT"])
+def set_unit_active() -> ResponseReturnValue:
+    body = decode_request_body(structs.ChangeWorkerStatusRequest)
+    if body.is_active not in (0, 1):
+        abort_with(400, "Invalid status. Status must be integer 0 or 1.")
+    is_active = bool(body.is_active)
+    save_local_active(is_active, stop_activities=False)
+    if not is_active:
+        # Stopping LEDs runs a `pio` command, too slow to wait for here.
+        tasks.kill_jobs_task(all_jobs=True)
+    tasks.report_active_to_leader(is_active)
+    publish_to_log(
+        f"Set `{HOSTNAME}` to {'Active' if is_active else 'Inactive'}.",
+        task="worker_status",
+        level="INFO",
+    )
+    return {"is_active": int(is_active)}, 200
 
 
 @unit_api_bp.route("/hardware/check", methods=["POST", "PATCH"])

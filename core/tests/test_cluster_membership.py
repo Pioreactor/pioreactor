@@ -53,6 +53,7 @@ def join_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]
     mocks = {
         "sudo": Mock(),
         "report": Mock(return_value=True),
+        "report_active": Mock(return_value=True),
         "check": Mock(),
         "jobs": MagicMock(),
     }
@@ -60,6 +61,7 @@ def join_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]
     monkeypatch.setattr(cluster_membership, "JobManager", mocks["jobs"])
     monkeypatch.setattr(cluster_membership, "activities_are_running", lambda: False)
     monkeypatch.setattr(cluster_membership, "report_model_to_leader", mocks["report"])
+    monkeypatch.setattr(cluster_membership, "report_active_to_leader", mocks["report_active"])
     monkeypatch.setattr(cluster_membership, "check_model_hardware", mocks["check"])
     return mocks
 
@@ -72,6 +74,7 @@ def test_join_cluster_points_unit_at_leader_and_reports_model(join_env: dict[str
     assert join_env["sudo"].call_args_list[0].args == ("date", "-u", "--set", "@1700000000")
     assert join_env["sudo"].call_args_list[1].kwargs == {"input": "server 10.0.0.1 iburst prefer\n"}
     join_env["report"].assert_called_once_with("10.0.0.1", "pioreactor_20ml", "1.5")
+    join_env["report_active"].assert_called_once_with("10.0.0.1", True)
     assert "leader_address" not in cluster_membership.resolve_local_config_path().read_text()
 
 
