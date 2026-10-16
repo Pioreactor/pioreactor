@@ -104,10 +104,12 @@ class GrowthRateCalculator(BackgroundJob):
         unit: pt.Unit,
         experiment: pt.Experiment,
     ):
-        samples_per_second = config.getfloat("od_reading.config", "samples_per_second")
-        if samples_per_second <= 0:
+        seconds_between_readings = config.getfloat(
+            "od_reading.config", "seconds_between_readings", fallback=5.0
+        )
+        if seconds_between_readings <= 0:
             raise ValueError(
-                f"Invalid [od_reading.config] samples_per_second={samples_per_second}. Expected a value > 0."
+                f"Invalid [od_reading.config] seconds_between_readings={seconds_between_readings}. Expected a value > 0."
             )
 
         samples_for_od_statistics = config.getint(
@@ -133,7 +135,7 @@ class GrowthRateCalculator(BackgroundJob):
         super().__init__(unit=unit, experiment=experiment)
 
         self.time_of_previous_observation: datetime | None = None
-        self.expected_dt = 1 / (60 * 60 * samples_per_second)  # in hours
+        self.expected_dt = seconds_between_readings / (60 * 60)  # in hours
         self.samples_for_od_statistics = samples_for_od_statistics
         self.ekf_outlier_std_threshold = ekf_outlier_std_threshold
         self._post_dose_observations_remaining = 0
@@ -454,7 +456,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         if self.samples_for_od_statistics * self.expected_dt * 60 * 60 >= 600:
             self.logger.warning(
-                "Due to the low `samples_per_second`, and high `samples_for_od_statistics` needed to establish a baseline, initial growth rate and nOD may take over 10 minutes to show up."
+                "Due to the high `seconds_between_readings`, and high `samples_for_od_statistics` needed to establish a baseline, initial growth rate and nOD may take over 10 minutes to show up."
             )
 
         self.logger.info("Collecting warmup OD observations for growth-rate initialization.")

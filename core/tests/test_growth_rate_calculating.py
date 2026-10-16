@@ -163,9 +163,9 @@ import pioreactor.background_jobs.growth_rate_calculating
         [
             (
                 "od_reading.config",
-                "samples_per_second",
+                "seconds_between_readings",
                 "0",
-                r"samples_per_second=0\.0",
+                r"seconds_between_readings=0\.0",
             ),
             (
                 "growth_rate_calculating.config",
@@ -424,14 +424,14 @@ import pioreactor.background_jobs.growth_rate_calculating
 
         unit = get_unit_name()
         experiment = "test_90_angle"
-        samples_per_second = 0.2
+        seconds_between_readings = 5.0
 
         with temporary_config_changes(
             config,
             [
                 ("od_config.photodiode_channel", "1", "90"),
                 ("od_config.photodiode_channel", "2", None),
-                ("od_reading.config", "samples_per_second", str(samples_per_second)),
+                ("od_reading.config", "seconds_between_readings", str(seconds_between_readings)),
             ],
         ):
             with local_persistent_storage("od_normalization_mean") as cache:
@@ -442,7 +442,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                 od_reading = 1.0
 
                 def __call__(self):
-                    self.od_reading *= np.exp(self.growth_rate / 60 / 60 / samples_per_second)
+                    self.od_reading *= np.exp(self.growth_rate / 60 / 60 * seconds_between_readings)
 
                     voltage = 0.1 * self.od_reading
                     payload = {

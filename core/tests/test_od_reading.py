@@ -2087,9 +2087,9 @@ def test_only_one_ref_channel_allowed() -> None:
             pass
 
 
-def test_click_od_reading_errors_cleanly_when_samples_per_second_is_zero() -> None:
-    with temporary_config_change(config, "od_reading.config", "samples_per_second", "0"):
-        with pytest.raises(ValueError, match=r"samples_per_second=0\.0.*> 0"):
+def test_click_od_reading_errors_cleanly_when_seconds_between_readings_is_zero() -> None:
+    with temporary_config_change(config, "od_reading.config", "seconds_between_readings", "0"):
+        with pytest.raises(ValueError, match=r"seconds_between_readings=0\.0.*> 0"):
             click_od_reading.callback(
                 fake_data=True,
                 interval=None,

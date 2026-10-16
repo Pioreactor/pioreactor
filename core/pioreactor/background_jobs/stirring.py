@@ -325,7 +325,7 @@ class Stirrer(BackgroundJobWithDodging):
 
         if (interval or 0.0) < 1 / 0.12:
             self.logger.warning(
-                "Recommended to decrease `samples_per_second` to ensure there is time to start/stop stirring. Try 0.12 or less."
+                "Recommended to increase `seconds_between_readings` to ensure there is time to start/stop stirring. Try 8 or more."
             )
 
         with suppress(AttributeError):

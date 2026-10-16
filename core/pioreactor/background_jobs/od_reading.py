@@ -1962,18 +1962,16 @@ def click_od_reading(
     """
 
     # determine interval: override if provided, else use snapshot or config default
-    samples_per_second = config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
-    if samples_per_second <= 0:
+    default_interval = config.getfloat("od_reading.config", "seconds_between_readings", fallback=5.0)
+    if default_interval <= 0:
         create_logger("od_reading").error(
-            "Invalid config value for [od_reading.config] samples_per_second=%s. "
+            "Invalid config value for [od_reading.config] seconds_between_readings=%s. "
             "Expected a value > 0 to compute the default read interval.",
-            samples_per_second,
+            default_interval,
         )
         raise ValueError(
-            f"Invalid [od_reading.config] samples_per_second={samples_per_second}. Expected a value > 0."
+            f"Invalid [od_reading.config] seconds_between_readings={default_interval}. Expected a value > 0."
         )
-
-    default_interval = 1 / samples_per_second
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
     penalizer = (
         config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / run_interval

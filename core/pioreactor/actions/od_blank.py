@@ -51,8 +51,11 @@ def od_statistics(
 
         logger.info("Starting stirring.")
         st = start_stirring(
-            target_rpm=500, unit=unit, experiment=experiment, enable_dodging_od=False
-        )  # don't dodge - the interval is too low. 500 is a reasonable value.
+            target_rpm=config.getfloat("stirring.config", "initial_target_rpm", fallback=500),
+            unit=unit,
+            experiment=experiment,
+            enable_dodging_od=False,  # don't dodge - the interval is too low.
+        )
         st.block_until_rpm_is_close_to_target(timeout=40)  # wait for stirring to be reasonable.
     else:
         st = nullcontext()  # type: ignore
