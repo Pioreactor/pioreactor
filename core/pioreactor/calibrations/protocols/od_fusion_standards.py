@@ -71,7 +71,11 @@ def _run_fusion_calibration_preflight() -> dict[pt.PdChannel, pt.PdAngle]:
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Both stirring and OD reading must be off before starting.")
 
+    from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
+
     _ensure_xr_model()
+    # Re-anchor the persisted IR REF so a session never inherits one from an earlier session or IR intensity.
+    PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(get_testing_experiment_name())
     return _channel_angle_map_from_config()
 
 
@@ -112,6 +116,7 @@ def _measure_fusion_standard_samples(
             experiment=get_testing_experiment_name(),
             fake_data=is_testing_env(),
             calibration=False,
+            estimator=False,
         ) as od_reader:
             for _ in range(3):
                 od_reader.record_from_adc()

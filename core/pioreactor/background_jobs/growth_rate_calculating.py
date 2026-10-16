@@ -177,6 +177,10 @@ class GrowthRateCalculator(BackgroundJob):
                 if message.topic != self._od_topic:
                     raise ValueError(f"Unexpected MQTT topic: {message.topic}")
 
+                # An empty payload clears the previous OD value; it is not an observation.
+                if not message.payload:
+                    continue
+
                 od_message_count += 1
                 if od_message_count <= INITIAL_OD_OBSERVATIONS_TO_SKIP:
                     continue

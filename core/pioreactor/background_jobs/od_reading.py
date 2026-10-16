@@ -844,6 +844,14 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
             self.led_output_noise_power_ema.update(0.001**2)
             return False
 
+    @classmethod
+    def clear_initial_ref(cls, experiment: pt.Experiment) -> None:
+        """
+        Forget the persisted initial REF for `experiment`, so the next reading re-anchors.
+        """
+        with local_persistent_storage(cls._PERSISTENT_CACHE_NAME) as cache:
+            cache.pop(experiment, None)
+
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
         relative_ref = self.led_output_ema.get_latest()
 
@@ -1190,6 +1198,16 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         return False
 
 
+def fixed_ir_led_intensity(ir_led_intensity: float | str | None = None) -> float | None:
+    """
+    The IR LED intensity from the argument, else from config. None means `auto`.
+    """
+    value = (
+        config.get("od_reading.config", "ir_led_intensity") if ir_led_intensity is None else ir_led_intensity
+    )
+    return None if value == "auto" else float(value)
+
+
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -1420,15 +1438,10 @@ class ODReader(BackgroundJob):
         """
         Determine whether to auto adjust IR LED intensity and return initial intensity.
         """
-        if ir_led_intensity is None:
-            ir_intensity_cfg = config.get("od_reading.config", "ir_led_intensity")
-        else:
-            ir_intensity_cfg = ir_led_intensity
-
-        if ir_intensity_cfg == "auto":
+        intensity_value = fixed_ir_led_intensity(ir_led_intensity)
+        if intensity_value is None:
             return True, 85.0
 
-        intensity_value = float(ir_intensity_cfg)
         if intensity_value > 90:
             self.logger.warning(
                 f"The value for the IR LED, {intensity_value}%, is very high. "
@@ -1888,40 +1901,69 @@ def start_od_reading(
     else:
         blank_transformer = NullBlankTransformer()
 
+    # A fixed IR LED intensity can be checked against calibrations and estimators before hardware setup.
+    # With `auto`, the intensity is only known after startup, so the per-reading checks handle it.
+    fixed_intensity = fixed_ir_led_intensity(ir_led_intensity)
+
     # use an OD calibration?
-    calibration_transformer: CalibrationTransformerProtocol
+    calibrations_to_use: list[structs.ODCalibration | None]
     if calibration is True:
         from pioreactor.calibrations import load_active_calibration
 
-        calibration_transformer = CachedCalibrationTransformer()
-        for channel, angle in channel_angle_map.items():
-            active_calibration = load_active_calibration(f"od{angle}")  # type: ignore
-            if active_calibration is not None:
-                calibration_transformer.hydate_models(active_calibration)
+        calibrations_to_use = [load_active_calibration(f"od{angle}") for angle in channel_angle_map.values()]  # type: ignore
     elif isinstance(calibration, list):
-        calibration_transformer = CachedCalibrationTransformer()
-        for calibration_item in calibration:
-            calibration_transformer.hydate_models(calibration_item)
+        calibrations_to_use = list(calibration)
     elif isinstance(calibration, structs.CalibrationBase):
-        calibration_transformer = CachedCalibrationTransformer()
-        calibration_transformer.hydate_models(calibration)
+        calibrations_to_use = [calibration]
     else:
-        calibration_transformer = NullCalibrationTransformer()
+        calibrations_to_use = []
 
-    estimator_transformer: EstimatorTransformerProtocol
+    calibration_transformer: CalibrationTransformerProtocol = (
+        CachedCalibrationTransformer() if calibration else NullCalibrationTransformer()
+    )
 
+    for calibration_item in calibrations_to_use:
+        if (
+            calibration_item is not None
+            and fixed_intensity is not None
+            and calibration_item.pd_channel in channel_angle_map
+            and calibration_item.ir_led_intensity != fixed_intensity
+        ):
+            message = (
+                f"OD calibration `{calibration_item.calibration_name}` for channel {calibration_item.pd_channel} "
+                f"requires IR LED intensity {calibration_item.ir_led_intensity}%, but IR LED intensity is {fixed_intensity}%."
+            )
+            create_logger("od_reading", unit=unit, experiment=experiment).error(message)
+            raise exc.CalibrationError(message)
+        calibration_transformer.hydate_models(calibration_item)
+
+    # use an OD fusion estimator?
+    estimator_to_use: structs.ODFusionEstimator | None = None
     if estimator is True:
         from pioreactor.estimators import load_active_estimator
 
         maybe_estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
         if isinstance(maybe_estimator, structs.ODFusionEstimator):
-            estimator_transformer = CachedEstimatorTransformer()
-            estimator_transformer.hydrate_estimator(maybe_estimator)
-        else:
-            estimator_transformer = NullEstimatorTransformer()
+            estimator_to_use = maybe_estimator
     elif isinstance(estimator, structs.ODFusionEstimator):
+        estimator_to_use = estimator
+
+    if (
+        estimator_to_use is not None
+        and fixed_intensity is not None
+        and estimator_to_use.ir_led_intensity != fixed_intensity
+    ):
+        # Not fatal: OD readings are still useful without od_fused.
+        create_logger("od_reading", unit=unit, experiment=experiment).error(
+            f"OD estimator `{estimator_to_use.estimator_name}` requires IR LED intensity "
+            f"{estimator_to_use.ir_led_intensity}%, but IR LED intensity is {fixed_intensity}%. Skipping od_fused."
+        )
+        estimator_to_use = None
+
+    estimator_transformer: EstimatorTransformerProtocol
+    if estimator_to_use is not None:
         estimator_transformer = CachedEstimatorTransformer()
-        estimator_transformer.hydrate_estimator(estimator)
+        estimator_transformer.hydrate_estimator(estimator_to_use)
     else:
         estimator_transformer = NullEstimatorTransformer()
 

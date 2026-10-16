@@ -12,6 +12,8 @@ from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
+from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import get_testing_experiment_name
 
 
@@ -34,6 +36,24 @@ def _temporary_config_section(section_name: str, values: dict[str, str]) -> Iter
         section.update(backup)
         if created and not backup:
             config.remove_section(section_name)
+
+
+def test_start_standards_session_clears_stale_ir_led_reference_anchor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(od_standards, "is_pio_job_running", lambda _jobs: [False, False])
+    testing_experiment = get_testing_experiment_name()
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        cache[testing_experiment] = 1e-5
+
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
+        with _temporary_config_section(
+            "od_config.photodiode_channel", {"1": od_standards.REF_keyword, "2": "90"}
+        ):
+            od_standards.start_standards_session("od90")
+
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        assert testing_experiment not in cache
 
 
 def test_channel_angle_map_from_config_requires_ref() -> None:

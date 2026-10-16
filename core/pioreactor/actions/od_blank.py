@@ -130,6 +130,7 @@ def od_blank(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
 ) -> dict[pt.PdChannel, pt.OD]:
+    from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
     from pioreactor.background_jobs.od_reading import start_od_reading
 
     action_name = "od_blank"
@@ -145,9 +146,7 @@ def od_blank(
         raise click.Abort()
 
     with managed_lifecycle(unit, experiment, action_name):
-        with local_persistent_storage("ir_led_reference_normalization") as cache:
-            if testing_experiment in cache:
-                del cache[testing_experiment]
+        PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(testing_experiment)
 
         try:
             with start_od_reading(
@@ -172,9 +171,7 @@ def od_blank(
             logger.error(e)
             raise e
         finally:
-            with local_persistent_storage("ir_led_reference_normalization") as cache:
-                if testing_experiment in cache:
-                    del cache[testing_experiment]
+            PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(testing_experiment)
 
         with local_persistent_storage(action_name) as cache:
             cache[experiment] = dumps(means)

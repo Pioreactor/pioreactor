@@ -68,7 +68,7 @@ class Turbidostat(DosingAutomationJob):
             self._resolved_od_channel = self._resolve_od_channel()
         return self._resolved_od_channel
 
-    def _resolve_od_channel(self) -> pt.PdChannel:
+    def _resolve_od_channel(self, *, warn_on_multiple: bool = True) -> pt.PdChannel:
         channels = config["od_config.photodiode_channel"]
         signal_channels: list[pt.PdChannel] = []
         for channel, angle in channels.items():
@@ -80,20 +80,23 @@ class Turbidostat(DosingAutomationJob):
             return signal_channels[0]
         if len(signal_channels) > 1:
             selected_channel = min(signal_channels, key=lambda ch: int(ch))
-            self.logger.warning(
-                "Multiple OD signal channels detected (%s). Using channel %s. Prefer od_fused or normalized_od in this case.",
-                ", ".join(signal_channels),
-                selected_channel,
-            )
+            if warn_on_multiple:
+                self.logger.warning(
+                    "Multiple OD signal channels detected (%s). Using channel %s. Prefer od_fused or normalized_od in this case.",
+                    ", ".join(signal_channels),
+                    selected_channel,
+                )
             return selected_channel
 
         raise ValueError("No OD signal channels found in [od_config.photodiode_channel].")
 
     @property
     def _od_angle(self) -> pt.PdAngle:
-        angle = config["od_config.photodiode_channel"][self._od_channel]
+        # Auto selection inspects calibration availability before choosing a biomass signal.
+        channel = self._resolve_od_channel(warn_on_multiple=False)
+        angle = config["od_config.photodiode_channel"][channel]
         if angle in (None, "", REF_keyword):
-            raise ValueError(f"No OD signal angle configured for channel {self._od_channel}.")
+            raise ValueError(f"No OD signal angle configured for channel {channel}.")
         return cast(pt.PdAngle, str(angle))
 
     def _has_active_od_fused_estimator(self) -> bool:
@@ -124,7 +127,8 @@ class Turbidostat(DosingAutomationJob):
 
         assert self.target_biomass is not None
         resolved_biomass_signal = self.resolved_biomass_signal
-        latest_biomass = self.latest_biomass_value(resolved_biomass_signal, od_channel=self._od_channel)
+        od_channel = self._od_channel if resolved_biomass_signal == "od" else None
+        latest_biomass = self.latest_biomass_value(resolved_biomass_signal, od_channel=od_channel)
 
         if latest_biomass >= self.target_biomass:
             latest_biomass_before_dosing = latest_biomass

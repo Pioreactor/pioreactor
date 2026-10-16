@@ -11,6 +11,7 @@ from unittest.mock import patch
 import pytest
 from msgspec.json import encode
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
@@ -85,6 +86,51 @@ class TestGrowthRateCalculating:
     def setup_method(self) -> None:
         with JobManager() as job_manager:
             job_manager.clear()
+
+    @pytest.mark.parametrize("use_fused_od", [False, True])
+    @pytest.mark.parametrize("initial_observations_to_skip", [0, 2])
+    def test_event_stream_ignores_cleared_od_payloads(
+        self, use_fused_od: bool, initial_observations_to_skip: int
+    ) -> None:
+        with patch(
+            "pioreactor.background_jobs.growth_rate_calculating._should_use_fused_od",
+            return_value=use_fused_od,
+        ), patch(
+            "pioreactor.background_jobs.growth_rate_calculating.INITIAL_OD_OBSERVATIONS_TO_SKIP",
+            initial_observations_to_skip,
+        ):
+            with GrowthRateCalculator(
+                unit=get_unit_name(), experiment="test_event_stream_ignores_cleared_od_payloads"
+            ) as calc:
+
+                def enqueue(payload: bytes) -> None:
+                    message = pt.MQTTMessage()
+                    message.topic = calc._od_topic
+                    message.payload = payload
+                    calc._growth_rate_event_messages.put(message)
+
+                def od_payload(od: float) -> bytes:
+                    timestamp = "2010-01-01T12:00:00.000Z"
+                    if use_fused_od:
+                        return encode(structs.ODFused(od_fused=od, timestamp=to_datetime(timestamp)))
+                    return create_encoded_od_raw_batched(["1"], [od], ["90"], timestamp=timestamp)
+
+                for _ in range(initial_observations_to_skip):
+                    enqueue(b"")
+                    enqueue(od_payload(0.1))
+                enqueue(b"")
+                enqueue(b"invalid JSON")
+                enqueue(od_payload(0.5))
+
+                with patch.object(calc.logger, "warning") as warning:
+                    events = calc.stream_mqtt_growth_rate_events()
+                    event = next(events)
+                    events.close()
+
+                assert isinstance(event, structs.ODReadings)
+                assert [reading.od for reading in event.ods.values()] == [0.5]
+                warning.assert_called_once()
+                assert "Failed to decode message" in warning.call_args.args[0]
 
     def test_module_import_does_not_require_grpredict(self) -> None:
         subprocess.run(

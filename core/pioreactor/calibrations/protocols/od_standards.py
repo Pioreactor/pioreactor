@@ -112,6 +112,7 @@ def _read_voltages_from_adc(
         fake_data=is_testing_env(),
         experiment=get_testing_experiment_name(),
         calibration=False,
+        estimator=False,
     ) as od_reader:
 
         for _ in range(3):
@@ -227,6 +228,12 @@ def start_standards_session(target_device: pt.ODCalibrationDevices) -> Calibrati
 
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Both stirring and OD reading must be off before starting.")
+
+    from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
+
+    # Recorded voltages are scaled by the persisted IR REF anchor; re-anchor so a session never
+    # inherits one from an earlier session or IR intensity.
+    PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(get_testing_experiment_name())
 
     channel_angle_map = _channel_angle_map_from_config(target_device)
     channel_summary = ", ".join(f"{channel}={angle}°" for channel, angle in channel_angle_map.items())

@@ -29,6 +29,7 @@ from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
+from pioreactor.config import temporary_config_changes
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
 from pioreactor.utils.timing import current_utc_datetime
@@ -828,6 +829,61 @@ def test_turbidostat_uses_config_default_biomass_signal() -> None:
             skip_first_run=True,
         ) as algo:
             assert algo.biomass_signal == "od"
+
+
+@pytest.mark.parametrize(
+    ("biomass_signal", "has_estimator", "has_calibration", "resolved_signal"),
+    [
+        ("od_fused", False, False, "od_fused"),
+        ("normalized_od", False, False, "normalized_od"),
+        ("od", False, False, "od"),
+        ("auto", True, False, "od_fused"),
+        ("auto", False, False, "normalized_od"),
+        ("auto", False, True, "od"),
+    ],
+)
+def test_turbidostat_multiple_channel_warning_only_for_single_channel_od(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    biomass_signal: str,
+    has_estimator: bool,
+    has_calibration: bool,
+    resolved_signal: str,
+) -> None:
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_estimator",
+        lambda device: object() if has_estimator else None,
+    )
+    monkeypatch.setattr(
+        "pioreactor.automations.dosing.turbidostat.load_active_calibration",
+        lambda device: object() if has_calibration else None,
+    )
+
+    with temporary_config_changes(
+        config,
+        [("od_config.photodiode_channel", channel, "90") for channel in ("2", "3", "4")],
+    ):
+        with Turbidostat(
+            target_biomass=0.5,
+            biomass_signal=biomass_signal,
+            exchange_volume_ml=0.25,
+            unit=unit,
+            experiment="test_turbidostat_multiple_channel_warning",
+            skip_first_run=True,
+        ) as algo:
+            assert algo.resolved_biomass_signal == resolved_signal
+            algo._latest_od = {"2": 0.1}
+            algo._latest_normalized_od = 0.1
+            algo._latest_od_fused = 0.1
+            algo.latest_od_at = current_utc_datetime()
+            algo.latest_normalized_od_at = current_utc_datetime()
+            algo.latest_od_fused_at = current_utc_datetime()
+            assert algo.execute() is None
+
+    warnings = [message for message in caplog.messages if "Multiple OD signal channels" in message]
+    assert len(warnings) == (1 if resolved_signal == "od" else 0)
+    if warnings:
+        assert "Using channel 2." in warnings[0]
 
 
 def test_turbidostat_auto_prefers_active_od_fused_estimator(monkeypatch) -> None:
