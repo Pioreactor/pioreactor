@@ -11,6 +11,7 @@ import click
 from msgspec.json import encode as dumps
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.cli.model import format_model_assignment
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
@@ -309,9 +310,10 @@ def worker_model() -> None:
     pass
 
 
-@worker_model.command(name="get", short_help="print the worker's model assignment as JSON")
+@worker_model.command(name="get", short_help="print the worker's model assignment")
 @click.argument("worker")
-def get_worker_model(worker: pt.Unit) -> None:
+@click.option("--json", "json_output", is_flag=True, help="output as json")
+def get_worker_model(worker: pt.Unit, json_output: bool) -> None:
     try:
         r = get_from_leader(f"/api/workers/{worker}/model")
         r.raise_for_status()
@@ -321,7 +323,12 @@ def get_worker_model(worker: pt.Unit) -> None:
         raise click.ClickException("Not able to connect to leader's backend.")
 
     data = r.json()
-    click.echo(dumps({"model_name": data["model_name"], "model_version": data["model_version"]}).decode())
+    if json_output:
+        click.echo(dumps({"model_name": data["model_name"], "model_version": data["model_version"]}).decode())
+    else:
+        click.echo(
+            data.get("display_name") or format_model_assignment(data["model_name"], data["model_version"])
+        )
 
 
 @worker_model.command(name="set", short_help="update a worker's model")

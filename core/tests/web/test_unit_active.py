@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -109,24 +110,35 @@ def test_reported_active_updates_only_the_mirror(
     forward.assert_not_called()
 
 
-def test_active_cli_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("json_output", [False, True])
+def test_active_cli_roundtrip(monkeypatch: pytest.MonkeyPatch, json_output: bool) -> None:
     report = Mock(return_value=True)
     monkeypatch.setattr("pioreactor.cli.active.report_active_to_leader", report)
     runner = CliRunner()
 
-    assert runner.invoke(pio, ["active", "get"]).output.strip() == '{"is_active": 1}'
-    result = runner.invoke(pio, ["active", "set", "0"])
+    options = ["--json"] if json_output else []
+    assert runner.invoke(pio, ["active", "get", *options]).output.strip() == (
+        '{"is_active": 1}' if json_output else "1"
+    )
+    result = runner.invoke(pio, ["active", "set", "0", *options])
     assert result.exit_code == 0, result.output
+    assert result.output.strip() == ('{"is_active": 0}' if json_output else "0")
+    assert runner.invoke(pio, ["active", "get", *options]).output == result.output
     assert not is_locally_active()
     report.assert_called_once_with(leader_address, False)
     assert runner.invoke(pio, ["active", "set", "2"]).exit_code != 0
 
 
-def test_adopt_copies_leader_value(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("json_output", [False, True])
+def test_adopt_copies_leader_value(monkeypatch: pytest.MonkeyPatch, json_output: bool) -> None:
     get = Mock(return_value=Response("http://leader", 200, {}, b'{"is_active": 0}'))
     monkeypatch.setattr("pioreactor.pubsub.get_from_leader", get)
 
-    result = CliRunner().invoke(pio, ["active", "adopt"])
+    options = ["--json"] if json_output else []
+    result = CliRunner().invoke(pio, ["active", "adopt", *options])
     assert result.exit_code == 0, result.output
-    assert result.output.strip() == '{"is_active": 0}'
+    if json_output:
+        assert json.loads(result.output) == {"is_active": 0}
+    else:
+        assert result.output.strip() == "0"
     assert not is_locally_active()

@@ -1128,46 +1128,6 @@ def test_interval_is_empty() -> None:
         od.on_sleeping_to_ready()
 
 
-def test_determine_best_ir_led_intensity_values() -> None:
-    _determine_best_ir_led_intensity = ODReader._determine_best_ir_led_intensity
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.05, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
-        )
-        == 85.0
-    )
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
-        )
-        == 62.5
-    )
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.5, "2")},  # on
-        )
-        == 50  # 6.0
-    )
-
-    assert (
-        _determine_best_ir_led_intensity(
-            {"2": "90"},
-            50,
-            {"1": structs.RawPDReading(0.0, "1"), "2": structs.RawPDReading(0.0, "2")},
-        )
-        == 85.0
-    )
-
-
 def test_calibration_not_requested() -> None:
     with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
@@ -1605,7 +1565,7 @@ def test_calibration_multi_modal() -> None:
             print(voltage)
 
 
-FIXED_INTENSITY_CASES = [("90", None), ("auto", 90.0)]
+FIXED_INTENSITY_CASES = [("90", None), ("80", 90.0)]
 
 
 @pytest.mark.parametrize("calibration_source", ["active", "explicit", "list"])
@@ -1678,31 +1638,18 @@ def test_estimator_intensity_mismatch_skips_od_fused_but_starts(
             assert od.record_from_adc() is not None
 
 
-def test_auto_intensity_defers_checks_to_readings() -> None:
-    calibration = structs.OD600Calibration(
-        created_at=current_utc_datetime(),
-        curve_data_=_poly_curve([1.0, 0.0]),
-        calibration_name="auto_intensity",
-        ir_led_intensity=50.0,
-        angle="90",
-        recorded_data={"x": [0, 1], "y": [0, 1]},
-        pd_channel="2",
-        calibrated_on_pioreactor_unit=get_unit_name(),
-    )
+def test_non_numeric_ir_led_intensity_errors_before_hardware_setup(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_if_constructed(*args: object, **kwargs: object) -> None:
+        raise AssertionError("A non-numeric IR LED intensity must fail before ADCReader construction.")
+
+    monkeypatch.setattr(od_reading_module, "ADCReader", fail_if_constructed)
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
-        with start_od_reading(
-            {"1": "45", "2": "90", "3": "135"},
-            interval=None,
-            fake_data=True,
-            calibration=calibration,
-            estimator=_build_fusion_estimator(),
-        ) as od:
-            assert "2" in od.calibration_transformer.models
-            assert od.estimator_transformer.estimator is not None
+        with pytest.raises(ValueError, match=r"ir_led_intensity must be a number.*`auto`"):
+            start_od_reading(make_channels("REF", "90"), interval=None, fake_data=True, calibration=False)
 
 
 @pytest.mark.parametrize("use_estimator", [False, True])
-@pytest.mark.parametrize("configured_intensity", ["90", "auto"])
+@pytest.mark.parametrize("configured_intensity", ["90", "50"])
 def test_matching_intensity_override_allows_od_startup(
     use_estimator: bool, configured_intensity: str
 ) -> None:
@@ -2110,41 +2057,6 @@ def test_calibration_data_from_user2() -> None:
             od_1 = infer(voltage)
             assert od_0 <= od_1
             od_0 = od_1
-
-
-def test_auto_ir_led_intensity_REF_and_90() -> None:
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
-        experiment = "test_auto_ir_led_intensity"
-
-        with start_od_reading(
-            make_channels("REF", "90"),
-            interval=None,
-            fake_data=True,
-            experiment=experiment,
-            calibration=False,
-            estimator=False,
-        ) as od:
-            assert abs(od.ir_led_intensity - 85.0) < 0.01
-
-
-def test_auto_ir_led_intensity_90_only() -> None:
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
-        experiment = "test_auto_ir_led_intensity"
-
-        with start_od_reading(
-            make_channels(None, "90"), interval=None, fake_data=True, experiment=experiment, calibration=False
-        ) as od:
-            assert od.ir_led_intensity == 85.0
-
-
-def test_auto_ir_led_intensity_90_and_90() -> None:
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
-        experiment = "test_auto_ir_led_intensity"
-
-        with start_od_reading(
-            make_channels("90", "90"), interval=None, fake_data=True, experiment=experiment
-        ) as od:
-            assert od.ir_led_intensity == 85.0
 
 
 def test_at_least_one_channel() -> None:

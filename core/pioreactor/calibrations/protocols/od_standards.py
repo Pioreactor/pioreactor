@@ -221,11 +221,6 @@ def _build_standards_chart_metadata(
 
 
 def start_standards_session(target_device: pt.ODCalibrationDevices) -> CalibrationSession:
-    if config.get("od_reading.config", "ir_led_intensity") == "auto":
-        raise ValueError(
-            "ir_led_intensity cannot be auto for OD calibrations. Set a numeric value in config.ini."
-        )
-
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Both stirring and OD reading must be off before starting.")
 

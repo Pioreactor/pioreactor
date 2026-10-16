@@ -1212,7 +1212,7 @@ check_unit_model_contract() {
     return
   fi
 
-  if ! local_model="$(pio model get)"; then
+  if ! local_model="$(pio model get --json)"; then
     fail "pio model get failed"
     return
   fi
@@ -1277,7 +1277,7 @@ check_unit_model_contract() {
   fi
 
   local set_output
-  if set_output="$(pio model set "$model_name" "$model_version")" && \
+  if set_output="$(pio model set "$model_name" "$model_version" --json)" && \
      jq -e ".model_name==\"$model_name\" and .model_version==\"$model_version\"" <<< "$set_output" >/dev/null; then
     ok "pio model set re-saved ${model_name} v${model_version}"
   else
@@ -1458,7 +1458,7 @@ check_cross_site_write_protection() {
   fi
 
   local local_model model_payload
-  if ! local_model="$(pio model get)" || \
+  if ! local_model="$(pio model get --json)" || \
      ! jq -e '.model_name and .model_version' <<< "$local_model" >/dev/null; then
     warn "No local model saved; skipping /api cross-site write checks"
     return

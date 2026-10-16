@@ -1202,14 +1202,20 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         return False
 
 
-def fixed_ir_led_intensity(ir_led_intensity: float | str | None = None) -> float | None:
+def resolve_ir_led_intensity(ir_led_intensity: float | None = None) -> float:
     """
-    The IR LED intensity from the argument, else from config. None means `auto`.
+    The IR LED intensity from the argument, else from config.
     """
-    value = (
-        config.get("od_reading.config", "ir_led_intensity") if ir_led_intensity is None else ir_led_intensity
-    )
-    return None if value == "auto" else float(value)
+    if ir_led_intensity is not None:
+        return float(ir_led_intensity)
+
+    value = config.get("od_reading.config", "ir_led_intensity")
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(
+            f"[od_reading.config] ir_led_intensity must be a number, for example 80, not `{value}`."
+        ) from None
 
 
 class ODReader(BackgroundJob):
@@ -1376,10 +1382,12 @@ class ODReader(BackgroundJob):
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
 
-        # determine initial IR LED intensity and whether to auto-adjust it later
-        should_auto_adjust_ir_led, self.ir_led_intensity = self._determine_initial_ir_led_intensity(
-            ir_led_intensity
-        )
+        self.ir_led_intensity = resolve_ir_led_intensity(ir_led_intensity)
+        if self.ir_led_intensity > 90:
+            self.logger.warning(
+                f"The value for the IR LED, {self.ir_led_intensity}%, is very high. "
+                "We suggest a value 90% or less to avoid damaging the LED."
+            )
 
         self.non_ir_led_channels: list[pt.LedChannel] = [
             ch for ch in led_utils.ALL_LED_CHANNELS if ch != self.ir_channel
@@ -1413,9 +1421,7 @@ class ODReader(BackgroundJob):
                     if not self.adc_reader.fake_data:
                         sleep(0.125)
 
-                    on_reading = (
-                        self.adc_reader.tune_adc_with_ir_on()
-                    )  # determine best gain, max-signal, etc.
+                    self.adc_reader.tune_adc_with_ir_on()  # determine best gain, max-signal, etc.
 
                     # IR led is off so we can set blanks
                     self.stop_ir_led(lock_owner)
@@ -1426,83 +1432,12 @@ class ODReader(BackgroundJob):
                 # IR's only valid idle state is off. Keep ownership until this write is attempted.
                 self.stop_ir_led(lock_owner)
 
-        if should_auto_adjust_ir_led:
-            self.ir_led_intensity = self._determine_best_ir_led_intensity(
-                self.channel_angle_map, self.ir_led_intensity, on_reading
-            )
-
         self.set_interval(interval)
 
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}"
             + (f" every {self.interval} seconds." if self.interval else ".")
         )
-
-    def _determine_initial_ir_led_intensity(self, ir_led_intensity: float | str | None) -> tuple[bool, float]:
-        """
-        Determine whether to auto adjust IR LED intensity and return initial intensity.
-        """
-        intensity_value = fixed_ir_led_intensity(ir_led_intensity)
-        if intensity_value is None:
-            return True, 85.0
-
-        if intensity_value > 90:
-            self.logger.warning(
-                f"The value for the IR LED, {intensity_value}%, is very high. "
-                "We suggest a value 90% or less to avoid damaging the LED."
-            )
-        return False, intensity_value
-
-    @staticmethod
-    def _determine_best_ir_led_intensity(
-        channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
-        initial_ir_intensity: float,
-        on_reading: RawPDReadings,
-    ) -> float:
-        """
-        What do we want for a good value?
-
-         - [REF] is less than 0.256
-         - [90] gets lots of light, but less than 3.0, even at a full culture
-         - IR intensity always is less than 90%
-
-        """
-        MAX = 85.0
-
-        if len(channel_angle_map) != 1:
-            # multiple signals? noop
-            return MAX
-
-        pd_channel = list(channel_angle_map.keys())[0]
-
-        culture_on_signal = on_reading.pop(pd_channel)
-
-        if len(on_reading) == 0:
-            # no REF, noop
-            return MAX
-
-        _, REF_on_signal = on_reading.popitem()
-
-        def _safe_ratio(numerator: float, denominator: float) -> float:
-            # Very small / zero sensor values can occur during startup or hardware faults.
-            # Treating the ratio as +inf preserves current behavior (falls back to MAX)
-            # while avoiding runtime crashes.
-            if denominator <= 0.0:
-                return float("inf")
-            return numerator / denominator
-
-        ir_intensity_argmax_REF_can_be = _safe_ratio(initial_ir_intensity, REF_on_signal.reading) * 0.250
-
-        # divide by N since the culture is unlikely to Nx.
-        ir_intensity_argmax_ANGLE_can_be = (
-            _safe_ratio(initial_ir_intensity, culture_on_signal.reading) * 3.0 / 50
-        )
-
-        ir_led_intensity = min(
-            MAX, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be
-        )  # small as possible
-        ir_led_intensity = max(ir_led_intensity, 50)  # always more than X
-        return round(ir_led_intensity, 2)
 
     def set_interval(self, interval: float | None) -> None:
         if (interval is not None) and interval <= 0:
@@ -1905,9 +1840,8 @@ def start_od_reading(
     else:
         blank_transformer = NullBlankTransformer()
 
-    # A fixed IR LED intensity can be checked against calibrations and estimators before hardware setup.
-    # With `auto`, the intensity is only known after startup, so the per-reading checks handle it.
-    fixed_intensity = fixed_ir_led_intensity(ir_led_intensity)
+    # Check calibrations and estimators against the IR LED intensity before hardware setup.
+    intensity = resolve_ir_led_intensity(ir_led_intensity)
 
     # use an OD calibration?
     calibrations_to_use: list[structs.ODCalibration | None]
@@ -1929,13 +1863,12 @@ def start_od_reading(
     for calibration_item in calibrations_to_use:
         if (
             calibration_item is not None
-            and fixed_intensity is not None
             and calibration_item.pd_channel in channel_angle_map
-            and calibration_item.ir_led_intensity != fixed_intensity
+            and calibration_item.ir_led_intensity != intensity
         ):
             message = (
                 f"OD calibration `{calibration_item.calibration_name}` for channel {calibration_item.pd_channel} "
-                f"requires IR LED intensity {calibration_item.ir_led_intensity}%, but IR LED intensity is {fixed_intensity}%."
+                f"requires IR LED intensity {calibration_item.ir_led_intensity}%, but IR LED intensity is {intensity}%."
             )
             create_logger("od_reading", unit=unit, experiment=experiment).error(message)
             raise exc.CalibrationError(message)
@@ -1952,15 +1885,11 @@ def start_od_reading(
     elif isinstance(estimator, structs.ODFusionEstimator):
         estimator_to_use = estimator
 
-    if (
-        estimator_to_use is not None
-        and fixed_intensity is not None
-        and estimator_to_use.ir_led_intensity != fixed_intensity
-    ):
+    if estimator_to_use is not None and estimator_to_use.ir_led_intensity != intensity:
         # Not fatal: OD readings are still useful without od_fused.
         create_logger("od_reading", unit=unit, experiment=experiment).error(
             f"OD estimator `{estimator_to_use.estimator_name}` requires IR LED intensity "
-            f"{estimator_to_use.ir_led_intensity}%, but IR LED intensity is {fixed_intensity}%. Skipping od_fused."
+            f"{estimator_to_use.ir_led_intensity}%, but IR LED intensity is {intensity}%. Skipping od_fused."
         )
         estimator_to_use = None
 
@@ -2001,7 +1930,7 @@ def start_od_reading(
         blank_transformer=blank_transformer,
         calibration_transformer=calibration_transformer,
         estimator_transformer=estimator_transformer,
-        ir_led_intensity=ir_led_intensity,
+        ir_led_intensity=intensity,
     )
 
 

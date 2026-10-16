@@ -65,9 +65,6 @@ def _channel_angle_map_from_config() -> dict[pt.PdChannel, pt.PdAngle]:
 
 
 def _run_fusion_calibration_preflight() -> dict[pt.PdChannel, pt.PdAngle]:
-    if config.get("od_reading.config", "ir_led_intensity") == "auto":
-        raise ValueError("ir_led_intensity cannot be `auto`. Set a numeric value in config.ini.")
-
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Both stirring and OD reading must be off before starting.")
 

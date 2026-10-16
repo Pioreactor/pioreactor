@@ -1,5 +1,9 @@
 ### Upcoming
 
+#### Breaking changes
+
+ - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. OD calibrations and fusion estimators need a fixed IR LED intensity, and `auto` could pick a different value on every start. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
+
 #### Bug fixes
 
  - Fixed OD calibrations and fusion estimators possibly being recorded at the wrong scale when `ref_normalization=unity`. Calibration sessions reused the IR reference value saved by an earlier session, which could make recorded voltages far too small and leave calibrated OD stuck at a constant value. Each calibration session now starts with a fresh IR reference. If calibrated OD stayed flat during an experiment and logged "Signal above suggested calibration range", redo that calibration.
