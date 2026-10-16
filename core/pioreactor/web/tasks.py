@@ -2201,23 +2201,54 @@ def multicast_get(
     )
 
 
-@huey.task(priority=5)
-def multicast_get_with_leader_cache(
+def finished_task_result(value: Any) -> "huey_api.Result[Any]":
+    """Store a value that is already known as a finished task's result, so routes keep the task contract."""
+    result: "huey_api.Result[Any]" = huey_api.Result(huey, huey_api.Task())
+    huey.put_result(result.id, value)
+    return result
+
+
+@huey.task(priority=10)
+def reduce_and_cache_multicast_get_results(
+    units: list[str],
+    ordered_results: list[Any],
+    *,
+    child_task_ids: list[str],
     cache_namespace: str,
     endpoint: str,
-    units: list[str],
-    timeout: float = 5.0,
-    ttl_s: float = 10.0,
+    cached_results: dict[str, Any],
 ) -> dict[str, Any]:
     # Keep this import lazy so plugins can import the calibration action registry without importing web.app.
     from pioreactor.web import cache
 
-    return cache.multicast_get_with_leader_cache(
-        cache_namespace=cache_namespace,
-        endpoint=endpoint,
-        units=units,
-        timeout=timeout,
-        ttl_s=ttl_s,
+    fetched_results = reduce_multicast_results.call_local(
+        units, True, ordered_results, child_task_ids=child_task_ids
+    )
+    return cache.merge_and_cache_fetched_results(cache_namespace, endpoint, cached_results, fetched_results)
+
+
+def multicast_get_and_cache(
+    cache_namespace: str,
+    endpoint: str,
+    units: list[str],
+    cached_results: dict[str, Any],
+    timeout: float = 5.0,
+) -> Any:
+    assert endpoint.startswith("/unit_api")
+    assert units
+
+    task_signatures = [get_from_unit_task.s(unit, endpoint, None, timeout, False) for unit in units]
+    return huey.enqueue(
+        huey_chord(
+            task_signatures,
+            reduce_and_cache_multicast_get_results.s(
+                units,
+                child_task_ids=[task_signature.id for task_signature in task_signatures],
+                cache_namespace=cache_namespace,
+                endpoint=endpoint,
+                cached_results=cached_results,
+            ),
+        )
     )
 
 

@@ -3785,43 +3785,24 @@ def test_zipped_dot_pioreactor_single_unit_rejects_failed_fanout_envelope(
     assert response.get_json()["error"] == "No data received from worker"
 
 
-def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch: MonkeyPatch) -> None:
-    import pioreactor.web.tasks as mod
+def test_cached_multicast_get_reuses_cached_unit_payloads(monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web import cache
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
-    calls = 0
+    calls: list[str] = []
 
-    def fake_multicast_get_uncached(
-        endpoint: str,
-        units: list[str],
-        json: dict[str, object] | list[dict[str, object] | None] | None = None,
-        timeout: float = 5.0,
-        return_raw: bool = False,
-    ) -> dict[str, object]:
-        nonlocal calls
-        calls += 1
+    def fake_get_from_unit(unit: str, endpoint: str, **_kwargs: object) -> tuple[str, object]:
+        calls.append(unit)
         assert endpoint == "/unit_api/calibrations"
-        assert units == ["unit1"]
-        assert json is None
-        assert timeout == 5.0
-        assert return_raw is False
-        return {
-            "unit1": {
-                "ok": True,
-                "unit": "unit1",
-                "value": {"od90": [{"calibration_name": "cached-on-leader"}]},
-            }
-        }
+        return unit, {"od90": [{"calibration_name": "cached-on-leader"}]}
 
-    monkeypatch.setattr("pioreactor.web.tasks._multicast_get_uncached", fake_multicast_get_uncached)
+    monkeypatch.setattr("pioreactor.web.tasks._get_from_unit", fake_get_from_unit)
 
-    first = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
-    second = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    first = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
+    second = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
 
     first_payload = first.get(blocking=True, timeout=1)
-    second_payload = second.get(blocking=True, timeout=1)
-
     assert first_payload == {
         "unit1": {
             "ok": True,
@@ -3829,52 +3810,59 @@ def test_multicast_get_with_leader_cache_reuses_cached_unit_payloads(monkeypatch
             "value": {"od90": [{"calibration_name": "cached-on-leader"}]},
         }
     }
-    assert second_payload == first_payload
-    assert calls == 1
+    assert second.get(blocking=True, timeout=1) == first_payload
+    assert calls == ["unit1"]
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
 
-def test_multicast_get_with_leader_cache_does_not_cache_unit_failures(monkeypatch: MonkeyPatch) -> None:
-    import pioreactor.web.tasks as mod
+def test_cached_multicast_get_fetches_only_cache_misses(monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web import cache
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    units = ["unit1", "unit2"]
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", units)
+
+    calls: list[str] = []
+
+    def fake_get_from_unit(unit: str, endpoint: str, **_kwargs: object) -> tuple[str, object]:
+        calls.append(unit)
+        return unit, {"od90": [{"calibration_name": f"{unit}-calibration"}]}
+
+    monkeypatch.setattr("pioreactor.web.tasks._get_from_unit", fake_get_from_unit)
+
+    cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"]).get(blocking=True, timeout=1)
+    payload = cache.cached_multicast_get(cache.CALIBRATIONS, units).get(blocking=True, timeout=1)
+
+    assert calls == ["unit1", "unit2"]
+    assert list(payload) == units
+    assert payload["unit2"]["value"] == {"od90": [{"calibration_name": "unit2-calibration"}]}
+
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", units)
+
+
+def test_cached_multicast_get_does_not_cache_unit_failures(monkeypatch: MonkeyPatch) -> None:
+    from pioreactor.web import cache
+    from pioreactor.web import tasks
+
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
     calls = 0
 
-    def fake_multicast_get_uncached(
-        endpoint: str,
-        units: list[str],
-        json: dict[str, object] | list[dict[str, object] | None] | None = None,
-        timeout: float = 5.0,
-        return_raw: bool = False,
-    ) -> dict[str, object]:
+    def fake_get_from_unit(unit: str, endpoint: str, **_kwargs: object) -> tuple[str, object]:
         nonlocal calls
         calls += 1
         if calls == 1:
-            return {
-                "unit1": {
-                    "ok": False,
-                    "unit": "unit1",
-                    "error": {"kind": "connection_error", "message": "Could not reach unit1."},
-                    "status_code": None,
-                    "retryable": True,
-                }
-            }
-        return {
-            "unit1": {
-                "ok": True,
-                "unit": "unit1",
-                "value": {"od90": [{"calibration_name": "after-retry"}]},
-            }
-        }
+            return unit, tasks.fanout_failure(
+                unit, "connection_error", "Could not reach unit1.", retryable=True
+            )
+        return unit, {"od90": [{"calibration_name": "after-retry"}]}
 
-    monkeypatch.setattr("pioreactor.web.tasks._multicast_get_uncached", fake_multicast_get_uncached)
+    monkeypatch.setattr("pioreactor.web.tasks._get_from_unit", fake_get_from_unit)
 
-    first = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
-    second = mod.multicast_get_with_leader_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
-
+    first = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
     assert first.get(blocking=True, timeout=1)["unit1"]["ok"] is False
+
+    second = cache.cached_multicast_get(cache.CALIBRATIONS, ["unit1"])
     assert second.get(blocking=True, timeout=1) == {
         "unit1": {
             "ok": True,
@@ -3884,7 +3872,7 @@ def test_multicast_get_with_leader_cache_does_not_cache_unit_failures(monkeypatc
     }
     assert calls == 2
 
-    mod.clear_multicast_get_cache("test-calibrations", "/unit_api/calibrations", ["unit1"])
+    cache.clear_multicast_get_cache("calibrations", "/unit_api/calibrations", ["unit1"])
 
 
 def test_get_all_calibrations_queues_cached_multicast_get(client, monkeypatch: MonkeyPatch) -> None:

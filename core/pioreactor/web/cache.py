@@ -2,6 +2,7 @@
 from time import time
 from typing import Any
 
+from huey.api import ChordResult
 from huey.api import Result
 from msgspec import DecodeError
 from msgspec import Struct
@@ -70,21 +71,18 @@ def clear_multicast_get_cache(cache_namespace: str, endpoint: str, units: list[s
             cache_store.pop(_multicast_get_cache_key(cache_namespace, endpoint, unit), None)
 
 
-def multicast_get_with_leader_cache(
+def _read_cached_results(
     cache_namespace: str,
     endpoint: str,
     units: list[str],
-    timeout: float = 5.0,
-    ttl_s: float = 10.0,
-) -> dict[str, Any]:
-    assert endpoint.startswith("/unit_api")
-
-    sorted_units = sorted(units)
+    ttl_s: float,
+) -> tuple[dict[str, Any], list[str]]:
+    """Return the fanout envelopes found in the cache, and the sorted units that missed."""
     cached_results: dict[str, Any] = {}
     cache_misses: list[str] = []
 
     with local_intermittent_storage(LEADER_MULTICAST_GET_CACHE) as cache_store:
-        for unit in sorted_units:
+        for unit in sorted(units):
             is_hit, value = _read_multicast_get_cache_entry(
                 cache_store,
                 cache_namespace=cache_namespace,
@@ -97,22 +95,44 @@ def multicast_get_with_leader_cache(
             else:
                 cache_misses.append(unit)
 
+    return cached_results, cache_misses
+
+
+def merge_and_cache_fetched_results(
+    cache_namespace: str,
+    endpoint: str,
+    cached_results: dict[str, Any],
+    fetched_results: dict[str, Any],
+) -> dict[str, Any]:
+    """Cache the successful fetched envelopes, and return them merged with the cache hits."""
+    successes = {
+        unit: value for unit, value in fetched_results.items() if tasks.fanout_result_succeeded(value)
+    }
+    if successes:
+        with local_intermittent_storage(LEADER_MULTICAST_GET_CACHE) as cache_store, cache_store.transaction():
+            for unit, value in successes.items():
+                blob = json_encode(CachedGetEntry(cached_at=time(), value=value["value"]))
+                cache_store[_multicast_get_cache_key(cache_namespace, endpoint, unit)] = blob
+
+    return dict(sorted((cached_results | fetched_results).items()))
+
+
+def multicast_get_with_leader_cache(
+    cache_namespace: str,
+    endpoint: str,
+    units: list[str],
+    timeout: float = 5.0,
+    ttl_s: float = 10.0,
+) -> dict[str, Any]:
+    """Blocking cached fanout, for routes that need the worker payloads before they respond."""
+    assert endpoint.startswith("/unit_api")
+
+    cached_results, cache_misses = _read_cached_results(cache_namespace, endpoint, units, ttl_s)
     if not cache_misses:
         return cached_results
 
     fetched_results = tasks._multicast_get_uncached(endpoint=endpoint, units=cache_misses, timeout=timeout)
-
-    with local_intermittent_storage(LEADER_MULTICAST_GET_CACHE) as cache_store:
-        for unit, value in fetched_results.items():
-            if not tasks.fanout_result_succeeded(value):
-                continue
-
-            blob = json_encode(CachedGetEntry(cached_at=time(), value=value["value"]))
-            key = _multicast_get_cache_key(cache_namespace, endpoint, unit)
-            cache_store[key] = blob
-
-    cached_results.update(fetched_results)
-    return dict(sorted(cached_results.items()))
+    return merge_and_cache_fetched_results(cache_namespace, endpoint, cached_results, fetched_results)
 
 
 def cached_multicast_get(
@@ -120,11 +140,26 @@ def cached_multicast_get(
     units: list[str],
     *,
     timeout: float = 5.0,
-) -> Result:
-    return tasks.multicast_get_with_leader_cache(
+    ttl_s: float = 10.0,
+) -> Result | ChordResult:
+    """
+    Cached fanout for routes that answer with `create_task_response`.
+
+    A full cache hit is stored as an already finished task, so the caller's first poll gets the
+    result. Otherwise only the missed units are fetched, by a chord whose callback merges in the
+    hits and caches the new payloads; no Huey worker blocks waiting on the fanout.
+    """
+    assert target.endpoint.startswith("/unit_api")
+
+    cached_results, cache_misses = _read_cached_results(target.namespace, target.endpoint, units, ttl_s)
+    if not cache_misses:
+        return tasks.finished_task_result(cached_results)
+
+    return tasks.multicast_get_and_cache(
         target.namespace,
         target.endpoint,
-        units,
+        cache_misses,
+        cached_results,
         timeout=timeout,
     )
 
