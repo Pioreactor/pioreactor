@@ -14,6 +14,7 @@ import {
   removeUnit,
   runProfile,
   setUnitActive,
+  blinkUnit,
   stopProfile,
   unassignUnit,
   validateUnitName,
@@ -262,8 +263,33 @@ function AddUnitsSheet({ onClose, onAdded }) {
 
 /* ---------- One unit ---------- */
 
+// The main UI's Identify: the unit blinks its LED, and the button blinks with it.
+function IdentifyButton({ unit, disabled }) {
+  const toast = useToast();
+  const [flashing, setFlashing] = useState(false);
+
+  const identify = () => {
+    setFlashing(false);
+    requestAnimationFrame(() => setFlashing(true));
+    blinkUnit(unit).catch((error) => toast.error(error));
+  };
+
+  return (
+    <button
+      type="button"
+      className={`btn ${flashing ? "blinking" : ""}`}
+      disabled={disabled}
+      onClick={identify}
+      onAnimationEnd={() => setFlashing(false)}
+    >
+      <Icon name="identify" />
+      Identify
+    </button>
+  );
+}
+
 function UnitSheet({ row, onClose, onChanged }) {
-  const { leaderHostname, refreshAssignment } = useKiosk();
+  const { leaderHostname, refreshAssignment, refreshActive } = useKiosk();
   const confirm = useConfirm();
   const toast = useToast();
   const [choosing, setChoosing] = useState(false);
@@ -314,6 +340,7 @@ function UnitSheet({ row, onClose, onChanged }) {
     }
     try {
       await setUnitActive(row.unit, active);
+      if (row.self) refreshActive();
       changed(`${row.unit} is ${active ? "active" : "inactive"}`);
     } catch (error) {
       toast.error(error);
@@ -368,6 +395,17 @@ function UnitSheet({ row, onClose, onChanged }) {
         <ReadValue label="Software version" value={row.version} />
         <ReadValue label="Address" value={row.address} />
       </div>
+      <div className="list">
+        <div className="list-row">
+          <div className="grow">
+            <div className="strong">Identify</div>
+            <div className="sub">
+              {row.online === false ? `${row.unit} is offline.` : `Blinks ${row.unit}'s LED so you can find it.`}
+            </div>
+          </div>
+          <IdentifyButton unit={row.unit} disabled={row.online === false} />
+        </div>
+      </div>
       {row.versionDiffers && (
         <div className="banner">
           {row.unit} runs {row.version}; the leader runs {row.leaderVersion}. Update it from its screen or the web
@@ -392,7 +430,7 @@ function UnitSheet({ row, onClose, onChanged }) {
                 Unassign
               </AsyncButton>
             )}
-            <button type="button" className="btn primary" disabled={!row.isActive} onClick={() => setChoosing(true)}>
+            <button type="button" className="btn primary" onClick={() => setChoosing(true)}>
               {row.experiment ? "Reassign..." : "Assign..."}
             </button>
           </div>
@@ -576,9 +614,11 @@ function ProfilePickerSheet({ experiment, onBack, onClose }) {
 function AssignUnitsSheet({ experiment, units, onBack, onDone, onClose }) {
   const confirm = useConfirm();
   const toast = useToast();
-  const candidates = units.filter((row) => row.experiment !== experiment && row.isActive);
+  // Inactive units can be assigned too; they just won't start activities. Only
+  // idle, active ones start ticked.
+  const candidates = units.filter((row) => row.experiment !== experiment);
   const [picked, setPicked] = useState(
-    () => new Set(candidates.filter((row) => !row.experiment).map((row) => row.unit)),
+    () => new Set(candidates.filter((row) => !row.experiment && row.isActive).map((row) => row.unit)),
   );
 
   const toggle = (unit) =>
@@ -629,7 +669,7 @@ function AssignUnitsSheet({ experiment, units, onBack, onDone, onClose }) {
       }
     >
       {candidates.length === 0 ? (
-        <Empty>Every active Pioreactor is already in {experiment}.</Empty>
+        <Empty>Every Pioreactor is already in {experiment}.</Empty>
       ) : (
         <div className="list">
           {candidates.map((row) => (
@@ -649,6 +689,7 @@ function AssignUnitsSheet({ experiment, units, onBack, onDone, onClose }) {
                   <span className="sub">Idle</span>
                 )}
               </span>
+              {!row.isActive && <span className="badge">Inactive</span>}
               {row.online === false && <span className="badge lost">Offline</span>}
             </button>
           ))}

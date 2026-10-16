@@ -38,9 +38,8 @@ export function useUnitValues(throttleMs = 600) {
 // Unit-local job control. It keeps working while the leader is unreachable, as
 // long as the experiment is known.
 export function useJobControl() {
-  const kiosk = useKiosk();
-  const { unit, experiment, broker } = kiosk;
-  const env = useMemo(() => jobEnv(kiosk), [kiosk]);
+  const { unit, experiment, broker } = useKiosk();
+  const env = useMemo(() => jobEnv({ experiment }), [experiment]);
 
   return useMemo(
     () => ({

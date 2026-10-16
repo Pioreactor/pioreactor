@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { unitApi, waitForTask } from "../api";
-import { activitiesRunningHere, leaveCluster } from "../cluster";
+import { activitiesRunningHere, leaveCluster, setSelfActive } from "../cluster";
 import { useKiosk } from "../context";
 import { useRestartSetup } from "../Onboarding";
 import { useAsync, useTopicValues } from "../hooks";
@@ -132,6 +132,46 @@ function LeaveButton() {
   );
 }
 
+const ACTIVE_OPTIONS = [
+  { value: true, label: "Active" },
+  { value: false, label: "Inactive" },
+];
+
+// Taking this unit out of service at the bench. The unit owns this, so it works
+// while the leader is away; the unit tells the leader when it can.
+function ActiveControl() {
+  const { unit, active, refreshActive } = useKiosk();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const change = async (next) => {
+    if (busy || next === active) return;
+    if (!next) {
+      const ok = await confirm({
+        title: `Make ${unit} inactive?`,
+        message: "Its running activities stop, and it won't start new ones until it's active again.",
+        confirmText: "Make inactive",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      await setSelfActive(next);
+      toast(`${unit} is ${next ? "active" : "inactive"}`);
+    } catch (error) {
+      toast.error(error);
+    } finally {
+      refreshActive();
+      setBusy(false);
+    }
+  };
+
+  if (active === undefined) return null;
+  return <Segmented label="Active" options={ACTIVE_OPTIONS} value={active} onChange={change} />;
+}
+
 function SettingRow({ title, sub, children }) {
   return (
     <div className="list-row">
@@ -174,6 +214,13 @@ export default function System() {
         <ReadValue label="Address" value={ip.data?.ipv4_address} />
         <ReadValue label="Storage free" value={free(disk.data)} unit={total(disk.data)} />
         <ReadValue label="Memory free" value={free(memory.data)} unit={total(memory.data)} />
+      </div>
+
+      <h2 className="section-title">Status</h2>
+      <div className="list">
+        <SettingRow title="Active" sub="Inactive Pioreactors don't start activities.">
+          <ActiveControl />
+        </SettingRow>
       </div>
 
       <h2 className="section-title">Software</h2>

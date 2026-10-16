@@ -1842,3 +1842,20 @@ button.list-row:active {
 .ob-foot .btn {
   min-width: 7rem;
 }
+
+/* Identify: the button blinks with the unit's LED (same timing as the main UI). */
+.btn.blinking {
+  animation: blink 0.9s 4;
+}
+@keyframes blink {
+  0%,
+  26%,
+  51%,
+  100% {
+    opacity: 1;
+  }
+  13%,
+  39% {
+    opacity: 0;
+  }
+}

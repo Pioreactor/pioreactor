@@ -64,6 +64,14 @@ export async function addUnit(name) {
 // The leader stops the unit's activities, and the unit leaves and reboots.
 export const removeUnit = (unit) => leaderApi(`/workers/${enc(unit)}`, { method: "DELETE" });
 
+// Blinks the unit's LED (via its monitor job) so it can be found on the bench.
+export const blinkUnit = (unit) => leaderApi(`/workers/${enc(unit)}/blink`, { method: "POST" });
+
+// This unit, at the bench: works while the leader is away. The unit stops its own
+// activities when made inactive, and tells the leader.
+export const setSelfActive = (active) => unitApi("/active", { method: "PUT", body: { is_active: active ? 1 : 0 } });
+
+// Any unit, from the leader's screen: the leader forwards it to the unit.
 export const setUnitActive = (unit, active) =>
   leaderApi(`/workers/${enc(unit)}/is_active`, { method: "PUT", body: { is_active: active ? 1 : 0 } });
 

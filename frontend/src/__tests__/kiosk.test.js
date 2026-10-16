@@ -25,13 +25,8 @@ describe("kiosk topicMatches", () => {
 });
 
 describe("kiosk jobEnv", () => {
-  it("passes the experiment and active flag the leader would pass, not the model", () => {
-    expect(jobEnv({ experiment: "exp", worker: { is_active: 1, model_name: "pioreactor_40ml", model_version: "1.5" } })).toEqual({
-      EXPERIMENT: "exp",
-      JOB_SOURCE: "user",
-      ACTIVE: "1",
-    });
-    expect(jobEnv({ experiment: "exp", worker: undefined })).toEqual({ EXPERIMENT: "exp", JOB_SOURCE: "user" });
+  it("passes the experiment, not what the unit owns (model, active)", () => {
+    expect(jobEnv({ experiment: "exp" })).toEqual({ EXPERIMENT: "exp", JOB_SOURCE: "user" });
   });
 });
 

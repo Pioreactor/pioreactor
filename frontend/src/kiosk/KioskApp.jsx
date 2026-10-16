@@ -80,7 +80,7 @@ function TopBar({ title }) {
 // One line under the top bar when this unit's place in the cluster needs
 // attention. Tapping it opens System, which has the details and the actions.
 function StatusBanner() {
-  const { role, leaderHostname, leaderReachable, worker } = useKiosk();
+  const { role, leaderHostname, leaderReachable, worker, active } = useKiosk();
 
   let message = null;
   if (role === "unjoined") {
@@ -89,7 +89,7 @@ function StatusBanner() {
     message = `Can't reach the leader, ${leaderHostname}. Activities keep running, and you can still control them here.`;
   } else if (role === "worker" && worker === null) {
     message = `${leaderHostname} doesn't list this Pioreactor. Add it again from the leader, or leave its cluster.`;
-  } else if (worker && !worker.is_active) {
+  } else if (active === false) {
     message = "This Pioreactor is inactive. Activities can't be started.";
   }
   if (!message) return null;

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { enc, leaderApi, setLeaderOrigin, unitApi } from "./api";
+import { useAsync } from "./hooks";
 import { createBroker } from "./mqtt";
 import { useToast } from "./ui";
 import { driveName, useUsbStatus } from "./usb";
@@ -166,6 +167,14 @@ function useAssignment(unit, broker, leaderHostname, leaderReachable) {
   return { experiment, refresh };
 }
 
+// Whether this unit is in service. The unit owns it (the leader only mirrors it), so
+// it's read locally and stays right while the leader is away. Re-read on the leader
+// check's interval, since the web UI can change it too.
+function useLocalActive() {
+  const { data, reload } = useAsync((signal) => unitApi("/active", { signal }), [], { refreshMs: LEADER_PROBE_MS });
+  return { active: data ? Boolean(data.is_active) : undefined, refresh: reload };
+}
+
 function useExperimentMetadata(experiment) {
   const [metadata, setMetadata] = useState(null);
   useEffect(() => {
@@ -189,6 +198,7 @@ function Session({ unit, config, children }) {
   const link = useLeaderLink(unit, broker, leaderHostname, isLeader);
   const { experiment, refresh: refreshExperiment } = useAssignment(unit, broker, leaderHostname, link.reachable);
   const experimentMetadata = useExperimentMetadata(experiment);
+  const { active, refresh: refreshActive } = useLocalActive();
   const otherUnits = (link.workers || []).filter((row) => row.pioreactor_unit !== unit).length;
   const role = roleOf({ leaderHostname, isLeader, otherUnits });
   const toast = useToast();
@@ -212,6 +222,8 @@ function Session({ unit, config, children }) {
       experiment, // undefined while unknown, null when unassigned
       experimentMetadata,
       worker: link.worker, // this unit's row on the leader; null if the leader doesn't list it
+      active, // whether this unit is in service; undefined until the first read
+      refreshActive,
       refreshAssignment,
       refreshCluster: refreshLink,
       usb, // this unit's USB status (/unit_api/usb), null until the first check
@@ -225,6 +237,8 @@ function Session({ unit, config, children }) {
       isLeader,
       link.reachable,
       link.worker,
+      active,
+      refreshActive,
       experiment,
       experimentMetadata,
       refreshAssignment,
@@ -252,11 +266,8 @@ export function KioskProvider({ children }) {
   );
 }
 
-// Environment for jobs started from this screen. The leader adds the same values
-// when it starts jobs. Passing them means a job started while the leader is away
-// doesn't have to ask it. The unit already owns its model, so that isn't passed.
-export function jobEnv({ experiment, worker }) {
-  const env = { EXPERIMENT: experiment, JOB_SOURCE: "user" };
-  if (worker) env.ACTIVE = String(Number(worker.is_active));
-  return env;
+// Environment for jobs started from this screen, as the leader adds when it starts
+// jobs. The unit owns its model and whether it's active, so neither is passed.
+export function jobEnv({ experiment }) {
+  return { EXPERIMENT: experiment, JOB_SOURCE: "user" };
 }
