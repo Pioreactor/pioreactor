@@ -1973,7 +1973,9 @@ def get_all_calibrations() -> ResponseReturnValue:
                 else:
                     all_calibrations[device] = [cal]
             except Exception as e:
-                publish_to_error_log(f"Error reading calibration `{file.stem}`: {e}", "get_all_calibrations")
+                publish_to_error_log(
+                    f"Error reading {device} calibration `{file.stem}`: {e}", "get_all_calibrations"
+                )
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
 
@@ -2004,7 +2006,8 @@ def get_all_active_calibrations() -> ResponseReturnValue:
                 all_calibrations[device] = cal
             except Exception as e:
                 publish_to_error_log(
-                    f"Error reading calibration `{cal_file_path.stem}`: {e}", "get_all_active_calibrations"
+                    f"Error reading {device} calibration `{cal_file_path.stem}`: {e}",
+                    "get_all_active_calibrations",
                 )
 
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
@@ -2319,7 +2322,9 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
                 cal["pioreactor_unit"] = HOSTNAME
                 calibrations.append(cal)
             except Exception as e:
-                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_calibrations_by_device")
+                publish_to_error_log(
+                    f"Error reading {device} calibration `{file.stem}`: {e}", "get_calibrations_by_device"
+                )
 
     return attach_cache_control(jsonify(calibrations), max_age=10)
 
@@ -2346,7 +2351,7 @@ def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
             return attach_cache_control(jsonify(cal), max_age=10)
         except Exception as e:
             publish_to_error_log(
-                f"Error reading calibration `{calibration_path.stem}`: {e}", "get_calibration"
+                f"Error reading {device} calibration `{calibration_path.stem}`: {e}", "get_calibration"
             )
             abort_with(
                 500,

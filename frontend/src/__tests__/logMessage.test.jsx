@@ -69,6 +69,35 @@ describe("parseLogMessage", () => {
 });
 
 describe("LogMessage", () => {
+  test.each(["stirring", "media_pump", "alt_media_pump", "waste_pump", "od", "od45", "od90", "od135", "od180"])(
+    "links %s calibrations to the logging unit's calibration page",
+    (device) => {
+      render(
+        <MemoryRouter>
+          <LogMessage message={`Saved ${device} calibration \`cal #1\`.`} unit="xr1" />
+        </MemoryRouter>
+      );
+      expect(screen.getByRole("link", { name: "cal #1" })).toHaveAttribute(
+        "href", `/calibrations/xr1/${device}/cal%20%231`
+      );
+    }
+  );
+
+  test.each([
+    ["Saved calibration `cal-1`.", "xr1"],
+    ["Saved pump calibration `cal-1`.", "xr1"],
+    ["Saved custom_pump calibration `cal-1`.", "xr1"],
+    ["Saved stirring calibration `cal-1`.", undefined],
+  ])("keeps calibration chips without an exact device or unit as labels: %s", (message, unit) => {
+    const { container } = render(
+      <MemoryRouter>
+        <LogMessage message={message} unit={unit} />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('[data-calibration-name="cal-1"]')).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "cal-1" })).toBeNull();
+  });
+
   test("renders entity chips and keeps the surrounding text", () => {
     const { container } = render(
       <MemoryRouter>

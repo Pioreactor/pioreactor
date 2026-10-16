@@ -401,8 +401,8 @@ class Stirrer(BackgroundJobWithDodging):
             cal = possible_calibration
 
             if cal.y != "RPM":
-                self.logger.error(f"Calibration `{cal.calibration_name}` has wrong type.")
-                raise exc.CalibrationError(f"Calibration `{cal.calibration_name}` has wrong type.")
+                self.logger.error(f"stirring calibration `{cal.calibration_name}` has wrong type.")
+                raise exc.CalibrationError(f"stirring calibration `{cal.calibration_name}` has wrong type.")
 
             self.logger.debug(f"Found active stirring calibration `{cal.calibration_name}`.")
 
