@@ -218,12 +218,6 @@ class TemperatureAutomationJob(AutomationJob):
     def read_external_temperature(self) -> float:
         return self._check_if_exceeds_max_temp(self._read_external_temperature())
 
-    def is_heater_pwm_locked(self) -> bool:
-        """
-        Check if the heater PWM channels is locked
-        """
-        return self.pwm.is_locked()
-
     ########## Private & internal methods
 
     def _read_external_temperature(self) -> float:
@@ -431,10 +425,6 @@ class TemperatureAutomationJob(AutomationJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
-
-    @staticmethod
-    def approximate_temperature_40_1_0(features: dict[str, Any]) -> float:
-        raise NotImplementedError("This model has not been implemented yet.")
 
     @staticmethod
     def approximate_temperature_20_1_0(features: dict[str, Any]) -> float:

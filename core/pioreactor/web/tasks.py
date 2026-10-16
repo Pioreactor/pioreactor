@@ -811,30 +811,6 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
 
 
 @huey.task()
-def update_app_from_release_archive_on_specific_pioreactors(
-    archive_location: str, pioreactors: list[str]
-) -> bool:
-    units_cli: tuple[str, ...] = sum((("--units", p) for p in pioreactors), tuple())
-
-    logger.debug(f"Updating app and ui on unit {pioreactors} from {archive_location}")
-    archive_copy_command = [PIOS_EXECUTABLE, "cp", archive_location, "-y", *units_cli]
-    run(archive_copy_command)
-
-    worker_update_command = [
-        PIOS_EXECUTABLE,
-        "update",
-        "app",
-        "--source",
-        archive_location,
-        "-y",
-        *units_cli,
-    ]
-    run(worker_update_command)
-
-    return True
-
-
-@huey.task()
 def pio(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')

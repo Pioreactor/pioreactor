@@ -595,10 +595,6 @@ class Stirrer(BackgroundJobWithDodging):
 
         self.set_duty_cycle(self._estimate_duty_cycle)
 
-    def sleep_if_ready(self, seconds: float) -> None:
-        if self.state is st.READY:
-            sleep(seconds)
-
     def block_until_rpm_is_close_to_target(
         self, abs_tolerance: float = 20, timeout: float | None = 60
     ) -> bool:
