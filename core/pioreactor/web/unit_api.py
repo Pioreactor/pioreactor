@@ -1876,6 +1876,16 @@ def create_calibration(device: str) -> ResponseReturnValue:
         _validate_storage_path_component(device, "device")
         _validate_storage_path_component(calibration_name, "calibration_name")
 
+        if isinstance(calibration_data, structs.ODCalibration):
+            expected_device = f"od{calibration_data.angle}"
+            if device != expected_device:
+                abort_with(
+                    400,
+                    f"Use device `{expected_device}` for this {calibration_data.angle}° OD calibration.",
+                )
+        elif device == "od":
+            abort_with(400, "`od` is a protocol target, not a calibration storage device.")
+
         path = calibration_data.path_on_disk_for_device(device)
         save_result = tasks.save_file(str(path), raw_yaml)
 

@@ -99,6 +99,7 @@ def _channel_angle_map_from_config(
 
 def _read_voltages_from_adc(
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
+    experiment: str,
 ) -> dict[pt.PdChannel, pt.Voltage]:
     from pioreactor.background_jobs.od_reading import average_over_od_readings
     from pioreactor.background_jobs.od_reading import start_od_reading
@@ -110,7 +111,7 @@ def _read_voltages_from_adc(
         interval=None,
         unit=get_unit_name(),
         fake_data=is_testing_env(),
-        experiment=get_testing_experiment_name(),
+        experiment=experiment,
         calibration=False,
         estimator=False,
     ) as od_reader:
@@ -137,18 +138,19 @@ def _read_voltages_from_adc(
 def _measure_standard(
     rpm: float,
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
+    experiment: str,
 ) -> dict[pt.PdChannel, pt.Voltage]:
     from pioreactor.background_jobs.stirring import start_stirring as stirring
 
     with stirring(
         target_rpm=rpm,
         unit=get_unit_name(),
-        experiment=get_testing_experiment_name(),
+        experiment=experiment,
     ) as st:
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         if not is_testing_env():
             sleep(1.0)
-        return _read_voltages_from_adc(channel_angle_map)
+        return _read_voltages_from_adc(channel_angle_map, experiment)
 
 
 def _measure_standard_for_session(
@@ -161,13 +163,14 @@ def _measure_standard_for_session(
             "od_standards_measure",
             {
                 "rpm": rpm,
+                "experiment": ctx.data["experiment"],
                 "channel_angle_map": {str(k): str(v) for k, v in channel_angle_map.items()},
             },
         )
         raw = payload["voltages"]
         assert isinstance(raw, dict)
         return {cast(pt.PdChannel, channel): float(voltage) for channel, voltage in raw.items()}
-    return _measure_standard(rpm, channel_angle_map)
+    return _measure_standard(rpm, channel_angle_map, ctx.data["experiment"])
 
 
 def _default_calibration_name() -> str:
@@ -228,7 +231,8 @@ def start_standards_session(target_device: pt.ODCalibrationDevices) -> Calibrati
 
     # Recorded voltages are scaled by the persisted IR REF anchor; re-anchor so a session never
     # inherits one from an earlier session or IR intensity.
-    PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(get_testing_experiment_name())
+    experiment = get_testing_experiment_name()
+    PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(experiment)
 
     channel_angle_map = _channel_angle_map_from_config(target_device)
     channel_summary = ", ".join(f"{channel}={angle}°" for channel, angle in channel_angle_map.items())
@@ -243,6 +247,8 @@ def start_standards_session(target_device: pt.ODCalibrationDevices) -> Calibrati
         status="in_progress",
         step_id="intro",
         data={
+            # Keep the job topic stable even if assignment changes or the leader is unavailable.
+            "experiment": experiment,
             "channel_angle_map": to_builtins(channel_angle_map),
             "channel_summary": channel_summary,
             "devices_for_name_check": devices_for_name_check,
@@ -660,10 +666,13 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     @classmethod
     def on_session_abort(
         cls,
-        _session: CalibrationSession,
+        session: CalibrationSession,
         executor: SessionCleanupExecutor | None = None,
     ) -> None:
-        experiment = get_testing_experiment_name()
+        # Older persisted sessions have no captured experiment; do not guess a job topic.
+        experiment = session.data.get("experiment")
+        if experiment is None:
+            raise ValueError("Session has no recorded experiment. Stop OD reading and stirring manually.")
         unit = get_unit_name()
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/$state/set",

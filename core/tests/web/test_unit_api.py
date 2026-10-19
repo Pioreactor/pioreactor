@@ -20,6 +20,7 @@ from pioreactor.bioreactor import set_bioreactor_value
 from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import store_camera_still
 from pioreactor.config import ConfigParserMod
+from pioreactor.structs import OD600Calibration
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
@@ -1493,6 +1494,75 @@ def test_get_running_jobs_endpoint_filters_results(client) -> None:
     rows = response.get_json()
     assert isinstance(rows, list)
     assert [row["job_id"] for row in rows] == [running_job_id]
+
+
+@pytest.mark.parametrize("device", ["od", "od45", "media_pump"])
+def test_upload_od_calibration_rejects_wrong_device(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, device: str
+) -> None:
+    from pioreactor import calibrations
+
+    monkeypatch.setattr(calibrations, "CALIBRATION_PATH", tmp_path / "calibrations")
+    save_file = Mock()
+    monkeypatch.setattr(unit_api.tasks, "save_file", save_file)
+    calibration = OD600Calibration(
+        calibration_name="wrong_device",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=datetime.now(timezone.utc),
+        curve_data_=PolyFitCoefficients(coefficients=[0.0, 1.0]),
+        recorded_data={"x": [0.0, 1.0], "y": [0.0, 1.0]},
+        ir_led_intensity=80,
+        angle="90",
+        pd_channel="2",
+    )
+    response = client.post(
+        f"/unit_api/calibrations/{device}",
+        json={"calibration_data": yaml_encode(calibration).decode(), "set_as_active": True},
+    )
+
+    assert response.status_code == 400
+    assert "Use device `od90`" in response.get_json()["error"]
+    save_file.assert_not_called()
+    assert not (tmp_path / "calibrations").exists()
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache.get(device) != "wrong_device"
+
+
+def test_upload_od_calibration_saves_to_matching_device(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from pioreactor import calibrations
+    from pioreactor.web import tasks
+
+    calibration_root = tmp_path / "calibrations"
+    (calibration_root / "od90").mkdir(parents=True)
+    monkeypatch.setattr(calibrations, "CALIBRATION_PATH", calibration_root)
+    save_file = tasks.save_file.call_local
+
+    def execute_save(path: str, content: str) -> FakeTaskResult:
+        return FakeTaskResult(save_file(path, content))
+
+    monkeypatch.setattr(tasks, "save_file", execute_save)
+    calibration = OD600Calibration(
+        calibration_name="copied_od90",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=datetime.now(timezone.utc),
+        curve_data_=PolyFitCoefficients(coefficients=[0.0, 1.0]),
+        recorded_data={"x": [0.0, 1.0], "y": [0.0, 1.0]},
+        ir_led_intensity=80,
+        angle="90",
+        pd_channel="2",
+    )
+    raw_yaml = yaml_encode(calibration).decode()
+    response = client.post(
+        "/unit_api/calibrations/od90",
+        json={"calibration_data": raw_yaml, "set_as_active": True},
+    )
+
+    assert response.status_code == 201
+    assert (calibration_root / "od90" / "copied_od90.yaml").read_text() == raw_yaml
+    with local_persistent_storage("active_calibrations") as cache:
+        assert cache["od90"] == "copied_od90"
 
 
 def test_create_calibration_sets_active_when_requested(client, monkeypatch) -> None:

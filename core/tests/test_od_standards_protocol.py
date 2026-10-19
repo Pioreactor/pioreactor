@@ -50,7 +50,8 @@ def test_start_standards_session_clears_stale_ir_led_reference_anchor(
         with _temporary_config_section(
             "od_config.photodiode_channel", {"1": od_standards.REF_keyword, "2": "90"}
         ):
-            od_standards.start_standards_session("od90")
+            session = od_standards.start_standards_session("od90")
+            assert session.data["experiment"] == testing_experiment
 
     with local_persistent_storage("ir_led_reference_normalization") as cache:
         assert testing_experiment not in cache
@@ -115,7 +116,7 @@ def _dummy_session() -> CalibrationSession:
         target_device="od",
         status="in_progress",
         step_id="intro",
-        data={},
+        data={"experiment": get_testing_experiment_name()},
         created_at=now,
         updated_at=now,
     )
@@ -148,16 +149,23 @@ def test_on_session_abort_requests_od_job_cleanup(monkeypatch: pytest.MonkeyPatc
         calls.append((topic, message, qos))
 
     monkeypatch.setattr(od_standards, "publish", fake_publish)
-    od_standards.StandardsODProtocol.on_session_abort(_dummy_session())
+    session = _dummy_session()
+    session.data["experiment"] = "_testing_original"
+
+    def unavailable_leader() -> str:
+        raise AssertionError("Abort must not look up the experiment over the network")
+
+    monkeypatch.setattr(od_standards, "get_testing_experiment_name", unavailable_leader)
+    od_standards.StandardsODProtocol.on_session_abort(session)
 
     assert calls == [
         (
-            f"pioreactor/{od_standards.get_unit_name()}/{get_testing_experiment_name()}/od_reading/$state/set",
+            f"pioreactor/{od_standards.get_unit_name()}/_testing_original/od_reading/$state/set",
             b"disconnected",
             1,
         ),
         (
-            f"pioreactor/{od_standards.get_unit_name()}/{get_testing_experiment_name()}/stirring/$state/set",
+            f"pioreactor/{od_standards.get_unit_name()}/_testing_original/stirring/$state/set",
             b"disconnected",
             1,
         ),
@@ -172,3 +180,36 @@ def test_on_session_abort_aggregates_cleanup_errors(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(od_standards, "publish", failing_publish)
     with pytest.raises(RuntimeError, match="failed od_reading"):
         od_standards.StandardsODProtocol.on_session_abort(_dummy_session())
+
+
+def test_abort_legacy_session_reports_missing_experiment(monkeypatch: pytest.MonkeyPatch) -> None:
+    session = _dummy_session()
+    session.data.clear()
+
+    def unavailable_leader() -> str:
+        raise AssertionError("Abort must not query the leader")
+
+    monkeypatch.setattr(od_standards, "get_testing_experiment_name", unavailable_leader)
+    with pytest.raises(ValueError, match="Stop OD reading and stirring manually"):
+        od_standards.StandardsODProtocol.on_session_abort(session)
+
+
+def test_session_measurement_uses_captured_experiment(monkeypatch: pytest.MonkeyPatch) -> None:
+    session = _dummy_session()
+    session.data["experiment"] = "_testing_original"
+    calls: list[dict] = []
+
+    def execute(action: str, payload: dict) -> dict:
+        assert action == "od_standards_measure"
+        calls.append(payload)
+        return {"voltages": {"2": 0.2}}
+
+    ctx = SessionContext(
+        session=session,
+        mode="ui",
+        inputs=SessionInputs(None),
+        collected_calibrations=[],
+        executor=execute,
+    )
+    assert od_standards._measure_standard_for_session(ctx, 500, {"2": "90"}) == {"2": 0.2}
+    assert calls[0]["experiment"] == "_testing_original"

@@ -865,6 +865,7 @@ def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc:
 def calibration_measure_standard(
     rpm: float,
     channel_angle_map: dict[str, str],
+    experiment: str,
 ) -> dict[str, float]:
     from pioreactor.calibrations.protocols.od_standards import _measure_standard
 
@@ -879,6 +880,7 @@ def calibration_measure_standard(
     voltages = _measure_standard(
         rpm=rpm,
         channel_angle_map=typed_map,
+        experiment=experiment,
     )
     logger.debug("Finished OD standards measurement: rpm=%s", rpm)
     return {str(channel): float(voltage) for channel, voltage in voltages.items()}
@@ -1010,6 +1012,7 @@ def _register_core_calibration_actions() -> None:
             calibration_measure_standard(
                 float(payload["rpm"]),
                 payload["channel_angle_map"],
+                payload["experiment"],
             ),
             "OD measurement",
             _voltages_normalizer,

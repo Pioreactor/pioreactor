@@ -12,7 +12,6 @@ import {
   FormControl,
   MenuItem,
   Select,
-  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -44,16 +43,6 @@ import 'prismjs/components/prism-yaml';
 import CheckIcon from '@mui/icons-material/Check';
 import ChecklistRtlOutlinedIcon from '@mui/icons-material/ChecklistRtlOutlined';
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
-
-function sanitizeDeviceName(raw) {
-  const cleaned = raw
-    .replace(/\s+/g, "_")          // spaces, tabs, line‑breaks → “_”
-    .replace(/[^A-Za-z0-9_-]/g, "") // drop everything else (only allow these chars)
-    .replace(/^[_.]+/, "")           // no leading “.” or “_”
-    .slice(0, 255);                // extra‑long names are sliced
-
-  return cleaned;
-}
 
 export function getFailedCalibrationUploadUnits(taskPayload) {
   const result = taskPayload?.result;
@@ -87,13 +76,46 @@ export function UploadCalibrationDialog({
   const [selectedDevice, setSelectedDevice] = useState(device || '');
   const [calibrationYaml, setCalibrationYaml] = useState('');
   const [markAsActive, setMarkAsActive] = useState(true);
+  const [deviceRegistry, setDeviceRegistry] = useState(null);
+  const registryReady = deviceRegistry?.unit === selectedWorker;
+  const uploadDevices = registryReady ? deviceRegistry.devices : [];
+  const uploadDevice = uploadDevices.includes(selectedDevice) ? selectedDevice : '';
+
+  useEffect(() => {
+    if (!open || !selectedWorker) return;
+    let cancelled = false;
+    setDeviceRegistry(null);
+
+    const loadDevices = async () => {
+      try {
+        const payload = await fetchTaskResult(`/api/workers/${selectedWorker}/calibration_protocols`);
+        const failedUnits = getFailedCalibrationUploadUnits(payload);
+        if (failedUnits.length > 0) {
+          throw new Error(`Could not load calibration devices for: ${failedUnits.join(', ')}.`);
+        }
+        const registries = Object.values(getSuccessfulUnitTaskResults(payload));
+        const devicesByUnit = registries.map((protocols) => new Set(
+          protocols.map((protocol) => protocol.target_device).filter((name) => name !== 'od'),
+        ));
+        // A broadcast upload must target a device registered on every selected unit.
+        const devices = [...(devicesByUnit[0] || [])]
+          .filter((name) => devicesByUnit.every((unitDevices) => unitDevices.has(name)))
+          .sort();
+        if (!cancelled) setDeviceRegistry({ unit: selectedWorker, devices });
+      } catch (err) {
+        if (!cancelled) setDeviceRegistry({ unit: selectedWorker, devices: [], error: err.message });
+      }
+    };
+    loadDevices();
+    return () => { cancelled = true; };
+  }, [open, selectedWorker]);
 
   const handleWorkerChange = (event) => {
     setSelectedWorker(event.target.value);
   };
 
   const handleDeviceChange = (event) => {
-    setSelectedDevice(sanitizeDeviceName(event.target.value));
+    setSelectedDevice(event.target.value);
   };
 
   const handleMarkAsActiveChange = (event) => {
@@ -221,7 +243,7 @@ export function UploadCalibrationDialog({
           <FormControl variant="standard" sx={{ mr: 4, minWidth: 200 }}>
             <FormLabel component="legend">Pioreactor</FormLabel>
             <Select
-              value={selectedWorker}
+              value={workers.length ? selectedWorker : ''}
               onChange={handleWorkerChange}
             >
               {workers.map((worker) => (
@@ -238,16 +260,26 @@ export function UploadCalibrationDialog({
           </FormControl>
 
           <FormControl variant="standard" sx={{ mr: 4, minWidth: 200 }}>
-            <FormLabel component="legend">Device</FormLabel>
-            <TextField
-              variant="standard"
-              fullWidth
-              placeholder="e.g. od, media_pump"
-              value={selectedDevice}
+            <FormLabel id="upload-calibration-device-label" required>Device</FormLabel>
+            <Select
+              labelId="upload-calibration-device-label"
+              value={uploadDevice}
               onChange={handleDeviceChange}
-            />
+              disabled={!registryReady || uploadDevices.length === 0}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>{registryReady ? "Select a device" : "Loading devices..."}</MenuItem>
+              {uploadDevices.map((name) => (
+                <MenuItem key={name} value={name}>{name}</MenuItem>
+              ))}
+            </Select>
           </FormControl>
         </Box>
+
+        {registryReady && deviceRegistry.error && <Alert severity="error">{deviceRegistry.error}</Alert>}
+        {registryReady && !deviceRegistry.error && uploadDevices.length === 0 && (
+          <Alert severity="info">No shared calibration devices are registered for the selected Pioreactor(s).</Alert>
+        )}
 
         <FormControlLabel
           control={<Checkbox checked={markAsActive} onChange={handleMarkAsActiveChange} />}
@@ -313,7 +345,7 @@ export function UploadCalibrationDialog({
               React.startTransition(() => {
                 uploadCalibration({
                   selectedWorker,
-                  selectedDevice,
+                  selectedDevice: uploadDevice,
                   calibrationYaml,
                   markAsActive,
                 });
@@ -322,7 +354,7 @@ export function UploadCalibrationDialog({
             variant="contained"
             loading={uploadPending}
             sx={{mt: "10px"}}
-            disabled={!selectedDevice || !calibrationYaml || !selectedWorker}
+            disabled={!uploadDevice || !calibrationYaml || !selectedWorker}
           >
             Upload calibration
           </Button>
