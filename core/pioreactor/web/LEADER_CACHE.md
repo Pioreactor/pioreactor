@@ -42,7 +42,7 @@ If you want to cache another fan-out object, such as estimators or plugins, foll
 
 1. Define a `MulticastGetCacheTarget` in `cache.py`.
    *   Example: `ESTIMATORS = MulticastGetCacheTarget("estimators", "/unit_api/estimators")`
-2. Change the leader read route to use `cache.cached_multicast_get(...)` instead of `tasks.multicast_get(...)`.
+2. Change the leader read route to use `cache.cached_multicast_get(...)` instead of `tasks.multicast("GET", ...)`.
    *   Example: `cache.cached_multicast_get(cache.ESTIMATORS, get_all_workers())`
 3. Add an invalidation helper in `cache.py` for that object family.
    *   Mirror `invalidate_calibrations_cache(...)` or `invalidate_estimators_cache(...)`.

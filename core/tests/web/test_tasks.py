@@ -10,6 +10,7 @@ from http.client import HTTPMessage
 from pathlib import Path
 from subprocess import TimeoutExpired
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 from huey.exceptions import RateLimitExceeded
@@ -559,7 +560,7 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
     # Avoid test delays from retry sleeps.
     monkeypatch.setattr(tasks, "sleep", lambda _: events.append("sleep"))
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
     assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
@@ -586,7 +587,7 @@ def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", timeout=7.0)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", timeout=7.0)
 
     assert unit == "unit1"
     assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
@@ -611,7 +612,7 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
     # Avoid test delays from retry sleeps.
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=1)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=1)
 
     assert unit == "unit1"
     assert result == {
@@ -622,6 +623,46 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
         "retryable": True,
     }
     assert responses == []
+
+
+@pytest.mark.parametrize("method", ["POST", "PATCH", "DELETE"])
+def test_request_unit_follows_delayed_result_for_every_mutation(
+    monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    requests: list[tuple[str, str]] = []
+    responses = {
+        "/unit_api/do": _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
+        "/unit_api/task_results/abc": _response(
+            200, {"task_id": "abc", "status": "succeeded", "result": {"done": True}}
+        ),
+    }
+
+    def fake_request(request_method: str, url: str, **_kwargs: Any) -> Response:
+        path = urlparse(url).path
+        requests.append((request_method, path))
+        return responses[path]
+
+    monkeypatch.setattr("pioreactor.mureq.request", fake_request)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    unit, result = tasks._request_unit(method, "unit1", "/unit_api/do")
+
+    assert result == {"ok": True, "unit": "unit1", "value": {"done": True}}
+    assert requests == [(method, "/unit_api/do"), ("GET", "/unit_api/task_results/abc")]
+
+
+def test_request_unit_treats_an_empty_body_as_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.mureq.request",
+        lambda *_args, **_kwargs: Response("http://unit.local", 204, HTTPMessage(), b""),
+    )
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+
+    assert tasks._request_unit("POST", "unit1", "/unit_api/do") == (
+        "unit1",
+        {"ok": True, "unit": "unit1", "value": None},
+    )
 
 
 def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -647,7 +688,7 @@ def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
     assert result == {
@@ -831,7 +872,7 @@ def test_multicast_chord_deletes_child_results_and_preserves_callback_result(
         ),
     )
 
-    chord_result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    chord_result = tasks.multicast("GET", "/unit_api/test", ["unit1", "unit2"])
     child_task_ids = [child_result.id for child_result in chord_result.results]
 
     for _ in child_task_ids:
@@ -875,13 +916,13 @@ def test_multicast_chord_reports_failed_and_skipped_members(
     monkeypatch.setattr(tasks.huey, "_immediate", False)
     monkeypatch.setattr(tasks.huey, "storage", SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"))
 
-    def get_from_unit(unit: str, *args: Any, **kwargs: Any) -> tuple[str, Any]:
+    def request_unit(method: str, unit: str, *args: Any, **kwargs: Any) -> tuple[str, Any]:
         if unit == "unit2":
             raise RuntimeError("boom")
         return unit, tasks.fanout_success(unit, {"value": 1})
 
-    monkeypatch.setattr(tasks, "_get_from_unit", get_from_unit)
-    result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    monkeypatch.setattr(tasks, "_request_unit", request_unit)
+    result = tasks.multicast("GET", "/unit_api/test", ["unit1", "unit2"])
     if skipped:
         tasks.huey.revoke_by_id(list(result.results)[1].id)
 
