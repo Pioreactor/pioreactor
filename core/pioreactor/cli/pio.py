@@ -19,6 +19,7 @@ from uuid import uuid4
 import click
 from pioreactor import exc
 from pioreactor import whoami
+from pioreactor.cli import resume_garbage_collection
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import get_config
 from pioreactor.config import set_config_value_in_file
@@ -590,6 +591,9 @@ def pio(ctx: click.Context, show_version: bool) -> None:
 
     Report errors or feedback: https://github.com/Pioreactor/pioreactor/issues
     """
+    if ctx.invoked_subcommand != "run":
+        # `pio run` resumes it after loading plugins, just before the job starts.
+        resume_garbage_collection()
 
     if show_version:
         ctx.invoke(version)

@@ -4,6 +4,7 @@ from typing import Any
 
 import click
 from pioreactor import plugin_management
+from pioreactor.cli import resume_garbage_collection
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
@@ -85,6 +86,8 @@ def run(ctx: click.Context, config_override: list[tuple[str, str, str | None]]) 
 
     pio run --config-override stirring.config,pwm_hz,100
     """
+    resume_garbage_collection()
+
     stack = ExitStack()
     stack.enter_context(temporary_config_changes(config, config_override))
     ctx.call_on_close(stack.close)

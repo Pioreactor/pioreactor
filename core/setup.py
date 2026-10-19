@@ -85,7 +85,7 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     entry_points="""
         [console_scripts]
-        pio=pioreactor.cli.pio:pio
+        pio=pioreactor.cli:main
         pios=pioreactor.cli.pios:pios
         pioreactor-fcgi=pioreactor.web.fcgi:main
     """,
