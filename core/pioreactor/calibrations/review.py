@@ -4,7 +4,7 @@ Shared "review data" step for calibration session flows.
 
 Protocols that record data points end on a subclass of ReviewDataStep instead of saving
 straight away. The step shows every recorded row in an editable table: the user can correct
-values they typed in, leave rows out of the fit, preview the refit chart, and then save.
+values they typed in, leave rows out of the fit, preview the refit, and then save.
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class ReviewDataStep(SessionStep):
     title = "Review data"
     body = (
         "Check the recorded data before saving. Correct any value you typed in, or uncheck a row "
-        "to leave it out of the fit. Press Update chart to preview your changes."
+        "to leave it out of the fit."
     )
     save_label = "Save calibration"
     # Label of the button that re-renders the step with the edits applied, or None to hide it.
@@ -81,6 +81,8 @@ class ReviewDataStep(SessionStep):
             table_rows.append(row)
 
         body = self.body
+        if self.preview_label:
+            body = f"{body} Press {self.preview_label} to preview your changes."
         summary = self.summary(ctx, included)
         if summary:
             body = f"{body}\n\n{summary}"

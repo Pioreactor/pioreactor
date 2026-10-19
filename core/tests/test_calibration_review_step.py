@@ -187,7 +187,9 @@ def test_pump_review_corrects_a_mistyped_volume_before_saving() -> None:
     step = get_session_step(pump_duration_based._PUMP_DURATION_STEPS, session, executor)
     rows = _table(step)
     assert [row["duration"] for row in rows] == [1.0, 1.0, 2.0, 3.0, 3.0]
-    assert step.metadata["chart"]["series"][0]["curve"]["type"] == "poly"
+    assert "chart" not in step.metadata
+    assert step.metadata["actions"][0]["label"] == "Recalculate fit"
+    assert "Current fit" in step.body
     rows[3]["volume"] = 1.5
 
     session = advance_session(

@@ -531,6 +531,9 @@ class TestVolume(SessionStep):
 
 
 class ReviewVolumes(ReviewDataStep):
+    # No chart here: the table of runs already fills the dialog, so the fit is shown as text.
+    preview_label = "Recalculate fit"
+
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
         return [
             column("run", "Run"),
@@ -558,25 +561,6 @@ class ReviewVolumes(ReviewDataStep):
         return simple_linear_regression_with_forced_nil_intercept(
             durations, select_rows(ctx.data["results"], included)
         )
-
-    def chart(self, ctx: SessionContext, included: list[int]) -> dict[str, Any] | None:
-        durations = select_rows(ctx.data["durations_to_test"], included)
-        volumes = select_rows(ctx.data["results"], included)
-        series: dict[str, Any] = {
-            "id": "measured",
-            "label": "Measured",
-            "points": [{"x": float(x), "y": float(y)} for x, y in zip(durations, volumes)],
-        }
-        fit = self._fit(ctx, included)
-        if fit is not None:
-            (slope, _), (bias, _) = fit
-            series["curve"] = {"type": "poly", "coefficients": [slope, bias]}
-        return {
-            "title": "Calibration curve",
-            "x_label": "Duration (s)",
-            "y_label": "Volume (mL)",
-            "series": [series],
-        }
 
     def summary(self, ctx: SessionContext, included: list[int]) -> str | None:
         fit = self._fit(ctx, included)

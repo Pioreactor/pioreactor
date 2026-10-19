@@ -253,7 +253,7 @@ class RunCalibration(SessionStep):
 class ReviewReadings(ReviewDataStep):
     body = (
         "Check the readings before saving. Uncheck any reading that looks wrong, such as a "
-        "stalled stir bar, to leave it out of the fit. Press Update chart to preview your changes."
+        "stalled stir bar, to leave it out of the fit."
     )
 
     def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
