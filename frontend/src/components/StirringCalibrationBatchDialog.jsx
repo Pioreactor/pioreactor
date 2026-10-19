@@ -23,7 +23,11 @@ import Typography from "@mui/material/Typography";
 import CalibrationIcon from "./CalibrationIcon";
 import CloseIcon from "@mui/icons-material/Close";
 import { Link as RouterLink } from "react-router";
-import { advanceCalibrationSession } from "../utils/calibrationSessions";
+import {
+  advanceCalibrationSession,
+  isDataReviewStep,
+  recordedDataInputs,
+} from "../utils/calibrationSessions";
 
 const START_SESSION_ENDPOINT = (unit) => `/api/workers/${unit}/calibrations/sessions`;
 const ABORT_SESSION_ENDPOINT = (unit, sessionId) =>
@@ -215,7 +219,7 @@ export default function StirringCalibrationBatchDialog({
       error: undefined,
     }));
 
-    const advance = (message) => advanceCalibrationSession(unit, sessionId, {}, message);
+    const advance = (message, inputs = {}) => advanceCalibrationSession(unit, sessionId, inputs, message);
 
     await advance(`Failed to advance stirring session for ${unit}.`);
     if (abortRequestedRef.current || runId !== runIdRef.current) {
@@ -223,10 +227,22 @@ export default function StirringCalibrationBatchDialog({
       return;
     }
 
-    const finalPayload = await advance(`Failed to finish stirring session for ${unit}.`);
+    let finalPayload = await advance(`Failed to finish stirring session for ${unit}.`);
     if (abortRequestedRef.current || runId !== runIdRef.current) {
       await abortSession(unit, sessionId);
       return;
+    }
+
+    if (isDataReviewStep(finalPayload.step)) {
+      // Batch runs keep every reading; review is for single-unit sessions.
+      finalPayload = await advance(
+        `Failed to save stirring calibration for ${unit}.`,
+        recordedDataInputs(finalPayload.step)
+      );
+      if (abortRequestedRef.current || runId !== runIdRef.current) {
+        await abortSession(unit, sessionId);
+        return;
+      }
     }
 
     updateBatchUnit(unit, (details) => ({

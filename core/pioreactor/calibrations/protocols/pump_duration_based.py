@@ -12,7 +12,9 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.registry import CalibrationProtocol
-from pioreactor.calibrations.session_flow import CalibrationComplete
+from pioreactor.calibrations.review import column
+from pioreactor.calibrations.review import ReviewDataStep
+from pioreactor.calibrations.review import select_rows
 from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
@@ -525,10 +527,71 @@ class TestVolume(SessionStep):
         ctx.data["test_index"] = int(ctx.data["test_index"]) + 1
         if ctx.data["test_index"] < len(ctx.data["durations_to_test"]):
             return TestRun()
-        durations = ctx.data["durations_to_test"]
-        (slope, std_slope), (bias, std_bias) = simple_linear_regression_with_forced_nil_intercept(
-            durations, results
+        return ReviewVolumes()
+
+
+class ReviewVolumes(ReviewDataStep):
+    def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        return [
+            column("run", "Run"),
+            column("duration", "Duration (s)"),
+            column("volume", "Volume (mL)", editable=True, minimum=0.0001),
+        ]
+
+    def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        return [
+            {"run": index + 1, "duration": round(float(duration), 3), "volume": volume}
+            for index, (duration, volume) in enumerate(
+                zip(ctx.data["durations_to_test"], ctx.data["results"])
+            )
+        ]
+
+    def apply_edits(self, ctx: SessionContext, index: int, row: dict[str, Any]) -> None:
+        ctx.data["results"][index] = row["volume"]
+
+    def _fit(
+        self, ctx: SessionContext, included: list[int]
+    ) -> tuple[tuple[float, float], tuple[float, float]] | None:
+        durations = select_rows(ctx.data["durations_to_test"], included)
+        if len(set(durations)) < 2:
+            return None
+        return simple_linear_regression_with_forced_nil_intercept(
+            durations, select_rows(ctx.data["results"], included)
         )
+
+    def chart(self, ctx: SessionContext, included: list[int]) -> dict[str, Any] | None:
+        durations = select_rows(ctx.data["durations_to_test"], included)
+        volumes = select_rows(ctx.data["results"], included)
+        series: dict[str, Any] = {
+            "id": "measured",
+            "label": "Measured",
+            "points": [{"x": float(x), "y": float(y)} for x, y in zip(durations, volumes)],
+        }
+        fit = self._fit(ctx, included)
+        if fit is not None:
+            (slope, _), (bias, _) = fit
+            series["curve"] = {"type": "poly", "coefficients": [slope, bias]}
+        return {
+            "title": "Calibration curve",
+            "x_label": "Duration (s)",
+            "y_label": "Volume (mL)",
+            "series": [series],
+        }
+
+    def summary(self, ctx: SessionContext, included: list[int]) -> str | None:
+        fit = self._fit(ctx, included)
+        if fit is None:
+            return None
+        (slope, std_slope), _ = fit
+        return f"Current fit: {slope:.3f} ± {std_slope:.3f} mL per second of pumping."
+
+    def save(self, ctx: SessionContext, included: list[int]) -> None:
+        fit = self._fit(ctx, included)
+        if fit is None:
+            raise ValueError("Keep runs from at least two different durations to fit a calibration.")
+        (slope, std_slope), (bias, std_bias) = fit
+        durations = select_rows(ctx.data["durations_to_test"], included)
+        results = select_rows(ctx.data["results"], included)
         pump_device = _get_pump_device(ctx)
         calibration_struct = save_results(
             name=ctx.data["calibration_name"],
@@ -568,7 +631,6 @@ class TestVolume(SessionStep):
                 logger.warning(
                     "Too much uncertainty in slope - you probably want to rerun this calibration..."
                 )
-        return CalibrationComplete()
 
 
 _PUMP_DURATION_STEPS: StepRegistry = {
@@ -585,6 +647,7 @@ _PUMP_DURATION_STEPS: StepRegistry = {
     TracerVolume.step_id: TracerVolume,
     TestRun.step_id: TestRun,
     TestVolume.step_id: TestVolume,
+    ReviewVolumes.step_id: ReviewVolumes,
 }
 
 

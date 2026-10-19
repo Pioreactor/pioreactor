@@ -4,6 +4,7 @@ from __future__ import annotations
 import uuid
 from math import log10
 from statistics import fmean
+from typing import Any
 from typing import cast
 
 from msgspec.json import decode as json_decode
@@ -15,7 +16,8 @@ from pioreactor.calibrations.protocols.od_fusion_standards import _measure_fusio
 from pioreactor.calibrations.protocols.od_fusion_standards import _od_fusion_stir_loading_images
 from pioreactor.calibrations.protocols.od_fusion_standards import _run_fusion_calibration_preflight
 from pioreactor.calibrations.registry import CalibrationProtocol
-from pioreactor.calibrations.session_flow import CalibrationComplete
+from pioreactor.calibrations.review import column
+from pioreactor.calibrations.review import ReviewDataStep
 from pioreactor.calibrations.session_flow import CalibrationStep
 from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import SessionContext
@@ -478,6 +480,40 @@ class RemoveStandard(SessionStep):
         if not isinstance(standards, list) or len(standards) != STANDARDS_REQUIRED:
             raise ValueError("Expected two standards to compute affine correction.")
 
+        return ReviewOffsetStandards()
+
+
+class ReviewOffsetStandards(ReviewDataStep):
+    body = (
+        "Check the standards before saving. Correct any OD value you typed in, then press " "Save estimator."
+    )
+    save_label = "Save estimator"
+    preview_label = None
+    allow_exclude = False
+    minimum_included_rows = STANDARDS_REQUIRED
+
+    def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        return [
+            column("standard", "Standard"),
+            column("standard_od", "OD", editable=True, minimum=1e-6),
+            column("estimated_od", "Estimated OD"),
+        ]
+
+    def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        return [
+            {
+                "standard": index,
+                "standard_od": standard["standard_od"],
+                "estimated_od": round(float(standard["estimated_od"]), 5),
+            }
+            for index, standard in enumerate(ctx.data["standards"], start=1)
+        ]
+
+    def apply_edits(self, ctx: SessionContext, index: int, row: dict[str, Any]) -> None:
+        ctx.data["standards"][index]["standard_od"] = row["standard_od"]
+
+    def save(self, ctx: SessionContext, included: list[int]) -> None:
+        standards = ctx.data["standards"]
         source_unit = str(ctx.data.get("source_unit", get_unit_name()))
         source_estimator_name = str(ctx.data["source_estimator_name"])
         estimator_name = str(ctx.data["estimator_name"])
@@ -530,7 +566,6 @@ class RemoveStandard(SessionStep):
                 "offset_logc": float(offset_logc),
             }
         )
-        return CalibrationComplete()
 
 
 _FUSION_OFFSET_STEPS: StepRegistry = {
@@ -544,6 +579,7 @@ _FUSION_OFFSET_STEPS: StepRegistry = {
     StandardOdInput.step_id: StandardOdInput,
     RecordObservation.step_id: RecordObservation,
     RemoveStandard.step_id: RemoveStandard,
+    ReviewOffsetStandards.step_id: ReviewOffsetStandards,
 }
 
 

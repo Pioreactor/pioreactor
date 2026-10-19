@@ -31,3 +31,18 @@ export async function advanceCalibrationSession(unit, sessionId, inputs, fallbac
   });
   return task.result;
 }
+
+export function isDataReviewStep(step) {
+  return Array.isArray(step?.fields) && step.fields.some((field) => field.field_type === "data_table");
+}
+
+// Inputs that accept a review step's data tables exactly as recorded.
+export function recordedDataInputs(step) {
+  const inputs = {};
+  (step?.fields || []).forEach((field) => {
+    if (field.field_type === "data_table") {
+      inputs[field.name] = field.default || [];
+    }
+  });
+  return inputs;
+}

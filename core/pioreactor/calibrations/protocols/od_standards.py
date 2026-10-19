@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 """
 import uuid
 from time import sleep
+from typing import Any
 from typing import cast
 from typing import ClassVar
 
@@ -20,7 +21,9 @@ from pioreactor import types as pt
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.registry import SessionCleanupExecutor
-from pioreactor.calibrations.session_flow import CalibrationComplete
+from pioreactor.calibrations.review import column
+from pioreactor.calibrations.review import ReviewDataStep
+from pioreactor.calibrations.review import select_rows
 from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
@@ -590,11 +593,63 @@ class MeasureBlank(SessionStep):
         ctx.data["od600_values"].append(od600_blank)
         for channel, voltage in voltages.items():
             ctx.data["voltages_by_channel"][channel].append(voltage)
+        return ReviewStandards()
 
+
+class ReviewStandards(ReviewDataStep):
+    def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        voltage_columns = [
+            column(f"voltage_{channel}", f"Voltage, {channel} ({angle}°)")
+            for channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0]))
+        ]
+        return [
+            column("standard", "Standard"),
+            column("od600", "OD600", editable=True, minimum=0),
+            *voltage_columns,
+        ]
+
+    def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        od600_values = ctx.data["od600_values"]
+        voltages_by_channel = ctx.data["voltages_by_channel"]
+        blank_index = len(od600_values) - 1
+        rows = []
+        for index, od600 in enumerate(od600_values):
+            row: dict[str, Any] = {
+                "standard": "Blank" if index == blank_index else str(index + 1),
+                "od600": od600,
+            }
+            for channel in _get_channel_angle_map(ctx):
+                row[f"voltage_{channel}"] = voltages_by_channel[channel][index]
+            rows.append(row)
+        return rows
+
+    def apply_edits(self, ctx: SessionContext, index: int, row: dict[str, Any]) -> None:
+        ctx.data["od600_values"][index] = row["od600"]
+
+    def chart(self, ctx: SessionContext, included: list[int]) -> dict[str, Any] | None:
+        channel_angle_map = _get_channel_angle_map(ctx)
+        od600_values = select_rows(ctx.data["od600_values"], included)
+        voltages_by_channel = {
+            channel: select_rows(ctx.data["voltages_by_channel"][channel], included)
+            for channel in channel_angle_map
+        }
+        chart = _build_standards_chart_metadata(od600_values, voltages_by_channel, channel_angle_map)
+        if chart is None:
+            return None
+        for series in cast(list[dict[str, Any]], chart["series"]):
+            try:
+                curve = _calculate_curve_data(od600_values, voltages_by_channel[series["id"]])
+            except ValueError:
+                continue
+            series["curve"] = to_builtins(curve)
+        chart["title"] = "Calibration curve"
+        return chart
+
+    def save(self, ctx: SessionContext, included: list[int]) -> None:
+        od600_values = select_rows(ctx.data["od600_values"], included)
         calibration_links: list[dict[str, str | None]] = []
-        for pd_channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0])):
-            voltages_list = ctx.data["voltages_by_channel"][pd_channel]
-            od600_values = ctx.data["od600_values"]
+        for pd_channel, angle in sorted(_get_channel_angle_map(ctx).items(), key=lambda item: int(item[0])):
+            voltages_list = select_rows(ctx.data["voltages_by_channel"][pd_channel], included)
             curve_data_ = _calculate_curve_data(od600_values, voltages_list)
             cal = to_struct(
                 curve_data_,
@@ -609,7 +664,6 @@ class MeasureBlank(SessionStep):
             calibration_links.append(ctx.store_calibration(cal, device))
 
         ctx.complete({"calibrations": calibration_links})
-        return CalibrationComplete()
 
 
 _OD_STANDARDS_STEPS: StepRegistry = {
@@ -623,6 +677,7 @@ _OD_STANDARDS_STEPS: StepRegistry = {
     AnotherStandard.step_id: AnotherStandard,
     PlaceBlank.step_id: PlaceBlank,
     MeasureBlank.step_id: MeasureBlank,
+    ReviewStandards.step_id: ReviewStandards,
 }
 
 

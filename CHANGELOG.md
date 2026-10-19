@@ -15,6 +15,7 @@
 #### Enhancements
 
  - Performance improvements
+ - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
 
 #### Bug fixes
 

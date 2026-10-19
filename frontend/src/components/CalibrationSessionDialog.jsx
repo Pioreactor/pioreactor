@@ -10,10 +10,11 @@ import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
 import CloseIcon from "@mui/icons-material/Close";
+import { stepHasInvalidDataTable } from "./CalibrationSessionDataTable";
 import CalibrationSessionFields from "./CalibrationSessionFields";
 import CalibrationSessionResultLinks from "./CalibrationSessionResultLinks";
 import CalibrationSessionStepContent from "./CalibrationSessionStepContent";
-import { advanceCalibrationSession } from "../utils/calibrationSessions";
+import { advanceCalibrationSession, isDataReviewStep } from "../utils/calibrationSessions";
 
 const sessionStartEndpoint = (unit) =>
   `/api/workers/${unit}/calibrations/sessions`;
@@ -27,6 +28,12 @@ function buildInitialValues(step) {
     return nextValues;
   }
   step.fields.forEach((field) => {
+    if (field.field_type === "data_table") {
+      nextValues[field.name] = Array.isArray(field.default)
+        ? field.default.map((row) => ({ ...row }))
+        : [];
+      return;
+    }
     if (field.field_type === "float_list") {
       if (Array.isArray(field.default)) {
         nextValues[field.name] = field.default.join(", ");
@@ -60,6 +67,19 @@ function formatInputs(step, values) {
   const output = {};
   step.fields.forEach((field) => {
     const rawValue = values[field.name];
+    if (field.field_type === "data_table") {
+      const editableKeys = (field.columns || [])
+        .filter((column) => column.editable)
+        .map((column) => column.key);
+      output[field.name] = (Array.isArray(rawValue) ? rawValue : []).map((row) => {
+        const formatted = { ...row };
+        editableKeys.forEach((key) => {
+          formatted[key] = row[key] === "" ? "" : Number(row[key]);
+        });
+        return formatted;
+      });
+      return;
+    }
     if (field.field_type === "bool") {
       if (field.name === "confirmed") {
         output[field.name] = true;
@@ -136,6 +156,7 @@ export default function CalibrationSessionDialog({
   const loadingImages = Array.isArray(sessionStep?.metadata?.loading_images)
     ? sessionStep.metadata.loading_images
     : [];
+  const hasInvalidValues = stepHasInvalidDataTable(sessionStep, sessionValues);
   const primaryActionLabel =
     sessionResult ? "Done" : sessionStep?.metadata?.primary_action_label || "Continue";
 
@@ -477,7 +498,7 @@ export default function CalibrationSessionDialog({
             setSessionError("Image could not be loaded. Try again.");
           }}
         />
-        <Box sx={{ width: "75%", mt: 1 }}>
+        <Box sx={{ width: isDataReviewStep(sessionStep) ? "100%" : "75%", mt: 1 }}>
           <CalibrationSessionFields
             step={sessionStep}
             values={sessionValues}
@@ -497,8 +518,15 @@ export default function CalibrationSessionDialog({
               <Button
                 key={action.label}
                 variant="text"
-                onClick={() => advanceSession(action.inputs, action.updates_image === true)}
-                disabled={sessionLoading}
+                onClick={() =>
+                  advanceSession(
+                    action.include_values
+                      ? { ...formatInputs(sessionStep, sessionValues), ...action.inputs }
+                      : action.inputs,
+                    action.updates_image === true
+                  )
+                }
+                disabled={sessionLoading || (action.include_values && hasInvalidValues)}
               >
                 {action.label}
               </Button>
@@ -516,7 +544,7 @@ export default function CalibrationSessionDialog({
         <Button
           variant="contained"
           onClick={sessionResult ? () => abortSession(false) : advanceSession}
-          disabled={!sessionStep || sessionLoading}
+          disabled={!sessionStep || sessionLoading || (!sessionResult && hasInvalidValues)}
         >
           {primaryActionLabel}
         </Button>
