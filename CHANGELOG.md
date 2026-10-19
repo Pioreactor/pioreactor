@@ -12,6 +12,11 @@
 
    The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
 
+#### Enhancements
+
+ - Jobs started with `pio run` reach their `init` state about 50 ms sooner on a Raspberry Pi 4: Python's garbage collector is paused while `pio` starts up.
+ - A job's `ready` state, and other MQTT messages sent right after another one, now reach the broker about 40 ms sooner. MQTT connections now send small messages immediately instead of waiting for the broker to acknowledge the previous one.
+
 #### Bug fixes
 
  - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.
