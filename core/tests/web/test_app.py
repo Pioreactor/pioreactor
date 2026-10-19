@@ -2127,10 +2127,7 @@ def test_export_datasets_rejects_wrong_field_types(client: FlaskClient) -> None:
         "error": "Invalid request body.",
         "status": 400,
         "cause": "Expected `array`, got `str` - at `$.datasets`",
-        "remediation": (
-            "Send a JSON object with the required fields: datasets, experiment, "
-            "partition_by_unit, partition_by_experiment."
-        ),
+        "remediation": "Send a JSON object with the required fields: datasets, experiment, partition_by_unit.",
     }
 
 
@@ -2966,7 +2963,6 @@ def test_export_datasets_returns_async_task_response(
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> DummyTask:
         captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
@@ -2974,7 +2970,6 @@ def test_export_datasets_returns_async_task_response(
         captured["start_time"] = start_time
         captured["end_time"] = end_time
         captured["partition_by_unit"] = partition_by_unit
-        captured["partition_by_experiment"] = partition_by_experiment
         return DummyTask()
 
     monkeypatch.setenv("RUN_PIOREACTOR", tmp_path.as_posix())
@@ -3010,7 +3005,6 @@ def test_export_datasets_returns_async_task_response(
     assert captured["start_time"] == "2025-11-02T06:30:00.000Z"
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
-    assert captured["partition_by_experiment"] is False
 
 
 def test_export_datasets_rejects_timezone_naive_bounds(client: FlaskClient) -> None:
@@ -3062,7 +3056,6 @@ def test_export_datasets_to_usb_returns_async_task_response(
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> DummyTask:
         captured["experiment"] = experiment
         captured["dataset_names"] = dataset_names
@@ -3070,7 +3063,6 @@ def test_export_datasets_to_usb_returns_async_task_response(
         captured["start_time"] = start_time
         captured["end_time"] = end_time
         captured["partition_by_unit"] = partition_by_unit
-        captured["partition_by_experiment"] = partition_by_experiment
         return DummyTask()
 
     monkeypatch.setattr(
@@ -3103,7 +3095,6 @@ def test_export_datasets_to_usb_returns_async_task_response(
     assert captured["start_time"] == "2026-01-01T00:00:00.000Z"
     assert captured["end_time"] is None
     assert captured["partition_by_unit"] is True
-    assert captured["partition_by_experiment"] is False
 
 
 def test_install_plugin_from_leader_usb_targets_selected_unit(

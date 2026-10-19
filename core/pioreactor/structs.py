@@ -696,7 +696,8 @@ class ExportDatasetsRequest(Struct, forbid_unknown_fields=True):
     datasets: list[str]
     experiment: str
     partition_by_unit: bool
-    partition_by_experiment: bool
+    # Ignored. Exports cover one experiment, so files are always named by it. Accepted so older UIs keep working.
+    partition_by_experiment: bool = True
     start_time: t.Annotated[datetime, Meta(tz=True)] | None = None
     end_time: t.Annotated[datetime, Meta(tz=True)] | None = None
 

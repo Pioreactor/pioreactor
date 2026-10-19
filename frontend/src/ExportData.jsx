@@ -461,7 +461,6 @@ function ExportDataContainer() {
           body: JSON.stringify({
             experiment: experimentForExport,
             partition_by_unit: state.partitionByUnitSelection,
-            partition_by_experiment: true,
             datasets: state.selectedDatasets,
             start_time: state.useTimeFilter && state.startTime
               ? new Date(state.startTime).toISOString()

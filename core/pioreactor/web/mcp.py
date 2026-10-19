@@ -356,7 +356,6 @@ def export_experiment_data(
     experiment: str,
     dataset_names: list[str],
     partition_by_unit: bool = False,
-    partition_by_experiment: bool = True,
     start_time: str | None = None,
     end_time: str | None = None,
 ) -> dict[str, Any]:
@@ -375,7 +374,6 @@ def export_experiment_data(
             "datasets": dataset_names,
             "experiment": experiment,
             "partition_by_unit": partition_by_unit,
-            "partition_by_experiment": partition_by_experiment,
             "start_time": start_time,
             "end_time": end_time,
         },

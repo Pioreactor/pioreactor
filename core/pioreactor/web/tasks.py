@@ -1163,7 +1163,6 @@ def export_experiment_data_task(
     start_time: str | None = None,
     end_time: str | None = None,
     partition_by_unit: bool = False,
-    partition_by_experiment: bool = True,
 ) -> dict[str, bool | str]:
     from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
@@ -1178,7 +1177,6 @@ def export_experiment_data_task(
                 "start_time": start_time,
                 "end_time": end_time,
                 "partition_by_unit": partition_by_unit,
-                "partition_by_experiment": partition_by_experiment,
             },
             separators=(",", ":"),
         ),
@@ -1201,7 +1199,6 @@ def export_experiment_data_task(
             start_time=start_time,
             end_time=end_time,
             partition_by_unit=partition_by_unit,
-            partition_by_experiment=partition_by_experiment,
         )
     except Exception as exc:
         error = str(exc) or exc.__class__.__name__
@@ -1253,7 +1250,6 @@ def export_experiment_data_to_usb_task(
     start_time: str | None = None,
     end_time: str | None = None,
     partition_by_unit: bool = False,
-    partition_by_experiment: bool = True,
 ) -> dict[str, bool | str]:
     from pioreactor.actions.leader.export_experiment_data import cleanup_stale_export_artifacts
     from pioreactor.actions.leader.export_experiment_data import export_experiment_data
@@ -1281,7 +1277,6 @@ def export_experiment_data_to_usb_task(
             start_time=start_time,
             end_time=end_time,
             partition_by_unit=partition_by_unit,
-            partition_by_experiment=partition_by_experiment,
         )
     except Exception as exc:
         error = str(exc) or exc.__class__.__name__

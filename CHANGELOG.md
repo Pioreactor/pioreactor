@@ -11,6 +11,7 @@
    ```
 
    The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
+ - Removed the `partition_by_experiment` option from data exports: `pio run export_experiment_data --partition-by-experiment`, the MCP `export_experiment_data` tool, and the export API. An export always covers one experiment, so the option only changed file names. CSV files for datasets that have an experiment column are now always named with the experiment, for example `od_readings-exp1-all_units-<timestamp>.csv` instead of `od_readings-all_experiments-all_units-<timestamp>.csv`, which is what the UI already produced. The export API still accepts the field and ignores it, and `manifest.json` no longer lists it under `filters`.
 
 #### Enhancements
 

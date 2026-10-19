@@ -996,7 +996,6 @@ def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filena
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> None:
         assert experiment == "exp1"
         output_path.write_text("zip", encoding="utf-8")
@@ -1090,7 +1089,6 @@ def test_export_experiment_data_to_usb_task_writes_final_output_path(
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> None:
         assert experiment == "exp1"
         assert output == (export_dir / "export.zip").as_posix()

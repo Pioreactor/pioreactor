@@ -3323,7 +3323,6 @@ def export_exportable_datasets() -> ResponseReturnValue:
       "datasets": ["od_readings"],
       "experiment": "experiment-name",
       "partition_by_unit": false,
-      "partition_by_experiment": false,
       "start_time": "2025-01-31T00:00:00-05:00",
       "end_time": "2025-02-01T00:00:00-05:00"
     }
@@ -3348,7 +3347,6 @@ def export_exportable_datasets() -> ResponseReturnValue:
             to_iso_format(body.end_time.astimezone(timezone.utc)) if body.end_time is not None else None
         ),
         partition_by_unit=body.partition_by_unit,
-        partition_by_experiment=body.partition_by_experiment,
     )
     return create_task_response(task)
 
@@ -3363,7 +3361,6 @@ def export_exportable_datasets_to_usb() -> ResponseReturnValue:
       "datasets": ["od_readings"],
       "experiment": "experiment-name",
       "partition_by_unit": false,
-      "partition_by_experiment": false,
       "start_time": "2025-01-31T00:00:00-05:00",
       "end_time": "2025-02-01T00:00:00-05:00"
     }
@@ -3387,7 +3384,6 @@ def export_exportable_datasets_to_usb() -> ResponseReturnValue:
             to_iso_format(body.end_time.astimezone(timezone.utc)) if body.end_time is not None else None
         ),
         partition_by_unit=body.partition_by_unit,
-        partition_by_experiment=body.partition_by_experiment,
     )
     return create_task_response(task)
 
