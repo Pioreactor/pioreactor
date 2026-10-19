@@ -1,4 +1,5 @@
 import React from "react";
+import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import FormLabel from "@mui/material/FormLabel";
 import Table from "@mui/material/Table";
@@ -56,16 +57,12 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
   };
 
   return (
-    <>
+    <Box sx={{ width: "fit-content", minWidth: { sm: "60%" }, maxWidth: "100%", alignSelf: "center", mb: 2 }}>
       <FormLabel component="div" id={`${field.name}-label`} sx={{ mb: 0.5 }}>
         {field.label}
       </FormLabel>
-      <TableContainer sx={{ overflowX: "auto", maxWidth: "100%", width: "fit-content", mb: 2 }}>
-        <Table
-          size="small"
-          aria-labelledby={`${field.name}-label`}
-          sx={{ width: "auto", "& th, & td": { px: 1.5 } }}
-        >
+      <TableContainer sx={{ overflowX: "auto" }}>
+        <Table size="small" aria-labelledby={`${field.name}-label`} sx={{ "& th, & td": { px: 1.5 } }}>
           <TableHead>
             <TableRow>
               {showInclude && <TableCell sx={{ whiteSpace: "nowrap" }}>Use in fit</TableCell>}
@@ -133,6 +130,6 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
           </TableBody>
         </Table>
       </TableContainer>
-    </>
+    </Box>
   );
 }
