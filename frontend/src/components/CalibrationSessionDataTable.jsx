@@ -60,8 +60,12 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
       <FormLabel component="div" id={`${field.name}-label`} sx={{ mb: 0.5 }}>
         {field.label}
       </FormLabel>
-      <TableContainer sx={{ overflowX: "auto", mb: 2 }}>
-        <Table size="small" aria-labelledby={`${field.name}-label`}>
+      <TableContainer sx={{ overflowX: "auto", maxWidth: "100%", width: "fit-content", mb: 2 }}>
+        <Table
+          size="small"
+          aria-labelledby={`${field.name}-label`}
+          sx={{ width: "auto", "& th, & td": { px: 1.5 } }}
+        >
           <TableHead>
             <TableRow>
               {showInclude && <TableCell sx={{ whiteSpace: "nowrap" }}>Use in fit</TableCell>}
@@ -118,7 +122,7 @@ export default function CalibrationSessionDataTable({ field, rows, onChange }) {
                               style: { textAlign: "right" },
                             },
                           }}
-                          sx={{ maxWidth: 110 }}
+                          sx={{ width: 90 }}
                         />
                       </TableCell>
                     );
