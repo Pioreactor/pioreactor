@@ -1533,7 +1533,15 @@ def update_clock(new_time: str) -> bool:
     if whoami.is_testing_env():
         return True
     r = run(["sudo", "date", "-s", new_time])
-    return r.returncode == 0
+    if r.returncode != 0:
+        return False
+    # Persist the corrected time immediately instead of waiting for the periodic
+    # fake-hwclock save timer (up to ~15 min). Without an RTC, fake-hwclock is the
+    # only thing that carries the clock across a power cycle; if the unit reboots
+    # before the timer fires, the just-set time is lost and the clock reverts to a
+    # stale value. Non-fatal if the save unit is unavailable.
+    run(["sudo", "systemctl", "start", "fake-hwclock-save.service"])
+    return True
 
 
 @huey.task()

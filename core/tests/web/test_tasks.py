@@ -800,6 +800,56 @@ def test_repair_system_logs_failed_repair_command(monkeypatch: pytest.MonkeyPatc
     ]
 
 
+class _RC:
+    def __init__(self, returncode: int) -> None:
+        self.returncode = returncode
+
+
+def test_update_clock_sets_date_then_persists_fake_hwclock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On success, update_clock sets the date and immediately persists it."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        calls.append(command)
+        return _RC(0)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is True
+    assert calls == [
+        ["sudo", "date", "-s", "2025-01-31T12:34:56Z"],
+        ["sudo", "systemctl", "start", "fake-hwclock-save.service"],
+    ]
+
+
+def test_update_clock_does_not_persist_when_date_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If `date -s` fails, return False and do not persist a bad clock."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        calls.append(command)
+        return _RC(1)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is False
+    assert calls == [["sudo", "date", "-s", "2025-01-31T12:34:56Z"]]
+
+
+def test_update_clock_persist_failure_is_non_fatal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failing fake-hwclock save (e.g. unit absent) must not fail the clock update."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        return _RC(0 if command[:2] == ["sudo", "date"] else 1)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is True
+
+
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

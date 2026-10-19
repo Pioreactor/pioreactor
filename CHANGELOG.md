@@ -27,6 +27,7 @@
  - OD reading now refuses to start when an active OD calibration was made at a different IR LED intensity, with an error naming the calibration and both intensities. Previously it started anyway and logged an error on every reading. If the active fusion estimator's IR LED intensity doesn't match, OD reading starts without `od_fused` and logs an error.
  - Fixed growth rate calculation repeatedly logging "Failed to decode message: Input data was truncated" while OD readings were failing.
  - The turbidostat no longer warns about multiple OD signal channels when its biomass signal is `od_fused` or `normalized_od`.
+ - Fixed a clock time set from the UI being lost if the Pioreactor restarted within about 15 minutes. The corrected time is now saved immediately, so it survives a power cycle on Pioreactors without a real-time clock.
 
 ### 26.11.0
 
