@@ -11,18 +11,14 @@
    ```
 
    The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
- - Removed the `partition_by_experiment` option from data exports: `pio run export_experiment_data --partition-by-experiment`, the MCP `export_experiment_data` tool, and the export API. An export always covers one experiment, so the option only changed file names. CSV files for datasets that have an experiment column are now always named with the experiment, for example `od_readings-exp1-all_units-<timestamp>.csv` instead of `od_readings-all_experiments-all_units-<timestamp>.csv`, which is what the UI already produced. The export API still accepts the field and ignores it, and `manifest.json` no longer lists it under `filters`.
- - **Developers:** the leader's fan-out helpers in `pioreactor.web` now take the HTTP method as their first argument. `tasks.multicast_get/post/patch/delete(endpoint, units, ...)` became `tasks.multicast("GET", endpoint, units, ...)`, and `fanout.broadcast_<method>_across_<group>(endpoint, ...)` became `fanout.broadcast_across_<group>("GET", endpoint, ...)`. Plugins that register web routes and call these need the new names.
 
 #### Enhancements
 
- - Jobs started with `pio run` reach their `init` state about 50 ms sooner on a Raspberry Pi 4: Python's garbage collector is paused while `pio` starts up.
- - A job's `ready` state, and other MQTT messages sent right after another one, now reach the broker about 40 ms sooner. MQTT connections now send small messages immediately instead of waiting for the broker to acknowledge the previous one.
+ - Performance improvements
 
 #### Bug fixes
 
  - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.
-
  - Fixed OD calibrations and fusion estimators possibly being recorded at the wrong scale when `ref_normalization=unity`. Calibration sessions reused the IR reference value saved by an earlier session, which could make recorded voltages far too small and leave calibrated OD stuck at a constant value. Each calibration session now starts with a fresh IR reference. If calibrated OD stayed flat during an experiment and logged "Signal above suggested calibration range", redo that calibration.
  - OD reading now refuses to start when an active OD calibration was made at a different IR LED intensity, with an error naming the calibration and both intensities. Previously it started anyway and logged an error on every reading. If the active fusion estimator's IR LED intensity doesn't match, OD reading starts without `od_fused` and logs an error.
  - Fixed growth rate calculation repeatedly logging "Failed to decode message: Input data was truncated" while OD readings were failing.

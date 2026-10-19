@@ -9,6 +9,7 @@
 .pioreactor/
 .tickets/
 CLAUDE.md
+CLAUDE.local.md
 experiments/
 jupyter_notebooks/
 plugins_dev
