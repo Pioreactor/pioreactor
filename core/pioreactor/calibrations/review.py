@@ -83,9 +83,6 @@ class ReviewDataStep(SessionStep):
         body = self.body
         if self.preview_label:
             body = f"{body} Press {self.preview_label} to preview your changes."
-        summary = self.summary(ctx, included)
-        if summary:
-            body = f"{body}\n\n{summary}"
 
         step = steps.form(
             self.title,
@@ -96,6 +93,9 @@ class ReviewDataStep(SessionStep):
             "primary_action_label": self.save_label,
             "dialog": {"max_width": "md", "height": 760},
         }
+        summary = self.summary(ctx, included)
+        if summary:
+            step.metadata["summary"] = summary
         if self.preview_label:
             step.metadata["actions"] = [
                 {"label": self.preview_label, "inputs": {"action": PREVIEW_ACTION}, "include_values": True}
