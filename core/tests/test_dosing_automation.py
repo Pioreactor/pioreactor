@@ -125,10 +125,6 @@ def fast_dosing_timers(monkeypatch):
         return _pause
 
     monkeypatch.setattr(
-        "pioreactor.background_jobs.dosing_automation.brief_pause",
-        make_short_pause(0.01),
-    )
-    monkeypatch.setattr(
         "pioreactor.background_jobs.dosing_automation.briefer_pause",
         make_short_pause(0.01),
     )
@@ -1471,7 +1467,8 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check() -> None:
 
         assert job.state == job.SLEEPING
 
-    assert calls == [("media", 0.4)]
+    # the media already added this round is still balanced by waste before pausing
+    assert calls == [("media", 0.4), ("waste", 0.8)]
     assert stop_messages[:3] == [
         (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
         (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
@@ -1479,7 +1476,7 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check() -> None:
     ]
     assert result["media_ml"] == pytest.approx(0.4)
     assert result["alt_media_ml"] == pytest.approx(0.0)
-    assert result["waste_ml"] == pytest.approx(0.0)
+    assert result["waste_ml"] == pytest.approx(0.8)
 
 
 @pytest.mark.usefixtures("fast_dosing_timers")
@@ -1641,13 +1638,13 @@ def test_disconnected_state_stops_active_pumps() -> None:
     object.__setattr__(job, "unit", unit)
     object.__setattr__(job, "experiment", experiment)
     object.__setattr__(job, "pub_client", FakeMQTTClient(on_publish=record_stop_message))
-    object.__setattr__(job, "_continue_pumping_event", Event())
+    object.__setattr__(job, "_stop_pumping_event", Event())
     object.__setattr__(job, "run_thread", FakeRunThread())
     object.__setattr__(job, "_automation_timer", FakeAutomationTimer())
 
     job.on_disconnected()
 
-    assert job._continue_pumping_event.is_set()
+    assert job._stop_pumping_event.is_set()
     assert disconnect_order[:4] == ["stop_pumps", "stop_pumps", "stop_pumps", "cancel_timer"]
     assert stop_messages[:3] == [
         (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
@@ -2616,8 +2613,8 @@ def test_under_removed_waste_pauses_and_aborts_remaining_subdoses(
             with pytest.raises(RuntimeError, match="Waste was under-removed"):
                 job.execute_io_action(media_ml=3.0, waste_ml=3.0)
         assert job.state == job.SLEEPING
-        assert additions == [0.75]
-        assert removals == [0.75]
+        assert additions == [1.0]
+        assert removals == [1.0]
 
 
 def test_failed_automation_start_clears_retained_duration_setting_from_mqtt() -> None:
@@ -2711,3 +2708,124 @@ def test_dosing_automation_uses_stored_values_when_none_provided() -> None:
         assert ca.current_volume_ml == 11.0
         assert ca.efflux_tube_volume_ml == 16.0
         assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6
+
+
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_execute_io_action_splits_into_equal_rounds() -> None:
+    experiment = "test_execute_io_action_splits_into_equal_rounds"
+    calls: list[tuple[str, float]] = []
+
+    class StubAutomation(DosingAutomationJob):
+        automation_name = "_test_splits_into_equal_rounds"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("media", ml))
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("waste", ml))
+            return ml
+
+        def execute(self):
+            return None
+
+    with temporary_config_change(config, "dosing_automation.config", "max_subdose", "1.0"):
+        with temporary_config_change(config, "dosing_automation.config", "waste_removal_multiplier", "2.0"):
+            with StubAutomation(
+                unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0
+            ) as job:
+                result = job.execute_io_action(media_ml=2.1, waste_ml=2.1)
+
+    # 3 rounds of 0.7 mL, not 4 rounds of 0.525 mL
+    assert [ml for name, ml in calls if name == "media"] == pytest.approx([0.7, 0.7, 0.7])
+    assert [ml for name, ml in calls if name == "waste"] == pytest.approx([0.7, 1.4] * 3)
+    assert result["media_ml"] == pytest.approx(2.1)
+    assert result["waste_ml"] == pytest.approx(2.1)
+
+
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_pausing_mid_exchange_cancels_the_rest_without_blocking() -> None:
+    experiment = "test_pausing_mid_exchange_cancels_the_rest_without_blocking"
+    calls: list[tuple[str, float]] = []
+
+    class StubAutomation(DosingAutomationJob):
+        automation_name = "_test_pausing_mid_exchange_cancels"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("media", ml))
+            # the user pauses the automation while media is being added
+            self.set_state(self.SLEEPING)
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("waste", ml))
+            return ml
+
+        def execute(self):
+            return None
+
+    with temporary_config_change(config, "dosing_automation.config", "max_subdose", "1.0"):
+        with StubAutomation(unit=unit, experiment=experiment, duration=None, current_volume_ml=10.0) as job:
+            started_at = time.monotonic()
+            result = job.execute_io_action(media_ml=2.0, waste_ml=2.0)
+            elapsed = time.monotonic() - started_at
+
+            assert job.state == job.SLEEPING
+            # resuming does not finish the old exchange
+            job.set_state(job.READY)
+            pause()
+
+    assert elapsed < 2.0
+    assert calls == [("media", 1.0)]
+    assert result["media_ml"] == pytest.approx(1.0)
+    assert result["waste_ml"] == pytest.approx(0.0)
+
+
+@pytest.mark.usefixtures("fast_dosing_timers")
+def test_overflow_check_uses_volume_tracked_during_the_exchange() -> None:
+    experiment = "test_overflow_check_uses_volume_tracked_during_the_exchange"
+    calls: list[tuple[str, float]] = []
+
+    class StubAutomation(DosingAutomationJob):
+        automation_name = "_test_overflow_check_tracked_volume"
+
+        def add_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("media", ml))
+            return ml
+
+        def remove_waste_from_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            calls.append(("waste", ml))
+            return ml
+
+        def execute(self):
+            return None
+
+    start_ml = StubAutomation.MAX_VIAL_VOLUME_TO_STOP - 1.5
+    with temporary_config_change(config, "dosing_automation.config", "max_subdose", "1.0"):
+        with temporary_config_change(config, "dosing_automation.config", "waste_removal_multiplier", "0.0"):
+            with StubAutomation(
+                unit=unit,
+                experiment=experiment,
+                duration=None,
+                current_volume_ml=start_ml,
+                efflux_tube_volume_ml=StubAutomation.MAX_VIAL_VOLUME_TO_STOP - 0.6,
+            ) as job:
+                job.execute_io_action(media_ml=3.0, waste_ml=3.0)
+                assert job.state == job.SLEEPING
+
+    # waste only drains to the high efflux level, so the second round's media would overflow.
+    # Nothing publishes volume updates here, so this needs the volume tracked during the exchange.
+    # That round's waste is still removed before pausing.
+    assert calls == [("media", 1.0), ("waste", 1.0), ("waste", 1.0)]

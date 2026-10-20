@@ -13,6 +13,7 @@
    The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
  - Removed `target_rpm_outside_od_reading` from `[stirring.config]` and the `--target-rpm-outside-od-reading` option of `pio run stirring`. Between OD readings, stirring now always uses its target RPM, set by `initial_target_rpm` or `--target-rpm`, or changed live in the UI. The update moves an existing `target_rpm_outside_od_reading` value to `initial_target_rpm` where OD dodging is enabled, then removes the old setting.
  - The maximum stirring target RPM is now 2000, the fastest the RPM sensor can reliably measure. Higher targets are reduced to 2000.
+ - **Developers:** removed `DosingAutomationJob.block_until_not_sleeping()`. Dosing automations no longer wait inside a dose while paused.
 
 #### Enhancements
 
@@ -20,6 +21,7 @@
  - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
  - Changing the stirring target RPM while dodging OD readings now takes effect right away. It's only delayed when the change arrives during an OD reading, and then applies as soon as the reading ends.
  - A non-zero `target_rpm_during_od_reading` no longer disturbs the duty cycle stirring has learned for its target RPM.
+ - Large doses are now split into the fewest equal sub-doses of at most `max_subdose` mL, for example 2.1 mL becomes 3 × 0.7 mL instead of 4 × 0.525 mL. This means fewer pump cycles and more accurate sub-doses.
 
 #### Bug fixes
 
@@ -34,6 +36,10 @@
  - Fixed OD dodging without RPM feedback (`use_rpm=0`) leaving the stirring fan off. It now stops for each OD reading and resumes afterwards.
  - Fixed stirring possibly spinning up during an OD reading when it was resumed from paused while dodging.
  - `pio run stirring --target-rpm 0` now targets 0 RPM, instead of using `initial_target_rpm`.
+ - Pausing a dosing automation in the middle of a dose now cancels the rest of that dose. Previously the automation waited, and resuming it, even hours later, finished the old dose, which was based on outdated OD and volume readings.
+ - Fixed a dosing automation possibly pumping right after being resumed using a vial-volume check made before it was paused. The volume is now checked immediately before every pump.
+ - When a dose would overflow the vial, the waste for media already added is now removed before the dosing automation pauses. Previously, the vial was left fuller than before the dose.
+ - Fixed the "Waste was under-removed" warning being logged several times for a single dose.
 
 ### 26.11.1
 

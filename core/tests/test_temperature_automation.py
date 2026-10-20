@@ -119,7 +119,7 @@ def test_update_heater_ignores_pwm_cleanup_race() -> None:
     object.__setattr__(temperature_job, "heater_duty_cycle", 0.0)
     object.__setattr__(temperature_job, "published_settings", {})
 
-    assert TemperatureAutomationJob._update_heater(temperature_job, 30.0) is False
+    assert TemperatureAutomationJob._set_heater_pwm(temperature_job, 30.0) is False
     assert temperature_job.heater_duty_cycle == 30.0
 
 
@@ -244,6 +244,86 @@ def test_inference_restores_heater_while_temperature_automation_is_ready(monkeyp
 
         assert t.state == t.READY
         assert t.heater_duty_cycle == 30
+
+
+def test_heating_disabled_during_inference_stays_off_after_inference(monkeypatch) -> None:
+    experiment = "test_heating_disabled_during_inference_stays_off_after_inference"
+    monkeypatch.setattr("pioreactor.background_jobs.temperature_automation.sleep", lambda _: None)
+
+    with TemperatureAutomationJob(unit=unit, experiment=experiment) as t:
+        t._update_heater(30)
+        setattr(
+            t.heating_pcb_tmp_driver,
+            "get_temperature",
+            lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1,
+        )
+
+        t.infer_temperature()
+
+        assert t.state == t.READY
+        assert t.heater_duty_cycle == 0
+
+
+def test_heating_reduced_during_inference_stays_reduced_after_inference(monkeypatch) -> None:
+    experiment = "test_heating_reduced_during_inference_stays_reduced_after_inference"
+    monkeypatch.setattr("pioreactor.background_jobs.temperature_automation.sleep", lambda _: None)
+
+    with TemperatureAutomationJob(unit=unit, experiment=experiment) as t:
+        t._update_heater(30)
+        setattr(
+            t.heating_pcb_tmp_driver,
+            "get_temperature",
+            lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1,
+        )
+
+        t.infer_temperature()
+
+        assert t.state == t.READY
+        assert 0 < t.heater_duty_cycle < 30
+
+
+def test_heater_update_during_inference_is_applied_after_inference(monkeypatch) -> None:
+    experiment = "test_heater_update_during_inference_is_applied_after_inference"
+    monkeypatch.setattr("pioreactor.background_jobs.temperature_automation.sleep", lambda _: None)
+
+    with TemperatureAutomationJob(unit=unit, experiment=experiment) as t:
+        t._update_heater(30)
+        heater_during_inference = []
+
+        def update_heater_during_temperature_reading() -> float:
+            assert t.update_heater(40)
+            heater_during_inference.append(t.heater_duty_cycle)
+            return 25.0
+
+        monkeypatch.setattr(t, "read_external_temperature", update_heater_during_temperature_reading)
+
+        t.infer_temperature()
+
+        assert heater_during_inference and all(dc == 0 for dc in heater_during_inference)
+        assert t.heater_duty_cycle == 40
+
+
+def test_heater_resumes_requested_power_after_pause() -> None:
+    experiment = "test_heater_resumes_requested_power_after_pause"
+    with TemperatureAutomationJob(unit=unit, experiment=experiment) as t:
+        t._update_heater(30)
+
+        t.set_state(t.SLEEPING)
+        assert t.heater_duty_cycle == 0
+
+        t.set_state(t.READY)
+        assert t.heater_duty_cycle == 30
+
+
+def test_heater_update_while_paused_is_applied_on_resume() -> None:
+    experiment = "test_heater_update_while_paused_is_applied_on_resume"
+    with TemperatureAutomationJob(unit=unit, experiment=experiment) as t:
+        t.set_state(t.SLEEPING)
+        assert t.update_heater(20)
+        assert t.heater_duty_cycle == 0
+
+        t.set_state(t.READY)
+        assert t.heater_duty_cycle == 20
 
 
 def test_duty_cycle_is_published_and_not_settable() -> None:
