@@ -1,3 +1,9 @@
+### Upcoming
+
+#### Bug fixes
+
+ - Fixed cancelling or dismissing confirmation dialogs still stopping activities, rebooting or shutting down Pioreactors, removing or unassigning workers, or deleting profiles, calibrations, estimators and camera snapshots. These actions now require explicit confirmation. Cancelling the leader system archive import also leaves the file picker closed.
+
 ### 26.11.0
 
 #### Breaking changes

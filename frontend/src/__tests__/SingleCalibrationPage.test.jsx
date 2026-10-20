@@ -81,7 +81,7 @@ function renderSingleCalibrationPage() {
 
 describe("SingleCalibrationPage task-backed mutations", () => {
   beforeEach(() => {
-    mockConfirm.mockResolvedValue();
+    mockConfirm.mockResolvedValue({ confirmed: true, reason: "confirm" });
     fetchTaskResult.mockImplementation((endpoint) => {
       if (endpoint === "/api/workers/unit-1/calibrations/od/calibration-a") {
         return Promise.resolve(calibrationPayload(false));
@@ -156,6 +156,21 @@ describe("SingleCalibrationPage task-backed mutations", () => {
       ),
     );
     expect(await screen.findByRole("status")).toBeVisible();
+  });
+
+
+  test.each(["cancel", "natural", "unmount"])("does not delete on %s", async (reason) => {
+    const user = userEvent.setup();
+    mockConfirm.mockResolvedValue({ confirmed: false, reason });
+    fetchTaskResult.mockResolvedValueOnce(calibrationPayload(false));
+    renderSingleCalibrationPage();
+    await screen.findByText("Calibration: calibration-a");
+    fetchTaskResult.mockClear();
+
+    await user.click(screen.getByRole("button", { name: /delete/i }));
+
+    expect(fetchTaskResult).not.toHaveBeenCalled();
+    expect(screen.getByText("Calibration: calibration-a")).toBeInTheDocument();
   });
 
   test("waits for the delete task before navigating away", async () => {

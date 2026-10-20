@@ -1,0 +1,1 @@
+import{j as a,C as i,L as l,aV as r}from"./main-ha1Yqf5o.js";import{u}from"./useLeaderHostname-Dd9UF6tS.js";function c({name:s,unit:t,sx:e}){const o=u(),n=t||o;return a.jsx(i,{size:"small",icon:a.jsx(r,{}),label:s,clickable:!0,component:l,to:n?`/plugins/${n}`:"/plugins",sx:e,"data-plugin-name":s})}export{c as P};

@@ -108,13 +108,14 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
   const deleteEstimator = async () => {
     let confirmed = false;
     try {
-      await confirm({
+      const result = await confirm({
         description: 'Deleting this estimator will remove it from disk. This is irreversible.',
         title: `Delete estimator ${estimatorName}?`,
         confirmationText: "Confirm",
         confirmationButtonProps: { color: "primary", variant: "contained" },
         cancellationButtonProps: { color: "secondary" },
       });
+      if (!result.confirmed) return;
       confirmed = true;
 
       const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`, {

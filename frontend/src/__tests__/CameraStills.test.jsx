@@ -60,7 +60,7 @@ function renderCameraStills() {
 
 describe("CameraStills", () => {
   beforeEach(() => {
-    mockConfirm.mockResolvedValue();
+    mockConfirm.mockResolvedValue({ confirmed: true, reason: "confirm" });
     mockFetchTaskResult.mockResolvedValue({
       result: {
         "unit-1": { ok: true, value: { image_id: "image-2" } },
@@ -159,6 +159,20 @@ describe("CameraStills", () => {
       "unit-1_experiment a_camera_snapshots.zip",
     );
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:camera-snapshots");
+  });
+
+
+  test.each(["cancel", "natural", "unmount"])("does not delete a snapshot on %s", async (reason) => {
+    const user = userEvent.setup();
+    mockConfirm.mockResolvedValue({ confirmed: false, reason });
+    renderCameraStills();
+    const button = await screen.findByRole("button", { name: /Delete camera snapshot captured at/ });
+    global.fetch.mockClear();
+
+    await user.click(button);
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(button).toBeInTheDocument();
   });
 
   test("confirms and removes a deleted snapshot from the timeline", async () => {

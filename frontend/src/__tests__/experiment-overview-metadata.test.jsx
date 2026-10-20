@@ -10,7 +10,7 @@ jest.mock("../providers/ExperimentContext", () => ({
 }));
 
 jest.mock("material-ui-confirm", () => ({
-  useConfirm: () => jest.fn(() => Promise.resolve()),
+  useConfirm: () => jest.fn(() => Promise.resolve({ confirmed: true, reason: "confirm" })),
 }));
 
 const { MemoryRouter } = require("react-router");

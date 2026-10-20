@@ -36,7 +36,7 @@ jest.mock("notistack", () => ({
 }));
 
 jest.mock("material-ui-confirm", () => ({
-  useConfirm: () => jest.fn(() => Promise.resolve()),
+  useConfirm: () => jest.fn(() => Promise.resolve({ confirmed: true, reason: "confirm" })),
 }));
 
 jest.mock("../providers/MQTTContext", () => ({
