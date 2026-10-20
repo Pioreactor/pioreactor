@@ -108,7 +108,8 @@ function RunExperimentProfilesContent({
       confirmationButtonProps: { color: "primary", variant: "contained" },
       cancellationButtonProps: { color: "secondary" },
     })
-      .then(() => {
+      .then(({ confirmed }) => {
+        if (!confirmed) return;
         fetch(`/api/experiment_profiles/${encodeURIComponent(selectedExperimentProfile)}`, {
           method: "DELETE",
         }).then(res => {
@@ -299,7 +300,10 @@ function RunningProfilesContainer() {
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
     })
-      .then(() => stopProfile(job_id))
+      .then(({ confirmed }) => {
+        if (!confirmed) return;
+        return stopProfile(job_id);
+      })
       .catch(() => {});
   };
 

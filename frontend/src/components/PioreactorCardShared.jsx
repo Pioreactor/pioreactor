@@ -100,9 +100,10 @@ export function ButtonStopProcess({ experiment, unit = "$broadcast", disabled = 
       confirmationText: "Confirm",
       confirmationButtonProps: { autoFocus: true, variant: "contained", color: "primary" },
       cancellationButtonProps: { color: "secondary" },
-    }).then(() =>
-      fetch(`/api/workers/${unit}/jobs/stop/experiments/${experimentPathSegment(experiment)}`, { method: "POST" })
-    ).catch(() => {});
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
+      return fetch(`/api/workers/${unit}/jobs/stop/experiments/${experimentPathSegment(experiment)}`, { method: "POST" });
+    }).catch(() => {});
   };
 
   return (

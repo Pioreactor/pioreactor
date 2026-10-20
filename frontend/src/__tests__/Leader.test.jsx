@@ -15,7 +15,7 @@ jest.mock("../providers/MQTTContext", () => ({
 }));
 
 jest.mock("material-ui-confirm", () => ({
-  useConfirm: () => jest.fn(() => Promise.resolve()),
+  useConfirm: () => jest.fn(() => Promise.resolve({ confirmed: true, reason: "confirm" })),
 }));
 
 const { LeaderCard } = require("../Leader");

@@ -35,6 +35,12 @@
  - Fixed stirring possibly spinning up during an OD reading when it was resumed from paused while dodging.
  - `pio run stirring --target-rpm 0` now targets 0 RPM, instead of using `initial_target_rpm`.
 
+### 26.11.1
+
+#### Bug fixes
+
+ - Fixed cancelling or dismissing confirmation dialogs still stopping activities, rebooting or shutting down Pioreactors, removing or unassigning workers, or deleting profiles, calibrations, estimators and camera snapshots. These actions now require explicit confirmation. Cancelling the leader system archive import also leaves the file picker closed.
+
 ### 26.11.0
 
 #### Breaking changes

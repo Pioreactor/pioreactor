@@ -144,7 +144,8 @@ function ManageLeaderMenu({unit}) {
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       handleClose();
       fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
     }).catch(() => {});
@@ -157,7 +158,8 @@ function ManageLeaderMenu({unit}) {
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       handleClose();
       fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
     }).catch(() => {});
@@ -177,7 +179,7 @@ function ManageLeaderMenu({unit}) {
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 
@@ -376,13 +378,14 @@ function DirectoryNavigatorCard({leaderHostname}) {
 
   const handleImportClick = async () => {
     try {
-      await confirm({
+      const { confirmed } = await confirm({
         description: <><p>Import a previously exported system archive and overwrite this Pioreactor's DOT_PIOREACTOR data (including configuration, calibration, estimator, plugin, and other unit data). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing DOT_PIOREACTOR data on {leaderHostname}.</Alert></>,
         title: `Import a system archive into ${leaderHostname}?`,
         confirmationText: "Select system archive file",
         confirmationButtonProps: {color: "primary", variant: "contained"},
         cancellationButtonProps: {color: "secondary"},
       });
+      if (!confirmed) return;
     } catch (_) {
       return;
     }
