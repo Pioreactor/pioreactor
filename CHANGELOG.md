@@ -1,4 +1,4 @@
-### Upcoming
+### 26.11.0
 
 #### Bug fixes
 
