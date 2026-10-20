@@ -11,11 +11,15 @@
    ```
 
    The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
+ - Removed `target_rpm_outside_od_reading` from `[stirring.config]` and the `--target-rpm-outside-od-reading` option of `pio run stirring`. Between OD readings, stirring now always uses its target RPM, set by `initial_target_rpm` or `--target-rpm`, or changed live in the UI. The update moves an existing `target_rpm_outside_od_reading` value to `initial_target_rpm` where OD dodging is enabled, then removes the old setting.
+ - The maximum stirring target RPM is now 2000, the fastest the RPM sensor can reliably measure. Higher targets are reduced to 2000.
 
 #### Enhancements
 
  - Performance improvements
  - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
+ - Changing the stirring target RPM while dodging OD readings now takes effect right away. It's only delayed when the change arrives during an OD reading, and then applies as soon as the reading ends.
+ - A non-zero `target_rpm_during_od_reading` no longer disturbs the duty cycle stirring has learned for its target RPM.
 
 #### Bug fixes
 
@@ -25,6 +29,11 @@
  - Fixed growth rate calculation repeatedly logging "Failed to decode message: Input data was truncated" while OD readings were failing.
  - The turbidostat no longer warns about multiple OD signal channels when its biomass signal is `od_fused` or `normalized_od`.
  - Fixed a clock time set from the UI being lost if the Pioreactor restarted within about 15 minutes. The corrected time is now saved immediately, so it survives a power cycle on Pioreactors without a real-time clock.
+ - Fixed stirring failing to recover its speed after each OD reading when dodging with `target_rpm_during_od_reading=0`. The learned duty cycle was reset at every reading, which was worse without a stirring calibration.
+ - Fixed stirring staying stopped when OD reading or dodging was stopped in the middle of an OD reading.
+ - Fixed OD dodging without RPM feedback (`use_rpm=0`) leaving the stirring fan off. It now stops for each OD reading and resumes afterwards.
+ - Fixed stirring possibly spinning up during an OD reading when it was resumed from paused while dodging.
+ - `pio run stirring --target-rpm 0` now targets 0 RPM, instead of using `initial_target_rpm`.
 
 ### 26.11.0
 
