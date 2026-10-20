@@ -205,6 +205,9 @@ class Stirrer(BackgroundJobWithDodging):
     _measured_rpm: float | None = None
     target_rpm_during_od_reading: float | None = None
     target_rpm_outside_od_reading: float | None = None
+    # (target_rpm, duty_cycle) learned outside OD readings, restored after each OD reading.
+    _duty_cycle_outside_od_reading: tuple[float, float] | None = None
+    _in_od_reading_window: bool = False
 
     def __init__(
         self,
@@ -302,20 +305,45 @@ class Stirrer(BackgroundJobWithDodging):
         if self.rpm_calculator is None:
             return
         assert self.target_rpm_during_od_reading is not None
-        self.set_target_rpm(self.target_rpm_during_od_reading)
-        sleep(0.15)
-        self.poll_and_update_dc()
+
+        with self.duty_cycle_lock:
+            # dodging may have been turned off between the timer's check and now.
+            if not self.currently_dodging_od:
+                return
+
+            # set_target_rpm overwrites _estimate_duty_cycle, so keep what the PID learned outside OD readings.
+            if self.target_rpm is not None and self._estimate_duty_cycle > 0:
+                self._duty_cycle_outside_od_reading = (self.target_rpm, self._estimate_duty_cycle)
+            self._in_od_reading_window = True
+
+            self.set_target_rpm(self.target_rpm_during_od_reading)
+            if self.target_rpm_during_od_reading > 0:
+                sleep(0.15)
+                self.poll_and_update_dc()
 
     @override
     def action_to_do_after_od_reading(self) -> None:
         if self.rpm_calculator is None:
             return
 
+        with self.duty_cycle_lock:
+            self._restore_target_rpm_outside_od_reading()
+            sleep(0.15)
+            self.poll_and_update_dc()  # do it twice.
+            self.poll_and_update_dc()
+
+    def _restore_target_rpm_outside_od_reading(self) -> None:
         assert self.target_rpm_outside_od_reading is not None
-        self.set_target_rpm(self.target_rpm_outside_od_reading)
-        sleep(0.15)
-        self.poll_and_update_dc()  # do it twice.
-        self.poll_and_update_dc()
+        self._in_od_reading_window = False
+
+        # resume from the learned duty cycle, rather than re-deriving it from the zeroed estimate.
+        saved = self._duty_cycle_outside_od_reading
+        if saved is not None and saved[0] == self.target_rpm_outside_od_reading:
+            duty_cycle: float | None = saved[1]
+        else:
+            duty_cycle = None
+
+        self.set_target_rpm(self.target_rpm_outside_od_reading, duty_cycle=duty_cycle)
 
     @override
     def initialize_dodging_operation(self) -> None:
@@ -353,6 +381,11 @@ class Stirrer(BackgroundJobWithDodging):
     @override
     def initialize_continuous_operation(self) -> None:
         self.logger.debug("Starting initialize_continuous_operation")
+        with self.duty_cycle_lock:
+            if self.rpm_calculator is not None and self._in_od_reading_window:
+                # dodging stopped mid OD reading, so we are still at target_rpm_during_od_reading.
+                self._restore_target_rpm_outside_od_reading()
+
         if self.rpm_calculator is not None and self.target_rpm is None:
             repeated_action = self.poll
             repeated_action_args: tuple[object, ...] = (4.0,)
@@ -571,7 +604,7 @@ class Stirrer(BackgroundJobWithDodging):
                     return
                 raise
 
-    def set_target_rpm(self, value: float) -> None:
+    def set_target_rpm(self, value: float, duty_cycle: float | None = None) -> None:
         if self.rpm_calculator is None:
             # probably use_rpm=0 is in config.ini
             raise ValueError("Can't set target RPM when no RPM measurement is being made")
@@ -579,7 +612,9 @@ class Stirrer(BackgroundJobWithDodging):
         self.target_rpm = clamp(0.0, float(value), 5_000.0)
         self.pid.set_setpoint(self.target_rpm)
 
-        if self.target_rpm == 0:
+        if duty_cycle is not None:
+            self._estimate_duty_cycle = duty_cycle
+        elif self.target_rpm == 0:
             self._estimate_duty_cycle = 0
         else:
             self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)

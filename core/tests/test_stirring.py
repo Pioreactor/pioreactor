@@ -458,6 +458,81 @@ def test_target_rpm_during_od_reading_defaults_to_zero() -> None:
             assert st.target_rpm_outside_od_reading == 500
 
 
+def start_dodging_stirrer(
+    exp: str, calibration: bool | SimpleStirringCalibration, learned_duty_cycle: float
+) -> Stirrer:
+    # drive the dodging hooks directly, without an od_reading job or PID updates.
+    st = start_stirring(
+        1000,
+        unit,
+        exp,
+        use_rpm=True,
+        calibration=calibration,
+        enable_dodging_od=True,
+        target_rpm_during_od_reading=0,
+        target_rpm_outside_od_reading=1000,
+    )
+    st.rpm_check_repeated_timer.cancel()
+    st.poll_and_update_dc = lambda *args, **kwargs: None  # type: ignore
+    st.currently_dodging_od = True
+    st._estimate_duty_cycle = learned_duty_cycle
+    st.set_duty_cycle(learned_duty_cycle)
+    return st
+
+
+def test_dodging_restores_learned_duty_cycle_after_od_reading_without_calibration() -> None:
+    exp = "test_dodging_restores_learned_duty_cycle_after_od_reading_without_calibration"
+
+    with start_dodging_stirrer(exp, calibration=False, learned_duty_cycle=35.0) as st:
+        st.action_to_do_after_od_reading()
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == 0
+
+        st.action_to_do_after_od_reading()
+        assert st.target_rpm == 1000
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_dodging_restores_learned_duty_cycle_after_od_reading_with_calibration() -> None:
+    exp = "test_dodging_restores_learned_duty_cycle_after_od_reading_with_calibration"
+
+    from pioreactor.utils.splines import spline_fit
+
+    # calibration predicts 50% DC for 1000 RPM, but the PID has learned 35% is correct.
+    dcs = [0.0, 100.0]
+    rpms = [20.0 * dc for dc in dcs]
+    cal = SimpleStirringCalibration(
+        calibration_name=exp,
+        calibrated_on_pioreactor_unit=unit,
+        created_at=current_utc_datetime(),
+        curve_data_=spline_fit(dcs, rpms, knots=2),
+        pwm_hz=200,
+        voltage=5.0,
+        recorded_data={"x": dcs, "y": rpms},
+    )
+
+    with start_dodging_stirrer(exp, calibration=cal, learned_duty_cycle=35.0) as st:
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == 0
+
+        st.action_to_do_after_od_reading()
+        assert st.target_rpm == 1000
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_dodging_turned_off_during_od_reading_restores_outside_rpm() -> None:
+    exp = "test_dodging_turned_off_during_od_reading_restores_outside_rpm"
+
+    with start_dodging_stirrer(exp, calibration=False, learned_duty_cycle=35.0) as st:
+        st.action_to_do_before_od_reading()
+        assert st.target_rpm == 0
+
+        st.currently_dodging_od = False
+        st.initialize_continuous_operation()
+        assert st.target_rpm == 1000
+        assert st.duty_cycle > 0
+
+
 @pytest.mark.slow
 def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
     exp = "test_block_until_rpm_is_close_to_target_will_timeout"
