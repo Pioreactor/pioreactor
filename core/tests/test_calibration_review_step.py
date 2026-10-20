@@ -303,3 +303,14 @@ def test_cli_accepts_review_rows_as_recorded(monkeypatch: pytest.MonkeyPatch) ->
     (calibration,) = run_session_in_cli(registry, session)
 
     assert calibration.recorded_data == {"x": [20.0, 30.0, 40.0], "y": [200.0, 300.0, 400.0]}
+
+
+def test_pump_dispense_steps_show_run_progress() -> None:
+    session = _pump_session()
+    session.step_id = "test_run"
+    session.data["results"] = [0.5, 0.5]
+    session.data["test_index"] = 2
+
+    step = get_session_step(pump_duration_based._PUMP_DURATION_STEPS, session, FakeExecutor())
+
+    assert step.title == "Dispense (run 3 of 5)"

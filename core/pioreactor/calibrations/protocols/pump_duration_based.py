@@ -459,6 +459,10 @@ class TracerVolume(SessionStep):
         return TestRun()
 
 
+def _run_progress(ctx: SessionContext) -> str:
+    return f"run {int(ctx.data['test_index']) + 1} of {len(ctx.data['durations_to_test'])}"
+
+
 class TestRun(SessionStep):
     step_id = "test_run"
 
@@ -468,7 +472,7 @@ class TestRun(SessionStep):
         results = ctx.data["results"]
         duration = float(durations[test_index])
         step = steps.action(
-            "Dispense",
+            f"Dispense ({_run_progress(ctx)})",
             f"Next: running the pump for {duration:.2f} seconds. Please measure the volume expelled. \n\nReady?",
         )
         if results:
@@ -510,7 +514,7 @@ class TestVolume(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         step = steps.form(
-            "Record dispensed volume",
+            f"Record dispensed volume ({_run_progress(ctx)})",
             "Enter the amount of water expelled (mL or g).",
             [fields.float("volume_ml", label="Volume expelled", minimum=0.0001)],
         )
