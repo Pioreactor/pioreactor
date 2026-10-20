@@ -106,6 +106,9 @@ class ConfigParserMod(configparser.ConfigParser):
     ) -> Any:
         kwargs_for_super: dict[str, Any] = {"raw": raw, "vars": vars}
         fallback_provided = fallback is not _FALLBACK_SENTINEL
+        if isinstance(fallback, str) and fallback.lower() in self.BOOLEAN_STATES:
+            # configparser returns a fallback as-is, and a string like "false" is truthy.
+            fallback = self.BOOLEAN_STATES[fallback.lower()]
 
         try:
             if fallback_provided:

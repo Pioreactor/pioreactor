@@ -398,3 +398,21 @@ def test_light_stays_off_in_dark_period(light_dark_cycle) -> None:
 
     # Check that no change in LED status occurred
     assert event is None
+
+
+def test_light_dark_cycle_keeps_cycling_after_pause_and_resume() -> None:
+    experiment = "test_light_dark_cycle_keeps_cycling_after_pause_and_resume"
+    with LightDarkCycle(
+        light_intensity=50,
+        light_duration_minutes=0.01,
+        dark_duration_minutes=0.01,
+        unit=get_unit_name(),
+        experiment=experiment,
+    ) as lc:
+        assert wait_for(lambda: lc.light_active)
+
+        lc.set_state(lc.SLEEPING)
+        lc.set_state(lc.READY)
+
+        assert wait_for(lambda: not lc.light_active, timeout=3.0)
+        assert wait_for(lambda: lc.light_active, timeout=3.0)

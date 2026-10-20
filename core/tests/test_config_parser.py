@@ -48,3 +48,14 @@ def test_typed_getters_with_fallback_do_not_log_missing_values(getter_name: str)
         assert getattr(config, getter_name)("present", "missing", fallback=0) == 0
 
     create_logger.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("fallback", "expected"), [("false", False), ("0", False), ("True", True), ("1", True)]
+)
+def test_getboolean_parses_boolean_string_fallbacks(fallback: str, expected: bool) -> None:
+    config = ConfigParserMod()
+    config.read_string("[present]\nvalue=1\n")
+
+    assert config.getboolean("present", "missing", fallback=fallback) is expected
+    assert config.getboolean("missing", "value", fallback=fallback) is expected

@@ -291,18 +291,20 @@ def unassign_worker_from_experiment(worker: pt.Unit, experiment: pt.Experiment) 
 @click.command(name="update-active", short_help="change active of worker")
 @click.argument("hostname")
 @click.argument("active", type=click.IntRange(0, 1))
-def update_active(worker: pt.Unit, active: int) -> None:
+def update_active(hostname: pt.Unit, active: int) -> None:
     try:
         r = put_into_leader(
-            f"/api/workers/{worker}/is_active",
+            f"/api/workers/{hostname}/is_active",
             json={"is_active": active},
         )
         r.raise_for_status()
+    except HTTPErrorStatus:
+        raise click.ClickException(summarize_error_response(r))
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")
         raise click.Abort()
     else:
-        click.echo(f"Updated {worker}'s active to {bool(active)}")
+        click.echo(f"Updated {hostname}'s active to {bool(active)}")
 
 
 @click.group(name="model", short_help="get or set a worker's model")

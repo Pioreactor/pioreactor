@@ -166,6 +166,19 @@ def test_led_intensity_can_be_killed_by_pio_kill() -> None:
     assert result.output.strip() == "Killed 1 job."
 
 
+def test_turning_all_leds_off_from_the_cli_ends_the_led_intensity_job() -> None:
+    from pioreactor.actions.led_intensity import click_led_intensity
+
+    runner = CliRunner()
+    runner.invoke(click_led_intensity, ["--A", "10"])
+    with JobManager() as job_manager:
+        assert job_manager.is_job_running("led_intensity")
+
+    runner.invoke(click_led_intensity, ["--A", "0"])
+    with JobManager() as job_manager:
+        assert not job_manager.is_job_running("led_intensity")
+
+
 def test_internal_led_intensity_call_is_not_registered_as_a_running_job() -> None:
     assert led_intensity(
         {"A": 25.0},

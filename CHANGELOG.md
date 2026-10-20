@@ -13,7 +13,6 @@
    The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
  - Removed `target_rpm_outside_od_reading` from `[stirring.config]` and the `--target-rpm-outside-od-reading` option of `pio run stirring`. Between OD readings, stirring now always uses its target RPM, set by `initial_target_rpm` or `--target-rpm`, or changed live in the UI. The update moves an existing `target_rpm_outside_od_reading` value to `initial_target_rpm` where OD dodging is enabled, then removes the old setting.
  - The maximum stirring target RPM is now 2000, the fastest the RPM sensor can reliably measure. Higher targets are reduced to 2000.
- - **Developers:** removed `DosingAutomationJob.block_until_not_sleeping()`. Dosing automations no longer wait inside a dose while paused.
 
 #### Enhancements
 
@@ -40,6 +39,11 @@
  - Fixed a dosing automation possibly pumping right after being resumed using a vial-volume check made before it was paused. The volume is now checked immediately before every pump.
  - When a dose would overflow the vial, the waste for media already added is now removed before the dosing automation pauses. Previously, the vial was left fuller than before the dose.
  - Fixed the "Waste was under-removed" warning being logged several times for a single dose.
+ - Fixed the `light_dark_cycle` LED automation no longer switching between light and dark after it was paused and resumed.
+ - Fixed growth rate calculation crashing with a `KeyError` when its cached normalization statistics were for different photodiode channels, for example after switching between raw OD and fused OD. The statistics are now recomputed.
+ - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
+ - Fixed `led_intensity` staying listed as a running job after all LEDs were turned off, which blocked changing a Pioreactor's model or removing it from the cluster with "Stop activities…".
+ - Fixed `pio workers update-active <hostname> <0|1>` always failing with an error.
 
 ### 26.11.1
 

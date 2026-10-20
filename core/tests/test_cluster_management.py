@@ -241,3 +241,19 @@ def test_add_worker_failures_end_with_an_error_line(
 
     assert result.exit_code == 1
     assert result.output.strip().splitlines()[-1].startswith(expected_error)
+
+
+def test_update_active_sends_the_new_active_value_for_the_worker(monkeypatch) -> None:
+    calls: list[tuple[str, dict]] = []
+
+    def put(endpoint: str, json: dict) -> Response:
+        calls.append((endpoint, json))
+        return Response(f"http://leader{endpoint}", 200, {}, b"{}")
+
+    monkeypatch.setattr(cluster_management, "put_into_leader", put)
+
+    result = CliRunner().invoke(cluster_management.update_active, ["worker1", "0"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [("/api/workers/worker1/is_active", {"is_active": 0})]
+    assert result.output == "Updated worker1's active to False\n"

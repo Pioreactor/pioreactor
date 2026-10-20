@@ -358,6 +358,10 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization_factors = self._get_od_normalization_from_cache()
             if not od_normalization_factors:
                 raise KeyError("Empty cached normalization statistics.")
+            # ex: the cache was built from raw `ods`, and this run reads fused OD (or the PD channels changed).
+            warmup_channels = {channel for event in warmup_events for channel in event.ods}
+            if warmup_channels and set(od_normalization_factors) != warmup_channels:
+                raise KeyError("Cached normalization statistics are for different PD channels.")
             self.logger.debug("Loaded OD normalization factors from cache.")
         except KeyError:
             self.logger.info("OD normalization factors not found in cache. Computing them now.")

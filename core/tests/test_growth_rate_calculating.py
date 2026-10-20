@@ -688,3 +688,27 @@ import pioreactor.background_jobs.growth_rate_calculating
 
         assert list(scaled_live) == ["2", "1"]
         assert covariance[0, 0] < covariance[1, 1]
+
+    def test_cached_normalization_for_other_channels_is_recomputed(self) -> None:
+        # ex: the experiment's cache was built from raw `ods` on channel 2, and a later run reads fused OD on channel 1.
+        experiment = "test_cached_normalization_for_other_channels_is_recomputed"
+        unit = get_unit_name()
+
+        with local_persistent_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"2": 0.05})
+
+        warmup_events = [
+            create_od_raw_batched(
+                ["1"], [0.5 + 0.001 * i], ["90"], timestamp=f"2010-01-01T12:00:{i:02d}.000Z"
+            )
+            for i in range(10)
+        ]
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            calc.od_normalization_factors = calc._get_precomputed_normalization_factors(warmup_events)
+            scaled = calc.scale_raw_observations(warmup_events[0])
+
+        assert list(calc.od_normalization_factors) == ["1"]
+        assert scaled["1"] == pytest.approx(1.0, rel=0.02)
+        with local_persistent_storage("od_normalization_mean") as cache:
+            assert list(json.loads(cache[experiment])) == ["1"]
