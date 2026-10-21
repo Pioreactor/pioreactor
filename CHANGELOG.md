@@ -25,6 +25,7 @@
 
 #### Bug fixes
 
+ - Updated `ca-certificates` to 20250419+deb13u1, which stops trusting the roots behind the compromised eMudhra intermediate CAs (see https://emudhra.we-have-a-problem.com/). The package is bundled with the update, so offline Pioreactors get it too.
  - Fixed OD calibrations from the UI sometimes fitting a straight line through clearly curved data, even though the fit was labelled a cubic spline. This happened when most standards were at low OD, which is typical for a dilution series. The automatic spline fit now also tries knots spread evenly across the measured range, so it can follow the curve at high OD. Redo any OD calibration whose fitted curve looks straight but whose points don't. Stirring calibrations use the same fit and may also fit more closely.
  - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.
  - Fixed OD calibrations and fusion estimators possibly being recorded at the wrong scale when `ref_normalization=unity`. Calibration sessions reused the IR reference value saved by an earlier session, which could make recorded voltages far too small and leave calibrated OD stuck at a constant value. Each calibration session now starts with a fresh IR reference. If calibrated OD stayed flat during an experiment and logged "Signal above suggested calibration range", redo that calibration.
