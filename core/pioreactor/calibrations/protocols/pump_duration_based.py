@@ -300,14 +300,25 @@ class VolumeTargets(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         return steps.form(
-            "Target volumes",
-            "Enter the volumes you want to calibrate around (mL).",
-            [fields.float_list("mls_to_calibrate_for", label="Target volumes (mL)", default=[1.0])],
+            "Dose range",
+            (
+                "Enter the smallest and largest single dose you want this calibration to cover (mL). "
+                "The pump will run 10 times at three durations spread across this range: "
+                "4 short runs, 2 in the middle, and 4 long runs."
+            ),
+            [
+                fields.float("smallest_dose_ml", label="Smallest dose (mL)", default=0.5, minimum=0.01),
+                fields.float("largest_dose_ml", label="Largest dose (mL)", default=1.0, minimum=0.01),
+            ],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        mls = ctx.inputs.float_list("mls_to_calibrate_for", default=[1.0])
-        ctx.data["mls_to_calibrate_for"] = mls
+        smallest_dose_ml = ctx.inputs.float("smallest_dose_ml")
+        largest_dose_ml = ctx.inputs.float("largest_dose_ml")
+        if largest_dose_ml < smallest_dose_ml:
+            raise ValueError("Largest dose must be at least the smallest dose.")
+        ctx.data["smallest_dose_ml"] = smallest_dose_ml
+        ctx.data["largest_dose_ml"] = largest_dose_ml
         return PwmSettings()
 
 
@@ -445,10 +456,9 @@ class TracerVolume(SessionStep):
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         tracer_ml = ctx.inputs.float("volume_ml")
-        mls_to_calibrate_for = ctx.data["mls_to_calibrate_for"]
         tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
-        min_duration = min(mls_to_calibrate_for) * 0.8 / tracer_ml * tracer_duration
-        max_duration = max(mls_to_calibrate_for) * 1.1 / tracer_ml * tracer_duration
+        min_duration = float(ctx.data["smallest_dose_ml"]) * 0.8 / tracer_ml * tracer_duration
+        max_duration = float(ctx.data["largest_dose_ml"]) * 1.1 / tracer_ml * tracer_duration
         durations_to_test = [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
         ctx.data["tracer_ml"] = tracer_ml
         ctx.data["min_duration"] = min_duration

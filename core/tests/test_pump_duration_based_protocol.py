@@ -120,3 +120,35 @@ def test_pump_actions_have_specific_primary_action_labels() -> None:
         .metadata["primary_action_label"]
         == "Run pump"
     )
+
+
+def test_volume_targets_stores_dose_range() -> None:
+    ctx = _make_context()
+    ctx.inputs = SessionInputs({"smallest_dose_ml": 0.5, "largest_dose_ml": 8.0})
+
+    next_step = pump_duration_based.VolumeTargets().advance(ctx)
+
+    assert isinstance(next_step, pump_duration_based.PwmSettings)
+    assert ctx.data["smallest_dose_ml"] == 0.5
+    assert ctx.data["largest_dose_ml"] == 8.0
+
+
+def test_volume_targets_rejects_inverted_range() -> None:
+    ctx = _make_context()
+    ctx.inputs = SessionInputs({"smallest_dose_ml": 2.0, "largest_dose_ml": 1.0})
+
+    with pytest.raises(ValueError, match="Largest dose"):
+        pump_duration_based.VolumeTargets().advance(ctx)
+
+
+def test_tracer_volume_spreads_durations_across_dose_range() -> None:
+    ctx = _make_context({"smallest_dose_ml": 0.5, "largest_dose_ml": 8.0, "tracer_duration_s": 1.0})
+    ctx.inputs = SessionInputs({"volume_ml": 1.0})
+
+    pump_duration_based.TracerVolume().advance(ctx)
+
+    min_duration = 0.5 * 0.8
+    max_duration = 8.0 * 1.1
+    assert ctx.data["durations_to_test"] == pytest.approx(
+        [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
+    )

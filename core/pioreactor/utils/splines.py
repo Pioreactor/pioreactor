@@ -27,7 +27,8 @@ def spline_fit(
         Observations.
     knots
         Either the number of knots to use (including boundaries), explicit knot positions, or "auto".
-        When "auto" (default), knot count is selected by AICc over a small candidate range.
+        When "auto" (default), knot count and placement (x quantiles, or evenly spread over observed
+        x) are selected by AICc over a small candidate range.
     weights
         Optional weights for each observation.
 
@@ -196,25 +197,30 @@ def _auto_select_knots(
     import numpy as np
 
     n_obs = x_values.size
-    unique_x = np.unique(x_values).size
+    unique_x = np.unique(x_values)
     if max_knots is None:
         max_knots = min(6, n_obs)
-    max_knots = min(max_knots, unique_x)
+    max_knots = min(max_knots, unique_x.size)
     max_knots = max(2, max_knots)
 
     best_score = float("inf")
     best_knots: Any | None = None
 
     for count in range(2, max_knots + 1):
-        knot_positions = _normalize_knots(x_values, count)
-        knot_values, design_matrix = _fit_knot_values(knot_positions, x_values, y_values, weight_values)
-        y_pred = design_matrix @ knot_values
-        residual = y_values - y_pred
-        weighted_sse = float(np.sum(weight_values * residual**2))
-        score = _aicc_score(weighted_sse, n_obs, knot_positions.size)
-        if score < best_score:
-            best_score = score
-            best_knots = knot_positions
+        # x often clusters at one end (e.g. OD standards from a dilution series), leaving quantile
+        # knots nothing to bend the sparse end with. So also try knots spread evenly over the x range,
+        # snapped to observed x: an unsnapped knot inside a gap in the data can swing the curve wildly.
+        targets = np.linspace(unique_x[0], unique_x[-1], count)
+        spread_knots = np.unique(unique_x[np.abs(unique_x[None, :] - targets[:, None]).argmin(axis=1)])
+        for knot_positions in (_normalize_knots(x_values, count), spread_knots):
+            knot_values, design_matrix = _fit_knot_values(knot_positions, x_values, y_values, weight_values)
+            y_pred = design_matrix @ knot_values
+            residual = y_values - y_pred
+            weighted_sse = float(np.sum(weight_values * residual**2))
+            score = _aicc_score(weighted_sse, n_obs, knot_positions.size)
+            if score < best_score:
+                best_score = score
+                best_knots = knot_positions
 
     if best_knots is None:
         return _normalize_knots(x_values, 2)
