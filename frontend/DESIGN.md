@@ -330,6 +330,10 @@ Rules:
   preceding word `experiment`, `calibration`, `estimator`, or `plugin`, and
   experiments also by the row's experiment. Plugin Chips link to the Plugins
   page for the row's Pioreactor. Other backticked text renders as inline code.
+  Calibration Chips link to the calibration page when the message supplies an
+  built-in device key immediately before `calibration` (e.g. ``Saved media_pump
+  calibration `pump-1` ``) and the row supplies a Pioreactor unit. Messages
+  without a device and plugin device keys remain calibration labels.
   Copying a log row copies the raw message.
 
 Exceptions:

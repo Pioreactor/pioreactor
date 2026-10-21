@@ -1159,7 +1159,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
     }).catch(() => {});
   };
@@ -1171,7 +1172,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
     }).catch(() => {});
   };
@@ -1190,7 +1192,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 
@@ -1231,7 +1233,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 
@@ -1313,7 +1315,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       return;
     }
 
-    if (dialogResult && dialogResult.confirmed === false) {
+    if (!dialogResult.confirmed) {
       return;
     }
 
@@ -1331,7 +1333,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary", variant: "contained"},
       cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
+    }).then(({ confirmed }) => {
+      if (!confirmed) return;
       fetch(`/api/workers/${unit}`, {method: "DELETE"})
       .then((response) => {
         if (response.ok){

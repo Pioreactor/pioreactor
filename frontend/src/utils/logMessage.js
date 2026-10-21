@@ -15,6 +15,9 @@ const KEYWORD_ENTITY_TYPES = {
 // Matches the word directly before an opening backtick, allowing a plural such as "workers" or "Worker(s)".
 const PRECEDING_KEYWORD_REGEX = /([A-Za-z]+?)(?:s|\(s\))?\s+$/;
 
+// Only exact device keys qualify: prose such as "Saved calibration" is not a device.
+const CALIBRATION_DEVICE_REGEX = /\b(stirring|media_pump|alt_media_pump|waste_pump|od(?:45|90|135|180)?)\s+calibration\s+$/;
+
 function precedingKeywordType(precedingText) {
   const match = precedingText.match(PRECEDING_KEYWORD_REGEX);
   if (!match) {
@@ -54,7 +57,15 @@ export function parseLogMessage(message, context = {}) {
     } else if (part === "") {
       segments.push({ type: "text", text: "``" });
     } else {
-      segments.push({ type: classifySpan(part, parts[index - 1], context), text: part });
+      const type = classifySpan(part, parts[index - 1], context);
+      const segment = { type, text: part };
+      if (type === "calibration") {
+        const deviceMatch = parts[index - 1].match(CALIBRATION_DEVICE_REGEX);
+        if (deviceMatch) {
+          segment.device = deviceMatch[1];
+        }
+      }
+      segments.push(segment);
     }
   });
   return segments;

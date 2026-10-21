@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from contextlib import suppress
 from threading import Event
-from threading import Lock
+from threading import RLock
 from time import sleep
 from typing import Any
 from typing import cast
@@ -112,9 +112,9 @@ class TemperatureAutomationJob(AutomationJob):
         )
 
         self._exit_event = Event()
-        # A non-READY job must never restore an inference's cached heater duty cycle.
-        # This coordinates lifecycle shutdown with inference cleanup.
-        self._heater_state_lock = Lock()
+        # Guards _requested_heater_duty_cycle, _inferring and every write to the heater PWM.
+        # Reentrant because lifecycle hooks and safety checks can nest heater updates.
+        self._heater_state_lock = RLock()
 
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
@@ -136,12 +136,17 @@ class TemperatureAutomationJob(AutomationJob):
         # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
         # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
 
+        # heater_duty_cycle is the power on the heater right now (published).
+        # _requested_heater_duty_cycle is the power the automation (or a safety check) asked for.
+        # Pausing and inference change only the former, so there is nothing to save and restore.
         self.heater_duty_cycle = 0.0
+        self._requested_heater_duty_cycle = 0.0
+        self._inferring = False
         self.pwm = self.setup_pwm()
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.get_temp_address())
 
-        self.latest_temperture_at = current_utc_datetime()
+        self.latest_temperature_at = current_utc_datetime()
 
     def __post__init__(self) -> None:
         # Timers can trigger execute(), so start them only after subclass __init__ has finished.
@@ -195,10 +200,11 @@ class TemperatureAutomationJob(AutomationJob):
 
     def update_heater(self, new_duty_cycle: float) -> bool:
         """
-        Update heater's duty cycle. This function checks for the PWM lock, and will not
-        update if the PWM is locked.
+        Request a new heater duty cycle. During a temperature inference or while paused the heater
+        stays off, and the request is applied when that ends. Will not update if another task has
+        locked the heater's PWM channel.
 
-        Returns true if the update was made (eg: no lock), else returns false
+        Returns true if the request was accepted, else returns false
         """
 
         if not self.pwm.is_locked():
@@ -208,21 +214,12 @@ class TemperatureAutomationJob(AutomationJob):
 
     def update_heater_with_delta(self, delta_duty_cycle: float) -> bool:
         """
-        Update heater's duty cycle by `delta_duty_cycle` amount. This function checks for the PWM lock, and will not
-        update if the PWM is locked.
-
-        Returns true if the update was made (eg: no lock), else returns false
+        Change the requested heater duty cycle by `delta_duty_cycle` amount. See `update_heater`.
         """
-        return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
+        return self.update_heater(self._requested_heater_duty_cycle + delta_duty_cycle)
 
     def read_external_temperature(self) -> float:
         return self._check_if_exceeds_max_temp(self._read_external_temperature())
-
-    def is_heater_pwm_locked(self) -> bool:
-        """
-        Check if the heater PWM channels is locked
-        """
-        return self.pwm.is_locked()
 
     ########## Private & internal methods
 
@@ -253,10 +250,25 @@ class TemperatureAutomationJob(AutomationJob):
         return averaged_temp
 
     def _update_heater(self, new_duty_cycle: float) -> bool:
+        with self._heater_state_lock:
+            self._requested_heater_duty_cycle = clamp(0.0, round(float(new_duty_cycle), 2), 100.0)
+            return self._apply_heater()
+
+    def _apply_heater(self) -> bool:
+        # The heater is off while inferring, paused or shutting down; otherwise it runs at the requested power.
+        with self._heater_state_lock:
+            heater_may_run = (
+                self.state in (self.INIT, self.READY)
+                and not self._inferring
+                and not self._exit_event.is_set()
+            )
+            return self._set_heater_pwm(self._requested_heater_duty_cycle if heater_may_run else 0.0)
+
+    def _set_heater_pwm(self, duty_cycle: float) -> bool:
         if self.pwm.is_cleaned_up:
             return False
 
-        self.heater_duty_cycle = clamp(0.0, round(float(new_duty_cycle), 2), 100.0)
+        self.heater_duty_cycle = duty_cycle
         try:
             self.pwm.change_duty_cycle(self.heater_duty_cycle)
         except ValueError:
@@ -297,7 +309,8 @@ class TemperatureAutomationJob(AutomationJob):
                 f"Temperature of heating surface has exceeded {self._max_temp_to_reduce_heating}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self._update_heater(self.heater_duty_cycle * 0.9)
+            with self._heater_state_lock:
+                self._update_heater(self._requested_heater_duty_cycle * 0.9)
 
         return temp
 
@@ -317,12 +330,17 @@ class TemperatureAutomationJob(AutomationJob):
     def on_sleeping(self) -> None:
         super().on_sleeping()
         self.publish_temperature_timer.pause()
-        with self._heater_state_lock:
-            self._update_heater(0)
+        # turns the heater off but keeps the requested power for when we resume.
+        self._apply_heater()
 
     def on_sleeping_to_ready(self) -> None:
         super().on_sleeping_to_ready()
         self.publish_temperature_timer.unpause()
+
+    def on_ready(self) -> None:
+        super().on_ready()
+        # resume at the requested power after a pause (the state is READY only once this hook runs).
+        self._apply_heater()
 
     def setup_pwm(self) -> PWM:
         hertz = 16  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -348,61 +366,55 @@ class TemperatureAutomationJob(AutomationJob):
 
     def infer_temperature(self) -> None:
         """
-        1. lock PWM and turn off heater
+        1. turn off heater, keeping the requested power
         2. start recording temperatures from the sensor
         3. After collected M samples, pass to a model to approx temp
         4. assign temp to publish to ../temperature
-        5. return heater to previous DC value and unlock heater
+        5. turn the heater back on at the requested power (which safety checks or the automation may have changed)
         """
 
         # this will pause heating for (N_sample_points * time_between_samples) seconds
         N_sample_points = self.INFERENCE_N_SAMPLES
         time_between_samples = self.INFERENCE_SAMPLES_EVERY_T_SECONDS
 
-        assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
-        with self.pwm.lock_temporarily():
-            previous_heater_dc = self.heater_duty_cycle
+        features: dict[str, Any] = {}
 
-            features: dict[str, Any] = {}
+        # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
+        # users can override this function with something more accurate later.
+        features["room_temp"] = self._get_room_temperature()
 
+        # the amount of liquid in the vial is a factor!
+        features["volume"] = bioreactor.get_bioreactor_value(self.experiment, "current_volume_ml")
+
+        # turn off active heating, and start recording decay
+        with self._heater_state_lock:
             # add how much heat/energy we just applied
-            features["previous_heater_dc"] = previous_heater_dc
+            features["previous_heater_dc"] = self.heater_duty_cycle
+            self._inferring = True
+            self._apply_heater()
 
-            # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
-            # users can override this function with something more accurate later.
-            features["room_temp"] = self._get_room_temperature()
+        time_series_of_temp = []
 
-            # the amount of liquid in the vial is a factor!
-            features["volume"] = bioreactor.get_bioreactor_value(self.experiment, "current_volume_ml")
+        try:
+            for i in range(N_sample_points):
+                time_series_of_temp.append(self.read_external_temperature())
+                sleep(time_between_samples)
 
-            # turn off active heating, and start recording decay
-            self._update_heater(0)
-            time_series_of_temp = []
+                if self._exit_event.is_set():
+                    # if our state changes in this loop, exit. Note that the finally block is still called.
+                    return
 
-            try:
-                for i in range(N_sample_points):
-                    time_series_of_temp.append(self.read_external_temperature())
-                    sleep(time_between_samples)
-
-                    if self._exit_event.is_set():
-                        # if our state changes in this loop, exit. Note that the finally block is still called.
-                        previous_heater_dc = 0
-                        return
-
-            except exc.HardwareNotFoundError as e:
-                self.logger.debug(e, exc_info=True)
-                self.logger.error(e)
-                raise e
-            finally:
-                # update heater first before publishing the temperature. Why? A downstream process
-                # might listen for the updating temperature, and update the heater (pid_thermostat),
-                # and if we update here too late, we may overwrite their changes.
-                # We also want to remove the lock first, so close this context early.
-                with self._heater_state_lock:
-                    if self.state == self.READY and not self._exit_event.is_set():
-                        self._update_heater(previous_heater_dc)
-                    else:
-                        self._update_heater(0)
+        except exc.HardwareNotFoundError as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(e)
+            raise e
+        finally:
+            # update heater first before publishing the temperature. Why? A downstream process
+            # might listen for the updating temperature, and update the heater (pid_thermostat),
+            # and if we update here too late, we may overwrite their changes.
+            with self._heater_state_lock:
+                self._inferring = False
+                self._apply_heater()
 
         features["time_series_of_temp"] = time_series_of_temp
         self.logger.debug(f"{features=}")
@@ -431,10 +443,6 @@ class TemperatureAutomationJob(AutomationJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
-
-    @staticmethod
-    def approximate_temperature_40_1_0(features: dict[str, Any]) -> float:
-        raise NotImplementedError("This model has not been implemented yet.")
 
     @staticmethod
     def approximate_temperature_20_1_0(features: dict[str, Any]) -> float:

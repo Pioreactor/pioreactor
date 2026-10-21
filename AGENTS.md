@@ -114,7 +114,7 @@ Available commands are listed in the `Makefile`.
     - its conclusion is orthogonal to the logic being written.
     - its preventing a better refactor or feature.
     - its an incredibly trivial feature that is unlikely to be used.
- - Keep mypy green:
+ - Keep mypy green when production Python files change. For test-only changes, run the relevant tests; skip this production-package mypy command because it does not check core/tests:
 
   ```bash
   .venv/bin/mypy core/pioreactor --ignore-missing-imports

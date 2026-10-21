@@ -22,6 +22,15 @@ else:
 _FALLBACK_SENTINEL: Final = object()
 _CONFIGPARSER_UNSET: Final = getattr(configparser, "_UNSET")
 
+# (section, option) entries that are recreated from their replacements for backwards compatibility.
+_DEPRECATED_OPTIONS: Final = {
+    (
+        "od_reading.config",
+        "samples_per_second",
+    ): "`samples_per_second` in [od_reading.config] is deprecated and will be removed in a future version. Use `seconds_between_readings` instead (samples_per_second = 1 / seconds_between_readings).",
+}
+_warned_deprecated_options: set[tuple[str, str]] = set()
+
 
 def __getattr__(attr: str) -> Any:
     """
@@ -97,6 +106,9 @@ class ConfigParserMod(configparser.ConfigParser):
     ) -> Any:
         kwargs_for_super: dict[str, Any] = {"raw": raw, "vars": vars}
         fallback_provided = fallback is not _FALLBACK_SENTINEL
+        if isinstance(fallback, str) and fallback.lower() in self.BOOLEAN_STATES:
+            # configparser returns a fallback as-is, and a string like "false" is truthy.
+            fallback = self.BOOLEAN_STATES[fallback.lower()]
 
         try:
             if fallback_provided:
@@ -124,6 +136,12 @@ class ConfigParserMod(configparser.ConfigParser):
 
     def get(self, section: str, option: str, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
         fallback = kwargs.get("fallback", _CONFIGPARSER_UNSET)
+
+        if (section, option) in _DEPRECATED_OPTIONS and (section, option) not in _warned_deprecated_options:
+            _warned_deprecated_options.add((section, option))
+            from pioreactor.logging import create_logger
+
+            create_logger("read config").warning(_DEPRECATED_OPTIONS[(section, option)])
 
         try:
             return super().get(section, option, *args, **kwargs)
@@ -243,6 +261,20 @@ def _apply_runtime_config_sections(config: ConfigParserMod) -> ConfigParserMod:
             if value == "":
                 config.remove_option("od_config.photodiode_channel", channel)
 
+    # recreate the deprecated samples_per_second from seconds_between_readings, for plugins and scripts that still read it.
+    if (
+        "od_reading.config" in config
+        and config.has_option("od_reading.config", "seconds_between_readings")
+        and not config.has_option("od_reading.config", "samples_per_second")
+    ):
+        try:
+            seconds_between_readings = float(config["od_reading.config"]["seconds_between_readings"])
+        except ValueError:
+            pass
+        else:
+            if seconds_between_readings > 0:
+                config.set("od_reading.config", "samples_per_second", str(1 / seconds_between_readings))
+
     # add this for hostname resolution using config.ini, see pioreactor.utils.networking.resolve_to_address
     if "cluster.addresses" not in config:
         config.add_section("cluster.addresses")
@@ -299,7 +331,8 @@ def get_config() -> ConfigParserMod:
     Locally, `config.ini` configurations can be overwritten by `unit_config.ini` (hence the very
     specific order we use in `config.read`)
 
-    We also insert some **dynamic** config sections: PWM_reverse and leds_reverse. Ex: `PWM` is
+    We also insert some **dynamic** config sections: PWM_reverse and leds_reverse, and the deprecated
+    `samples_per_second` in [od_reading.config], derived from `seconds_between_readings`. Ex: `PWM` is
     designed for users to edit:
 
         [PWM]

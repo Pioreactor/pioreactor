@@ -326,7 +326,7 @@ function EditableCodeDiv() {
       <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
         <FormControl>
           <div>
-            <FormLabel id="configTargetSelect" sx={{mr: 1}}>Config target:</FormLabel>
+            <FormLabel id="configTargetSelect" sx={{mr: 1}}>Config:</FormLabel>
             <Select
               labelId="configTargetSelect"
               variant="standard"

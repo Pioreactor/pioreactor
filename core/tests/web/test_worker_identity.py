@@ -13,18 +13,17 @@ from .conftest import capture_requests
 
 
 @pytest.mark.parametrize(
-    "task_name, method, path",
+    "method, path",
     [
-        ("post_into_unit_task", "POST", "/unit_api/jobs/stop/all"),
-        ("patch_into_unit_task", "PATCH", "/unit_api/jobs/stop/all"),
-        ("delete_from_unit_task", "DELETE", "/unit_api/calibrations/stirring/example"),
+        ("POST", "/unit_api/jobs/stop/all"),
+        ("PATCH", "/unit_api/jobs/stop/all"),
+        ("DELETE", "/unit_api/calibrations/stirring/example"),
     ],
 )
 @pytest.mark.parametrize("target", [HOSTNAME, "other-worker"])
 def test_queued_mutation_checks_identity_at_destination(
     client: FlaskClient,
     monkeypatch: pytest.MonkeyPatch,
-    task_name: str,
     method: str,
     path: str,
     target: str,
@@ -42,7 +41,7 @@ def test_queued_mutation_checks_identity_at_destination(
         return Response(url, response.status_code, dict(response.headers), response.data)
 
     monkeypatch.setattr("pioreactor.mureq.request", deliver)
-    unit, result = getattr(tasks, task_name).call_local(target, path)
+    unit, result = tasks.request_unit_task.call_local(method, target, path)
 
     assert unit == target
     assert result["ok"] is (target == HOSTNAME)
@@ -79,7 +78,7 @@ def test_broadcast_sends_each_workers_hostname(monkeypatch: pytest.MonkeyPatch) 
     # A broadcast must retain distinct identities even when addresses collide.
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "192.0.2.42")
     with capture_requests() as requests:
-        result = tasks.multicast_post("/unit_api/jobs/stop/all", ["worker-a", "worker-b"]).get()
+        result = tasks.multicast("POST", "/unit_api/jobs/stop/all", ["worker-a", "worker-b"]).get()
 
     assert result["worker-a"]["ok"] is True
     assert result["worker-b"]["ok"] is True

@@ -844,6 +844,14 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
             self.led_output_noise_power_ema.update(0.001**2)
             return False
 
+    @classmethod
+    def clear_initial_ref(cls, experiment: pt.Experiment) -> None:
+        """
+        Forget the persisted initial REF for `experiment`, so the next reading re-anchors.
+        """
+        with local_persistent_storage(cls._PERSISTENT_CACHE_NAME) as cache:
+            cache.pop(experiment, None)
+
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
         relative_ref = self.led_output_ema.get_latest()
 
@@ -1005,8 +1013,12 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
         if (
             calibration_data.y != "Voltage"
         ):  # don't check for OD600 - we can allow other non-OD600 calibrations
-            self.logger.error(f"Calibration `{calibration_data.calibration_name}` has wrong type.")
-            raise exc.CalibrationError(f"Calibration `{calibration_data.calibration_name}` has wrong type.")
+            self.logger.error(
+                f"od{calibration_data.angle} calibration `{calibration_data.calibration_name}` has wrong type."
+            )
+            raise exc.CalibrationError(
+                f"od{calibration_data.angle} calibration `{calibration_data.calibration_name}` has wrong type."
+            )
 
         if calibration_data.curve_data_.type == "poly":
             coefficients = calibration_data.curve_data_.coefficients
@@ -1190,6 +1202,22 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         return False
 
 
+def resolve_ir_led_intensity(ir_led_intensity: float | None = None) -> float:
+    """
+    The IR LED intensity from the argument, else from config.
+    """
+    if ir_led_intensity is not None:
+        return float(ir_led_intensity)
+
+    value = config.get("od_reading.config", "ir_led_intensity")
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(
+            f"[od_reading.config] ir_led_intensity must be a number, for example 80, not `{value}`."
+        ) from None
+
+
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -1354,10 +1382,12 @@ class ODReader(BackgroundJob):
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
 
-        # determine initial IR LED intensity and whether to auto-adjust it later
-        should_auto_adjust_ir_led, self.ir_led_intensity = self._determine_initial_ir_led_intensity(
-            ir_led_intensity
-        )
+        self.ir_led_intensity = resolve_ir_led_intensity(ir_led_intensity)
+        if self.ir_led_intensity > 90:
+            self.logger.warning(
+                f"The value for the IR LED, {self.ir_led_intensity}%, is very high. "
+                "We suggest a value 90% or less to avoid damaging the LED."
+            )
 
         self.non_ir_led_channels: list[pt.LedChannel] = [
             ch for ch in led_utils.ALL_LED_CHANNELS if ch != self.ir_channel
@@ -1391,9 +1421,7 @@ class ODReader(BackgroundJob):
                     if not self.adc_reader.fake_data:
                         sleep(0.125)
 
-                    on_reading = (
-                        self.adc_reader.tune_adc_with_ir_on()
-                    )  # determine best gain, max-signal, etc.
+                    self.adc_reader.tune_adc_with_ir_on()  # determine best gain, max-signal, etc.
 
                     # IR led is off so we can set blanks
                     self.stop_ir_led(lock_owner)
@@ -1404,88 +1432,12 @@ class ODReader(BackgroundJob):
                 # IR's only valid idle state is off. Keep ownership until this write is attempted.
                 self.stop_ir_led(lock_owner)
 
-        if should_auto_adjust_ir_led:
-            self.ir_led_intensity = self._determine_best_ir_led_intensity(
-                self.channel_angle_map, self.ir_led_intensity, on_reading
-            )
-
         self.set_interval(interval)
 
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}"
             + (f" every {self.interval} seconds." if self.interval else ".")
         )
-
-    def _determine_initial_ir_led_intensity(self, ir_led_intensity: float | str | None) -> tuple[bool, float]:
-        """
-        Determine whether to auto adjust IR LED intensity and return initial intensity.
-        """
-        if ir_led_intensity is None:
-            ir_intensity_cfg = config.get("od_reading.config", "ir_led_intensity")
-        else:
-            ir_intensity_cfg = ir_led_intensity
-
-        if ir_intensity_cfg == "auto":
-            return True, 85.0
-
-        intensity_value = float(ir_intensity_cfg)
-        if intensity_value > 90:
-            self.logger.warning(
-                f"The value for the IR LED, {intensity_value}%, is very high. "
-                "We suggest a value 90% or less to avoid damaging the LED."
-            )
-        return False, intensity_value
-
-    @staticmethod
-    def _determine_best_ir_led_intensity(
-        channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
-        initial_ir_intensity: float,
-        on_reading: RawPDReadings,
-    ) -> float:
-        """
-        What do we want for a good value?
-
-         - [REF] is less than 0.256
-         - [90] gets lots of light, but less than 3.0, even at a full culture
-         - IR intensity always is less than 90%
-
-        """
-        MAX = 85.0
-
-        if len(channel_angle_map) != 1:
-            # multiple signals? noop
-            return MAX
-
-        pd_channel = list(channel_angle_map.keys())[0]
-
-        culture_on_signal = on_reading.pop(pd_channel)
-
-        if len(on_reading) == 0:
-            # no REF, noop
-            return MAX
-
-        _, REF_on_signal = on_reading.popitem()
-
-        def _safe_ratio(numerator: float, denominator: float) -> float:
-            # Very small / zero sensor values can occur during startup or hardware faults.
-            # Treating the ratio as +inf preserves current behavior (falls back to MAX)
-            # while avoiding runtime crashes.
-            if denominator <= 0.0:
-                return float("inf")
-            return numerator / denominator
-
-        ir_intensity_argmax_REF_can_be = _safe_ratio(initial_ir_intensity, REF_on_signal.reading) * 0.250
-
-        # divide by N since the culture is unlikely to Nx.
-        ir_intensity_argmax_ANGLE_can_be = (
-            _safe_ratio(initial_ir_intensity, culture_on_signal.reading) * 3.0 / 50
-        )
-
-        ir_led_intensity = min(
-            MAX, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be
-        )  # small as possible
-        ir_led_intensity = max(ir_led_intensity, 50)  # always more than X
-        return round(ir_led_intensity, 2)
 
     def set_interval(self, interval: float | None) -> None:
         if (interval is not None) and interval <= 0:
@@ -1888,40 +1840,63 @@ def start_od_reading(
     else:
         blank_transformer = NullBlankTransformer()
 
+    # Check calibrations and estimators against the IR LED intensity before hardware setup.
+    intensity = resolve_ir_led_intensity(ir_led_intensity)
+
     # use an OD calibration?
-    calibration_transformer: CalibrationTransformerProtocol
+    calibrations_to_use: list[structs.ODCalibration | None]
     if calibration is True:
         from pioreactor.calibrations import load_active_calibration
 
-        calibration_transformer = CachedCalibrationTransformer()
-        for channel, angle in channel_angle_map.items():
-            active_calibration = load_active_calibration(f"od{angle}")  # type: ignore
-            if active_calibration is not None:
-                calibration_transformer.hydate_models(active_calibration)
+        calibrations_to_use = [load_active_calibration(f"od{angle}") for angle in channel_angle_map.values()]  # type: ignore
     elif isinstance(calibration, list):
-        calibration_transformer = CachedCalibrationTransformer()
-        for calibration_item in calibration:
-            calibration_transformer.hydate_models(calibration_item)
+        calibrations_to_use = list(calibration)
     elif isinstance(calibration, structs.CalibrationBase):
-        calibration_transformer = CachedCalibrationTransformer()
-        calibration_transformer.hydate_models(calibration)
+        calibrations_to_use = [calibration]
     else:
-        calibration_transformer = NullCalibrationTransformer()
+        calibrations_to_use = []
 
-    estimator_transformer: EstimatorTransformerProtocol
+    calibration_transformer: CalibrationTransformerProtocol = (
+        CachedCalibrationTransformer() if calibration else NullCalibrationTransformer()
+    )
 
+    for calibration_item in calibrations_to_use:
+        if (
+            calibration_item is not None
+            and calibration_item.pd_channel in channel_angle_map
+            and calibration_item.ir_led_intensity != intensity
+        ):
+            message = (
+                f"OD calibration `{calibration_item.calibration_name}` for channel {calibration_item.pd_channel} "
+                f"requires IR LED intensity {calibration_item.ir_led_intensity}%, but IR LED intensity is {intensity}%."
+            )
+            create_logger("od_reading", unit=unit, experiment=experiment).error(message)
+            raise exc.CalibrationError(message)
+        calibration_transformer.hydate_models(calibration_item)
+
+    # use an OD fusion estimator?
+    estimator_to_use: structs.ODFusionEstimator | None = None
     if estimator is True:
         from pioreactor.estimators import load_active_estimator
 
         maybe_estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
         if isinstance(maybe_estimator, structs.ODFusionEstimator):
-            estimator_transformer = CachedEstimatorTransformer()
-            estimator_transformer.hydrate_estimator(maybe_estimator)
-        else:
-            estimator_transformer = NullEstimatorTransformer()
+            estimator_to_use = maybe_estimator
     elif isinstance(estimator, structs.ODFusionEstimator):
+        estimator_to_use = estimator
+
+    if estimator_to_use is not None and estimator_to_use.ir_led_intensity != intensity:
+        # Not fatal: OD readings are still useful without od_fused.
+        create_logger("od_reading", unit=unit, experiment=experiment).error(
+            f"OD estimator `{estimator_to_use.estimator_name}` requires IR LED intensity "
+            f"{estimator_to_use.ir_led_intensity}%, but IR LED intensity is {intensity}%. Skipping od_fused."
+        )
+        estimator_to_use = None
+
+    estimator_transformer: EstimatorTransformerProtocol
+    if estimator_to_use is not None:
         estimator_transformer = CachedEstimatorTransformer()
-        estimator_transformer.hydrate_estimator(estimator)
+        estimator_transformer.hydrate_estimator(estimator_to_use)
     else:
         estimator_transformer = NullEstimatorTransformer()
 
@@ -1955,7 +1930,7 @@ def start_od_reading(
         blank_transformer=blank_transformer,
         calibration_transformer=calibration_transformer,
         estimator_transformer=estimator_transformer,
-        ir_led_intensity=ir_led_intensity,
+        ir_led_intensity=intensity,
     )
 
 
@@ -1987,18 +1962,16 @@ def click_od_reading(
     """
 
     # determine interval: override if provided, else use snapshot or config default
-    samples_per_second = config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
-    if samples_per_second <= 0:
+    default_interval = config.getfloat("od_reading.config", "seconds_between_readings", fallback=5.0)
+    if default_interval <= 0:
         create_logger("od_reading").error(
-            "Invalid config value for [od_reading.config] samples_per_second=%s. "
+            "Invalid config value for [od_reading.config] seconds_between_readings=%s. "
             "Expected a value > 0 to compute the default read interval.",
-            samples_per_second,
+            default_interval,
         )
         raise ValueError(
-            f"Invalid [od_reading.config] samples_per_second={samples_per_second}. Expected a value > 0."
+            f"Invalid [od_reading.config] seconds_between_readings={default_interval}. Expected a value > 0."
         )
-
-    default_interval = 1 / samples_per_second
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
     penalizer = (
         config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / run_interval

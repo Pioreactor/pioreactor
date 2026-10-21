@@ -11,6 +11,7 @@ from unittest.mock import patch
 import pytest
 from msgspec.json import encode
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
@@ -86,6 +87,51 @@ class TestGrowthRateCalculating:
         with JobManager() as job_manager:
             job_manager.clear()
 
+    @pytest.mark.parametrize("use_fused_od", [False, True])
+    @pytest.mark.parametrize("initial_observations_to_skip", [0, 2])
+    def test_event_stream_ignores_cleared_od_payloads(
+        self, use_fused_od: bool, initial_observations_to_skip: int
+    ) -> None:
+        with patch(
+            "pioreactor.background_jobs.growth_rate_calculating._should_use_fused_od",
+            return_value=use_fused_od,
+        ), patch(
+            "pioreactor.background_jobs.growth_rate_calculating.INITIAL_OD_OBSERVATIONS_TO_SKIP",
+            initial_observations_to_skip,
+        ):
+            with GrowthRateCalculator(
+                unit=get_unit_name(), experiment="test_event_stream_ignores_cleared_od_payloads"
+            ) as calc:
+
+                def enqueue(payload: bytes) -> None:
+                    message = pt.MQTTMessage()
+                    message.topic = calc._od_topic
+                    message.payload = payload
+                    calc._growth_rate_event_messages.put(message)
+
+                def od_payload(od: float) -> bytes:
+                    timestamp = "2010-01-01T12:00:00.000Z"
+                    if use_fused_od:
+                        return encode(structs.ODFused(od_fused=od, timestamp=to_datetime(timestamp)))
+                    return create_encoded_od_raw_batched(["1"], [od], ["90"], timestamp=timestamp)
+
+                for _ in range(initial_observations_to_skip):
+                    enqueue(b"")
+                    enqueue(od_payload(0.1))
+                enqueue(b"")
+                enqueue(b"invalid JSON")
+                enqueue(od_payload(0.5))
+
+                with patch.object(calc.logger, "warning") as warning:
+                    events = calc.stream_mqtt_growth_rate_events()
+                    event = next(events)
+                    events.close()
+
+                assert isinstance(event, structs.ODReadings)
+                assert [reading.od for reading in event.ods.values()] == [0.5]
+                warning.assert_called_once()
+                assert "Failed to decode message" in warning.call_args.args[0]
+
     def test_module_import_does_not_require_grpredict(self) -> None:
         subprocess.run(
             [
@@ -117,9 +163,9 @@ import pioreactor.background_jobs.growth_rate_calculating
         [
             (
                 "od_reading.config",
-                "samples_per_second",
+                "seconds_between_readings",
                 "0",
-                r"samples_per_second=0\.0",
+                r"seconds_between_readings=0\.0",
             ),
             (
                 "growth_rate_calculating.config",
@@ -378,14 +424,14 @@ import pioreactor.background_jobs.growth_rate_calculating
 
         unit = get_unit_name()
         experiment = "test_90_angle"
-        samples_per_second = 0.2
+        seconds_between_readings = 5.0
 
         with temporary_config_changes(
             config,
             [
                 ("od_config.photodiode_channel", "1", "90"),
                 ("od_config.photodiode_channel", "2", None),
-                ("od_reading.config", "samples_per_second", str(samples_per_second)),
+                ("od_reading.config", "seconds_between_readings", str(seconds_between_readings)),
             ],
         ):
             with local_persistent_storage("od_normalization_mean") as cache:
@@ -396,7 +442,7 @@ import pioreactor.background_jobs.growth_rate_calculating
                 od_reading = 1.0
 
                 def __call__(self):
-                    self.od_reading *= np.exp(self.growth_rate / 60 / 60 / samples_per_second)
+                    self.od_reading *= np.exp(self.growth_rate / 60 / 60 * seconds_between_readings)
 
                     voltage = 0.1 * self.od_reading
                     payload = {
@@ -642,3 +688,27 @@ import pioreactor.background_jobs.growth_rate_calculating
 
         assert list(scaled_live) == ["2", "1"]
         assert covariance[0, 0] < covariance[1, 1]
+
+    def test_cached_normalization_for_other_channels_is_recomputed(self) -> None:
+        # ex: the experiment's cache was built from raw `ods` on channel 2, and a later run reads fused OD on channel 1.
+        experiment = "test_cached_normalization_for_other_channels_is_recomputed"
+        unit = get_unit_name()
+
+        with local_persistent_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"2": 0.05})
+
+        warmup_events = [
+            create_od_raw_batched(
+                ["1"], [0.5 + 0.001 * i], ["90"], timestamp=f"2010-01-01T12:00:{i:02d}.000Z"
+            )
+            for i in range(10)
+        ]
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            calc.od_normalization_factors = calc._get_precomputed_normalization_factors(warmup_events)
+            scaled = calc.scale_raw_observations(warmup_events[0])
+
+        assert list(calc.od_normalization_factors) == ["1"]
+        assert scaled["1"] == pytest.approx(1.0, rel=0.02)
+        with local_persistent_storage("od_normalization_mean") as cache:
+            assert list(json.loads(cache[experiment])) == ["1"]

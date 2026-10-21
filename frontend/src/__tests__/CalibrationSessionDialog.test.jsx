@@ -306,4 +306,94 @@ describe("CalibrationSessionDialog", () => {
       }),
     );
   });
+
+  test("lets the user correct and exclude recorded rows before saving", async () => {
+    const reviewStep = {
+      step_id: "review_data",
+      step_type: "form",
+      title: "Review data",
+      body: "Check the recorded data before saving.",
+      fields: [
+        {
+          name: "recorded_data",
+          label: "Recorded data",
+          field_type: "data_table",
+          columns: [
+            { key: "run", label: "Run", editable: false, minimum: null },
+            { key: "duration", label: "Duration (s)", editable: false, minimum: null },
+            { key: "volume", label: "Volume (mL)", editable: true, minimum: 0.0001 },
+          ],
+          default: [
+            { run: 1, duration: 1.0, volume: 0.5, include: true },
+            { run: 2, duration: 2.0, volume: 10.0, include: true },
+            { run: 3, duration: 3.0, volume: 1.5, include: true },
+          ],
+        },
+      ],
+      metadata: {
+        primary_action_label: "Save calibration",
+        actions: [{ label: "Update chart", inputs: { action: "preview" }, include_values: true }],
+      },
+    };
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ step: reviewStep }) });
+      }
+      if (url === "/api/workers/unit-1/calibrations/sessions/session-1/inputs") {
+        return Promise.resolve({ ok: true, status: 202, json: () => Promise.resolve({ task_id: "task-1" }) });
+      }
+      if (url === "/api/workers/unit-1/task_results/task-1") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ status: "succeeded", result: { step: reviewStep } }),
+        });
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <CalibrationSessionDialog
+          open
+          protocol={{ title: "Pump calibration", protocol_name: "duration_based", target_device: "media_pump" }}
+          unit="unit-1"
+          sessionId="session-1"
+        />
+      </MemoryRouter>,
+    );
+
+    const volumeInput = await screen.findByRole("textbox", { name: "Volume (mL) for Run 2" });
+    const saveButton = screen.getByRole("button", { name: "Save calibration" });
+
+    fireEvent.change(volumeInput, { target: { value: "" } });
+    expect(screen.getByText("Required")).toBeInTheDocument();
+    expect(saveButton).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Update chart" })).toBeDisabled();
+
+    fireEvent.change(volumeInput, { target: { value: "1.0" } });
+    expect(saveButton).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Use Run 3 in fit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Update chart" }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/workers/unit-1/calibrations/sessions/session-1/inputs",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            inputs: {
+              recorded_data: [
+                { run: 1, duration: 1.0, volume: 0.5, include: true },
+                { run: 2, duration: 2.0, volume: 1.0, include: true },
+                { run: 3, duration: 3.0, volume: 1.5, include: false },
+              ],
+              action: "preview",
+            },
+          }),
+        }),
+      );
+    });
+  });
 });

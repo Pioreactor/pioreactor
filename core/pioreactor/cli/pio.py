@@ -19,6 +19,7 @@ from uuid import uuid4
 import click
 from pioreactor import exc
 from pioreactor import whoami
+from pioreactor.cli import resume_garbage_collection
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import get_config
 from pioreactor.config import set_config_value_in_file
@@ -590,6 +591,9 @@ def pio(ctx: click.Context, show_version: bool) -> None:
 
     Report errors or feedback: https://github.com/Pioreactor/pioreactor/issues
     """
+    if ctx.invoked_subcommand != "run":
+        # `pio run` resumes it after loading plugins, just before the job starts.
+        resume_garbage_collection()
 
     if show_version:
         ctx.invoke(version)
@@ -669,7 +673,7 @@ def config_group() -> None:
     "section_name", type=click.STRING, help="Config section without brackets, e.g. stirring.config."
 )
 @click.argument(
-    "parameter_name", type=click.STRING, help="Key within the section, e.g. target_rpm_outside_od_reading."
+    "parameter_name", type=click.STRING, help="Key within the section, e.g. target_rpm_during_od_reading."
 )
 @click.option("--shared", is_flag=True, help="read from the shared config.ini only")
 @click.option("--specific", is_flag=True, help="read from the unit-specific unit_config.ini only")
@@ -691,7 +695,7 @@ def get_config_value(section_name: str, parameter_name: str, shared: bool, speci
     "section_name", type=click.STRING, help="Config section without brackets, e.g. stirring.config."
 )
 @click.argument(
-    "parameter_name", type=click.STRING, help="Key within the section, e.g. target_rpm_outside_od_reading."
+    "parameter_name", type=click.STRING, help="Key within the section, e.g. target_rpm_during_od_reading."
 )
 @click.argument("value", type=click.STRING, help="Value to write, e.g. 500. Quote values containing spaces.")
 @click.option("--shared", is_flag=True, help="write to the shared config.ini")

@@ -10,6 +10,6 @@ case "$image_profile" in
     exec "$huey_consumer" pioreactor.web.tasks.huey -b 1.0 -w 2 -f -C -d 0.25
     ;;
   *)
-    exec "$huey_consumer" pioreactor.web.tasks.huey -b 1.0 -w 10 -f -C -d 0.01
+    exec "$huey_consumer" pioreactor.web.tasks.huey -b 1.15 -m 0.1 -w 10 -f -C -d 0.01
     ;;
 esac

@@ -14,7 +14,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 
 SessionStatus = Literal["in_progress", "complete", "failed", "aborted"]
 StepType = Literal["info", "confirm", "form", "action", "result"]
-FieldType = Literal["string", "float", "int", "bool", "float_list", "choice"]
+FieldType = Literal["string", "float", "int", "bool", "float_list", "choice", "data_table"]
 
 
 class CalibrationStepField(Struct, kw_only=True):
@@ -29,6 +29,8 @@ class CalibrationStepField(Struct, kw_only=True):
     min_error_msg: str | None = None
     max_error_msg: str | None = None
     help_text: str | None = None
+    # data_table only: [{"key": ..., "label": ..., "editable": bool, "minimum": float | None}]
+    columns: list[dict[str, Any]] | None = None
 
 
 class CalibrationStep(Struct, kw_only=True):

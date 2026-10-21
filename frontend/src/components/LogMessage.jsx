@@ -76,7 +76,7 @@ export function useClusterUnits() {
   return units;
 }
 
-function EntityChip({ type, label, unit }) {
+function EntityChip({ type, label, unit, device }) {
   const { allExperiments, selectExperiment } = useExperiment() ?? {};
   const Icon = ENTITY_ICONS[type];
   const dataProps = {
@@ -113,6 +113,21 @@ function EntityChip({ type, label, unit }) {
         component={Link}
         to="/overview"
         onClick={() => selectExperiment(label)}
+        sx={INLINE_CHIP_SX}
+        {...dataProps}
+      />
+    );
+  }
+
+  if (type === "calibration" && unit && device) {
+    return (
+      <Chip
+        size="small"
+        icon={<Icon />}
+        label={label}
+        clickable
+        component={Link}
+        to={`/calibrations/${encodeURIComponent(unit)}/${encodeURIComponent(device)}/${encodeURIComponent(label)}`}
         sx={INLINE_CHIP_SX}
         {...dataProps}
       />
@@ -157,7 +172,7 @@ function MessageSegments({ text, units, experiment, unit }) {
         </Box>
       );
     }
-    return <EntityChip key={index} type={segment.type} label={segment.text} unit={unit} />;
+    return <EntityChip key={index} type={segment.type} label={segment.text} unit={unit} device={segment.device} />;
   });
 }
 

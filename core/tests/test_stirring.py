@@ -216,11 +216,11 @@ def test_set_target_rpm_while_paused_does_not_restart_stirring(monkeypatch) -> N
     object.__setattr__(stirrer, "rpm_calculator", object())
     object.__setattr__(stirrer, "target_rpm", 500.0)
     object.__setattr__(stirrer, "pid", type("PidStub", (), {"set_setpoint": lambda self, *_: None})())
-    object.__setattr__(stirrer, "rpm_to_dc_lookup", lambda rpm: rpm / 10)
     object.__setattr__(stirrer, "state", job_state.SLEEPING)
     object.__setattr__(stirrer, "duty_cycle", 0.0)
     object.__setattr__(stirrer, "_estimate_duty_cycle", 10.0)
     object.__setattr__(stirrer, "published_settings", {})
+    object.__setattr__(stirrer, "duty_cycle_lock", RLock())
     set_duty_cycle_calls: list[float] = []
     object.__setattr__(
         stirrer,
@@ -231,7 +231,7 @@ def test_set_target_rpm_while_paused_does_not_restart_stirring(monkeypatch) -> N
     Stirrer.set_target_rpm(stirrer, 750.0)
 
     assert stirrer.target_rpm == 750.0
-    assert stirrer._estimate_duty_cycle == 75.0
+    assert stirrer._estimate_duty_cycle == 10.0  # no calibration, so keep the learned estimate
     assert stirrer.duty_cycle == 0.0
     assert set_duty_cycle_calls == []
 
@@ -374,8 +374,8 @@ def test_stirring_with_calibration() -> None:
 
         assert st.duty_cycle > initial_dc
 
-        assert st.rpm_to_dc_lookup(600) == pytest.approx(63.760213125)
-        assert st.rpm_to_dc_lookup(700) == pytest.approx(73.210213125)
+        assert st.duty_cycle_estimate_for(600) == pytest.approx(63.760213125)
+        assert st.duty_cycle_estimate_for(700) == pytest.approx(73.210213125)
 
 
 @pytest.mark.slow
@@ -398,7 +398,6 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
         use_rpm=True,
         enable_dodging_od=True,
         target_rpm_during_od_reading=500,
-        target_rpm_outside_od_reading=450,
     ) as st:
         with start_od_reading(
             {"1": "90"}, interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False
@@ -454,8 +453,181 @@ def test_target_rpm_during_od_reading_defaults_to_zero() -> None:
         with start_stirring(500, unit, exp, use_rpm=True, enable_dodging_od=True) as st:
             # default target_rpm_during_od_reading should be 0.0 and no error occurs
             assert st.target_rpm_during_od_reading == 0.0
-            # default target_rpm_outside_od_reading should fall back to target_rpm
-            assert st.target_rpm_outside_od_reading == 500
+
+
+def linear_stirring_calibration(name: str) -> SimpleStirringCalibration:
+    # RPM = 20 * DC, so it predicts 50% DC for 1000 RPM.
+    from pioreactor.utils.splines import spline_fit
+
+    dcs = [0.0, 100.0]
+    rpms = [20.0 * dc for dc in dcs]
+    return SimpleStirringCalibration(
+        calibration_name=name,
+        calibrated_on_pioreactor_unit=unit,
+        created_at=current_utc_datetime(),
+        curve_data_=spline_fit(dcs, rpms, knots=2),
+        pwm_hz=200,
+        voltage=5.0,
+        recorded_data={"x": dcs, "y": rpms},
+    )
+
+
+def start_dodging_stirrer(
+    exp: str,
+    calibration: bool | SimpleStirringCalibration,
+    learned_duty_cycle: float,
+    target_rpm_during_od_reading: float = 0,
+) -> Stirrer:
+    # drive the dodging hooks directly, without an od_reading job or PID updates.
+    st = start_stirring(
+        1000,
+        unit,
+        exp,
+        use_rpm=True,
+        calibration=calibration,
+        enable_dodging_od=True,
+        target_rpm_during_od_reading=target_rpm_during_od_reading,
+    )
+    st.rpm_check_repeated_timer.cancel()
+    st.poll_and_update_dc = lambda *args, **kwargs: None  # type: ignore
+    st.currently_dodging_od = True
+    st._estimate_duty_cycle = learned_duty_cycle
+    st.set_duty_cycle(learned_duty_cycle)
+    return st
+
+
+def test_dodging_restores_learned_duty_cycle_after_od_reading_without_calibration() -> None:
+    exp = "test_dodging_restores_learned_duty_cycle_after_od_reading_without_calibration"
+
+    with start_dodging_stirrer(exp, calibration=False, learned_duty_cycle=35.0) as st:
+        st.action_to_do_after_od_reading()
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == 0
+
+        st.action_to_do_after_od_reading()
+        assert st.target_rpm == 1000
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_dodging_restores_learned_duty_cycle_after_od_reading_with_calibration() -> None:
+    exp = "test_dodging_restores_learned_duty_cycle_after_od_reading_with_calibration"
+
+    # calibration predicts 50% DC for 1000 RPM, but the PID has learned 35% is correct.
+    cal = linear_stirring_calibration(exp)
+
+    with start_dodging_stirrer(exp, calibration=cal, learned_duty_cycle=35.0) as st:
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == 0
+
+        st.action_to_do_after_od_reading()
+        assert st.target_rpm == 1000
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_dodging_turned_off_during_od_reading_restores_outside_rpm() -> None:
+    exp = "test_dodging_turned_off_during_od_reading_restores_outside_rpm"
+
+    with start_dodging_stirrer(exp, calibration=False, learned_duty_cycle=35.0) as st:
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == 0
+
+        st.currently_dodging_od = False
+        st.initialize_continuous_operation()
+        assert st.target_rpm == 1000
+        assert st.duty_cycle > 0
+
+
+def test_dodging_with_nonzero_rpm_during_od_reading_uses_calibration_then_resumes() -> None:
+    exp = "test_dodging_with_nonzero_rpm_during_od_reading_uses_calibration_then_resumes"
+    cal = linear_stirring_calibration(exp)
+
+    with start_dodging_stirrer(
+        exp, calibration=cal, learned_duty_cycle=35.0, target_rpm_during_od_reading=500
+    ) as st:
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == pytest.approx(25.0)  # the calibration's prediction for 500 RPM
+        assert st.target_rpm == 1000
+
+        st.action_to_do_after_od_reading()
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_changing_target_rpm_during_od_reading_waits_until_after_the_reading() -> None:
+    exp = "test_changing_target_rpm_during_od_reading_waits_until_after_the_reading"
+
+    with start_dodging_stirrer(exp, calibration=False, learned_duty_cycle=35.0) as st:
+        st.action_to_do_before_od_reading()
+        st.set_target_rpm(800)
+        assert st.target_rpm == 800
+        assert st.duty_cycle == 0
+
+        st.action_to_do_after_od_reading()
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_changing_target_rpm_between_od_readings_applies_immediately() -> None:
+    exp = "test_changing_target_rpm_between_od_readings_applies_immediately"
+    cal = linear_stirring_calibration(exp)
+
+    with start_dodging_stirrer(exp, calibration=cal, learned_duty_cycle=35.0) as st:
+        st.action_to_do_before_od_reading()
+        st.action_to_do_after_od_reading()
+        assert st.duty_cycle == pytest.approx(35.0)
+
+        st.set_target_rpm(500)
+        assert st.target_rpm == 500
+        assert st.duty_cycle == pytest.approx(st._estimate_duty_cycle)
+        assert st.duty_cycle < 35.0
+
+
+def test_dodging_turned_off_during_nonzero_od_reading_restores_learned_duty_cycle() -> None:
+    exp = "test_dodging_turned_off_during_nonzero_od_reading_restores_learned_duty_cycle"
+    cal = linear_stirring_calibration(exp)
+
+    with start_dodging_stirrer(
+        exp, calibration=cal, learned_duty_cycle=35.0, target_rpm_during_od_reading=500
+    ) as st:
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == pytest.approx(25.0)
+
+        st.currently_dodging_od = False
+        st.initialize_continuous_operation()
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_waking_from_sleep_while_dodging_waits_for_the_next_od_reading() -> None:
+    exp = "test_waking_from_sleep_while_dodging_waits_for_the_next_od_reading"
+
+    with start_dodging_stirrer(exp, calibration=False, learned_duty_cycle=35.0) as st:
+        st.action_to_do_before_od_reading()
+        st.set_state(st.SLEEPING)
+        assert st.duty_cycle == 0
+
+        st.set_state(st.READY)
+        assert st.duty_cycle == 0  # might still be inside an OD reading
+
+        st.set_target_rpm(1000)  # not deferred: the reading we slept through is over
+        assert st.duty_cycle == pytest.approx(35.0)
+
+
+def test_dodging_without_rpm_feedback_pauses_and_resumes() -> None:
+    exp = "test_dodging_without_rpm_feedback_pauses_and_resumes"
+
+    with start_stirring(
+        None,
+        unit,
+        exp,
+        use_rpm=False,
+        enable_dodging_od=True,
+        duty_cycle=40.0,
+        target_rpm_during_od_reading=0,
+    ) as st:
+        st.currently_dodging_od = True
+        st.action_to_do_before_od_reading()
+        assert st.duty_cycle == 0
+
+        st.action_to_do_after_od_reading()
+        assert st.duty_cycle == pytest.approx(40.0)
 
 
 @pytest.mark.slow
@@ -523,8 +695,6 @@ def test_click_stirring_accepts_new_flags(dummy_start_stirring) -> None:
             "42.5",
             "--target-rpm-during-od-reading",
             "123.0",
-            "--target-rpm-outside-od-reading",
-            "456.0",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -533,7 +703,13 @@ def test_click_stirring_accepts_new_flags(dummy_start_stirring) -> None:
     assert dummy_start_stirring["use_rpm"] is True
     assert dummy_start_stirring["duty_cycle"] == 42.5
     assert dummy_start_stirring["target_rpm_during_od_reading"] == 123.0
-    assert dummy_start_stirring["target_rpm_outside_od_reading"] == 456.0
+
+
+def test_click_stirring_target_rpm_zero_is_not_replaced_by_config(dummy_start_stirring) -> None:
+    runner = CliRunner()
+    result = runner.invoke(stirring_mod.click_stirring, ["--target-rpm", "0"])
+    assert result.exit_code == 0, result.output
+    assert dummy_start_stirring["target_rpm"] == 0.0
 
 
 def test_click_stirring_measure_rpm_only_sets_fixed_dc_mode(dummy_start_stirring) -> None:
@@ -562,7 +738,6 @@ def test_click_stirring_measure_rpm_only_sets_fixed_dc_mode(dummy_start_stirring
         "--duty-cycle",
         "--measure-rpm-only",
         "--target-rpm-during-od-reading",
-        "--target-rpm-outside-od-reading",
     ],
 )
 def test_click_stirring_help_includes_new_flags(flag) -> None:

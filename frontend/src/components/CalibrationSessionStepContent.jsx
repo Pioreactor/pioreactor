@@ -242,6 +242,11 @@ export default function CalibrationSessionStepContent({
           {step.body}
         </Typography>
       )}
+      {typeof step.metadata?.summary === "string" && (
+        <Typography variant="body1" sx={{ fontWeight: 500, mt: 1.5 }}>
+          {step.metadata.summary}
+        </Typography>
+      )}
       <Dialog
         open={Boolean(enlargedImage)}
         onClose={() => setEnlargedImage(null)}

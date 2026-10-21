@@ -45,6 +45,16 @@ class Client(PahoClient):
     def __exit__(self, *args: object) -> None:
         self.shutdown()
 
+    def reconnect(self) -> MQTTErrorCode:
+        rc = super().reconnect()
+        # Without TCP_NODELAY, Nagle's algorithm holds a small packet until the broker ACKs the previous
+        # one, and delayed ACKs make that ~40ms: e.g. a job's `ready` arrives 40ms after its `init`.
+        sock = self.socket()
+        if isinstance(sock, socket.socket):  # includes TLS sockets; not websockets
+            with suppress(OSError):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        return rc
+
     def shutdown(self) -> None:
         self.loop_stop()
         self.disconnect()

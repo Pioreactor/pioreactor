@@ -10,6 +10,7 @@ from http.client import HTTPMessage
 from pathlib import Path
 from subprocess import TimeoutExpired
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 from huey.exceptions import RateLimitExceeded
@@ -559,7 +560,7 @@ def test_get_from_unit_retries_until_result(monkeypatch: pytest.MonkeyPatch) -> 
     # Avoid test delays from retry sleeps.
     monkeypatch.setattr(tasks, "sleep", lambda _: events.append("sleep"))
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
     assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
@@ -586,7 +587,7 @@ def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", timeout=7.0)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", timeout=7.0)
 
     assert unit == "unit1"
     assert result == {"ok": True, "unit": "unit1", "value": {"ok": True}}
@@ -611,7 +612,7 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
     # Avoid test delays from retry sleeps.
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=1)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=1)
 
     assert unit == "unit1"
     assert result == {
@@ -622,6 +623,46 @@ def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch)
         "retryable": True,
     }
     assert responses == []
+
+
+@pytest.mark.parametrize("method", ["POST", "PATCH", "DELETE"])
+def test_request_unit_follows_delayed_result_for_every_mutation(
+    monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    requests: list[tuple[str, str]] = []
+    responses = {
+        "/unit_api/do": _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
+        "/unit_api/task_results/abc": _response(
+            200, {"task_id": "abc", "status": "succeeded", "result": {"done": True}}
+        ),
+    }
+
+    def fake_request(request_method: str, url: str, **_kwargs: Any) -> Response:
+        path = urlparse(url).path
+        requests.append((request_method, path))
+        return responses[path]
+
+    monkeypatch.setattr("pioreactor.mureq.request", fake_request)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+    monkeypatch.setattr(tasks, "sleep", lambda _: None)
+
+    unit, result = tasks._request_unit(method, "unit1", "/unit_api/do")
+
+    assert result == {"ok": True, "unit": "unit1", "value": {"done": True}}
+    assert requests == [(method, "/unit_api/do"), ("GET", "/unit_api/task_results/abc")]
+
+
+def test_request_unit_treats_an_empty_body_as_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pioreactor.mureq.request",
+        lambda *_args, **_kwargs: Response("http://unit.local", 204, HTTPMessage(), b""),
+    )
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+
+    assert tasks._request_unit("POST", "unit1", "/unit_api/do") == (
+        "unit1",
+        {"ok": True, "unit": "unit1", "value": None},
+    )
 
 
 def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -647,7 +688,7 @@ def test_get_from_unit_returns_failed_task_payload(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._get_from_unit("unit1", "/unit_api/do", max_attempts=2)
+    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=2)
 
     assert unit == "unit1"
     assert result == {
@@ -759,6 +800,56 @@ def test_repair_system_logs_failed_repair_command(monkeypatch: pytest.MonkeyPatc
     ]
 
 
+class _RC:
+    def __init__(self, returncode: int) -> None:
+        self.returncode = returncode
+
+
+def test_update_clock_sets_date_then_persists_fake_hwclock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On success, update_clock sets the date and immediately persists it."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        calls.append(command)
+        return _RC(0)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is True
+    assert calls == [
+        ["sudo", "date", "-s", "2025-01-31T12:34:56Z"],
+        ["sudo", "systemctl", "start", "fake-hwclock-save.service"],
+    ]
+
+
+def test_update_clock_does_not_persist_when_date_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If `date -s` fails, return False and do not persist a bad clock."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        calls.append(command)
+        return _RC(1)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is False
+    assert calls == [["sudo", "date", "-s", "2025-01-31T12:34:56Z"]]
+
+
+def test_update_clock_persist_failure_is_non_fatal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failing fake-hwclock save (e.g. unit absent) must not fail the clock update."""
+    monkeypatch.setattr(tasks.whoami, "is_testing_env", lambda: False)
+
+    def fake_run(command: list[str], **_kwargs: object) -> _RC:
+        return _RC(0 if command[:2] == ["sudo", "date"] else 1)
+
+    monkeypatch.setattr(tasks, "run", fake_run)
+
+    assert tasks.update_clock.call_local("2025-01-31T12:34:56Z") is True
+
+
 def test_check_model_hardware_runs_for_v1_hat_regardless_of_model_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -831,7 +922,7 @@ def test_multicast_chord_deletes_child_results_and_preserves_callback_result(
         ),
     )
 
-    chord_result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    chord_result = tasks.multicast("GET", "/unit_api/test", ["unit1", "unit2"])
     child_task_ids = [child_result.id for child_result in chord_result.results]
 
     for _ in child_task_ids:
@@ -875,13 +966,13 @@ def test_multicast_chord_reports_failed_and_skipped_members(
     monkeypatch.setattr(tasks.huey, "_immediate", False)
     monkeypatch.setattr(tasks.huey, "storage", SqliteStorage(tasks.huey.name, filename=tmp_path / "huey.db"))
 
-    def get_from_unit(unit: str, *args: Any, **kwargs: Any) -> tuple[str, Any]:
+    def request_unit(method: str, unit: str, *args: Any, **kwargs: Any) -> tuple[str, Any]:
         if unit == "unit2":
             raise RuntimeError("boom")
         return unit, tasks.fanout_success(unit, {"value": 1})
 
-    monkeypatch.setattr(tasks, "_get_from_unit", get_from_unit)
-    result = tasks.multicast_get("/unit_api/test", ["unit1", "unit2"])
+    monkeypatch.setattr(tasks, "_request_unit", request_unit)
+    result = tasks.multicast("GET", "/unit_api/test", ["unit1", "unit2"])
     if skipped:
         tasks.huey.revoke_by_id(list(result.results)[1].id)
 
@@ -996,7 +1087,6 @@ def test_export_experiment_data_task_cleans_partial_artifacts_and_returns_filena
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> None:
         assert experiment == "exp1"
         output_path.write_text("zip", encoding="utf-8")
@@ -1090,7 +1180,6 @@ def test_export_experiment_data_to_usb_task_writes_final_output_path(
         start_time: str | None = None,
         end_time: str | None = None,
         partition_by_unit: bool = False,
-        partition_by_experiment: bool = True,
     ) -> None:
         assert experiment == "exp1"
         assert output == (export_dir / "export.zip").as_posix()

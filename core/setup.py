@@ -18,9 +18,9 @@ CORE_REQUIREMENTS = [
     "huey==3.4.0",
     "itsdangerous==2.2.0",
     "Jinja2==3.1.6",
-    "MarkupSafe==3.0.3",
-    "python-dotenv==1.2.3",
-    "Werkzeug==3.1.8",
+    "MarkupSafe==3.0.4",
+    "python-dotenv==1.2.4",
+    "Werkzeug==3.1.9",
     "packaging==26.3",
     "mcp-utils-msgspec==3.0.1",
     # preinstalled on base images
@@ -85,7 +85,7 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     entry_points="""
         [console_scripts]
-        pio=pioreactor.cli.pio:pio
+        pio=pioreactor.cli:main
         pios=pioreactor.cli.pios:pios
         pioreactor-fcgi=pioreactor.web.fcgi:main
     """,

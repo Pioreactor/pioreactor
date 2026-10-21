@@ -8,6 +8,9 @@ global.TextDecoder = TextDecoder;
 const { MemoryRouter, Route, Routes, useLocation } = require("react-router");
 
 const mockStartProfile = jest.fn();
+const mockStopProfile = jest.fn();
+const mockConfirm = jest.fn();
+let mockRunningProfiles = [];
 
 jest.mock("../providers/ExperimentContext", () => ({
   useExperiment: () => ({
@@ -21,15 +24,15 @@ jest.mock("../providers/ExperimentContext", () => ({
 jest.mock("../providers/RunningProfilesContext", () => ({
   RunningProfilesProvider: ({ children }) => <>{children}</>,
   useRunningProfiles: () => ({
-    runningProfiles: [],
+    runningProfiles: mockRunningProfiles,
     loading: false,
-    stopProfile: jest.fn(),
+    stopProfile: mockStopProfile,
     startProfile: mockStartProfile,
   }),
 }));
 
 jest.mock("material-ui-confirm", () => ({
-  useConfirm: () => jest.fn(() => Promise.resolve()),
+  useConfirm: () => mockConfirm,
 }));
 
 jest.mock("../components/ManageExperimentMenu", () => () => <div data-testid="manage-experiment-menu" />);
@@ -114,6 +117,9 @@ function countFetches(url) {
 describe("Profiles", () => {
   beforeEach(() => {
     mockStartProfile.mockReset();
+    mockStopProfile.mockReset();
+    mockConfirm.mockReset().mockResolvedValue({ confirmed: true, reason: "confirm" });
+    mockRunningProfiles = [];
     recentRunsResponse = [];
     global.fetch = jest.fn((url, options = {}) => {
       if (url === "/api/experiment_profiles") {
@@ -195,6 +201,40 @@ describe("Profiles", () => {
 
     expect(countFetches("/api/experiment_profiles")).toBe(1);
     expect(countFetches("/api/experiment_profiles/profile-a.yaml")).toBe(1);
+  });
+
+  test.each(["cancel", "natural", "unmount"])("does not delete a profile on %s", async (reason) => {
+    mockConfirm.mockResolvedValue({ confirmed: false, reason });
+    renderProfiles("/experiment-profiles/profile%20with%20space.yaml");
+    await screen.findByText("Preview: Profile With Space");
+
+    fireEvent.click(screen.getByRole("button", { name: /delete profile/i }));
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
+    expect(global.fetch.mock.calls.some(([, options]) => options?.method === "DELETE")).toBe(false);
+  });
+
+  test.each([
+    [false, "cancel"], [false, "natural"], [false, "unmount"], [true, "confirm"],
+  ])("stopping a profile requires confirmation: %s / %s", async (confirmed, reason) => {
+    mockConfirm.mockResolvedValue({ confirmed, reason });
+    mockRunningProfiles = [{
+      job_id: 42,
+      settings: {
+        experiment_profile_name: "Running profile",
+        profile_filename: "profile-a.yaml",
+        start_time_utc: "2026-10-20T12:00:00Z",
+      },
+    }];
+    renderProfiles();
+    await screen.findByText("Preview: Profile A");
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
+    if (confirmed) {
+      expect(mockStopProfile).toHaveBeenCalledWith(42);
+    } else {
+      expect(mockStopProfile).not.toHaveBeenCalled();
+    }
   });
 
   test("encodes profile filenames when viewing and duplicating profiles", async () => {

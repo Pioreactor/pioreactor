@@ -26,7 +26,6 @@ import RecordEventLogDialog from './RecordEventLogDialog';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { experimentPathSegment } from "../utils/url";
-import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
 import LogMessage, { useClusterUnits } from "./LogMessage";
 
 // Activate the UTC plugin
@@ -175,7 +174,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         <Typography variant="h6" component="h2">
           <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent experiment logs</Box>
         </Typography>
-        <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ height: '660px', width: '100%', overflowY: 'auto' }}>
+        <TableContainer sx={{ height: '660px', width: '100%', overflowY: 'auto' }}>
           <Table stickyHeader size="small" aria-label="log table">
             <TableHead>
               <TableRow>
@@ -190,7 +189,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                 <React.Fragment key={log.key}>
                   <ZebraTableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
-                    <StyledTableCell level={log.level} data-copy-value={relabelUnit(log.pioreactor_unit)}>
+                    <StyledTableCell level={log.level}>
                       <Chip
                         size="small"
                         icon={<PioreactorIcon/>}
@@ -203,7 +202,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                       />
                     </StyledTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                    <StyledTableCell level={log.level} data-copy-value={log.message}>
+                    <StyledTableCell level={log.level}>
                       <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
                     </StyledTableCell>
                   </ZebraTableRow>
@@ -213,7 +212,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                       'hours',
                       true
                     ) >= 2 && (
-                      <TableRow key={`filler-${log.key}`} data-copy-row="false">
+                      <TableRow key={`filler-${log.key}`}>
                         <StyledTableCellFiller colSpan="4">
                           {toTimestampObject(log.timestamp).diff(
                             toTimestampObject(listOfLogs[i + 1].timestamp),

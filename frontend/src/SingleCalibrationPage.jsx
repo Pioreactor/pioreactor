@@ -157,13 +157,14 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
   const deleteCalibration = async () => {
     let confirmed = false;
     try {
-      await confirm({
+      const result = await confirm({
         description: 'Deleting this calibration will remove it from disk. This is irreversible.',
         title: `Delete calibration ${calibrationName}?`,
         confirmationText: "Confirm",
         confirmationButtonProps: {color: "primary", variant: "contained"},
         cancellationButtonProps: {color: "secondary"},
       });
+      if (!result.confirmed) return;
       confirmed = true;
 
       const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`, {

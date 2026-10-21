@@ -1,1 +1,0 @@
-import{j as o}from"./client-DvmDbv1Z.js";import{C as i,L as r,aF as l}from"./main-BarjfayY.js";import{u as m}from"./useLeaderHostname-P3NDQIKd.js";function g({name:s,unit:t,sx:a}){const e=m(),n=t||e;return o.jsx(i,{size:"small",icon:o.jsx(l,{}),label:s,clickable:!0,component:r,to:n?`/plugins/${n}`:"/plugins",sx:a,"data-plugin-name":s})}export{g as P};

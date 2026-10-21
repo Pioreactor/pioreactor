@@ -309,14 +309,6 @@ def choose_usb_mountpoint(mountpoint: str | None = None) -> Path:
     return Path(mounted[0].mountpoints[0])
 
 
-def resolve_usb_plugin_wheel(filepath: str) -> Path:
-    path = Path(filepath)
-    if path.suffix != ".whl":
-        raise ValueError("USB wheel plugin installs support .whl files only.")
-
-    return resolve_usb_plugin_artifact(filepath)
-
-
 def resolve_usb_plugin_artifact(filepath: str) -> Path:
     path = Path(filepath)
     if path.suffix not in (".whl", ".py"):

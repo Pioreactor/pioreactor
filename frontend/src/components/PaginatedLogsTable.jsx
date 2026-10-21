@@ -21,7 +21,6 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
 import { experimentPathSegment } from "../utils/url";
-import { copySelectedTableRowsAsTsv } from "../utils/tableCopy";
 import LogMessage, { useClusterUnits } from "./LogMessage";
 
 // Activate the UTC plugin
@@ -207,7 +206,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
       <Card sx={{ width: "100%" }}>
         <CardContent sx={{ width: "100%" }}>
           {hasLogs ? (
-            <TableContainer onCopy={copySelectedTableRowsAsTsv} sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
+            <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
               <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
                 <colgroup>
                   <Box component="col" sx={{width:'15%'}}/>
@@ -229,7 +228,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                       <StyledTimeTableCell level={log.level}>
                         {timestampCell(log.timestamp)}
                       </StyledTimeTableCell>
-                      <StyledTableCell level={log.level} data-copy-value={relabelUnit(log.pioreactor_unit)}>
+                      <StyledTableCell level={log.level}>
                         <Chip
                           size="small"
                           icon={<PioreactorIcon/>}
@@ -242,7 +241,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
                         />
                       </StyledTableCell>
                       <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                      <StyledTableCell level={log.level} data-copy-value={log.message}>
+                      <StyledTableCell level={log.level}>
                         <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
                       </StyledTableCell>
                     </ZebraTableRow>

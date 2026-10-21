@@ -13,9 +13,11 @@ Current implementation details:
 *   Values are msgspec-json encoded objects of the form:
     *   `{"cached_at": <unix-seconds>, "value": <worker-response-payload>}`
 *   TTL is enforced on read in `_read_multicast_get_cache_entry(...)` in `cache.py`.
-*   The low-level cache implementation lives in `cache.multicast_get_with_leader_cache(...)`, and the Huey task wrapper remains in `tasks.py`.
-*   In `api.py`, leader routes should usually go through `cache.cached_multicast_get(...)` instead of calling the task helper directly.
-*   The TTL value itself is set by callers of `multicast_get_with_leader_cache(...)`. The current helper uses the default `ttl_s=10.0`.
+*   In `api.py`, leader routes that answer with `create_task_response(...)` go through `cache.cached_multicast_get(...)`. It reads the cache in the request:
+    *   On a full hit it stores the merged payload as an already finished Huey task result, so the client's first poll returns it and no Huey worker runs.
+    *   Otherwise it enqueues a chord that fetches only the missed units. The chord callback, `tasks.reduce_and_cache_multicast_get_results`, caches the new payloads and merges in the hits. No Huey worker blocks waiting on the fanout.
+*   Routes that need the worker payloads before responding call the blocking `cache.multicast_get_with_leader_cache(...)` instead.
+*   Both helpers default to `ttl_s=10.0`.
 
 
 **how to use it**
@@ -40,7 +42,7 @@ If you want to cache another fan-out object, such as estimators or plugins, foll
 
 1. Define a `MulticastGetCacheTarget` in `cache.py`.
    *   Example: `ESTIMATORS = MulticastGetCacheTarget("estimators", "/unit_api/estimators")`
-2. Change the leader read route to use `cache.cached_multicast_get(...)` instead of `tasks.multicast_get(...)`.
+2. Change the leader read route to use `cache.cached_multicast_get(...)` instead of `tasks.multicast("GET", ...)`.
    *   Example: `cache.cached_multicast_get(cache.ESTIMATORS, get_all_workers())`
 3. Add an invalidation helper in `cache.py` for that object family.
    *   Mirror `invalidate_calibrations_cache(...)` or `invalidate_estimators_cache(...)`.

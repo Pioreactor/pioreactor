@@ -107,7 +107,6 @@ KNOWN_BODY_KEY_EXAMPLES = {
     "name": "testing_experiment",
     "new_name": "pio02",
     "options": {"target_rpm": "200"},
-    "partition_by_experiment": True,
     "partition_by_unit": True,
     "pioreactor_unit": "pio02",
     "release_archive_location": "/tmp/release.zip",

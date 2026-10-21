@@ -267,7 +267,6 @@ def test_export_experiment_data_includes_manifest_and_schema(temp_zipfile) -> No
         "start_time": None,
         "end_time": None,
         "partition_by_unit": False,
-        "partition_by_experiment": True,
     }
     assert manifest["selected_datasets"] == ["test_table"]
     assert dataset_manifest["dataset_name"] == "test_table"

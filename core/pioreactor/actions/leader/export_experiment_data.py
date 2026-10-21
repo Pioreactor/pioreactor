@@ -33,7 +33,6 @@ from pioreactor.version import __version__
 MINIMUM_EXPORT_FREE_BYTES = 64 * 1024 * 1024
 MINIMUM_EXPORT_AVAILABLE_MEMORY_BYTES = 120 * 1024 * 1024
 MAX_EXPORT_WAL_BYTES = 512 * 1024 * 1024
-EXPORT_RESOURCE_CHECK_INTERVAL_ROWS = 5_000
 EXPORT_RESOURCE_CHECK_INTERVAL_SECONDS = 2.0
 EXPORT_METADATA_SCHEMA_VERSION = 1
 
@@ -199,7 +198,6 @@ def build_export_manifest(
     start_time: str | None,
     end_time: str | None,
     partition_by_unit: bool,
-    partition_by_experiment: bool,
     datasets: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
@@ -211,7 +209,6 @@ def build_export_manifest(
             "start_time": start_time,
             "end_time": end_time,
             "partition_by_unit": partition_by_unit,
-            "partition_by_experiment": partition_by_experiment,
         },
         "selected_datasets": list(selected_datasets),
         "datasets": datasets,
@@ -317,53 +314,46 @@ def validate_dataset_information(dataset: Dataset, cursor: sqlite3.Cursor) -> No
 def create_timespan_clause(
     start_time: str | None, end_time: str | None, time_column: str, existing_placeholders: dict[str, str]
 ) -> tuple[str, dict[str, str]]:
-    if start_time is not None and end_time is not None:
+    clauses: list[str] = []
+    if start_time is not None:
         existing_placeholders["start_time"] = start_time
+        clauses.append(f"T.{time_column} >= :start_time")
+    if end_time is not None:
         existing_placeholders["end_time"] = end_time
-        return (
-            f"T.{time_column} >= :start_time AND T.{time_column} <= :end_time",
-            existing_placeholders,
-        )
-
-    elif start_time is not None:
-        existing_placeholders["start_time"] = start_time
-        return f"T.{time_column} >= :start_time", existing_placeholders
-
-    elif end_time is not None:
-        existing_placeholders["end_time"] = end_time
-        return f"T.{time_column} <= :end_time", existing_placeholders
-    else:
-        raise ValueError
+        clauses.append(f"T.{time_column} <= :end_time")
+    if not clauses:
+        raise ValueError("start_time or end_time must be provided.")
+    return " AND ".join(clauses), existing_placeholders
 
 
 def create_sql_query(
     selects: list[str],
     table_or_subquery: str,
-    existing_placeholders: dict[str, str],
-    where_clauses: list[str] | None = None,
-    order_by_col: str | None = None,
-    order_by_cols: Sequence[str] | None = None,
-    has_experiment: bool = False,
-) -> tuple[str, dict[str, str]]:
-    """
-    Constructs an SQL query with SELECT, FROM, WHERE, and ORDER BY clauses.
-    """
-    # Base SELECT and FROM clause
+    where_clauses: list[str],
+    order_by_cols: Sequence[str],
+    has_experiment: bool,
+) -> str:
     query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery}) T"
 
     if has_experiment:
         query += " LEFT JOIN experiments E ON E.experiment = T.experiment"  # left join since some experiments, like $experiment, are virtual. Maybe this shouldn't be the case?
 
-    # Add WHERE clause if provided
     if where_clauses:
         query += f" WHERE {' AND '.join(where_clauses)}"
 
     if order_by_cols:
         query += f" ORDER BY {', '.join(f'T.{column}' for column in order_by_cols)}"
-    elif order_by_col:
-        query += f" ORDER BY T.{order_by_col}"
 
-    return query, existing_placeholders
+    return query
+
+
+def _normalize_time_bound(value: str | None, name: str) -> datetime | None:
+    if value is None:
+        return None
+    as_datetime = datetime.fromisoformat(value)
+    if as_datetime.tzinfo is None:
+        raise ValueError(f"{name} must include a timezone offset")
+    return as_datetime.astimezone(timezone.utc)
 
 
 def export_experiment_data(
@@ -373,7 +363,6 @@ def export_experiment_data(
     start_time: str | None = None,
     end_time: str | None = None,
     partition_by_unit: bool = False,
-    partition_by_experiment: bool = True,
 ) -> None:
     """
     Export datasets for exactly one experiment.
@@ -389,28 +378,12 @@ def export_experiment_data(
         click.echo("At least one dataset name must be provided.")
         sys.exit(1)
 
-    start_time_as_datetime = datetime.fromisoformat(start_time) if start_time is not None else None
-    end_time_as_datetime = datetime.fromisoformat(end_time) if end_time is not None else None
-    if start_time_as_datetime is not None and start_time_as_datetime.tzinfo is None:
-        raise ValueError("start_time must include a timezone offset")
-    if end_time_as_datetime is not None and end_time_as_datetime.tzinfo is None:
-        raise ValueError("end_time must include a timezone offset")
-    if (
-        start_time_as_datetime is not None
-        and end_time_as_datetime is not None
-        and start_time_as_datetime > end_time_as_datetime
-    ):
+    start_time_utc = _normalize_time_bound(start_time, "start_time")
+    end_time_utc = _normalize_time_bound(end_time, "end_time")
+    if start_time_utc is not None and end_time_utc is not None and start_time_utc > end_time_utc:
         raise ValueError("start_time must be earlier than or equal to end_time")
-    start_time = (
-        to_iso_format(start_time_as_datetime.astimezone(timezone.utc))
-        if start_time_as_datetime is not None
-        else None
-    )
-    end_time = (
-        to_iso_format(end_time_as_datetime.astimezone(timezone.utc))
-        if end_time_as_datetime is not None
-        else None
-    )
+    start_time = to_iso_format(start_time_utc) if start_time_utc is not None else None
+    end_time = to_iso_format(end_time_utc) if end_time_utc is not None else None
 
     logger = create_logger("export_experiment_data", experiment="$experiment")
     logger.info(
@@ -432,6 +405,7 @@ def export_experiment_data(
     manifest_datasets: list[dict[str, Any]] = []
 
     def check_resources_from_sqlite_progress() -> int:
+        # SQLite calls this while it sorts and while rows are fetched, so it covers the whole export.
         nonlocal last_sqlite_progress_resource_check
         nonlocal resource_limit_error
 
@@ -482,28 +456,26 @@ def export_experiment_data(
 
                 validate_dataset_information(dataset, cursor)
 
-                _partition_by_unit = dataset.has_unit and (
-                    partition_by_unit or dataset.always_partition_by_unit
-                )
-                _partition_by_experiment = dataset.has_experiment and partition_by_experiment
-                placeholders: dict[str, str] = {}
-
-                order_by_col = dataset.default_order_by
                 table_or_subquery = dataset.table or dataset.query
                 assert table_or_subquery is not None
 
+                placeholders: dict[str, str] = {}
                 where_clauses: list[str] = []
-                selects: list[str] = []
+                generated_selects: list[str] = []
 
                 if dataset.timestamp_columns:
-                    selects.append(generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns))
+                    generated_selects.append(
+                        generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns)
+                    )
 
                 if dataset.has_experiment:
                     placeholders["experiment"] = experiment
                     where_clauses.append("T.experiment = :experiment")
 
-                if dataset.has_experiment and dataset.default_order_by:
-                    selects.append(generate_timestamp_to_relative_time_clause(dataset.default_order_by))
+                    if dataset.default_order_by:
+                        generated_selects.append(
+                            generate_timestamp_to_relative_time_clause(dataset.default_order_by)
+                        )
 
                 if dataset.timestamp_columns and (start_time or end_time):
                     assert dataset.default_order_by is not None
@@ -512,90 +484,70 @@ def export_experiment_data(
                     )
                     where_clauses.append(timespan_clause)
 
+                cursor.execute(f"SELECT * FROM ({table_or_subquery}) LIMIT 0", placeholders)
+                source_columns = [column[0] for column in cursor.description]
+
                 if dataset.table:
-                    cursor.execute(f"SELECT * FROM ({table_or_subquery}) LIMIT 0", placeholders)
-                    source_columns = [quote_identifier(_[0]) for _ in cursor.description]
-                    selects[:0] = [f"{round_if_real(f'T.{c}')} AS {c}" for c in source_columns]
+                    source_selects = [
+                        f"{round_if_real(f'T.{quote_identifier(c)}')} AS {quote_identifier(c)}"
+                        for c in source_columns
+                    ]
                 else:
-                    selects.insert(0, "T.*")
+                    source_selects = ["T.*"]
 
-                query, placeholders = create_sql_query(
-                    selects,
-                    table_or_subquery,
-                    placeholders,
-                    where_clauses,
-                    order_by_col=None,
-                    has_experiment=dataset.has_experiment,
+                # Current invariant: every row has the requested experiment, so only units can split a dataset into
+                # several CSVs. A dataset can declare has_unit without the column; then there is one CSV.
+                split_by_unit = (
+                    dataset.has_unit
+                    and (partition_by_unit or dataset.always_partition_by_unit)
+                    and "pioreactor_unit" in source_columns
                 )
-                cursor.execute(f"SELECT * FROM ({query}) LIMIT 0", placeholders)
+                order_by_cols = ["pioreactor_unit"] if split_by_unit else []
+                if dataset.default_order_by and dataset.default_order_by not in order_by_cols:
+                    order_by_cols.append(dataset.default_order_by)
 
-                headers = [_[0] for _ in cursor.description]
-                schema_path = f"{dataset_name}/schema.json"
-                dataset_schema = build_dataset_schema(dataset, headers)
-
-                order_by_cols: list[str] = []
-                if _partition_by_experiment:
-                    try:
-                        iloc_experiment = headers.index("experiment")
-                    except ValueError:
-                        iloc_experiment = None
-                else:
-                    iloc_experiment = None
-
-                if _partition_by_unit:
-                    try:
-                        iloc_unit = headers.index("pioreactor_unit")
-                        order_by_cols.append("pioreactor_unit")
-                    except ValueError:
-                        iloc_unit = None
-                else:
-                    iloc_unit = None
-
-                if order_by_col and order_by_col not in order_by_cols:
-                    order_by_cols.append(order_by_col)
-
-                query, placeholders = create_sql_query(
-                    selects,
+                query = create_sql_query(
+                    source_selects + generated_selects,
                     table_or_subquery,
-                    placeholders,
                     where_clauses,
-                    order_by_cols=order_by_cols,
-                    has_experiment=dataset.has_experiment,
+                    order_by_cols,
+                    dataset.has_experiment,
                 )
                 cursor.row_factory = None if dataset.table else rounded_row_factory  # type: ignore[assignment]
                 cursor.execute(query, placeholders)
 
-                count = 0
-                current_partition: tuple[Any, Any] | None = None
-                current_csv_file: Any | None = None
-                current_csv_writer: Any | None = None
-                current_csv_manifest_entry: dict[str, Any] | None = None
-                csv_manifest_entries: list[dict[str, Any]] = []
-                last_resource_check = monotonic()
+                headers = [column[0] for column in cursor.description]
+                iloc_unit = headers.index("pioreactor_unit") if split_by_unit else None
+                experiment_partition = experiment if dataset.has_experiment else "all_experiments"
+                schema_path = f"{dataset_name}/schema.json"
 
                 add_directory_to_zip_with_current_timestamp(zf, dataset_name)
-                write_json_to_zip_with_current_timestamp(zf, schema_path, dataset_schema)
+                write_json_to_zip_with_current_timestamp(
+                    zf, schema_path, build_dataset_schema(dataset, headers)
+                )
+
+                count = 0
+                current_unit_partition: Any = None
+                current_csv_file: Any | None = None
+                current_csv_writer: Any | None = None
+                current_csv_manifest_entry: dict[str, Any] = {}
+                csv_manifest_entries: list[dict[str, Any]] = []
 
                 try:
                     for row in cursor:
                         count += 1
-                        rows_partition = (
-                            row[iloc_experiment] if iloc_experiment is not None else "all_experiments",
-                            row[iloc_unit] if iloc_unit is not None else "all_units",
-                        )
+                        unit_partition = row[iloc_unit] if iloc_unit is not None else "all_units"
 
-                        if rows_partition != current_partition:
+                        if current_csv_file is None or unit_partition != current_unit_partition:
                             if current_csv_file is not None:
                                 current_csv_file.close()
 
                             filename = (
-                                f"{dataset_name}-"
-                                + "-".join(str(partition) for partition in rows_partition)
-                                + f"-{time}.csv"
+                                f"{dataset_name}-{experiment_partition}-{unit_partition}-{time}.csv".replace(
+                                    " ", "_"
+                                )
                             )
-                            filename = filename.replace(" ", "_")
-                            zip_member = f"{dataset_name}/{filename}"
-                            zip_info = zipfile.ZipInfo(zip_member)
+                            zip_info = zipfile.ZipInfo(f"{dataset_name}/{filename}")
                             zip_info.date_time = datetime.now().timetuple()[:6]
                             zip_info.compress_type = zipfile.ZIP_DEFLATED
                             zip_info.compress_level = 1
@@ -607,30 +559,23 @@ def export_experiment_data(
                             )
                             current_csv_writer = csv.writer(current_csv_file, delimiter=",")
                             current_csv_writer.writerow(headers)
-                            current_partition = rows_partition
+                            current_unit_partition = unit_partition
                             current_csv_manifest_entry = {
-                                "path": zip_member,
+                                "path": zip_info.filename,
                                 "row_count": 0,
                                 "partition": {
-                                    "experiment": rows_partition[0],
-                                    "pioreactor_unit": rows_partition[1],
+                                    "experiment": experiment_partition,
+                                    "pioreactor_unit": unit_partition,
                                 },
                             }
                             csv_manifest_entries.append(current_csv_manifest_entry)
 
                         assert current_csv_writer is not None
-                        assert current_csv_manifest_entry is not None
                         current_csv_writer.writerow(row)
                         current_csv_manifest_entry["row_count"] += 1
 
                         if count % 10_000 == 0:
                             logger.debug(f"Exported {count} rows...")
-
-                        if count % EXPORT_RESOURCE_CHECK_INTERVAL_ROWS == 0:
-                            now = monotonic()
-                            if now - last_resource_check >= EXPORT_RESOURCE_CHECK_INTERVAL_SECONDS:
-                                _check_export_resources(tmp_output_path, database_path)
-                                last_resource_check = now
                 finally:
                     if current_csv_file is not None:
                         current_csv_file.close()
@@ -639,20 +584,6 @@ def export_experiment_data(
                 if count == 0:
                     logger.warning(f"No data present in {dataset_name} with applied filters.")
 
-                partition_experiments = sorted(
-                    {
-                        entry["partition"]["experiment"]
-                        for entry in csv_manifest_entries
-                        if entry["partition"]["experiment"] != "all_experiments"
-                    }
-                )
-                partition_units = sorted(
-                    {
-                        entry["partition"]["pioreactor_unit"]
-                        for entry in csv_manifest_entries
-                        if entry["partition"]["pioreactor_unit"] != "all_units"
-                    }
-                )
                 manifest_datasets.append(
                     {
                         "dataset_name": dataset_name,
@@ -662,8 +593,14 @@ def export_experiment_data(
                         "csv_files": csv_manifest_entries,
                         "row_count": count,
                         "partition_values": {
-                            "experiments": partition_experiments,
-                            "pioreactor_units": partition_units,
+                            "experiments": [experiment] if count and dataset.has_experiment else [],
+                            "pioreactor_units": sorted(
+                                {
+                                    entry["partition"]["pioreactor_unit"]
+                                    for entry in csv_manifest_entries
+                                    if entry["partition"]["pioreactor_unit"] != "all_units"
+                                }
+                            ),
                         },
                     }
                 )
@@ -678,7 +615,6 @@ def export_experiment_data(
                     start_time=start_time,
                     end_time=end_time,
                     partition_by_unit=partition_by_unit,
-                    partition_by_experiment=partition_by_experiment,
                     datasets=manifest_datasets,
                 ),
             )
@@ -691,14 +627,11 @@ def export_experiment_data(
             raise resource_limit_error from exc
         raise
 
-    return
-
 
 @click.command(name="export_experiment_data")
 @click.option("--experiment", required=True)
 @click.option("--output", default="./output.zip")
 @click.option("--partition-by-unit", is_flag=True)
-@click.option("--partition-by-experiment", is_flag=True)
 @click.option("--dataset-name", multiple=True, default=[])
 @click.option("--start-time", help="Offset-aware ISO-8601 timestamp.")
 @click.option("--end-time", help="Offset-aware ISO-8601 timestamp.")
@@ -706,7 +639,6 @@ def click_export_experiment_data(
     experiment: str,
     output: str,
     partition_by_unit: bool,
-    partition_by_experiment: bool,
     dataset_name: tuple[str, ...],
     start_time: str | None,
     end_time: str | None,
@@ -714,6 +646,4 @@ def click_export_experiment_data(
     """
     (leader only) Export datasets from db.
     """
-    export_experiment_data(
-        experiment, dataset_name, output, start_time, end_time, partition_by_unit, partition_by_experiment
-    )
+    export_experiment_data(experiment, dataset_name, output, start_time, end_time, partition_by_unit)

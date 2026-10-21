@@ -1,0 +1,1 @@
+import{j as e}from"./client-b_beIkGv.js";import{K as i,B as o}from"./main-C_T85uVi.js";function r(t){const n=t.title;return e.jsx(i,{title:n,placement:"top-start",children:e.jsx(o,{component:"span",className:n?"underlineSpan":"",tabIndex:n?0:void 0,sx:{"&:focus-visible":{outline:"2px solid",outlineColor:"primary.main",outlineOffset:"2px"}},children:t.children})})}export{r as U};

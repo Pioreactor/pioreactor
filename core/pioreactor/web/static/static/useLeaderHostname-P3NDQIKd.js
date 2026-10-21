@@ -1,1 +1,0 @@
-import{b as r}from"./client-DvmDbv1Z.js";import{j as a}from"./main-BarjfayY.js";let t=null;function s(){if(t===null){let e=null;t=Promise.resolve(a(l=>{e=l["cluster.topology"]?.leader_hostname||null})).then(()=>(e===null&&(t=null),e))}return t}function f(){const[e,l]=r.useState(null);return r.useEffect(()=>{let n=!1;return s().then(o=>{n||l(o)}),()=>{n=!0}},[]),e}export{f as u};

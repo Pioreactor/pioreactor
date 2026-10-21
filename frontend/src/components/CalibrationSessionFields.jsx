@@ -5,6 +5,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
+import CalibrationSessionDataTable from "./CalibrationSessionDataTable";
 
 
 function shouldHideField(step, field) {
@@ -42,6 +43,16 @@ export default function CalibrationSessionFields({ step, values, onFieldChange }
                 ))}
               </Select>
             </FormControl>
+          );
+        }
+        if (field.field_type === "data_table") {
+          return (
+            <CalibrationSessionDataTable
+              key={field.name}
+              field={field}
+              rows={values[field.name]}
+              onChange={(rows) => onFieldChange(field.name, rows)}
+            />
           );
         }
         if (field.field_type === "choice") {

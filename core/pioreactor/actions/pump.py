@@ -259,6 +259,11 @@ def _pump_action(
     if calibration is None:
         calibration = _get_calibration(pump_device)
 
+    if is_default_calibration(calibration):
+        logger.debug(f"Using default calibration for {pump_device}.")
+    else:
+        logger.debug(f"Using {pump_device} calibration `{calibration.calibration_name}`.")
+
     with utils.managed_lifecycle(
         unit,
         experiment,
@@ -501,6 +506,16 @@ def _liquid_circulation(
 
     waste_calibration = _get_calibration("waste_pump")
     media_calibration = _get_calibration(pump_device)
+
+    if is_default_calibration(media_calibration):
+        logger.debug(f"Using default calibration for {pump_device}.")
+    else:
+        logger.debug(f"Using {pump_device} calibration `{media_calibration.calibration_name}`.")
+
+    if is_default_calibration(waste_calibration):
+        logger.debug("Using default calibration for waste_pump.")
+    else:
+        logger.debug(f"Using waste_pump calibration `{waste_calibration.calibration_name}`.")
 
     # we "pulse" the media pump so that the waste rate < media rate. By default, we pulse at a ratio of 1 waste : 0.85 media.
     # if we know the calibrations for each pump, we will use a different rate.

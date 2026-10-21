@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 from functools import partial
+from math import ceil
 from threading import Event
 from typing import Any
 
@@ -49,12 +50,6 @@ class classproperty(property):
     def __get__(self, obj: object, objtype: type | None = None) -> Any:
         assert self.fget is not None
         return self.fget(objtype)
-
-
-def brief_pause() -> float:
-    d = 5.0
-    time.sleep(d)
-    return d
 
 
 def briefer_pause() -> float:
@@ -138,7 +133,7 @@ class DosingAutomationJob(AutomationJob):
             f"efflux_tube_volume_ml={self.efflux_tube_volume_ml:.2f} mL."
         )
 
-        self._continue_pumping_event = Event()
+        self._stop_pumping_event = Event()
 
         if not is_pio_job_running("stirring"):
             self.logger.warning(
@@ -158,11 +153,6 @@ class DosingAutomationJob(AutomationJob):
     def run(self, timeout: float = 60.0) -> structs.AutomationEvent | None:
         return self.run_once(timeout=timeout)
 
-    def block_until_not_sleeping(self) -> bool:
-        while self.state == self.SLEEPING:
-            brief_pause()
-        return True
-
     def stop_active_pumps(self) -> None:
         for pump_job_name in ("add_media", "add_alt_media", "remove_waste"):
             self.pub_client.publish(
@@ -181,13 +171,23 @@ class DosingAutomationJob(AutomationJob):
         self.latest_event = events.DosingStopped(data=result)
         return result
 
+    def _may_pump(self) -> bool:
+        # Never wait here. A pause or shutdown ends the exchange, and the next run starts from fresh readings.
+        return self.state == self.READY and not self._stop_pumping_event.is_set()
+
+    def _project_volume_after_waste(self, volume_ml: float, removed_ml: float) -> float:
+        # Same model as bioreactor.calculate_updated_current_volume: waste drains to the efflux tube, no lower.
+        if volume_ml <= self.efflux_tube_volume_ml:
+            return volume_ml
+        return max(volume_ml - removed_ml, self.efflux_tube_volume_ml)
+
     def _execute_io_action(
         self,
         waste_ml: float = 0.0,
         **all_pumps_ml: float,
     ) -> SummableDict:
         """
-        This function recursively reduces the amount to add so that we don't end up adding 5ml,
+        Splits the exchange into equal rounds of at most MAX_SUBDOSE mL, so that we don't end up adding 5ml,
         and then removing 5ml (this could cause vial overflow). Instead we add 0.5ml, remove 0.5ml,
         add 0.5ml, remove 0.5ml, and so on. We also want sufficient time to mix, and this procedure
         will slow dosing down.
@@ -210,10 +210,13 @@ class DosingAutomationJob(AutomationJob):
         Note
         ------
         If alt_media_ml and media_ml are non-zero, we keep their ratio equal for each
-        sub-call. This keeps the ratio of alt_media to media the same in the vial.
+        round. This keeps the ratio of alt_media to media the same in the vial.
 
         A problem is if the there is skew in the different mLs, then it's possible that one or more pumps
         must dose a very small amount, where our pumps have poor accuracy.
+
+        The exchange ends early, without waiting, if the job leaves READY (paused or disconnected). If an
+        addition would overflow the vial, that round's waste is still removed, then the job is paused.
 
 
         Returns
@@ -241,96 +244,74 @@ class DosingAutomationJob(AutomationJob):
 
         volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
         source_of_event = f"{self.job_name}:{self.automation_name}"
-        extra_waste_ml = waste_ml * config.getfloat(
+        waste_removal_multiplier = config.getfloat(
             "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
         )
 
-        if sum_of_volumes > self.MAX_SUBDOSE:
-            volumes_moved += self._execute_io_action(
-                waste_ml=waste_ml / 2,
-                **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
-            )
-            volumes_moved += self._execute_io_action(
-                waste_ml=waste_ml / 2,
-                **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
+        def run_pump(pump_function: pt.DosingProgram, ml: float) -> float:
+            return pump_function(
+                unit=self.unit,
+                experiment=self.experiment,
+                ml=ml,
+                source_of_event=source_of_event,
+                mqtt_client=self.pub_client,
+                logger=self.logger,
             )
 
-        else:
-            # iterate through pumps, and dose required amount. First *_media, then waste.
-            projected_volume_ml = self.current_volume_ml
+        n_rounds = max(1, ceil(sum_of_volumes / self.MAX_SUBDOSE - 1e-9))
+        round_waste_ml = waste_ml / n_rounds
+        # Track the vial volume ourselves for the whole exchange: the MQTT mirror lags behind our own pumping.
+        projected_volume_ml = self.current_volume_ml
+
+        for _ in range(n_rounds):
+            # 1. add each pump's share, stopping before an addition that would overflow the vial.
+            would_overflow = False
             for pump, volume_ml in all_pumps_ml.items():
-                if (projected_volume_ml + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
-                    self.logger.error(
-                        f"Pausing all pumping since {projected_volume_ml:g} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
-                    )
-                    self.set_state(self.SLEEPING)
+                ml = volume_ml / n_rounds
+                if ml <= 0:
+                    continue
+                if not self._may_pump():
                     return volumes_moved
-
-                if (
-                    (volume_ml > 0)
-                    and self.block_until_not_sleeping()
-                    and (self.state in (self.READY,))
-                    and not self._continue_pumping_event.is_set()
-                ):
-                    pump_function = pump_functions[pump]
-
-                    volumes_moved[pump] += pump_function(
-                        unit=self.unit,
-                        experiment=self.experiment,
-                        ml=volume_ml,
-                        source_of_event=source_of_event,
-                        mqtt_client=self.pub_client,
-                        logger=self.logger,
+                if projected_volume_ml + ml >= self.MAX_VIAL_VOLUME_TO_STOP:
+                    self.logger.error(
+                        f"Pausing all pumping since {projected_volume_ml:g} + {ml:g} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
-                    projected_volume_ml += volumes_moved[pump]
-                    pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
+                    would_overflow = True
+                    break
 
-            # remove waste last.
-            if (
-                waste_ml > 0
-                and self.block_until_not_sleeping()
-                and (self.state in (self.READY,))
-                and not self._continue_pumping_event.is_set()
-            ):
-                volumes_moved["waste_ml"] += self.remove_waste_from_bioreactor(
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    ml=waste_ml,
-                    source_of_event=source_of_event,
-                    mqtt_client=self.pub_client,
-                    logger=self.logger,
-                )
+                moved_ml = run_pump(pump_functions[pump], ml)
+                volumes_moved[pump] += moved_ml
+                projected_volume_ml += moved_ml
+                pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
+
+            # 2. remove this round's waste, even after an overflow: it can only lower the vial.
+            if round_waste_ml > 0:
+                if not self._may_pump():
+                    return volumes_moved
+                removed_ml = run_pump(self.remove_waste_from_bioreactor, round_waste_ml)
+                volumes_moved["waste_ml"] += removed_ml
+                projected_volume_ml = self._project_volume_after_waste(projected_volume_ml, removed_ml)
                 briefer_pause()
 
-                if volumes_moved["waste_ml"] < waste_ml - 1e-9 and self.state == self.READY:
-                    # Abort the entire exchange before another recursive subdose can add media.
+                if removed_ml < round_waste_ml - 1e-9 and self._may_pump():
+                    # Abort the entire exchange before another round can add media.
                     self.set_state(self.SLEEPING)
                     raise RuntimeError(
-                        f"Waste was under-removed. Expected to remove {waste_ml} ml, only removed {volumes_moved['waste_ml']} ml. Pausing dosing."
+                        f"Waste was under-removed. Expected to remove {round_waste_ml} ml, only removed {removed_ml} ml. Pausing dosing."
                     )
 
-            # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
-            # check exit conditions again!
-            if (
-                extra_waste_ml > 0
-                and self.block_until_not_sleeping()
-                and (self.state in (self.READY,))
-                and not self._continue_pumping_event.is_set()
-            ):
-                self.remove_waste_from_bioreactor(
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    ml=extra_waste_ml,
-                    source_of_event=source_of_event,
-                    mqtt_client=self.pub_client,
-                    logger=self.logger,
-                )
-                briefer_pause()
+            if would_overflow:
+                self.set_state(self.SLEEPING)
+                return volumes_moved
 
-        if volumes_moved["waste_ml"] < waste_ml:
-            self.logger.warning(
-                f"Waste was under-removed. Expected to remove {waste_ml} ml, only removed {volumes_moved['waste_ml']} ml."
-            )
+            # 3. run remove_waste a bit longer to keep volume constant (determined by the length of the waste tube)
+            extra_waste_ml = round_waste_ml * waste_removal_multiplier
+            if extra_waste_ml > 0:
+                if not self._may_pump():
+                    return volumes_moved
+                removed_ml = run_pump(self.remove_waste_from_bioreactor, extra_waste_ml)
+                projected_volume_ml = self._project_volume_after_waste(projected_volume_ml, removed_ml)
+                briefer_pause()
 
         return volumes_moved
 
@@ -341,7 +322,7 @@ class DosingAutomationJob(AutomationJob):
         self.stop_active_pumps()
 
     def on_disconnected(self) -> None:
-        self._continue_pumping_event.set()  # set this early so the pumps exits.
+        self._stop_pumping_event.set()  # set this early so the pumps exits.
         self.stop_active_pumps()
         super().on_disconnected()
 

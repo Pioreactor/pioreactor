@@ -169,34 +169,6 @@ def test_verify_writable_uses_mount_read_write_options(tmp_path: Path, monkeypat
     assert usb_utils._verify_writable(mountpoint) is False
 
 
-def test_resolve_usb_plugin_wheel_rejects_paths_outside_usb_mount(tmp_path: Path, monkeypatch) -> None:
-    mount_root = tmp_path / "run" / "pioreactor" / "usb"
-    mountpoint = mount_root / "usb-7A2B-91FE"
-    mountpoint.mkdir(parents=True)
-    outside_wheel = tmp_path / "pioreactor_demo-1.2.3-py3-none-any.whl"
-    outside_wheel.write_text("wheel", encoding="utf-8")
-    partition = usb_utils.UsbPartition(
-        device="/dev/sda1",
-        parent_device="/dev/sda",
-        label="PIOREACTOR",
-        uuid="7A2B-91FE",
-        fstype="exfat",
-        size_bytes=1000,
-        mountpoints=(mountpoint.as_posix(),),
-        removable=True,
-    )
-
-    monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
-    monkeypatch.setattr(usb_utils, "discover_usb_partitions", lambda: [partition])
-
-    try:
-        usb_utils.resolve_usb_plugin_wheel(outside_wheel.as_posix())
-    except ValueError as exc:
-        assert "not on a Pioreactor-managed USB mount" in str(exc)
-    else:
-        raise AssertionError("Expected ValueError")
-
-
 def test_resolve_usb_plugin_artifact_rejects_python_file_outside_usb_mount(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -225,29 +197,6 @@ def test_resolve_usb_plugin_artifact_rejects_python_file_outside_usb_mount(
         assert "not on a Pioreactor-managed USB mount" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
-
-
-def test_resolve_usb_plugin_wheel_accepts_wheels_on_usb_mount(tmp_path: Path, monkeypatch) -> None:
-    mount_root = tmp_path / "run" / "pioreactor" / "usb"
-    mountpoint = mount_root / "usb-7A2B-91FE"
-    mountpoint.mkdir(parents=True)
-    wheel = mountpoint / "pioreactor_demo-1.2.3-py3-none-any.whl"
-    wheel.write_text("wheel", encoding="utf-8")
-    partition = usb_utils.UsbPartition(
-        device="/dev/sda1",
-        parent_device="/dev/sda",
-        label="PIOREACTOR",
-        uuid="7A2B-91FE",
-        fstype="exfat",
-        size_bytes=1000,
-        mountpoints=(mountpoint.as_posix(),),
-        removable=True,
-    )
-
-    monkeypatch.setattr(usb_utils, "USB_MOUNT_ROOT", mount_root)
-    monkeypatch.setattr(usb_utils, "discover_usb_partitions", lambda: [partition])
-
-    assert usb_utils.resolve_usb_plugin_wheel(wheel.as_posix()) == wheel.resolve()
 
 
 def test_resolve_usb_plugin_artifact_accepts_python_file_on_usb_mount(tmp_path: Path, monkeypatch) -> None:

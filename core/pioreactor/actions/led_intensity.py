@@ -306,17 +306,20 @@ def click_led_intensity(
                 cache.getfloat(channel, fallback=0.0) == 0.0 for channel in ALL_LED_CHANNELS
             )
 
-        if not all_leds_are_off:
-            with JobManager() as job_manager:
-                if not job_manager.does_pid_exist(os.getpid()):
-                    job_manager.register_and_set_running(
-                        unit,
-                        experiment,
-                        "led_intensity",
-                        source_of_event or os.environ.get("JOB_SOURCE", "user"),
-                        os.getpid(),
-                        "",
-                        False,
-                    )
+        with JobManager() as job_manager:
+            if all_leds_are_off:
+                # an earlier `pio run led_intensity` registered itself; with every LED off, it's no longer running.
+                while (job_id := job_manager.get_running_job_id("led_intensity")) is not None:
+                    job_manager.set_not_running(job_id)
+            elif not job_manager.does_pid_exist(os.getpid()):
+                job_manager.register_and_set_running(
+                    unit,
+                    experiment,
+                    "led_intensity",
+                    source_of_event or os.environ.get("JOB_SOURCE", "user"),
+                    os.getpid(),
+                    "",
+                    False,
+                )
 
     return status

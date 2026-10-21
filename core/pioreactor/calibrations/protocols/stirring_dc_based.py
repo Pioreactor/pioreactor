@@ -6,13 +6,17 @@ This should be run with a vial in, with a stirbar. Water is fine.
 """
 import uuid
 from contextlib import nullcontext
+from typing import Any
 from typing import ClassVar
 from typing import Literal
 
+from msgspec import to_builtins
 from pioreactor.background_jobs import stirring
 from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.registry import SessionCleanupExecutor
-from pioreactor.calibrations.session_flow import CalibrationComplete
+from pioreactor.calibrations.review import column
+from pioreactor.calibrations.review import ReviewDataStep
+from pioreactor.calibrations.review import select_rows
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionStep
@@ -240,14 +244,61 @@ class RunCalibration(SessionStep):
             min_dc=ctx.data["min_dc"],
             max_dc=ctx.data["max_dc"],
         )
+        ctx.data["dcs"] = calibration.recorded_data["x"]
+        ctx.data["rpms"] = calibration.recorded_data["y"]
+        ctx.data["voltage"] = calibration.voltage
+        return ReviewReadings()
+
+
+class ReviewReadings(ReviewDataStep):
+    body = (
+        "Check the readings before saving. Uncheck any reading that looks wrong, such as a "
+        "stalled stir bar, to leave it out of the fit."
+    )
+
+    def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        return [column("dc", "Duty cycle (%)"), column("rpm", "RPM")]
+
+    def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        return [
+            {"dc": round(float(dc), 2), "rpm": round(float(rpm), 1)}
+            for dc, rpm in zip(ctx.data["dcs"], ctx.data["rpms"])
+        ]
+
+    def chart(self, ctx: SessionContext, included: list[int]) -> dict[str, Any] | None:
+        dcs = select_rows(ctx.data["dcs"], included)
+        rpms = select_rows(ctx.data["rpms"], included)
+        series: dict[str, Any] = {
+            "id": "measured",
+            "label": "Measured",
+            "points": [{"x": float(x), "y": float(y)} for x, y in zip(dcs, rpms)],
+        }
+        try:
+            series["curve"] = to_builtins(spline_fit(dcs, rpms))
+        except ValueError:
+            pass
+        return {
+            "title": "Calibration curve",
+            "x_label": "Duty cycle (%)",
+            "y_label": "RPM",
+            "series": [series],
+        }
+
+    def save(self, ctx: SessionContext, included: list[int]) -> None:
+        calibration = _build_stirring_calibration_from_measurements(
+            dcs=select_rows(ctx.data["dcs"], included),
+            rpms=select_rows(ctx.data["rpms"], included),
+            voltage=float(ctx.data["voltage"]),
+            unit=get_unit_name(),
+        )
         link = ctx.store_calibration(calibration, "stirring")
         ctx.complete({"calibrations": [link]})
-        return CalibrationComplete()
 
 
 _DC_BASED_STEPS: StepRegistry = {
     Intro.step_id: Intro,
     RunCalibration.step_id: RunCalibration,
+    ReviewReadings.step_id: ReviewReadings,
 }
 
 

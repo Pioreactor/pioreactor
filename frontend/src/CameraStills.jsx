@@ -213,13 +213,14 @@ export default function CameraStills({ title }) {
     }
 
     try {
-      await confirm({
+      const { confirmed } = await confirm({
         title: "Delete this camera snapshot?",
         description: `The image captured at ${formatCaptureTime(still)} will be permanently deleted.`,
         confirmationText: "Delete",
         confirmationButtonProps: { color: "primary", variant: 'contained'},
         cancellationButtonProps: { color: "secondary" },
       });
+      if (!confirmed) return;
     } catch (_error) {
       return;
     }

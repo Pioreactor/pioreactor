@@ -1429,7 +1429,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):
             self.logger.error(
-                f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1 / ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
+                f"Your {pre_delay=} or {post_delay=} is too high for the seconds_between_readings={ads_interval}. Either decrease pre_delay or post_delay, or increase seconds_between_readings"
             )
             self.clean_up()
             return

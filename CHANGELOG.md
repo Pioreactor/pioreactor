@@ -1,3 +1,59 @@
+### Upcoming
+
+#### Breaking changes
+
+ - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. OD calibrations and fusion estimators need a fixed IR LED intensity, and `auto` could pick a different value on every start. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
+ - Replaced `samples_per_second` in `[od_reading.config]` with `seconds_between_readings`, the time between OD readings. For example, to take a reading every 30 minutes:
+
+   ```
+   [od_reading.config]
+   seconds_between_readings=1800
+   ```
+
+   The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
+ - Removed `target_rpm_outside_od_reading` from `[stirring.config]` and the `--target-rpm-outside-od-reading` option of `pio run stirring`. Between OD readings, stirring now always uses its target RPM, set by `initial_target_rpm` or `--target-rpm`, or changed live in the UI. The update moves an existing `target_rpm_outside_od_reading` value to `initial_target_rpm` where OD dodging is enabled, then removes the old setting.
+ - The maximum stirring target RPM is now 2000, the fastest the RPM sensor can reliably measure. Higher targets are reduced to 2000.
+
+#### Enhancements
+
+ - Performance improvements
+ - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
+ - Changing the stirring target RPM while dodging OD readings now takes effect right away. It's only delayed when the change arrives during an OD reading, and then applies as soon as the reading ends.
+ - A non-zero `target_rpm_during_od_reading` no longer disturbs the duty cycle stirring has learned for its target RPM.
+ - Large doses are now split into the fewest equal sub-doses of at most `max_subdose` mL, for example 2.1 mL becomes 3 × 0.7 mL instead of 4 × 0.525 mL. This means fewer pump cycles and more accurate sub-doses.
+ - Duration-based pump calibration now asks for the smallest and largest dose you want to cover, instead of a comma-separated list of volumes. Only the smallest and largest values in the list were ever used, so the list made it look like every volume would be measured. The step now also says what will run: 10 pump runs at three durations spread across that range.
+
+#### Bug fixes
+
+ - Updated `ca-certificates` to 20250419+deb13u1, which stops trusting the roots behind the compromised eMudhra intermediate CAs (see https://emudhra.we-have-a-problem.com/). The package is bundled with the update, so offline Pioreactors get it too.
+ - Fixed OD calibrations from the UI sometimes fitting a straight line through clearly curved data, even though the fit was labelled a cubic spline. This happened when most standards were at low OD, which is typical for a dilution series. The automatic spline fit now also tries knots spread evenly across the measured range, so it can follow the curve at high OD. Redo any OD calibration whose fitted curve looks straight but whose points don't. Stirring calibrations use the same fit and may also fit more closely.
+ - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.
+ - Fixed OD calibrations and fusion estimators possibly being recorded at the wrong scale when `ref_normalization=unity`. Calibration sessions reused the IR reference value saved by an earlier session, which could make recorded voltages far too small and leave calibrated OD stuck at a constant value. Each calibration session now starts with a fresh IR reference. If calibrated OD stayed flat during an experiment and logged "Signal above suggested calibration range", redo that calibration.
+ - OD reading now refuses to start when an active OD calibration was made at a different IR LED intensity, with an error naming the calibration and both intensities. Previously it started anyway and logged an error on every reading. If the active fusion estimator's IR LED intensity doesn't match, OD reading starts without `od_fused` and logs an error.
+ - Fixed growth rate calculation repeatedly logging "Failed to decode message: Input data was truncated" while OD readings were failing.
+ - The turbidostat no longer warns about multiple OD signal channels when its biomass signal is `od_fused` or `normalized_od`.
+ - Fixed a clock time set from the UI being lost if the Pioreactor restarted within about 15 minutes. The corrected time is now saved immediately, so it survives a power cycle on Pioreactors without a real-time clock.
+ - Fixed stirring failing to recover its speed after each OD reading when dodging with `target_rpm_during_od_reading=0`. The learned duty cycle was reset at every reading, which was worse without a stirring calibration.
+ - Fixed stirring staying stopped when OD reading or dodging was stopped in the middle of an OD reading.
+ - Fixed OD dodging without RPM feedback (`use_rpm=0`) leaving the stirring fan off. It now stops for each OD reading and resumes afterwards.
+ - Fixed stirring possibly spinning up during an OD reading when it was resumed from paused while dodging.
+ - `pio run stirring --target-rpm 0` now targets 0 RPM, instead of using `initial_target_rpm`.
+ - Pausing a dosing automation in the middle of a dose now cancels the rest of that dose. Previously the automation waited, and resuming it, even hours later, finished the old dose, which was based on outdated OD and volume readings.
+ - Fixed a dosing automation possibly pumping right after being resumed using a vial-volume check made before it was paused. The volume is now checked immediately before every pump.
+ - When a dose would overflow the vial, the waste for media already added is now removed before the dosing automation pauses. Previously, the vial was left fuller than before the dose.
+ - Fixed the "Waste was under-removed" warning being logged several times for a single dose.
+ - Fixed the `light_dark_cycle` LED automation no longer switching between light and dark after it was paused and resumed.
+ - Fixed growth rate calculation crashing with a `KeyError` when its cached normalization statistics were for different photodiode channels, for example after switching between raw OD and fused OD. The statistics are now recomputed.
+ - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
+ - Fixed `led_intensity` staying listed as a running job after all LEDs were turned off, which blocked changing a Pioreactor's model or removing it from the cluster with "Stop activities…".
+ - Fixed `pio workers update-active <hostname> <0|1>` always failing with an error.
+
+### 26.11.1
+
+#### Bug fixes
+
+ - Fixed cancelling or dismissing confirmation dialogs still stopping activities, rebooting or shutting down Pioreactors, removing or unassigning workers, or deleting profiles, calibrations, estimators and camera snapshots. These actions now require explicit confirmation. Cancelling the leader system archive import also leaves the file picker closed.
+
 ### 26.11.0
 
 #### Breaking changes

@@ -248,6 +248,38 @@ class SessionInputs:
                 raise ValueError(f"Invalid '{name}', expected list of numbers.") from exc
         raise ValueError(f"Invalid '{name}', expected list of numbers.")
 
+    def data_table(self, name: Str, columns: list[dict[Str, Any]]) -> list[dict[Str, Any]]:
+        """
+        Parse an edited data table. Each returned row holds the editable columns as floats and
+        `include` as a bool. Read-only columns are dropped: the step owns those values.
+        """
+        value = self._get_raw(name)
+        if not isinstance(value, list):
+            raise ValueError(f"Invalid '{name}', expected a list of rows.")
+        editable_columns = [column for column in columns if column.get("editable")]
+        rows: list[dict[Str, Any]] = []
+        for row_number, raw_row in enumerate(value, start=1):
+            if not isinstance(raw_row, dict):
+                raise ValueError(f"Invalid '{name}', expected each row to be an object.")
+            row: dict[Str, Any] = {}
+            for column in editable_columns:
+                key, label = column["key"], column.get("label", column["key"])
+                cell = raw_row.get(key)
+                if cell is None or cell == "":
+                    raise ValueError(f"Row {row_number}: '{label}' is missing.")
+                try:
+                    numeric = _parse_float_input(key, cell)
+                except ValueError as exc:
+                    raise ValueError(f"Row {row_number}: '{label}' must be a number.") from exc
+                minimum = column.get("minimum")
+                if minimum is not None and numeric < minimum:
+                    raise ValueError(f"Row {row_number}: '{label}' must be >= {minimum}.")
+                row[key] = numeric
+            include = raw_row.get("include", True)
+            row["include"] = include if isinstance(include, bool) else str(include).lower() == "true"
+            rows.append(row)
+        return rows
+
 
 class SessionContext:
     def __init__(
@@ -506,6 +538,21 @@ class FieldBuilder:
             default=default,
         )
 
+    def data_table(
+        self,
+        name: Str,
+        columns: list[dict[Str, Any]],
+        rows: list[dict[Str, Any]],
+        label: Str | None = None,
+    ) -> CalibrationStepField:
+        return CalibrationStepField(
+            name=name,
+            label=label or name,
+            field_type="data_table",
+            columns=columns,
+            default=rows,
+        )
+
 
 class StepBuilder:
     def info(self, title: Str, body: Str) -> CalibrationStep:
@@ -630,6 +677,10 @@ def run_session_in_cli(step_registry: StepRegistry, session: CalibrationSession)
     engine = SessionEngine(step_registry=with_terminal_steps(step_registry), session=session, mode="cli")
     while engine.session.status == "in_progress":
         step = engine.get_step()
+        if step.fields and all(field.field_type == "data_table" for field in step.fields):
+            # Editing tables is UI-only for now: the CLI keeps the rows as recorded and moves on.
+            engine.advance({field.name: field.default for field in step.fields})
+            continue
         render_step_for_cli(step)
 
         inputs: dict[Str, object] = {}

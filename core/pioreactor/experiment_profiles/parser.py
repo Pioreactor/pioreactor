@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-# mypy: ignore-errors
-# flake8: noqa
-import math
+import operator
+import re
+from collections.abc import Callable
 from random import random
+from typing import Any
 
 from msgspec import DecodeError
+from msgspec import Struct
 from msgspec.json import decode
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotActiveWorkerError
@@ -12,8 +14,138 @@ from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import is_active
 
-from .sly import Lexer
-from .sly import Parser
+
+# Order matters: MQTT references and functions must precede bare names.
+_TOKEN = re.compile(
+    r"(?P<LOOKUP>([a-zA-Z_\$][a-zA-Z0-9_]*(\(\))?:){2}"
+    r"([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*)"
+    r"|(?P<COMMON>::([a-zA-Z_\$][a-zA-Z0-9_]*:)"
+    r"([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*)"
+    r"|(?P<FUNCTION>[a-zA-Z_$][a-zA-Z0-9_]*\(\))"
+    r"|(?P<NAME>[a-zA-Z_$][a-zA-Z0-9_]*)"
+    r"|(?P<OP>\*\*|<=|>=|==|[+*/<>()-])"
+    r"|(?P<NUMBER>([0-9]*[.])?[0-9]+)"
+    r"|(?P<SPACE>[ \t]+)"
+)
+# Equal left/right binding powers make exponentiation right-associative.
+# Unary signs bind below exponentiation; not binds below comparisons.
+_BINDING_POWER = {
+    "<=": (5, 6),
+    ">=": (5, 6),
+    "or": (2, 3),
+    "and": (3, 4),
+    "<": (5, 6),
+    "==": (5, 6),
+    ">": (5, 6),
+    "+": (7, 8),
+    "-": (7, 8),
+    "*": (8, 9),
+    "/": (8, 9),
+    "**": (10, 10),
+}
+_BINARY: dict[str, Callable[[Any, Any], Any]] = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+    "**": operator.pow,
+    "<": operator.lt,
+    "<=": operator.le,
+    "==": operator.eq,
+    ">=": operator.ge,
+    ">": operator.gt,
+}
+
+
+class Expression(Struct):
+    kind: str
+    value: str
+    children: tuple["Expression", ...] = ()
+
+
+class ProfileParser:
+    """Build a tree without resolving names, invoking functions, or reading MQTT."""
+
+    def __init__(self, source: str) -> None:
+        self.tokens: list[tuple[str, str]] = []
+        position = 0
+        while position < len(source):
+            match = _TOKEN.match(source, position)
+            if match is None:
+                raise SyntaxError(f"Invalid profile expression at position {position}: {source[position]!r}")
+            kind, value = match.lastgroup, match.group()
+            if kind != "SPACE":
+                assert kind is not None
+                self.tokens.append((kind, value))
+            position = match.end()
+        self.tokens.append(("EOF", ""))
+        self.position = 0
+
+    def parse(self) -> Expression:
+        result = self.expression(0)
+        if self.tokens[self.position][0] != "EOF":
+            raise SyntaxError("Unexpected trailing token in profile expression.")
+        return result
+
+    def expression(self, minimum_power: int) -> Expression:
+        kind, value = self.tokens[self.position]
+        self.position += 1
+        if value in ("+", "-", "not"):
+            left = Expression("unary", value, (self.expression(4 if value == "not" else 9),))
+        elif value == "(":
+            left = self.expression(0)
+            if self.tokens[self.position][1] != ")":
+                raise SyntaxError("Expected ')' in profile expression.")
+            self.position += 1
+        elif kind in ("NUMBER", "NAME", "FUNCTION", "LOOKUP", "COMMON") and value not in ("and", "or"):
+            left = Expression(kind, value)
+        else:
+            raise SyntaxError("Expected a value in profile expression.")
+
+        previous_power = 0
+        while (op := self.tokens[self.position][1]) in _BINDING_POWER:
+            left_power, right_power = _BINDING_POWER[op]
+            if left_power < minimum_power:
+                break
+            if previous_power == left_power == 5:
+                raise SyntaxError("Comparisons cannot be chained without parentheses.")
+            self.position += 1
+            right = self.expression(right_power)
+            left = Expression("binary", op, (left, right))
+            previous_power = left_power
+        return left
+
+
+def evaluate(expression: Expression, env: dict[str, Any]) -> Any:
+    kind, value = expression.kind, expression.value
+    if kind == "binary":
+        left = evaluate(expression.children[0], env)
+        if value == "and":
+            return left and evaluate(expression.children[1], env)
+        if value == "or":
+            return left or evaluate(expression.children[1], env)
+        right = evaluate(expression.children[1], env)
+        if value == "/" and right == 0:
+            raise ZeroDivisionError("Division by zero is not allowed.")
+        return _BINARY[value](left, right)
+    if kind == "unary":
+        operand = evaluate(expression.children[0], env)
+        if value == "not":
+            return not operand
+        return -operand if value == "-" else +operand
+    if kind == "NUMBER":
+        return float(value)
+    if kind == "NAME":
+        if value.lower() in ("true", "false"):
+            return value.lower() == "true"
+        return env.get(value, value)
+    if kind == "FUNCTION":
+        if value == "random()":
+            return random()
+        if value in ("unit()", "hours_elapsed()", "experiment()", "job_name()"):
+            return env[value[:-2]]
+        raise ValueError(f"{value} is not a valid function in profile expressions.")
+    return lookup_mqtt(value.replace("::", env["unit"] + ":") if kind == "COMMON" else value, env)
 
 
 def convert_string(input_value: object) -> object:
@@ -36,308 +168,74 @@ def convert_string(input_value: object) -> object:
     return input_value
 
 
-class ProfileLexer(Lexer):
-    # != is the same as not
-    tokens = {
-        NAME,
-        AND,
-        OR,
-        NOT,
-        EQUAL,
-        PLUS,
-        MINUS,
-        TIMES,
-        DIVIDE,
-        EXPONENT,
-        LESS_THAN,
-        GREATER_THAN,
-        LESS_THAN_OR_EQUAL,
-        GREATER_THAN_OR_EQUAL,
-        NUMBER,
-        UNIT_JOB_SETTING,
-        COMMON_JOB_SETTING,
-        FUNCTION,
-    }
-    ignore = " \t"
+def lookup_mqtt(data_string: str, env: dict[str, Any]) -> Any:
+    unit, job, setting_keys = data_string.split(":")
+    setting, *keys = setting_keys.split(".")
 
-    # Tokens
-    UNIT_JOB_SETTING = (
-        r"([a-zA-Z_\$][a-zA-Z0-9_]*(\(\))?:){2,}([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
-    )
-    COMMON_JOB_SETTING = r"::([a-zA-Z_\$][a-zA-Z0-9_]*:)([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
+    # HACK
+    if unit == "unit()":
+        # technically, common mqtt expressions can use ::job:attr, or unit():job:attr - they are equivalent.
+        unit = env["unit"]
+    if job == "job_name()":
+        job = env["job_name"]
 
-    FUNCTION = r"[a-zA-Z_$][a-zA-Z0-9_]*\(\)"
+    experiment = get_assigned_experiment_name(unit)
 
-    NAME = r"[a-zA-Z_$][a-zA-Z0-9_]*"
-    NAME["and"] = AND
-    NAME["or"] = OR
-    NAME["not"] = NOT
+    if not is_active(unit):
+        raise NotActiveWorkerError(f"Worker {unit} is not active.")
 
-    # Arithmetic Operators
-    EXPONENT = r"\*\*"  # Regular expression for exponentiation
-    PLUS = r"\+"
-    MINUS = r"-"
-    TIMES = r"\*"
-    DIVIDE = r"/"
+    result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=2.0)
 
-    # Comparison Operators
-    LESS_THAN_OR_EQUAL = r"<="
-    GREATER_THAN_OR_EQUAL = r">="
-    EQUAL = r"=="
-    LESS_THAN = r"<"
-    GREATER_THAN = r">"
+    if result:
+        # error handling here
+        try:
+            data_blob = decode(result.payload)
+        except DecodeError:
+            # just a string?
+            return convert_string(result.payload.decode())
 
-    NUMBER = r"[+-]?([0-9]*[.])?[0-9]+"  # decimal number
+        value = data_blob
 
-    # Special symbols
-    literals = {"(", ")"}
+        if len(keys) > 0:
+            # its a nested json object, iteratively nest into it.
+            for key in keys:
+                if not isinstance(value, dict):
+                    raise TypeError(
+                        f"Expression lookup `{data_string}` attempted nested key access `{key}` "
+                        f"on a non-mapping value of type `{type(value).__name__}`."
+                    )
+
+                if key not in value:
+                    available_keys = ", ".join(str(k) for k in value.keys())
+                    raise KeyError(
+                        f"Expression lookup `{data_string}` referenced missing nested key `{key}`. "
+                        f"Available keys: [{available_keys}]"
+                    )
+
+                value = value[key]
+
+        return convert_string(value)
+
+    else:
+        raise MQTTValueError(
+            f"{':'.join([unit, job, setting_keys])} does not exist for experiment `{experiment}`"
+        )
 
 
-class ProfileParser(Parser):
-    """
-    you can pass in an variable env that can dynamically populate data, ex:
-
-    `unit()`
-
-    will be replaced by env['unit']
-
-    """
-
-    _SYNTAX_VALUE = object()
-
-    def __init__(self, env=None, *, syntax_only: bool = False) -> None:
-        if env:
-            self.ENV = env
-        else:
-            self.ENV = dict()
-        self.syntax_only = syntax_only
-
-    tokens = ProfileLexer.tokens
-
-    precedence = (
-        ("left", OR),
-        ("left", AND),
-        ("right", NOT),
-        ("nonassoc", LESS_THAN, EQUAL, GREATER_THAN),
-        ("right", UMINUS),
-        ("left", PLUS, MINUS),
-        ("left", TIMES, DIVIDE),
-        ("right", EXPONENT),
-    )
-
-    @_("expr AND expr", "expr OR expr")
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        if p[1] == "and":
-            return p.expr0 and p.expr1
-        elif p[1] == "or":
-            return p.expr0 or p.expr1
-
-    @_("PLUS expr %prec UMINUS", "MINUS expr %prec UMINUS")
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        if p[0] == "+":
-            return p.expr
-        elif p[0] == "-":
-            return -p.expr
-
-    @_("expr EXPONENT expr")  # Add rule for exponentiation
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        return p.expr0**p.expr1
-
-    @_("expr PLUS expr", "expr MINUS expr", "expr TIMES expr", "expr DIVIDE expr")
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        if p[1] == "+":
-            return p.expr0 + p.expr1
-        elif p[1] == "-":
-            return p.expr0 - p.expr1
-        elif p[1] == "*":
-            return p.expr0 * p.expr1
-        elif p[1] == "/":
-            # Handle division by zero
-            if p.expr1 == 0:
-                raise ZeroDivisionError("Division by zero is not allowed.")
-            return p.expr0 / p.expr1
-
-    @_(
-        "expr LESS_THAN expr",
-        "expr EQUAL expr",
-        "expr GREATER_THAN expr",
-        "expr GREATER_THAN_OR_EQUAL expr",
-        "expr LESS_THAN_OR_EQUAL expr",
-    )
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        if p[1] == "<":
-            return p.expr0 < p.expr1
-        elif p[1] == "==":
-            return p.expr0 == p.expr1
-        elif p[1] == ">":
-            return p.expr0 > p.expr1
-        elif p[1] == ">=":
-            return p.expr0 >= p.expr1
-        elif p[1] == "<=":
-            return p.expr0 <= p.expr1
-
-    @_("NOT expr")
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        return not p.expr
-
-    @_("FUNCTION")
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        if p.FUNCTION == "random()":
-            return random()
-        elif p.FUNCTION == "unit()":
-            return self.ENV["unit"]
-        elif p.FUNCTION == "hours_elapsed()":
-            return self.ENV["hours_elapsed"]
-        elif p.FUNCTION == "experiment()":
-            return self.ENV["experiment"]
-        elif p.FUNCTION == "job_name()":
-            return self.ENV["job_name"]
-        else:
-            raise ValueError(f"{p.FUNCTION} is not a valid function in profile expressions.")
-
-    @_("NAME")
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        if p.NAME.lower() == "true":
-            return True
-        elif p.NAME.lower() == "false":
-            return False
-        elif p.NAME in self.ENV:
-            return self.ENV[p.NAME]
-        else:
-            return p.NAME
-
-    @_('"(" expr ")"')
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        return p.expr
-
-    @_("NUMBER")
-    def expr(self, p):
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        return float(p.NUMBER)
-
-    @_("UNIT_JOB_SETTING", "COMMON_JOB_SETTING")
-    def expr(self, p) -> bool | float | str:
-        if self.syntax_only:
-            return self._SYNTAX_VALUE
-
-        if hasattr(p, "COMMON_JOB_SETTING"):
-            data_string = p.COMMON_JOB_SETTING.replace("::", self.ENV["unit"] + ":")
-        else:
-            data_string = p.UNIT_JOB_SETTING
-
-        unit, job, setting_keys = data_string.split(":")
-        setting, *keys = setting_keys.split(".")
-
-        # HACK
-        if unit == "unit()":
-            # technically, common mqtt expressions can use ::job:attr, or unit():job:attr - they are equivalent.
-            unit = self.ENV["unit"]
-        if job == "job_name()":
-            job = self.ENV["job_name"]
-
-        experiment = get_assigned_experiment_name(unit)
-
-        if not is_active(unit):
-            raise NotActiveWorkerError(f"Worker {unit} is not active.")
-
-        result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=2.0)
-
-        if result:
-            # error handling here
-            try:
-                data_blob = decode(result.payload)
-            except DecodeError:
-                # just a string?
-                return convert_string(result.payload.decode())
-
-            value = data_blob
-
-            if len(keys) > 0:
-                # its a nested json object, iteratively nest into it.
-                for key in keys:
-                    if not isinstance(value, dict):
-                        raise TypeError(
-                            f"Expression lookup `{data_string}` attempted nested key access `{key}` "
-                            f"on a non-mapping value of type `{type(value).__name__}`."
-                        )
-
-                    if key not in value:
-                        available_keys = ", ".join(str(k) for k in value.keys())
-                        raise KeyError(
-                            f"Expression lookup `{data_string}` referenced missing nested key `{key}`. "
-                            f"Available keys: [{available_keys}]"
-                        )
-
-                    value = value[key]
-
-            return convert_string(value)
-
-        else:
-            raise MQTTValueError(
-                f"{':'.join([unit, job, setting_keys])} does not exist for experiment `{experiment}`"
-            )
-
-    def error(self, token) -> None:
-        if self.syntax_only:
-            raise SyntaxError("Invalid profile expression.")
-
-        return super().error(token)
-
-
-def parse_profile_expression_to_bool(profile_string: str, env=None) -> bool:
+def parse_profile_expression_to_bool(profile_string: str, env: dict[str, Any] | None = None) -> bool:
     result = parse_profile_expression(profile_string, env=env)
     if result is None:
-        # syntax error or something funky.
         raise SyntaxError(profile_string)
-    else:
-        return bool(result)
+    return bool(result)
 
 
-def parse_profile_expression(profile_string: str, env=None):
-    lexer = ProfileLexer()
-    parser = ProfileParser(env)
-    r = parser.parse(lexer.tokenize(profile_string))
-    return r
+def parse_profile_expression(profile_string: str, env: dict[str, Any] | None = None) -> Any:
+    return evaluate(ProfileParser(profile_string).parse(), env if env is not None else {})
 
 
 def check_syntax(profile_string: str) -> bool:
     try:
-        lexer = ProfileLexer()
-        # Current invariant: validation and execution use the same expression
-        # grammar, but syntax validation never evaluates values or live state.
-        parser = ProfileParser(syntax_only=True)
-        result = parser.parse(lexer.tokenize(profile_string))
-        if result is None:
-            return False
+        ProfileParser(profile_string).parse()
         return True
-    except Exception:
+    except (SyntaxError, RecursionError):
         return False

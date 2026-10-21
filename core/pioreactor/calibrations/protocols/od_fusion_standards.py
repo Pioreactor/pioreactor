@@ -7,13 +7,16 @@ from math import log
 from math import log10
 from statistics import fmean
 from time import sleep
+from typing import Any
 from typing import cast
 
 from msgspec import to_builtins
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.calibrations.registry import CalibrationProtocol
-from pioreactor.calibrations.session_flow import CalibrationComplete
+from pioreactor.calibrations.review import column
+from pioreactor.calibrations.review import ReviewDataStep
+from pioreactor.calibrations.review import select_rows
 from pioreactor.calibrations.session_flow import CalibrationStep
 from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import SessionContext
@@ -65,13 +68,14 @@ def _channel_angle_map_from_config() -> dict[pt.PdChannel, pt.PdAngle]:
 
 
 def _run_fusion_calibration_preflight() -> dict[pt.PdChannel, pt.PdAngle]:
-    if config.get("od_reading.config", "ir_led_intensity") == "auto":
-        raise ValueError("ir_led_intensity cannot be `auto`. Set a numeric value in config.ini.")
-
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Both stirring and OD reading must be off before starting.")
 
+    from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
+
     _ensure_xr_model()
+    # Re-anchor the persisted IR REF so a session never inherits one from an earlier session or IR intensity.
+    PhotodiodeIrLedReferenceTrackerUnitInit.clear_initial_ref(get_testing_experiment_name())
     return _channel_angle_map_from_config()
 
 
@@ -112,6 +116,7 @@ def _measure_fusion_standard_samples(
             experiment=get_testing_experiment_name(),
             fake_data=is_testing_env(),
             calibration=False,
+            estimator=False,
         ) as od_reader:
             for _ in range(3):
                 od_reader.record_from_adc()
@@ -414,7 +419,14 @@ class RecordObservation(SessionStep):
         standards = ctx.data.get("standards", [])
         if not isinstance(standards, list):
             standards = []
-        standards.append({"index": standard_index, "od_value": od_value})
+        standards.append(
+            {
+                "index": standard_index,
+                "od_value": od_value,
+                # Raw readings let the review step rebuild records if this standard's OD600 is corrected.
+                "readings": [[angle, reading] for sample in samples for angle, reading in sample.items()],
+            }
+        )
         ctx.data["standards"] = standards
         return RemoveObservation()
 
@@ -465,10 +477,47 @@ class AnotherStandard(SessionStep):
             ctx.data["standard_index"] = int(ctx.data.get("standard_index", 1)) + 1
             return PlaceStandard()
 
-        records = ctx.data.get("records", [])
-        if not records:
-            raise ValueError("No standards were measured.")
+        return ReviewFusionStandards()
 
+
+def _records_from_standards(standards: list[dict]) -> list[tuple[pt.PdAngle, float, float]]:
+    return [
+        (angle, log10(float(standard["od_value"])), log(max(float(reading), 1e-12)))
+        for standard in standards
+        for angle, reading in standard["readings"]
+    ]
+
+
+class ReviewFusionStandards(ReviewDataStep):
+    minimum_included_rows = MINIMUM_STANDARDS
+    save_label = "Save estimator"
+
+    def columns(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        return [
+            column("standard", "Standard"),
+            column("od600", "OD600", editable=True, minimum=0.0001),
+            *[column(f"mean_{angle}", f"Mean reading, {angle}°") for angle in FUSION_ANGLES],
+        ]
+
+    def rows(self, ctx: SessionContext) -> list[dict[str, Any]]:
+        rows = []
+        for standard in ctx.data["standards"]:
+            row: dict[str, Any] = {"standard": standard["index"], "od600": standard["od_value"]}
+            for angle in FUSION_ANGLES:
+                readings = [float(reading) for ang, reading in standard["readings"] if ang == angle]
+                row[f"mean_{angle}"] = round(fmean(readings), 5) if readings else None
+            rows.append(row)
+        return rows
+
+    def apply_edits(self, ctx: SessionContext, index: int, row: dict[str, Any]) -> None:
+        ctx.data["standards"][index]["od_value"] = row["od600"]
+
+    def chart(self, ctx: SessionContext, included: list[int]) -> dict[str, Any] | None:
+        records = _records_from_standards(select_rows(ctx.data["standards"], included))
+        return _build_chart_metadata(records)
+
+    def save(self, ctx: SessionContext, included: list[int]) -> None:
+        records = _records_from_standards(select_rows(ctx.data["standards"], included))
         fit = fit_fusion_model([(angle, 10**logc, exp(logy)) for angle, logc, logy in records])
 
         estimator = structs.ODFusionEstimator(
@@ -488,7 +537,6 @@ class AnotherStandard(SessionStep):
 
         result = ctx.store_estimator(estimator, pt.OD_FUSED_DEVICE)
         ctx.complete({"title": "Fusion estimator saved.", **result})
-        return CalibrationComplete()
 
 
 _FUSION_STEPS: StepRegistry = {
@@ -501,6 +549,7 @@ _FUSION_STEPS: StepRegistry = {
     RecordObservation.step_id: RecordObservation,
     RemoveObservation.step_id: RemoveObservation,
     AnotherStandard.step_id: AnotherStandard,
+    ReviewFusionStandards.step_id: ReviewFusionStandards,
 }
 
 

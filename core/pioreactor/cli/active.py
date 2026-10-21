@@ -14,14 +14,17 @@ def active() -> None:
     pass
 
 
-@active.command(name="get", short_help="print whether this unit is active as JSON")
-def get_active() -> None:
-    click.echo(json.dumps({"is_active": int(is_locally_active())}))
+@active.command(name="get", short_help="print whether this unit is active")
+@click.option("--json", "json_output", is_flag=True, help="output as json")
+def get_active(json_output: bool) -> None:
+    is_active = int(is_locally_active())
+    click.echo(json.dumps({"is_active": is_active}) if json_output else is_active)
 
 
 @active.command(name="set", short_help="set whether this unit is active; 0 stops its activities")
 @click.argument("is_active", type=click.IntRange(0, 1))
-def set_active(is_active: int) -> None:
+@click.option("--json", "json_output", is_flag=True, help="output as json")
+def set_active(is_active: int, json_output: bool) -> None:
     save_local_active(bool(is_active))
 
     # Lazy import keeps GET independent of the leader's config.
@@ -29,11 +32,12 @@ def set_active(is_active: int) -> None:
 
     if not report_active_to_leader(leader_address, bool(is_active)):
         click.echo("Unable to tell the leader. Run this again once the leader is reachable.", err=True)
-    click.echo(json.dumps({"is_active": is_active}))
+    click.echo(json.dumps({"is_active": is_active}) if json_output else is_active)
 
 
 @active.command(name="adopt", hidden=True, short_help="save the leader's record of this")
-def adopt_active() -> None:
+@click.option("--json", "json_output", is_flag=True, help="output as json")
+def adopt_active(json_output: bool) -> None:
     """
     Save the leader's record of whether this unit is active. Run by the update that moved ownership
     of `is_active` from the leader to each unit.
@@ -44,4 +48,4 @@ def adopt_active() -> None:
         is_active = adopt_leader_active()
     except HTTPException as error:
         raise click.ClickException(str(error)) from error
-    click.echo(json.dumps({"is_active": int(is_active)}))
+    click.echo(json.dumps({"is_active": int(is_active)}) if json_output else int(is_active))
