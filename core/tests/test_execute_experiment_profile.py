@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from collections.abc import Callable
+from contextlib import contextmanager
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -7,6 +9,7 @@ from unittest.mock import patch
 import pytest
 from msgspec.json import encode
 from msgspec.yaml import decode
+from pioreactor.actions.leader import experiment_profile as experiment_profile_module
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
 from pioreactor.actions.leader.experiment_profile import check_plugins
 from pioreactor.actions.leader.experiment_profile import evaluate_options
@@ -36,6 +39,7 @@ from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
+from pioreactor.pubsub import post_into_unit
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import RawODReading
@@ -450,11 +454,149 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
                 ),
             ],
         ) as mock_post_into,
-        patch("pioreactor.actions.leader.experiment_profile.time.sleep", lambda _: None),
     ):
         execute_experiment_profile("profile.yaml", experiment)
 
     assert mock_post_into.call_count == 2
+
+
+@contextmanager
+def capture_profile_stopper():
+    # yields a function that stops the running profile, like a user clicking Stop in the UI.
+    managed_jobs = []
+    real_lifecycle = experiment_profile_module.long_running_managed_lifecycle
+
+    def _capture_lifecycle(*args, **kwargs):
+        managed_job = real_lifecycle(*args, **kwargs)
+        managed_jobs.append(managed_job)
+        return managed_job
+
+    with patch(
+        "pioreactor.actions.leader.experiment_profile.long_running_managed_lifecycle",
+        side_effect=_capture_lifecycle,
+    ):
+        yield lambda: managed_jobs[0].exit_event.set()
+
+
+@contextmanager
+def stop_profile_during_first_job_start():
+    with capture_profile_stopper() as stop_profile:
+
+        def _post_then_stop(*args, **kwargs):
+            response = post_into_unit(*args, **kwargs)
+            stop_profile()
+            return response
+
+        with patch(
+            "pioreactor.actions.leader.experiment_profile.post_into_unit",
+            side_effect=_post_then_stop,
+        ):
+            yield
+
+
+def _is_profile_cleanup(request) -> bool:
+    # under TESTING the profile's job_key carries a suffix, ex: experiment_profile/1
+    return request.path == "/unit_api/jobs/stop" and request.json.get("job_source", "").startswith(
+        "experiment_profile"
+    )
+
+
+def _job_starts(bucket, job_name: str) -> list:
+    return [request for request in bucket if request.path == f"/unit_api/jobs/run/job_name/{job_name}"]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_stopping_profile_skips_actions_that_are_already_due(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "add_media": Job(
+                        actions=[
+                            Start(t="0s", options={"ml": 1}),
+                            Start(t="0s", options={"ml": 2}),
+                            Repeat(
+                                t="0s",
+                                every="1s",
+                                max_time="1s",
+                                actions=[Start(t="0s", options={"ml": 3})],
+                            ),
+                        ]
+                    )
+                }
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket, stop_profile_during_first_job_start():
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert [request.json["options"] for request in _job_starts(bucket, "add_media")] == [{"ml": 1}]
+    # the job that did start is still cleaned up
+    assert any(_is_profile_cleanup(request) for request in bucket)
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_stopping_profile_skips_remaining_workers_in_common_action(
+    mock__load_experiment_profile, active_workers_in_cluster
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        common=CommonBlock(jobs={"stirring": Job(actions=[Start(t="0s")])}),
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+    assert len(active_workers_in_cluster) > 1
+
+    with capture_requests() as bucket, stop_profile_during_first_job_start():
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert len(_job_starts(bucket, "stirring")) == 1
+    stopped_units = {
+        request.headers["X-Pioreactor-Target"] for request in bucket if _is_profile_cleanup(request)
+    }
+    assert stopped_units == set(active_workers_in_cluster)
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_stopping_profile_does_not_retry_failed_start_submit(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_profile_stopper() as stop_profile:
+
+        def _stop_then_fail(address, endpoint, *args, **kwargs):
+            if endpoint.startswith("/unit_api/jobs/run/"):
+                submitted.append(endpoint)
+                stop_profile()
+            raise HTTPException("[Errno 111] Connection refused")
+
+        submitted: list[str] = []
+        with patch("pioreactor.pubsub.post_into", side_effect=_stop_then_fail):
+            execute_experiment_profile("profile.yaml", experiment)
+
+    assert submitted == ["/unit_api/jobs/run/job_name/circulate_alt_media"]
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -623,7 +765,7 @@ def test_update_job_batches_settings_into_one_request(options: dict[str, object]
         update_job(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             False,
             True,
@@ -658,7 +800,7 @@ def test_update_job_evaluates_dry_run_settings_once_without_http() -> None:
         update_job(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             True,
             True,
@@ -692,7 +834,7 @@ def test_pause_and_resume_job_patch_state_directly(
         action(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             False,
             True,
@@ -724,7 +866,7 @@ def test_update_job_reports_one_error_for_batched_request() -> None:
         update_job(
             "unit1",
             "_testing_experiment",
-            MagicMock(),
+            MagicMock(exit_event=Event()),
             "stirring",
             False,
             True,

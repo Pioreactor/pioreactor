@@ -3,6 +3,7 @@ import random
 import time
 from pathlib import Path
 from sched import scheduler
+from threading import Event
 from time import perf_counter
 from typing import Any
 from typing import Callable
@@ -58,6 +59,7 @@ def coalesce(*args: Any) -> Any:
 class ActionMetrics:
     def __init__(self) -> None:
         self.count = 0
+        self.skipped_after_stop = 0
         self._start = perf_counter()
 
     def hours_elapsed(self) -> float:
@@ -68,8 +70,19 @@ class ActionMetrics:
         return self.count
 
 
-def wrap_in_try_except(func: Callable[..., Any], logger: CustomLogger) -> Callable[..., None]:
+def wrap_in_try_except(
+    func: Callable[..., Any],
+    logger: CustomLogger,
+    exit_event: Event,
+    action_metrics: ActionMetrics,
+) -> Callable[..., None]:
     def inner_function(*args: Any, **kwargs: Any) -> None:
+        # sched.run drains every due action before the scheduler loop can see a stop request,
+        # so each action checks for itself. This also covers each worker in a common action.
+        if exit_event.is_set():
+            action_metrics.skipped_after_stop += 1
+            return
+
         try:
             func(*args, **kwargs)
         except Exception as e:
@@ -543,7 +556,7 @@ def when(
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def repeat(
@@ -626,7 +639,7 @@ def repeat(
                 f"Action's `if` or `while` condition, `{if_=}` or `{while_=}`, evaluated False. Skipping."
             )
 
-    repeat_callback = wrap_in_try_except(_callable, logger)
+    repeat_callback = wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
     return repeat_callback
 
 
@@ -669,7 +682,7 @@ def log(
             f"{action_count}. Logging message `{evaluate_log_message(options.message, env)}`"
         )
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def start_job(
@@ -736,7 +749,11 @@ def start_job(
                     logger.debug(
                         f"Unable to submit start command for `{job_name}` to `{unit}` at {address}. Retrying ({attempt + 1}/{START_JOB_SUBMIT_MAX_ATTEMPTS})."
                     )
-                    time.sleep(START_JOB_SUBMIT_RETRY_SLEEP_SECONDS)
+                    if parent_job.exit_event.wait(START_JOB_SUBMIT_RETRY_SLEEP_SECONDS):
+                        logger.debug(
+                            f"Not retrying start command for `{job_name}` on `{unit}` because the profile is stopping."
+                        )
+                        return
 
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
@@ -750,7 +767,7 @@ def start_job(
             if task_result is not None and not task_result["ok"]:
                 logger.error(f"Failed to start `{job_name}` on `{unit}`. {task_result.get('error')}")
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def pause_job(
@@ -788,7 +805,7 @@ def pause_job(
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def resume_job(
@@ -826,7 +843,7 @@ def resume_job(
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def stop_job(
@@ -865,7 +882,7 @@ def stop_job(
             if not response.ok:
                 raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def update_job(
@@ -915,7 +932,7 @@ def update_job(
         if not response.ok:
             raise HTTPException(summarize_error_response(response))
 
-    return wrap_in_try_except(_callable, logger)
+    return wrap_in_try_except(_callable, logger, parent_job.exit_event, action_metrics)
 
 
 def time_to_seconds(value: float | int | str) -> float:
@@ -1119,7 +1136,7 @@ def execute_experiment_profile(
                 # ended early
 
                 logger.notice(
-                    f"Stopping profile `{profile.experiment_profile_name}` early: {action_metrics.count} actions(s) completed, {len(sched.queue)} action(s) not started. Stopping all started jobs."
+                    f"Stopping profile `{profile.experiment_profile_name}` early: {action_metrics.count} actions(s) completed, {len(sched.queue) + action_metrics.skipped_after_stop} action(s) not started. Stopping all started jobs."
                 )
                 # stop all jobs started
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
