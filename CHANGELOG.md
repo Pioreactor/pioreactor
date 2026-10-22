@@ -50,6 +50,7 @@
  - Fixed `led_intensity` staying listed as a running job after all LEDs were turned off, which blocked changing a Pioreactor's model or removing it from the cluster with "Stop activities…".
  - Fixed `pio workers update-active <hostname> <0|1>` always failing with an error.
  - Fixed the UI being unable to open, set active, or delete a calibration or estimator whose name contains `#`, `?` or `%`. Its page showed "Unable to find calibration data" even though the calibration was saved.
+ - Fixed MCP tools failing to find an experiment whose name contains a space. The name was URL-encoded twice on its way to the leader.
 
 ### 26.11.1
 

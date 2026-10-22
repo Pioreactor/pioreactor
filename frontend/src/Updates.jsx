@@ -27,6 +27,7 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import Alert from '@mui/material/Alert';
+import LinearProgress from '@mui/material/LinearProgress';
 import PioreactorsIcon from './components/PioreactorsIcon';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
@@ -62,14 +63,72 @@ function validateReleaseArchive(file) {
   };
 }
 
+function uploadReleaseArchive(file, { onProgress, signal }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    xhr.open('POST', '/api/system/upload');
+    xhr.responseType = 'json';
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((100 * event.loaded) / event.total));
+      }
+    };
+    xhr.onload = () => {
+      const data = xhr.response;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data?.save_path);
+      } else {
+        reject(new Error(data?.error || 'Upload failed with status ' + xhr.status));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Upload failed. Check the connection to the leader and try again.'));
+    xhr.onabort = () => reject(new DOMException('Upload aborted', 'AbortError'));
+    signal.addEventListener('abort', () => xhr.abort());
+
+    xhr.send(formData);
+  });
+}
+
+function UploadProgress({ percent }) {
+  // percent is null until the browser reports upload size, and 100 once every byte is sent.
+  let label = 'Uploading...';
+  if (percent === 100) {
+    label = 'Upload complete. Starting update...';
+  } else if (percent !== null) {
+    label = `Uploading... ${percent}%`;
+  }
+  const isDeterminate = percent !== null && percent < 100;
+
+  return (
+    <Box sx={{ width: "100%" }}>
+      <Typography id="archive-upload-progress" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+        {label}
+      </Typography>
+      <LinearProgress
+        aria-labelledby="archive-upload-progress"
+        variant={isDeterminate ? "determinate" : "indeterminate"}
+        value={isDeterminate ? percent : undefined}
+      />
+    </Box>
+  );
+}
+
 function UploadArchiveAndConfirm(props) {
   const [selectedFile, setSelectedFile] = React.useState(null);
   const [errorMsg, setErrorMsg] = React.useState(null);
   const [units, setUnits] = React.useState([]);
   const [selectedUnits, setSelectedUnits] = React.useState("$broadcast");
   const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadPercent, setUploadPercent] = React.useState(null);
   const [isDragActive, setIsDragActive] = React.useState(false);
+  const uploadAbortRef = React.useRef(null);
   const handleClose = props.onClose
+
+  // Closing the dialog mid-upload cancels the upload.
+  React.useEffect(() => () => uploadAbortRef.current?.abort(), []);
 
 
   React.useEffect(() => {
@@ -116,6 +175,9 @@ function UploadArchiveAndConfirm(props) {
     event.preventDefault();
     event.stopPropagation();
     setIsDragActive(false);
+    if (isUploading) {
+      return;
+    }
 
     const nextFile = event.dataTransfer.files?.[0] ?? null;
     const { file, error } = validateReleaseArchive(nextFile);
@@ -125,26 +187,23 @@ function UploadArchiveAndConfirm(props) {
 
   const handleFileUpload = async () => {
     setIsUploading(true)
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+    setUploadPercent(null)
+    setErrorMsg(null)
+    const abortController = new AbortController();
+    uploadAbortRef.current = abortController;
     try {
-      const response = await fetch('/api/system/upload', {
-        method: 'POST',
-        body: formData,
+      return await uploadReleaseArchive(selectedFile, {
+        onProgress: setUploadPercent,
+        signal: abortController.signal,
       });
-
-      if (!response.ok) {
-        // Handle non-2xx responses here
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed with status ' + response.status);
-      }
-
-      const data = await response.json();
-      return data.save_path;
     } catch (error) {
-      setErrorMsg(error.message)
-      setIsUploading(false)
+      if (error.name !== 'AbortError') {
+        setErrorMsg(error.message)
+        setIsUploading(false)
+      }
       return null;
+    } finally {
+      uploadAbortRef.current = null;
     }
   };
 
@@ -185,6 +244,7 @@ function UploadArchiveAndConfirm(props) {
       // Exit the function if there was a problem in handleFileUpload
       return;
     }
+    setUploadPercent(100)
 
     const updateQueued = await handleUpdate(savePath);
     if (!updateQueued) {
@@ -280,10 +340,11 @@ function UploadArchiveAndConfirm(props) {
                   <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />
                 </Box>
               }
-              <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" />
+              <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" disabled={isUploading} />
             </Box>
-            <Box sx={{minHeight: "30px", alignItems: "center", display: "flex"}}>
-              {errorMsg   ? <Alert severity="error">{errorMsg}</Alert>           : <React.Fragment/>}
+            <Box sx={{minHeight: "30px", alignItems: "center", display: "flex", mt: 1}}>
+              {errorMsg ? <Alert severity="error">{errorMsg}</Alert> : null}
+              {!errorMsg && isUploading ? <UploadProgress percent={uploadPercent} /> : null}
             </Box>
           </DialogContentText>
         </DialogContent>

@@ -239,6 +239,156 @@ describe("Updates page", () => {
     expect(screen.getByRole("button", { name: "Update" })).toBeDisabled();
   });
 
+  test("shows upload progress while the release archive uploads", async () => {
+    const user = userEvent.setup();
+    const xhrs = [];
+    class FakeXMLHttpRequest {
+      constructor() {
+        this.upload = {};
+        this.status = 0;
+        this.response = null;
+        xhrs.push(this);
+      }
+      open(method, url) {
+        this.method = method;
+        this.url = url;
+      }
+      send(body) {
+        this.body = body;
+      }
+      abort() {
+        this.onabort?.();
+      }
+    }
+    const originalXMLHttpRequest = global.XMLHttpRequest;
+    global.XMLHttpRequest = FakeXMLHttpRequest;
+
+    global.fetch = jest.fn((url) => {
+      if (url === "https://api.github.com/repos/pioreactor/pioreactor/releases/latest") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ tag_name: "26.3.10" }),
+        });
+      }
+
+      if (url === "https://raw.githubusercontent.com/Pioreactor/pioreactor/master/CHANGELOG.md") {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve("# Changelog"),
+        });
+      }
+
+      if (url === "/api/units") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ pioreactor_unit: "leader1" }]),
+        });
+      }
+
+      if (url === "/api/system/update_from_archive") {
+        return Promise.resolve({ ok: true });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    });
+
+    try {
+      render(<Updates title="Pioreactor ~ Updates" />);
+
+      await user.click(screen.getByRole("button", { name: /update from zip file/i }));
+      const dropTarget = await screen.findByText(/drop a/i);
+      fireEvent.drop(dropTarget, {
+        dataTransfer: {
+          files: [new File(["zip"], "release_26.4.0.zip", { type: "application/zip" })],
+        },
+      });
+      await user.click(await screen.findByRole("button", { name: "Update" }));
+
+      expect(xhrs).toHaveLength(1);
+      expect(xhrs[0].url).toBe("/api/system/upload");
+      expect(screen.getByText("Uploading...")).toBeInTheDocument();
+
+      act(() => {
+        xhrs[0].upload.onprogress({ lengthComputable: true, loaded: 40, total: 100 });
+      });
+      expect(screen.getByText("Uploading... 40%")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar", { name: /uploading/i })).toHaveAttribute("aria-valuenow", "40");
+
+      await act(async () => {
+        xhrs[0].status = 200;
+        xhrs[0].response = { save_path: "/tmp/release_26.4.0.zip" };
+        xhrs[0].onload();
+      });
+
+      await waitFor(() =>
+        expect(global.fetch).toHaveBeenCalledWith(
+          "/api/system/update_from_archive",
+          expect.objectContaining({
+            body: JSON.stringify({
+              release_archive_location: "/tmp/release_26.4.0.zip",
+              units: "$broadcast",
+            }),
+          }),
+        ),
+      );
+      await waitFor(() => expect(screen.queryByText(/drop a/i)).not.toBeInTheDocument());
+    } finally {
+      global.XMLHttpRequest = originalXMLHttpRequest;
+    }
+  });
+
+  test("shows the server error when the release archive upload fails", async () => {
+    const user = userEvent.setup();
+    const xhrs = [];
+    class FakeXMLHttpRequest {
+      constructor() {
+        this.upload = {};
+        xhrs.push(this);
+      }
+      open() {}
+      send() {}
+      abort() {}
+    }
+    const originalXMLHttpRequest = global.XMLHttpRequest;
+    global.XMLHttpRequest = FakeXMLHttpRequest;
+
+    global.fetch = jest.fn((url) => {
+      if (url === "/api/units") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ pioreactor_unit: "leader1" }]),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}), text: () => Promise.resolve("") });
+    });
+
+    try {
+      render(<Updates title="Pioreactor ~ Updates" />);
+
+      await user.click(screen.getByRole("button", { name: /update from zip file/i }));
+      const dropTarget = await screen.findByText(/drop a/i);
+      fireEvent.drop(dropTarget, {
+        dataTransfer: {
+          files: [new File(["zip"], "release_26.4.0.zip", { type: "application/zip" })],
+        },
+      });
+      const updateButton = await screen.findByRole("button", { name: "Update" });
+      await user.click(updateButton);
+
+      await act(async () => {
+        xhrs[0].status = 413;
+        xhrs[0].response = { error: "File too large." };
+        xhrs[0].onload();
+      });
+
+      expect(await screen.findByText("File too large.")).toBeInTheDocument();
+      expect(screen.queryByRole("progressbar", { name: /uploading/i })).not.toBeInTheDocument();
+      expect(updateButton).toBeEnabled();
+    } finally {
+      global.XMLHttpRequest = originalXMLHttpRequest;
+    }
+  });
+
   test("queues an internet update and reports success", async () => {
     const user = userEvent.setup();
     const onClose = jest.fn();

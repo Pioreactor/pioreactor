@@ -96,7 +96,7 @@ function RunExperimentProfilesContent({
       : "";
 
   const onSelectExperimentProfileChange = (e) => {
-    navigate(`/experiment-profiles/${e.target.value}`)
+    navigate(`/experiment-profiles/${encodeURIComponent(e.target.value)}`)
 
   };
 
@@ -183,7 +183,7 @@ function RunExperimentProfilesContent({
             size="small"
             color="primary"
             aria-label="edit source code"
-            to={`/experiment-profiles/${(selectedExperimentProfile || "")}/edit`}
+            to={`/experiment-profiles/${encodeURIComponent(selectedExperimentProfile || "")}/edit`}
             component={Link}
             disabled={ selectedExperimentProfile === ''}
           >

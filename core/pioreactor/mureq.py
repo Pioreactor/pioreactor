@@ -10,6 +10,7 @@ mureq is copyright 2021 by its contributors and is released under the
 import contextlib
 import io
 import os.path
+import re
 import ssl
 import urllib.parse
 from http.client import HTTPConnection
@@ -43,6 +44,8 @@ __all__ = [
     "request",
     "yield_response",
 ]
+
+_NON_ESCAPE_PERCENT = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
 
 DEFAULT_TIMEOUT = 10.0
@@ -469,7 +472,12 @@ def _prepare_request(
     if is_unix and unix_socket is None:
         unix_socket = urllib.parse.unquote(parsed_url.netloc)
 
-    path = urllib.parse.quote(parsed_url.path)
+    # Keep escapes that callers already applied (e.g. a `#` or `?` inside a name), so they
+    # aren't encoded twice. A stray `%` that isn't an escape is still encoded.
+    if _NON_ESCAPE_PERCENT.search(parsed_url.path):
+        path = urllib.parse.quote(parsed_url.path)
+    else:
+        path = urllib.parse.quote(parsed_url.path, safe="/%")
 
     if parsed_url.query:
         if enc_params:

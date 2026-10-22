@@ -64,18 +64,6 @@ def button_controls_enabled_from_config(config_value: str, cpu_count: int | None
         raise ValueError("[monitor.config] enable_button must be one of: auto, true, false.")
 
 
-def self_check_interval_hours_from_config(config_value: str) -> float:
-    try:
-        interval_hours = float(config_value)
-    except ValueError as e:
-        raise ValueError("[monitor.config] self_check_interval_hours must be a non-negative number.") from e
-
-    if interval_hours < 0:
-        raise ValueError("[monitor.config] self_check_interval_hours must be a non-negative number.")
-
-    return interval_hours
-
-
 class classproperty(property):
     def __get__(self, obj: object | None, objtype: type[object] | None = None) -> object:  # type: ignore[override]
         assert self.fget is not None
@@ -239,24 +227,14 @@ class Monitor(LongRunningBackgroundJob):
         if not whoami.am_I_leader() and is_clock_synchronized() is False:
             self.logger.warning("Clock is not synchronised. Measurement timestamps may be incorrect.")
 
-    def self_check_interval_hours(self) -> float:
-        config_value = config.get("monitor.config", "self_check_interval_hours", fallback="12")
-        try:
-            return self_check_interval_hours_from_config(config_value)
-        except ValueError as e:
-            self.logger.warning(f"{e} Defaulting to 12 hours.")
-            return 12
-
     def start_self_check_thread(self) -> RepeatedTimer | None:
-        self_check_interval_hours = self.self_check_interval_hours()
-        if self_check_interval_hours == 0:
+        interval_hours = config.getfloat("monitor.config", "self_check_interval_hours", fallback=12)
+        if interval_hours <= 0:
             self.self_checks()
             return None
 
-        # We manually run a self_check outside of a thread first, as if there are
-        # problems detected, we may want to block and not let the job continue.
         return RepeatedTimer(
-            self_check_interval_hours * 60 * 60,
+            interval_hours * 60 * 60,
             self.self_checks,
             job_name=self.job_name,
             run_immediately=True,

@@ -33,6 +33,7 @@ from time import sleep
 from typing import Any
 from typing import cast
 from typing import Literal
+from urllib.parse import quote
 from uuid import uuid4
 
 import huey.api as huey_api
@@ -1331,7 +1332,7 @@ def delete_experiment_task(experiment: str, units: list[str]) -> dict[str, Any]:
     started = monotonic()
     logger.debug(f"Deleting experiment `{experiment}`: task started.")
     # Stops and camera cleanup are best effort; deletion does not wait for their results.
-    endpoint = f"/unit_api/camera/experiments/{experiment}/stills"
+    endpoint = f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills"
     try:
         for unit in units:
             request_unit_task("POST", unit, "/unit_api/jobs/stop", {"experiment": experiment})

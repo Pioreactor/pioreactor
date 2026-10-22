@@ -188,7 +188,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/datasets/exportable/${dataset.dataset_name}/preview`);
+      const response = await fetch(`/api/datasets/exportable/${encodeURIComponent(dataset.dataset_name)}/preview`);
       const data = await response.json();
       setPreviewData(data);
     } catch (error) {

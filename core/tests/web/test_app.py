@@ -232,6 +232,29 @@ def test_artifact_names_stay_encoded_when_forwarded_to_the_worker(
     assert captured["endpoint"] == f"/unit_api/{path}/OD600%20%232%3F%25"
 
 
+def test_experiment_names_stay_encoded_when_forwarded_to_the_worker(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    class FakeHueyTask:
+        id = "fake-task-id"
+
+    captured: dict[str, object] = {}
+
+    def fake_multicast(method: str, endpoint: str, units: list[str], **_kwargs) -> FakeHueyTask:
+        captured["endpoint"] = endpoint
+        return FakeHueyTask()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fake_multicast)
+
+    response = client.patch(
+        "/api/workers/unit1/bioreactor/update/experiments/batch%201%C2%B0C",
+        json={"values": {"current_volume_ml": 12.5}},
+    )
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == "/unit_api/bioreactor/experiments/batch%201%C2%B0C"
+
+
 def test_system_fanout_task_result_returns_unit_envelope(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:
@@ -2392,7 +2415,7 @@ def test_get_camera_statuses_for_experiment_uses_historical_experiment_assignmen
 
     assert response.status_code == 200
     assert captured == {
-        "endpoint": "/unit_api/camera/experiments/experiment a/status",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/status",
         "experiment": "experiment a",
         "path": "/unit_api/camera/experiments/experiment%20a/status",
         "timeout": 5,
@@ -2464,7 +2487,7 @@ def test_experiment_camera_status_proxy_fetches_worker_experiment_status(
     assert response.get_json()["unit"] == "unit1"
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/status",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/status",
     }
 
 
@@ -2559,7 +2582,7 @@ def test_camera_stills_proxy_fetches_worker_experiment_stills(client, monkeypatc
     assert response.get_json() == {"unit": "unit1", "experiment": "experiment a", "stills": []}
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills",
         "path": "/unit_api/camera/experiments/experiment%20a/stills",
     }
 
@@ -2588,7 +2611,7 @@ def test_capture_camera_still_proxy_posts_to_worker_experiment_stills(
     assert response.get_json()["result_url_path"] == "/unit_api/task_results/camera-capture-proxy-task"
     assert captured == {
         "unit": "unit1",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills",
     }
 
 
@@ -2625,7 +2648,7 @@ def test_camera_still_proxy_preserves_image_content_type(client, monkeypatch: Mo
     assert response.content_type == "image/jpeg"
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills/image 1.jpg",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
         "path": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
     }
 
@@ -2662,7 +2685,7 @@ def test_delete_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
     assert response.get_json() == {"image_id": "image-1"}
     assert captured == {
         "address": "unit1.local",
-        "endpoint": "/unit_api/camera/experiments/experiment a/stills/image 1.jpg",
+        "endpoint": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
         "path": "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg",
     }
 
@@ -2706,7 +2729,7 @@ def test_rename_camera_still_proxy_forwards_to_worker(client, monkeypatch: Monke
     assert response.status_code == 200
     assert response.get_json() == {"image_id": "inoculation"}
     assert captured["address"] == "unit1.local"
-    assert captured["endpoint"] == "/unit_api/camera/experiments/experiment a/stills/image 1.jpg"
+    assert captured["endpoint"] == "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg"
     assert captured["path"] == "/unit_api/camera/experiments/experiment%20a/stills/image%201.jpg"
     assert captured["body"] == structs.RenameCameraStillRequest(new_image_id="inoculation")
 

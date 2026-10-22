@@ -707,7 +707,7 @@ def get_camera_worker_response(
 def get_camera_statuses_for_experiment(experiment: str) -> ResponseReturnValue:
     task = fanout.broadcast_across_existing_workers_ever_assigned_to_experiment(
         "GET",
-        f"/unit_api/camera/experiments/{experiment}/status",
+        f"/unit_api/camera/experiments/{quote(experiment, safe="")}/status",
         experiment=experiment,
         timeout=5,
     )
@@ -737,7 +737,7 @@ def get_camera_status_for_worker(pioreactor_unit: str, experiment: str) -> Respo
 
     return get_camera_worker_response(
         pioreactor_unit,
-        f"/unit_api/camera/experiments/{experiment}/status",
+        f"/unit_api/camera/experiments/{quote(experiment, safe="")}/status",
         timeout=10,
         error_message=f"Fetching camera status failed on {pioreactor_unit}.",
         default_content_type="application/json",
@@ -787,7 +787,7 @@ def get_camera_focus_preview_for_worker(pioreactor_unit: str, session_id: str) -
                 "GET",
                 create_webserver_path(
                     resolve_registered_worker_address(pioreactor_unit),
-                    f"/unit_api/camera/focus_sessions/{session_id}/preview.jpg",
+                    f"/unit_api/camera/focus_sessions/{quote(session_id, safe="")}/preview.jpg",
                 ),
                 timeout=20,
             )
@@ -843,7 +843,7 @@ def list_camera_stills_for_worker_experiment(pioreactor_unit: str, experiment: s
 
     return get_camera_worker_response(
         pioreactor_unit,
-        f"/unit_api/camera/experiments/{experiment}/stills",
+        f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills",
         timeout=20,
         error_message=f"Fetching camera stills failed on {pioreactor_unit}.",
         default_content_type="application/json",
@@ -866,7 +866,7 @@ def capture_camera_still_for_worker_experiment(
         multicast_to_worker(
             "POST",
             pioreactor_unit,
-            f"/unit_api/camera/experiments/{experiment}/stills",
+            f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills",
         )
     )
 
@@ -887,7 +887,7 @@ def get_camera_still_for_worker_experiment(
 
     return get_camera_worker_response(
         pioreactor_unit,
-        f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+        f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills/{quote(image_id, safe="")}.jpg",
         timeout=20,
         error_message=f"Fetching camera still failed on {pioreactor_unit}.",
         default_content_type="image/jpeg",
@@ -913,7 +913,7 @@ def delete_camera_still_for_worker_experiment(
     try:
         response = delete_from_unit(
             registered_worker_or_abort(pioreactor_unit),
-            f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+            f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills/{quote(image_id, safe="")}.jpg",
             timeout=20,
         )
         response.raise_for_status()
@@ -947,7 +947,7 @@ def rename_camera_still_for_worker_experiment(
     try:
         response = patch_into_unit(
             registered_worker_or_abort(pioreactor_unit),
-            f"/unit_api/camera/experiments/{experiment}/stills/{image_id}.jpg",
+            f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills/{quote(image_id, safe="")}.jpg",
             json=body,
             timeout=20,
         )
@@ -979,7 +979,7 @@ def get_zipped_camera_stills_for_worker_experiment(
 
     try:
         worker_address = resolve_registered_worker_address(pioreactor_unit)
-        worker_endpoint = f"/unit_api/camera/experiments/{experiment}/stills.zip"
+        worker_endpoint = f"/unit_api/camera/experiments/{quote(experiment, safe="")}/stills.zip"
         worker_response = response_stack.enter_context(
             yield_response(
                 "GET",
@@ -1042,7 +1042,7 @@ def get_task_result_for_worker(pioreactor_unit: str, task_id: str) -> ResponseRe
     try:
         response = get_from_unit(
             registered_worker_or_abort(pioreactor_unit),
-            f"/unit_api/task_results/{task_id}",
+            f"/unit_api/task_results/{quote(task_id, safe="")}",
             timeout=10,
         )
         response.raise_for_status()
@@ -1225,7 +1225,7 @@ def run_job_on_unit_in_experiment(
 
     t = tasks.multicast(
         "POST",
-        f"/unit_api/jobs/run/job_name/{job_name}",
+        f"/unit_api/jobs/run/job_name/{quote(job_name, safe="")}",
         [worker["pioreactor_unit"] for worker in assigned_workers],
         json=[
             {
@@ -1342,7 +1342,7 @@ def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedR
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = tasks.multicast(
             "PATCH",
-            f"/unit_api/bioreactor/experiments/{experiment}",
+            f"/unit_api/bioreactor/experiments/{quote(experiment, safe="")}",
             get_all_workers_in_experiment(experiment),
             json={"values": body.values},
         )
@@ -1350,7 +1350,7 @@ def update_bioreactor_on_unit(pioreactor_unit: str, experiment: str) -> DelayedR
         task = multicast_to_worker(
             "PATCH",
             pioreactor_unit,
-            f"/unit_api/bioreactor/experiments/{experiment}",
+            f"/unit_api/bioreactor/experiments/{quote(experiment, safe="")}",
             json={"values": body.values},
         )
 
@@ -2372,9 +2372,9 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])
 def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("GET", f"/unit_api/calibrations/{device}")
+        task = fanout.broadcast_across_workers("GET", f"/unit_api/calibrations/{quote(device, safe="")}")
     else:
-        task = multicast_to_worker("GET", pioreactor_unit, f"/unit_api/calibrations/{device}")
+        task = multicast_to_worker("GET", pioreactor_unit, f"/unit_api/calibrations/{quote(device, safe="")}")
     return create_task_response(task)
 
 
@@ -2382,11 +2382,13 @@ def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturn
 def get_calibration(pioreactor_unit: str, device: str, calibration_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "GET", f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}"
+            "GET", f"/unit_api/calibrations/{quote(device, safe="")}/{quote(calibration_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
-            "GET", pioreactor_unit, f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}"
+            "GET",
+            pioreactor_unit,
+            f"/unit_api/calibrations/{quote(device, safe="")}/{quote(calibration_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2394,9 +2396,9 @@ def get_calibration(pioreactor_unit: str, device: str, calibration_name: str) ->
 @api_bp.route("/workers/<pioreactor_unit>/estimators/<device>", methods=["GET"])
 def get_estimators_by_device(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("GET", f"/unit_api/estimators/{device}")
+        task = fanout.broadcast_across_workers("GET", f"/unit_api/estimators/{quote(device, safe="")}")
     else:
-        task = multicast_to_worker("GET", pioreactor_unit, f"/unit_api/estimators/{device}")
+        task = multicast_to_worker("GET", pioreactor_unit, f"/unit_api/estimators/{quote(device, safe="")}")
     return create_task_response(task)
 
 
@@ -2404,11 +2406,13 @@ def get_estimators_by_device(pioreactor_unit: str, device: str) -> DelayedRespon
 def get_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "GET", f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
+            "GET", f"/unit_api/estimators/{quote(device, safe="")}/{quote(estimator_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
-            "GET", pioreactor_unit, f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
+            "GET",
+            pioreactor_unit,
+            f"/unit_api/estimators/{quote(device, safe="")}/{quote(estimator_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2445,9 +2449,13 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
     cache.invalidate_calibrations_cache(pioreactor_unit)
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("POST", f"/unit_api/calibrations/{device}", payload)
+        task = fanout.broadcast_across_workers(
+            "POST", f"/unit_api/calibrations/{quote(device, safe="")}", payload
+        )
     else:
-        task = multicast_to_worker("POST", pioreactor_unit, f"/unit_api/calibrations/{device}", json=payload)
+        task = multicast_to_worker(
+            "POST", pioreactor_unit, f"/unit_api/calibrations/{quote(device, safe="")}", json=payload
+        )
     return create_task_response(task)
 
 
@@ -2513,7 +2521,7 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
     try:
         response = get_from_unit(
             registered_worker_or_abort(pioreactor_unit),
-            f"/unit_api/calibrations/sessions/{session_id}",
+            f"/unit_api/calibrations/sessions/{quote(session_id, safe="")}",
             timeout=30,
         )
         response.raise_for_status()
@@ -2553,7 +2561,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
     try:
         response = post_into_unit(
             registered_worker_or_abort(pioreactor_unit),
-            f"/unit_api/calibrations/sessions/{session_id}/inputs",
+            f"/unit_api/calibrations/sessions/{quote(session_id, safe="")}/inputs",
             json={"inputs": body.inputs},
             timeout=300,
         )
@@ -2587,7 +2595,7 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
     try:
         response = post_into_unit(
             registered_worker_or_abort(pioreactor_unit),
-            f"/unit_api/calibrations/sessions/{session_id}/abort",
+            f"/unit_api/calibrations/sessions/{quote(session_id, safe="")}/abort",
             timeout=30,
         )
         response.raise_for_status()
@@ -2609,13 +2617,14 @@ def set_active_calibration(
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "PATCH", f"/unit_api/active_calibrations/{device}/{quote(calibration_name, safe="")}"
+            "PATCH",
+            f"/unit_api/active_calibrations/{quote(device, safe="")}/{quote(calibration_name, safe="")}",
         )
     else:
         task = multicast_to_worker(
             "PATCH",
             pioreactor_unit,
-            f"/unit_api/active_calibrations/{device}/{quote(calibration_name, safe="")}",
+            f"/unit_api/active_calibrations/{quote(device, safe="")}/{quote(calibration_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2628,11 +2637,13 @@ def set_active_estimator(
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "PATCH", f"/unit_api/active_estimators/{device}/{quote(estimator_name, safe="")}"
+            "PATCH", f"/unit_api/active_estimators/{quote(device, safe="")}/{quote(estimator_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
-            "PATCH", pioreactor_unit, f"/unit_api/active_estimators/{device}/{quote(estimator_name, safe="")}"
+            "PATCH",
+            pioreactor_unit,
+            f"/unit_api/active_estimators/{quote(device, safe="")}/{quote(estimator_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2642,9 +2653,13 @@ def remove_active_status_calibration(pioreactor_unit: str, device: str) -> Delay
     cache.invalidate_calibrations_cache(pioreactor_unit)
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("DELETE", f"/unit_api/active_calibrations/{device}")
+        task = fanout.broadcast_across_workers(
+            "DELETE", f"/unit_api/active_calibrations/{quote(device, safe="")}"
+        )
     else:
-        task = multicast_to_worker("DELETE", pioreactor_unit, f"/unit_api/active_calibrations/{device}")
+        task = multicast_to_worker(
+            "DELETE", pioreactor_unit, f"/unit_api/active_calibrations/{quote(device, safe="")}"
+        )
     return create_task_response(task)
 
 
@@ -2653,9 +2668,13 @@ def remove_active_status_estimator(pioreactor_unit: str, device: str) -> Delayed
     cache.invalidate_estimators_cache(pioreactor_unit)
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("DELETE", f"/unit_api/active_estimators/{device}")
+        task = fanout.broadcast_across_workers(
+            "DELETE", f"/unit_api/active_estimators/{quote(device, safe="")}"
+        )
     else:
-        task = multicast_to_worker("DELETE", pioreactor_unit, f"/unit_api/active_estimators/{device}")
+        task = multicast_to_worker(
+            "DELETE", pioreactor_unit, f"/unit_api/active_estimators/{quote(device, safe="")}"
+        )
     return create_task_response(task)
 
 
@@ -2667,13 +2686,13 @@ def delete_calibration(
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "DELETE", f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}"
+            "DELETE", f"/unit_api/calibrations/{quote(device, safe="")}/{quote(calibration_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
             "DELETE",
             pioreactor_unit,
-            f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}",
+            f"/unit_api/calibrations/{quote(device, safe="")}/{quote(calibration_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2684,11 +2703,13 @@ def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> 
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "DELETE", f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
+            "DELETE", f"/unit_api/estimators/{quote(device, safe="")}/{quote(estimator_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
-            "DELETE", pioreactor_unit, f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
+            "DELETE",
+            pioreactor_unit,
+            f"/unit_api/estimators/{quote(device, safe="")}/{quote(estimator_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2881,7 +2902,7 @@ def get_job_settings_for_worker(
     job_name: str,
     experiment: str,
 ) -> DelayedResponseReturnValue:
-    endpoint = f"/unit_api/jobs/settings/job_name/{job_name}"
+    endpoint = f"/unit_api/jobs/settings/job_name/{quote(job_name, safe="")}"
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers_in_experiment("GET", endpoint, experiment)
     else:
@@ -2903,7 +2924,9 @@ def get_job_setting_for_worker(
     setting: str,
     experiment: str,
 ) -> DelayedResponseReturnValue:
-    endpoint = f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}"
+    endpoint = (
+        f"/unit_api/jobs/settings/job_name/{quote(job_name, safe="")}/setting/{quote(setting, safe="")}"
+    )
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers_in_experiment("GET", endpoint, experiment)
     else:
@@ -3043,7 +3066,7 @@ def get_automation_descriptors_for_worker(pioreactor_unit: str, automation_type:
     try:
         response = get_from_unit(
             registered_worker_or_abort(pioreactor_unit),
-            f"/unit_api/automations/descriptors/{automation_type}",
+            f"/unit_api/automations/descriptors/{quote(automation_type, safe="")}",
             timeout=10,
         )
         response.raise_for_status()
