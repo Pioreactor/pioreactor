@@ -330,7 +330,7 @@ export function CalibrateDialog({
                             sx={{ maxWidth: "300px" }}
                             clickable
                             component={Link}
-                            to={`/estimators/${unit}/${device}/${estimatorName}`}
+                            to={`/estimators/${unit}/${device}/${encodeURIComponent(estimatorName)}`}
                           />
                         </TableCell>
                         <TableCell align="left" sx={{ padding: "6px 0px" }}>
@@ -386,7 +386,7 @@ export function CalibrateDialog({
                             clickable
                             component={Link}
                             sx={{ maxWidth: "300px" }}
-                            to={`/calibrations/${unit}/${device}/${calName}`}
+                            to={`/calibrations/${unit}/${device}/${encodeURIComponent(calName)}`}
                           />
                         </TableCell>
                         <TableCell align="left" sx={{ padding: "6px 0px" }}>

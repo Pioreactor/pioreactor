@@ -297,7 +297,7 @@ function EstimatorData({ loading, rawData }) {
 
               return (
                 <NavigableTableRow
-                  to={`/estimators/${unitName}/${deviceName}/${estimatorName}`}
+                  to={`/estimators/${unitName}/${deviceName}/${encodeURIComponent(estimatorName)}`}
                   key={i}
                 >
                   <TableCell data-copy-value={unitName} sx={{ padding: "6px 6px", display: "flex" }}>
@@ -317,7 +317,7 @@ function EstimatorData({ loading, rawData }) {
                       data-estimator-name={estimatorName}
                       clickable
                       component={Link}
-                      to={`/estimators/${unitName}/${deviceName}/${estimatorName}`}
+                      to={`/estimators/${unitName}/${deviceName}/${encodeURIComponent(estimatorName)}`}
                     />
                   </TableCell>
                   <TableCell align="left" data-copy-value={estimator.is_active ? "Active" : ""} sx={{ padding: "6px 0px" }}>

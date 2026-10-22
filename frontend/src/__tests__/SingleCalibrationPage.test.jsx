@@ -65,9 +65,9 @@ function LocationProbe() {
   return <div data-testid="location">{location.pathname}</div>;
 }
 
-function renderSingleCalibrationPage() {
+function renderSingleCalibrationPage(path = "/calibrations/unit-1/od/calibration-a") {
   return render(
-    <MemoryRouter initialEntries={["/calibrations/unit-1/od/calibration-a"]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route
           path="/calibrations/:pioreactorUnit/:device/:calibrationName"
@@ -190,5 +190,25 @@ describe("SingleCalibrationPage task-backed mutations", () => {
       ),
     );
     expect(await screen.findByTestId("location")).toHaveTextContent("/calibrations/unit-1/od");
+  });
+});
+
+describe("SingleCalibrationPage calibration names", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  test("loads a calibration whose name has URL-reserved characters", async () => {
+    fetchTaskResult.mockImplementation((endpoint) => {
+      if (endpoint === "/api/workers/unit-1/calibrations/od/OD600%20%232%3F%25") {
+        return Promise.resolve(calibrationPayload(false));
+      }
+      throw new Error(`Unexpected fetchTaskResult call: ${endpoint}`);
+    });
+
+    renderSingleCalibrationPage(`/calibrations/unit-1/od/${encodeURIComponent("OD600 #2?%")}`);
+
+    expect(await screen.findByText("Calibration: OD600 #2?%")).toBeVisible();
+    expect(screen.queryByText("Unable to find calibration data.")).not.toBeInTheDocument();
   });
 });

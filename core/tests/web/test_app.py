@@ -200,6 +200,38 @@ def test_system_fanout_allows_registered_unit_target(client: FlaskClient, monkey
     assert captured["units"] == ["unit1"]
 
 
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "calibrations/od90"),
+        ("DELETE", "calibrations/od90"),
+        ("PATCH", "active_calibrations/od90"),
+        ("GET", "estimators/od_fused"),
+        ("DELETE", "estimators/od_fused"),
+        ("PATCH", "active_estimators/od_fused"),
+    ],
+)
+def test_artifact_names_stay_encoded_when_forwarded_to_the_worker(
+    client: FlaskClient, monkeypatch: MonkeyPatch, method: str, path: str
+) -> None:
+    # Names may contain #, ? and %, which would cut or corrupt the worker URL if sent unencoded.
+    class FakeHueyTask:
+        id = "fake-task-id"
+
+    captured: dict[str, object] = {}
+
+    def fake_multicast(method_: str, endpoint: str, units: list[str], **_kwargs) -> FakeHueyTask:
+        captured["endpoint"] = endpoint
+        return FakeHueyTask()
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.multicast", fake_multicast)
+
+    response = client.open(f"/api/workers/unit1/{path}/OD600%20%232%3F%25", method=method)
+
+    assert response.status_code == 202
+    assert captured["endpoint"] == f"/unit_api/{path}/OD600%20%232%3F%25"
+
+
 def test_system_fanout_task_result_returns_unit_envelope(
     client: FlaskClient, monkeypatch: MonkeyPatch
 ) -> None:

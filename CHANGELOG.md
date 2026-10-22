@@ -49,6 +49,7 @@
  - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
  - Fixed `led_intensity` staying listed as a running job after all LEDs were turned off, which blocked changing a Pioreactor's model or removing it from the cluster with "Stop activities…".
  - Fixed `pio workers update-active <hostname> <0|1>` always failing with an error.
+ - Fixed the UI being unable to open, set active, or delete a calibration or estimator whose name contains `#`, `?` or `%`. Its page showed "Unable to find calibration data" even though the calibration was saved.
 
 ### 26.11.1
 

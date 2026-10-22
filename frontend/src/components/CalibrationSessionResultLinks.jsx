@@ -30,7 +30,7 @@ export default function CalibrationSessionResultLinks({ result, protocolTargetDe
                 clickable
                 component={Link}
                 sx={{ my: 1 }}
-                to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}
+                to={`/calibrations/${unit}/${calibration.device}/${encodeURIComponent(calibration.calibration_name)}`}
                 label={calibration.calibration_name}
               />
             </Box>
@@ -45,7 +45,7 @@ export default function CalibrationSessionResultLinks({ result, protocolTargetDe
             icon={<CalibrationIcon />}
             clickable
             component={Link}
-            to={`/calibrations/${unit}/${completedCalibrationDevice}/${result.calibration.calibration_name}`}
+            to={`/calibrations/${unit}/${completedCalibrationDevice}/${encodeURIComponent(result.calibration.calibration_name)}`}
             label={result.calibration.calibration_name}
           />
         )}
@@ -58,7 +58,7 @@ export default function CalibrationSessionResultLinks({ result, protocolTargetDe
             clickable
             component={Link}
             sx={{ my: 1 }}
-            to={`/estimators/${unit}/${completedEstimatorDevice}/${result.estimator_name}`}
+            to={`/estimators/${unit}/${completedEstimatorDevice}/${encodeURIComponent(result.estimator_name)}`}
             label={result.estimator_name}
           />
         </Box>

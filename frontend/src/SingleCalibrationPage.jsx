@@ -167,7 +167,7 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
       if (!result.confirmed) return;
       confirmed = true;
 
-      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`, {
+      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/calibrations/${device}/${encodeURIComponent(calibrationName)}`, {
         fetchOptions: { method: "DELETE" },
       });
       assertUnitTaskResultSucceeded(
@@ -288,7 +288,7 @@ function SingleCalibrationPage(props) {
 
   const fetchSingleCalibration = useCallback(async () => {
     setLoading(true);
-    const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${encodeURIComponent(calibrationName)}`;
     try {
       const data = await fetchTaskResult(apiUrl)
       try {
@@ -322,7 +322,7 @@ function SingleCalibrationPage(props) {
   }
 
   const handleSetActive = async () => {
-    const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}/${calibrationName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}/${encodeURIComponent(calibrationName)}`;
     try {
       const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
       assertUnitTaskResultSucceeded(

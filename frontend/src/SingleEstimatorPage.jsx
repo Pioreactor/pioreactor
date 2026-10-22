@@ -118,7 +118,7 @@ function Delete({ pioreactorUnit, device, estimatorName, onError }) {
       if (!result.confirmed) return;
       confirmed = true;
 
-      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`, {
+      const taskResult = await fetchTaskResult(`/api/workers/${pioreactorUnit}/estimators/${device}/${encodeURIComponent(estimatorName)}`, {
         fetchOptions: { method: "DELETE" },
       });
       assertUnitTaskResultSucceeded(
@@ -241,7 +241,7 @@ function SingleEstimatorPage(props) {
 
   const fetchSingleEstimator = useCallback(async () => {
     setLoading(true);
-    const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${encodeURIComponent(estimatorName)}`;
     try {
       const data = await fetchTaskResult(apiUrl)
       try {
@@ -274,7 +274,7 @@ function SingleEstimatorPage(props) {
   };
 
   const handleSetActive = async () => {
-    const apiUrl = `/api/workers/${pioreactorUnit}/active_estimators/${device}/${estimatorName}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/active_estimators/${device}/${encodeURIComponent(estimatorName)}`;
     try {
       const taskResult = await fetchTaskResult(apiUrl, { fetchOptions: { method: "PATCH" } });
       assertUnitTaskResultSucceeded(

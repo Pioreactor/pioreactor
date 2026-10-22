@@ -90,7 +90,7 @@ export function deriveCalibrationCoverageMatrix(availableByUnit, activeByUnit) {
         cells[unit][device] = {
           status: COVERAGE_STATUS.ACTIVE,
           calibrationName: activeCalibrationName,
-          detailPath: `/calibrations/${unit}/${device}/${activeCalibrationName}`,
+          detailPath: `/calibrations/${unit}/${device}/${encodeURIComponent(activeCalibrationName)}`,
           note: "Active calibration is configured for this device.",
         };
         return;

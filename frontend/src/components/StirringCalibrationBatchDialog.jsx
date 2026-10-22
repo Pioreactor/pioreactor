@@ -82,7 +82,7 @@ function renderCalibrationLinks(unit, result) {
           icon={<CalibrationIcon />}
           clickable
           component={RouterLink}
-          to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}
+          to={`/calibrations/${unit}/${calibration.device}/${encodeURIComponent(calibration.calibration_name)}`}
           label={calibration.calibration_name}
         />
       ))}

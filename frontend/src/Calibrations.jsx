@@ -678,7 +678,7 @@ function CalibrationData({ loading, rawData }) {
                 <NavigableTableRow
                   onMouseOver={(e) => onMouseOverRow(e, cal) }
                   onMouseOut={(e) => onMouseExitRow(e)}
-                  to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
+                  to={`/calibrations/${unitName}/${selectedDevice}/${encodeURIComponent(calName)}`}
                   key={i}
                   >
                   <TableCell data-copy-value={unitName} sx={{padding: "6px 6px", display: "flex"}}>
@@ -715,7 +715,7 @@ function CalibrationData({ loading, rawData }) {
                         data-calibration-name={calName}
                         clickable
                         component={Link}
-                        to={`/calibrations/${unitName}/${selectedDevice}/${calName}`}
+                        to={`/calibrations/${unitName}/${selectedDevice}/${encodeURIComponent(calName)}`}
                         />
                   </TableCell>
                   <TableCell align="left" data-copy-value={cal.is_active ? "Active" : ""} sx={{padding: "6px 0px"}}>

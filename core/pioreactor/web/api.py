@@ -14,6 +14,7 @@ from datetime import timedelta
 from datetime import timezone
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote
 
 from flask import Blueprint
 from flask import jsonify
@@ -2380,10 +2381,12 @@ def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturn
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<calibration_name>", methods=["GET"])
 def get_calibration(pioreactor_unit: str, device: str, calibration_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("GET", f"/unit_api/calibrations/{device}/{calibration_name}")
+        task = fanout.broadcast_across_workers(
+            "GET", f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}"
+        )
     else:
         task = multicast_to_worker(
-            "GET", pioreactor_unit, f"/unit_api/calibrations/{device}/{calibration_name}"
+            "GET", pioreactor_unit, f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}"
         )
     return create_task_response(task)
 
@@ -2400,9 +2403,13 @@ def get_estimators_by_device(pioreactor_unit: str, device: str) -> DelayedRespon
 @api_bp.route("/workers/<pioreactor_unit>/estimators/<device>/<estimator_name>", methods=["GET"])
 def get_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("GET", f"/unit_api/estimators/{device}/{estimator_name}")
+        task = fanout.broadcast_across_workers(
+            "GET", f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
+        )
     else:
-        task = multicast_to_worker("GET", pioreactor_unit, f"/unit_api/estimators/{device}/{estimator_name}")
+        task = multicast_to_worker(
+            "GET", pioreactor_unit, f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
+        )
     return create_task_response(task)
 
 
@@ -2602,13 +2609,13 @@ def set_active_calibration(
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "PATCH", f"/unit_api/active_calibrations/{device}/{calibration_name}"
+            "PATCH", f"/unit_api/active_calibrations/{device}/{quote(calibration_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
             "PATCH",
             pioreactor_unit,
-            f"/unit_api/active_calibrations/{device}/{calibration_name}",
+            f"/unit_api/active_calibrations/{device}/{quote(calibration_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2621,11 +2628,11 @@ def set_active_estimator(
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "PATCH", f"/unit_api/active_estimators/{device}/{estimator_name}"
+            "PATCH", f"/unit_api/active_estimators/{device}/{quote(estimator_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
-            "PATCH", pioreactor_unit, f"/unit_api/active_estimators/{device}/{estimator_name}"
+            "PATCH", pioreactor_unit, f"/unit_api/active_estimators/{device}/{quote(estimator_name, safe="")}"
         )
     return create_task_response(task)
 
@@ -2660,13 +2667,13 @@ def delete_calibration(
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = fanout.broadcast_across_workers(
-            "DELETE", f"/unit_api/calibrations/{device}/{calibration_name}"
+            "DELETE", f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}"
         )
     else:
         task = multicast_to_worker(
             "DELETE",
             pioreactor_unit,
-            f"/unit_api/calibrations/{device}/{calibration_name}",
+            f"/unit_api/calibrations/{device}/{quote(calibration_name, safe="")}",
         )
     return create_task_response(task)
 
@@ -2676,10 +2683,12 @@ def delete_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> 
     cache.invalidate_estimators_cache(pioreactor_unit)
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = fanout.broadcast_across_workers("DELETE", f"/unit_api/estimators/{device}/{estimator_name}")
+        task = fanout.broadcast_across_workers(
+            "DELETE", f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
+        )
     else:
         task = multicast_to_worker(
-            "DELETE", pioreactor_unit, f"/unit_api/estimators/{device}/{estimator_name}"
+            "DELETE", pioreactor_unit, f"/unit_api/estimators/{device}/{quote(estimator_name, safe="")}"
         )
     return create_task_response(task)
 
