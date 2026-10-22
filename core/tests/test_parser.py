@@ -335,7 +335,7 @@ def test_syntax_validation_has_no_runtime_dependencies(
     def unexpected_call(*args: object, **kwargs: object) -> None:
         pytest.fail("Syntax validation evaluated live state")
 
-    for name in ("subscribe", "is_active", "get_assigned_experiment_name", "random"):
+    for name in ("subscribe", "is_active", "get_assigned_experiment_name_from_leader", "random"):
         monkeypatch.setattr(f"pioreactor.experiment_profiles.parser.{name}", unexpected_call)
     assert check_syntax(expression)
 
@@ -346,7 +346,7 @@ def test_boolean_short_circuit(operator: str, left: str, right: str, monkeypatch
     def unexpected_call(*args: object, **kwargs: object) -> None:
         pytest.fail("Short-circuited operand was evaluated")
 
-    for name in ("subscribe", "is_active", "get_assigned_experiment_name", "random"):
+    for name in ("subscribe", "is_active", "get_assigned_experiment_name_from_leader", "random"):
         monkeypatch.setattr(f"pioreactor.experiment_profiles.parser.{name}", unexpected_call)
     assert parse_profile_expression(f"{left} {operator} {right}") is (left == "True")
 

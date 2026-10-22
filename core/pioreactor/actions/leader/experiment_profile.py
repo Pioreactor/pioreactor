@@ -36,7 +36,7 @@ from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name_from_leader
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -458,7 +458,7 @@ def _prepare_action_execution(
     action_count = action_metrics.increment()
     parent_job.publish_setting("action_count", action_count)
 
-    if get_assigned_experiment_name(unit) != experiment:
+    if get_assigned_experiment_name_from_leader(unit) != experiment:
         logger.debug(
             f"Skipping {action_name} action on `{unit}` due to not being assigned to experiment `{experiment}`."
         )
@@ -495,7 +495,7 @@ def when(
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
-        if (get_assigned_experiment_name(unit) != experiment) and not is_testing_env():
+        if (get_assigned_experiment_name_from_leader(unit) != experiment) and not is_testing_env():
             return
 
         nonlocal env
@@ -583,7 +583,7 @@ def repeat(
 
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
-        if get_assigned_experiment_name(unit) != experiment:
+        if get_assigned_experiment_name_from_leader(unit) != experiment:
             logger.debug(
                 f"Skipping repeat action on `{unit}` due to not being assigned to experiment `{experiment}`."
             )
@@ -1085,7 +1085,7 @@ def execute_experiment_profile(
         # process specific pioreactors
         for unit_ in profile.pioreactors:
             try:
-                assigned_experiment = get_assigned_experiment_name(unit_)
+                assigned_experiment = get_assigned_experiment_name_from_leader(unit_)
             except NotAssignedAnExperimentError:
                 assigned_experiment = None
 

@@ -118,3 +118,17 @@ def test_invalid_leader_model_is_not_persisted(leader_model_lookup: dict[str, An
     with pytest.raises(exc.UnknownModelAssignedError):
         adopt_leader_model()
     assert get_local_model() is None
+
+
+def test_assigned_experiment_from_leader_ignores_experiment_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_get_from_leader(endpoint: str, **kwargs: Any) -> MagicMock:
+        assert endpoint == "/api/workers/unit2/experiment"
+        response = MagicMock()
+        response.json.return_value = {"experiment": "exp-from-leader"}
+        return response
+
+    monkeypatch.setattr(pubsub, "get_from_leader", fake_get_from_leader)
+    monkeypatch.setenv("EXPERIMENT", "exp-from-env")
+
+    assert whoami.get_assigned_experiment_name("unit2") == "exp-from-env"
+    assert whoami.get_assigned_experiment_name_from_leader("unit2") == "exp-from-leader"

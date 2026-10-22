@@ -568,6 +568,37 @@ def test_stopping_profile_skips_remaining_workers_in_common_action(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_profile_skips_unit_moved_to_another_experiment_even_with_experiment_env(
+    mock__load_experiment_profile, monkeypatch, mocker
+) -> None:
+    # profiles launched from the leader's API inherit EXPERIMENT; membership must still come from the leader.
+    experiment = "_testing_experiment"
+    monkeypatch.setenv("EXPERIMENT", experiment)
+
+    def leader_says_unit1_moved(endpoint, *args, **kwargs):
+        assert endpoint == "/api/workers/unit1/experiment"
+        response = MagicMock()
+        response.json.return_value = {"experiment": "another_experiment"}
+        return response
+
+    leader_lookup = mocker.patch("pioreactor.pubsub.get_from_leader", side_effect=leader_says_unit1_moved)
+
+    profile = Profile(
+        version="1.0",
+        experiment_profile_name="test_profile",
+        pioreactors={"unit1": PioreactorSpecificBlock(jobs={"stirring": Job(actions=[Start(t="0s")])})},
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert _job_starts(bucket, "stirring") == []
+    assert leader_lookup.called
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_stopping_profile_does_not_retry_failed_start_submit(
     mock__load_experiment_profile,
 ) -> None:

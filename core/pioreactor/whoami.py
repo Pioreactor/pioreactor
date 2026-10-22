@@ -41,6 +41,14 @@ def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
     elif is_testing_env():
         return "_testing_experiment"
 
+    return get_assigned_experiment_name_from_leader(unit_name)
+
+
+def get_assigned_experiment_name_from_leader(unit_name: "pt.Unit") -> "pt.Experiment":
+    """
+    Always asks the leader, ignoring this process's EXPERIMENT env.
+    Use for checks about another unit's live membership.
+    """
     from pioreactor.pubsub import get_from_leader
     from pioreactor.config import leader_address
     from pioreactor.mureq import HTTPErrorStatus

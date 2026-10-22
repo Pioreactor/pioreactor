@@ -11,7 +11,7 @@ from msgspec.json import decode
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.pubsub import subscribe
-from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name_from_leader
 from pioreactor.whoami import is_active
 
 
@@ -179,7 +179,7 @@ def lookup_mqtt(data_string: str, env: dict[str, Any]) -> Any:
     if job == "job_name()":
         job = env["job_name"]
 
-    experiment = get_assigned_experiment_name(unit)
+    experiment = get_assigned_experiment_name_from_leader(unit)
 
     if not is_active(unit):
         raise NotActiveWorkerError(f"Worker {unit} is not active.")

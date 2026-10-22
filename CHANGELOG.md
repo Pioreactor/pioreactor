@@ -43,6 +43,7 @@
  - When a dose would overflow the vial, the waste for media already added is now removed before the dosing automation pauses. Previously, the vial was left fuller than before the dose.
  - Fixed the "Waste was under-removed" warning being logged several times for a single dose.
  - Stopping an experiment profile now prevents any further actions from starting. Previously, actions due at the same time as the one in progress, including a common action on the remaining Pioreactors, still started before the profile's jobs were stopped, so a short dosing action like `add_media` could still pump after the profile was stopped.
+ - Fixed experiment profiles started from the leader's API or the MCP `run_experiment_profile` tool continuing to start and stop jobs on a Pioreactor after it was moved to a different experiment. Their conditions that read another Pioreactor's data, like `${{unit2:od_reading:od1.od > 1.0}}`, also read from the old experiment. Profiles started from the UI weren't affected.
  - Fixed the `light_dark_cycle` LED automation no longer switching between light and dark after it was paused and resumed.
  - Fixed growth rate calculation crashing with a `KeyError` when its cached normalization statistics were for different photodiode channels, for example after switching between raw OD and fused OD. The statistics are now recomputed.
  - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
