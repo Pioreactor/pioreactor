@@ -22,7 +22,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
@@ -36,9 +35,11 @@ import UnderlineSpan from "./components/UnderlineSpan";
 import useCameraResource from "./hooks/useCameraResource";
 import { assertUnitTaskResultSucceeded, fetchTaskResult } from "./utils/tasks";
 import { experimentPathSegment } from "./utils/url";
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
+import EmptyState from "./components/EmptyState";
 
 const CAMERA_STILLS_PAGE_SIZE = 24;
-const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 function workerExperimentCameraPath(unit, experiment, suffix) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
@@ -365,7 +366,7 @@ export default function CameraStills({ title }) {
           <CircularProgress />
         </Stack>
       ) : stills.length === 0 ? (
-        <Alert severity="info">No snapshots have been captured for this Pioreactor during this experiment.</Alert>
+        <EmptyState>No snapshots have been captured for this Pioreactor during this experiment.</EmptyState>
       ) : (
         <>
           <Grid container spacing={2}>
@@ -511,14 +512,7 @@ export default function CameraStills({ title }) {
       >
         <DialogTitle sx={{ pr: 6 }}>
           Rename photo
-          <IconButton
-            aria-label="Close"
-            disabled={renameRequestPending}
-            onClick={closeRenameDialog}
-            sx={{ position: "absolute", right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={closeRenameDialog} disabled={renameRequestPending} />
         </DialogTitle>
         <Box
           component="form"
@@ -607,13 +601,7 @@ export default function CameraStills({ title }) {
               </Stack>
             </>
           ) : "Camera snapshot"}
-          <IconButton
-            aria-label="Close"
-            onClick={() => setSelectedStillImageId(null)}
-            sx={{ position: "absolute", right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={() => setSelectedStillImageId(null)} />
         </DialogTitle>
         <DialogContent>
           {selectedStill && (

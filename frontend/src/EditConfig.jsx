@@ -21,6 +21,7 @@ import 'prismjs/components/prism-ini';
 
 import dayjs from "dayjs";
 import { useParams, useNavigate } from 'react-router';
+import { textIcon } from "./theme";
 
 
 const CURRENT_VERSION = "__current__";
@@ -459,7 +460,7 @@ function EditConfigContainer(){
             onClick={handleDownloadConfigurations}
             loading={downloading}
           >
-            <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }} />
+            <DownloadIcon fontSize="small" sx={textIcon} />
             Download all configurations
           </Button>
         )}

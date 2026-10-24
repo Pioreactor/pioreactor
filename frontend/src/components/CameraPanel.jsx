@@ -18,7 +18,6 @@ import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
-import CloseIcon from "@mui/icons-material/Close";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ImageNotSupportedOutlinedIcon from "@mui/icons-material/ImageNotSupportedOutlined";
@@ -31,6 +30,7 @@ import UnderlineSpan from "./UnderlineSpan";
 import useCameraResource from "../hooks/useCameraResource";
 import { fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
 import { experimentPathSegment } from "../utils/url";
+import DialogCloseButton from "./DialogCloseButton";
 
 function workerCameraPath(unit, suffix, experiment) {
   return `/api/workers/${encodeURIComponent(unit)}/camera/experiments/${experimentPathSegment(experiment)}/${suffix}`;
@@ -397,13 +397,7 @@ export default function CameraPanel({
               </Stack>
             </>
           )}
-          <IconButton
-            aria-label="Close"
-            onClick={() => setViewerOpen(false)}
-            sx={{ position: "absolute", right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={() => setViewerOpen(false)} />
         </DialogTitle>
         <DialogContent>
           <Box sx={{ bgcolor: "action.hover", borderRadius: 1, overflow: "hidden" }}>

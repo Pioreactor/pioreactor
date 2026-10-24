@@ -13,6 +13,7 @@ import EstimatorIcon from "./EstimatorIcon";
 import PluginIcon from "./PluginIcon";
 import { useExperiment } from "../providers/ExperimentContext";
 import { parseLogMessage, splitTraceback } from "../utils/logMessage";
+import { textIcon } from "../theme";
 
 const ENTITY_ICONS = {
   pioreactor: PioreactorIcon,
@@ -153,7 +154,6 @@ function EntityChip({ type, label, unit, device }) {
   return <Chip size="small" icon={<Icon />} label={label} sx={INLINE_CHIP_SX} {...dataProps} />;
 }
 
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function MessageSegments({ text, units, experiment, unit }) {
   const segments = useMemo(

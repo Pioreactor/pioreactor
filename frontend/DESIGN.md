@@ -507,15 +507,15 @@ before the label. Use the small icon size, vertically center the icon against
 the text, and leave `3px` of horizontal space around it:
 
 ```jsx
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
+import { textIcon } from "./theme"; // { verticalAlign: "middle", margin: "0px 3px" }
 
 <Button variant="text" onClick={openSearch}>
   <SearchIcon fontSize="small" sx={textIcon} /> Search jobs and automations
 </Button>
 ```
 
-Reuse one local `textIcon` style object when a file has multiple text-button
-icons. Do not use MUI's `startIcon` for this pattern.
+Import the shared `textIcon` style from `src/theme`; do not redefine it
+locally. Do not use MUI's `startIcon` for this pattern.
 
 Contained primary page actions may use MUI's `endIcon` for a conventional
 commit or launch icon, such as Save, Export, Upload, Update, or Run. This
@@ -574,10 +574,11 @@ Rules:
 
 ## Dialogs
 
-- Every dialog must have a visible close `IconButton` in the top-right corner.
-  The icon must be MUI's `CloseIcon`.
-- The close `IconButton` uses MUI's default size. Do not set `size="large"` on
-  ordinary dialog close controls.
+- Every dialog must have a visible close control in the top-right corner. Use
+  `src/components/DialogCloseButton.jsx` inside the `DialogTitle`; it owns the
+  `CloseIcon`, the `Close` accessible name, the default size, the position, and
+  the `text.secondary` colour. Pass `onClick`, and `disabled` while an active
+  operation blocks closing.
 - Standard MUI Escape and backdrop dismissal should remain enabled unless the
   flow deliberately requires an explicit decision or an active operation must
   be aborted safely.
@@ -631,6 +632,13 @@ Rules:
 - Reserve content space for loading states to avoid layout shifts.
 - Empty states should explain what is empty and, when useful, provide the next
   action.
+- Use `src/components/EmptyState.jsx` for an empty page region, card, or
+  table body: centred secondary `body2` text in a short reserved area. Put a
+  next-action link inside the message. Inside a table, render it in a full-width
+  cell. Do not use an info `Alert` for emptiness; Alerts report errors,
+  warnings, and unmet requirements.
+- A page whose primary content is empty may show an illustration above the same
+  secondary `body2` text, as the logs pages do.
 
 ## Responsive and accessible behavior
 
@@ -658,7 +666,8 @@ Rules:
   focused shared component.
 - A shared component should encode a settled rule, not hide unresolved design
   differences.
-- `PageHeader` owns standard page headers. `TableRows.jsx` owns zebra and
+- `PageHeader` owns standard page headers. `DialogCloseButton` owns dialog
+  close controls. `EmptyState` owns empty-region messages. `TableRows.jsx` owns zebra and
   navigable rows; `LogTableCells.jsx` owns log-cell spacing and severity fills.
   Use zebra rows for log entries, leaving time-gap separators as plain rows.
 - Do not inspect or edit `core/pioreactor/web/static/`; it is generated output.

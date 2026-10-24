@@ -3,7 +3,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
-import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -18,7 +17,7 @@ import Snackbar from './Snackbar';
 import { styled } from "@mui/material/styles";
 import PioreactorIcon from "./PioreactorIcon";
 import ListSubheader from '@mui/material/ListSubheader';
-import CloseIcon from "@mui/icons-material/Close";
+import DialogCloseButton from "./DialogCloseButton";
 
 
 const fetchJSON = async (endpoint) => {
@@ -225,18 +224,7 @@ const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
       <Dialog open={shouldDisplayDialog} onClose={() => {}} maxWidth="sm" fullWidth>
         <DialogTitle>
           Update Pioreactor model
-          <IconButton
-            aria-label="close"
-            onClick={() => setIsOpen(false)}
-            sx={{
-              position: "absolute",
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={() => setIsOpen(false)} />
         </DialogTitle>
         <DialogContent>
           {shouldDisplayDialog && (

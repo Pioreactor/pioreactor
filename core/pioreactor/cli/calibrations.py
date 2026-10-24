@@ -72,10 +72,8 @@ def _display_calibrations_by_device(device: str) -> None:
             data = yaml_decode(location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))
             row = f"{device:<25}{data.calibration_name:<50}{data.calibration_type:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}"
             click.echo(row)
-        except Exception:
-            pass
-            # error_message = f"Error reading {name}: {e}"
-            # click.echo(f"{error_message:<60}")
+        except Exception as e:
+            click.echo(f"Error reading {device} calibration `{name}`: {e}", err=True)
 
 
 @calibration.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))

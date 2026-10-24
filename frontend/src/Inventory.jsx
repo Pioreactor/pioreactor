@@ -22,10 +22,8 @@ import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import FlareIcon from '@mui/icons-material/Flare';
-import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import CheckIcon from '@mui/icons-material/Check';
@@ -55,6 +53,8 @@ import { getJobDescriptor } from "./utils/jobs";
 
 
 import { useExperiment } from './providers/ExperimentContext';
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
 
 function useSelfTestJobDefinition() {
   const [definition, setDefinition] = useState(null);
@@ -91,7 +91,6 @@ function parsePayloadToType(payloadString, typeOfSetting) {
   return payloadString;
 }
 
-const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 function Header(props) {
   const leaderHostname = props.config?.["cluster.topology"]?.leader_hostname ?? null;
@@ -268,18 +267,7 @@ function AddNewPioreactor({setWorkers, availableModels = []}){
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
         Add a new Pioreactor to your cluster
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={handleClose} />
       </DialogTitle>
       <DialogContent>
         <p>First, follow the <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">worker setup instructions</a> to set up your new Pioreactor's worker software.</p>
@@ -548,10 +536,10 @@ function WorkerCard({
       return lostRed
     }
     else if (state === null){
-      return "#ececec"
+      return uiColors.noData
     }
     else {
-      return "#2FBB39"
+      return uiColors.online
     }
   }
 
@@ -993,7 +981,7 @@ function InventoryDisplay({
                 sx={{
                   minWidth: 275,
                   minHeight: 360,
-                  border: '2px dashed rgb(200, 200, 200)',
+                  border: `2px dashed ${uiColors.border}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

@@ -233,7 +233,7 @@ def load_background_job_descriptors(
             if decoded_yaml.job_name in parsed_yaml and report_error is not None:
                 report_error(f"Descriptor {file.name} overrides job {decoded_yaml.job_name}.")
             parsed_yaml[decoded_yaml.job_name] = decoded_yaml
-        except (ValidationError, DecodeError, ValueError) as e:
+        except (ValidationError, DecodeError, ValueError, OSError) as e:
             if report_error is not None:
                 report_error(f"Yaml error in {file.name}: {e}")
 
@@ -256,7 +256,7 @@ def load_settings_collection_descriptors(
         try:
             descriptor = yaml_decode(file.read_bytes(), type=structs.SettingsCollectionDescriptor)
             validate_settings_collection_descriptor(descriptor)
-        except (ValidationError, DecodeError, ValueError) as e:
+        except (ValidationError, DecodeError, ValueError, OSError) as e:
             if report_error is not None:
                 report_error(f"Yaml error in {file.name}: {e}")
             continue
@@ -309,7 +309,7 @@ def load_automation_descriptors(
             if decoded_yaml.automation_name in parsed_yaml and report_error is not None:
                 report_error(f"Descriptor {file.name} overrides automation {decoded_yaml.automation_name}.")
             parsed_yaml[decoded_yaml.automation_name] = decoded_yaml
-        except (ValidationError, DecodeError, ValueError) as e:
+        except (ValidationError, DecodeError, ValueError, OSError) as e:
             if report_error is not None:
                 report_error(f"Yaml error in {file.name}: {e}")
 

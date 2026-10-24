@@ -40,6 +40,8 @@ import { useExperiment } from "./providers/ExperimentContext";
 import UnderlineSpan from "./components/UnderlineSpan";
 import { fetchTaskResult, TaskPollingTimeoutError } from "./utils/tasks";
 import Snackbar from "./components/Snackbar";
+import { textIcon } from "./theme";
+import EmptyState from "./components/EmptyState";
 
 const TAGS_TO_SHOW = 6;
 
@@ -334,7 +336,7 @@ function ExperimentsContainer(props) {
             component={Link}
             to="/start-new-experiment"
           >
-            <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Create new experiment
+            <AddIcon fontSize="small" sx={textIcon}/> Create new experiment
           </Button>
         )}
       />
@@ -480,9 +482,7 @@ function ExperimentsContainer(props) {
               {!loading && filteredExperiments.length === 0 && (
                 <TableRow>
                   <StyledTableCell colSpan={4}>
-                    <Box sx={{ py: 4, textAlign: "center" }}>
-                      <Typography variant="body1">No experiments match the current filters.</Typography>
-                    </Box>
+                    <EmptyState>No experiments match the current filters.</EmptyState>
                   </StyledTableCell>
                 </TableRow>
               )}

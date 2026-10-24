@@ -121,7 +121,7 @@ describe("EditConfig downloads", () => {
     );
 
     const editor = await screen.findByRole("textbox", { name: "Configuration editor" });
-    await userEvent.click(screen.getByRole("combobox", { name: "Config target:" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Config:" }));
     await userEvent.click(await screen.findByRole("option", { name: "unit1 unit config" }));
     await waitFor(() => expect(editor).toHaveValue("unit config"));
     await userEvent.type(editor, " edited");

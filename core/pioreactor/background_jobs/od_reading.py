@@ -1877,9 +1877,17 @@ def start_od_reading(
     # use an OD fusion estimator?
     estimator_to_use: structs.ODFusionEstimator | None = None
     if estimator is True:
+        from msgspec import DecodeError
         from pioreactor.estimators import load_active_estimator
 
-        maybe_estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
+        try:
+            maybe_estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
+        except (OSError, DecodeError) as e:
+            # Not fatal, like the intensity mismatch below: OD readings are still useful without od_fused.
+            create_logger("od_reading", unit=unit, experiment=experiment).error(
+                f"Unable to load the active OD estimator: {e}. Skipping od_fused."
+            )
+            maybe_estimator = None
         if isinstance(maybe_estimator, structs.ODFusionEstimator):
             estimator_to_use = maybe_estimator
     elif isinstance(estimator, structs.ODFusionEstimator):

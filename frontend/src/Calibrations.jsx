@@ -5,8 +5,6 @@ import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from "react-router";
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
 import {
   CircularProgress,
   FormControl,
@@ -43,6 +41,8 @@ import 'prismjs/components/prism-yaml';
 import CheckIcon from '@mui/icons-material/Check';
 import ChecklistRtlOutlinedIcon from '@mui/icons-material/ChecklistRtlOutlined';
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
 
 export function getFailedCalibrationUploadUnits(taskPayload) {
   const result = taskPayload?.result;
@@ -224,18 +224,7 @@ export function UploadCalibrationDialog({
       <DialogTitle>
       Upload calibration from a YAML description
 
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} />
 
       </DialogTitle>
       <DialogContent>
@@ -797,17 +786,17 @@ function CalibrationsContainer() {
               component={Link}
               to="/calibration-coverage"
             >
-              <ChecklistRtlOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+              <ChecklistRtlOutlinedIcon fontSize="small" sx={textIcon}/>
               Calibration status
             </Button>
             <Button sx={{ mr: "0px"}}
                     color="primary"
                     onClick={() => setOpenUploadDialog(true)}
             >
-              <UploadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Upload calibration
+              <UploadIcon fontSize="small" sx={textIcon}/> Upload calibration
             </Button>
             <Button color="primary" onClick={handleDownloadCalibrations} loading={downloading}>
-              <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/> Download all calibrations
+              <DownloadIcon fontSize="small" sx={textIcon}/> Download all calibrations
             </Button>
           </>
         )}

@@ -5,7 +5,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
   Typography,
   Box,
   Button,
@@ -16,11 +15,12 @@ import {
   TextField,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
 import PioreactorsIcon from './PioreactorsIcon';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import DialogCloseButton from './DialogCloseButton';
+import { textIcon } from '../theme';
 
 dayjs.extend(utc);
 dayjs.extend(customParseFormat);
@@ -88,23 +88,12 @@ function RecordEventLogDialog({
       color="primary"
       onClick={handleOpenDialog}
     >
-      <AddIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}} /> Record event
+      <AddIcon fontSize="small" sx={textIcon} /> Record event
     </Button>
     <Dialog open={openDialog} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle sx={{ mb: 2 }}>
         Record event
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} />
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 3 }}>

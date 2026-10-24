@@ -3200,7 +3200,7 @@ def load_chart_descriptors() -> list[structs.ChartDescriptor]:
         try:
             descriptor = yaml_decode(file.read_bytes(), type=structs.ChartDescriptor)
             descriptors[descriptor.chart_key] = descriptor
-        except (ValidationError, DecodeError) as e:
+        except (ValidationError, DecodeError, OSError) as e:
             publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_chart_descriptors")
 
     return list(descriptors.values())
@@ -4244,40 +4244,29 @@ def update_experiment_profile(filename: str) -> ResponseReturnValue:
 def get_experiment_profiles() -> ResponseReturnValue:
     try:
         profile_path = get_dot_pioreactor_path() / "experiment_profiles"
-        files = sorted(
-            ((file, file.stat()) for file in profile_path.glob("*.y*ml")),
-            key=lambda item: item[1].st_mtime,
-            reverse=True,
-        )
 
         parsed_yaml = []
-        for file, file_stat in files:
-            # allow empty files, it's annoying to users otherwise (and maybe theres a bug that wipes yamls?)
-            if file_stat.st_size == 0:
-                parsed_yaml.append(
-                    {
-                        "experimentProfile": Profile(
-                            version="1.0", experiment_profile_name=f"temporary name: {file.stem}"
-                        ),
-                        "file": Path(file).name,
-                        "fullpath": Path(file).as_posix(),
-                    }
-                )
+        for file in profile_path.glob("*.y*ml"):
+            try:
+                file_stat = file.stat()
+                # allow empty files, it's annoying to users otherwise (and maybe theres a bug that wipes yamls?)
+                if file_stat.st_size == 0:
+                    profile = Profile(version="1.0", experiment_profile_name=f"temporary name: {file.stem}")
+                else:
+                    profile = yaml_decode(file.read_bytes(), type=Profile)
+            except (ValidationError, DecodeError, OSError) as e:
+                publish_to_error_log(f"Yaml error in {file.name}: {e}", "get_experiment_profiles")
                 continue
 
-            try:
-                profile = yaml_decode(file.read_bytes(), type=Profile)
-                parsed_yaml.append(
-                    {
-                        "experimentProfile": profile,
-                        "file": Path(file).name,
-                        "fullpath": Path(file).as_posix(),
-                    }
+            parsed_yaml.append(
+                (
+                    file_stat.st_mtime,
+                    {"experimentProfile": profile, "file": file.name, "fullpath": file.as_posix()},
                 )
-            except (ValidationError, DecodeError) as e:
-                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_experiment_profiles")
+            )
 
-        return attach_cache_control(jsonify(parsed_yaml), max_age=5)
+        parsed_yaml.sort(key=lambda item: item[0], reverse=True)
+        return attach_cache_control(jsonify([entry for _, entry in parsed_yaml]), max_age=5)
     except Exception as e:
         publish_to_error_log(str(e), "get_experiment_profiles")
         abort_with(400, str(e))

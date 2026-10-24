@@ -4,15 +4,14 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import CloseIcon from "@mui/icons-material/Close";
 import CalibrationSessionChart from "./CalibrationSessionChart";
+import DialogCloseButton from "./DialogCloseButton";
 
 
 export default function CalibrationSessionStepContent({
@@ -255,13 +254,7 @@ export default function CalibrationSessionStepContent({
       >
         <DialogTitle sx={{ pr: 6 }}>
           {enlargedImage?.caption || step.title || "Calibration step image"}
-          <IconButton
-            aria-label="Close"
-            onClick={() => setEnlargedImage(null)}
-            sx={{ position: "absolute", right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={() => setEnlargedImage(null)} />
         </DialogTitle>
         <DialogContent>
           {enlargedImage && (

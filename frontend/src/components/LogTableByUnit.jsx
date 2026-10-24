@@ -25,6 +25,7 @@ import RecordEventLogDialog from './RecordEventLogDialog';
 
 import { experimentPathSegment } from "../utils/url";
 import LogMessage, { useClusterUnits } from "./LogMessage";
+import { textIcon } from "../theme";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -221,7 +222,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
             to={(experiment === "$experiment") ? `/system-logs/${unit}` :  `/logs/${unit}`}
             component={Link}
             color="primary"
-            sx={{  verticalAlign: 'middle', m: '0px 3px' }}
+            sx={textIcon}
           >
             <ListAltOutlinedIcon sx={{ fontSize: 17, m: '0px 3px' }} color="primary" /> {experiment === "$experiment" ? "View system logs" : "View experiment logs"}
           </Button>

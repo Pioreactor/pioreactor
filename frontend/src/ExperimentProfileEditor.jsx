@@ -23,14 +23,13 @@ import CapabilitiesPanel from "./components/CapabilitiesPanel";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import IconButton from "@mui/material/IconButton";
 import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
 import CircularProgress from "@mui/material/CircularProgress";
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
 
 
-const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 const DEFAULT_CODE = `experiment_profile_name:
 
@@ -446,18 +445,7 @@ export default function ExperimentProfileEditorPage({ mode, title }) {
         >
           <DialogTitle>
             Search jobs and automations
-            <IconButton
-              aria-label="close"
-              onClick={() => setOpenCapabilities(false)}
-              sx={{
-                position: "absolute",
-                right: 8,
-                top: 8,
-                color: (theme) => theme.palette.grey[500],
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
+            <DialogCloseButton onClick={() => setOpenCapabilities(false)} />
           </DialogTitle>
           <DialogContent sx={{ height: "100%" }}>
             <CapabilitiesPanel />

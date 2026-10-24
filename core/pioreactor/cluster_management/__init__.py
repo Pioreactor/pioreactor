@@ -2,7 +2,6 @@
 import os
 import shlex
 import subprocess
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from time import time

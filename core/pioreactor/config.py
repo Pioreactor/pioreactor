@@ -44,7 +44,7 @@ def __getattr__(attr: str) -> Any:
     elif attr == "mqtt_address":
         return _get_mqtt_address()
     else:
-        raise AttributeError
+        raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
 
 
 class ConfigParserMod(configparser.ConfigParser):

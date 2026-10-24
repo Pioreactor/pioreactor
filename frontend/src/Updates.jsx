@@ -25,16 +25,15 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
 import Alert from '@mui/material/Alert';
 import LinearProgress from '@mui/material/LinearProgress';
 import PioreactorsIcon from './components/PioreactorsIcon';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
-import CloseIcon from '@mui/icons-material/Close';
 import { useMQTT } from './providers/MQTTContext';
 import useLeaderHostname from "./hooks/useLeaderHostname";
+import DialogCloseButton from "./components/DialogCloseButton";
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -270,18 +269,7 @@ function UploadArchiveAndConfirm(props) {
       >
         <DialogTitle id="alert-dialog-title">
           {props.title}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description" component="div">
@@ -425,18 +413,7 @@ export function UpdateFromInternetAndConfirm(props) {
       >
         <DialogTitle id="alert-dialog-title">
           {props.title}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description" component="div">
@@ -553,18 +530,7 @@ function UpdateFromUsbAndConfirm(props) {
       >
         <DialogTitle id="alert-dialog-title">
           {props.title}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description" component="div">

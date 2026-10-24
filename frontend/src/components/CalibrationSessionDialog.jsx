@@ -6,15 +6,14 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
-import CloseIcon from "@mui/icons-material/Close";
 import { stepHasInvalidDataTable } from "./CalibrationSessionDataTable";
 import CalibrationSessionFields from "./CalibrationSessionFields";
 import CalibrationSessionResultLinks from "./CalibrationSessionResultLinks";
 import CalibrationSessionStepContent from "./CalibrationSessionStepContent";
 import { advanceCalibrationSession, isDataReviewStep } from "../utils/calibrationSessions";
+import DialogCloseButton from "./DialogCloseButton";
 
 const sessionStartEndpoint = (unit) =>
   `/api/workers/${unit}/calibrations/sessions`;
@@ -442,18 +441,7 @@ export default function CalibrationSessionDialog({
     >
       <DialogTitle>
         {protocol?.title || "Calibration session"}
-        <IconButton
-          aria-label="close"
-          onClick={() => abortSession(!sessionResult)}
-          sx={{
-            position: "absolute",
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={() => abortSession(!sessionResult)} />
       </DialogTitle>
       <DialogContent
         sx={{

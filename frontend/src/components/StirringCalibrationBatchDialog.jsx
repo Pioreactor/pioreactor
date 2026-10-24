@@ -8,7 +8,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
@@ -21,13 +20,13 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import CalibrationIcon from "./CalibrationIcon";
-import CloseIcon from "@mui/icons-material/Close";
 import { Link as RouterLink } from "react-router";
 import {
   advanceCalibrationSession,
   isDataReviewStep,
   recordedDataInputs,
 } from "../utils/calibrationSessions";
+import DialogCloseButton from "./DialogCloseButton";
 
 const START_SESSION_ENDPOINT = (unit) => `/api/workers/${unit}/calibrations/sessions`;
 const ABORT_SESSION_ENDPOINT = (unit, sessionId) =>
@@ -363,14 +362,7 @@ export default function StirringCalibrationBatchDialog({
     >
       <DialogTitle sx={{ pr: 6 }}>
         {protocol?.title}
-        <IconButton
-          aria-label="Close"
-          onClick={onClose}
-          disabled={isStarting || isRunning || isAborting}
-          sx={{ position: "absolute", right: 8, top: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} disabled={isStarting || isRunning || isAborting} />
       </DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
         {batchError && <Alert severity="error">{batchError}</Alert>}

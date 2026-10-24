@@ -59,7 +59,7 @@ u {
   width:8px;
   height:8px;
   border-radius:5px;
-  box-shadow: 0 0 8px #ea4c89, inset 0 0 12px #ea4c89;
+  box-shadow: 0 0 8px var(--mui-palette-ui-noData), inset 0 0 12px var(--mui-palette-ui-noData);
   margin: 13px 8px;
 }
 
@@ -67,7 +67,7 @@ u {
   width:8px;
   height:8px;
   border-radius:5px;
-  box-shadow: 0 0 8px #ea4c89, inset 0 0 12px #ea4c89;
+  box-shadow: 0 0 8px var(--mui-palette-ui-noData), inset 0 0 12px var(--mui-palette-ui-noData);
   margin: auto 10px auto 0px;
 }
 

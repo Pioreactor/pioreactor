@@ -58,6 +58,17 @@ def test_led_intensity_preserves_partial_write_behavior_on_hardware_error(
         assert cache.get("C", 0.0) == pytest.approx(0.0)
 
 
+def test_led_intensity_validates_every_channel_before_touching_the_dac(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dac = MagicMock(A=8, B=9, C=10, D=11)
+    monkeypatch.setattr("pioreactor.utils.mock.Mock_DAC", MagicMock(return_value=dac))
+
+    assert not led_intensity({"A": 10.0, "C": 150.0}, verbose=False, source_of_event="test")
+
+    dac.set_intensity_to.assert_not_called()
+
+
 def test_lock_will_prevent_led_from_updating() -> None:
     channel: LedChannel = "A"
 

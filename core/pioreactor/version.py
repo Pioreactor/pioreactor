@@ -26,17 +26,6 @@ def get_hardware_version() -> tuple[int, int] | tuple[int, int, str] | None:
         return None
 
 
-def get_product_from_id() -> str:
-    try:
-        # check version in /proc/device-tree/hat/
-        with open("/proc/device-tree/hat/product_id", "r") as f:
-            id_ = int(f.read().rstrip("\x00"), 16)
-            return {1: "Pioreactor HAT"}.get(id_, "Unknown")
-    except FileNotFoundError:
-        # no eeprom? Probably the first dev boards, or testing env, or EEPROM not written.
-        return "Unknown"
-
-
 def get_serial_number() -> str:
     try:
         # check version in /proc/device-tree/hat/

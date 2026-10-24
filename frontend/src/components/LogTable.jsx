@@ -27,6 +27,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { experimentPathSegment } from "../utils/url";
 import LogMessage, { useClusterUnits } from "./LogMessage";
+import { textIcon } from "../theme";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -239,7 +240,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
             to={`/logs`}
             component={Link}
             color="primary"
-            sx={{  verticalAlign: 'middle', m: '0px 3px' }}
+            sx={textIcon}
           >
             <ListAltOutlinedIcon sx={{ fontSize: 17, m: '0px 3px' }} color="primary" /> View experiment logs
           </Button>

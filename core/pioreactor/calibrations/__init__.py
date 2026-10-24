@@ -5,7 +5,6 @@ from typing import TypeVar
 
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
-from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.calibrations.registry import CalibrationProtocol  # re-export

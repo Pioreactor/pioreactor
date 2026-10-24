@@ -14,12 +14,12 @@ import {
   FormControl,
   FormLabel,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import PioreactorIcon from "./PioreactorIcon";
 import { runPioreactorJob } from "../utils/jobs";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ReplayIcon from '@mui/icons-material/Replay';
 import Snackbar from './Snackbar';
+import DialogCloseButton from "./DialogCloseButton";
 
 
 function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, experiment, config = {} }) {
@@ -97,13 +97,7 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
           <Typography sx={{ fontSize: 20, color: uiColors.text }}>
             {displayName}
           </Typography>
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{ position: "absolute", right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
 
         <DialogContent >

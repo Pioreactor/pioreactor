@@ -16,6 +16,7 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import RecordEventLogDialog from './components/RecordEventLogDialog';
 import PioreactorsIcon from './components/PioreactorsIcon';
 import { experimentPathSegment } from "./utils/url";
+import { textIcon } from "./theme";
 
 function Logs(props) {
 
@@ -154,7 +155,7 @@ function Logs(props) {
                 onSubmit={handleSubmitDialog}
               />
               <Button to={exportLogsHref} component={Link} sx={{ mr: "0px"}} color="primary">
-                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Export logs
+                <DownloadIcon fontSize="small" sx={textIcon}/> Export logs
               </Button>
               <Divider orientation="vertical" flexItem variant="middle"/>
               <ManageExperimentMenu experiment={experimentMetadata.experiment}/>

@@ -15,13 +15,13 @@ import FormGroup from "@mui/material/FormGroup";
 import IconButton from "@mui/material/IconButton";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
-import CloseIcon from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import SettingsIcon from '@mui/icons-material/SettingsOutlined';
 import Snackbar from "./Snackbar";
 import PluginChip from "./PluginChip";
 import Chip from '@mui/material/Chip';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
+import DialogCloseButton from "./DialogCloseButton";
 
 
 const CustomFormControlLabel = ({ label, sublabel, control, ...props }) => (
@@ -132,14 +132,7 @@ function ChartPreferencesDialog({
     >
       <DialogTitle sx={{ pr: 6 }}>
         Customize charts
-        <IconButton
-          aria-label="Close"
-          onClick={onClose}
-          disabled={isSaving}
-          sx={{ position: "absolute", right: 8, top: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={onClose} disabled={isSaving} />
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>

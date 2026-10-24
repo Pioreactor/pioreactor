@@ -121,9 +121,10 @@ import {
   getPioreactorCardMonitorTopics,
   getPioreactorCardPublishedSettingsTopics,
   parsePayloadToType,
-  textIcon,
   updateBioreactorSettingAndMirrorState,
 } from "./components/PioreactorCardShared";
+import { textIcon } from "./theme";
+import DialogCloseButton from "./components/DialogCloseButton";
 
 function ShieldCheckOutlineIcon(props) {
   return (
@@ -585,18 +586,7 @@ function SettingsActionsDialog(props) {
           <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
           <span> {props.label ? `${props.label} / ${props.unit}` : `${props.unit}`} </span>
         </Typography>
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={handleClose} />
       <Tabs
         value={tabValue}
         onChange={handleTabChange}
@@ -1664,10 +1654,10 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
       return lostRed
     }
     else if (state === null){
-      return "#ececec"
+      return uiColors.noData
     }
     else {
-      return "#2FBB39"
+      return uiColors.online
     }
   }
 

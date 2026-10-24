@@ -200,9 +200,12 @@ def publish(
                 f"Attempt {retry_count}: Unable to connect to MQTT",
                 exc_info=True,
             )
-            sleep(3 * retry_count)  # linear backoff
+            if retry_count < retries - 1:
+                sleep(3 * retry_count)  # linear backoff
 
     else:
+        from pioreactor.logging import create_logger
+
         logger = create_logger("pubsub.publish", to_mqtt=False)
         logger.error("Unable to connect to MQTT.")
         raise ConnectionRefusedError("Unable to connect to MQTT.")

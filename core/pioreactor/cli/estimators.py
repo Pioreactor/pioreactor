@@ -76,10 +76,8 @@ def _display_estimators_by_device(device: str) -> None:
                 f"{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}"
             )
             click.echo(row)
-        except Exception:
-            pass
-            # error_message = f"Error reading {name}: {e}"
-            # click.echo(f"{error_message:<60}")
+        except Exception as e:
+            click.echo(f"Error reading estimator `{name}`: {e}", err=True)
 
 
 @estimators.command(name="protocols")

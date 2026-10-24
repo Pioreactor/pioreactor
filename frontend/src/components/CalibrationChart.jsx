@@ -11,7 +11,6 @@ import Checkbox from "@mui/material/Checkbox";
 import ListItemText from "@mui/material/ListItemText";
 import DownloadIcon from "@mui/icons-material/Download";
 import SettingsIcon from "@mui/icons-material/SettingsOutlined";
-import Typography from '@mui/material/Typography';
 import { Link } from 'react-router';
 
 import {
@@ -25,6 +24,7 @@ import {
   LineSegment
 } from "victory";
 import { generateCurveData } from "../utils/curve_utils";
+import EmptyState from "./EmptyState";
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
   const chartTheme = useChartTheme();
@@ -167,10 +167,10 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   };
 
   if (!deviceName){
-    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from a <Link to="/protocols">protocol</Link>.</Typography></Box>
+    return <EmptyState>No calibrations exist. Try creating a calibration from a <Link to="/protocols">protocol</Link>.</EmptyState>
   }
   else if (!calibrations || calibrations.length === 0) {
-    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}><Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography></Box>;
+    return <EmptyState>No calibrations to plot for {deviceName}.</EmptyState>;
   }
 
   // Assume the x and y fields match across all calibrations for a device

@@ -242,12 +242,12 @@ class JobManager:
                     pid,
                     job_id,
                     CASE
-                        WHEN job_name LIKE "%pump%" THEN 1
-                        WHEN job_name LIKE "%temperature%" THEN 1
-                        WHEN job_name LIKE "%heat%" THEN 1
-                        WHEN job_name LIKE "%pwm%" THEN 1
-                        WHEN job_name LIKE "%_automation" THEN 2
-                        WHEN job_name = "led_intensity" THEN 100
+                        WHEN job_name LIKE '%pump%' THEN 1
+                        WHEN job_name LIKE '%temperature%' THEN 1
+                        WHEN job_name LIKE '%heat%' THEN 1
+                        WHEN job_name LIKE '%pwm%' THEN 1
+                        WHEN job_name LIKE '%_automation' THEN 2
+                        WHEN job_name = 'led_intensity' THEN 100
                     END as priority
                 FROM pio_job_metadata
                 WHERE is_running=1
@@ -265,11 +265,11 @@ class JobManager:
                     pid,
                     job_id,
                     CASE
-                        WHEN job_name LIKE "%pump%" THEN 1
-                        WHEN job_name LIKE "%pwm%" THEN 1
-                        WHEN job_name LIKE "%temperature%" THEN 2
-                        WHEN job_name LIKE "%heat%" THEN 2
-                        WHEN job_name LIKE "%_automation" THEN 3
+                        WHEN job_name LIKE '%pump%' THEN 1
+                        WHEN job_name LIKE '%pwm%' THEN 1
+                        WHEN job_name LIKE '%temperature%' THEN 2
+                        WHEN job_name LIKE '%heat%' THEN 2
+                        WHEN job_name LIKE '%_automation' THEN 3
                         ELSE 5
                     END as priority
                  FROM pio_job_metadata WHERE is_running=1 AND is_long_running_job=0

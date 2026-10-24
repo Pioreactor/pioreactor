@@ -156,7 +156,7 @@ function CapabilityCard({cap}) {
   const arguments_ = cap.arguments || [];
 
   return (
-    <Box sx={{borderBottom: '1px solid #eee', py: 1.2}}>
+    <Box sx={{borderBottom: 1, borderColor: "divider", py: 1.2}}>
       <Typography variant="subtitle2" sx={{fontWeight: 600}}>{title}</Typography>
       {cap.help && (
         <Typography variant="body2" color="text.secondary" sx={{mb: 1}}>

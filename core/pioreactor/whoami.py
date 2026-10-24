@@ -78,7 +78,8 @@ def get_assigned_experiment_name_from_leader(unit_name: "pt.Unit") -> "pt.Experi
         except Exception:
             # some other error? Keep trying
             pass
-        time.sleep(0.5 * attempt)
+        if attempt < retries - 1:
+            time.sleep(0.5 * attempt)
     else:
         raise ConnectionError(
             f"Not able to access experiments in UI. Check http://{leader_address}/api/experiments."

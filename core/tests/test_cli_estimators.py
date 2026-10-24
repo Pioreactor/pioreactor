@@ -22,6 +22,17 @@ def test_list_estimators_missing_device_prints_error(monkeypatch, tmp_path) -> N
     assert "No estimators found for device 'od_fused'" in output
 
 
+def test_list_estimators_reports_unreadable_file(monkeypatch, tmp_path) -> None:
+    _patch_estimator_path(tmp_path, monkeypatch)
+    (tmp_path / "od_fused").mkdir()
+    (tmp_path / "od_fused" / "broken.yaml").write_text("estimator_name: [\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(cli_estimators.list_estimators, ["--device", "od_fused"])
+
+    assert "Error reading estimator `broken`" in click.unstyle(result.output)
+
+
 def test_delete_estimator_missing_file_aborts(monkeypatch, tmp_path) -> None:
     _patch_estimator_path(tmp_path, monkeypatch)
 

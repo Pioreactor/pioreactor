@@ -24,6 +24,7 @@ import {
   deriveCalibrationCoverageMatrix,
 } from "./utils/calibration_coverage_matrix";
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
+import { textIcon } from "./theme";
 
 function coverageCellCopyValue(cell) {
   if (cell?.status === COVERAGE_STATUS.ACTIVE) {
@@ -51,7 +52,6 @@ const HIGHLIGHTABLE_CHIP_SX = {
     WebkitUserSelect: "text",
   },
 };
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function CoverageCell({ cell, onNavigate }) {
   const hasLink = Boolean(cell?.detailPath);

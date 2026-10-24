@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import PaginatedLogsTable from "./components/PaginatedLogsTable";
 import PioreactorsIcon from './components/PioreactorsIcon';
+import { textIcon } from "./theme";
 
 function SystemLogs(props) {
 
@@ -126,7 +127,7 @@ function SystemLogs(props) {
           <Grid size={{ md: 12, lg: 5}}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1, flexWrap: "wrap" }}>
               <Button to={exportLogsHref} component={Link} sx={{ mr: "0px"}} color="primary">
-                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> Export system logs
+                <DownloadIcon fontSize="small" sx={textIcon}/> Export system logs
               </Button>
             </Box>
           </Grid>

@@ -2327,6 +2327,33 @@ def test_delete_experiment_profile_reports_delete_failure(
     assert response.get_json()["error"] == "Failed to delete experiment profile."
 
 
+def test_catalogs_skip_unreadable_files(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    from pioreactor.web.api import load_chart_descriptors
+
+    profiles_dir = tmp_path / "experiment_profiles"
+    profiles_dir.mkdir()
+    (profiles_dir / "good.yaml").write_text('version: "1.0"\nexperiment_profile_name: good', encoding="utf-8")
+    (profiles_dir / "broken.yaml").symlink_to(tmp_path / "missing.yaml")
+    charts_dir = tmp_path / "ui" / "charts"
+    charts_dir.mkdir(parents=True)
+    (charts_dir / "broken.yaml").symlink_to(tmp_path / "missing.yaml")
+    logged_messages: list[str] = []
+    monkeypatch.setenv("DOT_PIOREACTOR", tmp_path.as_posix())
+    monkeypatch.setattr(
+        "pioreactor.web.api.publish_to_error_log",
+        lambda message, _task: logged_messages.append(message),
+    )
+
+    response = client.get("/api/experiment_profiles")
+
+    assert response.status_code == 200
+    assert [profile["file"] for profile in response.get_json()] == ["good.yaml"]
+    assert load_chart_descriptors() == []
+    assert sum("broken.yaml" in message for message in logged_messages) == 2
+
+
 def test_broadcasting(client) -> None:
     response = client.get("/api/workers")
     data = response.get_json()

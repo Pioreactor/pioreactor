@@ -61,7 +61,7 @@ export default function ActionCirculatingForm(props) {
       }
     })
     .catch(() => {
-      setSnackbarMsg("🛑 Failed to stop - please try again!")
+      setSnackbarMsg("Failed to stop circulation. Try again.")
       setOpenSnackbar(true)
     });
   }

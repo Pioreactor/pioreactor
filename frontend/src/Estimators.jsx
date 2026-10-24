@@ -9,7 +9,6 @@ import {
   FormControl,
   MenuItem,
   Select,
-  Typography,
   Alert,
 } from '@mui/material';
 import Grid from "@mui/material/Grid";
@@ -28,6 +27,7 @@ import EstimatorIcon from './components/EstimatorIcon';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import { readyGreen } from "./utils/color";
 import { copySelectedTableRowsAsTsv } from "./utils/tableCopy";
+import EmptyState from "./components/EmptyState";
 
 
 const ActiveOrNotCheckBox = ({ onlyActive, setOnlyActive }) => {
@@ -346,11 +346,7 @@ function EstimatorData({ loading, rawData }) {
       </TableContainer>
 
       {!hasEstimators && (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "10vh" }}>
-          <Typography variant="body2" component="p" color="textSecondary">
-            {emptyStateMessage}
-          </Typography>
-        </Box>
+        <EmptyState>{emptyStateMessage}</EmptyState>
       )}
     </Box>
   );

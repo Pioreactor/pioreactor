@@ -35,6 +35,8 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
+import { textIcon } from "./theme";
+import EmptyState from "./components/EmptyState";
 
 dayjs.extend(utc);
 
@@ -175,7 +177,7 @@ function RunExperimentProfilesContent({
             disabled={selectedExperimentProfile === ""}
             onClick={getSourceAndView}
           >
-            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+            <CodeIcon fontSize="small" sx={textIcon}/>
             {viewSource ? "View preview" : "View source"}
           </Button>
           <Button
@@ -187,7 +189,7 @@ function RunExperimentProfilesContent({
             component={Link}
             disabled={ selectedExperimentProfile === ''}
           >
-            <EditIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+            <EditIcon fontSize="small" sx={textIcon}/>
             Edit
           </Button>
           <Button
@@ -199,7 +201,7 @@ function RunExperimentProfilesContent({
             sx={{ mr: "5px" }}
             disabled={selectedExperimentProfile === '' || selectedProfileDetail.loading || !!selectedProfileDetail.error}
           >
-            <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+            <ContentCopyOutlinedIcon fontSize="small" sx={textIcon}/>
             Duplicate
           </Button>
           <Button
@@ -211,7 +213,7 @@ function RunExperimentProfilesContent({
             sx={{ mr: "5px" }}
             disabled={selectedExperimentProfile === ''}
           >
-            <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+            <DeleteOutlineIcon fontSize="small" sx={textIcon}/>
             Delete
           </Button>
         </Box>
@@ -320,7 +322,7 @@ function RunningProfilesContainer() {
             </Box>
           )}
           {!loading && runningProfiles.length === 0 && (
-            <Typography variant="body2" component="p" color="textSecondary">No profiles are currently running.</Typography>
+            <EmptyState>No profiles are currently running.</EmptyState>
           )}
           {!loading && runningProfiles.length > 0 && (
             <Table size="small" sx={{ mt: 0 }}>
@@ -591,7 +593,7 @@ function Profiles(props) {
                   sx={{  mr: "0px" }}
                   color="primary"
                 >
-                  <AddIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+                  <AddIcon fontSize="small" sx={textIcon}/>
                   Create new profile
                 </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />

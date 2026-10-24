@@ -24,7 +24,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import MuiLink from '@mui/material/Link';
 import {Box, AppBar, Typography, Button} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
 //import Icon2x2Grid from './Icon2x2Grid';
@@ -45,6 +44,7 @@ import ExperimentsIcon from './ExperimentsIcon';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import whiteLogo from '../assets/white_colour.png';
 import { disconnectedGrey } from '../utils/color';
+import DialogCloseButton from "./DialogCloseButton";
 
 const ExpIcon = PlayCircleOutlinedIcon
 
@@ -80,10 +80,10 @@ function getUsbNavColor(status) {
   switch (status) {
     case "mounted":
     case "mounted_readonly":
-      return "#2FBB39";
+      return uiColors.online;
     case "unsupported":
     case "multiple_present":
-      return "#2FBB39";
+      return uiColors.online;
     default:
       return disconnectedGrey;
   }
@@ -639,7 +639,7 @@ export default function SideNavAndHeader() {
               }}>
                 { lap &&
                   <Button color="inherit" component={Link} to={{pathname: "/inventory"}}>
-                    <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
+                    <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: `0 0 2px ${uiColors.online}, inset 0 0 12px ${uiColors.online}`}}/> LAP online
                   </Button>
                 }
                 {shouldShowDiskSpaceWarning(diskSpace) &&
@@ -676,13 +676,7 @@ export default function SideNavAndHeader() {
       <Dialog open={helpDialogOpen} onClose={closeHelpDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ pr: 6 }}>
           Help
-          <IconButton
-            aria-label="Close"
-            onClick={closeHelpDialog}
-            sx={{ position: "absolute", right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={closeHelpDialog} />
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} divider={<Divider flexItem />} sx={{ pt: 1 }}>

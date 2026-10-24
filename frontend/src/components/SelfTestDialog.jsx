@@ -2,14 +2,12 @@ import { uiColors } from "../theme/colors";
 import React, {useState} from "react";
 import { styled } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import IndeterminateCheckBoxOutlinedIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
 import List from '@mui/material/List';
-import IconButton from '@mui/material/IconButton';
 import ListItem from '@mui/material/ListItem';
 import ListSubheader from '@mui/material/ListSubheader';
 import Button from "@mui/material/Button";
@@ -27,6 +25,8 @@ import PioreactorIcon from "./PioreactorIcon"
 import RequirementsAlert from "./RequirementsAlert"
 import { runPioreactorJob } from "../utils/jobs";
 import { readyGreen, lostRed } from "../utils/color";
+import DialogCloseButton from "./DialogCloseButton";
+import { textIcon } from "../theme";
 
 
 const ManageDivider = styled(Divider)(({ theme }) => ({
@@ -109,10 +109,10 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
   function Icon(){
     if (selfTestTests == null){
-      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/>
+      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={textIcon}/>
     }
     else {
-      return selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}}/>
+      return selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={textIcon}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={textIcon}/>
     }
   }
 
@@ -129,18 +129,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
             <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> {label ? `${label} / ${unit}` : `${unit}`}
           </Typography>
            Self-test
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" component="p" gutterBottom>

@@ -1638,6 +1638,39 @@ def test_estimator_intensity_mismatch_skips_od_fused_but_starts(
             assert od.record_from_adc() is not None
 
 
+@pytest.mark.parametrize("contents", [None, "estimator_name: [\n"])
+def test_unreadable_active_estimator_skips_od_fused_but_starts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, contents: str | None
+) -> None:
+    from pioreactor import estimators as estimators_module
+
+    monkeypatch.setattr(estimators_module, "ESTIMATOR_PATH", tmp_path)
+    if contents is not None:
+        (tmp_path / pt.OD_FUSED_DEVICE).mkdir()
+        (tmp_path / pt.OD_FUSED_DEVICE / "broken.yaml").write_text(contents, encoding="utf-8")
+
+    with local_persistent_storage("active_estimators") as c:
+        previous = c.get(pt.OD_FUSED_DEVICE)
+        c[pt.OD_FUSED_DEVICE] = "broken"
+    try:
+        with start_od_reading(
+            {"1": "45", "2": "90", "3": "135"},
+            interval=None,
+            fake_data=True,
+            experiment="test_unreadable_active_estimator_skips_od_fused_but_starts",
+            calibration=False,
+            estimator=True,
+        ) as od:
+            assert od.estimator_transformer.estimator is None
+            assert od.record_from_adc() is not None
+    finally:
+        with local_persistent_storage("active_estimators") as c:
+            if previous is None:
+                c.pop(pt.OD_FUSED_DEVICE)
+            else:
+                c[pt.OD_FUSED_DEVICE] = previous
+
+
 def test_non_numeric_ir_led_intensity_errors_before_hardware_setup(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail_if_constructed(*args: object, **kwargs: object) -> None:
         raise AssertionError("A non-numeric IR LED intensity must fail before ADCReader construction.")

@@ -608,7 +608,8 @@ def test_aux_power_is_not_too_high(
     client: managed_lifecycle, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT was not detected."
-    assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
+    aux_voltage = voltage_in_aux()
+    assert aux_voltage <= 18.0, f"Voltage measured {aux_voltage} > 18.0V"
 
 
 def test_positive_correlation_between_rpm_and_stirring(
@@ -616,7 +617,8 @@ def test_positive_correlation_between_rpm_and_stirring(
 ) -> None:
     assert is_HAT_present(), "HAT was not detected."
     assert is_heating_pcb_present(), "Heating PCB was not detected."
-    assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
+    aux_voltage = voltage_in_aux()
+    assert aux_voltage <= 18.0, f"Voltage measured {aux_voltage} > 18.0V"
 
     initial_dc = config.getfloat("stirring.config", "initial_duty_cycle")
 

@@ -10,7 +10,6 @@ import Divider from "@mui/material/Divider";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
@@ -19,7 +18,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material"
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CancelIcon from "@mui/icons-material/Cancel";
-import CloseIcon from "@mui/icons-material/Close";
 import CalibrationIcon from "./CalibrationIcon";
 import { alpha, keyframes, styled } from "@mui/material/styles";
 import { useConfirm } from "material-ui-confirm";
@@ -46,9 +44,10 @@ import {
 } from "../utils/jobs";
 import { fetchTaskResult, getUnitTaskResult } from "../utils/tasks";
 import { experimentPathSegment } from "../utils/url";
+import DialogCloseButton from "./DialogCloseButton";
+import { textIcon } from "../theme";
 
 export const TOPIC_SIGNATURE_SEPARATOR = "\u0000";
-export const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 export function getPioreactorCardMonitorTopics({ unit, experiment }) {
   if (!unit || !experiment) {
@@ -237,18 +236,7 @@ export function CalibrateDialog({
             <Tab label="Estimators" />
             <Tab label="Blanks" />
           </Tabs>
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: "absolute",
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <TabPanel value={tabValue} index={2}>

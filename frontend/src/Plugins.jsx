@@ -19,12 +19,14 @@ import ListItemAvatar from "@mui/material/ListItemAvatar";
 import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import ListItemText from "@mui/material/ListItemText";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
+import DownloadIcon from "@mui/icons-material/Download";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Link, useParams, useNavigate } from "react-router";
 import { fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { styled } from "@mui/material/styles";
 import PioreactorsIcon from "./components/PioreactorsIcon";
 import PluginIcon from "./components/PluginIcon";
+import { textIcon } from "./theme";
 
 const BROADCAST_TARGET = "$broadcast";
 const PLUGIN_ROW_CONTENT_INSET = "2%";
@@ -32,7 +34,6 @@ const PLUGIN_ROW_ACTION_SX = {
   display: { xs: "contents", md: "block" },
   right: { md: `calc(${PLUGIN_ROW_CONTENT_INSET} + 16px)` },
 };
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 const ListItemStyled = styled(ListItem)(() => ({
   "&:nth-of-type(odd)": {
@@ -184,7 +185,7 @@ function InstallButton({
 
   return (
     <Button
-      variant="outlined"
+      variant="text"
       color="primary"
       size="small"
       aria-label={ariaLabel}
@@ -192,7 +193,9 @@ function InstallButton({
       disabled={disabled}
       sx={{ ml: "3px",  minWidth: 92 }}
     >
-      {isRunning && <CircularProgress color="inherit" size={14} sx={textIcon} />}
+      {isRunning
+        ? <CircularProgress color="inherit" size={14} sx={textIcon} />
+        : <DownloadIcon fontSize="small" sx={textIcon} />}
       {buttonText}
     </Button>
   );
@@ -333,11 +336,9 @@ function ListSuggestedPlugins({
                         variant="text"
                         size="small"
                         color="primary"
-                        aria-label="view homepage"
-                        endIcon={<OpenInNewIcon />}
                         sx={{ ml: "15px" }}
                       >
-                        View homepage
+                        <OpenInNewIcon fontSize="small" sx={textIcon} /> View homepage
                       </Button>
                     )}
                   </ListItemSecondaryAction>
@@ -444,11 +445,9 @@ function ListInstalledPlugins({ selectedTarget, installedPlugins, getTask, onUni
                     variant="text"
                     size="small"
                     color="primary"
-                    aria-label="view homepage"
-                    endIcon={<OpenInNewIcon />}
                     sx={{ ml: "15px" }}
                   >
-                    View homepage
+                    <OpenInNewIcon fontSize="small" sx={textIcon} /> View homepage
                   </Button>
                 )}
               </ListItemSecondaryAction>

@@ -96,8 +96,8 @@ def _update_current_state(
         for channel, intensity in state.items():
             led_cache[channel] = intensity
 
-        new_state: LEDsToIntensityMapping = {
-            channel: led_cache.getfloat(str(channel), fallback=0.0) for channel in ALL_LED_CHANNELS
+        new_state: LEDsToIntensityMapping = old_state | {
+            channel: float(intensity) for channel, intensity in state.items()
         }
 
         return new_state, old_state
@@ -176,15 +176,18 @@ def led_intensity(
 
                     updated_successfully = False
 
+        # Validate every channel before touching the DAC, so a bad entry can't leave earlier
+        # channels changed in hardware but not in the cache or MQTT.
+        for channel, intensity in desired_state.items():
+            if channel not in ALL_LED_CHANNELS:
+                logger.error(f"Saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}")
+                return False
+            if not (0.0 <= intensity <= 100.0):
+                logger.error(f"Channel {channel} intensity should be between 0 and 100, inclusive")
+                return False
+
         for channel, intensity in desired_state.items():
             try:
-                assert (
-                    channel in ALL_LED_CHANNELS
-                ), f"Saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
-                assert (
-                    0.0 <= intensity <= 100.0
-                ), f"Channel {channel} intensity should be between 0 and 100, inclusive"
-
                 if dac is None:
                     dac = DAC()
                 dac.set_intensity_to(getattr(dac, channel), intensity)
@@ -193,10 +196,6 @@ def led_intensity(
                 logger.error(
                     "Unable to find i2c for LED driver. Is the Pioreactor HAT attached to the Raspberry Pi? Is the firmware loaded?"
                 )
-                updated_successfully = False
-                return updated_successfully
-            except AssertionError as e:
-                logger.error(e)
                 updated_successfully = False
                 return updated_successfully
 

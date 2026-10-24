@@ -10,6 +10,7 @@ import CameraPanel from "./components/CameraPanel";
 import useCameraResource from "./hooks/useCameraResource";
 import { useExperiment } from "./providers/ExperimentContext";
 import { experimentPathSegment } from "./utils/url";
+import EmptyState from "./components/EmptyState";
 
 
 function normalizeCameraResults(payload) {
@@ -88,11 +89,11 @@ export default function Cameras({ title }) {
           <CircularProgress />
         </Stack>
       ) : !error && cameraResults.length === 0 ? (
-        <Alert severity="info">No assigned Pioreactors were found.</Alert>
+        <EmptyState>No assigned Pioreactors were found.</EmptyState>
       ) : !error && visibleCameraResults.length === 0 ? (
-        <Alert severity="info">
+        <EmptyState>
           No camera-capable Pioreactors or stored camera snapshots were found.
-        </Alert>
+        </EmptyState>
       ) : null}
 
 

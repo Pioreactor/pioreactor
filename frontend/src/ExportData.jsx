@@ -26,6 +26,7 @@ import Snackbar from './components/Snackbar';
 import SelectButton from "./components/SelectButton";
 import PluginChip from "./components/PluginChip";
 import { useExperiment } from './providers/ExperimentContext';
+import EmptyState from "./components/EmptyState";
 
 
 const datasetDescription = {
@@ -281,7 +282,8 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
         <AccordionDetails
           sx={{
             padding: 2,
-            borderTop: '1px solid rgba(0, 0, 0, .125)',
+            borderTop: 1,
+            borderColor: 'divider',
           }}
         >
           {isLoading ? (
@@ -313,7 +315,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
             <Typography color="textSecondary" sx={{fontSize: 12, m:2, mt: 1, md: 0}}>(Random sample from all experiments and units)</Typography>
             </>
           ) : (
-            <Typography>No preview data available.</Typography>
+            <EmptyState>No preview data available.</EmptyState>
           )}
         </AccordionDetails>
       </Accordion>

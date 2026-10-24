@@ -41,8 +41,8 @@ import { styled } from '@mui/material/styles';
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import Alert from '@mui/material/Alert';
 import Snackbar from './components/Snackbar';
+import { textIcon } from "./theme";
 
-const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 const stateDisplay = {
   "ready":         {display: "On", color: readyGreen, backgroundColor: uiColors.readyBackground},
@@ -634,10 +634,10 @@ function LeaderCard({leaderHostname}) {
       return lostRed
     }
     else if (state === null){
-      return "#ececec"
+      return uiColors.noData
     }
     else {
-      return "#2FBB39"
+      return uiColors.online
     }
   }
 

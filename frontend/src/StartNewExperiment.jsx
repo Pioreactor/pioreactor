@@ -19,6 +19,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { useExperiment } from './providers/ExperimentContext';
 import SelectButton from './components/SelectButton';
+import { textIcon } from "./theme";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -293,7 +294,7 @@ function ExperimentSummaryForm(props) {
                     value={populateExperimentName}
                     textPrefix={(
                       <React.Fragment>
-                        <ContentCopyIcon fontSize="small" sx={{verticalAlign: "middle", m: "0px 3px"}} />
+                        <ContentCopyIcon fontSize="small" sx={textIcon} />
                         {"Populate from "}
                       </React.Fragment>
                     )}

@@ -8,7 +8,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Alert from '@mui/material/Alert';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import IconButton from '@mui/material/IconButton';
 import { assertUnitTaskResultSucceeded, fetchTaskResult, getUnitTaskResult } from "./utils/tasks";
 import { colors, ColorCycler, readyGreen } from "./utils/color";
 import MuiLink from '@mui/material/Link';
@@ -36,10 +35,10 @@ import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import DisplaySourceCode from "./components/DisplaySourceCode";
-import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
+import DialogCloseButton from "./components/DialogCloseButton";
+import { textIcon } from "./theme";
 
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 function formatPolynomial(coefficients) {
     const superscripts = {
@@ -185,8 +184,8 @@ function Delete({ pioreactorUnit, device, calibrationName, onError }) {
   };
 
   return (
-    <Button sx={{ mr: "0px"}} color="secondary" onClick={deleteCalibration}>
-       <DeleteOutlineIcon fontSize="small"/> Delete
+    <Button color="secondary" onClick={deleteCalibration}>
+      <DeleteOutlineIcon fontSize="small" sx={textIcon} /> Delete
     </Button>
 )}
 
@@ -213,24 +212,13 @@ function ViewYamlSource({ pioreactorUnit, calibrationName, calibration, disabled
         disabled={disabled}
         onClick={openAndLoad}
       >
-        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+        <CodeIcon fontSize="small" sx={textIcon}/>
         View source
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle sx={{ pr: 6 }}>
           YAML description for calibration {calibrationName}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <DisplaySourceCode sourceCode={yamlText} />
@@ -268,7 +256,7 @@ function DownloadCalibrationYaml({ pioreactorUnit, calibrationName, calibration,
       disabled={disabled}
       onClick={downloadCalibration}
     >
-      <DownloadIcon fontSize="small" sx={{ verticalAlign: "middle", m: "0px 3px" }}/>
+      <DownloadIcon fontSize="small" sx={textIcon}/>
       Download calibration
     </Button>
   );
@@ -505,7 +493,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="h6" component="h2">Calibration data</Typography>
                   {/*<Button style={{textTransform: 'none', float: "right" }} onClick={copyCalibrationYamlToClipboard}>
-                    <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as YAML
+                    <ContentCopyOutlinedIcon fontSize="small" sx={textIcon}/> Copy as YAML
                   </Button>*/}
                 </Box>
                 <Table size="small">
@@ -579,7 +567,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="h6" component="h2">Recorded data</Typography>
                   {/*<Button style={{textTransform: 'none', float: "right" }} onClick={copyRecordedDataCsvToClipboard}>
-                    <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as CSV
+                    <ContentCopyOutlinedIcon fontSize="small" sx={textIcon}/> Copy as CSV
                   </Button>*/}
                 </Box>
                 <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>

@@ -126,9 +126,10 @@ import {
   getPioreactorCardMonitorTopics,
   getPioreactorCardPublishedSettingsTopics,
   parsePayloadToType,
-  textIcon,
   updateBioreactorSettingAndMirrorState,
 } from "./components/PioreactorCardShared";
+import { textIcon } from "./theme";
+import DialogCloseButton from "./components/DialogCloseButton";
 
 const workerMissingModelDetails = (worker) =>
   worker?.model_name == null || worker?.model_version == null;
@@ -347,7 +348,7 @@ export function AssignPioreactors({ experiment, variant="text" }) {
       <Button variant={variant} onClick={handleClickOpen}>
         <LibraryAddCheckOutlinedIcon
           fontSize="small"
-          sx={{ verticalAlign: "middle", m: "0px 3px" }}
+          sx={textIcon}
         />
         Assign Pioreactors
       </Button>
@@ -359,18 +360,7 @@ export function AssignPioreactors({ experiment, variant="text" }) {
       >
         <DialogTitle>
           Assign Pioreactors
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: "absolute",
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <DialogCloseButton onClick={handleClose} />
         </DialogTitle>
         <DialogContent>
           <Typography component="div" gutterBottom>
@@ -928,18 +918,7 @@ function SettingsActionsDialog({
           <PioreactorIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/>
           <span> {label ? `${label} / ${unit}` : `${unit}`} </span>
         </Typography>
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={handleClose} />
       <Tabs
         value={tabValue}
         onChange={handleTabChange}
@@ -1977,22 +1956,11 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         }
       }
     }}>
-      <DialogTitle sx={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
+      <DialogTitle>
         <Typography sx={{fontSize: "13px", color: uiColors.textSecondary,}}>
           <PioreactorsIcon sx={{verticalAlign: "middle", fontSize: "1.2em"}}/> <b>All assigned and active Pioreactors</b>
         </Typography>
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[600],
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <DialogCloseButton onClick={handleClose} />
       <Tabs
         value={tabValue}
         onChange={handleTabChange}
@@ -2860,10 +2828,10 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
       return lostRed
     }
     else if (state === null){
-      return "#ececec"
+      return uiColors.noData
     }
     else {
-      return "#2FBB39"
+      return uiColors.online
     }
   }
 
