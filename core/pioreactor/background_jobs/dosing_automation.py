@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import time
-from functools import partial
 from math import ceil
 from threading import Event
 from typing import Any
@@ -123,6 +122,7 @@ class DosingAutomationJob(AutomationJob):
         efflux_tube_volume_ml: float | None = None,
         **kwargs: Any,
     ) -> None:
+        self._stop_pumping_event = Event()
         super(DosingAutomationJob, self).__init__(unit, experiment)
 
         self._init_alt_media_fraction(alt_media_fraction)
@@ -133,22 +133,14 @@ class DosingAutomationJob(AutomationJob):
             f"efflux_tube_volume_ml={self.efflux_tube_volume_ml:.2f} mL."
         )
 
-        self._stop_pumping_event = Event()
-
         if not is_pio_job_running("stirring"):
             self.logger.warning(
                 "It's recommended to have stirring on to improve mixing during dosing events."
             )
 
-    add_media_to_bioreactor: pt.DosingProgram = staticmethod(
-        partial(add_media, duration=None, calibration=None, continuously=False)
-    )
-    remove_waste_from_bioreactor: pt.DosingProgram = staticmethod(
-        partial(remove_waste, duration=None, calibration=None, continuously=False)
-    )
-    add_alt_media_to_bioreactor: pt.DosingProgram = staticmethod(
-        partial(add_alt_media, duration=None, calibration=None, continuously=False)
-    )
+    add_media_to_bioreactor: pt.DosingProgram = staticmethod(add_media)
+    remove_waste_from_bioreactor: pt.DosingProgram = staticmethod(remove_waste)
+    add_alt_media_to_bioreactor: pt.DosingProgram = staticmethod(add_alt_media)
 
     def run(self, timeout: float = 60.0) -> structs.AutomationEvent | None:
         return self.run_once(timeout=timeout)
@@ -203,7 +195,8 @@ class DosingAutomationJob(AutomationJob):
         > dc.add_media_from_sigma_to_bioreactor(...)
 
         Specifically, if you enter a kwarg `<name>_ml`, you need a function `add_<name>_to_bioreactor`. The pump function
-        should have signature equal to pioreactor.types.DosingProgram.
+        should have signature equal to pioreactor.types.DosingProgram, including the keyword-only
+        cancel_event. Forward this event to built-in pump actions or observe it when driving hardware.
 
 
 
@@ -248,15 +241,27 @@ class DosingAutomationJob(AutomationJob):
             "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
         )
 
+        # Capture the token for this exchange. A quick pause/resume must not revive it.
+        cancel_event = self._stop_pumping_event
+
+        def may_pump() -> bool:
+            return not cancel_event.is_set() and self._may_pump()
+
         def run_pump(pump_function: pt.DosingProgram, ml: float) -> float:
-            return pump_function(
-                unit=self.unit,
-                experiment=self.experiment,
-                ml=ml,
-                source_of_event=source_of_event,
-                mqtt_client=self.pub_client,
-                logger=self.logger,
-            )
+            try:
+                return pump_function(
+                    unit=self.unit,
+                    experiment=self.experiment,
+                    ml=ml,
+                    source_of_event=source_of_event,
+                    mqtt_client=self.pub_client,
+                    logger=self.logger,
+                    cancel_event=cancel_event,
+                )
+            except Exception:
+                # Any failed pump aborts the exchange before another addition.
+                self.set_state(self.SLEEPING)
+                raise
 
         n_rounds = max(1, ceil(sum_of_volumes / self.MAX_SUBDOSE - 1e-9))
         round_waste_ml = waste_ml / n_rounds
@@ -270,7 +275,7 @@ class DosingAutomationJob(AutomationJob):
                 ml = volume_ml / n_rounds
                 if ml <= 0:
                     continue
-                if not self._may_pump():
+                if not may_pump():
                     return volumes_moved
                 if projected_volume_ml + ml >= self.MAX_VIAL_VOLUME_TO_STOP:
                     self.logger.error(
@@ -286,14 +291,14 @@ class DosingAutomationJob(AutomationJob):
 
             # 2. remove this round's waste, even after an overflow: it can only lower the vial.
             if round_waste_ml > 0:
-                if not self._may_pump():
+                if not may_pump():
                     return volumes_moved
                 removed_ml = run_pump(self.remove_waste_from_bioreactor, round_waste_ml)
                 volumes_moved["waste_ml"] += removed_ml
                 projected_volume_ml = self._project_volume_after_waste(projected_volume_ml, removed_ml)
                 briefer_pause()
 
-                if removed_ml < round_waste_ml - 1e-9 and self._may_pump():
+                if removed_ml < round_waste_ml - 1e-9 and may_pump():
                     # Abort the entire exchange before another round can add media.
                     self.set_state(self.SLEEPING)
                     raise RuntimeError(
@@ -307,7 +312,7 @@ class DosingAutomationJob(AutomationJob):
             # 3. run remove_waste a bit longer to keep volume constant (determined by the length of the waste tube)
             extra_waste_ml = round_waste_ml * waste_removal_multiplier
             if extra_waste_ml > 0:
-                if not self._may_pump():
+                if not may_pump():
                     return volumes_moved
                 removed_ml = run_pump(self.remove_waste_from_bioreactor, extra_waste_ml)
                 projected_volume_ml = self._project_volume_after_waste(projected_volume_ml, removed_ml)
@@ -318,13 +323,21 @@ class DosingAutomationJob(AutomationJob):
     ########## Private & internal methods
 
     def on_sleeping(self) -> None:
+        self._stop_pumping_event.set()
         super().on_sleeping()
         self.stop_active_pumps()
 
+    def on_sleeping_to_ready(self) -> None:
+        # Old operations retain their cancelled token across pause/resume.
+        self._stop_pumping_event = Event()
+        super().on_sleeping_to_ready()
+
     def on_disconnected(self) -> None:
-        self._stop_pumping_event.set()  # set this early so the pumps exits.
-        self.stop_active_pumps()
-        super().on_disconnected()
+        self._stop_pumping_event.set()
+        try:
+            self.stop_active_pumps()
+        finally:
+            super().on_disconnected()
 
     def _should_warn_about_high_vial_volume(self) -> bool:
         now = time.time()

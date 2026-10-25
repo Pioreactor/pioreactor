@@ -593,12 +593,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.wait()
 
     def block_until_ready(self, timeout: float) -> bool:
-        if self.state == self.DISCONNECTED:
+        if self._shutdown_started or self.state == self.DISCONNECTED:
             return False
 
         deadline = time() + timeout
         while self.state != self.READY:
-            if self.state == self.DISCONNECTED:
+            if self._shutdown_started or self.state == self.DISCONNECTED:
                 return False
             if time() >= deadline:
                 self.logger.debug("Timed out waiting for READY.")

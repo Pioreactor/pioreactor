@@ -7,6 +7,10 @@ class PWMError(OSError):
     """
 
 
+class PWMLockedError(PWMError):
+    """The pin belongs to another live or unidentifiable owner."""
+
+
 class HardwareError(OSError):
     """
     A hardware device error
