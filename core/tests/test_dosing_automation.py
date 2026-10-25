@@ -497,11 +497,11 @@ def test_turbidostat_runs_when_selected_biomass_signal_updates(monkeypatch) -> N
             lambda **kwargs: {"media_ml": kwargs["media_ml"], "waste_ml": kwargs["waste_ml"]},
         )
 
-        publish_turbidostat_observations(
-            experiment=experiment,
-            raw_od=0.2,
-            normalized_od=1.1,
-            od_fused=0.2,
+        # Use the subscribing connection so this observation follows its SUBSCRIBE packets.
+        algo.sub_client.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=1.1, timestamp=current_utc_datetime())),
+            qos=1,
         )
 
         assert wait_for(lambda: isinstance(algo.latest_event, events.DilutionEvent), timeout=5.0)
@@ -1473,11 +1473,8 @@ def test_execute_io_action_uses_cumulative_volume_for_overflow_check() -> None:
 
     # the media already added this round is still balanced by waste before pausing
     assert calls == [("media", 0.4), ("waste", 0.8)]
-    assert stop_messages[:3] == [
-        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
-    ]
+    assert job._stop_pumping_event.is_set()
+    assert stop_messages == []
     assert result["media_ml"] == pytest.approx(0.4)
     assert result["alt_media_ml"] == pytest.approx(0.0)
     assert result["waste_ml"] == pytest.approx(0.8)
@@ -1530,11 +1527,8 @@ def test_sleeping_state_stops_active_pumps() -> None:
 
     job.on_sleeping()
 
-    assert stop_messages[:3] == [
-        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
-    ]
+    assert job._stop_pumping_event.is_set()
+    assert stop_messages == []
 
 
 def test_current_volume_mqtt_update_at_stop_threshold_sleeps_and_stops_active_pumps() -> None:
@@ -1572,11 +1566,8 @@ def test_current_volume_mqtt_update_at_stop_threshold_sleeps_and_stops_active_pu
 
     assert job.current_volume_ml == pytest.approx(DosingAutomationJob.MAX_VIAL_VOLUME_TO_STOP)
     assert job.state == job.SLEEPING
-    assert stop_messages[:3] == [
-        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
-    ]
+    assert job._stop_pumping_event.is_set()
+    assert stop_messages == []
     assert errors
 
 
@@ -1628,6 +1619,7 @@ def test_disconnected_state_stops_active_pumps() -> None:
 
     class FakeAutomationTimer:
         def cancel(self, timeout: float | None = None) -> None:
+            assert job._stop_pumping_event.is_set()
             disconnect_order.append("cancel_timer")
 
         def is_alive(self) -> bool:
@@ -1658,12 +1650,9 @@ def test_disconnected_state_stops_active_pumps() -> None:
     job.on_disconnected()
 
     assert job._stop_pumping_event.is_set()
-    assert disconnect_order[:4] == ["stop_pumps", "stop_pumps", "stop_pumps", "cancel_timer"]
-    assert stop_messages[:3] == [
-        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
-    ]
+    assert disconnect_order == ["cancel_timer"]
+    assert job._stop_pumping_event.is_set()
+    assert stop_messages == []
 
 
 def test_fed_batch_skips_dose_that_would_overflow() -> None:
@@ -1689,11 +1678,8 @@ def test_fed_batch_skips_dose_that_would_overflow() -> None:
         assert job.state == job.SLEEPING
         assert job.current_volume_ml == pytest.approx(FedBatch.MAX_VIAL_VOLUME_TO_STOP - 0.1)
 
-    assert stop_messages[:3] == [
-        (f"pioreactor/{unit}/{experiment}/add_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/add_alt_media/$state/set", b"disconnected", 1),
-        (f"pioreactor/{unit}/{experiment}/remove_waste/$state/set", b"disconnected", 1),
-    ]
+    assert job._stop_pumping_event.is_set()
+    assert stop_messages == []
 
 
 def test_execute_io_action_raises_when_required_pump_calibration_is_missing() -> None:
@@ -2714,7 +2700,10 @@ def test_dosing_automation_initial_values_for_volumes() -> None:
             assert ca.alt_media_fraction == 0.5
             ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
             assert wait_for(lambda: close(ca.current_volume_ml, 11.0), timeout=5.0)
-            assert wait_for(lambda: ca.alt_media_fraction == pytest.approx(0.4545), timeout=5.0)
+            # Each progress event rounds stored fractions to four decimal places.
+            assert wait_for(
+                lambda: ca.alt_media_fraction == pytest.approx(5.0 / 11.0, abs=0.0001), timeout=5.0
+            )
 
 
 def test_dosing_automation_uses_stored_values_when_none_provided() -> None:

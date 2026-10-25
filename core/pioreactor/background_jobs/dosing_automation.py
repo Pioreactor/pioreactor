@@ -17,8 +17,6 @@ from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import QOS
-from pioreactor.states import JobState
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
@@ -144,14 +142,6 @@ class DosingAutomationJob(AutomationJob):
 
     def run(self, timeout: float = 60.0) -> structs.AutomationEvent | None:
         return self.run_once(timeout=timeout)
-
-    def stop_active_pumps(self) -> None:
-        for pump_job_name in ("add_media", "add_alt_media", "remove_waste"):
-            self.pub_client.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{pump_job_name}/$state/set",
-                JobState.DISCONNECTED.to_bytes(),
-                qos=QOS.AT_LEAST_ONCE,
-            )
 
     def execute_io_action(
         self,
@@ -325,7 +315,6 @@ class DosingAutomationJob(AutomationJob):
     def on_sleeping(self) -> None:
         self._stop_pumping_event.set()
         super().on_sleeping()
-        self.stop_active_pumps()
 
     def on_sleeping_to_ready(self) -> None:
         # Old operations retain their cancelled token across pause/resume.
@@ -334,10 +323,7 @@ class DosingAutomationJob(AutomationJob):
 
     def on_disconnected(self) -> None:
         self._stop_pumping_event.set()
-        try:
-            self.stop_active_pumps()
-        finally:
-            super().on_disconnected()
+        super().on_disconnected()
 
     def _should_warn_about_high_vial_volume(self) -> bool:
         now = time.time()

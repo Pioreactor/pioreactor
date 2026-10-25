@@ -454,9 +454,7 @@ def test_timed_pump_stops_after_hardware_start_failure(monkeypatch: pytest.Monke
     monkeypatch.setattr(pump.pwm._pwm, "start", failing_start)
     with pytest.raises(OSError, match="start failed"):
         with pump:
-            future = pump.by_duration(10, block=block)
-            if future is not None:
-                future.result(timeout=1)
+            pump.by_duration(10, block=block)
     assert pump.pwm._pwm.dc == 0
     assert pump.interrupt.is_set()
     assert not pump.pwm.is_locked()

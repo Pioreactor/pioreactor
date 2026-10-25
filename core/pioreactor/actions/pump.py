@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-from concurrent.futures import Future
-from concurrent.futures import ThreadPoolExecutor
 from configparser import NoOptionError
+from contextlib import ExitStack
 from functools import partial
 from math import isfinite
 from threading import Event
@@ -54,10 +53,6 @@ def is_default_calibration(cal: structs.SimplePeristalticPumpCalibration) -> boo
     return cal.calibration_name == "__default_pump_calibration"
 
 
-# Only hardware control uses the pool; callers own telemetry and cannot delay its deadlines.
-_pump_thread_pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="pump-control")
-
-
 class PWMPump:
     def __init__(
         self,
@@ -76,7 +71,6 @@ class PWMPump:
         self.interrupt = Event()
         self.cancel_events = cancel_events
         self.run: PumpRun | None = None
-        self._future: Future[None] | None = None
         self._operation_lock = RLock()
         self._closed = False
 
@@ -107,77 +101,51 @@ class PWMPump:
         return self.run is not None and self.run.completed
 
     def wait(self, timeout: float) -> bool:
-        """Wait for output to stop, also cancelling queued work when its owner stops.
-
-        Call stop() before final accounting to join the worker and surface any failure.
-        """
-        run = self.run
-        if run is None or run.done.wait(timeout):
-            return True
-        if run.should_stop():
-            self.stop()
-            return True
-        return False
+        """Wait for output to stop. Call stop() to join and surface worker failures."""
+        return self.run is None or self.run.done.wait(timeout)
 
     def publish_duty_cycles(self) -> None:
         self.pwm._serialize()
 
     def start(self, duty_cycle: float) -> None:
-        future = self._begin(None, duty_cycle)
-        assert self.run is not None
-        while not self.run.started.wait(0.05):
-            if self.run.should_stop():
-                self.stop()
-                return
-        if future.cancelled():
-            return
+        self._begin(None, duty_cycle)
         try:
-            if self.run.started_at is None:
-                future.result()  # Surface an activation failure before returning to the caller.
             self.publish_duty_cycles()
         except BaseException:
             self.stop()
             raise
 
-    def _begin(self, seconds: float | None, duty_cycle: float) -> Future[None]:
+    def _begin(self, seconds: float | None, duty_cycle: float) -> PumpRun:
         with self._operation_lock:
             if self._closed:
                 raise exc.PWMError("Pump is closed.")
-            if self._future is not None and not self._future.done():
+            if self.run is not None and not self.run.done.is_set():
                 raise exc.PWMError("Pump already has an active operation.")
-            run = PumpRun(
-                self.pwm,
-                duty_cycle,
-                seconds,
-                self.cancel_events,
-            )
+            run = PumpRun(self.pwm, duty_cycle, seconds, self.cancel_events)
             self.run = run
             self.interrupt = run.done
-            self._future = _pump_thread_pool.submit(run.run)
-            return self._future
+            try:
+                run.start()
+            except BaseException:
+                self.stop()
+                raise
+            return run
 
     def continuously(self, block: bool = True) -> None:
         self.start(self.calibration.dc)
         if block:
-            assert self._future is not None
+            assert self.run is not None
             try:
-                if not self._future.cancelled():
-                    self._future.result()
+                self.run.done.wait()
             finally:
                 self.stop()
 
     def stop(self) -> None:
         with self._operation_lock:
-            run, future = self.run, self._future
-            if run is not None:
-                run.cancel()
-            if future is not None and future.cancel():
-                assert run is not None
-                run.started.set()
-                run.done.set()
             try:
-                if future is not None and not future.cancelled():
-                    future.result()
+                if self.run is not None:
+                    self.run.cancel()
+                    self.run.join()
             finally:
                 self.interrupt.set()
                 self.pwm.stop()
@@ -187,26 +155,17 @@ class PWMPump:
             raise ValueError("ml must be finite and greater than or equal to 0")
         self.by_duration(self.ml_to_duration(ml) if ml else 0.0, block=block)
 
-    def by_duration(self, seconds: pt.Seconds, block: bool = True) -> Future[None] | None:
-        """Run a timed dose. Nonblocking callers own telemetry until stop/cleanup."""
+    def by_duration(self, seconds: pt.Seconds, block: bool = True) -> None:
+        """Start a timed dose. Nonblocking callers own telemetry until stop/cleanup."""
         if not isfinite(seconds) or seconds < 0:
             raise ValueError("seconds must be finite and >= 0")
-        future = self._begin(seconds, self.calibration.dc)
+        run = self._begin(seconds, self.calibration.dc)
         if block:
-            assert self.run is not None
-            while not self.run.started.wait(0.05):
-                if self.run.should_stop():
-                    self.stop()
-                    return None
-            if future.cancelled():
-                return None
             try:
                 self.publish_duty_cycles()
-                future.result()
+                run.done.wait()
             finally:
                 self.stop()
-            return None
-        return future
 
     def duration_to_ml(self, seconds: pt.Seconds) -> pt.mL:
         return self.calibration.duration_to_ml(seconds)
@@ -352,16 +311,26 @@ def _pump_action(
     else:
         logger.debug(f"Using {pump_device} calibration `{calibration.calibration_name}`.")
 
-    with utils.managed_lifecycle(
-        unit,
-        experiment,
-        action_name,
-        mqtt_client=mqtt_client,
-        exit_on_mqtt_disconnect=True,
-        mqtt_client_kwargs={"keepalive": 10},
-        job_source=job_source,
-    ) as state:
-        mqtt_client = state.mqtt_client
+    with ExitStack() as stack:
+        if cancel_event is None:
+            # Standalone UI/CLI actions own a job and its stop control.
+            state = stack.enter_context(
+                utils.managed_lifecycle(
+                    unit,
+                    experiment,
+                    action_name,
+                    mqtt_client=mqtt_client,
+                    exit_on_mqtt_disconnect=True,
+                    mqtt_client_kwargs={"keepalive": 10},
+                    job_source=job_source,
+                )
+            )
+            mqtt_client = state.mqtt_client
+            cancel_event = state.exit_event
+        elif mqtt_client is None:
+            raise ValueError("An owner-provided cancel_event requires its mqtt_client.")
+        # An automation-owned dose has no independent job or MQTT stop listener.
+        assert mqtt_client is not None
 
         if continuous_inflow and is_default_calibration(calibration):
             logger.error(
@@ -397,7 +366,7 @@ def _pump_action(
                 calibration=calibration,
                 mqtt_client=mqtt_client,
                 logger=logger,
-                cancel_events=(state.exit_event,) + ((cancel_event,) if cancel_event is not None else ()),
+                cancel_events=(cancel_event,),
             )
         except exc.PWMLockedError as error:
             raise exc.PWMLockedError(f"Cannot run {pump_device}: {error}") from error

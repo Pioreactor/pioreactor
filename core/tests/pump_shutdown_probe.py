@@ -48,6 +48,18 @@ def child(mode: str, root: str, stop: str) -> None:
 
     PWM.clean_up = delayed_cleanup
 
+    if mode == "atexit":
+        pump = pumps.PWMPump(
+            "probe",
+            "probe",
+            pumps._get_pin("waste_pump"),
+            pumps.get_default_calibration(),
+            mqtt_client=client,
+            logger=logger,
+        )
+        pump.continuously(block=False)
+        return  # Normal interpreter exit must reach PWM's atexit cleanup.
+
     if mode == "standalone":
 
         def interrupt_action() -> None:

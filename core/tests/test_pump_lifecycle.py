@@ -4,6 +4,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from contextlib import ExitStack
 from pathlib import Path
 from threading import current_thread
 from threading import Event
@@ -21,38 +22,49 @@ from pioreactor.utils.pwm import PWM
 from tests.utils import FakeMQTTClient
 
 
-def test_queued_dose_cannot_start_after_context_exit(monkeypatch: pytest.MonkeyPatch) -> None:
-    release = Event()
-    entered = Event()
-    starts: list[float] = []
+def test_thread_creation_failure_never_enables_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pumps.PWMPump(
+        "probe",
+        "probe",
+        12,
+        pumps.get_default_calibration(),
+        mqtt_client=FakeMQTTClient(),
+        logger=MagicMock(),
+    ) as pump:
+        start = MagicMock()
+        monkeypatch.setattr(pump.pwm._pwm, "start", start)
+        monkeypatch.setattr(Thread, "start", MagicMock(side_effect=RuntimeError("cannot create thread")))
+        with pytest.raises(RuntimeError, match="cannot create thread"):
+            pump.by_duration(1, block=False)
+        assert not start.called
+        assert pump.wait(0)
+    assert not pump.pwm.is_locked()
 
-    def occupy_worker() -> None:
-        entered.set()
-        assert release.wait(5)
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        monkeypatch.setattr(pumps, "_pump_thread_pool", executor)
-        blocker = executor.submit(occupy_worker)
-        assert entered.wait(2)
-        pump = pumps.PWMPump(
-            "probe",
-            "probe",
-            12,
-            pumps.get_default_calibration(),
-            mqtt_client=FakeMQTTClient(),
-            logger=MagicMock(),
-        )
-        monkeypatch.setattr(pump.pwm._pwm, "start", starts.append)
-        try:
-            with pump:
-                future = pump.by_duration(0.01, block=False)
-        finally:
-            release.set()
-        blocker.result(timeout=2)
-        if not future.cancelled():
-            future.result(timeout=2)
-        assert starts == []
-        assert not pump.pwm.is_locked()
+def test_cleanup_during_thread_start_prevents_late_activation(monkeypatch: pytest.MonkeyPatch) -> None:
+    pump = pumps.PWMPump(
+        "probe",
+        "probe",
+        12,
+        pumps.get_default_calibration(),
+        mqtt_client=FakeMQTTClient(),
+        logger=MagicMock(),
+    )
+    hardware_start = MagicMock()
+    original_start = Thread.start
+
+    def interrupted_start(thread: Thread) -> None:
+        # Simulate a main-thread signal handler closing the pump during startup.
+        pump.clean_up()
+        original_start(thread)
+
+    monkeypatch.setattr(pump.pwm._pwm, "start", hardware_start)
+    monkeypatch.setattr(Thread, "start", interrupted_start)
+    with pump:
+        pump.by_duration(1, block=False)
+        assert pump.wait(1)
+    assert not hardware_start.called
+    assert not pump.pwm.is_locked()
 
 
 def test_closed_pwm_rejects_start() -> None:
@@ -60,6 +72,33 @@ def test_closed_pwm_rejects_start() -> None:
     pwm.clean_up()
     with pytest.raises(PWMError, match="closed|cleaned"):
         pwm.start(100)
+
+
+def test_worker_stop_failure_is_reported_and_cleanup_closes_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    pump = pumps.PWMPump(
+        "probe",
+        "probe",
+        12,
+        pumps.get_default_calibration(),
+        mqtt_client=FakeMQTTClient(),
+        logger=MagicMock(),
+    )
+    original_stop = pump.pwm.stop
+
+    def failing_worker_stop(*, serialize: bool = True) -> None:
+        if current_thread() is not main_thread():
+            raise OSError("worker could not stop output")
+        original_stop(serialize=serialize)
+
+    monkeypatch.setattr(pump.pwm, "stop", failing_worker_stop)
+    with pytest.raises(OSError, match="worker could not stop output"):
+        with pump:
+            pump.by_duration(0.01, block=False)
+            assert pump.wait(1)
+            pump.stop()
+    assert not pump.completed
+    assert pump.pwm.duty_cycle == 0
+    assert not pump.pwm.is_locked()
 
 
 def test_dead_pump_owner_is_recovered() -> None:
@@ -97,8 +136,11 @@ def test_busy_pump_is_an_error_not_zero_volume() -> None:
             )
 
 
-@pytest.mark.parametrize("mode", ["event", "periodic", "standalone"])
-@pytest.mark.parametrize("stop", ["SIGINT", "SIGTERM", "mqtt"])
+@pytest.mark.parametrize(
+    ("mode", "stop"),
+    [(mode, stop) for mode in ("event", "periodic", "standalone") for stop in ("SIGINT", "SIGTERM", "mqtt")]
+    + [("atexit", "none")],
+)
 def test_shutdown_drains_pump_context(mode: str, stop: str, tmp_path: Path) -> None:
     helper = Path(__file__).with_name("pump_shutdown_probe.py")
     result = subprocess.run(
@@ -153,11 +195,11 @@ def test_blocked_telemetry_cannot_extend_a_dose(monkeypatch: pytest.MonkeyPatch)
         monkeypatch.setattr(pump.pwm, "_serialize", block_telemetry)
         reporter = Thread(target=pump.publish_duty_cycles)
         try:
-            future = pump.by_duration(0.1, block=False)
+            pump.by_duration(0.1, block=False)
             assert pump.run.started.wait(1)
             reporter.start()
             assert entered.wait(1)
-            future.result(timeout=1)
+            assert pump.wait(1)
             assert pump.pwm.duty_cycle == 0
             assert pump.run.completed
         finally:
@@ -202,10 +244,10 @@ def test_pause_cancel_interrupts_without_mqtt_delivery() -> None:
         logger=MagicMock(),
         cancel_events=(cancel,),
     ) as pump:
-        future = pump.by_duration(30, block=False)
+        pump.by_duration(30, block=False)
         assert pump.run.started.wait(1)
         cancel.set()
-        future.result(timeout=1)
+        assert pump.wait(1)
         assert not pump.run.completed
         assert pump.pwm.duty_cycle == 0
 
@@ -235,11 +277,11 @@ def test_busy_telemetry_database_does_not_delay_hardware_stop(monkeypatch: pytes
         monkeypatch.setattr(pwm_module, "local_intermittent_storage", slow_storage)
         reporter = Thread(target=pump.publish_duty_cycles)
         try:
-            future = pump.by_duration(0.1, block=False)
+            pump.by_duration(0.1, block=False)
             assert pump.run.started.wait(1)
             reporter.start()
             assert entered.wait(1)
-            future.result(timeout=1)
+            assert pump.wait(1)
             assert pump.pwm.duty_cycle == 0
         finally:
             release.set()
@@ -280,7 +322,7 @@ def test_unprovably_dead_lock_is_not_reclaimed(owner: object) -> None:
         assert cache[12] == owner
 
 
-def test_accounting_applies_intercept_once_and_excludes_queue_time() -> None:
+def test_accounting_applies_intercept_once_and_excludes_unstarted_output() -> None:
     from msgspec.structs import replace
     from pioreactor import structs
     from pioreactor.actions.pump import estimated_volume
@@ -298,59 +340,59 @@ def test_accounting_applies_intercept_once_and_excludes_queue_time() -> None:
     assert estimated_volume(calibration, 0.5, completed=False, requested_ml=-0.1) == 0
 
 
-@pytest.mark.parametrize("mode", ["blocking", "continuous", "nonblocking"])
-def test_cancel_while_waiting_for_a_control_worker(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
-    from threading import Thread
-    from tests.utils import wait_for
+def test_four_independent_pumps_start_without_waiting_for_capacity() -> None:
+    with ExitStack() as stack:
+        active = [
+            stack.enter_context(
+                pumps.PWMPump(
+                    "probe",
+                    "probe",
+                    pin,
+                    pumps.get_default_calibration(),
+                    mqtt_client=FakeMQTTClient(),
+                    logger=MagicMock(),
+                )
+            )
+            for pin in (12, 13, 16, 17)
+        ]
+        for pump in active:
+            pump.by_duration(30, block=False)
+        assert all(pump.pwm.duty_cycle == 100 for pump in active)
+        assert all(not pump.wait(0) for pump in active)
+    assert all(pump.pwm.duty_cycle == 0 for pump in active)
 
-    release, occupied, cancel = Event(), Event(), Event()
-    errors: list[Exception] = []
 
-    def occupy() -> None:
-        occupied.set()
-        assert release.wait(5)
+def test_owned_dose_does_not_create_an_independent_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unexpected_job(*args, **kwargs) -> None:
+        raise AssertionError("Automation-owned doses must not register another job")
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        monkeypatch.setattr(pumps, "_pump_thread_pool", executor)
-        blocker = executor.submit(occupy)
-        assert occupied.wait(1)
-        with pumps.PWMPump(
-            "probe",
-            "probe",
-            12,
-            pumps.get_default_calibration(),
-            mqtt_client=FakeMQTTClient(),
+    monkeypatch.setattr(pumps.utils, "managed_lifecycle", unexpected_job)
+    client = FakeMQTTClient()
+    cancel = Event()
+    moved = pumps.remove_waste(
+        unit="probe",
+        experiment="probe",
+        duration=0.01,
+        mqtt_client=client,
+        logger=MagicMock(),
+        cancel_event=cancel,
+    )
+    assert moved > 0
+    assert not client.callbacks
+    assert not cancel.is_set()  # Completing one dose must not cancel the rest of the exchange.
+    assert not any(call["topic"].endswith("/$state") for call in client.publish_calls)
+    cancel.set()
+    assert (
+        pumps.remove_waste(
+            unit="probe",
+            experiment="probe",
+            duration=1,
+            mqtt_client=client,
             logger=MagicMock(),
-            cancel_events=(cancel,),
-        ) as pump:
-
-            def call() -> None:
-                try:
-                    if mode == "continuous":
-                        pump.continuously(block=False)
-                    elif mode == "blocking":
-                        pump.by_duration(10, block=True)
-                    else:
-                        pump.by_duration(10, block=False)
-                        while not pump.wait(0.05):
-                            pass
-                        pump.stop()
-                except Exception as error:
-                    errors.append(error)
-
-            caller = Thread(target=call)
-            caller.start()
-            try:
-                assert wait_for(lambda: pump.run is not None, timeout=1)
-                cancel.set()
-                caller.join(timeout=1)
-                assert not caller.is_alive()
-                assert errors == []
-                assert pump.run.started_at is None
-            finally:
-                release.set()
-                caller.join(timeout=2)
-        blocker.result(timeout=2)
+            cancel_event=cancel,
+        )
+        == 0
+    )
 
 
 def test_only_one_contender_can_recover_a_dead_owner() -> None:
