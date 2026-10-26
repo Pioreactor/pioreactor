@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import importlib
-import importlib.metadata as entry_point
 import os
 from typing import Any
 
@@ -105,7 +104,10 @@ def get_plugins() -> dict[str, Plugin]:
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
     for plugin in discover_plugins_in_entry_points():
         try:
-            md = entry_point.metadata(plugin.name)
+            # entry_points() always attaches the owning distribution; reading its metadata
+            # avoids importlib.metadata.metadata(), which rescans every installed distribution.
+            assert plugin.dist is not None
+            md = plugin.dist.metadata
             plugins[md["Name"]] = Plugin(
                 plugin.load(),  # plugin loading and execution here.
                 md["Summary"] or BLANK,
