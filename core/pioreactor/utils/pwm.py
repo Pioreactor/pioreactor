@@ -5,6 +5,7 @@ import threading
 from contextlib import contextmanager
 from contextlib import suppress
 from os import getpid
+from os import kill
 from time import sleep
 from typing import Any
 from typing import Callable
@@ -14,6 +15,7 @@ from typing import Iterator
 from msgspec.json import encode
 from pioreactor import types as pt
 from pioreactor.exc import PWMError
+from pioreactor.exc import PWMLockedError
 from pioreactor.hardware import determine_gpiochip
 from pioreactor.hardware import get_pwm_to_pin_map
 from pioreactor.logging import create_logger
@@ -176,6 +178,9 @@ class SoftwarePWMOutputDevice:
                         repr(tx_pwm_error),
                         repr(gpio_write_error) if gpio_write_error is not None else "None",
                     )
+                    raise PWMError(
+                        f"Unable to stop software PWM on GPIO-{self.pin} during close."
+                    ) from tx_pwm_error
         finally:
             with suppress(lgpio.error):
                 lgpio.gpiochip_close(self._handle)
@@ -234,7 +239,13 @@ class PWM:
         always_use_software: bool = False,
         pub_client: Client | None = None,
         logger: CustomLogger | None = None,
+        exclusive: bool = False,
     ) -> None:
+        self._lifecycle_lock = threading.RLock()
+        self._telemetry_lock = threading.RLock()
+        self._closing = False
+        self._last_serialized_dc: float | None = None
+        self._recovered_lock = False
         self._is_cleaned_up = True  # No resources to release if mapping resolution fails.
         self.unit = unit or get_unit_name()
         self.experiment = experiment or get_assigned_experiment_name(self.unit)
@@ -263,30 +274,48 @@ class PWM:
         self._registered_sighup_handler = False
         self._registered_atexit_handler = False
 
-        if self.is_locked():
+        if exclusive:
+            try:
+                self.lock()
+            except BaseException:
+                self._is_cleaned_up = True
+                if not self._external_client:
+                    self.pub_client.shutdown()
+                raise
+        elif self.is_locked():
             msg = f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache purge pwm_locks {self.pin} --as-int` on the command line for `{self.unit}`."
 
             self.logger.error(msg)
-            raise PWMError(msg)
+            self._is_cleaned_up = True
+            if not self._external_client:
+                self.pub_client.shutdown()
+            raise PWMLockedError(msg)
 
-        self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice | MockPWMOutputDevice
+        try:
+            self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice | MockPWMOutputDevice
 
-        if is_testing_env():
-            self._pwm = MockPWMOutputDevice(self.pin, self.hz)
-        elif (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
-            self._pwm = HardwarePWMOutputDevice(self.pin, self.hz)
-        else:
-            if self.hz >= 1000:
-                self.logger.warning(
-                    "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
-                )
+            if is_testing_env():
+                self._pwm = MockPWMOutputDevice(self.pin, self.hz)
+            elif (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
+                self._pwm = HardwarePWMOutputDevice(self.pin, self.hz)
+            else:
+                if self.hz >= 1000:
+                    self.logger.warning(
+                        "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
+                    )
 
-            self._pwm = SoftwarePWMOutputDevice(self.pin, self.hz)
+                self._pwm = SoftwarePWMOutputDevice(self.pin, self.hz)
 
-        self.logger.debug(
-            f"Initialized GPIO-{self.pin} using {'hardware' if self.using_hardware else 'software'}-timing, initial frequency = {self.hz} hz."
-        )
-        self._set_up_exit_protocol()
+            self.logger.debug(
+                f"Initialized GPIO-{self.pin} using {'hardware' if self.using_hardware else 'software'}-timing, initial frequency = {self.hz} hz."
+            )
+            if self._recovered_lock and self.using_hardware:
+                # A dead process may leave hardware PWM enabled. Force it off before reuse.
+                self._pwm.close()
+            self._set_up_exit_protocol()
+        except BaseException:
+            self.clean_up()
+            raise
 
     @property
     def using_hardware(self) -> bool:
@@ -297,66 +326,83 @@ class PWM:
 
     @property
     def is_cleaned_up(self) -> bool:
-        return self._is_cleaned_up
+        return self._is_cleaned_up or self._closing
 
     def _serialize(self) -> None:
-        # don't send 0 values to MQTT - waste of space and time
-        if self.duty_cycle > 0:
-            current_values = {self.pin: self.duty_cycle}
-        else:
-            current_values = {}
+        # Storage and network work must never hold the hardware mutex.
+        with self._telemetry_lock:
+            with self._lifecycle_lock:
+                if self._is_cleaned_up:
+                    return
+                duty_cycle = self.duty_cycle
+            if self._last_serialized_dc == duty_cycle:
+                return
+            # don't send 0 values to MQTT - waste of space and time
+            if duty_cycle > 0:
+                current_values = {self.pin: duty_cycle}
+            else:
+                current_values = {}
 
-        with local_intermittent_storage("pwm_dc") as cache:
-            if self.duty_cycle > 0:
-                cache[self.pin] = self.duty_cycle
-            elif self.duty_cycle == 0:
-                cache.pop(self.pin)
+            with local_intermittent_storage("pwm_dc") as cache:
+                if duty_cycle > 0:
+                    cache[self.pin] = duty_cycle
+                elif duty_cycle == 0:
+                    cache.pop(self.pin)
 
-            for k in cache:
-                if k == self.pin:
-                    continue
-                # we use get here because if two processes are updating the cache, and one of them deletes from the cache,
-                # this will raise a keyerror when we try to retrieve it.
-                value = cache.get(k, 0)
-                if value != 0:
-                    duty_cycle_value = cast(float | int | str, value)
-                    current_values[cast(pt.GpioPin, k)] = float(duty_cycle_value)
+                for k in cache:
+                    if k == self.pin:
+                        continue
+                    # we use get here because if two processes are updating the cache, and one of them deletes from the cache,
+                    # this will raise a keyerror when we try to retrieve it.
+                    value = cache.get(k, 0)
+                    if value != 0:
+                        duty_cycle_value = cast(float | int | str, value)
+                        current_values[cast(pt.GpioPin, k)] = float(duty_cycle_value)
 
-        channel_values = {
-            channel: current_values[pin] for channel, pin in self._pwm_to_pin.items() if pin in current_values
-        }
-        self.pub_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/pwms/channel_dc",
-            encode(PWMDutyCycles(timestamp=current_utc_datetime(), channels=channel_values)),
-            retain=True,
-        )
+            channel_values = {
+                channel: current_values[pin]
+                for channel, pin in self._pwm_to_pin.items()
+                if pin in current_values
+            }
+            self.pub_client.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/pwms/channel_dc",
+                encode(PWMDutyCycles(timestamp=current_utc_datetime(), channels=channel_values)),
+                retain=True,
+            )
+            self._last_serialized_dc = duty_cycle
 
-    def start(self, duty_cycle: pt.FloatBetween0and100) -> None:
+    def start(self, duty_cycle: pt.FloatBetween0and100, *, serialize: bool = True) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self._pwm.start(duty_cycle)
-        self.duty_cycle = round(float(duty_cycle), 5)
-        self._serialize()
+        with self._lifecycle_lock:
+            if self._is_cleaned_up or self._closing:
+                raise PWMError(f"GPIO-{self.pin} PWM is closed.")
+            self._pwm.start(duty_cycle)
+            self.duty_cycle = round(float(duty_cycle), 5)
+        if serialize:
+            self._serialize()
 
-    def stop(self) -> None:
-        if self._is_cleaned_up:
-            return
-        self._pwm.off()
-        if self.duty_cycle == 0.0:
-            return
-        self.change_duty_cycle(0.0)
+    def stop(self, *, serialize: bool = True) -> None:
+        with self._lifecycle_lock:
+            if self._is_cleaned_up or self._closing:
+                return
+            self._pwm.off()
+            self.duty_cycle = 0.0
+        if serialize:
+            self._serialize()
 
     def change_duty_cycle(self, duty_cycle: pt.FloatBetween0and100) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
-
-        rounded_duty_cycle = round(float(duty_cycle), 5)
-        if rounded_duty_cycle == self.duty_cycle:
-            return
-
-        self._pwm.dc = duty_cycle
-        self.duty_cycle = rounded_duty_cycle
+        with self._lifecycle_lock:
+            if self._is_cleaned_up or self._closing:
+                raise PWMError(f"GPIO-{self.pin} PWM is closed.")
+            rounded_duty_cycle = round(float(duty_cycle), 5)
+            if rounded_duty_cycle == self.duty_cycle:
+                return
+            self._pwm.dc = duty_cycle
+            self.duty_cycle = rounded_duty_cycle
         self._serialize()
 
     def _exit(self, reason: int | str, *args: Any) -> None:
@@ -422,50 +468,79 @@ class PWM:
             self._registered_sighup_handler = False
 
     def clean_up(self) -> None:
-        if self._is_cleaned_up:
-            return
-
+        with self._lifecycle_lock:
+            if self._is_cleaned_up or self._closing:
+                return
+            self._closing = True
+        output_closed = not hasattr(self, "_pwm")
         try:
-            with suppress(ValueError):
-                # this is thrown if the _pwm hasn't started yet.
-                self.stop()
+            with self._lifecycle_lock:
+                if hasattr(self, "_pwm"):
+                    try:
+                        with suppress(ValueError):
+                            self._pwm.off()
+                    finally:
+                        self._pwm.close()
+                        self.duty_cycle = 0.0
+                        output_closed = True
         finally:
-            self._is_cleaned_up = True
-            try:
-                self._pwm.close()
-            finally:
-                self.unlock()
+            # Stop hardware first, then drain telemetry before releasing ownership.
+            # No queued serializer can subsequently erase a new owner's pin state.
+            with self._telemetry_lock:
+                try:
+                    if output_closed:
+                        self._serialize()
+                finally:
+                    self._is_cleaned_up = True
+                    if output_closed:
+                        with local_intermittent_storage("pwm_dc") as cache:
+                            cache.pop(self.pin, None)
+                        self.unlock()
+                        self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
+                    else:
+                        self.logger.error(f"Unable to close GPIO-{self.pin}; retaining its PWM lock.")
+                    self._remove_exit_protocol()
+                    if not self._external_client:
+                        self.pub_client.shutdown()
 
-                with local_intermittent_storage("pwm_dc") as cache:
-                    cache.pop(self.pin, None)
-
-                self._remove_exit_protocol()
-                self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
-
-                if not self._external_client:
-                    self.pub_client.shutdown()
+    @staticmethod
+    def _owner_is_alive(owner: object) -> bool:
+        # Legacy/unknown values and permission errors are not proof of a dead owner.
+        if not isinstance(owner, str):
+            return True
+        parts = owner.split(":")
+        if len(parts) != 2 or not all(part.isdecimal() for part in parts):
+            return True
+        pid = int(parts[0])
+        if pid <= 0:
+            return True
+        try:
+            kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
 
     def is_locked(self) -> bool:
-        with local_intermittent_storage("pwm_locks") as pwm_locks:
-            return pwm_locks.get(self.pin) is not None
+        with local_intermittent_storage("pwm_locks") as locks:
+            owner = locks.get(self.pin)
+            return owner is not None and self._owner_is_alive(owner)
 
     def lock(self) -> None:
-        with local_intermittent_storage("pwm_locks") as pwm_locks:
-            if pwm_locks.set_if_absent(self.pin, self._lock_id):
+        with local_intermittent_storage("pwm_locks") as locks, locks.transaction():
+            owner = locks.get(self.pin)
+            if owner == self._lock_id:
                 return
-
-            raise PWMError(
-                f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache purge pwm_locks {self.pin} --as-int` on the command line for `{self.unit}`."
-            )
+            if owner is not None and self._owner_is_alive(owner):
+                raise PWMLockedError(f"GPIO-{self.pin} is currently locked by another task ({owner}).")
+            self._recovered_lock = owner is not None
+            locks[self.pin] = self._lock_id
 
     def unlock(self) -> None:
-        with local_intermittent_storage("pwm_locks") as pwm_locks:
-            owner_lock_id = pwm_locks.get(self.pin)
-            if owner_lock_id is None:
-                return
-
-            if owner_lock_id == self._lock_id:
-                pwm_locks.pop(self.pin)
+        with local_intermittent_storage("pwm_locks") as locks, locks.transaction():
+            if locks.get(self.pin) == self._lock_id:
+                locks.pop(self.pin)
 
     @contextmanager
     def lock_temporarily(self) -> Iterator[None]:

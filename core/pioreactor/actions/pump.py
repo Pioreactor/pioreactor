@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-import time
-from concurrent.futures import Future
-from concurrent.futures import ThreadPoolExecutor
 from configparser import NoOptionError
+from contextlib import ExitStack
 from functools import partial
+from math import isfinite
 from threading import Event
-from typing import Any
+from threading import RLock
 from typing import cast
 
 import click
@@ -16,6 +15,7 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import utils
+from pioreactor.actions.pump_execution import PumpRun
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.hardware import get_pwm_to_pin_map
@@ -24,9 +24,7 @@ from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import QOS
 from pioreactor.types import PumpCalibrationDevices
-from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
@@ -54,11 +52,6 @@ def is_default_calibration(cal: structs.SimplePeristalticPumpCalibration) -> boo
     return cal.calibration_name == "__default_pump_calibration"
 
 
-# Initialize the thread pool with a worker threads.
-# a pool is needed to avoid eventual memory overflow when multiple threads are created and allocated over time.
-_thread_pool = ThreadPoolExecutor(max_workers=3)
-
-
 class PWMPump:
     def __init__(
         self,
@@ -68,12 +61,17 @@ class PWMPump:
         calibration: structs.SimplePeristalticPumpCalibration,
         mqtt_client: Client | None = None,
         logger: CustomLogger | None = None,
+        cancel_events: tuple[Event, ...] = (),
     ) -> None:
         if calibration is None:
             raise ValueError("Calibration must be provided to PWMPump.")
         self.pin = pin
         self.calibration = calibration
         self.interrupt = Event()
+        self.cancel_events = cancel_events
+        self.run: PumpRun | None = None
+        self._operation_lock = RLock()
+        self._closed = False
 
         self.pwm = PWM(
             self.pin,
@@ -82,56 +80,91 @@ class PWMPump:
             unit=unit,
             pub_client=mqtt_client,
             logger=logger,
+            exclusive=True,
         )
-        self.pwm.lock()
 
     def clean_up(self) -> None:
-        self.pwm.clean_up()
+        with self._operation_lock:
+            self._closed = True
+        try:
+            self.stop()
+        finally:
+            self.pwm.clean_up()
+
+    @property
+    def elapsed(self) -> float:
+        return self.run.elapsed if self.run is not None else 0.0
+
+    @property
+    def completed(self) -> bool:
+        return self.run is not None and self.run.completed
+
+    def wait(self, timeout: float) -> bool:
+        """Wait for output to stop. Call stop() to join and surface worker failures."""
+        return self.run is None or self.run.done.wait(timeout)
+
+    def publish_duty_cycles(self) -> None:
+        self.pwm._serialize()
 
     def start(self, duty_cycle: float) -> None:
-        self.interrupt.clear()
-        self.pwm.start(duty_cycle)
+        self._begin(None, duty_cycle)
+        try:
+            self.publish_duty_cycles()
+        except BaseException:
+            self.stop()
+            raise
+
+    def _begin(self, seconds: float | None, duty_cycle: float) -> PumpRun:
+        with self._operation_lock:
+            if self._closed:
+                raise exc.PWMError("Pump is closed.")
+            if self.run is not None and not self.run.done.is_set():
+                raise exc.PWMError("Pump already has an active operation.")
+            run = PumpRun(self.pwm, duty_cycle, seconds, self.cancel_events)
+            self.run = run
+            self.interrupt = run.done
+            try:
+                run.start()
+            except BaseException:
+                self.stop()
+                raise
+            return run
 
     def continuously(self, block: bool = True) -> None:
+        self.start(self.calibration.dc)
         if block:
-            self.start(self.calibration.dc)
-            self.interrupt.wait()
-            self.stop()
-        else:
-            self.start(self.calibration.dc)
+            assert self.run is not None
+            try:
+                self.run.done.wait()
+            finally:
+                self.stop()
 
     def stop(self) -> None:
-        try:
-            self.pwm.stop()
-        finally:
-            self.interrupt.set()
+        with self._operation_lock:
+            try:
+                if self.run is not None:
+                    self.run.cancel()
+                    self.run.join()
+            finally:
+                self.interrupt.set()
+                self.pwm.stop()
 
     def by_volume(self, ml: pt.mL, block: bool = True) -> None:
-        if ml < 0:
-            raise ValueError("ml must be greater than or equal to 0")
-        if ml == 0:
-            self.stop()
-            return
-        seconds = self.ml_to_duration(ml)
-        self.by_duration(seconds, block=block)
+        if not isfinite(ml) or ml < 0:
+            raise ValueError("ml must be finite and greater than or equal to 0")
+        self.by_duration(self.ml_to_duration(ml) if ml else 0.0, block=block)
 
-    def by_duration(self, seconds: pt.Seconds, block: bool = True) -> Future[None] | None:
-        if seconds < 0:
-            raise ValueError("seconds must be >= 0")
-        if seconds == 0:
-            self.stop()  # need to set the interrupt!
-            return None
+    def by_duration(self, seconds: pt.Seconds, block: bool = True) -> None:
+        """Start a timed dose. Nonblocking callers own telemetry until stop/cleanup."""
+        if not isfinite(seconds) or seconds < 0:
+            raise ValueError("seconds must be finite and >= 0")
+        run = self._begin(seconds, self.calibration.dc)
         if block:
             try:
-                self.start(self.calibration.dc)
-                self.interrupt.wait(seconds)
+                self.publish_duty_cycles()
+                run.done.wait()
             finally:
-                # Starting PWM can fail during bookkeeping after the hardware is on.
                 self.stop()
-        else:
-            # Offload to thread pool to avoid blocking the caller
-            return cast(Future[None], _thread_pool.submit(self.by_duration, seconds, True))
-        return None
 
     def duration_to_ml(self, seconds: pt.Seconds) -> pt.mL:
         return self.calibration.duration_to_ml(seconds)
@@ -143,10 +176,7 @@ class PWMPump:
         return self
 
     def __exit__(self, *args: object) -> None:
-        try:
-            self.stop()
-        finally:
-            self.clean_up()
+        self.clean_up()
 
 
 def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
@@ -160,10 +190,6 @@ def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeris
     if cal is None:
         return get_default_calibration()
     return cal
-
-
-def publish_async(client: Client, topic: str, payload: bytes, **kwargs: Any) -> None:
-    _thread_pool.submit(client.publish, topic, payload, **kwargs)
 
 
 def _to_human_readable_action(
@@ -194,6 +220,26 @@ def _to_human_readable_action(
         raise ValueError()
 
 
+def estimated_volume(
+    calibration: structs.SimplePeristalticPumpCalibration,
+    elapsed: float,
+    *,
+    completed: bool,
+    requested_ml: float | None,
+) -> float:
+    """Cumulative estimate; apply a calibration intercept once per operation.
+
+    A completed finite dose that actually started reports its request, including sub-tick microdoses.
+    Cancelled or continuous runs use elapsed output time, never time spent queued.
+    """
+    if elapsed <= 0:
+        return 0.0
+    if completed and requested_ml is not None:
+        return max(0.0, requested_ml)
+    volume = max(0.0, calibration.duration_to_ml(elapsed))
+    return volume if requested_ml is None else max(0.0, min(requested_ml, volume))
+
+
 def _pump_action(
     pump_device: PumpCalibrationDevices,
     unit: str | None = None,
@@ -206,6 +252,7 @@ def _pump_action(
     mqtt_client: Client | None = None,
     logger: CustomLogger | None = None,
     job_source: str | None = None,
+    cancel_event: Event | None = None,
 ) -> pt.mL:
     """
     Run a pump action and return the estimated mL moved.
@@ -238,23 +285,22 @@ def _pump_action(
 
     if ml is not None:
         ml = float(ml)
-        if ml < 0:
+        if not isfinite(ml) or ml < 0:
             logger.error("ml should be greater than or equal to 0")
             raise ValueError("ml should be greater than or equal to 0")
 
     if duration is not None:
         duration = float(duration)
-        if duration < 0:
+        if not isfinite(duration) or duration < 0:
             logger.error("seconds must be >= 0")
             raise ValueError("seconds must be >= 0")
 
     try:
         pin = _get_pin(pump_device)
-    except NoOptionError:
-        logger.error(
+    except NoOptionError as error:
+        raise exc.PWMError(
             f"Config entry not found. Add `{pump_device.removesuffix('_pump')}` to `PWM` section to config_{unit}.ini."
-        )
-        return 0.0
+        ) from error
 
     if calibration is None:
         calibration = _get_calibration(pump_device)
@@ -264,16 +310,26 @@ def _pump_action(
     else:
         logger.debug(f"Using {pump_device} calibration `{calibration.calibration_name}`.")
 
-    with utils.managed_lifecycle(
-        unit,
-        experiment,
-        action_name,
-        mqtt_client=mqtt_client,
-        exit_on_mqtt_disconnect=True,
-        mqtt_client_kwargs={"keepalive": 10},
-        job_source=job_source,
-    ) as state:
-        mqtt_client = state.mqtt_client
+    with ExitStack() as stack:
+        if cancel_event is None:
+            # Standalone UI/CLI actions own a job and its stop control.
+            state = stack.enter_context(
+                utils.managed_lifecycle(
+                    unit,
+                    experiment,
+                    action_name,
+                    mqtt_client=mqtt_client,
+                    exit_on_mqtt_disconnect=True,
+                    mqtt_client_kwargs={"keepalive": 10},
+                    job_source=job_source,
+                )
+            )
+            mqtt_client = state.mqtt_client
+            cancel_event = state.exit_event
+        elif mqtt_client is None:
+            raise ValueError("An owner-provided cancel_event requires its mqtt_client.")
+        # An automation-owned dose has no independent job or MQTT stop listener.
+        assert mqtt_client is not None
 
         if continuous_inflow and is_default_calibration(calibration):
             logger.error(
@@ -301,21 +357,18 @@ def _pump_action(
         elif continuously:
             logger.info(f"Running {pump_device} continuously.")
 
-        # first check if the pin is already in use. If so, exit early.
-        with local_intermittent_storage("pwm_locks") as pwm_locks:
-            if pin in pwm_locks:
-                logger.error(
-                    f"Pump's GPIO pin is already in use by another task. Either too many jobs are trying to access this pump's pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache purge pwm_locks {pin} --as-int` on the command line for `{unit}`"
-                )
-                return 0.0
-
         try:
             pump_instance = PWMPump(
-                unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
+                unit,
+                experiment,
+                pin,
+                calibration=calibration,
+                mqtt_client=mqtt_client,
+                logger=logger,
+                cancel_events=(cancel_event,),
             )
-        except exc.PWMError as e:
-            logger.error(str(e))
-            return 0.0
+        except exc.PWMLockedError as error:
+            raise exc.PWMLockedError(f"Cannot run {pump_device}: {error}") from error
 
         with pump_instance as pump:
             empty_dosing_event = structs.DosingEvent(
@@ -325,141 +378,61 @@ def _pump_action(
                 timestamp=current_utc_datetime(),
             )
 
-            sub_duration = 0.5
+            # One cumulative estimate serves progress events and the returned volume.
+            # Events report elapsed execution, not a predicted dose before it happens.
+            reported_ml = 0.0
 
-            if continuously:
-                pump.continuously(block=False)
-                volume_moved_ml = 0.0
-                pump_start_time = time.monotonic()
-
-                while True:
-                    # Current invariant: continuous inflow stops when live projected
-                    # volume reaches the model's safe-fill threshold.
-                    if max_fill_volume_ml is not None and (
-                        bioreactor.get_bioreactor_value(experiment, "current_volume_ml") >= max_fill_volume_ml
-                    ):
-                        break
-
-                    if state.exit_event.wait(sub_duration):
-                        break
-
-                    sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
-                    volume_moved_ml += sub_volume_moved_ml
-                    publish_async(
-                        mqtt_client,
-                        f"pioreactor/{unit}/{experiment}/dosing_events",
-                        encode(
-                            replace(
-                                empty_dosing_event,
-                                timestamp=current_utc_datetime(),
-                                volume_change=sub_volume_moved_ml,
-                            )
-                        ),
-                        qos=QOS.EXACTLY_ONCE,
-                    )
-
-                pump.stop()
-                actual_volume_moved_ml = pump.duration_to_ml(time.monotonic() - pump_start_time)
-                publish_async(
-                    mqtt_client,
+            def report_volume(volume: float) -> None:
+                nonlocal reported_ml
+                delta = volume - reported_ml
+                if delta == 0:
+                    return
+                mqtt_client.publish(
                     f"pioreactor/{unit}/{experiment}/dosing_events",
                     encode(
-                        replace(
-                            empty_dosing_event,
-                            timestamp=current_utc_datetime(),
-                            volume_change=actual_volume_moved_ml - volume_moved_ml,
-                        )
+                        replace(empty_dosing_event, timestamp=current_utc_datetime(), volume_change=delta)
                     ),
                     qos=QOS.EXACTLY_ONCE,
                 )
-                logger.info(f"Stopped {pump_device}.")
-                return actual_volume_moved_ml
+                reported_ml = volume
 
-            assert duration is not None
-            assert ml is not None
+            if continuously:
+                # Bound inflow by the available headroom even if reporting stalls.
+                if max_fill_volume_ml is not None:
+                    headroom = max(
+                        0.0,
+                        max_fill_volume_ml - bioreactor.get_bioreactor_value(experiment, "current_volume_ml"),
+                    )
+                    pump.by_duration(
+                        max(0.0, calibration.ml_to_duration(headroom)) if headroom else 0.0, block=False
+                    )
+                else:
+                    pump.start(calibration.dc)
+            else:
+                assert duration is not None
+                pump.by_duration(duration, block=False)
 
-            volume_moved_ml = 0.0
-
-            pump_start_time = time.monotonic()
-
-            pump_future = pump.by_duration(duration, block=False)  # start pump
-
-            while not pump.interrupt.is_set():
-                sub_volume_moved_ml = 0.0
-                time_left = duration - (time.monotonic() - pump_start_time)
-                if time_left <= 0:
-                    # this is an edge case where the time has surpassed, but the interrupt isn't set yet.
-                    pump.interrupt.wait()
+            next_report_at = 0.0
+            while not pump.wait(0.05):
+                if (
+                    max_fill_volume_ml is not None
+                    and bioreactor.get_bioreactor_value(experiment, "current_volume_ml") >= max_fill_volume_ml
+                ):
+                    pump.stop()
                     break
-
-                elif time_left >= sub_duration:
-                    sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
-
-                elif sub_duration > time_left:
-                    # last remaining bit.
-                    sub_volume_moved_ml = ml - volume_moved_ml
-
-                dosing_event = replace(
-                    empty_dosing_event,
-                    timestamp=current_utc_datetime(),
-                    volume_change=sub_volume_moved_ml,
-                )
-                volume_moved_ml += sub_volume_moved_ml
-
-                publish_async(
-                    mqtt_client,
-                    f"pioreactor/{unit}/{experiment}/dosing_events",
-                    encode(dosing_event),
-                    qos=QOS.EXACTLY_ONCE,
-                )
-
-                if state.exit_event.wait(min(sub_duration, time_left)):
-                    pump.interrupt.set()
-                    pump_stop_time = time.monotonic()
-
-                    # ended early. We should calculate how much _wasnt_ added, and update that.
-                    actual_volume_moved_ml = pump.duration_to_ml(pump_stop_time - pump_start_time)
-                    correction_factor = (
-                        actual_volume_moved_ml - volume_moved_ml
-                    )  # reported too much since we log first before dosing
-
-                    dosing_event = replace(
-                        empty_dosing_event,
-                        timestamp=current_utc_datetime(),
-                        volume_change=correction_factor,
+                if pump.elapsed > 0 and pump.elapsed >= next_report_at:
+                    pump.publish_duty_cycles()
+                    report_volume(
+                        estimated_volume(calibration, pump.elapsed, completed=False, requested_ml=ml)
                     )
-                    publish_async(
-                        mqtt_client,
-                        f"pioreactor/{unit}/{experiment}/dosing_events",
-                        encode(dosing_event),
-                        qos=QOS.EXACTLY_ONCE,
-                    )
+                    next_report_at = pump.elapsed + 0.5
 
-                    logger.info(f"Stopped {pump_device} early.")
-                    return actual_volume_moved_ml
-
-            if pump_future is not None:
-                pump_future.result()  # Surface worker failures before reporting successful completion.
-
-            # Current invariant: returned volume equals the total volume emitted in dosing events.
-            # Reconcile only after normal completion. The PWM worker can finish
-            # between accounting ticks, or before the first tick for a microdose.
-            # Early disconnects return above using their elapsed-time estimate.
-            remaining_volume_ml = ml - volume_moved_ml
-            if remaining_volume_ml > 0:
-                dosing_event = replace(
-                    empty_dosing_event,
-                    timestamp=current_utc_datetime(),
-                    volume_change=remaining_volume_ml,
-                )
-                publish_async(
-                    mqtt_client,
-                    f"pioreactor/{unit}/{experiment}/dosing_events",
-                    encode(dosing_event),
-                    qos=QOS.EXACTLY_ONCE,
-                )
-
-            return volume_moved_ml + remaining_volume_ml
+            pump.stop()  # Surfaces worker failures, and completes hardware stop before final accounting.
+            moved_ml = estimated_volume(calibration, pump.elapsed, completed=pump.completed, requested_ml=ml)
+            report_volume(moved_ml)
+            if continuously or not pump.completed:
+                logger.info(f"Stopped {pump_device}{' early' if not continuously else ''}.")
+            return moved_ml
 
 
 def _get_action_name_for_pump_device(pump_device: PumpCalibrationDevices) -> str:

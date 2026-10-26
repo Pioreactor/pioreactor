@@ -294,7 +294,7 @@ def test_software_pwm_close_forces_low_even_if_stop_fails(monkeypatch: pytest.Mo
     assert pwm.dc == 0.0
 
 
-def test_software_pwm_close_warns_and_keeps_dc_if_force_low_fails(
+def test_software_pwm_close_raises_and_keeps_dc_if_force_low_fails(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     state = _install_fake_lgpio(monkeypatch)
@@ -310,7 +310,8 @@ def test_software_pwm_close_warns_and_keeps_dc_if_force_low_fails(
     assert pwm.dc == 20.0
 
     with caplog.at_level(logging.WARNING, logger="pwm"):
-        pwm.close()
+        with pytest.raises(PWMError, match="Unable to stop software PWM"):
+            pwm.close()
 
     assert pwm.dc == 20.0
     assert any(

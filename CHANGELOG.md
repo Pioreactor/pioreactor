@@ -3,6 +3,8 @@
 #### Breaking changes
 
  - Removed `circulate_media` and `circulate_alt_media` from the Python API and CLI, and removed the corresponding Cycle media controls from the UI. Existing scripts and experiment profiles using these actions must be updated manually.
+ - Doses started by dosing automation now belong to the automation job instead of registering separate `add_media`, `add_alt_media`, or `remove_waste` jobs. Pause or stop the automation to interrupt a dose; per-pump stop commands still control standalone pump actions. Custom dosing programs must forward the provided `cancel_event` and MQTT client to built-in pump actions, or observe cancellation when controlling hardware themselves. Removed `DosingAutomationJob.stop_active_pumps()`; pause or disconnect the automation instead.
+ - `PWMPump.by_duration(..., block=False)` now starts a dedicated hardware worker and returns `None`, rather than a `Future`. Use `pump.wait(timeout)` to observe completion and `pump.stop()` to join the worker and surface failures. Thread creation and hardware-start failures are raised by the starting call.
  - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. OD calibrations and fusion estimators need a fixed IR LED intensity, and `auto` could pick a different value on every start. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
  - Replaced `samples_per_second` in `[od_reading.config]` with `seconds_between_readings`, the time between OD readings. For example, to take a reading every 30 minutes:
 

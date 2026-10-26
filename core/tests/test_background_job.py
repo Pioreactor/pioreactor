@@ -238,6 +238,7 @@ def test_block_until_ready_returns_current_readiness() -> None:
 
     job = object.__new__(BackgroundJob)
     object.__setattr__(job, "logger", FakeLogger())
+    object.__setattr__(job, "_shutdown_started", False)
 
     object.__setattr__(job, "state", job.READY)
     assert job.block_until_ready(timeout=0.0)
