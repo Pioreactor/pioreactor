@@ -1,0 +1,1 @@
+import{j as t,B as n,T as o}from"./main-BKTlhejm.js";function s({children:e}){return t.jsx(n,{sx:{display:"flex",justifyContent:"center",alignItems:"center",minHeight:"10vh",py:2,textAlign:"center"},children:t.jsx(o,{variant:"body2",component:"p",color:"text.secondary",children:e})})}export{s as E};

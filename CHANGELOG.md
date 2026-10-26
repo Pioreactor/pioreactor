@@ -2,9 +2,11 @@
 
 #### Breaking changes
 
+ - Changed `pio model get`, `pio model set`, and `pio workers model get <worker>` to print a readable model name by default. Scripts that parse their output as JSON must add `--json`.
+ - Removed `--partition-by-experiment` from `pio run export_experiment_data` and `partition_by_experiment` from the Python export function, export API requests, and export manifest options. Each export already covers one experiment; use `--partition-by-unit` to split CSVs by Pioreactor.
+ - Removed the `ACTIVE` environment variable override. Use `pio active set 0` or `pio active set 1` to change whether the local Pioreactor is in service.
  - Removed `circulate_media` and `circulate_alt_media` from the Python API and CLI, and removed the corresponding Cycle media controls from the UI. Existing scripts and experiment profiles using these actions must be updated manually.
- - Doses started by dosing automation now belong to the automation job instead of registering separate `add_media`, `add_alt_media`, or `remove_waste` jobs. Pause or stop the automation to interrupt a dose; per-pump stop commands still control standalone pump actions. Custom dosing programs must forward the provided `cancel_event` and MQTT client to built-in pump actions, or observe cancellation when controlling hardware themselves. Removed `DosingAutomationJob.stop_active_pumps()`; pause or disconnect the automation instead.
- - `PWMPump.by_duration(..., block=False)` now starts a dedicated hardware worker and returns `None`, rather than a `Future`. Use `pump.wait(timeout)` to observe completion and `pump.stop()` to join the worker and surface failures. Thread creation and hardware-start failures are raised by the starting call.
+ - Changed the custom pump API for dosing automations: `DosingProgram` callables, including overrides of `add_media_to_bioreactor`, `add_alt_media_to_bioreactor`, `remove_waste_from_bioreactor`, and custom `add_<name>_to_bioreactor` functions, must now accept a keyword-only `cancel_event: threading.Event` argument. Forward `cancel_event=cancel_event` and the supplied `mqtt_client` to built-in pump actions, or observe the event and stop the hardware yourself. Cancellation ends that operation permanently, even if the automation is resumed. Functions with the old signature will fail when called by `execute_io_action`.
  - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. OD calibrations and fusion estimators need a fixed IR LED intensity, and `auto` could pick a different value on every start. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
  - Replaced `samples_per_second` in `[od_reading.config]` with `seconds_between_readings`, the time between OD readings. For example, to take a reading every 30 minutes:
 
@@ -19,7 +21,12 @@
 
 #### Enhancements
 
- - Performance improvements
+ - Improved `pio run` startup, cluster status requests, and `.local` hostname resolution, and reduced idle CPU use on the leader. Browser assets are now cached for faster repeat visits, while the UI page itself is refreshed so software updates do not leave browsers loading old assets.
+ - Added `pio active get` and `pio active set <0|1>` to inspect or change whether the local Pioreactor is in service, even without a running web server. Each Pioreactor now remembers its own active status across reboots and checks it locally before starting activities. Setting it inactive stops its activities.
+ - Made the Cameras page and per-Pioreactor camera panel available without setting `[camera] enabled=1` in the leader's config. A connected, supported camera is still required to capture images.
+ - Added upload progress when updating from a release ZIP in the UI. Closing the dialog during upload now cancels it.
+ - Added links from calibration names in log messages to their calibration pages when the message identifies the device.
+ - Calibration and estimator CLI listings now report unreadable or invalid files instead of silently omitting them.
  - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
  - Changing the stirring target RPM while dodging OD readings now takes effect right away. It's only delayed when the change arrives during an OD reading, and then applies as soon as the reading ends.
  - A non-zero `target_rpm_during_od_reading` no longer disturbs the duty cycle stirring has learned for its target RPM.
@@ -28,6 +35,11 @@
 
 #### Bug fixes
 
+ - Fixed OD reading failing to start when its active fusion estimator file was unreadable or invalid. It now logs the problem and continues without `od_fused`.
+ - Fixed invalid or unreadable custom model files preventing other models from loading, and unreadable experiment profile or chart descriptor files preventing their lists from loading. The affected files are now skipped and logged.
+ - Fixed camera operations failing for experiment names containing characters such as `#`, `?`, or `%`.
+ - Fixed pump volume estimates applying the calibration offset repeatedly during a continuous run. Interrupted doses now report the estimated volume for the time the pump actually ran, capped at the requested volume for volume-based doses.
+ - Fixed timed pump shutdown depending on MQTT publishing completing. Pump timing and cancellation now run independently of telemetry publishing.
  - Updated `ca-certificates` to 20250419+deb13u1, which stops trusting the roots behind the compromised eMudhra intermediate CAs (see https://emudhra.we-have-a-problem.com/). The package is bundled with the update, so offline Pioreactors get it too.
  - Fixed OD calibrations from the UI sometimes fitting a straight line through clearly curved data, even though the fit was labelled a cubic spline. This happened when most standards were at low OD, which is typical for a dilution series. The automatic spline fit now also tries knots spread evenly across the measured range, so it can follow the curve at high OD. Redo any OD calibration whose fitted curve looks straight but whose points don't. Stirring calibrations use the same fit and may also fit more closely.
  - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.

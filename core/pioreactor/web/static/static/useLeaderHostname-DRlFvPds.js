@@ -1,1 +1,0 @@
-import{R as r,o}from"./main-v2JhP43B.js";let t=null;function s(){if(t===null){let e=null;t=Promise.resolve(o(l=>{e=l["cluster.topology"]?.leader_hostname||null})).then(()=>(e===null&&(t=null),e))}return t}function f(){const[e,l]=r.useState(null);return r.useEffect(()=>{let n=!1;return s().then(a=>{n||l(a)}),()=>{n=!0}},[]),e}export{f as u};

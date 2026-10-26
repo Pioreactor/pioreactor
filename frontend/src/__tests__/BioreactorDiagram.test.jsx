@@ -212,8 +212,8 @@ describe("BioreactorDiagram SVG", () => {
     );
   });
 
-  test("updates idle telemetry, liquid volume, and the liquid-pump warning without animation", () => {
-    const diagram = renderDiagram();
+  test.each([20, 40])("updates the %i mL telemetry and shows the pump warning outside the SVG", (size) => {
+    const diagram = renderDiagram({size});
     const svg = diagram.getByRole("img", {name: "Bioreactor diagram"});
     const led = svg.querySelector('[data-led="A"] rect');
     const heater = svg.querySelector('[data-part="heater"] rect');
@@ -225,16 +225,19 @@ describe("BioreactorDiagram SVG", () => {
     sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {2: 25, 5: 50}});
     expect(diagram.getByText("Temp: 31°C")).toBeInTheDocument();
     expect(diagram.getByText("nOD: 0.8")).toBeInTheDocument();
-    expect(diagram.getByText(/diagram above may not be an accurate/)).toBeInTheDocument();
+    const warning = diagram.getByRole("alert");
+    expect(warning).toBeVisible();
+    expect(svg.contains(warning)).toBe(false);
+    expect(svg.nextElementSibling).toBe(warning);
     [led, heater, mediaTube].forEach((element, index) => {
       expect(element.getAttribute("fill")).not.toBe(initialFills[index]);
     });
     diagram.rerender(
-      <BioreactorDiagram experiment="experiment-1" unit="unit-1" config={config} size={20} liquidVolume={15} />,
+      <BioreactorDiagram experiment="experiment-1" unit="unit-1" config={config} size={size} liquidVolume={15} />,
     );
     expect(diagram.getByText("15 mL")).toBeInTheDocument();
     sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {}});
-    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
+    expect(diagram.getByText(/diagram above may not be an accurate/i)).not.toBeVisible();
     expect(window.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
@@ -261,9 +264,9 @@ describe("BioreactorDiagram SVG", () => {
     const initialFill = airStone.getAttribute("fill");
     sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {4: 35}});
     expect(airStone.getAttribute("fill")).not.toBe(initialFill);
-    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
+    expect(diagram.getByText(/diagram above may not be an accurate/i)).not.toBeVisible();
     sendTelemetry("pwms/channel_dc", {timestamp: "2026-01-01T00:00:00.000Z", channels: {}});
     expect(airStone).toHaveAttribute("fill", initialFill);
-    expect(diagram.queryByText(/diagram above may not be an accurate/)).not.toBeInTheDocument();
+    expect(diagram.getByText(/diagram above may not be an accurate/i)).not.toBeVisible();
   });
 });
