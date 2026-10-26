@@ -23,8 +23,6 @@ lazy_subcommands: dict[str, str] = {
     "pumps": "pioreactor.actions.pumps.click_pumps",
     "add_media": "pioreactor.actions.pump.click_add_media",
     "remove_waste": "pioreactor.actions.pump.click_remove_waste",
-    "circulate_media": "pioreactor.actions.pump.click_circulate_media",
-    "circulate_alt_media": "pioreactor.actions.pump.click_circulate_alt_media",
     "od_blank": "pioreactor.actions.od_blank.click_od_blank",
     "camera_snapshot": "pioreactor.actions.camera_snapshot.click_camera_snapshot",
     "self_test": "pioreactor.actions.self_test.click_self_test",

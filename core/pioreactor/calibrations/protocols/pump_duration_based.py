@@ -133,14 +133,12 @@ def _execute_pump_for_calibration(
 
 
 def start_duration_based_session(pump_device: PumpCalibrationDevices) -> CalibrationSession:
-    # Calibration needs exclusive control of pumping, including circulation jobs.
+    # Calibration needs exclusive control of pumping.
     conflicting_jobs = [
         "dosing_automation",
         "add_media",
         "add_alt_media",
         "remove_waste",
-        "circulate_media",
-        "circulate_alt_media",
     ]
     running_jobs = [
         job for job, running in zip(conflicting_jobs, is_pio_job_running(conflicting_jobs)) if running

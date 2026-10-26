@@ -60,7 +60,6 @@ import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
 import AutomationAdvancedConfigButton from "./components/AutomationAdvancedConfigDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
-import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
@@ -1264,28 +1263,6 @@ function SettingsActionsDialog({
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <Typography  gutterBottom>
-            Cycle Media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media periodically and waste pump continuously.
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_media" unit={unit} experiment={experiment} job={jobs.circulate_media} />
-
-          <ControlDivider/>
-
-          <Typography  gutterBottom>
-            Cycle alternative media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media periodically and waste pump continuously.
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_alt_media" unit={unit} experiment={experiment} job={jobs.circulate_alt_media} />
-
-          <ControlDivider/>
-
           <Alert severity="warning" sx={{mb: '10px', mt: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
           <Typography  gutterBottom>
@@ -2111,28 +2088,6 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
 
         </TabPanel>
         <TabPanel value={tabValue} index={2}>
-          <Typography  gutterBottom>
-            Cycle Media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media pump periodically and waste pump continuously.
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_media" unit={broadcastUnit} experiment={experiment} />
-
-          <ControlDivider/>
-
-          <Typography  gutterBottom>
-            Cycle alternative media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds)  by running the alt-media pump periodically and waste pump continuously.
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_alt_media" unit={broadcastUnit} experiment={experiment} />
-
-          <ControlDivider/>
-
           <Alert severity="warning" sx={{mb: '10px', mt: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
           <Typography  gutterBottom>

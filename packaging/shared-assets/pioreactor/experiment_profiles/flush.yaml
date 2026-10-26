@@ -1,0 +1,55 @@
+experiment_profile_name: Flush
+version: "1.0"
+
+metadata:
+  author: Pioreactor
+  description: >-
+    Exchange media in ten small doses over ten minutes. Requires active media
+    and waste pump calibrations, primed tubing, and room for each media dose
+    above the efflux-tube level. Stop other dosing before running. Check that
+    each dose finishes within 30 seconds and monitor the liquid level.
+
+# Runs on every active Pioreactor assigned to the selected experiment.
+# For one Pioreactor, move jobs under pioreactors: <unit name>: jobs:.
+# For alternative media, change add_media below to add_alt_media.
+# Each cycle adds media, then drains back toward the efflux-tube level.
+# Waste volume is a calibrated pump displacement; the pump may also draw air.
+# The defaults add 10 mL in total, not ten complete vessel-volume exchanges.
+# Timing is scheduled, not gated on successful drainage: stop if a pump fails.
+# When changing the cadence, adjust every, the waste offset, both max_time
+# values, and both final stop times together. Use a whole number of cycles.
+# Stopping early can leave added media without its following waste dose.
+inputs:
+  media_ml: 1.0
+  waste_ml: 2.0
+
+common:
+  jobs:
+    add_media:
+      actions:
+        - type: repeat
+          t: 0s
+          every: 1m
+          max_time: 10m
+          actions:
+            - type: start
+              t: 0s
+              options:
+                ml: ${{ media_ml }}
+                source_of_event: flush
+        - type: stop
+          t: 10m
+    remove_waste:
+      actions:
+        - type: repeat
+          t: 0s
+          every: 1m
+          max_time: 10m
+          actions:
+            - type: start
+              t: 30s
+              options:
+                ml: ${{ waste_ml }}
+                source_of_event: flush
+        - type: stop
+          t: 10m

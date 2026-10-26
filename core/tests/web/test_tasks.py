@@ -1452,7 +1452,7 @@ def test_pio_run_fast_fail_raises_runtime_error(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(tasks, "Popen", lambda *args, **kwargs: FakeProc())
 
     with pytest.raises(RuntimeError, match="Command exited during startup grace window. Exit code 2."):
-        tasks.pio_run.call_local("circulate_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})
+        tasks.pio_run.call_local("add_alt_media", "--duration", "bad", env={"EXPERIMENT": "exp1"})
 
 
 def test_update_app_across_cluster_excludes_leader_from_worker_phase(

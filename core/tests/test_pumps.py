@@ -13,14 +13,12 @@ from pioreactor import structs
 from pioreactor.actions.pump import _get_pin
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import circulate_media
 from pioreactor.actions.pump import publish_async
 from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.exc import CalibrationError
-from pioreactor.exc import PWMError
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
@@ -922,164 +920,6 @@ def test_pumps_can_run_in_background() -> None:
         p.stop()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
-
-
-def test_media_circulation() -> None:
-    exp = "test_media_circulation"
-    media_added, waste_removed = circulate_media(1, unit, exp)
-    assert waste_removed > media_added
-
-
-def test_media_circulation_uses_remaining_duration_for_final_media_pulse(monkeypatch) -> None:
-    exp = "test_media_circulation_uses_remaining_duration"
-    media_durations: list[float] = []
-
-    class FakeExitEvent:
-        def is_set(self) -> bool:
-            return False
-
-        def wait(self, timeout: float) -> bool:
-            return False
-
-    class FakeLifecycle:
-        mqtt_client = FakeMQTTClient()
-        exit_event = FakeExitEvent()
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args) -> None:
-            return None
-
-    class FakePump:
-        def __init__(self, unit, experiment, pin, calibration, mqtt_client=None, logger=None) -> None:
-            self.pin = pin
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args) -> None:
-            return None
-
-        def continuously(self, block: bool) -> None:
-            return None
-
-        def by_duration(self, duration: float, block: bool) -> None:
-            if self.pin == 2:
-                media_durations.append(duration)
-
-        def stop(self) -> None:
-            return None
-
-    monkeypatch.setattr(
-        "pioreactor.actions.pump._get_pin", lambda pump_device: 1 if pump_device == "waste_pump" else 2
-    )
-    monkeypatch.setattr("pioreactor.actions.pump.PWMPump", FakePump)
-    monkeypatch.setattr(
-        "pioreactor.actions.pump.utils.managed_lifecycle", lambda *args, **kwargs: FakeLifecycle()
-    )
-    monkeypatch.setattr("pioreactor.actions.pump.time.sleep", lambda seconds: None)
-
-    media_added, _waste_removed = circulate_media(1.2, unit, exp)
-
-    assert media_durations == pytest.approx([0.85, 0.35])
-    assert media_added == pytest.approx(1.2)
-
-
-def test_media_circulation_cant_run_when_waste_pump_is_running() -> None:
-    from threading import Thread
-
-    exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
-    t = Thread(target=remove_waste, kwargs={"duration": 0.5, "experiment": exp, "unit": unit})
-    t.start()
-    assert wait_for(lambda: is_pio_job_running("remove_waste"), timeout=1.0)
-
-    with pytest.raises(PWMError):
-        circulate_media(1.0, unit, exp)
-
-    t.join()
-
-
-def test_waste_pump_cant_run_when_media_circulation_is_running() -> None:
-    from threading import Thread
-
-    exp = "test_waste_pump_cant_run_when_media_circulation_is_running"
-    t = Thread(target=circulate_media, kwargs={"duration": 0.1, "experiment": exp, "unit": unit})
-    t.start()
-    assert wait_for(lambda: is_pio_job_running("circulate_media"), timeout=1.0)
-
-    assert remove_waste(unit, exp, duration=1.0) == 0
-
-    t.join()
-
-
-def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate() -> None:
-    exp = "test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate"
-    structs.SimplePeristalticPumpCalibration(
-        calibration_name="setup_function",
-        curve_data_=_poly_curve([10.0, 0.0]),
-        recorded_data={"x": [], "y": []},
-        dc=60,
-        hz=100,
-        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
-        voltage=-1.0,
-        calibrated_on_pioreactor_unit=unit,
-    ).set_as_active_calibration_for_device("media_pump")
-
-    structs.SimplePeristalticPumpCalibration(
-        calibration_name="setup_function",
-        curve_data_=_poly_curve([1.0, 0.0]),
-        recorded_data={"x": [], "y": []},
-        dc=60,
-        hz=100,
-        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
-        voltage=-1.0,
-        calibrated_on_pioreactor_unit=unit,
-    ).set_as_active_calibration_for_device("waste_pump")
-
-    media_added, waste_removed = circulate_media(1.0, unit, exp)
-    assert (waste_removed - 2) >= media_added
-
-
-def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate() -> None:
-    exp = "test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate"
-
-    structs.SimplePeristalticPumpCalibration(
-        calibration_name="setup_function",
-        curve_data_=_poly_curve([0.15, 0.0]),
-        recorded_data={"x": [], "y": []},
-        dc=60,
-        hz=100,
-        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
-        voltage=-1.0,
-        calibrated_on_pioreactor_unit=unit,
-    ).set_as_active_calibration_for_device("media_pump")
-
-    structs.SimplePeristalticPumpCalibration(
-        calibration_name="setup_function",
-        curve_data_=_poly_curve([1.0, 0.0]),
-        recorded_data={"x": [], "y": []},
-        dc=60,
-        hz=100,
-        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
-        voltage=-1.0,
-        calibrated_on_pioreactor_unit=unit,
-    ).set_as_active_calibration_for_device("waste_pump")
-
-    media_added, waste_removed = circulate_media(1.0, unit, exp)
-    assert (waste_removed - 2) >= media_added
-
-
-def test_media_circulation_works_without_calibration_since_we_are_entering_duration() -> None:
-    exp = "test_media_circulation_works_without_calibration_since_we_are_entering_duration"
-
-    with local_persistent_storage("active_calibrations") as c:
-        c.pop("media_pump")
-        c.pop("alt_media_pump")
-        c.pop("waste_pump")
-
-    media_added, waste_removed = circulate_media(1.0, unit, exp)
-    assert waste_removed >= media_added
 
 
 @pytest.mark.slow

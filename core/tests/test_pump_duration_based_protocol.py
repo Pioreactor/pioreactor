@@ -39,8 +39,6 @@ def test_get_execute_pump_for_device_unknown_raises() -> None:
         "add_media",
         "add_alt_media",
         "remove_waste",
-        "circulate_media",
-        "circulate_alt_media",
     ],
 )
 def test_start_pump_session_rejects_conflicting_jobs(

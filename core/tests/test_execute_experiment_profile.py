@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from collections.abc import Callable
 from contextlib import contextmanager
+from pathlib import Path
+from sched import scheduler
 from threading import Event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -45,6 +47,39 @@ from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import current_utc_datetime
 from tests.conftest import capture_requests
+
+
+def test_bundled_flush_profile_runs_ten_finite_cycles(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = 0.0
+
+    def advance(seconds: float) -> None:
+        nonlocal now
+        now += seconds
+
+    class FastScheduler(scheduler):
+        def run(self, blocking: bool = True) -> None:
+            super().run(blocking=True)
+
+    monkeypatch.setattr(experiment_profile_module, "scheduler", lambda: FastScheduler(lambda: now, advance))
+    profile_path = (
+        Path(__file__).parents[2] / "packaging/shared-assets/pioreactor/experiment_profiles/flush.yaml"
+    )
+
+    with capture_requests() as requests:
+        execute_experiment_profile(str(profile_path), "_testing_experiment")
+
+    assert now == 600
+    for unit in ("unit1", "unit2"):
+        commands = [request for request in requests if request.headers["X-Pioreactor-Target"] == unit]
+        assert len(commands) == 22
+        for media, waste in zip(commands[:20:2], commands[1:20:2]):
+            assert media.path == "/unit_api/jobs/run/job_name/add_media"
+            assert waste.path == "/unit_api/jobs/run/job_name/remove_waste"
+            assert media.json["options"] == {"ml": 1.0, "source_of_event": "flush"}
+            assert waste.json["options"] == {"ml": 2.0, "source_of_event": "flush"}
+            assert media.json["env"]["JOB_SOURCE"] == waste.json["env"]["JOB_SOURCE"]
+        assert all(command.path == "/unit_api/jobs/stop" for command in commands[20:])
+        assert {command.json["job_name"] for command in commands[20:]} == {"add_media", "remove_waste"}
 
 
 def test_hours_to_seconds() -> None:
@@ -289,9 +324,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -302,7 +335,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
     ) -> Response:
         assert address == "unit1.local"
         assert headers == {"X-Pioreactor-Target": "unit1"}
-        assert endpoint == "/unit_api/jobs/run/job_name/circulate_alt_media"
+        assert endpoint == "/unit_api/jobs/run/job_name/add_alt_media"
         return Response(
             address + endpoint,
             202,
@@ -344,7 +377,7 @@ def test_execute_experiment_profile_start_failure_is_logged(
     ):
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert "Failed to start `circulate_alt_media` on `unit1`." in caplog.text
+    assert "Failed to start `add_alt_media` on `unit1`." in caplog.text
     assert "Command exited during startup grace window." in caplog.text
 
 
@@ -357,9 +390,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -369,7 +400,7 @@ def test_execute_experiment_profile_start_preserves_unit_api_error_details(
         patch(
             "pioreactor.pubsub.post_into",
             return_value=Response(
-                "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                "unit1.local/unit_api/jobs/run/job_name/add_alt_media",
                 409,
                 {},
                 encode(
@@ -400,9 +431,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -419,7 +448,7 @@ def test_execute_experiment_profile_start_logs_resolved_address_on_http_exceptio
         execute_experiment_profile("profile.yaml", experiment)
 
     assert (
-        "Unable to submit start command for `circulate_alt_media` to `unit1` at unit1.local after 3 attempts. Is it online?"
+        "Unable to submit start command for `add_alt_media` to `unit1` at unit1.local after 3 attempts. Is it online?"
         in caplog.text
     )
 
@@ -433,9 +462,7 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -447,7 +474,7 @@ def test_execute_experiment_profile_start_retries_initial_submit_failure(
             side_effect=[
                 HTTPException("[Errno 111] Connection refused"),
                 Response(
-                    "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                    "unit1.local/unit_api/jobs/run/job_name/add_alt_media",
                     200,
                     {},
                     encode({"result": {"ok": True}}),
@@ -607,9 +634,7 @@ def test_stopping_profile_does_not_retry_failed_start_submit(
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -627,7 +652,7 @@ def test_stopping_profile_does_not_retry_failed_start_submit(
         with patch("pioreactor.pubsub.post_into", side_effect=_stop_then_fail):
             execute_experiment_profile("profile.yaml", experiment)
 
-    assert submitted == ["/unit_api/jobs/run/job_name/circulate_alt_media"]
+    assert submitted == ["/unit_api/jobs/run/job_name/add_alt_media"]
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -639,9 +664,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
         version="1.0",
         experiment_profile_name="test_profile",
         pioreactors={
-            "unit1": PioreactorSpecificBlock(
-                jobs={"circulate_alt_media": Job(actions=[Start(hours_elapsed=0.0)])}
-            )
+            "unit1": PioreactorSpecificBlock(jobs={"add_alt_media": Job(actions=[Start(hours_elapsed=0.0)])})
         },
         metadata=Metadata(author="test_author"),
     )
@@ -651,7 +674,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
         patch(
             "pioreactor.pubsub.post_into",
             return_value=Response(
-                "unit1.local/unit_api/jobs/run/job_name/circulate_alt_media",
+                "unit1.local/unit_api/jobs/run/job_name/add_alt_media",
                 202,
                 {},
                 encode({"result_url_path": "/unit_api/task_results/task-1"}),
@@ -667,7 +690,7 @@ def test_execute_experiment_profile_start_reports_result_poll_failure_without_re
 
     assert mock_post_into.call_count == 1
     assert (
-        "Submitted start command for `circulate_alt_media` to unit1 at unit1.local, but couldn't read the task result. The job may still have started."
+        "Submitted start command for `add_alt_media` to unit1 at unit1.local, but couldn't read the task result. The job may still have started."
         in caplog.text
     )
 

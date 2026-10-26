@@ -2710,7 +2710,7 @@ check_thermostat_job() {
 
 check_pump_actions() {
   info "Testing pump actions via pio commands"
-  local actions=(add_media add_alt_media remove_waste circulate_media circulate_alt_media)
+  local actions=(add_media add_alt_media remove_waste)
 
   for action in "${actions[@]}"; do
     if pio run "$action" --duration 1 >/dev/null; then
