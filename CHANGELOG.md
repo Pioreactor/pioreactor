@@ -2,11 +2,13 @@
 
 #### Breaking changes
 
- - Changed `pio model get`, `pio model set`, and `pio workers model get <worker>` to print a readable model name by default. Scripts that parse their output as JSON must add `--json`.
- - Removed `--partition-by-experiment` from `pio run export_experiment_data` and `partition_by_experiment` from the Python export function, export API requests, and export manifest options. Each export already covers one experiment; use `--partition-by-unit` to split CSVs by Pioreactor.
- - Removed the `ACTIVE` environment variable override. Use `pio active set 0` or `pio active set 1` to change whether the local Pioreactor is in service.
+##### Pumps and dosing automations
+
  - Removed `circulate_media` and `circulate_alt_media` from the Python API and CLI, and removed the corresponding Cycle media controls from the UI. Existing scripts and experiment profiles using these actions must be updated manually.
  - Changed the custom pump API for dosing automations: `DosingProgram` callables, including overrides of `add_media_to_bioreactor`, `add_alt_media_to_bioreactor`, `remove_waste_from_bioreactor`, and custom `add_<name>_to_bioreactor` functions, must now accept a keyword-only `cancel_event: threading.Event` argument. Forward `cancel_event=cancel_event` and the supplied `mqtt_client` to built-in pump actions, or observe the event and stop the hardware yourself. Cancellation ends that operation permanently, even if the automation is resumed. Functions with the old signature will fail when called by `execute_io_action`.
+
+##### OD reading configuration
+
  - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. OD calibrations and fusion estimators need a fixed IR LED intensity, and `auto` could pick a different value on every start. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
  - Replaced `samples_per_second` in `[od_reading.config]` with `seconds_between_readings`, the time between OD readings. For example, to take a reading every 30 minutes:
 
@@ -16,56 +18,94 @@
    ```
 
    The update automatically converts your existing value in `config.ini` and `unit_config.ini` on each Pioreactor, for example `samples_per_second=0.2` becomes `seconds_between_readings=5`. Experiment profiles, scripts, or plugins that set or read `samples_per_second` need to use the new name.
+
+##### Stirring configuration
+
  - Removed `target_rpm_outside_od_reading` from `[stirring.config]` and the `--target-rpm-outside-od-reading` option of `pio run stirring`. Between OD readings, stirring now always uses its target RPM, set by `initial_target_rpm` or `--target-rpm`, or changed live in the UI. The update moves an existing `target_rpm_outside_od_reading` value to `initial_target_rpm` where OD dodging is enabled, then removes the old setting.
  - The maximum stirring target RPM is now 2000, the fastest the RPM sensor can reliably measure. Higher targets are reduced to 2000.
 
+##### CLI and exports
+
+ - Removed the `ACTIVE` environment variable override. Use `pio active set 0` or `pio active set 1` to change whether the local Pioreactor is in service.
+ - Changed `pio model get`, `pio model set`, and `pio workers model get <worker>` to print a readable model name by default. Scripts that parse their output as JSON must add `--json`.
+ - Removed `--partition-by-experiment` from `pio run export_experiment_data` and `partition_by_experiment` from the Python export function, export API requests, and export manifest options. Each export already covers one experiment; use `--partition-by-unit` to split CSVs by Pioreactor.
+
 #### Enhancements
 
- - Improved `pio run` startup, cluster status requests, and `.local` hostname resolution, and reduced idle CPU use on the leader. Browser assets are now cached for faster repeat visits, while the UI page itself is refreshed so software updates do not leave browsers loading old assets.
- - Added `pio active get` and `pio active set <0|1>` to inspect or change whether the local Pioreactor is in service, even without a running web server. Each Pioreactor now remembers its own active status across reboots and checks it locally before starting activities. Setting it inactive stops its activities.
- - Made the Cameras page and per-Pioreactor camera panel available without setting `[camera] enabled=1` in the leader's config. A connected, supported camera is still required to capture images.
- - Added upload progress when updating from a release ZIP in the UI. Closing the dialog during upload now cancels it.
+##### Calibrations
+
+ - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
+ - Duration-based pump calibration now asks for the smallest and largest dose you want to cover, instead of a comma-separated list of volumes. Only the smallest and largest values in the list were ever used, so the list made it look like every volume would be measured. The step now also says what will run: 10 pump runs at three durations spread across that range.
  - Added links from calibration names in log messages to their calibration pages when the message identifies the device.
  - Calibration and estimator CLI listings now report unreadable or invalid files instead of silently omitting them.
- - Calibration protocols in the UI now end with a review step before anything is saved. It shows every recorded point in a table with the fitted curve, so you can fix a value you typed in wrong (an OD600 or a pumped volume) or uncheck a bad point to leave it out of the fit, then press Update chart to see the new fit before saving. This covers OD600 calibration using standards, duration-based pump calibration, DC-based stirring calibration (useful for dropping a reading where the stir bar stalled), and the fusion OD protocols. Previously, a mistyped value meant redoing the measurement or the whole calibration. Stirring calibrations run on all Pioreactors at once keep every reading, and CLI calibrations save as before.
+
+##### Stirring and dosing
+
  - Changing the stirring target RPM while dodging OD readings now takes effect right away. It's only delayed when the change arrives during an OD reading, and then applies as soon as the reading ends.
  - A non-zero `target_rpm_during_od_reading` no longer disturbs the duty cycle stirring has learned for its target RPM.
  - Large doses are now split into the fewest equal sub-doses of at most `max_subdose` mL, for example 2.1 mL becomes 3 × 0.7 mL instead of 4 × 0.525 mL. This means fewer pump cycles and more accurate sub-doses.
- - Duration-based pump calibration now asks for the smallest and largest dose you want to cover, instead of a comma-separated list of volumes. Only the smallest and largest values in the list were ever used, so the list made it look like every volume would be measured. The step now also says what will run: 10 pump runs at three durations spread across that range.
+
+##### Cluster controls and UI
+
+ - Added `pio active get` and `pio active set <0|1>` to inspect or change whether the local Pioreactor is in service, even without a running web server. Each Pioreactor now remembers its own active status across reboots and checks it locally before starting activities. Setting it inactive stops its activities.
+ - Made the Cameras page and per-Pioreactor camera panel available without setting `[camera] enabled=1` in the leader's config. A connected, supported camera is still required to capture images.
+ - Added upload progress when updating from a release ZIP in the UI. Closing the dialog during upload now cancels it.
+ - Added uploading and downloading of experiment profile `.yaml` files on the Experiment profiles page, so you can share profiles between clusters or back them up.
+
+##### Performance
+
+ - Improved `pio run` startup, cluster status requests, and `.local` hostname resolution, and reduced idle CPU use on the leader. Browser assets are now cached for faster repeat visits, while the UI page itself is refreshed so software updates do not leave browsers loading old assets.
 
 #### Bug fixes
 
- - Fixed OD reading failing to start when its active fusion estimator file was unreadable or invalid. It now logs the problem and continues without `od_fused`.
- - Fixed invalid or unreadable custom model files preventing other models from loading, and unreadable experiment profile or chart descriptor files preventing their lists from loading. The affected files are now skipped and logged.
- - Fixed camera operations failing for experiment names containing characters such as `#`, `?`, or `%`.
- - Fixed pump volume estimates applying the calibration offset repeatedly during a continuous run. Interrupted doses now report the estimated volume for the time the pump actually ran, capped at the requested volume for volume-based doses.
- - Fixed timed pump shutdown depending on MQTT publishing completing. Pump timing and cancellation now run independently of telemetry publishing.
+##### Security
+
  - Updated `ca-certificates` to 20250419+deb13u1, which stops trusting the roots behind the compromised eMudhra intermediate CAs (see https://emudhra.we-have-a-problem.com/). The package is bundled with the update, so offline Pioreactors get it too.
- - Fixed OD calibrations from the UI sometimes fitting a straight line through clearly curved data, even though the fit was labelled a cubic spline. This happened when most standards were at low OD, which is typical for a dilution series. The automatic spline fit now also tries knots spread evenly across the measured range, so it can follow the curve at high OD. Redo any OD calibration whose fitted curve looks straight but whose points don't. Stirring calibrations use the same fit and may also fit more closely.
- - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.
- - Fixed OD calibrations and fusion estimators possibly being recorded at the wrong scale when `ref_normalization=unity`. Calibration sessions reused the IR reference value saved by an earlier session, which could make recorded voltages far too small and leave calibrated OD stuck at a constant value. Each calibration session now starts with a fresh IR reference. If calibrated OD stayed flat during an experiment and logged "Signal above suggested calibration range", redo that calibration.
- - OD reading now refuses to start when an active OD calibration was made at a different IR LED intensity, with an error naming the calibration and both intensities. Previously it started anyway and logged an error on every reading. If the active fusion estimator's IR LED intensity doesn't match, OD reading starts without `od_fused` and logs an error.
- - Fixed growth rate calculation repeatedly logging "Failed to decode message: Input data was truncated" while OD readings were failing.
+
+##### Pumps and dosing automations
+
+ - Fixed timed pump shutdown depending on MQTT publishing completing. Pump timing and cancellation now run independently of telemetry publishing.
+ - Pausing a dosing automation in the middle of a dose now cancels the rest of that dose. Previously the automation waited, and resuming it, even hours later, finished the old dose, which was based on outdated OD and volume readings.
+ - Fixed a dosing automation possibly pumping right after being resumed using a vial-volume check made before it was paused. The volume is now checked immediately before every pump.
+ - When a dose would overflow the vial, the waste for media already added is now removed before the dosing automation pauses. Previously, the vial was left fuller than before the dose.
+ - Fixed pump volume estimates applying the calibration offset repeatedly during a continuous run. Interrupted doses now report the estimated volume for the time the pump actually ran, capped at the requested volume for volume-based doses.
+ - Fixed the "Waste was under-removed" warning being logged several times for a single dose.
  - The turbidostat no longer warns about multiple OD signal channels when its biomass signal is `od_fused` or `normalized_od`.
- - Fixed a clock time set from the UI being lost if the Pioreactor restarted within about 15 minutes. The corrected time is now saved immediately, so it survives a power cycle on Pioreactors without a real-time clock.
+
+##### OD readings, calibrations, and growth rate
+
+ - Fixed OD calibrations and fusion estimators possibly being recorded at the wrong scale when `ref_normalization=unity`. Calibration sessions reused the IR reference value saved by an earlier session, which could make recorded voltages far too small and leave calibrated OD stuck at a constant value. Each calibration session now starts with a fresh IR reference. If calibrated OD stayed flat during an experiment and logged "Signal above suggested calibration range", redo that calibration.
+ - Fixed OD calibrations from the UI sometimes fitting a straight line through clearly curved data, even though the fit was labelled a cubic spline. This happened when most standards were at low OD, which is typical for a dilution series. The automatic spline fit now also tries knots spread evenly across the measured range, so it can follow the curve at high OD. Redo any OD calibration whose fitted curve looks straight but whose points don't. Stirring calibrations use the same fit and may also fit more closely.
+ - OD reading now refuses to start when an active OD calibration was made at a different IR LED intensity, with an error naming the calibration and both intensities. Previously it started anyway and logged an error on every reading. If the active fusion estimator's IR LED intensity doesn't match, OD reading starts without `od_fused` and logs an error.
+ - Fixed OD reading failing to start when its active fusion estimator file was unreadable or invalid. It now logs the problem and continues without `od_fused`.
+ - OD blanking now stirs at `initial_target_rpm` from `[stirring.config]`, instead of always using 500 RPM.
+ - Fixed growth rate calculation crashing with a `KeyError` when its cached normalization statistics were for different photodiode channels, for example after switching between raw OD and fused OD. The statistics are now recomputed.
+ - Fixed growth rate calculation repeatedly logging "Failed to decode message: Input data was truncated" while OD readings were failing.
+
+##### Stirring
+
  - Fixed stirring failing to recover its speed after each OD reading when dodging with `target_rpm_during_od_reading=0`. The learned duty cycle was reset at every reading, which was worse without a stirring calibration.
  - Fixed stirring staying stopped when OD reading or dodging was stopped in the middle of an OD reading.
  - Fixed OD dodging without RPM feedback (`use_rpm=0`) leaving the stirring fan off. It now stops for each OD reading and resumes afterwards.
  - Fixed stirring possibly spinning up during an OD reading when it was resumed from paused while dodging.
  - `pio run stirring --target-rpm 0` now targets 0 RPM, instead of using `initial_target_rpm`.
- - Pausing a dosing automation in the middle of a dose now cancels the rest of that dose. Previously the automation waited, and resuming it, even hours later, finished the old dose, which was based on outdated OD and volume readings.
- - Fixed a dosing automation possibly pumping right after being resumed using a vial-volume check made before it was paused. The volume is now checked immediately before every pump.
- - When a dose would overflow the vial, the waste for media already added is now removed before the dosing automation pauses. Previously, the vial was left fuller than before the dose.
- - Fixed the "Waste was under-removed" warning being logged several times for a single dose.
+
+##### Experiment profiles and LEDs
+
  - Stopping an experiment profile now prevents any further actions from starting. Previously, actions due at the same time as the one in progress, including a common action on the remaining Pioreactors, still started before the profile's jobs were stopped, so a short dosing action like `add_media` could still pump after the profile was stopped.
  - Fixed experiment profiles started from the leader's API or the MCP `run_experiment_profile` tool continuing to start and stop jobs on a Pioreactor after it was moved to a different experiment. Their conditions that read another Pioreactor's data, like `${{unit2:od_reading:od1.od > 1.0}}`, also read from the old experiment. Profiles started from the UI weren't affected.
  - Fixed the `light_dark_cycle` LED automation no longer switching between light and dark after it was paused and resumed.
- - Fixed growth rate calculation crashing with a `KeyError` when its cached normalization statistics were for different photodiode channels, for example after switching between raw OD and fused OD. The statistics are now recomputed.
- - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
  - Fixed `led_intensity` staying listed as a running job after all LEDs were turned off, which blocked changing a Pioreactor's model or removing it from the cluster with "Stop activities…".
+
+##### UI, CLI, and system
+
+ - Fixed a clock time set from the UI being lost if the Pioreactor restarted within about 15 minutes. The corrected time is now saved immediately, so it survives a power cycle on Pioreactors without a real-time clock.
  - Fixed `pio workers update-active <hostname> <0|1>` always failing with an error.
  - Fixed the UI being unable to open, set active, or delete a calibration or estimator whose name contains `#`, `?` or `%`. Its page showed "Unable to find calibration data" even though the calibration was saved.
+ - Fixed camera operations failing for experiment names containing characters such as `#`, `?`, or `%`.
  - Fixed MCP tools failing to find an experiment whose name contains a space. The name was URL-encoded twice on its way to the leader.
+ - Fixed invalid or unreadable custom model files preventing other models from loading, and unreadable experiment profile or chart descriptor files preventing their lists from loading. The affected files are now skipped and logged.
+ - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
 
 ### 26.11.1
 

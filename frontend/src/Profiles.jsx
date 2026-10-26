@@ -19,14 +19,16 @@ import {DisplayProfile} from "./components/DisplayProfile"
 import DisplaySourceCode from "./components/DisplaySourceCode"
 import CodeIcon from '@mui/icons-material/Code';
 import AddIcon from '@mui/icons-material/Add';
-import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import UploadIcon from '@mui/icons-material/Upload';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { RunningProfilesProvider, useRunningProfiles } from './providers/RunningProfilesContext';
 
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate, useParams } from 'react-router';
 import SelectButton from "./components/SelectButton";
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import ExperimentProfileIcon from './components/ExperimentProfileIcon';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { useConfirm } from 'material-ui-confirm';
@@ -35,6 +37,7 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
 import { convertYamlToProfilePreview } from "./utils/experimentProfilePreview";
+import { saveNewExperimentProfile } from "./utils/experimentProfiles";
 import { textIcon } from "./theme";
 import EmptyState from "./components/EmptyState";
 
@@ -44,6 +47,13 @@ const INITIAL_START_PROFILE_STATE = {
   error: "",
   profileFilename: "",
   dryRun: false,
+};
+
+const INITIAL_UPLOAD_STATE = {
+  pending: false,
+  error: "",
+  code: "",
+  filename: "",
 };
 
 /**
@@ -64,6 +74,8 @@ function RunExperimentProfilesContent({
   const confirm = useConfirm();
   const navigate = useNavigate();
   const { startProfile } = useRunningProfiles();
+  const [menuAnchorEl, setMenuAnchorEl] = React.useState(null);
+  const closeMenu = () => setMenuAnchorEl(null);
 
   const [startProfileState, startProfileAction, startInFlight] = React.useActionState(async () => {
     if (!selectedExperimentProfileRecord) {
@@ -103,6 +115,7 @@ function RunExperimentProfilesContent({
   };
 
   const deleteProfile = () => {
+    closeMenu();
     confirm({
       title: `Delete this profile?`,
       description: "This action is permanent.",
@@ -127,8 +140,12 @@ function RunExperimentProfilesContent({
     setViewSource(!viewSource)
   };
 
+  const profileSourceReady =
+    selectedExperimentProfile !== "" && !selectedProfileDetail.loading && !selectedProfileDetail.error;
+
   const duplicate = () => {
-    if (!selectedExperimentProfile || selectedProfileDetail.loading || selectedProfileDetail.error) {
+    closeMenu();
+    if (!profileSourceReady) {
       return;
     }
 
@@ -139,6 +156,19 @@ function RunExperimentProfilesContent({
         initialFilename: `${baseName}_copy`,
       },
     });
+  };
+
+  const download = () => {
+    closeMenu();
+    const blob = new Blob([selectedProfileDetail.source], { type: "application/x-yaml" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", selectedExperimentProfile);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
@@ -192,30 +222,28 @@ function RunExperimentProfilesContent({
             <EditIcon fontSize="small" sx={textIcon}/>
             Edit
           </Button>
-          <Button
-            variant="text"
-            size="small"
-            color="primary"
-            aria-label="duplicate profile"
-            onClick={duplicate}
-            sx={{ mr: "5px" }}
-            disabled={selectedExperimentProfile === '' || selectedProfileDetail.loading || !!selectedProfileDetail.error}
-          >
-            <ContentCopyOutlinedIcon fontSize="small" sx={textIcon}/>
-            Duplicate
-          </Button>
-          <Button
-            variant="text"
-            size="small"
-            color="secondary"
-            aria-label="delete profile"
-            onClick={deleteProfile}
-            sx={{ mr: "5px" }}
-            disabled={selectedExperimentProfile === ''}
-          >
-            <DeleteOutlineIcon fontSize="small" sx={textIcon}/>
-            Delete
-          </Button>
+          <span>
+            <IconButton
+              size="small"
+              aria-label={`More actions for ${selectedExperimentProfileRecord?.profile.experiment_profile_name ?? "profile"}`}
+              disabled={selectedExperimentProfile === ''}
+              onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          </span>
+          <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={closeMenu}>
+            <MenuItem onClick={duplicate} disabled={!profileSourceReady}>
+              Duplicate
+            </MenuItem>
+            <MenuItem onClick={download} disabled={!profileSourceReady}>
+              Download
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={deleteProfile} sx={{ color: "secondary.main" }}>
+              Delete
+            </MenuItem>
+          </Menu>
         </Box>
       </Grid>
       <Grid size={12}>
@@ -372,6 +400,7 @@ function RunningProfilesContainer() {
 function Profiles(props) {
   const { experimentMetadata } = useExperiment();
   const { profileFilename } = useParams();
+  const navigate = useNavigate();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
   const [viewSource, setViewSource] = React.useState(false);
@@ -386,6 +415,8 @@ function Profiles(props) {
   const [recentRuns, setRecentRuns] = React.useState([]);
   const [recentLoading, setRecentLoading] = React.useState(false);
   const [recentError, setRecentError] = React.useState("");
+  const [profilesVersion, setProfilesVersion] = React.useState(0);
+  const [uploadState, setUploadState] = React.useState(INITIAL_UPLOAD_STATE);
 
   const selectedExperimentProfile = React.useMemo(() => {
     const availableFiles = Object.keys(experimentProfilesAvailable);
@@ -453,6 +484,44 @@ function Profiles(props) {
     document.title = props.title;
   }, [props.title]);
 
+  const uploadProfile = async (event) => {
+    const file = event.target.files?.[0];
+    // reset so choosing the same file again still fires onChange
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    const filename = file.name.replace(/\.ya?ml$/i, "");
+    setUploadState({ ...INITIAL_UPLOAD_STATE, pending: true });
+    let code = "";
+    try {
+      code = await file.text();
+      await saveNewExperimentProfile(code, filename);
+    } catch (error) {
+      setUploadState({
+        pending: false,
+        error: error?.message || "Unable to upload experiment profile.",
+        code,
+        filename,
+      });
+      return;
+    }
+
+    setUploadState(INITIAL_UPLOAD_STATE);
+    setProfilesVersion((version) => version + 1);
+    navigate(`/experiment-profiles/${encodeURIComponent(`${filename}.yaml`)}`);
+  };
+
+  const openUploadInEditor = () => {
+    navigate('/experiment-profiles/new', {
+      state: {
+        initialCode: uploadState.code,
+        initialFilename: uploadState.filename,
+      },
+    });
+  };
+
   const fetchRecentRuns = React.useCallback(() => {
     // Wait until we know the experiment to avoid hitting `/undefined/...`
     if (!experimentMetadata.experiment) {
@@ -508,7 +577,7 @@ function Profiles(props) {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [profilesVersion]);
 
   React.useEffect(() => {
     fetchRecentRuns();
@@ -596,12 +665,42 @@ function Profiles(props) {
                   <AddIcon fontSize="small" sx={textIcon}/>
                   Create new profile
                 </Button>
+                <Button
+                  component="label"
+                  color="primary"
+                  loading={uploadState.pending}
+                >
+                  <UploadIcon fontSize="small" sx={textIcon}/>
+                  Upload profile
+                  <input
+                    hidden
+                    type="file"
+                    accept=".yaml,.yml"
+                    onChange={uploadProfile}
+                    disabled={uploadState.pending}
+                  />
+                </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />
                 <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
               </>
             )}
           />
         </Grid>
+
+        {uploadState.error && (
+          <Grid size={12}>
+            <Alert
+              severity="error"
+              action={(
+                <Button color="inherit" size="small" onClick={openUploadInEditor}>
+                  Open in editor
+                </Button>
+              )}
+            >
+              {uploadState.error}
+            </Alert>
+          </Grid>
+        )}
 
         {/* Left side: For selecting a profile or running a new profile */}
         <Grid
