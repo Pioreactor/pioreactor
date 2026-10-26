@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from collections.abc import Callable
 from contextlib import contextmanager
-from pathlib import Path
-from sched import scheduler
 from threading import Event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -47,39 +45,6 @@ from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import current_utc_datetime
 from tests.conftest import capture_requests
-
-
-def test_bundled_flush_profile_runs_ten_finite_cycles(monkeypatch: pytest.MonkeyPatch) -> None:
-    now = 0.0
-
-    def advance(seconds: float) -> None:
-        nonlocal now
-        now += seconds
-
-    class FastScheduler(scheduler):
-        def run(self, blocking: bool = True) -> None:
-            super().run(blocking=True)
-
-    monkeypatch.setattr(experiment_profile_module, "scheduler", lambda: FastScheduler(lambda: now, advance))
-    profile_path = (
-        Path(__file__).parents[2] / "packaging/shared-assets/pioreactor/experiment_profiles/flush.yaml"
-    )
-
-    with capture_requests() as requests:
-        execute_experiment_profile(str(profile_path), "_testing_experiment")
-
-    assert now == 600
-    for unit in ("unit1", "unit2"):
-        commands = [request for request in requests if request.headers["X-Pioreactor-Target"] == unit]
-        assert len(commands) == 22
-        for media, waste in zip(commands[:20:2], commands[1:20:2]):
-            assert media.path == "/unit_api/jobs/run/job_name/add_media"
-            assert waste.path == "/unit_api/jobs/run/job_name/remove_waste"
-            assert media.json["options"] == {"ml": 1.0, "source_of_event": "flush"}
-            assert waste.json["options"] == {"ml": 2.0, "source_of_event": "flush"}
-            assert media.json["env"]["JOB_SOURCE"] == waste.json["env"]["JOB_SOURCE"]
-        assert all(command.path == "/unit_api/jobs/stop" for command in commands[20:])
-        assert {command.json["job_name"] for command in commands[20:]} == {"add_media", "remove_waste"}
 
 
 def test_hours_to_seconds() -> None:

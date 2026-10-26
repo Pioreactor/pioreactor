@@ -2,8 +2,7 @@
 
 #### Breaking changes
 
- - Removed `circulate_media` and `circulate_alt_media` from the Python API, CLI, and UI. Use the new `Flush` experiment profile as a starting point for finite media/waste doses. It requires active pump calibrations and runs on all active Pioreactors assigned to the selected experiment by default. Existing scripts and profiles using circulation must be updated manually.
-
+ - Removed `circulate_media` and `circulate_alt_media` from the Python API and CLI, and removed the corresponding Cycle media controls from the UI. Existing scripts and experiment profiles using these actions must be updated manually.
  - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. OD calibrations and fusion estimators need a fixed IR LED intensity, and `auto` could pick a different value on every start. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
  - Replaced `samples_per_second` in `[od_reading.config]` with `seconds_between_readings`, the time between OD readings. For example, to take a reading every 30 minutes:
 

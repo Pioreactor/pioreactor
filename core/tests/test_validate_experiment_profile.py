@@ -27,13 +27,6 @@ def test_shared_example_experiment_profiles_are_valid() -> None:
         assert result.ok, f"{profile_file}: {result.diagnostics}"
 
 
-def test_flush_update_asset_matches_provisioning_example() -> None:
-    repo_root = Path(__file__).parents[2]
-    example = repo_root / "packaging/shared-assets/pioreactor/experiment_profiles/flush.yaml"
-    update_asset = repo_root / "core/update_scripts/upcoming/flush.yaml"
-    assert update_asset.read_bytes() == example.read_bytes()
-
-
 def test_validate_profile_returns_error_diagnostic_for_invalid_expression() -> None:
     profile = Profile(
         version="1.0",
