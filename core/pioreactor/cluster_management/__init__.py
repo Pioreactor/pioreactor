@@ -430,7 +430,7 @@ def cluster_status() -> None:
             r.raise_for_status()
             experiment = r.json()["experiment"]
         except HTTPException:
-            experiment = "unknown"
+            experiment = ""
 
         return ip, state, reachable, app_version, experiment
 
