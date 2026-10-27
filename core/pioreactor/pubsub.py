@@ -20,6 +20,7 @@ from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import mqtt_address
+from pioreactor.logging import create_logger
 
 if TYPE_CHECKING:
     from pioreactor import mureq
@@ -109,7 +110,6 @@ def create_client(
         client: Client, userdata: Any, flags: Any, rc: int, properties: Any = None
     ) -> None:
         if rc > 1:
-            from pioreactor.logging import create_logger
             from paho.mqtt.client import connack_string
 
             logger = create_logger("pubsub.create_client", to_mqtt=False)
@@ -157,7 +157,6 @@ def create_client(
             client.connect(hostname, port, keepalive=keepalive)
         except (socket.gaierror, OSError) as e:
             if retries == max_connection_attempts:
-                from pioreactor.logging import create_logger
 
                 create_logger("pubsub.create_client", to_mqtt=False).warning(
                     f"Unable to connect to MQTT broker at {hostname}:{port} after "
@@ -193,7 +192,6 @@ def publish(
             return
         except RuntimeError:
             # possible that leader is down/restarting, keep trying, but log to local machine.
-            from pioreactor.logging import create_logger
 
             logger = create_logger("pubsub.publish", to_mqtt=False)
             logger.debug(
@@ -204,7 +202,6 @@ def publish(
                 sleep(3 * retry_count)  # linear backoff
 
     else:
-        from pioreactor.logging import create_logger
 
         logger = create_logger("pubsub.publish", to_mqtt=False)
         logger.error("Unable to connect to MQTT.")
@@ -325,7 +322,6 @@ def subscribe_and_callback(
                 return actual_callback(message)
 
             except Exception as e:
-                from pioreactor.logging import create_logger
 
                 logger = create_logger(userdata.get("name", "pioreactor"))
                 logger.error(e, exc_info=True)
