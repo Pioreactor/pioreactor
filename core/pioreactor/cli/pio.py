@@ -114,6 +114,13 @@ def build_staged_release_archive_location(release_filename: str) -> str:
     )
 
 
+def is_staged_release_archive(path: str) -> bool:
+    """Staged archives are temporary copies made for one update; anything else (e.g. on a USB drive) is the user's."""
+    return Path(path).parent == Path(tempfile.gettempdir()) and Path(path).name.startswith(
+        STAGED_RELEASE_ARCHIVE_PREFIX
+    )
+
+
 def get_dot_pioreactor_root() -> Path:
     return get_dot_pioreactor_path()
 
@@ -404,6 +411,23 @@ def get_update_app_commands(
                 -99.5,
             ),
             update_command(["sudo", "rm", "-rf", tmp_rls_dir], -99),
+            # /tmp is RAM-backed on trixie: remove archives left behind by earlier or failed updates.
+            update_command(
+                [
+                    "sudo",
+                    "find",
+                    tmp_dir,
+                    "-maxdepth",
+                    "1",
+                    "-name",
+                    f"{STAGED_RELEASE_ARCHIVE_PREFIX}*",
+                    "!",
+                    "-path",
+                    archive_location,
+                    "-delete",
+                ],
+                -99,
+            ),
             update_command(["unzip", "-o", archive_location, "-d", tmp_rls_dir], 0),
             update_command(
                 ["unzip", "-o", f"{tmp_rls_dir}/wheels_{release_version}.zip", "-d", f"{tmp_rls_dir}/wheels"],
@@ -488,6 +512,9 @@ def get_update_app_commands(
             # provided a release archive
             version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
             commands_and_priority.extend(create_commands_for_release_archive(source, version_installed))
+            # The leader reuses its staged archive to update workers, so its update task removes it instead.
+            if is_staged_release_archive(source) and not whoami.am_I_leader():
+                commands_and_priority.append(update_command(["sudo", "rm", "-f", source], 97))
         elif source.endswith(".whl"):
             version_installed = source
             commands_and_priority.append(
@@ -1614,10 +1641,15 @@ if whoami.am_I_leader():
     @click.option("--topic", "-t", default="pioreactor/#")
     def mqtt(topic: str) -> None:
         from pioreactor.config import config
+        from pioreactor.config import mqtt_address
 
         with subprocess.Popen(
             [
                 "mosquitto_sub",
+                "-h",
+                mqtt_address,
+                "-p",
+                str(config.getint("mqtt", "broker_port", fallback=1883)),
                 "-v",
                 "-t",
                 topic,

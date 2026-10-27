@@ -47,7 +47,6 @@ bash "$SCRIPT_DIR/30_install_bootfs_files.sh"
 bash "$SCRIPT_DIR/40_huey_two_workers_on_zero_w.sh"
 bash "$SCRIPT_DIR/45_serve_kiosk_under_k.sh"
 
-bash "$SCRIPT_DIR/50_install_mosquitto.sh"
 bash "$SCRIPT_DIR/55_move_chrony_leader_source.sh"
 
 # Onboarding uses this script to set up SSH to a new worker.

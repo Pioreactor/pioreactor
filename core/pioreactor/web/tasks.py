@@ -60,6 +60,7 @@ from pioreactor.camera import get_camera_status
 from pioreactor.camera import list_camera_still_metadata
 from pioreactor.camera import start_camera_warmer
 from pioreactor.camera import stop_camera_warmer
+from pioreactor.cli.pio import is_staged_release_archive
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
@@ -724,6 +725,15 @@ def update_app_across_cluster(units: str = "$broadcast") -> bool:
 
 @huey.task()
 def update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
+    try:
+        return _update_app_from_release_archive_across_cluster(archive_location, units)
+    finally:
+        # This task owns the staged archive: the leader's own update keeps it so it can be copied to workers.
+        if is_staged_release_archive(archive_location):
+            Path(archive_location).unlink(missing_ok=True)
+
+
+def _update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
     worker_archive_location = f"/tmp/{Path(archive_location).name}"
     leader = get_leader_hostname()
 

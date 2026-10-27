@@ -5,9 +5,17 @@ set -xeu
 export LC_ALL=C
 
 # mosquitto is now installed and configured on every unit, but only leaders run the broker.
-# Workers may be offline during updates, so the bookworm packages are bundled here.
+# Workers may be offline during updates, so the trixie packages are bundled here. Bookworm (deb12)
+# packages don't work: they depend on libssl3, which 32-bit (armhf) trixie doesn't provide.
+# This runs from pre_update.sh, so a failure leaves the unit on its previous version.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Leaders already run the broker from their image; never touch their packages or config.
+LEADER_HOSTNAME=$(sudo -u pioreactor -i pio config get cluster.topology leader_hostname)
+if [ "$(hostname)" = "$LEADER_HOSTNAME" ]; then
+    exit 0
+fi
 
 package_is_installed_at_least() {
     local package_name="$1"
@@ -46,76 +54,82 @@ validate_package() {
     fi
 }
 
-if package_is_installed_at_least mosquitto "2.0" && package_is_installed_at_least mosquitto-clients "2.0"; then
-    # leaders, and any unit already updated.
-    exit 0
+# Workers that already have mosquitto (from their image, or installed by hand) skip the install,
+# but still get the broker config and a disabled broker below.
+if ! { package_is_installed_at_least mosquitto "2.0" && package_is_installed_at_least mosquitto-clients "2.0"; }; then
+    ARCHITECTURE=$(dpkg --print-architecture)
+    PACKAGE_NAMES=("libcjson1" "libdlt2" "libwebsockets19t64" "libwrap0" "libmosquitto1" "mosquitto" "mosquitto-clients")
+    case "$ARCHITECTURE" in
+        armhf)
+            # from raspbian.raspberrypi.com trixie
+            MINIMUM_VERSIONS=("1.7.18-3.1+deb13u1" "2.18.10-10+b1" "4.3.5-1+deb13u3" "7.6.q-36" "2.0.21-1" "2.0.21-1" "2.0.21-1")
+            PACKAGES=(
+                "$SCRIPT_DIR/libcjson1_1.7.18-3.1+deb13u1_armhf.deb"
+                "$SCRIPT_DIR/libdlt2_2.18.10-10+b1_armhf.deb"
+                "$SCRIPT_DIR/libwebsockets19t64_4.3.5-1+deb13u3_armhf.deb"
+                "$SCRIPT_DIR/libwrap0_7.6.q-36_armhf.deb"
+                "$SCRIPT_DIR/libmosquitto1_2.0.21-1_armhf.deb"
+                "$SCRIPT_DIR/mosquitto_2.0.21-1_armhf.deb"
+                "$SCRIPT_DIR/mosquitto-clients_2.0.21-1_armhf.deb"
+            )
+            SHA256S=(
+                "61103317f6149697ca68124fc880f7f5a5955d5c3a3ae22b8d7a3d2f69008f3d"
+                "656ab76c933d0b25b8aad2c442f8ab6cecf342bc87a1ac663e67d218de4830d4"
+                "c59aed05846263a2ad0ba11aa3b9c12789858bba02bc42d3052869784e55d8fa"
+                "34d4fae7e4efca2092d8f04cdc1282974fb6fd1b0e1f330c69d436727ac440ee"
+                "b148ef4b5e5ecef1ed8a5bd05f584455410ef2af6efdb217b9b4910edef664f2"
+                "94e6c3ae771d42d1c67e5133af3101ef4732c7faf34976e006c72b124d5f074f"
+                "72ac94cc821181ca80df619a362f41086ffdd73d28cc9cdb12d797863673922e"
+            )
+            ;;
+        arm64)
+            # from deb.debian.org trixie
+            MINIMUM_VERSIONS=("1.7.18-3.1+deb13u1" "2.18.10-10+b1" "4.3.5-1+deb13u2" "7.6.q-36" "2.0.21-1" "2.0.21-1" "2.0.21-1")
+            PACKAGES=(
+                "$SCRIPT_DIR/libcjson1_1.7.18-3.1+deb13u1_arm64.deb"
+                "$SCRIPT_DIR/libdlt2_2.18.10-10+b1_arm64.deb"
+                "$SCRIPT_DIR/libwebsockets19t64_4.3.5-1+deb13u2_arm64.deb"
+                "$SCRIPT_DIR/libwrap0_7.6.q-36_arm64.deb"
+                "$SCRIPT_DIR/libmosquitto1_2.0.21-1_arm64.deb"
+                "$SCRIPT_DIR/mosquitto_2.0.21-1_arm64.deb"
+                "$SCRIPT_DIR/mosquitto-clients_2.0.21-1_arm64.deb"
+            )
+            SHA256S=(
+                "f8a6ce78b0d4b1db40b16e0330fb1dfcd54a15c4a1f6798afd631e99f30fe707"
+                "e3c98fb15eb7e7aaadc19d580121afce6bf1c802b0ac71c854e27447983c2658"
+                "7c8d5852bb81b4ebddf1893ba8a92c22613364227ea9de15ac899178cbc1975d"
+                "fd2e54582a07fba9c8a6f78c68dcc6d3c8cf1c70632a68124394bde4dccf52ea"
+                "1f768c324c8c1198b79d83a00115bcba7afab9e6d335a6029026ed896b601b61"
+                "08e7c2488bb502cac9503662191fdd66a57eadfc7b5150732b86585b4074f856"
+                "357b563845683e4ba9cc56d679c730f18e8c02df28cd5f5c97776b6bf9230e4e"
+            )
+            ;;
+        *)
+            sudo -u pioreactor -i pio log -l ERROR -m "No bundled mosquitto package is available for $ARCHITECTURE."
+            exit 1
+            ;;
+    esac
+
+    # Units where 26.11.0's bookworm packages failed have them unpacked but not configured. Those
+    # don't count as installed here, so the trixie packages replace and configure them.
+    PACKAGES_TO_INSTALL=()
+    for index in "${!PACKAGES[@]}"; do
+        validate_package "${PACKAGES[$index]}" "${SHA256S[$index]}" "${PACKAGE_NAMES[$index]}"
+
+        if ! package_is_installed_at_least "${PACKAGE_NAMES[$index]}" "${MINIMUM_VERSIONS[$index]}"; then
+            PACKAGES_TO_INSTALL+=("${PACKAGES[$index]}")
+        fi
+    done
+
+    dpkg --install "${PACKAGES_TO_INSTALL[@]}"
+
+    for index in "${!PACKAGE_NAMES[@]}"; do
+        if ! package_is_installed_at_least "${PACKAGE_NAMES[$index]}" "${MINIMUM_VERSIONS[$index]}"; then
+            sudo -u pioreactor -i pio log -l ERROR -m "${PACKAGE_NAMES[$index]} is not fully installed after the mosquitto install."
+            exit 1
+        fi
+    done
 fi
-
-ARCHITECTURE=$(dpkg --print-architecture)
-case "$ARCHITECTURE" in
-    armhf)
-        # from raspbian.raspberrypi.com bookworm
-        PACKAGE_NAMES=("libcjson1" "libdlt2" "libmosquitto1" "mosquitto" "mosquitto-clients")
-        MINIMUM_VERSIONS=("1.7.13" "2.18.8" "2.0.11-1.2+deb12u2" "2.0.11-1.2+deb12u2" "2.0.11-1.2+deb12u2")
-        PACKAGES=(
-            "$SCRIPT_DIR/libcjson1_1.7.15-1+deb12u4_armhf.deb"
-            "$SCRIPT_DIR/libdlt2_2.18.8-6_armhf.deb"
-            "$SCRIPT_DIR/libmosquitto1_2.0.11-1.2+deb12u2_armhf.deb"
-            "$SCRIPT_DIR/mosquitto_2.0.11-1.2+deb12u2_armhf.deb"
-            "$SCRIPT_DIR/mosquitto-clients_2.0.11-1.2+deb12u2_armhf.deb"
-        )
-        SHA256S=(
-            "a609526d122a6b5b9d98f58d3836239a75cccde09e8eb5fcddd511f542873c82"
-            "a66fa29f9cb1bc39a5208ec3fee54799be93b97ef0a02de06e6299cdb933248b"
-            "a4b8ed7bf0186fcfdc1836b905256501f3b9bde13b4fda74b7a0deb51702f460"
-            "b35f44a0c7ff5b358be7b640310b5ebd440d9facdfc19eb7ab67cf3d0c2e1517"
-            "70f426876fb703eaa40e42796e500ac2ee615d709158c56f3592b4974f510d97"
-        )
-        ;;
-    arm64)
-        # from deb.debian.org bookworm
-        PACKAGE_NAMES=("libcjson1" "libdlt2" "libmosquitto1" "lsb-base" "mosquitto" "mosquitto-clients")
-        MINIMUM_VERSIONS=("1.7.13" "2.18.8" "2.0.11-1.2+deb12u2" "4.1+Debian3" "2.0.11-1.2+deb12u2" "2.0.11-1.2+deb12u2")
-        PACKAGES=(
-            "$SCRIPT_DIR/libcjson1_1.7.15-1+deb12u4_arm64.deb"
-            "$SCRIPT_DIR/libdlt2_2.18.8-6_arm64.deb"
-            "$SCRIPT_DIR/libmosquitto1_2.0.11-1.2+deb12u2_arm64.deb"
-            "$SCRIPT_DIR/lsb-base_11.6_all.deb"
-            "$SCRIPT_DIR/mosquitto_2.0.11-1.2+deb12u2_arm64.deb"
-            "$SCRIPT_DIR/mosquitto-clients_2.0.11-1.2+deb12u2_arm64.deb"
-        )
-        SHA256S=(
-            "67b9f4d780a401b28bcce3d23a0a26efbdf040d7a012f1d73f8142a641925e2e"
-            "9e5d3fff3b7c9a43265ec76d2e5c9d663426daf4d000026835142a6aa7309436"
-            "05e3aeb5dcffba2f820c1ec46458a1dc0f8349617d2374897736b414806ffff9"
-            "f8bedd167280e76636df3a1bc023cd2906d458916c1af4c1d7912c5b971fc642"
-            "f94ae2b88b7ca3aae474f86ac3397abc467c56ee638942b88db46cd89895991b"
-            "88ec20b5375b835a62f609a24186c9fe1782c673319f2f4e1e880dcaba4bc2d8"
-        )
-        ;;
-    *)
-        sudo -u pioreactor -i pio log -l ERROR -m "No bundled mosquitto package is available for $ARCHITECTURE."
-        exit 1
-        ;;
-esac
-
-PACKAGES_TO_INSTALL=()
-for index in "${!PACKAGES[@]}"; do
-    validate_package "${PACKAGES[$index]}" "${SHA256S[$index]}" "${PACKAGE_NAMES[$index]}"
-
-    if ! package_is_installed_at_least "${PACKAGE_NAMES[$index]}" "${MINIMUM_VERSIONS[$index]}"; then
-        PACKAGES_TO_INSTALL+=("${PACKAGES[$index]}")
-    fi
-done
-
-dpkg --install "${PACKAGES_TO_INSTALL[@]}"
-
-for index in "${!PACKAGE_NAMES[@]}"; do
-    if ! package_is_installed_at_least "${PACKAGE_NAMES[$index]}" "${MINIMUM_VERSIONS[$index]}"; then
-        sudo -u pioreactor -i pio log -l ERROR -m "${PACKAGE_NAMES[$index]} is not fully installed after the mosquitto install."
-        exit 1
-    fi
-done
 
 # same broker config as the leader images, so a worker can be promoted by enabling the service.
 echo "pioreactor:raspberry" > /etc/mosquitto/pw.txt
@@ -137,9 +151,5 @@ for LINE in \
     grep -qxF "$LINE" /etc/mosquitto/mosquitto.conf || echo "$LINE" >> /etc/mosquitto/mosquitto.conf
 done
 
-# dpkg enables and starts mosquitto.service on install. Leaders never reach here (they already
-# have mosquitto), but guard anyway so a misread topology can't stop the cluster's broker.
-LEADER_HOSTNAME=$(sudo -u pioreactor -i pio config get cluster.topology leader_hostname)
-if [ "$(hostname)" != "$LEADER_HOSTNAME" ]; then
-    systemctl disable --now mosquitto.service
-fi
+# dpkg enables and starts mosquitto.service on install. Workers don't run a broker.
+systemctl disable --now mosquitto.service

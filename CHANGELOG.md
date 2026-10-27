@@ -106,6 +106,8 @@
  - Fixed MCP tools failing to find an experiment whose name contains a space. The name was URL-encoded twice on its way to the leader.
  - Fixed invalid or unreadable custom model files preventing other models from loading, and unreadable experiment profile or chart descriptor files preventing their lists from loading. The affected files are now skipped and logged.
  - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.
+ - Fixed software update archives piling up in `/tmp` on the leader and workers. On trixie, `/tmp` is held in RAM, so after several updates or retries it could fill up and make later updates fail with "No space left on device". Each update now removes its own archive, and any left behind by earlier updates. Updates started before this release can still leave archives behind; a reboot clears them.
+ - Fixed `pio mqtt` on workers connecting to a broker on the worker itself instead of the leader's.
 
 ### 26.11.1
 

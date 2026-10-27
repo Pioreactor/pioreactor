@@ -1624,6 +1624,26 @@ def test_update_app_from_usb_release_archive_stages_archive_on_workers(
     ]
 
 
+def test_update_app_from_release_archive_removes_staged_archive_even_on_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("tempfile.tempdir", str(tmp_path))
+    staged_archive = tmp_path / "pioreactor_update_archive_abc_release_26.11.0.zip"
+    staged_archive.write_bytes(b"zip")
+
+    monkeypatch.setattr(tasks, "get_leader_hostname", lambda: "leader")
+
+    def failing_check_call(_cmd: list[str]) -> None:
+        raise subprocess.CalledProcessError(1, "pio")
+
+    monkeypatch.setattr(tasks, "check_call", failing_check_call)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        tasks.update_app_from_release_archive_across_cluster.call_local(str(staged_archive), "leader")
+
+    assert not staged_archive.exists()
+
+
 def test_update_app_from_release_archive_updates_leader_when_selected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

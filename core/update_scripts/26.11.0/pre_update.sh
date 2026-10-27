@@ -20,3 +20,7 @@ if [ "$is_valid" != "$min_version" ]; then
 fi
 
 echo "Version check passed: $current_version"
+
+# Installs system packages only, so run it before pip: a failure leaves this unit on its previous version.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/50_install_mosquitto.sh"

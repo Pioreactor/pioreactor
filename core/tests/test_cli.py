@@ -120,8 +120,13 @@ def test_pio_mqtt_subscribes_with_exactly_once(monkeypatch) -> None:
             result = runner.invoke(pio, ["mqtt", "-t", "pioreactor/unit/exp/dosing_events"])
 
     assert result.exit_code == 0
+    # connect to the cluster's broker, not localhost: workers don't run one.
     assert captured_args == [
         "mosquitto_sub",
+        "-h",
+        config_module.mqtt_address,
+        "-p",
+        "1883",
         "-v",
         "-t",
         "pioreactor/unit/exp/dosing_events",
@@ -1657,6 +1662,39 @@ def test_pio_update_app_allows_release_archive_sql_step_failure(monkeypatch: pyt
 
     assert result.exit_code == 0
     assert any(command[:2] == ["sudo", "sqlite3"] for command in run_calls)
+
+
+@pytest.mark.parametrize("is_leader", [True, False])
+def test_pio_update_app_cleans_up_staged_release_archives(
+    monkeypatch: pytest.MonkeyPatch, is_leader: bool
+) -> None:
+    from pioreactor.cli.pio import build_staged_release_archive_location
+    from pioreactor.cli.pio import get_update_app_commands
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: is_leader)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    source = build_staged_release_archive_location("release_26.11.0.zip")
+
+    commands, _ = get_update_app_commands(None, "pioreactor/pioreactor", source, None)
+    commands_by_argv = {tuple(command): priority for command, priority, _ in commands}
+
+    sweep = next(command for command in commands_by_argv if command[:2] == ("sudo", "find"))
+    assert commands_by_argv[sweep] < 0
+    assert sweep[-3:] == ("-path", source, "-delete")
+    # the leader keeps its archive: its update task copies it to workers, then removes it.
+    assert (("sudo", "rm", "-f", source) in commands_by_argv) is (not is_leader)
+
+
+def test_pio_update_app_never_removes_a_usb_release_archive(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pioreactor.cli.pio import get_update_app_commands
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    source = "/run/pioreactor/usb/usb-1/release_26.11.0.zip"
+
+    commands, _ = get_update_app_commands(None, "pioreactor/pioreactor", source, None)
+
+    assert not any(source in command and command[1] == "rm" for command, _, _ in commands)
 
 
 def test_pio_update_app_rejects_malicious_branch() -> None:
