@@ -1,1 +1,0 @@
-import{f as r,j as c,A as d}from"./main-DwBo7uJC.js";function a(t){const{sx:o,children:s,...n}=t,e={backgroundColor:r.subtleBackground,borderColor:r.border,borderStyle:"solid",borderWidth:"1px",color:r.textSecondary,mt:1,mb:1,"& .MuiAlert-icon":{color:r.textSecondary}},i=Array.isArray(o)?[e,...o]:[e,o];return c.jsx(d,{severity:"info",sx:i,...n,children:s})}export{a as R};

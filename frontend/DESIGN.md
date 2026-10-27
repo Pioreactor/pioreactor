@@ -531,6 +531,11 @@ actions, whose icons remain inline before the label.
   Remove, Stop, Clear, or Unassign.
 - **IconButton:** compact universal actions only. It must have an `aria-label`
   and usually a tooltip.
+- **Overflow menu:** a `MoreVert` (⋮) `IconButton` with `color="primary"` and
+  `size="small"`, labelled `More actions for <name>`. It opens a `Menu` of
+  plain-text `MenuItem`s; put destructive items last, after a `Divider`, with
+  `sx={{ color: "secondary.main" }}`. Use it when a toolbar or table row has
+  more secondary actions than fit.
 
 ### Time terminology
 

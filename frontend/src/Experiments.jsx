@@ -69,6 +69,7 @@ function ExperimentActionsMenu({
   return (
     <React.Fragment>
       <IconButton
+        color="primary"
         size="small"
         onClick={(event) => setAnchorEl(event.currentTarget)}
         aria-label={`More actions for ${experiment.experiment}`}

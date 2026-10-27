@@ -86,6 +86,7 @@ function RestartJobMenu({ jobName, onRestart, isRestarting }) {
     <React.Fragment>
       <span>
         <IconButton
+          color="primary"
           size="small"
           aria-label={`More actions for ${jobName}`}
           disabled={isRestarting}

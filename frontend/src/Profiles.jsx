@@ -224,6 +224,7 @@ function RunExperimentProfilesContent({
           </Button>
           <span>
             <IconButton
+              color="primary"
               size="small"
               aria-label={`More actions for ${selectedExperimentProfileRecord?.profile.experiment_profile_name ?? "profile"}`}
               disabled={selectedExperimentProfile === ''}
