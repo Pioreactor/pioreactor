@@ -611,6 +611,9 @@ def _normalize_task_error_message(message: str) -> str:
     if not message:
         return message
 
+    if message.startswith("RateLimitExceeded("):
+        return "Too many requests for this operation. Wait a moment, then try again."
+
     exception_name, open_paren, remainder = message.partition("(")
     if not open_paren or not remainder.endswith(")"):
         return message

@@ -14,6 +14,7 @@ from unittest.mock import Mock
 
 import pytest
 from flask.testing import FlaskClient
+from huey import SqliteHuey
 from huey.exceptions import TaskException
 from msgspec.yaml import encode as yaml_encode
 from pioreactor.bioreactor import set_bioreactor_value
@@ -606,6 +607,35 @@ def test_task_results_failed_when_taskexception_contains_plain_error(client, mon
     data = resp.get_json()
     assert data["status"] == "failed"
     assert data["error"] == "Command exited during startup grace window. Exit code 2. No such command."
+
+
+def test_task_rate_limit_rejection_is_terminal_and_readable(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    queue = SqliteHuey(filename=tmp_path / "rate-limit.db")
+    monkeypatch.setattr(unit_api, "huey", queue)
+
+    @queue.task()
+    @queue.rate_limit("power-actions", limit=1, per=15, retry=False)
+    def limited_operation() -> bool:
+        return True
+
+    first = limited_operation()
+    queue.execute(queue.dequeue())
+    assert first.get() is True
+
+    rejected = limited_operation()
+    queue.execute(queue.dequeue())
+    response = client.get(f"/unit_api/task_results/{rejected.id}")
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "failed"
+    assert response.get_json()["error"] == (
+        "Too many requests for this operation. Wait a moment, then try again."
+    )
+    assert queue.pending_count() == 0
+    assert queue.scheduled_count() == 0
+    queue.storage.close()
 
 
 @pytest.mark.parametrize("lock_name", ["delete-experiment-lock", "plugins-lock"])
