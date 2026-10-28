@@ -141,7 +141,7 @@ class ConfigParserMod(configparser.ConfigParser):
             _warned_deprecated_options.add((section, option))
             from pioreactor.logging import create_logger
 
-            create_logger("read config").warning(_DEPRECATED_OPTIONS[(section, option)])
+            create_logger("read config").debug(_DEPRECATED_OPTIONS[(section, option)])  # warning is too noisy
 
         try:
             return super().get(section, option, *args, **kwargs)

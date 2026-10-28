@@ -22,7 +22,6 @@ Usage examples:
 Note: this script invokes git. Run it manually when you are ready.
 """
 import argparse
-import datetime as _dt
 import re
 import shutil
 import subprocess
@@ -154,8 +153,7 @@ def compute_series(series_override: str | None = None) -> str:
             raise ValueError("--series must be in format YY.M, e.g., 26.3")
         return series_override
 
-    today = _dt.date.today()
-    return f"{today.year % 100}.{today.month}"
+    return get_version_series(read_version_value())
 
 
 def read_version_value() -> str:
@@ -410,7 +408,7 @@ def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Automate production release git workflow.")
-    parser.add_argument("--series", help="Release series in YY.M format", default=None)
+    parser.add_argument("--series", help="Release series in YY.M format (default: version.py)", default=None)
     parser.add_argument("--dry-run", action="store_true", help="Print intended actions without executing")
     parser.add_argument("--force", action="store_true", help="Skip branch check and dirty working tree guard")
     return parser.parse_args(argv)
