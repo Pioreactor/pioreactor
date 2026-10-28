@@ -40,6 +40,7 @@ from pioreactor.states import JobState
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.sqlite_cache import cache as SqliteCache
+from pioreactor.version import rpi_version_info
 
 
 CAMERA_STILLS_RELATIVE_DIR = Path("storage") / "camera_stills"
@@ -177,10 +178,11 @@ def get_rpicam_still_arguments(
 ) -> list[str]:
     """Build invocation arguments; run with cwd set to the returned config path's parent."""
     root = dot_pioreactor if dot_pioreactor is not None else get_dot_pioreactor_path()
+    use_default_profile = capture_profile is None
     if capture_profile is None:
         capture_profile = root / "camera" / "viewing.conf"
 
-    return [
+    arguments = [
         command,
         "--camera",
         str(camera_index),
@@ -188,6 +190,13 @@ def get_rpicam_still_arguments(
         "--config",
         capture_profile.absolute().as_posix(),
     ]
+    # The default OV5647 profile uses platform-specific bundled tuning.
+    # Explicit custom profiles own their tuning selection.
+    if use_default_profile:
+        uses_pisp = rpi_version_info.startswith(("Raspberry Pi 5", "Raspberry Pi Compute Module 5"))
+        filename = "ov5647_noir_200ms_pisp.json" if uses_pisp else "ov5647_noir_200ms.json"
+        arguments += ["--tuning-file", (root / "camera" / filename).absolute().as_posix()]
+    return arguments
 
 
 def camera_warmer_runtime_paths() -> tuple[Path, Path, Path, Path]:
