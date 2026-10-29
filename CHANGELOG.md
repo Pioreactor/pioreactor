@@ -103,6 +103,7 @@
  - Fixed `pio workers update-active <hostname> <0|1>` always failing with an error.
  - Fixed the UI being unable to open, set active, or delete a calibration or estimator whose name contains `#`, `?` or `%`. Its page showed "Unable to find calibration data" even though the calibration was saved.
  - Fixed camera operations failing for experiment names containing characters such as `#`, `?`, or `%`.
+ - Fixed camera snapshots and camera self-tests failing on Raspberry Pi 5 with a tuning-file compatibility error. Pioreactor now automatically selects the appropriate bundled tuning file for the Pi model.
  - Fixed MCP tools failing to find an experiment whose name contains a space. The name was URL-encoded twice on its way to the leader.
  - Fixed invalid or unreadable custom model files preventing other models from loading, and unreadable experiment profile or chart descriptor files preventing their lists from loading. The affected files are now skipped and logged.
  - Fixed config options read with a text default such as `"false"` or `"0"` being treated as on when missing from `config.ini`. For example, a missing `use_tls` in `[mqtt]` made MQTT connect with TLS.

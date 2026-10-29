@@ -70,6 +70,7 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     proxy: {
+      "/mqtt": { target: "ws://127.0.0.1:9001", ws: true },
       "/api": "http://localhost:4999",
       "/unit_api": "http://localhost:4999",
       "/mcp": "http://localhost:4999",

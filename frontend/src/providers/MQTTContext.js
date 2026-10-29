@@ -122,63 +122,17 @@ const forEachHandlerInTrie = (root, topic, visitHandler) => {
 };
 
 
-const CONNECT_TIMEOUT_MS = 1000;
-// Retry settings for MQTT fallback connections
-const RETRY_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 100;
-
-// Simple sleep helper for retries
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-const connectToBroker = (uri, opts) =>
-  new Promise((resolve, reject) => {
-    const c = mqtt.connect(uri, opts);
-    const timer = setTimeout(() => {
-      c.end(true);
-      reject(new Error('timeout'));
-    }, CONNECT_TIMEOUT_MS);
-
-    c.once('connect', () => {
-      clearTimeout(timer);
-      resolve(c);
-    });
-    c.once('error', err => {
-      clearTimeout(timer);
-      c.end(true);
-      reject(err);
-    });
-  });
-
-const connectWithFallback = async ({
-  brokerAddress,
-  wsProtocol,
-  brokerWsPort,
-  username,
-  password,
-}) => {
-  const hosts = brokerAddress.split(';').map(h => h.trim()).filter(Boolean);
-  const opts = { username, password, keepalive: 120, clean: true };
-
-  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
-    for (const host of hosts) {
-      const uri = `${wsProtocol}://${host}:${brokerWsPort}/mqtt`;
-      try {
-        console.log(`MQTT trying ${uri} (attempt ${attempt}) …`);
-        return await connectToBroker(uri, opts);
-      } catch (e) {
-        console.warn(`MQTT could not connect to ${uri} (attempt ${attempt}): ${e.message}`);
-      }
-    }
-
-    if (attempt < RETRY_ATTEMPTS) {
-      console.log(`MQTT retrying all hosts in ${RETRY_DELAY_MS}ms...`);
-      await sleep(RETRY_DELAY_MS);
-    }
-  }
-
-  throw new Error('Unable to reach any MQTT broker');
+export const getMqttEndpoint = ({ ui_use_proxy = 'true', ws_protocol = 'ws', broker_address = '', broker_ws_port = 9001 }, location = window.location) => {
+  const useProxy = !['false', '0', 'no', 'off'].includes(String(ui_use_proxy).toLowerCase());
+  const protocol = useProxy ? (location.protocol === 'https:' ? 'wss' : 'ws') : ws_protocol;
+  const hosts = useProxy
+    ? [location.hostname]
+    : broker_address.split(';').map(host => host.trim()).filter(Boolean);
+  const port = useProxy
+    ? Number(location.port || (protocol === 'wss' ? 443 : 80))
+    : Number(broker_ws_port);
+  return { servers: hosts.map(host => ({ host, port, protocol })), protocol };
 };
-
 
 export const MQTTProvider = ({ name, config, children }) => {
   const [client, setClient] = useState(null);
@@ -190,6 +144,7 @@ export const MQTTProvider = ({ name, config, children }) => {
   const {
     username,
     password,
+    ui_use_proxy = 'true',
     ws_protocol = 'ws',
     broker_address = 'localhost',   // may be "addr1;addr2;addr3"
     broker_ws_port = 9001,
@@ -201,53 +156,60 @@ export const MQTTProvider = ({ name, config, children }) => {
     setError(null);
     if (!hasConfig) return;
 
-    let mqttClient;
-    let isActive = true;
+    const { servers, protocol } = getMqttEndpoint({ ui_use_proxy, ws_protocol, broker_address, broker_ws_port });
+    if (!servers.length) {
+      setError('No MQTT broker configured. Check mqtt.broker_address.');
+      return;
+    }
 
-    connectWithFallback({
-      brokerAddress: broker_address,
-      wsProtocol: ws_protocol,
-      brokerWsPort: broker_ws_port,
+    let isActive = true;
+    let authenticationFailed = false;
+    // MQTT.js owns timeouts, broker rotation, and retries, including initial failures.
+    const mqttClient = mqtt.connect({
+      servers,
+      protocol,
+      path: '/mqtt',
       username,
       password,
-    })
-      .then(c => {
-        if (!isActive) {
-          c.end(true);
-          return;
-        }
-        mqttClient = c;
-        console.log(`Connected to MQTT broker for ${name}.`);
+      keepalive: 120,
+      clean: true,
+      connectTimeout: 10000,
+      reconnectPeriod: 5000,
+      reconnectOnConnackError: true,
+    });
 
-        mqttClient.on('message', (topic, message, packet) => {
-          forEachHandlerInTrie(topicTrie.current, topic, (handler) => {
-            handler(topic, message, packet);
-          });
-        });
-
-        mqttClient.on('error', err => {
-          if (err?.message === 'client disconnecting') return;
-          console.error(`MQTT ${name} connection error:`, err);
-          setError(`MQTT connection error: ${err}`);
-        });
-
-        mqttClient.on('close', () => {
-          console.warn(`MQTT ${name} client connection closed`);
-        });
-
-        setError(null);
-        setClient(mqttClient);
-      })
-      .catch(err => {
-        if (!isActive) return;
-        console.error(err);
-        setError(err.message);
+    mqttClient.on('connect', () => {
+      if (!isActive) return;
+      console.log(`Connected to MQTT broker for ${name}.`);
+      setError(null);
+      setClient(mqttClient);
+    });
+    mqttClient.on('message', (topic, message, packet) => {
+      if (!isActive) return;
+      forEachHandlerInTrie(topicTrie.current, topic, (handler) => {
+        handler(topic, message, packet);
       });
+    });
+    mqttClient.on('error', err => {
+      if (!isActive || err?.message === 'client disconnecting') return;
+      // MQTT 3 and MQTT 5 codes for bad credentials / unauthorized access.
+      if ([4, 5, 134, 135].includes(err.code)) {
+        authenticationFailed = true;
+        setError('MQTT authentication failed. Check mqtt.username and mqtt.password.');
+        mqttClient.end(true);
+      } else {
+        setError('MQTT disconnected. Reconnecting automatically...');
+      }
+    });
+    mqttClient.on('close', () => {
+      if (!isActive || authenticationFailed) return;
+      setError('MQTT disconnected. Reconnecting automatically...');
+    });
 
-    // ----------------- cleanup -----------------
     return () => {
       isActive = false;
-      mqttClient?.end(true);
+      // Also cancels an initial connection and MQTT.js reconnect timers.
+      mqttClient.end(true);
     };
   }, [
     broker_address,
@@ -257,6 +219,7 @@ export const MQTTProvider = ({ name, config, children }) => {
     password,
     username,
     ws_protocol,
+    ui_use_proxy,
   ]);
 
   useEffect(() => () => {
@@ -331,9 +294,9 @@ export const MQTTProvider = ({ name, config, children }) => {
   return (
     <MQTTContext.Provider value={contextValue}>
       {children}
-      <Snackbar sx={{ maxWidth: "500px" }} open={!!error} message={error ?? ""} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+      <Snackbar sx={{ maxWidth: "500px" }} open={!!error} message={error ?? ""} autoHideDuration={null} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity="error" variant="filled">
-          Failed to connect to MQTT. Is configuration for mqtt.broker_address correct? Currently set to {config?.mqtt?.broker_address}
+          {error}
         </Alert>
       </Snackbar>
     </MQTTContext.Provider>

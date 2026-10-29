@@ -16,3 +16,5 @@ bash "$SCRIPT_DIR/70_remove_circulation.sh"
 bash "$SCRIPT_DIR/75_disable_spa_shell_cache_on_all_units.sh"
 bash "$SCRIPT_DIR/80_cache_hashed_assets_immutable.sh"
 bash "$SCRIPT_DIR/85_install_pisp_camera_tuning.sh"
+
+bash "$SCRIPT_DIR/90_browser_mqtt_proxy.sh"
