@@ -143,7 +143,7 @@ function ShieldAlertOutlineIcon(props) {
 
 
 
-function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
+function PioreactorHeader({assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
   }
@@ -2210,7 +2210,7 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
+            <PioreactorHeader assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
             <Alert severity="info" sx={{mb: '10px', mt: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment}/> to control this worker.</Alert>

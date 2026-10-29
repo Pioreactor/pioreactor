@@ -2,8 +2,8 @@
 
 # Pioreactor Production Smoke Test
 #
-# Purpose: Run the quick, non-destructive checks from AGENT_TESTING.md
-#          on a Raspberry Pi Pioreactor. Continues on failure, reports errors in red.
+# Purpose: Check an installed release on a Raspberry Pi leader/worker cluster.
+#          Continues on failure, reports errors in red.
 #
 # Usage (on the Pi):
 #   chmod +x ./pioreactor_agent_smoke_test.sh
@@ -14,10 +14,13 @@
 # - Assumes official image with `pio` CLI installed.
 # - Requires `curl`. `jq` is optional for prettier JSON checks.
 # - Worker packaging checks use the leader's SSH key to workers when available.
+# - Full runs start stirring, heating, and pumps, install test plugins, and remove/add
+#   a worker. Use an idle test cluster with pumps routed appropriately.
 
 set -uo pipefail
 
 FAILURE_COUNT=0
+declare -a FAILURE_MESSAGES=()
 VERIFIED_IDLE_BEFORE=false
 HAS_JQ=false
 HAS_SYSTEMCTL=false
@@ -35,11 +38,13 @@ declare -a TEST_SEQUENCE=(
   check_runtime_packaging
   check_ui_static_assets
   check_kiosk_route
+  check_browser_mqtt_proxy
   check_mqtt_logging
   check_monitor_job
   check_database_access
   check_worker_model_metadata
   check_unit_model_contract
+  check_unit_active_contract
   check_unit_api_core
   check_registered_target_validation
   check_mutation_target_guard
@@ -48,6 +53,7 @@ declare -a TEST_SEQUENCE=(
   check_descriptor_endpoints
   check_calibration_session_tasks
   check_camera_contract
+  check_camera_tuning
   check_unit_api_job_history
   check_blink
   check_pio_run_latency
@@ -61,6 +67,7 @@ declare -a TEST_SEQUENCE=(
   check_experiment_scoping
   check_experiment_profiles
   check_experiment_profile_validation
+  check_experiment_profile_expressions
   check_exportable_datasets_listing
   check_exportable_dataset_preview_validation
   check_export_datasets_endpoint
@@ -100,6 +107,7 @@ ok() {
 
 fail() {
   printf "${RED}[fail] %s${NC}\n" "$1"
+  FAILURE_MESSAGES+=("$1")
   FAILURE_COUNT=$((FAILURE_COUNT + 1))
 }
 
@@ -400,6 +408,11 @@ is_positive_number() {
 
 python3_available() {
   command -v python3 >/dev/null 2>&1
+}
+
+pioreactor_python() {
+  # Package probes must use the same installed environment as pio.
+  "${PIO_VENV:-/opt/pioreactor/venv}/bin/python" "$@"
 }
 
 json_file_for_code_patch() {
@@ -1075,7 +1088,7 @@ check_runtime_packaging() {
 check_ui_static_assets() {
   info "Checking UI entrypoint and built assets"
 
-  local html javascript_path stylesheet_path
+  local html javascript_path stylesheet_path path cache_control
   if ! html="$(curl -fsS http://localhost/)"; then
     fail "UI entrypoint request failed"
     return
@@ -1094,6 +1107,56 @@ check_ui_static_assets() {
   else
     fail "UI JavaScript or CSS asset failed to load"
   fi
+
+  for path in / /static/index.html; do
+    cache_control="$(http_header_value Cache-Control "http://localhost$path")"
+    if [[ "$cache_control" == *no-store* ]]; then
+      ok "$path is served with Cache-Control: no-store"
+    else
+      fail "$path Cache-Control is '${cache_control:-<missing>}', expected no-store"
+    fi
+  done
+
+  for path in "$javascript_path" "$stylesheet_path"; do
+    cache_control="$(http_header_value Cache-Control "http://localhost$path")"
+    if [[ "$cache_control" == *immutable* && "$cache_control" == *max-age=31536000* ]]; then
+      ok "$path has immutable, year-long caching"
+    else
+      fail "$path Cache-Control is '${cache_control:-<missing>}', expected immutable, max-age=31536000"
+    fi
+  done
+}
+
+check_browser_mqtt_proxy() {
+  local use_proxy headers_file errors_file status
+  use_proxy="$(pio config get mqtt ui_use_proxy 2>/dev/null || true)"
+  case "${use_proxy,,}" in
+    0|false|no|off)
+      warn "mqtt.ui_use_proxy is disabled; skipping the browser MQTT proxy check"
+      return
+      ;;
+  esac
+
+  info "Checking same-origin /mqtt WebSocket upgrade through lighttpd"
+  headers_file="$(mktemp)"
+  errors_file="$(mktemp)"
+  # A successful upgrade leaves the socket open; curl may time out after HTTP 101.
+  status="$(curl -sS --http1.1 --max-time 3 -D "$headers_file" -o /dev/null -w '%{http_code}' \
+    -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+    -H 'Sec-WebSocket-Version: 13' \
+    -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+    -H 'Sec-WebSocket-Protocol: mqtt' \
+    http://localhost/mqtt 2> "$errors_file" || true)"
+  if [[ "$status" == 101 ]] && \
+     tr -d '\r' < "$headers_file" | grep -Eqi '^Sec-WebSocket-Accept: *s3pPLMBiTxaQ9kYGzzhZRbK\+xOo=$' && \
+     tr -d '\r' < "$headers_file" | grep -Eqi '^Sec-WebSocket-Protocol: *mqtt$'; then
+    ok "/mqtt upgrades to the MQTT WebSocket listener"
+  else
+    fail "/mqtt did not complete an MQTT WebSocket handshake (HTTP $status)"
+    print_prefixed_file_excerpt "  " "$headers_file" 2000
+    print_prefixed_file_excerpt "  " "$errors_file" 1000
+  fi
+  rm -f "$headers_file" "$errors_file"
 }
 
 check_kiosk_route() {
@@ -1283,6 +1346,58 @@ check_unit_model_contract() {
   else
     fail "pio model set ${model_name} ${model_version} failed"
   fi
+}
+
+check_unit_active_contract() {
+  local hostname active_json is_active plain_active payload
+  hostname="$(hostname)"
+
+  info "Checking the unit-owned active state"
+  if [[ "$HAS_JQ" != true ]]; then
+    warn "jq not installed; skipping active-state checks"
+    return
+  fi
+
+  if ! active_json="$(pio active get --json)" || \
+     ! jq -e '.is_active==0 or .is_active==1' <<< "$active_json" >/dev/null; then
+    fail "pio active get --json did not return is_active=0 or 1"
+    return
+  fi
+  is_active="$(jq -r '.is_active' <<< "$active_json")"
+  if plain_active="$(pio active get)" && [[ "$plain_active" == "$is_active" ]]; then
+    ok "pio active get agrees with its JSON output"
+  else
+    fail "pio active get disagrees with its JSON output"
+  fi
+
+  run_step "Checking /unit_api/active matches the CLI" \
+    curl_check http://localhost/unit_api/active ".is_active==$is_active"
+  run_step "Checking leader inventory mirrors $hostname's active state" \
+    curl_check "http://localhost/api/workers/$hostname" ".is_active==$is_active"
+
+  for payload in '{"is_active":2}' '{}'; do
+    run_step "Checking /unit_api/active rejects $payload" \
+      http_status_is 400 http://localhost/unit_api/active \
+      -X PUT -H 'Content-Type: application/json' -d "$payload"
+  done
+  run_step "Checking rejected updates left the active state unchanged" \
+    curl_check http://localhost/unit_api/active ".is_active==$is_active"
+
+  # Re-saving inactive=0 stops activities, so only exercise writes on active units.
+  if [[ "$is_active" != 1 ]]; then
+    warn "Unit is inactive; skipping active-state writes"
+    return
+  fi
+  run_step "Checking pio active set 1 --json" \
+    pio active set 1 --json
+  run_step "Checking the leader forwards the current active state to $hostname" \
+    http_status_is 200 "http://localhost/api/workers/$hostname/is_active" \
+    -X PUT -H 'Content-Type: application/json' -d '{"is_active":1}'
+  run_step "Checking active state after CLI and leader writes" \
+    curl_check http://localhost/unit_api/active '.is_active==1'
+  run_step "Checking reported_active accepts the current state" \
+    http_status_is 200 "http://localhost/api/workers/$hostname/reported_active" \
+    -X PUT -H 'Content-Type: application/json' -d '{"is_active":1}'
 }
 
 check_unit_api_core() {
@@ -1899,6 +2014,39 @@ PY
   rm -f "$status_file" "$listing_file" "$archive_file" "$dispatch_file" "$task_result_file"
 }
 
+check_camera_tuning() {
+  info "Checking installed camera profiles and platform-specific tuning"
+  if pioreactor_python <<'PY'
+import json
+from pathlib import Path
+
+from pioreactor.camera import get_rpicam_still_arguments
+from pioreactor.version import rpi_version_info
+from pioreactor.paths import get_dot_pioreactor_path
+
+camera_dir = get_dot_pioreactor_path() / "camera"
+assert (camera_dir / "viewing.conf").is_file(), "Missing viewing.conf"
+for filename in ("ov5647_noir_200ms.json", "ov5647_noir_200ms_pisp.json"):
+    tuning = json.loads((camera_dir / filename).read_text())
+    assert isinstance(tuning, dict) and tuning.get("algorithms"), f"Invalid tuning: {filename}"
+
+uses_pisp = rpi_version_info.startswith(("Raspberry Pi 5", "Raspberry Pi Compute Module 5"))
+expected = "ov5647_noir_200ms_pisp.json" if uses_pisp else "ov5647_noir_200ms.json"
+arguments = get_rpicam_still_arguments("rpicam-still", camera_index=0, dot_pioreactor=None)
+assert Path(arguments[arguments.index("--tuning-file") + 1]) == (camera_dir / expected).absolute()
+custom = get_rpicam_still_arguments(
+    "rpicam-still", camera_index=0, dot_pioreactor=None, capture_profile=camera_dir / "viewing.conf"
+)
+assert "--tuning-file" not in custom, "Explicit profiles must control their own tuning"
+print(f"Default camera tuning on {rpi_version_info}: {expected}")
+PY
+  then
+    ok "camera tuning assets and profile selection are valid"
+  else
+    fail "camera tuning assets or profile selection are invalid"
+  fi
+}
+
 check_unit_api_job_history() {
   run_step "Checking /unit_api/jobs" curl_check http://localhost/unit_api/jobs 'type=="array"'
 }
@@ -2380,6 +2528,30 @@ PY
   rm -f "$payload_file" "$response_file"
 }
 
+check_experiment_profile_expressions() {
+  info "Checking installed profile parser precedence and short-circuit evaluation"
+  if pioreactor_python <<'PY'
+from pioreactor.experiment_profiles.parser import check_syntax, parse_profile_expression
+
+for expression, expected in (
+    ("-2 ** 2", -4),
+    ("not 2 > 1", False),
+    ("1 + 2 * 3", 7),
+    ("False and (1 / 0)", False),
+    ("True or ::od_reading:od1.od", True),
+):
+    assert parse_profile_expression(expression) == expected, expression
+for expression in ("1 +", "1 < 2 < 3", "True or (1 +)"):
+    assert not check_syntax(expression), f"Invalid expression accepted: {expression}"
+assert check_syntax("1 / 0"), "Syntax validation must not evaluate expressions"
+PY
+  then
+    ok "profile parser evaluates supported expressions and rejects invalid syntax"
+  else
+    fail "profile parser expression checks failed"
+  fi
+}
+
 check_exportable_datasets_listing() {
   info "Testing new exportable_datasets appear in API"
   mkdir -p ~/.pioreactor/exportable_datasets
@@ -2444,7 +2616,7 @@ check_export_datasets_endpoint() {
 
   local export_experiment payload
   export_experiment="agent-smoke-export"
-  payload='{"datasets":["experiments","liquid_volumes"],"experiment":"agent-smoke-export","partition_by_unit":false,"partition_by_experiment":false}'
+  payload='{"datasets":["experiments","liquid_volumes"],"experiment":"agent-smoke-export","partition_by_unit":false}'
   local response
 
   if ! response="$(curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" http://localhost/api/datasets/exportable/export)"; then
@@ -2572,12 +2744,27 @@ PY
 }
 
 check_calibration_discovery() {
-  info "Testing custom calibration discovery via struct"
-  mkdir -p ~/.pioreactor/storage/calibrations/od/
-  cat <<EOF > ~/.pioreactor/storage/calibrations/od/my_test_cal.yaml
-calibration_name: my_test_cal
+  info "Testing OD calibration storage and discovery"
+  if [[ "$HAS_JQ" != true ]] || ! python3_available; then
+    warn "jq and python3 are required for the calibration storage checks"
+    return
+  fi
+
+  local hostname calibration_name encoded_name calibration_dir calibration_file
+  local payload_file dispatch_file result_file device
+  hostname="$(hostname)"
+  calibration_name="agent smoke OD90 + # $(date +%s)-$$"
+  encoded_name="$(uri_encode "$calibration_name")"
+  calibration_dir="${DOT_PIOREACTOR:-$HOME/.pioreactor}/storage/calibrations/od90"
+  calibration_file="$calibration_dir/$calibration_name.yaml"
+  payload_file="$(mktemp)"
+  dispatch_file="$(mktemp)"
+  result_file="$(mktemp)"
+  mkdir -p "$calibration_dir"
+  cat <<EOF > "$calibration_file"
+calibration_name: "$calibration_name"
 calibration_type: od
-calibrated_on_pioreactor_unit: "$(hostname)"
+calibrated_on_pioreactor_unit: "$hostname"
 created_at: 2025-01-01 21:45:48.937062+00:00
 ir_led_intensity: 50
 angle: "90"
@@ -2593,19 +2780,38 @@ recorded_data:
   y: []
 EOF
 
-  if http_json_ok http://localhost/unit_api/calibrations/od '.[] | select(.calibration_name=="my_test_cal")'; then
-    ok "my_test_cal in calibrations list"
+  run_step "Checking od90 calibration discovery" \
+    curl_check http://localhost/unit_api/calibrations/od90 \
+    "any(.[]; .calibration_name==\"$calibration_name\")"
+  run_step "Checking encoded calibration name on the unit API" \
+    curl_check "http://localhost/unit_api/calibrations/od90/$encoded_name" \
+    ".calibration_name==\"$calibration_name\""
+
+  # The protocol target `od` is not a storage device; angle and device must agree.
+  jq -n --rawfile calibration "$calibration_file" \
+    '{calibration_data:$calibration, set_as_active:false}' > "$payload_file"
+  for device in od od135; do
+    run_step "Checking a 90-degree OD calibration cannot be saved under $device" \
+      http_status_is 400 "http://localhost/unit_api/calibrations/$device" \
+      -X POST -H 'Content-Type: application/json' -d "@$payload_file"
+  done
+
+  if curl -fsS "http://localhost/api/workers/$hostname/calibrations/od90/$encoded_name" > "$dispatch_file" && \
+     wait_for_worker_task_success http://localhost "$dispatch_file" "$result_file" \
+       "encoded calibration proxy" 30 1 10 && \
+     jq -e --arg unit "$hostname" --arg name "$calibration_name" \
+       '.result[$unit].ok==true and .result[$unit].value.calibration_name==$name' "$result_file" >/dev/null; then
+    ok "leader proxy preserves URL-sensitive calibration names"
   else
-    fail "my_test_cal not in calibrations list"
+    fail "leader proxy failed to retrieve the encoded calibration name"
+    print_prefixed_file_excerpt "  " "$result_file" 2000
   fi
 
-  if http_json_ok http://localhost/unit_api/calibrations/od/my_test_cal '.calibration_name=="my_test_cal"'; then
-    ok "detail endpoint for my_test_cal succeeded"
-  else
-    fail "detail endpoint for my_test_cal failed"
-  fi
-
-  rm -f ~/.pioreactor/storage/calibrations/od/my_test_cal.yaml
+  # Also clean up if a regressed endpoint incorrectly accepted a mismatched device.
+  for device in od od90 od135; do
+    rm -f "${calibration_dir%/od90}/$device/$calibration_name.yaml"
+  done
+  rm -f "$payload_file" "$dispatch_file" "$result_file"
 }
 
 check_storage_path_validation() {
@@ -2669,7 +2875,7 @@ check_broadcast_endpoints() {
 
 check_numpy_installation() {
   info "Testing numpy install"
-  if python -c "import numpy" >/dev/null 2>&1; then
+  if pioreactor_python -c "import numpy" >/dev/null 2>&1; then
     ok "numpy installed correctly"
   else
     fail "numpy not installed correctly"
@@ -2715,6 +2921,26 @@ check_pump_actions() {
   for action in "${actions[@]}"; do
     if pio run "$action" --duration 1 >/dev/null; then
       ok "pio run $action --duration 1"
+      if pioreactor_python - "$action" <<'PY'
+import sys
+
+from pioreactor.config import config
+from pioreactor.hardware import get_pwm_to_pin_map
+from pioreactor.utils import local_intermittent_storage
+
+device = {"add_media": "media", "add_alt_media": "alt_media", "remove_waste": "waste"}[sys.argv[1]]
+pin = get_pwm_to_pin_map()[config.get("PWM_reverse", device)]
+with local_intermittent_storage("pwm_locks") as locks:
+    assert locks.get(pin) is None, f"{device} left GPIO {pin} locked"
+with local_intermittent_storage("pwm_dc") as duty_cycles:
+    assert duty_cycles.get(pin, 0) == 0, f"{device} left a nonzero cached duty cycle"
+PY
+      then
+        ok "$action cleared its PWM lock and duty cycle"
+      else
+        fail "$action left PWM state behind; inspect the pump before continuing"
+        return
+      fi
     else
       fail "pio run $action --duration 1 failed"
     fi
@@ -3201,6 +3427,9 @@ check_available_worker_identity() {
     return
   fi
 
+  run_step "Checking $worker owns the active state recorded in leader inventory" \
+    curl_check "$base_url/unit_api/active" '.is_active==1'
+
   if clock_json="$(curl -fsS --max-time 5 "$base_url/unit_api/system/utc_clock")"; then
     synchronized="$(jq -r 'if has("synchronized") then (.synchronized | tostring) else "missing" end' <<< "$clock_json")"
     case "$synchronized" in
@@ -3376,7 +3605,8 @@ check_available_worker_cluster_branch() {
 
 summarize() {
   if (( FAILURE_COUNT > 0 )); then
-    printf "${RED}[summary] %d failure(s) detected${NC}\n" "$FAILURE_COUNT"
+    printf "${RED}[summary] %d failure(s) detected${NC}\n\n" "$FAILURE_COUNT"
+    printf -- '- %s\n' "${FAILURE_MESSAGES[@]}"
     exit 1
   fi
 

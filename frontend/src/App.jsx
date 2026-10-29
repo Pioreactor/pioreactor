@@ -99,10 +99,9 @@ function App() {
 
 function MainSite() {
   const [config, setConfig] = React.useState({})
-  const [configLoaded, setConfigLoaded] = React.useState(false)
 
   React.useEffect(() => {
-    getConfig(setConfig).finally(() => setConfigLoaded(true));
+    getConfig(setConfig);
   }, [])
 
 
