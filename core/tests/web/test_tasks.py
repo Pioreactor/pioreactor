@@ -18,6 +18,7 @@ from huey.storage import SqliteStorage
 from pioreactor import hardware
 from pioreactor import pubsub
 from pioreactor.camera import CameraStillMetadata
+from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
 from pioreactor.web import db as web_db
 from pioreactor.web import tasks
@@ -594,35 +595,83 @@ def test_get_from_unit_uses_timeout_for_delayed_task_polling(
     assert responses == []
 
 
-def test_get_from_unit_stops_after_max_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Simulate a pending response that never resolves within the attempt limit.
-    responses = [
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-        _response(202, {"result_url_path": "/unit_api/task_results/abc"}),
-    ]
+@pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE"])
+@pytest.mark.parametrize("poll_failure", ["pending", "connection", "http", "decode"])
+def test_interrupted_polling_preserves_operation_without_resubmission(
+    monkeypatch: pytest.MonkeyPatch, method: str, poll_failure: str
+) -> None:
+    requests: list[tuple[str, str]] = []
+    operation = {"task_id": "abc", "result_url_path": "/unit_api/task_results/abc"}
 
-    # Each request pops the next response in sequence.
-    def fake_get_from(
-        address: str, endpoint: str, json: dict | None = None, timeout: float = 5.0, **_kwargs: Any
-    ) -> Response:
-        return responses.pop(0)
+    def fake_request(request_method: str, url: str, **_kwargs: Any) -> Response:
+        path = urlparse(url).path
+        requests.append((request_method, path))
+        if path == "/unit_api/do":
+            return _response(202, operation)
+        if poll_failure == "connection":
+            raise HTTPException("Lost polling response")
+        if poll_failure == "http":
+            return _response(503, {"error": "Unavailable", "status": 503})
+        if poll_failure == "decode":
+            return Response(url, 200, HTTPMessage(), b"not json")
+        # Older responses may omit task_id; retain it from acceptance.
+        return _response(202, {"result_url_path": operation["result_url_path"]})
 
-    monkeypatch.setattr(pubsub, "get_from", fake_get_from)
-    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "http://unit.local")
-    # Avoid test delays from retry sleeps.
+    monkeypatch.setattr("pioreactor.mureq.request", fake_request)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
     monkeypatch.setattr(tasks, "sleep", lambda _: None)
 
-    unit, result = tasks._request_unit("GET", "unit1", "/unit_api/do", max_attempts=1)
+    unit, result = tasks._request_unit(method, "unit1", "/unit_api/do", max_attempts=1)
 
     assert unit == "unit1"
-    assert result == {
-        "ok": False,
-        "unit": "unit1",
-        "error": {"kind": "task_timeout", "message": "Timed out waiting for unit task result."},
-        "status_code": 202,
-        "retryable": True,
-    }
-    assert responses == []
+    assert result["ok"] is False
+    assert result["retryable"] is False
+    assert result["outcome"] == "unknown"
+    assert result["recovery_action"] == "poll_task"
+    assert result["operation"] == {"unit": "unit1", **operation}
+    assert "do not resubmit" in result["error"]["remediation"]
+    assert requests == [(method, "/unit_api/do"), ("GET", operation["result_url_path"])]
+
+    # The aggregate must retain the handle and recovery advice for clients.
+    assert tasks._reduce_multicast_results([unit], False, [(unit, result)])[unit] == result
+
+
+@pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE"])
+@pytest.mark.parametrize("failure", ["connection", "http", "decode"])
+def test_ambiguous_initial_response_does_not_invite_repeating_mutations(
+    monkeypatch: pytest.MonkeyPatch, method: str, failure: str
+) -> None:
+    requests: list[str] = []
+
+    def fake_request(request_method: str, url: str, **_kwargs: Any) -> Response:
+        requests.append(request_method)
+        if failure == "connection":
+            raise HTTPException("Response lost after acceptance")
+        if failure == "http":
+            return _response(500, {"error": "Internal error", "status": 500})
+        return Response(url, 200, HTTPMessage(), b"not json")
+
+    monkeypatch.setattr("pioreactor.mureq.request", fake_request)
+    monkeypatch.setattr(tasks, "resolve_to_address", lambda unit: "unit.local")
+
+    _, result = tasks._request_unit(method, "unit1", "/unit_api/do")
+
+    assert result["retryable"] is (method == "GET" and failure != "decode")
+    if method != "GET":
+        assert result["outcome"] == "unknown"
+        assert result["recovery_action"] == "check_state"
+        assert "operation" not in result
+        assert "do not resubmit" in result["error"]["remediation"]
+    assert requests == [method]
+
+
+def test_incomplete_task_response_does_not_invite_resubmission() -> None:
+    payload = {"task_id": "abc", "status": "running", "result_url_path": "/unit_api/task_results/abc"}
+    _, result = tasks._process_json_response("unit1", _response(200, payload), payload)
+    assert result["retryable"] is False
+    assert result["outcome"] == "unknown"
+    assert result["recovery_action"] == "poll_task"
+    assert result["operation"]["task_id"] == "abc"
 
 
 @pytest.mark.parametrize("method", ["POST", "PATCH", "DELETE"])
@@ -876,16 +925,28 @@ def test_reduce_multicast_results_handles_partial_failures() -> None:
         "unit2": {
             "ok": False,
             "unit": "unit2",
-            "error": {"kind": "task_exception", "message": "boom"},
+            "error": {
+                "kind": "task_exception",
+                "message": "boom",
+                "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it.",
+            },
             "status_code": None,
-            "retryable": True,
+            "retryable": False,
+            "outcome": "unknown",
+            "recovery_action": "check_state",
         },
         "unit3": {
             "ok": False,
             "unit": "unit3",
-            "error": {"kind": "missing_result", "message": "No result returned for unit."},
+            "error": {
+                "kind": "missing_result",
+                "message": "No result returned for unit.",
+                "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it.",
+            },
             "status_code": None,
-            "retryable": True,
+            "retryable": False,
+            "outcome": "unknown",
+            "recovery_action": "check_state",
         },
     }
     assert helper_output == output
@@ -985,15 +1046,13 @@ def test_multicast_chord_reports_failed_and_skipped_members(
     assert callback_task is not None
     tasks.huey.execute(callback_task)
 
-    assert result.get() == {
-        "unit1": tasks.fanout_success("unit1", {"value": 1}),
-        "unit2": tasks.fanout_failure(
-            "unit2",
-            "task_skipped" if skipped else "task_exception",
-            "Task was skipped." if skipped else "RuntimeError('boom')",
-            retryable=not skipped,
-        ),
-    }
+    output = result.get()
+    assert output["unit1"] == tasks.fanout_success("unit1", {"value": 1})
+    assert output["unit2"]["retryable"] is False
+    assert output["unit2"]["error"]["kind"] == ("task_skipped" if skipped else "task_exception")
+    if not skipped:
+        assert output["unit2"]["outcome"] == "unknown"
+        assert output["unit2"]["recovery_action"] == "check_state"
 
 
 def test_multicast_get_uncached_allows_headroom_for_aggregate_result(
@@ -1064,9 +1123,15 @@ def test_multicast_get_uncached_falls_back_to_child_results_when_callback_times_
         "unit2": {
             "ok": False,
             "unit": "unit2",
-            "error": {"kind": "missing_result", "message": "No result returned for unit."},
+            "error": {
+                "kind": "missing_result",
+                "message": "No result returned for unit.",
+                "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it.",
+            },
             "status_code": None,
-            "retryable": True,
+            "retryable": False,
+            "outcome": "unknown",
+            "recovery_action": "check_state",
         },
     }
 

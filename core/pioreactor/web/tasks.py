@@ -440,6 +440,25 @@ def fanout_failure(
     }
 
 
+def unknown_operation_result(result: FanoutResult, task: dict[str, Any] | None = None) -> FanoutResult:
+    """An unobserved outcome never authorizes resubmitting the original operation."""
+    result = result | {"retryable": False, "outcome": "unknown", "recovery_action": "check_state"}
+    result["error"] = result["error"] | {
+        "remediation": "The operation may still complete. Check unit state before taking further action; do not resubmit it."
+    }
+    if task is not None:
+        operation = {key: task[key] for key in ("task_id", "result_url_path") if key in task}
+        if operation:
+            result["operation"] = {"unit": result["unit"]} | operation
+        if "result_url_path" in operation:
+            result["recovery_action"] = "poll_task"
+            result["error"]["remediation"] = (
+                "The operation may still complete. "
+                "GET operation.result_url_path on operation.unit; do not resubmit it."
+            )
+    return result
+
+
 def fanout_result_succeeded(value: Any) -> bool:
     return isinstance(value, dict) and value.get("ok") is True and "value" in value
 
@@ -498,12 +517,15 @@ def _process_json_response(
                     cause=data.get("cause"),
                     remediation=data.get("remediation"),
                 )
-            return unit, fanout_failure(
-                unit,
-                "task_incomplete",
-                f"Unit task status is {data.get('status') or 'unknown'}.",
-                retryable=True,
-                status_code=response.status_code,
+            return unit, unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_incomplete",
+                    f"Unit task status is {data.get('status') or 'unknown'}.",
+                    retryable=False,
+                    status_code=response.status_code,
+                ),
+                data,
             )
         return unit, fanout_success(unit, data)
     return unit, fanout_failure(
@@ -531,15 +553,20 @@ def _process_delayed_json_response(
     """
     data = response.json()
     remaining_attempts = max_attempts
+    task_metadata: dict[str, Any] = {}
 
     while response.status_code == 202 and "result_url_path" in data:
+        task_metadata.update({key: data[key] for key in ("task_id", "result_url_path") if key in data})
         if remaining_attempts <= 0:
-            return unit, fanout_failure(
-                unit,
-                "task_timeout",
-                "Timed out waiting for unit task result.",
-                retryable=True,
-                status_code=response.status_code,
+            return unit, unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_timeout",
+                    "Timed out waiting for unit task result.",
+                    retryable=False,
+                    status_code=response.status_code,
+                ),
+                task_metadata,
             )
 
         endpoint = data["result_url_path"]
@@ -556,23 +583,29 @@ def _process_delayed_json_response(
                 f"Could not get from `{unit}`'s {address=}, {endpoint=}, sent json=None and returned {e}."
                 f"{_summarize_unit_api_error(delayed_response)}"
             )
-            return unit, _fanout_failure_from_response(
-                unit,
-                delayed_response,
-                fallback_kind="http_error" if delayed_response is not None else "connection_error",
-                fallback_message=f"Could not GET from {unit}'s {endpoint}.",
-                retryable=delayed_response is None or delayed_response.status_code >= 500,
+            return unit, unknown_operation_result(
+                _fanout_failure_from_response(
+                    unit,
+                    delayed_response,
+                    fallback_kind="http_error" if delayed_response is not None else "connection_error",
+                    fallback_message=f"Could not GET from {unit}'s {endpoint}.",
+                    retryable=False,
+                ),
+                task_metadata,
             )
         except DecodeError:
             logger.debug(
                 f"Could not decode response from `{unit}`'s {endpoint=}, sent json=None and returned {_response_body_for_logging(delayed_response)}."
             )
-            return unit, fanout_failure(
-                unit,
-                "decode_error",
-                f"Could not decode response from {unit}'s {endpoint}.",
-                retryable=False,
-                status_code=delayed_response.status_code if delayed_response is not None else None,
+            return unit, unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "decode_error",
+                    f"Could not decode response from {unit}'s {endpoint}.",
+                    retryable=False,
+                    status_code=delayed_response.status_code if delayed_response is not None else None,
+                ),
+                task_metadata,
             )
 
         if response.status_code == 202 and "result_url_path" in data:
@@ -1869,11 +1902,13 @@ def _reduce_multicast_results(
         # Chord callbacks receive Error/SKIPPED; individual result reads below
         # can still produce exceptions or None when a fanout times out.
         if isinstance(result, Error):
-            results_by_unit[unit] = fanout_failure(
-                unit,
-                "task_exception",
-                result.metadata["error"],
-                retryable=True,
+            results_by_unit[unit] = unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_exception",
+                    result.metadata["error"],
+                    retryable=False,
+                )
             )
             continue
 
@@ -1887,20 +1922,24 @@ def _reduce_multicast_results(
             continue
 
         if isinstance(result, Exception):
-            results_by_unit[unit] = fanout_failure(
-                unit,
-                "task_exception",
-                str(result) or result.__class__.__name__,
-                retryable=True,
+            results_by_unit[unit] = unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "task_exception",
+                    str(result) or result.__class__.__name__,
+                    retryable=False,
+                )
             )
             continue
 
         if result is None:
-            results_by_unit[unit] = fanout_failure(
-                unit,
-                "missing_result",
-                "No result returned for unit.",
-                retryable=True,
+            results_by_unit[unit] = unknown_operation_result(
+                fanout_failure(
+                    unit,
+                    "missing_result",
+                    "No result returned for unit.",
+                    retryable=False,
+                )
             )
             continue
 
@@ -2062,24 +2101,28 @@ def _request_unit(
             f"Could not {method} `{unit}`'s {address=}, {endpoint=}, sent {json=} and returned {e}."
             f"{_summarize_unit_api_error(r)}"
         )
-        return unit, _fanout_failure_from_response(
+        failure = _fanout_failure_from_response(
             unit,
             r,
             fallback_kind="http_error" if r is not None else "connection_error",
             fallback_message=f"Could not {method} {unit}'s {endpoint}.",
-            retryable=r is None or r.status_code >= 500,
+            retryable=method == "GET" and (r is None or r.status_code >= 500),
         )
+        if method != "GET" and (r is None or r.status_code >= 500):
+            failure = unknown_operation_result(failure)
+        return unit, failure
     except DecodeError:
         logger.debug(
             f"Could not decode response from `{unit}`'s {endpoint=}, sent {json=} and returned {_response_body_for_logging(r)}."
         )
-        return unit, fanout_failure(
+        failure = fanout_failure(
             unit,
             "decode_error",
             f"Could not decode response from {unit}'s {endpoint}.",
             retryable=False,
             status_code=r.status_code if r is not None else None,
         )
+        return unit, unknown_operation_result(failure) if method != "GET" else failure
 
 
 @huey.task(priority=10)

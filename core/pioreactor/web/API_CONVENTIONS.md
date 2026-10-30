@@ -41,3 +41,25 @@ separate destination guard. Inventory cleanup uses
 `POST /unit_api/cluster/leave` with the same optional header;
 the worker undoes its join (stops jobs, removes shared config and its chrony source) and reboots. The leader's
 `DELETE /api/workers/<unit>` owns deletion of the inventory database record.
+
+## Fanout failures and safe retries
+
+`retryable` means it is safe to repeat the original request. A missing response,
+HTTP 5xx, or unreadable response to a mutation does not establish that the
+mutation failed before execution. These ambiguous failures return
+`retryable: false`, `outcome: "unknown"`, and `recovery_action: "check_state"`.
+Inspect unit state before deciding what to do next; do not automatically resubmit
+the mutation. Generic fanout task exceptions and missing results are also
+conservative because they do not establish whether execution occurred.
+
+If a worker already accepted a task, interrupted polling returns
+`retryable: false`, `outcome: "unknown"`, and `recovery_action: "poll_task"`.
+The `operation` object retains `unit`, `task_id` (when supplied), and
+`result_url_path`. That path is relative to the **worker**, not the leader:
+GET it on `operation.unit`. For registered workers, clients can alternatively
+GET `/api/workers/<unit>/task_results/<task_id>` on the leader.
+Repeat these read requests to observe the existing operation; do not repeat the
+original mutation. A polling failure does not cancel the worker task.
+
+Transient failures of initial GET requests remain retryable. No idempotency-key
+or command-deduplication guarantee is provided by this contract.
