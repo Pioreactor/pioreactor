@@ -171,7 +171,8 @@ export const MQTTProvider = ({ name, config, children }) => {
       path: '/mqtt',
       username,
       password,
-      keepalive: 120,
+      // Send client traffic before lighttpd's default 60-second idle-read timeout.
+      keepalive: 30,
       clean: true,
       connectTimeout: 10000,
       reconnectPeriod: 5000,

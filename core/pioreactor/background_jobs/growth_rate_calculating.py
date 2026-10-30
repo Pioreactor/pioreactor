@@ -213,7 +213,6 @@ class GrowthRateCalculator(BackgroundJob):
         from grpredict import CultureGrowthEKF
         import numpy as np
 
-        self.logger.info("Initializing growth-rate filter from warmup observations.")
         observation_noise_covariance = self._create_obs_noise_covariance_from_warmup_observations(
             warmup_observations
         )

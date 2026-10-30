@@ -217,35 +217,16 @@ function Overview(props) {
             md: 5
           }}>
 
-          <Grid
-            size={{
-              xs: 12,
-              sm: 7,
-              md: 7
-            }}>
-            <Stack direction="row" sx={{ justifyContent: "start" }}>
+          <Grid size={12}>
+            <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
               <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
-            </Stack>
-          </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 4,
-              md: 4
-            }}>
               <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-          </Grid>
-          <Grid
-            size={{
-              xs: 1,
-              sm: 1,
-              md: 1
-            }}>
               <ChartPreferencesControl
                 chartPageLabel="Overview"
                 chartPreferences={chartPreferences}
                 experiment={experimentMetadata.experiment}
               />
+            </Stack>
           </Grid>
 
           {( cardsConfig['dosings'] === "1") &&

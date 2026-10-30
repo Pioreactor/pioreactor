@@ -97,7 +97,7 @@ function EntityChip({ type, label, unit, device }) {
         clickable
         component={Link}
         to={`/pioreactors/${label}`}
-        sx={INLINE_CHIP_SX}
+        sx={{ ...INLINE_CHIP_SX, maxWidth: "none" }}
         {...dataProps}
       />
     );

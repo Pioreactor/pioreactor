@@ -50,6 +50,7 @@ const StyledTableCellFiller = styled(TableCell)(() => ({
 
 const LEVELS = ["NOTSET", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITICAL"];
 const HIGHLIGHTABLE_CHIP_SX = {
+  maxWidth: "none",
   userSelect: "text",
   WebkitUserSelect: "text",
   "& .MuiChip-icon": {

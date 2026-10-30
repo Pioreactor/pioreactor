@@ -48,6 +48,7 @@ const getLiveLogTopics = (pioreactorUnit, experiment, logLevel) => {
   );
 };
 const HIGHLIGHTABLE_CHIP_SX = {
+  maxWidth: "none",
   userSelect: "text",
   WebkitUserSelect: "text",
   "& .MuiChip-icon": {
@@ -208,7 +209,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
         <CardContent sx={{ width: "100%" }}>
           {hasLogs ? (
             <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
-              <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
+              <Table sx={{ minWidth: 600 }} stickyHeader size="small" aria-label="log table">
                 <colgroup>
                   <Box component="col" sx={{width:'15%'}}/>
                   <Box component="col" sx={{width:'10%'}}/>
