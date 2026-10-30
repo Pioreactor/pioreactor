@@ -928,7 +928,7 @@ function SettingsActionsDialog({
         allowScrollButtonsMobile
         >
         <Tab label="Activities"/>
-        <Tab label="Settings"/>
+        <Tab label="Parameters"/>
         <Tab label="Dosing"/>
         <Tab label="LEDs"/>
         <Tab label="Self-test"/>
@@ -1948,7 +1948,7 @@ function SettingsActionsDialogAll({experiment, config, units = []}) {
         allowScrollButtonsMobile
       >
         <Tab label="Activities"/>
-        <Tab label="Settings"/>
+        <Tab label="Parameters"/>
         <Tab label="Dosing"/>
         <Tab label="LEDs"/>
         <Tab label="Self-test"/>
@@ -2999,7 +2999,7 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2" component={'span'}>
             <Box sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
-              Settings:
+              Parameters:
             </Box>
           </Typography>
         </Box>
@@ -3124,7 +3124,7 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
                 <Typography variant="subtitle2">
                   {quickSetting.label}
                 </Typography>
-                <IconButton aria-label="Close setting editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
+                <IconButton aria-label="Close parameter editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>

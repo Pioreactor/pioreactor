@@ -259,7 +259,7 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobAttr(job, setting, value) {
     if (job === "bioreactor") {
-      // Mirror the confirmed save locally so the Settings dialog updates immediately.
+      // Mirror the confirmed save locally so the Parameters dialog updates immediately.
       // The retained MQTT echo will still arrive, but it can lag the HTTP response.
       return updateBioreactorSettingAndMirrorState(
         props.unit,
@@ -596,7 +596,7 @@ function SettingsActionsDialog(props) {
         allowScrollButtonsMobile
         >
         <Tab label="Activities"/>
-        <Tab label="Settings"/>
+        <Tab label="Parameters"/>
         <Tab label="Dosing"/>
         <Tab label="LEDs"/>
         <Tab label="Self-test"/>
@@ -1839,7 +1839,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
         <Box sx={{width: "100px", mt: "10px"}}>
           <Typography variant="body2">
             <Box component="span" sx={{ fontWeight: "fontWeightBold", color: !isUnitActive ? disabledColor : 'inherit' }}>
-              Settings:
+              Parameters:
             </Box>
           </Typography>
         </Box>
@@ -1964,7 +1964,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                 <Typography variant="subtitle2">
                   {quickSetting.label}
                 </Typography>
-                <IconButton aria-label="Close setting editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
+                <IconButton aria-label="Close parameter editor" size="small" onClick={handleQuickSettingClose} sx={{mt: -0.5, mr: -0.5}}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>
