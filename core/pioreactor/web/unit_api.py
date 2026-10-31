@@ -319,7 +319,7 @@ def list_camera_stills_for_experiment(experiment: str) -> ResponseReturnValue:
             {
                 "unit": HOSTNAME,
                 "experiment": experiment,
-                "stills": [to_builtins(still) for still in metadata],
+                "stills": to_builtins(metadata),
             }
         ),
         max_age=0,
@@ -507,7 +507,7 @@ def get_zipped_camera_stills_for_experiment(experiment: str) -> ResponseReturnVa
                     {
                         "unit": HOSTNAME,
                         "experiment": experiment,
-                        "stills": [to_builtins(still) for still in metadata],
+                        "stills": to_builtins(metadata),
                     },
                     indent=2,
                 ),
@@ -1973,13 +1973,17 @@ def get_all_calibrations() -> ResponseReturnValue:
         )
 
     all_calibrations: dict[str, list[dict[str, Any]]] = {}
+    # Keep each device's active selection consistent throughout this response.
+    active_names: dict[str, object] = {}
 
     with local_persistent_storage("active_calibrations") as cache:
         for file in sorted(calibration_dir.glob("*/*.yaml")):
             try:
                 device = file.parent.name
                 cal = to_builtins(yaml_decode(file.read_bytes(), type=AllCalibrations))
-                cal["is_active"] = cache.get(device) == cal["calibration_name"]
+                if device not in active_names:
+                    active_names[device] = cache.get(device)
+                cal["is_active"] = active_names[device] == cal["calibration_name"]
                 cal["pioreactor_unit"] = HOSTNAME
                 if device in all_calibrations:
                     all_calibrations[device].append(cal)
@@ -2063,13 +2067,17 @@ def get_all_estimators() -> ResponseReturnValue:
         return attach_cache_control(jsonify({}), max_age=10)
 
     all_estimators: dict[str, list[dict[str, Any]]] = {}
+    # Keep each device's active selection consistent throughout this response.
+    active_names: dict[str, object] = {}
 
     with local_persistent_storage("active_estimators") as cache:
         for file in sorted(estimator_dir.glob("*/*.yaml")):
             try:
                 device = file.parent.name
                 estimator = to_builtins(yaml_decode(file.read_bytes(), type=AllEstimators))
-                estimator["is_active"] = cache.get(device) == estimator.get("estimator_name")
+                if device not in active_names:
+                    active_names[device] = cache.get(device)
+                estimator["is_active"] = active_names[device] == estimator.get("estimator_name")
                 estimator["pioreactor_unit"] = HOSTNAME
                 estimator["device"] = device
                 if device in all_estimators:

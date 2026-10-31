@@ -22,9 +22,11 @@ from pioreactor.camera import camera_focus_preview_path
 from pioreactor.camera import store_camera_still
 from pioreactor.config import ConfigParserMod
 from pioreactor.structs import OD600Calibration
+from pioreactor.structs import ODFusionEstimator
 from pioreactor.structs import PolyFitCoefficients
 from pioreactor.structs import SimplePeristalticPumpCalibration
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.sqlite_cache import cache as SqliteCache
 from pioreactor.web import unit_api
 from pioreactor.web.app import HOSTNAME
 
@@ -49,6 +51,76 @@ def _build_valid_calibration_yaml(calibration_name: str) -> str:
         voltage=3.3,
     )
     return yaml_encode(calibration).decode()
+
+
+@pytest.mark.parametrize("kind", ["calibrations", "estimators"])
+@pytest.mark.parametrize("initial_active", ["a", None])
+def test_artifact_listing_reads_active_selection_once_per_device(
+    client: FlaskClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    kind: str,
+    initial_active: str | None,
+) -> None:
+    monkeypatch.setattr(
+        unit_api, "CALIBRATION_PATH" if kind == "calibrations" else "ESTIMATOR_PATH", tmp_path
+    )
+    for device in ("device1", "device2"):
+        directory = tmp_path / device
+        directory.mkdir()
+        (directory / "0_broken.yaml").write_text("[invalid", encoding="utf-8")
+        for name in ("a", "b"):
+            if kind == "calibrations":
+                content = _build_valid_calibration_yaml(name)
+            else:
+                content = yaml_encode(
+                    ODFusionEstimator(
+                        estimator_name=name,
+                        calibrated_on_pioreactor_unit="unit1",
+                        created_at=datetime.now(UTC),
+                        ir_led_intensity=80.0,
+                        angles=[],
+                        mu_splines={},
+                        sigma_splines_log={},
+                        min_logc=-2.0,
+                        max_logc=2.0,
+                        sigma_floor=0.01,
+                        recorded_data={},
+                    )
+                ).decode()
+            (directory / f"{name}.yaml").write_text(content, encoding="utf-8")
+
+    table = f"active_{kind}"
+    with local_persistent_storage(table) as storage:
+        for device in ("device1", "device2"):
+            if initial_active is not None:
+                storage[device] = initial_active
+
+    reads: list[object] = []
+    original_get = SqliteCache.get
+
+    def get_and_switch(self: SqliteCache, key: object, default: object = None) -> object:
+        value = original_get(self, key, default)
+        if self.table_name == f"cache_{table}":
+            reads.append(key)
+            # A separate connection activates b after this request's first read.
+            with local_persistent_storage(table) as writer:
+                writer[key] = "b"
+        return value
+
+    monkeypatch.setattr(SqliteCache, "get", get_and_switch)
+    name_key = "calibration_name" if kind == "calibrations" else "estimator_name"
+    for expected_active in (initial_active, "b"):
+        reads.clear()
+        response = client.get(f"/unit_api/{kind}")
+        assert response.status_code == 200
+        assert reads == ["device1", "device2"]
+        payload = response.get_json()
+        for device in ("device1", "device2"):
+            assert {row[name_key]: row["is_active"] for row in payload[device]} == {
+                "a": expected_active == "a",
+                "b": expected_active == "b",
+            }
 
 
 def test_task_results_pending(client) -> None:

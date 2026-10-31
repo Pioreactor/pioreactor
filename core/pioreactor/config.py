@@ -62,9 +62,7 @@ class ConfigParserMod(configparser.ConfigParser):
         """
         creates an inverted lookup from a config section. Useful to find LEDs and PWM.
         """
-        section_without_empties = {k: v for k, v in self[section].items() if v != ""}
-        reversed_section = {v: k for k, v in section_without_empties.items()}
-        return reversed_section
+        return {v: k for k, v in self[section].items() if v != ""}
 
     def _get_conv(  # type: ignore[override]
         self,
