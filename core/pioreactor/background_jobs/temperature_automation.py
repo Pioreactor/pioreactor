@@ -117,7 +117,6 @@ class TemperatureAutomationJob(AutomationJob):
         self._heater_state_lock = RLock()
 
         if not hardware.is_heating_pcb_present():
-            self.logger.error("Heating PCB must be attached to Pioreactor HAT")
             self.clean_up()
             raise exc.HardwareNotFoundError("Heating PCB must be attached to Pioreactor HAT")
 
@@ -404,10 +403,6 @@ class TemperatureAutomationJob(AutomationJob):
                     # if our state changes in this loop, exit. Note that the finally block is still called.
                     return
 
-        except exc.HardwareNotFoundError as e:
-            self.logger.debug(e, exc_info=True)
-            self.logger.error(e)
-            raise e
         finally:
             # update heater first before publishing the temperature. Why? A downstream process
             # might listen for the updating temperature, and update the heater (pid_thermostat),

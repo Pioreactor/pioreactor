@@ -700,7 +700,6 @@ def run_tests(
 
     for test in tests_to_run:
         if managed_state.exit_event.is_set():
-            logger.info("Self-test interrupted, stopping remaining tests.")
             break
 
         test_name = test.__name__

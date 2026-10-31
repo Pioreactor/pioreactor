@@ -801,7 +801,5 @@ def click_stirring(
         ) as st:
             st.block_until_rpm_is_close_to_target()
             st.block_until_disconnected()
-    except exc.HardwareNotFoundError as e:
-        from pioreactor.logging import create_logger
-
-        create_logger("stirring").error(e)
+    except exc.HardwareNotFoundError:
+        pass  # Stirrer already logged it
