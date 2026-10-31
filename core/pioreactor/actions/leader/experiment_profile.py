@@ -133,13 +133,11 @@ def evaluate_log_message(message: str, env: Env) -> str:
     import re
     from pioreactor.experiment_profiles.parser import parse_profile_expression
 
-    matches = re.findall(FLEXIBLE_EXPRESSION_PATTERN, message)
-
-    modified_matches = [parse_profile_expression(match, env) for match in matches]
-
-    # Replace each ${{...}} in the original string with the modified match
-    result_string = re.sub(FLEXIBLE_EXPRESSION_PATTERN, lambda m: str(modified_matches.pop(0)), message)
-    return result_string
+    return re.sub(
+        FLEXIBLE_EXPRESSION_PATTERN,
+        lambda match: str(parse_profile_expression(match.group(1), env)),
+        message,
+    )
 
 
 def evaluate_bool_expression(bool_expression: BoolExpression, env: Env) -> bool:

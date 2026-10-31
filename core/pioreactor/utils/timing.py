@@ -48,7 +48,7 @@ def current_utc_timestamp() -> str:
 
 
 def current_utc_datestamp() -> str:
-    return current_utc_datetime().strftime("%Y-%m-%d")
+    return current_utc_datetime().date().isoformat()
 
 
 def default_datetime_for_pioreactor(delta_seconds: float = 0) -> datetime:

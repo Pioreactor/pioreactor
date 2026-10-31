@@ -433,8 +433,9 @@ class ADCReader(LoggerMixin):
         n = x_.shape[0]
 
         tau = 2 * np.pi
-        sin_x = np.sin(freq * tau * x_)
-        cos_x = np.cos(freq * tau * x_)
+        phase = freq * tau * x_
+        sin_x = np.sin(phase)
+        cos_x = np.cos(phase)
 
         sum_sin = sin_x.sum()
         sum_cos = cos_x.sum()
@@ -480,11 +481,11 @@ class ADCReader(LoggerMixin):
             # between candidate AC frequencies.
             AIC = -math.inf
 
-        if np.sqrt(b**2 + c**2) <= 1e-20:
+        A = np.sqrt(b**2 + c**2)
+        if A <= 1e-20:
             A = 0
             phi = 0
         else:
-            A = np.sqrt(b**2 + c**2)
             phi = np.arctan2(c, b)
 
         return (float(C), float(A), float(phi)), AIC

@@ -385,10 +385,9 @@ class GrowthRateCalculator(BackgroundJob):
         return tuple(sorted(self.od_normalization_factors, reverse=True))
 
     def scale_raw_observations(self, od_readings: structs.ODReadings) -> dict[pt.PdChannel, float]:
+        ordered_channels = self._ordered_pd_channels()
         zero_reference_channels = [
-            channel
-            for channel in self._ordered_pd_channels()
-            if self.od_normalization_factors[channel] <= 0.0
+            channel for channel in ordered_channels if self.od_normalization_factors[channel] <= 0.0
         ]
         if zero_reference_channels:
             raise ValueError(
@@ -397,7 +396,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         scaled_signals = {
             channel: od_readings.ods[channel].od / self.od_normalization_factors[channel]
-            for channel in self._ordered_pd_channels()
+            for channel in ordered_channels
         }
 
         if any(v <= 0.0 for v in scaled_signals.values()):

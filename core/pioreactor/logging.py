@@ -92,7 +92,7 @@ class CustomisedJSONFormatter(JSONFormatter):
                 message = decoded
 
         message = message.replace("\r\n", "\n").replace("\r", "\n")
-        return ANSI_ESCAPE_RE.sub("", message)
+        return ANSI_ESCAPE_RE.sub("", message) if "\x1b" in message else message
 
     def json_record(self, message: str, extra: dict[str, Any], record: logging.LogRecord) -> dict[str, Any]:
         from pioreactor.utils.timing import current_utc_timestamp
