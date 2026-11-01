@@ -485,8 +485,11 @@ function PioreactorHeader({experiment, config, units}) {
           <ButtonStopProcess experiment={experiment}/>
           <AssignPioreactors experiment={experiment}/>
           <SettingsActionsDialogAll experiment={experiment} config={config} units={units}/>
-          <Divider orientation="vertical" flexItem variant="middle"/>
-          <ManageExperimentMenu experiment={experiment}/>
+          {/* Keep the divider with the menu it separates when the actions wrap. */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Divider orientation="vertical" flexItem variant="middle"/>
+            <ManageExperimentMenu experiment={experiment}/>
+          </Box>
         </>
       )}
     />

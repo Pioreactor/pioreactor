@@ -718,6 +718,7 @@ class CreateExperimentRequest(Struct, forbid_unknown_fields=True):
 
 
 class UpdateExperimentRequest(Struct, forbid_unknown_fields=True):
+    started_at: t.Annotated[datetime, Meta(tz=True)] | UnsetType = UNSET
     description: str | None | UnsetType = UNSET
     tags: list[str] | UnsetType = UNSET
 

@@ -35,7 +35,8 @@ jest.mock("../providers/ExperimentContext", () => ({
   useExperiment: () => ({
     experimentMetadata: {
       experiment: "experiment a",
-      created_at: "2026-06-11T10:30:00Z",
+      created_at: "2026-06-10T10:30:00Z",
+      started_at: "2026-06-11T10:30:00Z",
     },
   }),
 }));

@@ -4,6 +4,7 @@ import React, {useState, useEffect, useMemo, useCallback} from "react";
 
 import Grid from '@mui/material/Grid';
 import { useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 import Chip from '@mui/material/Chip';
 import Card from '@mui/material/Card';
@@ -159,30 +160,30 @@ function PioreactorHeader({assignedExperiment, isActive, selectExperiment, model
       />
         <Box sx={{mb: 0, display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
-            <Box sx={{display:"inline"}}>
+            <Box sx={{display:"inline-block", whiteSpace: "nowrap"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
-                <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
+                <Box sx={{ fontWeight: "fontWeightRegular", mr: 1.5, display:"inline-block" }}>
                 <Chip icon={<PlayCircleOutlinedIcon/>} size="small" sx={{ mb: "2px" }} label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
               </Box>
             </Box>
-            <Box sx={{display:"inline"}}>
+            <Box sx={{display:"inline-block", whiteSpace: "nowrap"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 {isActive
                   ? <ShieldCheckOutlineIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/>
                   : <ShieldAlertOutlineIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/>
                 } Availability:&nbsp;
               </Box>
-              <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
+              <Box sx={{ fontWeight: "fontWeightRegular", mr: 1.5, display:"inline-block" }}>
                 {isActive ? "Active" : "Inactive"}
               </Box>
             </Box>
-            <Box sx={{display:"inline"}}>
+            <Box sx={{display:"inline-block", whiteSpace: "nowrap"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
                 <PioreactorIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Model:&nbsp;
               </Box>
-              <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
+              <Box sx={{ fontWeight: "fontWeightRegular", mr: 1.5, display:"inline-block" }}>
                 {modelDisplayName}
               </Box>
             </Box>
@@ -2063,7 +2064,7 @@ function Charts(props) {
                   yAxisLabel={chart.y_axis_label}
                   experiment={experiment}
                   deltaHours={props.experimentMetadata.delta_hours}
-                  experimentStartTime={props.experimentMetadata.created_at}
+                  experimentStartTime={props.experimentMetadata.started_at}
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
@@ -2106,6 +2107,19 @@ function Pioreactor({title}) {
     configReady: unitConfigReady,
     experiment: experimentMetadata.experiment,
   });
+  const theme = useTheme();
+  const isTwoColumn = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true });
+  const chartControls = (
+    <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+      <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
+      <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
+      <ChartPreferencesControl
+        chartPageLabel="Pioreactor"
+        chartPreferences={chartPreferences}
+        experiment={experimentMetadata.experiment}
+      />
+    </Stack>
+  );
 
   const {pioreactorUnit} = useParams();
   const unit = pioreactorUnit
@@ -2239,7 +2253,9 @@ function Pioreactor({title}) {
               lg: 4,
               md: 12,
               xs: 12
-            }}>
+            }}
+            // Below lg the diagram gets its own row; cap it so it doesn't dominate the page.
+            sx={{ "& svg[aria-label='Bioreactor diagram']": { maxHeight: { xs: 380, lg: "none" } } }}>
             <BioreactorDiagramPanel
               unit={unit}
               experiment={experimentMetadata.experiment}
@@ -2250,13 +2266,14 @@ function Pioreactor({title}) {
             />
           </Grid>
 
+          {!isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
           <Grid
             container
             spacing={1}
             sx={{height: "100%", justifyContent: "flex-start"}}
             size={{
               xs: 12,
-              md: 7
+              lg: 7
             }}>
             <Charts chartPreferences={chartPreferences} unit={unit} unitsColorMap={unitsColorMap} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
           </Grid>
@@ -2266,42 +2283,11 @@ function Pioreactor({title}) {
             sx={{height: "100%", justifyContent: "flex-end"}}
             size={{
               xs: 12,
-              md: 5
+              lg: 5
             }}>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 7,
-                md: 7
-              }}>
-              <Stack direction="row" sx={{ justifyContent: "start" }}>
-                <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
-              </Stack>
-            </Grid>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 4,
-                md: 4
-              }}>
-              <Stack direction="row" spacing={0.5} sx={{ justifyContent: "end", alignItems: "center" }}>
-                <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-              </Stack>
-            </Grid>
-            <Grid
-              size={{
-                xs: 1,
-                sm: 1,
-                md: 1
-              }}>
-              <ChartPreferencesControl
-                chartPageLabel="Pioreactor"
-                chartPreferences={chartPreferences}
-                experiment={experimentMetadata.experiment}
-              />
-            </Grid>
+            {isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
             <Grid size={12}>
-              <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.created_at}/>
+              <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.started_at}/>
             </Grid>
             <Grid size={12}>
               <Box sx={{ mt: 1, mb: 1 }}>
@@ -2309,7 +2295,7 @@ function Pioreactor({title}) {
                   key={`${unit}:${experimentMetadata.experiment}`}
                   unit={unit}
                   experiment={experimentMetadata.experiment}
-                  experimentStartTime={experimentMetadata.created_at}
+                  experimentStartTime={experimentMetadata.started_at}
                 />
               </Box>
             </Grid>

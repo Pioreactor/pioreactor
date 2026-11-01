@@ -14,7 +14,7 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp truncated to the minute.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   avg_od_reading: Minute-level average of od_reading.
   avg_od_fused: Minute-level average of od_fused.
   avg_normalized_od_reading: Minute-level average of normalized_od_reading.
@@ -25,7 +25,7 @@ column_descriptions:
   sum_remove_waste_ml: Minute-level total removed waste volume.
   sum_add_alt_media_ml: Minute-level total added alternate media volume.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h
   avg_od_reading: OD or AU
   avg_od_fused: OD
   avg_normalized_od_reading: nOD

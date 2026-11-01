@@ -16,6 +16,8 @@ import { getConfig, getRelabelMap } from "./utils/config";
 import { colors, ColorCycler } from "./utils/color";
 import Card from "@mui/material/Card";
 import Stack from "@mui/material/Stack";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
@@ -94,7 +96,7 @@ function Charts(props) {
                   payloadKey={chart.payload_key}
                   yAxisLabel={chart.y_axis_label}
                   experiment={experiment}
-                  experimentStartTime={props.experimentMetadata.created_at}
+                  experimentStartTime={props.experimentMetadata.started_at}
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
@@ -133,6 +135,8 @@ function Overview(props) {
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
   const [hasFetchedUnits, setHasFetchedUnits] = useState(false)
+  const theme = useTheme();
+  const isTwoColumn = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true })
   const unitsColorMap = useMemo(() => new ColorCycler(colors), [])
   const cardsConfig = config['ui.overview.cards'] || {};
   const chartPreferences = useExperimentChartPreferences({
@@ -185,6 +189,18 @@ function Overview(props) {
 
   const showAssignmentAlert = hasFetchedUnits && assignedUnits.length === 0
 
+  const chartControls = (
+    <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+      <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
+      <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
+      <ChartPreferencesControl
+        chartPageLabel="Overview"
+        chartPreferences={chartPreferences}
+        experiment={experimentMetadata.experiment}
+      />
+    </Stack>
+  )
+
   return (
     <Fragment>
       <Grid container spacing={2} sx={{ justifyContent: "space-between" }}>
@@ -197,13 +213,15 @@ function Overview(props) {
         </Grid>
 
 
+        {!isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
+
         <Grid
           container
           spacing={2}
           sx={{height: "100%",  justifyContent: "flex-start" }}
           size={{
             xs: 12,
-            md: 7
+            lg: 7
           }}>
           <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
         </Grid>
@@ -214,24 +232,14 @@ function Overview(props) {
           sx={{height: "100%",  justifyContent: "flex-end" }}
           size={{
             xs: 12,
-            md: 5
+            lg: 5
           }}>
 
-          <Grid size={12}>
-            <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-              <TimeWindowSwitch setTimeWindow={setTimeWindow} timeWindow={timeWindow}/>
-              <TimeFormatSwitch setTimeScale={setTimeScale} timeScale={timeScale}/>
-              <ChartPreferencesControl
-                chartPageLabel="Overview"
-                chartPreferences={chartPreferences}
-                experiment={experimentMetadata.experiment}
-              />
-            </Stack>
-          </Grid>
+          {isTwoColumn && <Grid size={12}>{chartControls}</Grid>}
 
           {( cardsConfig['dosings'] === "1") &&
             <Grid size={12}>
-              <MediaCard key={experimentMetadata.experiment} activeUnits={activeUnits} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
+              <MediaCard key={experimentMetadata.experiment} activeUnits={activeUnits} experiment={experimentMetadata.experiment} startedAt={experimentMetadata.started_at} relabelMap={relabelMap}/>
             </Grid>
           }
 
@@ -245,7 +253,7 @@ function Overview(props) {
 
         {( cardsConfig['event_logs'] === "1") &&
           <Grid size={12}>
-            <LogTable units={assignedUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+            <LogTable units={assignedUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.started_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
           </Grid>
         }
         </Grid>

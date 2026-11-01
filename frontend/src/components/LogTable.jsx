@@ -48,6 +48,17 @@ const StyledTableCellFiller = styled(TableCell)(() => ({
 }));
 
 
+// In a narrow card (the Overview side column below ~1480px), fold Source under the
+// Pioreactor chip and cap the chip so the Message column keeps its room.
+const NARROW_LOG_TABLE_SX = {
+  containerType: "inline-size",
+  "@container (max-width: 480px)": {
+    "& .log-source-column": { display: "none" },
+    "& .log-source-inline": { display: "block" },
+    "& .log-unit-chip": { maxWidth: "128px" },
+  },
+};
+
 const LEVELS = ["NOTSET", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITICAL"];
 const HIGHLIGHTABLE_CHIP_SX = {
   maxWidth: "none",
@@ -176,13 +187,13 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
         <Typography variant="h6" component="h2">
           <Box sx={{ fontWeight: "fontWeightRegular" }}>Recent experiment logs</Box>
         </Typography>
-        <TableContainer sx={{ height: '660px', width: '100%', overflowY: 'auto' }}>
+        <TableContainer sx={{ height: '660px', width: '100%', overflowY: 'auto', ...NARROW_LOG_TABLE_SX }}>
           <Table stickyHeader size="small" aria-label="log table">
             <TableHead>
               <TableRow>
                 <StyledTableHeaderCell>Time</StyledTableHeaderCell>
                 <StyledTableHeaderCell>Pioreactor</StyledTableHeaderCell>
-                <StyledTableHeaderCell>Source</StyledTableHeaderCell>
+                <StyledTableHeaderCell className="log-source-column">Source</StyledTableHeaderCell>
                 <StyledTableHeaderCell>Message</StyledTableHeaderCell>
               </TableRow>
             </TableHead>
@@ -201,9 +212,12 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                         to={"/pioreactors/" + log.pioreactor_unit}
                         data-pioreactor-unit={log.pioreactor_unit}
                         sx={HIGHLIGHTABLE_CHIP_SX}
+                        className="log-unit-chip"
+                        title={relabelUnit(log.pioreactor_unit)}
                       />
+                      <Box className="log-source-inline" sx={{ display: "none", mt: 0.5, color: "text.secondary" }}>{log.task.replace(/_/g, ' ')}</Box>
                     </StyledTableCell>
-                    <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                    <StyledTableCell level={log.level} className="log-source-column">{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level}>
                       <LogMessage message={log.message} units={clusterUnits} experiment={log.experiment ?? experiment} unit={log.pioreactor_unit} />
                     </StyledTableCell>

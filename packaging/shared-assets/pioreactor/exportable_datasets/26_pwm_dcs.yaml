@@ -13,14 +13,14 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp when the leader stored the PWM duty-cycle state.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   channel_1: PWM channel 1 duty cycle.
   channel_2: PWM channel 2 duty cycle.
   channel_3: PWM channel 3 duty cycle.
   channel_4: PWM channel 4 duty cycle.
   channel_5: PWM channel 5 duty cycle.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h
   channel_1: percent
   channel_2: percent
   channel_3: percent

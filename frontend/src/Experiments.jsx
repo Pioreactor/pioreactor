@@ -148,7 +148,7 @@ function ExperimentsContainer(props) {
     setLoadError("");
 
     try {
-      const response = await fetch("/api/experiments");
+      const response = await fetch("/api/experiments", { cache: "no-cache" });
       if (!response.ok) {
         throw new Error(`Failed to load experiments (${response.status})`);
       }
@@ -227,6 +227,7 @@ function ExperimentsContainer(props) {
         body: JSON.stringify({
           description: updatedExperiment.description,
           tags: updatedExperiment.tags,
+          started_at: updatedExperiment.started_at,
         }),
         headers: {
           Accept: "application/json",

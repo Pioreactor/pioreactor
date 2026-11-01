@@ -650,6 +650,14 @@ Rules:
 - Page headers and action groups must wrap instead of overflowing.
 - Tables must scroll horizontally inside their container, not widen the whole
   page.
+- The permanent side navigation (230px) is visible from `md` (900px) up, so a
+  `md` column split leaves each column about 300px narrower than the viewport
+  suggests. Side-by-side page columns, such as the 7/5 chart and side-panel
+  split, use `lg` (1200px). Below `lg` they stack, and controls that act on the
+  stacked content move above it.
+- The `main` element has `minWidth: 0`. Never let one wide child, such as a
+  table or a `<pre>`, set the page width; give that child its own scroll
+  container.
 - Standalone touch controls should provide at least a 44px hit area.
 - Dense table links and Chips may be visually compact, but must have clear
   spacing, visible keyboard focus, and must not be the only tiny target for a

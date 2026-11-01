@@ -13,10 +13,10 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp from the pump action event.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   event: Dosing action name, such as add_media, add_alt_media, or remove_waste.
   volume_change_ml: Volume moved by the dosing action. Positive values add volume and negative values remove volume.
   source_of_event: Job, automation, calibration, or user source that triggered the dosing action.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h
   volume_change_ml: mL

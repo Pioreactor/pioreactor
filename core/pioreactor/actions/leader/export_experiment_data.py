@@ -87,11 +87,10 @@ def generate_timestamp_to_relative_time_clause(default_order_by: str) -> str:
     if not default_order_by:
         return ""
 
-    START_TIME = "created_at"
-
-    clause = f"round((unixepoch(T.{default_order_by}) - unixepoch(E.{START_TIME}))/3600.0, {EXPORT_FLOAT_DECIMALS}) as hours_since_experiment_created"
-
-    return clause
+    return (
+        f"round((unixepoch(T.{default_order_by}) - unixepoch(E.started_at))/3600.0, "
+        f"{EXPORT_FLOAT_DECIMALS}) as hours_since_experiment_started"
+    )
 
 
 def load_exportable_datasets() -> dict[str, Dataset]:
@@ -149,7 +148,10 @@ def build_dataset_schema(dataset: Dataset, headers: Sequence[str]) -> dict[str, 
     timestamp_localtime_columns = [f"{column}_localtime" for column in dataset.timestamp_columns]
     generated_columns = [
         column
-        for column in [*timestamp_localtime_columns, "hours_since_experiment_created"]
+        for column in [
+            *timestamp_localtime_columns,
+            "hours_since_experiment_started",
+        ]
         if column in headers
     ]
     entity_columns = [
@@ -168,6 +170,9 @@ def build_dataset_schema(dataset: Dataset, headers: Sequence[str]) -> dict[str, 
             "name": column,
             "generated": column in generated_columns,
         }
+        if column == "hours_since_experiment_started":
+            column_schema["description"] = "Hours from experiment start to the row's ordering timestamp."
+            column_schema["unit"] = "h"
         if description := dataset.column_descriptions.get(column):
             column_schema["description"] = description
         if unit := dataset.column_units.get(column):

@@ -771,6 +771,8 @@ function Chart(props) {
     const queryParams = new URLSearchParams({
       target_points: downSample ? DOWNSAMPLED_TARGET_POINTS : 1000000,
       lookback,
+      // A changed time zero must not reuse history cached before the edit.
+      started_at: experimentStartTime,
     });
 
     // Keep x values as numbers: a dayjs object per point is far heavier to retain.
@@ -833,7 +835,7 @@ function Chart(props) {
     return () => {
       isCancelled = true;
     };
-  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartMs, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
+  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartMs, experimentStartTime, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
 
   useEffect(() => {
     if (!client || !isLiveChart) {

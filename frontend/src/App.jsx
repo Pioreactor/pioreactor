@@ -110,7 +110,7 @@ function MainSite() {
       <ErrorBoundary>
         <ExperimentProvider>
           <SideNavAndHeader />
-          <Box component="main" sx={{flexGrow: 1, paddingTop: { xs: 14, sm: 9 }, paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+          <Box component="main" sx={{flexGrow: 1, minWidth: 0, paddingTop: { xs: 14, sm: 9 }, paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
             <div className="pageContainer">
               <MQTTProvider name="global" config={config}>
                 <React.Suspense fallback={<RouteFallback />}>

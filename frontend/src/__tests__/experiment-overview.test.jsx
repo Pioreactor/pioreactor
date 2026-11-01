@@ -65,6 +65,7 @@ describe("ExperimentOverview", () => {
         experiment: "exp1",
         description: "Initial description",
         created_at: "2026-03-01T12:00:00Z",
+        started_at: "2026-03-01T12:00:00Z",
         delta_hours: 10,
       },
       updateExperiment: jest.fn(),

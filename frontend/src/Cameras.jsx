@@ -105,7 +105,7 @@ export default function Cameras({ title }) {
               status={result.status}
               onStatusChange={(nextStatus) => updateCameraStatus(result.unit, nextStatus)}
               experiment={experiment}
-              experimentStartTime={experimentMetadata?.created_at}
+              experimentStartTime={experimentMetadata?.started_at}
             />
           </Grid>
         ))}

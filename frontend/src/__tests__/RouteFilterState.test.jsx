@@ -24,6 +24,7 @@ const taskResult = {
           {
             calibration_name: "calibration-unit-1-od",
             created_at: "2026-01-01T00:00:00Z",
+            started_at: "2026-01-01T00:00:00Z",
             estimator_name: "calibration-unit-1-od",
             is_active: true,
             pioreactor_unit: "unit-1",
@@ -33,6 +34,7 @@ const taskResult = {
           {
             calibration_name: "calibration-unit-1-stirring",
             created_at: "2026-01-01T00:00:00Z",
+            started_at: "2026-01-01T00:00:00Z",
             estimator_name: "calibration-unit-1-stirring",
             is_active: true,
             pioreactor_unit: "unit-1",
@@ -47,6 +49,7 @@ const taskResult = {
           {
             calibration_name: "calibration-unit-2-od",
             created_at: "2026-01-02T00:00:00Z",
+            started_at: "2026-01-02T00:00:00Z",
             estimator_name: "calibration-unit-2-od",
             is_active: true,
             pioreactor_unit: "unit-2",
@@ -56,6 +59,7 @@ const taskResult = {
           {
             calibration_name: "calibration-unit-2-stirring",
             created_at: "2026-01-02T00:00:00Z",
+            started_at: "2026-01-02T00:00:00Z",
             estimator_name: "calibration-unit-2-stirring",
             is_active: true,
             pioreactor_unit: "unit-2",

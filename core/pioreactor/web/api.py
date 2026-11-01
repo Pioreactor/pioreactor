@@ -137,6 +137,15 @@ def as_json_response(json: str | bytes) -> Response:
     return Response(json, mimetype="application/json")
 
 
+def time_series_cutoff_timestamp(experiment: str, cutoff_timestamp: str) -> str:
+    """Clamp the lookback to experiment start, retaining lookback for missing experiments."""
+    row = query_app_db("SELECT started_at FROM experiments WHERE experiment=?", (experiment,), one=True)
+    if row is None:
+        return cutoff_timestamp
+    assert isinstance(row, dict)
+    return max(cutoff_timestamp, row["started_at"])
+
+
 def query_time_series_from_database(
     experiment: str,
     data_source: TimeSeriesDataSource,
@@ -149,7 +158,9 @@ def query_time_series_from_database(
     index = f"{data_source}_ix"
     end = current_utc_datetime()
     end_timestamp = to_iso_format(end)
-    cutoff_timestamp = to_iso_format(end - timedelta(hours=lookback_hours))
+    cutoff_timestamp = time_series_cutoff_timestamp(
+        experiment, to_iso_format(end - timedelta(hours=lookback_hours))
+    )
 
     if pioreactor_unit is not None:
         units = [pioreactor_unit]
@@ -453,8 +464,9 @@ def _get_experiment_metadata_query(source: str) -> str:
         SELECT
             e.experiment,
             e.created_at,
+            e.started_at,
             e.description,
-            round((strftime('%s','now') - strftime('%s', e.created_at))/60/60, 0) AS delta_hours,
+            round((strftime('%s','now') - strftime('%s', e.started_at))/60/60, 0) AS delta_hours,
             COALESCE(worker_counts.worker_count, 0) AS worker_count,
             experiment_tags_grouped.tags
         FROM {source} e
@@ -1871,6 +1883,10 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
 def get_fallback_time_series(experiment: str, data_source: str, column: str) -> ResponseReturnValue:
     lookback, target_points = parse_time_series_query_parameters()
 
+    cutoff_timestamp = time_series_cutoff_timestamp(
+        experiment, to_iso_format(current_utc_datetime() - timedelta(hours=lookback))
+    )
+
     try:
         data_source = validate_sqlite_identifier(data_source)
         column = validate_sqlite_identifier(column)
@@ -1886,7 +1902,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
                                timestamp,
                                {column} AS y
                         FROM {data_source}
-                        WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND {column} IS NOT NULL
+                        WHERE experiment=? AND timestamp > ? AND {column} IS NOT NULL
                     )
                 ), steps AS (
                     SELECT unit,
@@ -1904,7 +1920,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
                     GROUP BY numbered.unit
                 );
                 """,
-            (experiment, f"-{lookback} hours", target_points, target_points, target_points),
+            (experiment, cutoff_timestamp, target_points, target_points, target_points),
             one=True,
         )
 
@@ -2021,6 +2037,10 @@ def get_fallback_time_series_per_unit(
 ) -> ResponseReturnValue:
     lookback, target_points = parse_time_series_query_parameters()
 
+    cutoff_timestamp = time_series_cutoff_timestamp(
+        experiment, to_iso_format(current_utc_datetime() - timedelta(hours=lookback))
+    )
+
     try:
         data_source = validate_sqlite_identifier(data_source)
         column = validate_sqlite_identifier(column)
@@ -2036,7 +2056,7 @@ def get_fallback_time_series_per_unit(
                                timestamp,
                                {column} AS y
                         FROM {data_source}
-                        WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND pioreactor_unit=? AND {column} IS NOT NULL
+                        WHERE experiment=? AND timestamp > ? AND pioreactor_unit=? AND {column} IS NOT NULL
                     )
                 ), steps AS (
                     SELECT unit,
@@ -2054,7 +2074,7 @@ def get_fallback_time_series_per_unit(
                     GROUP BY numbered.unit
                 );
                 """,
-            (experiment, f"-{lookback} hours", pioreactor_unit, target_points, target_points, target_points),
+            (experiment, cutoff_timestamp, pioreactor_unit, target_points, target_points, target_points),
             one=True,
         )
 
@@ -2073,7 +2093,10 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
 
     """
     try:
-        media_rate_window_start = to_iso_format(current_utc_datetime() - timedelta(hours=3))
+        # Exclude setup doses while retaining the three-hour average.
+        media_rate_window_start = time_series_cutoff_timestamp(
+            experiment, to_iso_format(current_utc_datetime() - timedelta(hours=3))
+        )
         rows = query_app_db(
             """
             SELECT
@@ -3453,10 +3476,12 @@ def create_experiment() -> ResponseReturnValue:
     tags = _normalize_experiment_tags(body.tags)
 
     try:
+        created_at = current_utc_timestamp()
         row_count = modify_app_db(
-            "INSERT INTO experiments (created_at, experiment, description) VALUES (?, ?, ?)",
+            "INSERT INTO experiments (created_at, started_at, experiment, description) VALUES (?, ?, ?, ?)",
             (
-                current_utc_timestamp(),
+                created_at,
+                created_at,
                 proposed_experiment_name,
                 body.description or "",
             ),
@@ -3605,8 +3630,8 @@ def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
 def update_experiment(experiment: str) -> ResponseReturnValue:
     body = decode_request_body(structs.UpdateExperimentRequest)
 
-    if (body.description is UNSET) and (body.tags is UNSET):
-        abort_with(400, "Missing description or tags")
+    if (body.description is UNSET) and (body.tags is UNSET) and (body.started_at is UNSET):
+        abort_with(400, "Missing description, tags or started_at")
 
     existing_experiment = _get_experiment_metadata(experiment)
     if existing_experiment is None:
@@ -3625,6 +3650,22 @@ def update_experiment(experiment: str) -> ResponseReturnValue:
             modify_app_db(
                 "INSERT INTO experiment_tags (experiment, tag, created_at) VALUES (?, ?, ?)",
                 (experiment, tag, current_utc_timestamp()),
+            )
+
+    if body.started_at is not UNSET:
+        # Persist a canonical UTC timestamp: data cutoffs compare ISO strings.
+        started_at = to_iso_format(body.started_at.astimezone(timezone.utc))
+        modify_app_db(
+            "UPDATE experiments SET started_at = ? WHERE experiment = ?",
+            (started_at, experiment),
+        )
+        if started_at != existing_experiment["started_at"]:
+            publish_to_experiment_log(
+                f"Changed start time for experiment `{experiment}` from "
+                f"{existing_experiment['started_at']} to {started_at}.",
+                experiment,
+                "update_experiment",
+                level="INFO",
             )
 
     updated_experiment = _get_experiment_metadata(experiment)

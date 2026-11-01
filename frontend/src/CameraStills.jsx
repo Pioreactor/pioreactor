@@ -86,7 +86,7 @@ export default function CameraStills({ title }) {
   const { pioreactorUnit } = useParams();
   const { experimentMetadata } = useExperiment();
   const experiment = experimentMetadata?.experiment;
-  const experimentStartTime = experimentMetadata?.created_at;
+  const experimentStartTime = experimentMetadata?.started_at;
   const stillsUrl = pioreactorUnit && experiment
     ? workerExperimentCameraPath(pioreactorUnit, experiment, "stills")
     : null;

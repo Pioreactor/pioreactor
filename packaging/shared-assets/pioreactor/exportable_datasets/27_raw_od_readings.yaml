@@ -14,9 +14,9 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp for the raw OD reading.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   od_reading: Uncalibrated OD reading for one photodiode channel, after IR-reference normalization and blank correction but before calibration transformation.
   channel: Photodiode channel number.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h
   od_reading: AU

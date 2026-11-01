@@ -181,6 +181,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_level_timestamp_desc
 CREATE TABLE IF NOT EXISTS experiments (
     experiment TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
+    -- Scientific time zero, independently editable without changing creation order.
+    started_at TEXT NOT NULL,
     description TEXT
 );
 
@@ -199,8 +201,9 @@ CREATE VIEW IF NOT EXISTS latest_experiment AS
 SELECT
     experiment,
     created_at,
+    started_at,
     description,
-    round((strftime("%s", "now") - strftime("%s", created_at)) / 60 / 60, 0)
+    round((strftime("%s", "now") - strftime("%s", started_at)) / 60 / 60, 0)
         AS delta_hours
 FROM experiments
 ORDER BY rowid DESC

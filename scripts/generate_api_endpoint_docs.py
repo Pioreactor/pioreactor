@@ -114,6 +114,7 @@ KNOWN_BODY_KEY_EXAMPLES = {
     "source": "api",
     "source_": "api",
     "start_time": "2026-01-01T00:00:00Z",
+    "started_at": "2026-01-01T00:00:00Z",
     "settings": {"target_rpm": "200"},
     "tags": ["screening"],
     "task": "stirring",
@@ -1087,6 +1088,7 @@ def best_static_response_example(route: RouteInfo) -> dict[str, Any]:
             "body": {
                 "experiment": "testing_experiment",
                 "created_at": "2026-01-01T00:00:00Z",
+                "started_at": "2026-01-01T00:00:00Z",
                 "description": "Experiment notes.",
                 "delta_hours": 0,
                 "worker_count": 1,

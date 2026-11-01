@@ -51,7 +51,7 @@ def test_pwm_channels_parse_without_leader_hardware_or_model(
 
 def seed_experiment(cursor: sqlite3.Cursor, experiment: str) -> None:
     cursor.execute(
-        "INSERT OR IGNORE INTO experiments (experiment, created_at) VALUES (?, ?)",
+        "INSERT OR IGNORE INTO experiments (experiment, created_at, started_at) VALUES (?1, ?2, ?2)",
         (experiment, current_utc_datetime().isoformat()),
     )
 

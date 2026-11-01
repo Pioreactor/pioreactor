@@ -26,6 +26,8 @@
 
 ##### CLI and exports
 
+ - Replaced the CSV export column `hours_since_experiment_created` with `hours_since_experiment_started`, measured from the editable experiment start time. Update analysis scripts that use the old column name.
+
  - Removed the `ACTIVE` environment variable override. Use `pio active set 0` or `pio active set 1` to change whether the local Pioreactor is in service.
  - Changed `pio model get`, `pio model set`, and `pio workers model get <worker>` to print a readable model name by default. Scripts that parse their output as JSON must add `--json`.
  - Removed `--partition-by-experiment` from `pio run export_experiment_data` and `partition_by_experiment` from the Python export function, export API requests, and export manifest options. Each export already covers one experiment; use `--partition-by-unit` to split CSVs by Pioreactor.
@@ -46,6 +48,8 @@
  - Large doses are now split into the fewest equal sub-doses of at most `max_subdose` mL, for example 2.1 mL becomes 3 × 0.7 mL instead of 4 × 0.525 mL. This means fewer pump cycles and more accurate sub-doses.
 
 ##### Cluster controls and UI
+
+ - Added an editable experiment start time in **Edit details**, including **Set to now**, so time zero can match inoculation. Historical charts and media-rate summaries exclude earlier readings, and elapsed-time displays use the new start. Existing experiments initially retain their original creation time as the start; changing it does not delete data.
 
  - Added `pio active get` and `pio active set <0|1>` to inspect or change whether the local Pioreactor is in service, even without a running web server. Each Pioreactor now remembers its own active status across reboots and checks it locally before starting activities. Setting it inactive stops its activities.
  - Made the Cameras page and per-Pioreactor camera panel available without setting `[camera] enabled=1` in the leader's config. A connected, supported camera is still required to capture images.

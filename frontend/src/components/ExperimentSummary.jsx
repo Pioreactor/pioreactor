@@ -45,9 +45,9 @@ class EditableDescription extends React.Component {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           }
-        }).then(res => {
+        }).then(async res => {
           if (res.ok){
-            this.props.updateExperiment({ ...this.props.experimentMetadata, description: this.state.desc });
+            this.props.updateExperiment(await res.json());
           }
         })
         this.setState({savingLoopActive: false})
@@ -102,7 +102,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
     localStorage.setItem('experimentDescriptionOpen', String(open));
   };
   const experiment = experimentMetadata.experiment
-  const startedAt = experimentMetadata.created_at
+  const startedAt = experimentMetadata.started_at
   const deltaHours = experimentMetadata.delta_hours
   const tags = Array.isArray(experimentMetadata.tags) ? experimentMetadata.tags : []
   return(
@@ -118,7 +118,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
               <Box sx={{ fontWeight: "fontWeightBold", display:"inline-block" }}>
-                <CalendarTodayIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment created at:&nbsp;
+                <CalendarTodayIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment started at:&nbsp;
               </Box>
               <Box sx={{ fontWeight: "fontWeightRegular", mr: "1%", display:"inline-block" }}>
                 {(startedAt !== "") &&

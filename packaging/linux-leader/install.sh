@@ -349,7 +349,7 @@ initialize_databases_and_config() {
   runuser -u "$PIO_USER" -- "$PIO_VENV/bin/crudini" --ini-options=nospace --set "$DOT_PIOREACTOR/unit_config.ini" cluster.topology leader_address 127.0.0.1
   runuser -u "$PIO_USER" -- "$PIO_VENV/bin/crudini" --ini-options=nospace --set "$DOT_PIOREACTOR/unit_config.ini" mqtt broker_address 127.0.0.1
 
-  sqlite3 "$db_path" "INSERT OR IGNORE INTO experiments (created_at, experiment, description) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 'Demo experiment', 'This is a demo experiment. Feel free to click around. When you are ready, create a new experiment in the dropdown to the left.');"
+  sqlite3 "$db_path" "INSERT OR IGNORE INTO experiments (started_at, created_at, experiment, description) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 'Demo experiment', 'This is a demo experiment. Feel free to click around. When you are ready, create a new experiment in the dropdown to the left.');"
 
   chown -R "$PIO_USER":www-data "$DOT_PIOREACTOR"
   chmod -R g+rw "$DOT_PIOREACTOR"

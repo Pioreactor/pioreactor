@@ -969,10 +969,97 @@ def test_time_series_accepts_frontend_raw_point_limit(client: FlaskClient) -> No
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize(
+    "started_at, expected_media_rate",
+    [("2025-12-31T22:00:00.000Z", 2.0), ("2025-12-31T20:00:00.000Z", 12.0)],
+)
+def test_media_rates_respect_experiment_start_and_three_hour_window(
+    client: FlaskClient, monkeypatch: MonkeyPatch, started_at: str, expected_media_rate: float
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr("pioreactor.web.api.current_utc_datetime", lambda: datetime(2026, 1, 1, tzinfo=UTC))
+    experiment = "media-rate-cutoff-test"
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, started_at) VALUES (?, '2025-12-30T00:00:00.000Z', ?)",
+        (experiment, started_at),
+    )
+    for timestamp, event, volume in [
+        ("2025-12-31T20:30:00.000Z", "add_media", 300.0),
+        ("2025-12-31T21:30:00.000Z", "add_media", 30.0),
+        ("2025-12-31T22:30:00.000Z", "add_media", 6.0),
+        ("2025-12-31T23:00:00.000Z", "add_alt_media", 3.0),
+    ]:
+        modify_app_db(
+            "INSERT INTO dosing_events (experiment, pioreactor_unit, timestamp, event, volume_change_ml) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (experiment, "unit-a", timestamp, event, volume),
+        )
+
+    response = client.get(f"/api/experiments/{experiment}/media_rates")
+    assert response.status_code == 200
+    expected = {"mediaRate": expected_media_rate, "altMediaRate": 1.0}
+    assert response.get_json() == {"unit-a": expected, "all": expected}
+
+
 def test_time_series_accepts_zero_lookback(client: FlaskClient) -> None:
     response = client.get("/api/experiments/no-data/time_series/growth_rates?lookback=0")
 
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("prefix", ["/api", "/api/workers/unit-a"])
+@pytest.mark.parametrize("source", ["growth_rates", "growth_rates/rate"])
+@pytest.mark.parametrize("target_points", [1, 3, 10])
+@pytest.mark.parametrize("lookback", [1, 4])
+def test_time_series_excludes_readings_at_or_before_experiment_start(
+    client: FlaskClient,
+    monkeypatch: MonkeyPatch,
+    prefix: str,
+    source: str,
+    target_points: int,
+    lookback: int,
+) -> None:
+    from pioreactor.web.app import modify_app_db
+
+    monkeypatch.setattr(
+        "pioreactor.web.api.current_utc_datetime",
+        lambda: datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    experiment = "creation-cutoff-test"
+    started_at = "2025-12-31T22:00:00.000Z"
+    modify_app_db(
+        "INSERT INTO experiments (experiment, created_at, started_at) VALUES (?, '2025-12-30T00:00:00.000Z', ?)",
+        (experiment, started_at),
+    )
+    timestamps = [
+        "2025-12-31T21:00:00.000Z",
+        started_at,
+        "2025-12-31T22:30:00.000Z",
+        "2025-12-31T23:00:00.000Z",
+        "2025-12-31T23:15:00.000Z",
+        "2025-12-31T23:30:00.000Z",
+        "2025-12-31T23:45:00.000Z",
+    ]
+    for timestamp in timestamps:
+        modify_app_db(
+            "INSERT INTO growth_rates (experiment, pioreactor_unit, timestamp, rate) VALUES (?, ?, ?, ?)",
+            (experiment, "unit-a", timestamp, 0.1),
+        )
+
+    response = client.get(
+        f"{prefix}/experiments/{experiment}/time_series/{source}"
+        f"?lookback={lookback}&target_points={target_points}"
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["series"] == ["unit-a"]
+    points = payload["data"][0]
+    cutoff = "2025-12-31T23:00:00.000Z" if lookback == 1 else started_at
+    assert 0 < len(points) <= target_points
+    assert all(point["x"] > cutoff for point in points)
+    if target_points == 10:
+        assert [point["x"] for point in points] == [ts for ts in timestamps if ts > cutoff]
 
 
 def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkeypatch: MonkeyPatch) -> None:
@@ -983,7 +1070,7 @@ def test_time_series_uses_canonical_timestamp_bounds(client: FlaskClient, monkey
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
         ("time-series-bounds-test", "2025-12-31T22:00:00.000Z", ""),
     )
 
@@ -1026,7 +1113,7 @@ def test_time_series_returns_all_rows_at_target_points_and_downsamples_above(
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
         ("time-series-boundary", "2025-12-31T12:00:00.000Z", ""),
     )
 
@@ -1075,8 +1162,8 @@ def test_time_series_uses_actual_data_duration_and_requested_point_ceiling(
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
-        ("time-series-test", "2025-12-31T12:00:00.000Z", ""),
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
+        ("time-series-test", "2025-12-31T11:00:00.000Z", ""),
     )
 
     for hour in range(12, 23):
@@ -1170,8 +1257,8 @@ def test_time_series_partitions_channel_sources(client: FlaskClient, monkeypatch
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
-        ("time-series-od-test", "2025-12-31T12:00:00.000Z", ""),
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
+        ("time-series-od-test", "2025-12-31T11:00:00.000Z", ""),
     )
 
     for channel in (1, 2):
@@ -1304,7 +1391,7 @@ def test_built_in_time_series_source_configuration(
         lambda: datetime(2026, 1, 1, tzinfo=UTC),
     )
     modify_app_db(
-        "INSERT INTO experiments (experiment, created_at, description) VALUES (?, ?, ?)",
+        "INSERT INTO experiments (experiment, created_at, started_at, description) VALUES (?1, ?2, ?2, ?3)",
         ("source-test", "2025-12-31T12:00:00.000Z", ""),
     )
     modify_app_db(insert_statement, insert_args)
@@ -1334,6 +1421,7 @@ def test_create_experiment(client) -> None:
     assert response.status_code == 201  # Created
     data = response.get_json()
     assert data["tags"] == ["seed", "project-x"]
+    assert data["started_at"] == data["created_at"]
 
     # Verify the experiment exists
     response = client.get("/api/experiments/exp4")
@@ -1432,6 +1520,42 @@ def test_update_experiment(client) -> None:
     assert data["tags"] == ["project-beta", "follow-up"]
 
 
+def test_update_start_time_preserves_creation_order_and_normalizes_timezone(
+    client: FlaskClient, monkeypatch: MonkeyPatch
+) -> None:
+    log = Mock()
+    monkeypatch.setattr("pioreactor.web.api.publish_to_experiment_log", log)
+    original = client.get("/api/experiments/exp1").get_json()
+    order = [row["experiment"] for row in client.get("/api/experiments").get_json()]
+    response = client.patch("/api/experiments/exp1", json={"started_at": "2026-10-31T09:30:00-04:00"})
+    assert response.status_code == 200
+    updated = response.get_json()
+    assert updated["started_at"] == "2026-10-31T13:30:00.000Z"
+    assert updated["created_at"] == original["created_at"]
+    assert updated["description"] == original["description"]
+    assert updated["tags"] == original["tags"]
+    assert updated["delta_hours"] != original["delta_hours"]
+    assert client.get("/api/experiments/exp1").get_json() == updated
+    assert [row["experiment"] for row in client.get("/api/experiments").get_json()] == order
+    assert client.get("/api/experiments/latest").get_json()["experiment"] == "exp3"
+    log.assert_called_once()
+    assert original["started_at"] in log.call_args.args[0]
+    # Moving the start backward restores access to earlier readings without rewriting creation.
+    response = client.patch("/api/experiments/exp1", json={"started_at": original["started_at"]})
+    assert response.status_code == 200
+    assert response.get_json()["created_at"] == original["created_at"]
+
+
+@pytest.mark.parametrize("started_at", [None, "", "not-a-date", "2026-10-31T09:30:00"])
+def test_update_experiment_rejects_invalid_start_time(client: FlaskClient, started_at: str | None) -> None:
+    original = client.get("/api/experiments/exp1").get_json()
+    response = client.patch(
+        "/api/experiments/exp1", json={"started_at": started_at, "description": "must not be saved"}
+    )
+    assert response.status_code == 400
+    assert client.get("/api/experiments/exp1").get_json() == original
+
+
 def test_get_experiments_includes_tags_and_worker_count(client) -> None:
     response = client.get("/api/experiments")
 
@@ -1495,7 +1619,7 @@ def test_update_experiment_requires_a_supported_field(client) -> None:
     response = client.patch("/api/experiments/exp1", json={})
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Missing description or tags"
+    assert response.get_json()["error"] == "Missing description, tags or started_at"
 
 
 def test_experiment_chart_preferences_default_to_config(client) -> None:

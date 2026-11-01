@@ -114,7 +114,7 @@ def test_parse_routes_reads_experiment_patch_body_fields_as_optional() -> None:
     route = get_leader_route("PATCH", "/api/experiments/<experiment>")
 
     assert route.required_body_keys == ()
-    assert route.optional_body_keys == ("description", "tags")
+    assert route.optional_body_keys == ("description", "started_at", "tags")
     assert route.body_type_names == ("structs.UpdateExperimentRequest",)
 
 

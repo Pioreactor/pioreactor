@@ -324,7 +324,7 @@ function EditableCodeDiv() {
 
   return (
     <React.Fragment>
-      <Box sx={{ width: "100%", m: "10px", display: "flex", justifyContent: "space-between" }}>
+      <Box sx={{ m: "10px", display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "space-between" }}>
         <FormControl>
           <div>
             <FormLabel id="configTargetSelect" sx={{mr: 1}}>Config:</FormLabel>

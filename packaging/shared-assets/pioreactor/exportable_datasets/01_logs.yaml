@@ -14,10 +14,10 @@ column_descriptions:
   pioreactor_unit: Pioreactor unit name.
   timestamp: UTC timestamp for the log record.
   timestamp_localtime: Local-time rendering of timestamp.
-  hours_since_experiment_created: Hours from experiment creation to timestamp.
+  hours_since_experiment_started: Hours from experiment start to timestamp.
   message: Log message text.
   source: Log source, such as app or UI.
   level: Uppercase log level.
   task: Task or job name associated with the log record.
 column_units:
-  hours_since_experiment_created: h
+  hours_since_experiment_started: h

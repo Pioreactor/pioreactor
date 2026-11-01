@@ -5,7 +5,6 @@ const ExperimentContext = createContext();
 export const useExperiment = () => useContext(ExperimentContext);
 
 const EXPERIMENT_METADATA_KEY = "experimentMetadata";
-const METADATA_TTL_MS = 60 * 60 * 1000;
 
 const readCachedExperimentMetadata = () => {
   const cachedValue = window.localStorage.getItem(EXPERIMENT_METADATA_KEY);
@@ -32,7 +31,7 @@ const writeCachedExperimentMetadata = (metadata) => {
 };
 
 const fetchJson = async (url, signal) => {
-  const response = await fetch(url, { signal });
+  const response = await fetch(url, { signal, cache: "no-cache" });
   if (!response.ok) {
     throw new Error(`Request failed with status: ${response.status} ${response.statusText}`);
   }
@@ -60,11 +59,7 @@ export const ExperimentProvider = ({ children }) => {
       const now = Date.now();
       const maybeExperimentMetadata = readCachedExperimentMetadata();
 
-      // Check if we have metadata and if it is less than an hour old
-      if (maybeExperimentMetadata && (now - maybeExperimentMetadata._createdAt < METADATA_TTL_MS)) {
-        return maybeExperimentMetadata;
-      }
-
+      // Cached metadata preserves the selection and first paint; always refresh it on load.
       // Determine the initial URL to fetch metadata
       const primaryUrl = maybeExperimentMetadata?.experiment
         ? `/api/experiments/${encodeURIComponent(maybeExperimentMetadata.experiment)}`

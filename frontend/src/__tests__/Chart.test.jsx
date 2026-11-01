@@ -106,6 +106,24 @@ test("uses the wildcard unit in overview chart topics", async () => {
 
 const formatServerTimestamp = (ms) => dayjs.utc(ms).format("YYYY-MM-DDTHH:mm:ss.SSS");
 
+test.each([undefined, "unit1"])("changing time zero reloads uncached history and rebases elapsed time (%s)", async (unit) => {
+  const { rerender, props } = renderChart({ unit, byDuration: true }, {
+    series: ["unit1"],
+    data: [[{ x: "2026-09-01T01:00:00Z", y: 1 }, { x: "2026-09-01T03:00:00Z", y: 3 }]],
+  });
+  await waitFor(() => expect(getRenderedPoints()).toEqual([{ x: 1, y: 1 }, { x: 3, y: 3 }]));
+  const oldUrl = global.fetch.mock.calls[0][0];
+  global.fetch.mockResolvedValue({
+    json: async () => ({ series: ["unit1"], data: [[{ x: "2026-09-01T03:00:00Z", y: 3 }]] }),
+  });
+  const newStart = "2026-09-01T02:00:00Z";
+  rerender(<Chart {...props} experimentStartTime={newStart} />);
+  await waitFor(() => expect(getRenderedPoints()).toEqual([{ x: 1, y: 3 }]));
+  const newUrl = global.fetch.mock.calls.at(-1)[0];
+  expect(newUrl).not.toBe(oldUrl);
+  expect(new URL(newUrl, "http://localhost").searchParams.get("started_at")).toBe(newStart);
+});
+
 function getRenderedPoints() {
   return JSON.parse(screen.getByTestId("series").getAttribute("data-points"));
 }

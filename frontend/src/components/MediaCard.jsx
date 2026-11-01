@@ -20,7 +20,7 @@ import { experimentPathSegment } from "../utils/url";
 import { parseBioreactorPayload } from "../utils/bioreactor";
 
 
-function MediaCard({experiment, relabelMap, activeUnits}) {
+function MediaCard({experiment, startedAt, relabelMap, activeUnits}) {
   const [throughputByUnit, setThroughputByUnit] = useState({});
   const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
@@ -66,7 +66,8 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     let isCancelled = false;
 
     async function getRecentRates() {
-      const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/media_rates`);
+      const query = new URLSearchParams({ started_at: startedAt });
+      const response = await fetch(`/api/experiments/${experimentPathSegment(experiment)}/media_rates?${query}`);
       const data = await response.json();
 
       if (!isCancelled) {
@@ -81,7 +82,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
     return () => {
       isCancelled = true;
     };
-  }, [experiment]);
+  }, [experiment, startedAt]);
 
   function relabelUnit(unit) {
     return relabelMap && relabelMap[unit] ? `${relabelMap[unit]} / ${unit}` : unit;

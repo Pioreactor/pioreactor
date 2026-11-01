@@ -14,6 +14,28 @@ compatibility. New Pioreactor clients should use the canonical method above.
 Compatibility aliases should remain covered by route-contract tests until an
 explicit deprecation and removal plan is published.
 
+## Experiment timestamps
+
+Experiment metadata includes two required timestamps. `created_at` records when
+the record was created and remains unchanged. `started_at` is editable scientific
+time zero; new experiments initialize both to the same server timestamp.
+
+`PATCH /api/experiments/<experiment>` accepts `started_at` as an RFC 3339 timestamp
+with a timezone. The server stores it in canonical UTC with millisecond precision
+and returns refreshed metadata, including `delta_hours` measured from this start.
+It can be moved forward or backward without deleting readings. Experiment list
+ordering continues to use `created_at`; the latest experiment remains the most
+recently inserted record.
+
+Historical time-series cutoffs and media-rate summaries use `started_at`.
+Recent-log visibility continues to use `created_at`, and camera visibility is
+unchanged. Their elapsed-time labels use scientific time zero. Exports use
+`hours_since_experiment_started` in place of `hours_since_experiment_created`; changing
+the start does not implicitly filter exported rows. Running job state is unchanged.
+
+The upcoming release migrates existing experiments, backfilling `started_at` from
+`created_at`. Wheel-only installs need the database migration before using this API.
+
 ## Intended worker identity
 
 Leader-to-unit HTTP mutations send `X-Pioreactor-Target: <unit hostname>`.

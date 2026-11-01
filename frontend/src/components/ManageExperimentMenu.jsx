@@ -87,6 +87,7 @@ export default function ManageExperimentMenu({experiment}){
         body: JSON.stringify({
           description: updatedExperiment.description,
           tags: updatedExperiment.tags,
+          started_at: updatedExperiment.started_at,
         }),
         headers: {
           Accept: "application/json",

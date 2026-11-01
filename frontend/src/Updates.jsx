@@ -885,7 +885,7 @@ Could not retrieve latest Changelog. Perhaps not connected to the internet.
   return(
     <React.Fragment>
       <Card>
-        <CardContent sx={{p: 1}}>
+        <CardContent sx={{p: 1, "& pre": { overflowX: "auto" }}}>
         <Typography variant="h6" component="h2">
             Change log
         </Typography>

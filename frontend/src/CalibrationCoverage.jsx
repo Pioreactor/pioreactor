@@ -59,7 +59,7 @@ function CoverageCell({ cell, onNavigate }) {
   const status = cell?.status;
 
   return (
-    <TableCell align="left" data-copy-value={coverageCellCopyValue(cell)} sx={{ minWidth: 180 }}>
+    <TableCell align="left" data-copy-value={coverageCellCopyValue(cell)} sx={{ minWidth: 140 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", minHeight: 32 }}>
         {status === COVERAGE_STATUS.ACTIVE && hasCalibrationLink && (
           <Chip
@@ -172,14 +172,14 @@ function CalibrationCoverage(props) {
                 <TableRow>
                   <TableCell
                     sx={{
-                      minWidth: 180,
+                      minWidth: 120,
                       backgroundColor: (theme) => theme.palette.action.hover,
                     }}
                   >
                     Pioreactor
                   </TableCell>
                   {matrix.devices.map((device) => (
-                    <TableCell key={device} align="left" sx={{ minWidth: 180 }}>
+                    <TableCell key={device} align="left" sx={{ minWidth: 140 }}>
                       {device}
                     </TableCell>
                   ))}
