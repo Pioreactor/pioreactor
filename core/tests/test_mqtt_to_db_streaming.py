@@ -189,16 +189,21 @@ def test_dosing_events_land_in_db() -> None:
             logger=job.logger,
             mqtt_client=job.pub_client,
         )
+        # add_media publishes progress events while dosing, so the event count is timing-dependent.
         assert wait_for(
-            lambda: cursor.execute(
-                "SELECT COUNT(*) FROM dosing_events WHERE pioreactor_unit=?", (unit,)
-            ).fetchone()[0]
-            == 2
+            lambda: (
+                cursor.execute(
+                    "SELECT SUM(volume_change_ml) FROM dosing_events WHERE pioreactor_unit=? AND experiment=?",
+                    (unit, exp),
+                ).fetchone()[0]
+                or 0.0
+            )
+            == pytest.approx(1.0)
         )
 
-    cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
+    cursor.execute("SELECT event FROM dosing_events WHERE pioreactor_unit=? AND experiment=?", (unit, exp))
     results = cursor.fetchall()
-    assert len(results) == 2
+    assert results and all(event == "add_media" for (event,) in results)
 
 
 def test_parse_dosing_events_normalizes_timestamp_for_text_comparison() -> None:

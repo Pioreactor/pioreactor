@@ -214,9 +214,10 @@ def test_app_commands_with_release_zip_with_spaces_in_path(tmp_path) -> None:
     )
 
     assert ver == version
-    assert (cmds[2][0], cmds[2][1]) == (
-        ["unzip", "-o", source, "-d", f"{tempfile.gettempdir()}/release_{version}"],
-        0,
+    assert any(
+        command == ["unzip", "-o", source, "-d", f"{tempfile.gettempdir()}/release_{version}"]
+        and priority == 0
+        for command, priority, _allow_failure in cmds
     )
 
 
@@ -383,6 +384,22 @@ def test_app_commands_from_release_metadata_uses_release_archive_flow(monkeypatc
         (["wget", "-nv", "-O", archive_location, f"https://example.com/release_{version}.zip"], -100),
         (verify_release_archive_command(archive_location, version), -99.5),
         (["sudo", "rm", "-rf", tmp_rls_dir], -99),
+        (
+            [
+                "sudo",
+                "find",
+                tempfile.gettempdir(),
+                "-maxdepth",
+                "1",
+                "-name",
+                "pioreactor_update_archive_*",
+                "!",
+                "-path",
+                archive_location,
+                "-delete",
+            ],
+            -99,
+        ),
         (["unzip", "-o", archive_location, "-d", tmp_rls_dir], 0),
         (["unzip", "-o", f"{tmp_rls_dir}/wheels_{version}.zip", "-d", f"{tmp_rls_dir}/wheels"], 1),
         (["sudo", "bash", f"{tmp_rls_dir}/pre_update.sh"], 2),

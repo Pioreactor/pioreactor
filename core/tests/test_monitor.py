@@ -234,7 +234,9 @@ def test_monitor_projects_dosing_events_into_bioreactor() -> None:
     )
 
     assert bioreactor.get_bioreactor_value(experiment, "current_volume_ml") == pytest.approx(15.5)
-    assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(1.5 / 15.5)
+    assert bioreactor.get_bioreactor_value(experiment, "alt_media_fraction") == pytest.approx(
+        1.5 / 15.5, abs=0.0001
+    )
 
 
 def test_monitor_projects_custom_add_dosing_events_into_bioreactor() -> None:

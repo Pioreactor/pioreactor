@@ -438,12 +438,13 @@ def test_warning_when_dodging_without_stirring_calibration() -> None:
         ):
             pass
 
-    assert wait_for(
-        lambda: any(
-            "OD dodging is enabled without a stirring calibration." in w["message"] for w in warnings
-        ),
-        timeout=3.0,
-    )
+        # wait inside the collector: exiting it shuts down the client and drops undelivered logs.
+        assert wait_for(
+            lambda: any(
+                "OD dodging is enabled without a stirring calibration." in w["message"] for w in warnings
+            ),
+            timeout=3.0,
+        )
 
 
 def test_target_rpm_during_od_reading_defaults_to_zero() -> None:

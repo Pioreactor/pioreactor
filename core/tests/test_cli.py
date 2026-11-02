@@ -432,6 +432,8 @@ broker_address=local-broker
     )
 
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.delenv("GLOBAL_CONFIG", raising=False)
+    monkeypatch.delenv("LOCAL_CONFIG", raising=False)
     get_config.cache_clear()
     try:
         runner = CliRunner()

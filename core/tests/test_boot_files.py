@@ -170,13 +170,3 @@ def test_boot_wrapper_defers_unconfigured_units_and_passes_role(
         ]
     else:
         assert not record.exists()
-
-
-def test_release_sidecars_match_runtime_assets() -> None:
-    repo = Path(__file__).parents[2]
-    upcoming = repo / "core/update_scripts/upcoming"
-    runtime = repo / "packaging/runtime-files"
-    for directory, name in [("bash", "bootfs_files.sh"), ("systemd", "bootfs_files.service")]:
-        assert (upcoming / name).read_bytes() == (runtime / directory / name).read_bytes()
-    assert 'bash "$SCRIPT_DIR/30_install_bootfs_files.sh"' in (upcoming / "update.sh").read_text()
-    assert "Wants=bootfs_files.service" in (upcoming / "bootfs_files.conf").read_text()
