@@ -36,7 +36,7 @@ CORE_REQUIREMENTS = [
 # extra is for machines with Pioreactor hardware attached, regardless of role.
 HARDWARE_REQUIREMENTS = [
     "numpy==2.3.2",
-    "grpredict==26.4.7",
+    "grpredict==26.11.2",
     "Adafruit-Blinka==9.1.0",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "adafruit-circuitpython-busdevice==5.2.9",
