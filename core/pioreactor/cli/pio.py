@@ -1192,10 +1192,14 @@ def version(verbose: bool) -> None:
 
 
 @pio.command(name="status", short_help="show local system status")
+@click.argument("field", required=False)
 @click.option("--json", "json_output", is_flag=True, help="output as json")
-def status(json_output: bool) -> None:
+def status(field: str | None, json_output: bool) -> None:
     """
     Show a quick, local-only status report for this unit.
+
+    Provide FIELD (for example, identity:unit) to print only its value.
+    Field queries exit with code 1 for WARN or FAIL; use --json to inspect the status.
     """
     from msgspec import to_builtins
     from pioreactor.cli.status_checks import collect_status_checks
@@ -1203,8 +1207,21 @@ def status(json_output: bool) -> None:
 
     checks = collect_status_checks()
 
+    if field is not None:
+        checks = [check for check in checks if check.name == field]
+        if not checks:
+            raise click.BadParameter(f"Unknown status field: {field}", param_hint="FIELD")
+
     if json_output:
         click.echo(json.dumps({"status": worst_status(checks), "checks": to_builtins(checks)}))
+        if field is not None and checks[0].status != "OK":
+            raise click.exceptions.Exit(1)
+        return
+
+    if field is not None:
+        click.echo(checks[0].details)
+        if checks[0].status != "OK":
+            raise click.exceptions.Exit(1)
         return
 
     status_colors = {"OK": "green", "WARN": "yellow", "FAIL": "red"}

@@ -510,11 +510,70 @@ def test_pio_status_handles_unassigned_experiment(monkeypatch) -> None:
     result = runner.invoke(pio, ["status"])
 
     assert result.exit_code == 0
-    identity_line = next(line for line in result.output.splitlines() if line.startswith("identity"))
-    assert "OK" in identity_line
-    assert "experiment=" in identity_line
-    assert whoami.NO_EXPERIMENT not in identity_line
+    experiment_line = next(
+        line for line in result.output.splitlines() if line.startswith("identity:experiment")
+    )
+    assert experiment_line.split() == ["identity:experiment", "OK"]
     assert "worker is not assigned to an experiment" not in result.output
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_pio_status_field_returns_value(json_output: bool) -> None:
+    args = ["status", "identity:unit"] + (["--json"] if json_output else [])
+    result = CliRunner().invoke(pio, args)
+
+    assert result.exit_code == 0
+    if json_output:
+        assert json.loads(result.output) == {
+            "status": "OK",
+            "checks": [{"name": "identity:unit", "status": "OK", "details": whoami.get_unit_name()}],
+        }
+    else:
+        assert result.output == f"{whoami.get_unit_name()}\n"
+
+
+def test_pio_status_rejects_unknown_field() -> None:
+    result = CliRunner().invoke(pio, ["status", "unknown"])
+
+    assert result.exit_code == 2
+    assert "Unknown status field: unknown" in result.output
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize(
+    ("field", "target", "expected_status"),
+    [
+        ("identity:experiment", "pioreactor.whoami.get_assigned_experiment_name", "WARN"),
+        ("cluster:workers", "pioreactor.cli.status_checks.get_workers_in_inventory", "WARN"),
+        ("jobs:running", "pioreactor.utils.job_manager.JobManager.count_running_jobs", "FAIL"),
+    ],
+)
+def test_pio_status_field_lookup_failure_exits_nonzero(
+    monkeypatch: pytest.MonkeyPatch,
+    json_output: bool,
+    field: str,
+    target: str,
+    expected_status: str,
+) -> None:
+    def raise_lookup_error(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("lookup unavailable")
+
+    monkeypatch.setattr("pioreactor.whoami.am_I_leader", lambda: True)
+    monkeypatch.setattr(target, raise_lookup_error)
+
+    args = ["status", field] + (["--json"] if json_output else [])
+    result = CliRunner().invoke(pio, args)
+
+    assert result.exit_code == 1
+    if json_output:
+        payload = json.loads(result.output)
+        assert payload["status"] == expected_status
+        assert len(payload["checks"]) == 1
+        assert payload["checks"][0]["name"] == field
+        assert payload["checks"][0]["status"] == expected_status
+        assert "lookup unavailable" in payload["checks"][0]["details"]
+    else:
+        assert "lookup unavailable" in result.output
 
 
 def test_pio_status_json_outputs_machine_readable_checks() -> None:
@@ -528,10 +587,16 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
 
     checks = payload["checks"]
     assert isinstance(checks, list)
-    identity_check = next(check for check in checks if check["name"] == "identity")
-    assert set(identity_check) == {"name", "status", "details"}
-    assert identity_check["status"] in {"OK", "WARN", "FAIL"}
-    assert "unit=" in identity_check["details"]
+    identity_checks = [check for check in checks if check["name"].startswith("identity:")]
+    assert [check["name"] for check in identity_checks] == [
+        "identity:unit",
+        "identity:role",
+        "identity:experiment",
+    ]
+    for check in identity_checks:
+        assert set(check) == {"name", "status", "details"}
+        assert check["status"] == "OK"
+    assert identity_checks[0]["details"] == whoami.get_unit_name()
 
     model_check = next(check for check in checks if check["name"] == "model")
     assert model_check["status"] == "OK"
@@ -545,7 +610,7 @@ def test_pio_status_json_outputs_machine_readable_checks() -> None:
     }
 
 
-def test_pio_status_counts_long_running_jobs() -> None:
+def test_pio_status_excludes_long_running_jobs() -> None:
     with JobManager() as job_manager:
         job_manager.register_and_set_running(
             unit=whoami.get_unit_name(),
@@ -574,7 +639,7 @@ def test_pio_status_counts_long_running_jobs() -> None:
     assert running_jobs_check == {
         "name": "jobs:running",
         "status": "OK",
-        "details": "count=2",
+        "details": "count=1",
     }
 
 
@@ -648,6 +713,25 @@ def test_pio_status_warns_on_model_hardware_mismatch(monkeypatch: pytest.MonkeyP
         "status": "WARN",
         "details": "missing I2C devices at 0x48",
     }
+
+
+@pytest.mark.parametrize("is_leader", [True, False])
+@pytest.mark.parametrize("include_self", [True, False])
+def test_pio_status_counts_non_self_workers(
+    monkeypatch: pytest.MonkeyPatch, is_leader: bool, include_self: bool
+) -> None:
+    workers = ("worker1", "worker2") + ((whoami.get_unit_name(),) if include_self else ())
+    monkeypatch.setattr("pioreactor.whoami.am_I_leader", lambda: is_leader)
+    monkeypatch.setattr("pioreactor.cli.status_checks.get_workers_in_inventory", lambda: workers)
+
+    result = CliRunner().invoke(pio, ["status", "--json"])
+
+    assert result.exit_code == 0
+    checks = json.loads(result.output)["checks"]
+    worker_checks = [check for check in checks if check["name"] == "cluster:workers"]
+    assert worker_checks == (
+        [{"name": "cluster:workers", "status": "OK", "details": "2"}] if is_leader else []
+    )
 
 
 def test_pio_status_handles_internal_errors_without_aborting(monkeypatch) -> None:

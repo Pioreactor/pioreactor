@@ -24,6 +24,7 @@ from pioreactor import hardware
 from pioreactor import mureq
 from pioreactor import pubsub
 from pioreactor import whoami
+from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.paths import get_dot_pioreactor_path
 from pioreactor.structs import Model
@@ -52,12 +53,12 @@ class ExpectedOwner(Struct, frozen=True):
 
 
 def collect_status_checks() -> list[StatusCheck]:
-    identity_check, role = check_identity()
+    identity_checks, role = check_identity()
     model_check, model = check_model()
     owner = get_expected_dot_pioreactor_owner()
 
     checks = [
-        identity_check,
+        *identity_checks,
         check_is_active(),
         model_check,
         check_hardware_model(model),
@@ -73,6 +74,7 @@ def collect_status_checks() -> list[StatusCheck]:
     ]
 
     if role == "leader":
+        checks.append(check_worker_count())
         checks.append(
             check_sqlite_storage(
                 "storage:db", "database", owner, check_openability=True, include_sidecars=True
@@ -114,29 +116,39 @@ def get_expected_dot_pioreactor_owner() -> ExpectedOwner:
         return ExpectedOwner(ids=None, description="pioreactor:www-data (missing on this system)")
 
 
-def check_identity() -> tuple[StatusCheck, str]:
+def check_identity() -> tuple[list[StatusCheck], str]:
     """Also returns this unit's role, or "<unknown>" if it couldn't be determined."""
     unit = whoami.get_unit_name()
     role = "<unknown>"
-    experiment = "<unknown>"
-    problems: list[str] = []
+    checks = [StatusCheck("identity:unit", "OK", unit)]
 
     try:
         role = "leader" if whoami.am_I_leader() else "worker"
     except Exception as e:
-        problems.append(f"role lookup failed ({e})")
+        checks.append(StatusCheck("identity:role", "WARN", f"role lookup failed ({e})"))
+    else:
+        checks.append(StatusCheck("identity:role", "OK", role))
 
     try:
         experiment = whoami.get_assigned_experiment_name(unit)
     except exc.NotAssignedAnExperimentError:
-        experiment = ""
+        checks.append(StatusCheck("identity:experiment", "OK", ""))
     except Exception as e:
-        problems.append(f"experiment lookup failed ({e})")
+        checks.append(StatusCheck("identity:experiment", "WARN", f"experiment lookup failed ({e})"))
+    else:
+        checks.append(StatusCheck("identity:experiment", "OK", experiment))
 
-    details = f"unit={unit} role={role} experiment={experiment}"
-    if problems:
-        return StatusCheck("identity", "WARN", f"{details} ({'; '.join(problems)})"), role
-    return StatusCheck("identity", "OK", details), role
+    return checks, role
+
+
+def check_worker_count() -> StatusCheck:
+    """Count registered workers, including inactive workers, excluding this unit."""
+    try:
+        unit = whoami.get_unit_name()
+        count = sum(worker != unit for worker in get_workers_in_inventory())
+    except Exception as e:
+        return StatusCheck("cluster:workers", "WARN", f"inventory lookup failed ({e})")
+    return StatusCheck("cluster:workers", "OK", str(count))
 
 
 def check_is_active() -> StatusCheck:
@@ -285,10 +297,10 @@ def check_huey_service() -> StatusCheck:
 def check_running_jobs() -> StatusCheck:
     try:
         with job_manager.JobManager() as jm:
-            running_jobs = jm.list_jobs()
+            count = jm.count_running_jobs(include_long_running_jobs=False)
     except Exception as e:
         return StatusCheck("jobs:running", "FAIL", str(e))
-    return StatusCheck("jobs:running", "OK", f"count={len(running_jobs)}")
+    return StatusCheck("jobs:running", "OK", f"count={count}")
 
 
 def check_log_file() -> StatusCheck:
