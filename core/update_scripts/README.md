@@ -39,3 +39,4 @@ fi
 
 ### SQL specific tips
  - use `IF EXISTS`
+ - `$experiment` (`UNIVERSAL_EXPERIMENT`) intentionally represents activity outside a named experiment and has no required parent row in `experiments`. Telemetry and activity-rollup rows for it can appear in `PRAGMA foreign_key_check`; do not require an empty result or delete these records as corrupt. Compare pre/post-migration relationships or explicitly account for this placeholder, while rejecting newly introduced violations. Other missing experiment names are not automatically valid.

@@ -341,7 +341,9 @@ def create_sql_query(
     query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery}) T"
 
     if has_experiment:
-        query += " LEFT JOIN experiments E ON E.experiment = T.experiment"  # left join since some experiments, like $experiment, are virtual. Maybe this shouldn't be the case?
+        # Preserve virtual experiments such as $experiment: they intentionally have no
+        # metadata row, so their elapsed time is NULL (an empty CSV field).
+        query += " LEFT JOIN experiments E ON E.experiment = T.experiment"
 
     if where_clauses:
         query += f" WHERE {' AND '.join(where_clauses)}"

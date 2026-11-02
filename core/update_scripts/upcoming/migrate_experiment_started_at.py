@@ -16,6 +16,12 @@ def migrate(connection: sqlite3.Connection) -> None:
     try:
         with connection:
             connection.execute("BEGIN IMMEDIATE")
+            # Validate only this small table, not the potentially gigabytes of child data.
+            expected_rows = connection.execute(
+                """SELECT rowid, experiment, created_at,
+                          strftime('%Y-%m-%dT%H:%M:%fZ', created_at), description
+                   FROM experiments ORDER BY rowid"""
+            ).fetchall()
             connection.execute("DROP VIEW IF EXISTS latest_experiment")
             connection.execute(
                 """CREATE TABLE experiments_new (
@@ -43,8 +49,14 @@ def migrate(connection: sqlite3.Connection) -> None:
                            AS delta_hours
                 FROM experiments ORDER BY rowid DESC LIMIT 1"""
             )
-            if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
-                raise RuntimeError("Experiment start-time migration failed its foreign-key check")
+            actual_rows = connection.execute(
+                "SELECT rowid, experiment, created_at, started_at, description FROM experiments ORDER BY rowid"
+            ).fetchall()
+            if actual_rows != expected_rows:
+                raise RuntimeError("Experiment start-time migration changed experiment records")
+            expected_latest = [(expected_rows[-1][1],)] if expected_rows else []
+            if connection.execute("SELECT experiment FROM latest_experiment").fetchall() != expected_latest:
+                raise RuntimeError("Experiment start-time migration changed the latest experiment")
     finally:
         connection.execute("PRAGMA foreign_keys = ON")
 

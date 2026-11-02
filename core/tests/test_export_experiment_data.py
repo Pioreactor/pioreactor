@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # test_export_experiment_data.py
+import csv
 import json
 import re
 import sqlite3
@@ -18,6 +19,7 @@ from pioreactor.actions.leader.export_experiment_data import ExportResourceLimit
 from pioreactor.actions.leader.export_experiment_data import source_exists
 from pioreactor.structs import Dataset
 from pioreactor.version import __version__
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def test_source_exists() -> None:
@@ -697,6 +699,36 @@ def test_export_experiment_data_with_experiment(temp_zipfile) -> None:
                 values[3][:4] == "2021"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
             assert values[4] == "12.0"
+
+
+@pytest.mark.usefixtures("mock_load_exportable_datasets")
+def test_export_virtual_experiment_preserves_rows_without_elapsed_time(tmp_path: Path) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp TEXT)")
+    conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT, started_at TEXT NOT NULL)")
+    conn.executemany(
+        "INSERT INTO test_table_with_experiment VALUES (?, ?, ?)",
+        [
+            (1, UNIVERSAL_EXPERIMENT, "2021-09-02T00:00:00.000Z"),
+            (2, UNIVERSAL_EXPERIMENT, "2021-09-02T01:00:00.000Z"),
+        ],
+    )
+    conn.commit()
+    output = tmp_path / "virtual-experiment.zip"
+    with patch("sqlite3.connect", return_value=conn):
+        export_experiment_data(
+            experiment=UNIVERSAL_EXPERIMENT,
+            output=str(output),
+            partition_by_unit=False,
+            dataset_names=["test_table_with_experiment"],
+        )
+
+    with zipfile.ZipFile(output) as archive:
+        csv_name = next(name for name in archive.namelist() if name.endswith(".csv"))
+        rows = list(csv.DictReader(archive.read(csv_name).decode("utf-8").splitlines()))
+    assert [row["id"] for row in rows] == ["1", "2"]
+    assert all(row["experiment"] == UNIVERSAL_EXPERIMENT for row in rows)
+    assert all(row["hours_since_experiment_started"] == "" for row in rows)
 
 
 @pytest.mark.usefixtures("mock_load_exportable_datasets")

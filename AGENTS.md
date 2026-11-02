@@ -233,6 +233,14 @@ When working on plugins:
 
 ## Database schema
 
+### Virtual experiment placeholder
+
+`UNIVERSAL_EXPERIMENT` (`$experiment`, defined in `core/pioreactor/whoami.py`) is the intentional placeholder for activity outside a named experiment, including self-tests, calibration, monitoring, and system logs. It is not an unexpanded shell variable and need not have a row in `experiments`.
+
+Telemetry and activity-rollup rows may therefore legitimately reference `$experiment` without a parent experiment. `PRAGMA foreign_key_check` can report these rows even in a healthy deployment. Inspect the referenced value before diagnosing corruption; this exception does not make arbitrary missing experiment names valid.
+
+Do not enable blanket foreign-key enforcement on MQTT ingestion, delete these rows as orphans, or create a fake user experiment to satisfy the constraint. Preserve virtual-experiment rows in queries (for example, use a left join for optional experiment metadata); they have no experiment start time. Migration checks must tolerate the known placeholder while still detecting newly broken relationships. See `core/tests/test_sqlite_worker.py::test_sqlite_worker_allows_pseudo_experiment_writes`.
+
 `./packaging/shared-assets/sql/create_tables.sql` and
 `./packaging/shared-assets/sql/create_triggers.sql`
 
