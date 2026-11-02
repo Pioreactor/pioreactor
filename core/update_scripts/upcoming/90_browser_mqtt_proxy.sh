@@ -28,15 +28,20 @@ TEMP=$(mktemp "${CONFIG}.XXXXXX")
 cp -p "$CONFIG" "$BACKUP"
 trap 'rm -f "$BACKUP" "$TEMP"' EXIT
 # Only amend the known SPA exclusion; do not replace customized routing wholesale.
-# shellcheck disable=SC2016
-if grep -Fq '$HTTP["url"] == "/mqtt" {' "$CONFIG" && grep -Fq '|/mqtt$)' "$CONFIG"; then
+if grep -Fq '|/mqtt$)' "$CONFIG"; then
     cp "$CONFIG" "$TEMP"
 else
     if ! grep -Fq '|/exports($|/))' "$CONFIG"; then
         echo 'Unrecognized SPA routing; configure /mqtt before updating the frontend.' >&2
         exit 1
     fi
-    sed 's@|/exports($|/))@|/exports($|/)|/mqtt$)@' "$CONFIG" > "$TEMP"
+    # Match the literal dollar sign in the route on both GNU and BSD sed.
+    sed 's@|/exports(\$|/))@|/exports($|/)|/mqtt$)@' "$CONFIG" > "$TEMP"
+fi
+
+# Repair the proxy block independently of the SPA exclusion so retries cannot duplicate it.
+# shellcheck disable=SC2016
+if ! grep -Fq '$HTTP["url"] == "/mqtt" {' "$TEMP"; then
     cat "$ASSET" >> "$TEMP"
 fi
 

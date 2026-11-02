@@ -58,7 +58,8 @@ jobs:
           tar -xvzf lgpio-0.2.2.0.tar.gz
           # Install lgpio into the venv created by `make install`.
           # Note: keep working directory at repo root so `.venv` is resolvable.
-          .venv/bin/python -m pip install -e ./lgpio-0.2.2.0
+          # lgpio's C source predates C23 (GCC 15's default), so build it as gnu17.
+          CFLAGS="-std=gnu17" .venv/bin/python -m pip install -e ./lgpio-0.2.2.0
 
           .venv/bin/pip list
 

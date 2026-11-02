@@ -23,6 +23,7 @@ import Divider from '@mui/material/Divider';
 import { Link } from 'react-router';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
+import EmptyState from './EmptyState';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { experimentPathSegment } from "../utils/url";
@@ -198,6 +199,17 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
               </TableRow>
             </TableHead>
             <TableBody>
+              {listOfLogs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} sx={{ borderBottom: 0 }}>
+                    <EmptyState>
+                      No recent experiment logs.
+                      <br />
+                      New activity will appear here automatically.
+                    </EmptyState>
+                  </TableCell>
+                </TableRow>
+              )}
               {listOfLogs.map((log, i) => (
                 <React.Fragment key={log.key}>
                   <ZebraTableRow>
