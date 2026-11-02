@@ -4,15 +4,15 @@ set -xeu
 
 export LC_ALL=C
 
-# [stirring.config] target_rpm_outside_od_reading is removed: stirring now always uses its target RPM between OD readings.
-# Where dodging is enabled, the old value was the RPM actually used, so carry it over to initial_target_rpm. Then remove the key.
-# Check the shared config.ini and unit_config.ini on every unit, plus the leader's per-unit config_<unit>.ini copies,
-# so a later config sync doesn't bring back the old values.
+# Preserve this unit's effective between-reading RPM before removing the old setting.
+# Keep the shared initial RPM unchanged: other units may have dodging disabled.
+# Cluster updates do not sync config.ini between unit migrations.
 DOT_PIOREACTOR="/home/pioreactor/.pioreactor"
 CRUDINI="/opt/pioreactor/venv/bin/crudini"
 SECTION="stirring.config"
 OLD_KEY="target_rpm_outside_od_reading"
 NEW_KEY="initial_target_rpm"
+UNIT_CONFIG="$DOT_PIOREACTOR/unit_config.ini"
 
 is_true() {
     case "$(echo "$1" | tr '[:upper:]' '[:lower:]')" in
@@ -21,22 +21,21 @@ is_true() {
     esac
 }
 
-shared_dodging=$(sudo -u pioreactor "$CRUDINI" --get "$DOT_PIOREACTOR/config.ini" "$SECTION" enable_dodging_od 2>/dev/null || :)
+# Missing keys are normal on retries and on units that never configured dodging.
+value=$(sudo -u pioreactor -i pio config get "$SECTION" "$OLD_KEY" 2>/dev/null || :)
+dodging=$(sudo -u pioreactor -i pio config get "$SECTION" enable_dodging_od 2>/dev/null || :)
+if [ -n "$value" ] && is_true "$dodging"; then
+    sudo -u pioreactor "$CRUDINI" --ini-options=nospace --set "$UNIT_CONFIG" "$SECTION" "$NEW_KEY" "$value"
+    chown pioreactor:www-data "$UNIT_CONFIG"
+    sudo -u pioreactor -i pio log -l INFO -m "Preserved [$SECTION] $OLD_KEY=$value as $NEW_KEY in $UNIT_CONFIG."
+fi
 
-for CONFIG_FILE in "$DOT_PIOREACTOR/config.ini" "$DOT_PIOREACTOR/unit_config.ini" "$DOT_PIOREACTOR"/config_*.ini; do
+# Delete shared first, local last. After an interruption, any remaining old value
+# still represents this unit's effective RPM, rather than a shadowed shared value.
+for CONFIG_FILE in "$DOT_PIOREACTOR/config.ini" "$UNIT_CONFIG"; do
     [ -f "$CONFIG_FILE" ] || continue
-
-    value=$(sudo -u pioreactor "$CRUDINI" --get "$CONFIG_FILE" "$SECTION" "$OLD_KEY" 2>/dev/null || :)
-    [ -n "$value" ] || continue
-
-    dodging=$(sudo -u pioreactor "$CRUDINI" --get "$CONFIG_FILE" "$SECTION" enable_dodging_od 2>/dev/null || :)
-    [ -n "$dodging" ] || dodging="$shared_dodging"
-
-    if is_true "$dodging"; then
-        sudo -u pioreactor "$CRUDINI" --ini-options=nospace --set "$CONFIG_FILE" "$SECTION" "$NEW_KEY" "$value"
-        sudo -u pioreactor -i pio log -l INFO -m "Moved [$SECTION] $OLD_KEY=$value to $NEW_KEY in $CONFIG_FILE."
+    if sudo -u pioreactor "$CRUDINI" --get "$CONFIG_FILE" "$SECTION" "$OLD_KEY" >/dev/null 2>&1; then
+        sudo -u pioreactor "$CRUDINI" --del "$CONFIG_FILE" "$SECTION" "$OLD_KEY"
+        chown pioreactor:www-data "$CONFIG_FILE"
     fi
-
-    sudo -u pioreactor "$CRUDINI" --del "$CONFIG_FILE" "$SECTION" "$OLD_KEY"
-    chown pioreactor:www-data "$CONFIG_FILE"
 done
