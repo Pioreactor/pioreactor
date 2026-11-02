@@ -92,7 +92,12 @@ labels follow the active scheme; liquid and active hardware colours retain their
 meaning and use contrasting labels. Chart
 axes, labels, tooltips, and controls follow the active scheme; series keep their
 hue with a brightness lift in dark mode. PNG and SVG exports carry the active
-chart colours and background so they remain readable outside the UI.
+chart colours and background so they remain readable outside the UI. Data-series colors
+should maintain at least 3:1 contrast against the chart surface. Preserve the
+existing palette order and hue families when adjusting contrast. Sensor-partitioned
+charts also encode angles with line patterns (90° solid, 45° long dash, 135° short
+dash, 180° dash-dot) or scatter shapes (circle, triangle, square, diamond), with
+matching legend samples.
 
 ### Typography
 

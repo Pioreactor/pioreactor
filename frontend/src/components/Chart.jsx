@@ -16,6 +16,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import DownloadIcon from "@mui/icons-material/Download";
 import {
+  Point,
   VictoryChart,
   VictoryLabel,
   VictoryAxis,
@@ -29,7 +30,6 @@ import {
 } from "victory";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { shiftHue } from "../utils/color";
 import { experimentPathSegment } from "../utils/url";
 import { Box } from "@mui/material";
 
@@ -58,6 +58,36 @@ const splitPartitionedName = (name) => {
   }
   return { base: match[1], suffix: match[2] };
 };
+
+// Sensor identity remains readable when hues are similar or colors cannot be distinguished.
+const sensorStyles = {
+  "90": { symbol: "circle", dash: undefined },
+  "45": { symbol: "triangleUp", dash: "8,4" },
+  "135": { symbol: "square", dash: "3,3" },
+  "180": { symbol: "diamond", dash: "8,3,2,3" },
+};
+
+function ChartLegendSymbol(props) {
+  const { datum, x, y, style } = props;
+  if (!datum.lineSample) {
+    return <Point {...props} />;
+  }
+  return (
+    <g {...props.events} style={{ cursor: "pointer" }}>
+      <rect x={x - 12} y={y - 10} width={24} height={20} fill="transparent" />
+      <line
+        x1={x - 9}
+        x2={x + 9}
+        y1={y}
+        y2={y}
+        stroke={datum.hidden ? style.stroke : style.fill}
+        strokeWidth={2}
+        strokeDasharray={datum.dash}
+        opacity={datum.hidden ? 0.4 : 1}
+      />
+    </g>
+  );
+}
 
 const dropPointsBefore = (data, cutoff) => {
   if (!data.length || data[0].x >= cutoff) {
@@ -106,17 +136,9 @@ export const thinSeriesData = (data, maxPoints) => {
   return thinned;
 };
 
-const resolveUnitColor = (name, colorMap) => {
-  const { base, suffix } = splitPartitionedName(name);
-  if (suffix) {
-    const primaryName = base;
-    return resolveUnitColor(primaryName, colorMap);
-  }
-  if (colorMap) {
-    return colorMap[name];
-  }
-  return undefined;
-};
+// Only sensor-partitioned series carry a "-<angle>" suffix; unit names like `pio-1` keep theirs.
+export const resolveUnitColor = (name, colorMap, isPartitionedBySensor) =>
+  colorMap?.[isPartitionedBySensor ? splitPartitionedName(name).base : name];
 
 function Chart(props) {
   const chartTheme = useChartTheme();
@@ -186,27 +208,13 @@ function Chart(props) {
   );
 
   // An effect event, so a new color map identity doesn't refetch history or resubscribe.
-  const getUnitColor = useEffectEvent((name) => resolveUnitColor(name, unitsColorMap));
+  const getUnitColor = useEffectEvent((name) => resolveUnitColor(name, unitsColorMap, isPartitionedBySensor));
 
-  const applyAngleAlpha = useCallback(
-    (seriesName, color) => {
-      if (!isPartitionedBySensor) {
-        return color;
-      }
-      const { suffix } = splitPartitionedName(seriesName);
-      if (!suffix) {
-        return color;
-      }
-      if (suffix === "45") {
-        return shiftHue(color, 7);
-      }
-      if (suffix === "135") {
-        return shiftHue(color, -7);
-      }
-      return color;
-    },
-    [isPartitionedBySensor]
-  );
+  const getSensorStyle = useCallback((name) => (
+    isPartitionedBySensor
+      ? sensorStyles[splitPartitionedName(name).suffix] || sensorStyles["90"]
+      : sensorStyles["90"]
+  ), [isPartitionedBySensor]);
 
   const breakString = useCallback((n) => (string) => {
     if (string.length > n) {
@@ -324,18 +332,21 @@ function Chart(props) {
 
       const reformattedName = relabelAndFormatSeriesForLegend(name);
       const line = seriesMap[name];
-      const legendColor = applyAngleAlpha(name, chartTheme.seriesColor(line?.color));
+      const legendColor = chartTheme.seriesColor(line?.color);
       const item = {
         name: reformattedName,
         originalName: name,
-        symbol: { fill: legendColor },
+        symbol: { fill: legendColor, type: getSensorStyle(name).symbol },
+        lineSample: isPartitionedBySensor && interpolation !== "none" && line.data.length > 1,
+        dash: getSensorStyle(name).dash,
+        hidden: hiddenSeries.has(name),
       };
       if (hiddenSeries.has(name)) {
-        return { ...item, symbol: { fill: chartTheme.surface } };
+        return { ...item, symbol: { ...item.symbol, fill: chartTheme.surface } };
       }
       return item;
     },
-    [chartTheme, applyAngleAlpha, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
+    [chartTheme, getSensorStyle, isPartitionedBySensor, interpolation, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
   );
 
   const legendItems = useMemo(
@@ -351,7 +362,7 @@ function Chart(props) {
     const legendPadding = 130; // left + right padding for legend area inside the chart
     const availableWidth = Math.max(200, chartWidth - legendPadding);
     const gutter = 15;
-    const symbolWidth = 14; // approx symbol + stroke width
+    const symbolWidth = 20; // approx symbol + stroke width
 
     const estimatedWidths = legendItems.map(
       (item) => measureLegendLabel(item.name) + symbolWidth + gutter + 8
@@ -397,12 +408,13 @@ function Chart(props) {
         return null;
       }
 
-      const seriesColor = applyAngleAlpha(name, chartTheme.seriesColor(series?.color));
+      const seriesColor = chartTheme.seriesColor(series?.color);
       let marker = null;
       if (interpolation === "none" || series.data?.length === 1) {
         marker = (
           <VictoryScatter
             size={4}
+            symbol={getSensorStyle(name).symbol}
             key={`line-${reformattedName}${chartKey}`}
             name={reformattedName}
             style={{
@@ -423,6 +435,7 @@ function Chart(props) {
               data: {
                 stroke: seriesColor,
                 strokeWidth: 2,
+                strokeDasharray: getSensorStyle(name).dash,
               },
               parent: { border: `1px solid ${uiColors.border}` },
             }}
@@ -446,7 +459,7 @@ function Chart(props) {
     },
     [
       chartTheme,
-      applyAngleAlpha,
+      getSensorStyle,
       chartKey,
       hiddenSeries,
       interpolation,
@@ -963,7 +976,8 @@ function Chart(props) {
           x={70}
           y={chartHeight - legendBottomPadding + 40}
           titleComponent={<VictoryLabel />}
-          symbolSpacer={6}
+          dataComponent={<ChartLegendSymbol />}
+          symbolSpacer={10}
           itemsPerRow={legendItemsPerRow}
           name="legend"
           borderPadding={{ right: 8 }}

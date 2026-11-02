@@ -99,7 +99,6 @@ function UploadProgress({ percent }) {
   } else if (percent !== null) {
     label = `Uploading... ${percent}%`;
   }
-  const isDeterminate = percent !== null && percent < 100;
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -108,8 +107,8 @@ function UploadProgress({ percent }) {
       </Typography>
       <LinearProgress
         aria-labelledby="archive-upload-progress"
-        variant={isDeterminate ? "determinate" : "indeterminate"}
-        value={isDeterminate ? percent : undefined}
+        variant="determinate"
+        value={percent ?? 0}
       />
     </Box>
   );

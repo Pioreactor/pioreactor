@@ -39,7 +39,7 @@ const SYSTEM_EXPERIMENT_LABEL = "<System>";
 
 const DEFAULT_EXPORT_STATE = {
   experimentSelection: "",
-  partitionByUnitSelection: false,
+  partitionByUnitSelection: true,
   selectedDatasets: [],
   // Values from datetime-local inputs, interpreted in the browser's time zone on submission.
   startTime: null,

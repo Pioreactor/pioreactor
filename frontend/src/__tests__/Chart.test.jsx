@@ -26,7 +26,8 @@ jest.mock("victory", () => {
   };
 });
 
-import Chart, { thinSeriesData } from "../components/Chart";
+import Chart, { resolveUnitColor, thinSeriesData } from "../components/Chart";
+import { ColorCycler } from "../utils/color";
 
 beforeAll(() => {
   HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
@@ -231,4 +232,17 @@ test("thinning leaves series within budget untouched", () => {
   const data = [{ x: 0, y: 1 }, { x: 1, y: 2 }];
   expect(thinSeriesData(data, 2)).toBe(data);
   expect(thinSeriesData(data, Infinity)).toBe(data);
+});
+
+test("numbered unit names keep their own color on non-sensor charts", () => {
+  const overviewColors = new ColorCycler(["#111111", "#222222"]);
+  expect(resolveUnitColor("unit-1", overviewColors, false)).toBe("#111111");
+  expect(resolveUnitColor("unit-2", overviewColors, false)).toBe("#222222");
+  expect(resolveUnitColor("unit-1", { "unit-1": "#333333" }, false)).toBe("#333333");
+});
+
+test("sensor-partitioned series strip only the sensor suffix", () => {
+  const colorMap = { "unit-1": "#111111", "unit-2": "#222222" };
+  expect(resolveUnitColor("unit-1-90", colorMap, true)).toBe("#111111");
+  expect(resolveUnitColor("unit-2-45", colorMap, true)).toBe("#222222");
 });

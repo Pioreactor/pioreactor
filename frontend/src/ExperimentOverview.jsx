@@ -135,9 +135,16 @@ function Overview(props) {
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
   const [hasFetchedUnits, setHasFetchedUnits] = useState(false)
+  // Set even when the workers request fails, so charts still render.
+  const [unitsSettledFor, setUnitsSettledFor] = useState(null)
   const theme = useTheme();
   const isTwoColumn = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true })
-  const unitsColorMap = useMemo(() => new ColorCycler(colors), [])
+  // Seed colors in the server's sorted worker order so they don't depend on which chart's history loads first.
+  const unitsColorMap = useMemo(() => {
+    const colorMap = new ColorCycler(colors);
+    units.forEach((unit) => colorMap[unit.pioreactor_unit]); // reading a unit assigns its color
+    return colorMap;
+  }, [units])
   const cardsConfig = config['ui.overview.cards'] || {};
   const chartPreferences = useExperimentChartPreferences({
     chartPage: "overview",
@@ -173,6 +180,8 @@ function Overview(props) {
         }
       } catch (error) {
         console.error('Error fetching workers:', error);
+      } finally {
+        setUnitsSettledFor(experiment);
       }
     };
 
@@ -223,7 +232,10 @@ function Overview(props) {
             xs: 12,
             lg: 7
           }}>
-          <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+          {/* Charts keep the colors they resolve when history loads, so wait for the seeded map. */}
+          {unitsSettledFor === experimentMetadata.experiment
+            ? <Charts chartPreferences={chartPreferences} unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+            : <CircularProgress aria-label="Loading charts" size={24} />}
         </Grid>
 
         <Grid

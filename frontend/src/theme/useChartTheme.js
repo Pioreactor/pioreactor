@@ -39,7 +39,7 @@ const dark = {
   axisLabel: darkColors.textSecondary,
   // Preserve hue and series identity while lifting dark lines off the canvas.
   seriesColor: (color) => color && /^(#[\da-f]{3,8}$|rgba?\()/i.test(color)
-    ? lighten(color, 0.35)
+    ? lighten(color, 0.36)
     : color,
 };
 

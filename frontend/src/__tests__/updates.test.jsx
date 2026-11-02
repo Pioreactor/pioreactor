@@ -307,6 +307,7 @@ describe("Updates page", () => {
       expect(xhrs).toHaveLength(1);
       expect(xhrs[0].url).toBe("/api/system/upload");
       expect(screen.getByText("Uploading...")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar", { name: /uploading/i })).toHaveAttribute("aria-valuenow", "0");
 
       act(() => {
         xhrs[0].upload.onprogress({ lengthComputable: true, loaded: 40, total: 100 });
