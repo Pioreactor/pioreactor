@@ -864,6 +864,7 @@ function Chart(props) {
   const legendRowHeight = legendLayout.rowHeight;
   const legendBottomPadding = 40 + legendRows * legendRowHeight;
   const chartHeight = 285 + legendRows * legendRowHeight;
+  const legendY = chartHeight - legendBottomPadding + 40;
 
   return (
     <Box ref={chartContainerRef} sx={{ position: "relative" }}>
@@ -883,6 +884,8 @@ function Chart(props) {
             zoomDimension={"x"}
             responsive={true}
             voronoiBlacklist={["parent"]}
+            // Stop the tooltip just above the legend, so hovering legend entries doesn't show it.
+            voronoiPadding={{ top: 5, left: 5, right: 5, bottom: chartHeight - legendY + 5 }}
             labels={createToolTip}
             labelComponent={
               <VictoryTooltip
@@ -963,7 +966,7 @@ function Chart(props) {
         />
         <VictoryLegend
           x={70}
-          y={chartHeight - legendBottomPadding + 40}
+          y={legendY}
           titleComponent={<VictoryLabel />}
           symbolSpacer={6}
           itemsPerRow={legendItemsPerRow}

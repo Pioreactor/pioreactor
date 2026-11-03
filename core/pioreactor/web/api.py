@@ -3605,6 +3605,20 @@ def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
     unit = body.unit
     label = body.label
 
+    if label != "":
+        label_owner = query_app_db(
+            "SELECT pioreactor_unit FROM pioreactor_unit_labels WHERE experiment=? AND label=? AND pioreactor_unit != ?",
+            (experiment, label, unit),
+            one=True,
+        )
+        if label_owner is not None:
+            assert isinstance(label_owner, dict)
+            abort_with(
+                409,
+                f"`{label_owner['pioreactor_unit']}` already uses the label `{label}` in this experiment.",
+                remediation="Choose a different label.",
+            )
+
     try:
         if (
             label == ""

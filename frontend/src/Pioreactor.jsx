@@ -64,6 +64,7 @@ import Chart from "./components/Chart";
 import ChartPreferencesControl from "./components/ChartPreferencesControl";
 import LogTableByUnit from "./components/LogTableByUnit";
 import CameraPanel from "./components/CameraPanel";
+import UnitLabelEditor from "./components/UnitLabelEditor";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
@@ -1683,15 +1684,18 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
           })}>
             <Box sx={{display: "flex", justifyContent: "left"}}>
               <PioreactorIconWithModel badgeContent={modelBadgeContent} />
-              <Typography sx={{
+              <UnitLabelEditor
+                unit={unit}
+                experiment={experiment}
+                label={label}
+                onLabelChange={setLabel}
+                titleSx={{
                   fontSize: 20,
                   color: uiColors.text,
                   fontWeight: 500,
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
-                gutterBottom>
-                {(label ) ? label : unit }
-              </Typography>
+              />
               <Tooltip title={indicatorLabel} placement="right">
                 <div>
                   <div className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>

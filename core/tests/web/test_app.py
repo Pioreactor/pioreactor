@@ -700,6 +700,18 @@ def test_upsert_unit_labels(client) -> None:
     assert data["unit1"] == "Updated Reactor 1"
 
 
+def test_upsert_unit_labels_rejects_label_used_by_another_unit(client) -> None:
+    response = client.put(
+        "/api/experiments/exp1/unit_labels",
+        json={"unit": "unit1", "label": "Reactor 2"},
+    )
+    assert response.status_code == 409
+    assert "unit2" in response.get_json()["error"]
+
+    response = client.get("/api/experiments/exp1/unit_labels")
+    assert response.get_json()["unit1"] == "Reactor 1"
+
+
 def test_get_logs_for_unit_and_experiment(client) -> None:
     from pioreactor.web.app import modify_app_db
 

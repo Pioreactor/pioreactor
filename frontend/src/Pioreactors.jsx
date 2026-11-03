@@ -67,6 +67,7 @@ import PluginChip from "./components/PluginChip"
 import PioreactorsIcon from "./components/PioreactorsIcon"
 import RequirementsAlert from "./components/RequirementsAlert"
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
+import UnitLabelEditor from "./components/UnitLabelEditor";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
@@ -2848,15 +2849,18 @@ export function PioreactorCard({unit, isUnitActive, experiment, config, initialL
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
               <PioreactorIconWithModel badgeContent={modelBadgeContent} color={isUnitActive ? undefined : disabledColor} />
-              <Typography sx={{
+              <UnitLabelEditor
+                unit={unit}
+                experiment={experiment}
+                label={label}
+                onLabelChange={setLabel}
+                titleSx={{
                   fontSize: 20,
                   color: uiColors.text,
                   fontWeight: 500,
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
-                gutterBottom>
-                {(label ) ? label : unit }
-              </Typography>
+              />
               <Button component={Link} to={`/pioreactors/${unit}`} sx={{ padding: "0px 8px", mb: "7px", ml: 1 }}>
                 <ArrowForwardIcon fontSize="small" sx={textIcon} /> View details
               </Button>
