@@ -847,9 +847,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.clean_up()
             raise e
 
-        self._log_state(self.state)
+        self.logger.debug("Starting.")
 
     def ready(self) -> None:
+        starting = self.state != JobState.SLEEPING
         self.state = JobState.READY
 
         try:
@@ -859,7 +860,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Error in on_ready:")
             self.logger.debug(e, exc_info=True)
 
-        self._log_state(self.state)
+        if starting:
+            self.logger.info("Started.")
 
     def sleeping(self) -> None:
         self.state = JobState.SLEEPING
@@ -871,11 +873,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Error in on_sleeping:")
             self.logger.debug(e, exc_info=True)
 
-        self._log_state(self.state)
-
     def lost(self) -> None:
         self.state = JobState.LOST
-        self._log_state(self.state)
+        self.logger.debug("Lost.")
 
     def disconnected(self) -> None:
         # call job specific on_disconnected to clean up subjobs, etc.
@@ -892,7 +892,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(e, exc_info=True)
 
         self.state = JobState.DISCONNECTED
-        self._log_state(self.state)
+        self.logger.info("Stopped.")
 
         # we "set" the internal event, which will cause any event.waits to end blocking. This should happen last.
         self._blocking_event.set()
@@ -971,12 +971,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if hasattr(self, name):
                 self._publish_setting(name)
 
-    def _log_state(self, state: JobState) -> None:
-        if state in {JobState.READY, JobState.DISCONNECTED, JobState.LOST}:
-            self.logger.info(state.capitalize() + ".")
-        else:
-            self.logger.debug(state.capitalize() + ".")
-
     def _set_attr_from_message(self, message: pt.MQTTMessage) -> None:
         def get_attr_from_topic(topic: str) -> str:
             pieces = topic.split("/")
@@ -1014,6 +1008,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
             getattr(self, f"set_{attr}")(new_value)
         else:
             setattr(self, attr, new_value)
+
+        if attr == "state":
+            # pause/resume are logged only here, so programmatic sleep/ready toggles stay quiet.
+            if (previous_value, self.state) == (JobState.READY, JobState.SLEEPING):
+                self.logger.info("Paused.")
+            elif (previous_value, self.state) == (JobState.SLEEPING, JobState.READY):
+                self.logger.info("Resumed.")
+            return
 
         units = self.published_settings[attr].get("unit")
         self.logger.info(

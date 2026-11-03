@@ -55,6 +55,7 @@
  - Made the Cameras page and per-Pioreactor camera panel available without setting `[camera] enabled=1` in the leader's config. A connected, supported camera is still required to capture images.
  - Added upload progress when updating from a release ZIP in the UI. Closing the dialog during upload now cancels it.
  - Added uploading and downloading of experiment profile `.yaml` files on the Experiment profiles page, so you can share profiles between clusters or back them up.
+ - Made activity start, stop, and pause messages in the logs quieter and clearer. Activities now log `Started.` and `Stopped.` instead of `Ready.` and `Disconnected.`, and pausing or resuming an activity from the UI or an experiment profile logs `Paused.` or `Resumed.` instead of `Updated state from ready to sleeping.`. Activities that pause and resume themselves, like stirring during a self-test, no longer fill the log with `Ready.` lines.
 
 ##### Performance
 
