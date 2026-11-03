@@ -9,7 +9,7 @@
 
 ##### OD reading configuration
 
- - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. OD calibrations and fusion estimators need a fixed IR LED intensity, and `auto` could pick a different value on every start. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
+ - Removed `auto` as a value for `ir_led_intensity` in `[od_reading.config]`. The update automatically changes `ir_led_intensity=auto` to `80`, the default for new installs, in `config.ini` and `unit_config.ini` on each Pioreactor. Uncalibrated OD values in new experiments may be on a slightly different scale than in past experiments that used `auto`.
  - Replaced `samples_per_second` in `[od_reading.config]` with `seconds_between_readings`, the time between OD readings. For example, to take a reading every 30 minutes:
 
    ```
@@ -27,7 +27,6 @@
 ##### CLI and exports
 
  - Replaced the CSV export column `hours_since_experiment_created` with `hours_since_experiment_started`, measured from the editable experiment start time. Update analysis scripts that use the old column name.
-
  - Removed the `ACTIVE` environment variable override. Use `pio active set 0` or `pio active set 1` to change whether the local Pioreactor is in service.
  - Changed `pio model get`, `pio model set`, and `pio workers model get <worker>` to print a readable model name by default. Scripts that parse their output as JSON must add `--json`.
  - Removed `--partition-by-experiment` from `pio run export_experiment_data` and `partition_by_experiment` from the Python export function, export API requests, and export manifest options. Each export already covers one experiment; use `--partition-by-unit` to split CSVs by Pioreactor.
@@ -62,10 +61,6 @@
  - Improved `pio run` startup, cluster status requests, and `.local` hostname resolution, and reduced idle CPU use on the leader. Browser assets are now cached for faster repeat visits, while the UI page itself is refreshed so software updates do not leave browsers loading old assets.
 
 #### Bug fixes
-
-##### Security
-
- - Updated `ca-certificates` to 20250419+deb13u1, which stops trusting the roots behind the compromised eMudhra intermediate CAs (see https://emudhra.we-have-a-problem.com/). The package is bundled with the update, so offline Pioreactors get it too.
 
 ##### Pumps and dosing automations
 
