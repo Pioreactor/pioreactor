@@ -16,7 +16,6 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import DownloadIcon from "@mui/icons-material/Download";
 import {
-  Point,
   VictoryChart,
   VictoryLabel,
   VictoryAxis,
@@ -66,28 +65,6 @@ const sensorStyles = {
   "135": { symbol: "square", dash: "3,3" },
   "180": { symbol: "diamond", dash: "8,3,2,3" },
 };
-
-function ChartLegendSymbol(props) {
-  const { datum, x, y, style } = props;
-  if (!datum.lineSample) {
-    return <Point {...props} />;
-  }
-  return (
-    <g {...props.events} style={{ cursor: "pointer" }}>
-      <rect x={x - 12} y={y - 10} width={24} height={20} fill="transparent" />
-      <line
-        x1={x - 9}
-        x2={x + 9}
-        y1={y}
-        y2={y}
-        stroke={datum.hidden ? style.stroke : style.fill}
-        strokeWidth={2}
-        strokeDasharray={datum.dash}
-        opacity={datum.hidden ? 0.4 : 1}
-      />
-    </g>
-  );
-}
 
 const dropPointsBefore = (data, cutoff) => {
   if (!data.length || data[0].x >= cutoff) {
@@ -177,6 +154,7 @@ function Chart(props) {
   const [chartWidth, setChartWidth] = useState(600);
   const [seriesMap, setSeriesMap] = useState({});
   const [hiddenSeries, setHiddenSeries] = useState(() => new Set());
+  const [hoveredSeries, setHoveredSeries] = useState(null);
   const [fetched, setFetched] = useState(false);
   const [exportAnchorEl, setExportAnchorEl] = useState(null);
   const pendingPointsRef = useRef(new Map());
@@ -336,17 +314,14 @@ function Chart(props) {
       const item = {
         name: reformattedName,
         originalName: name,
-        symbol: { fill: legendColor, type: getSensorStyle(name).symbol },
-        lineSample: isPartitionedBySensor && interpolation !== "none" && line.data.length > 1,
-        dash: getSensorStyle(name).dash,
-        hidden: hiddenSeries.has(name),
+        symbol: { fill: legendColor },
       };
       if (hiddenSeries.has(name)) {
         return { ...item, symbol: { ...item.symbol, fill: chartTheme.surface } };
       }
       return item;
     },
-    [chartTheme, getSensorStyle, isPartitionedBySensor, interpolation, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
+    [chartTheme, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
   );
 
   const legendItems = useMemo(
@@ -362,7 +337,7 @@ function Chart(props) {
     const legendPadding = 130; // left + right padding for legend area inside the chart
     const availableWidth = Math.max(200, chartWidth - legendPadding);
     const gutter = 15;
-    const symbolWidth = 20; // approx symbol + stroke width
+    const symbolWidth = 14; // approx symbol + stroke width
 
     const estimatedWidths = legendItems.map(
       (item) => measureLegendLabel(item.name) + symbolWidth + gutter + 8
@@ -409,6 +384,9 @@ function Chart(props) {
       }
 
       const seriesColor = chartTheme.seriesColor(series?.color);
+      // Hovering a legend entry fades the other series so one line stands out among many.
+      const highlighted = hiddenSeries.has(hoveredSeries) ? null : hoveredSeries;
+      const opacity = highlighted && highlighted !== name ? 0.2 : 1;
       let marker = null;
       if (interpolation === "none" || series.data?.length === 1) {
         marker = (
@@ -420,6 +398,7 @@ function Chart(props) {
             style={{
               data: {
                 fill: seriesColor,
+                opacity,
               },
             }}
           />
@@ -434,8 +413,9 @@ function Chart(props) {
               labels: { fill: seriesColor },
               data: {
                 stroke: seriesColor,
-                strokeWidth: 2,
+                strokeWidth: highlighted === name ? 3 : 2,
                 strokeDasharray: getSensorStyle(name).dash,
+                opacity,
               },
               parent: { border: `1px solid ${uiColors.border}` },
             }}
@@ -462,6 +442,7 @@ function Chart(props) {
       getSensorStyle,
       chartKey,
       hiddenSeries,
+      hoveredSeries,
       interpolation,
       relabelAndFormatSeries,
       seriesMap,
@@ -495,6 +476,14 @@ function Chart(props) {
                 },
               },
             ];
+          },
+          onMouseOver: (_, legendProps) => {
+            setHoveredSeries(legendProps.datum.originalName);
+            return [];
+          },
+          onMouseOut: () => {
+            setHoveredSeries(null);
+            return [];
           },
         },
       },
@@ -976,8 +965,7 @@ function Chart(props) {
           x={70}
           y={chartHeight - legendBottomPadding + 40}
           titleComponent={<VictoryLabel />}
-          dataComponent={<ChartLegendSymbol />}
-          symbolSpacer={10}
+          symbolSpacer={6}
           itemsPerRow={legendItemsPerRow}
           name="legend"
           borderPadding={{ right: 8 }}

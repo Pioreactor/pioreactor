@@ -1,6 +1,3 @@
-
-
-
 import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import Chart from "../components/Chart";
@@ -10,7 +7,7 @@ beforeAll(() => {
   global.ResizeObserver = class { observe() {} disconnect() {} };
 });
 
-test("sensor line patterns match the real Victory legend and remain toggleable", async () => {
+test.each(["linear", "none"])("sensor legends keep circular swatches and remain toggleable (%s)", async (interpolation) => {
   global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
     series: ["unit1-1", "unit1-2", "unit1-3", "unit1-4"],
     data: Array.from({ length: 4 }, () => [
@@ -21,19 +18,30 @@ test("sensor line patterns match the real Victory legend and remain toggleable",
   const { container } = render(<Chart
     chartKey="od" config={{ "od_config.photodiode_channel": { 1: "90", 2: "45", 3: "135", 4: "180" } }}
     dataSource="od_readings" experiment="exp1" experimentStartTime="2026-09-01T00:00:00Z"
-    fixedDecimals={2} interpolation="linear" isPartitionedBySensor lookback={24}
+    fixedDecimals={2} interpolation={interpolation} isPartitionedBySensor lookback={24}
     topic="od_reading/od1" unitsColorMap={{ unit1: "#0077BB" }} title="OD" yAxisLabel="OD"
   />);
-  await waitFor(() => expect(container.querySelector('line[stroke-dasharray="8,4"]')).not.toBeNull());
-  for (const dash of ["8,4", "3,3", "8,3,2,3"]) {
-    const legend = container.querySelector(`line[stroke-dasharray="${dash}"]`);
-    const trace = [...container.querySelectorAll("path")].find((path) => path.style.strokeDasharray === dash);
-    expect(trace).toBeDefined();
-    expect(trace.style.stroke).toBe(legend.getAttribute("stroke"));
+  const legendSymbols = () => [...container.querySelectorAll("path")].filter((path) => path.style.stroke === "#485157");
+  await waitFor(() => expect(legendSymbols()).toHaveLength(4));
+  for (const symbol of legendSymbols()) {
+    // Victory's circle path uses arcs; triangles, squares, and diamonds do not.
+    expect(symbol.getAttribute("d")).toMatch(/a/i);
+    expect(symbol.style.fill).toBe("#0077BB");
   }
-  const legend = container.querySelector('line[stroke-dasharray="8,4"]');
+  const legend = legendSymbols()[1];
   fireEvent.click(legend);
-  await waitFor(() => expect(legend).toHaveAttribute("opacity", "0.4"));
+  await waitFor(() => expect(legend.style.fill).toBe("white"));
   fireEvent.click(legend);
-  await waitFor(() => expect(legend).toHaveAttribute("opacity", "1"));
+  await waitFor(() => expect(legend.style.fill).toBe("#0077BB"));
+
+  if (interpolation === "none") {
+    return;
+  }
+  const traceFor = (dash) => [...container.querySelectorAll("path")].find((path) => path.style.strokeDasharray === dash);
+  fireEvent.mouseOver(legend);
+  await waitFor(() => expect(traceFor("3,3").style.opacity).toBe("0.2"));
+  expect(traceFor("8,4").style.opacity).toBe("1");
+  expect(traceFor("8,4").style.strokeWidth).toBe("3");
+  fireEvent.mouseOut(legend);
+  await waitFor(() => expect(traceFor("3,3").style.opacity).toBe("1"));
 });

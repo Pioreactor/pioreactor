@@ -179,6 +179,8 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   const isHighlighted = (calibration) => {
     return (calibration.pioreactor_unit === highlightedModel.pioreactorUnit && calibration.calibration_name === highlightedModel.calibrationName);
   }
+  // While a row is hovered, fade the other calibrations so the highlighted one stands out.
+  const isDimmed = (calibration) => highlightedModel.calibrationName != null && !isHighlighted(calibration);
 
   const width = 1050
   return (
@@ -308,7 +310,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
               <VictoryScatter
                 key={cal.calibration_name}
                 data={filteredScatterData}
-                style={{ data: { fill: color, fillOpacity: 0.8, } }}
+                style={{ data: { fill: color, fillOpacity: isDimmed(cal) ? 0.2 : 0.8, } }}
                 size={isHighlighted(cal) ? 4 : 3}
               />
           );
@@ -334,7 +336,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                   data: {
                     stroke: color,
                     strokeWidth: isHighlighted(cal) ? 4 : baseLineWidth,
-                    opacity: lineOpacity,
+                    opacity: isDimmed(cal) ? 0.2 : lineOpacity,
                   },
                 }}
               />

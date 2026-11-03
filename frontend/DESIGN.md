@@ -93,11 +93,13 @@ meaning and use contrasting labels. Chart
 axes, labels, tooltips, and controls follow the active scheme; series keep their
 hue with a brightness lift in dark mode. PNG and SVG exports carry the active
 chart colours and background so they remain readable outside the UI. Data-series colors
-should maintain at least 3:1 contrast against the chart surface. Preserve the
-existing palette order and hue families when adjusting contrast. Sensor-partitioned
+should maintain at least 3:1 contrast against the chart surface. Units take palette
+colours in sorted order, so the first eight entries must stay clearly distinct from
+each other, including under red-green colour blindness; keep the first three fixed
+and put near-duplicates at the end. Sensor-partitioned
 charts also encode angles with line patterns (90° solid, 45° long dash, 135° short
-dash, 180° dash-dot) or scatter shapes (circle, triangle, square, diamond), with
-matching legend samples.
+dash, 180° dash-dot) or scatter shapes (circle, triangle, square, diamond).
+Legends always use circular color swatches, regardless of line or scatter rendering.
 
 ### Typography
 

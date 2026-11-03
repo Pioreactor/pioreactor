@@ -18,33 +18,34 @@ class ColorCycler {
   }
 }
 
-// Keep hue and ordering stable; pale entries are darkened for thin lines on white.
+// Units take colors in order, so the first slots are the most distinct, including under
+// red-green colour blindness. Keep slots 0-2 fixed; near-duplicates sit at the end.
 const colors = [
   "#0077BB",
   "#009988",
   "#CC3311",
-  "#1197CA",
-  "#BE5F29",
-  "#EE3377",
-  "#8E958F",
-  "#3F95C3",
-  "#33A02C",
-  "#C97B7A",
   "#D17703",
-  "#A67EBB",
-  "#6A3D9A",
-  "#739925",
-  "#1A9E91",
-  "#737B94",
-  "#AA5CAA",
-  "#15742A",
-  "#236AD3",
-  "#445210",
-  "#0CA330",
-  "#311535",
   "#803958",
-  "#2CA319",
   "#1734B8",
+  "#15742A",
+  "#EE3377",
+  "#3F95C3",
+  "#0CA330",
+  "#6A3D9A",
+  "#236AD3",
+  "#C97B7A",
+  "#AA5CAA",
+  "#737B94",
+  "#8E958F",
+  "#A67EBB",
+  "#1197CA",
+  "#739925",
+  "#BE5F29",
+  "#2CA319",
+  "#445210",
+  "#33A02C",
+  "#1A9E91",
+  "#311535",
 ];
 
 const ERROR_COLOR = uiColors.logError;
