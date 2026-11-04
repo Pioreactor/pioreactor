@@ -66,6 +66,26 @@ const sensorStyles = {
   "180": { symbol: "diamond", dash: "8,3,2,3" },
 };
 
+const breakString = (n) => (string) => {
+  if (string.length > n) {
+    return string.slice(0, n - 5) + "..." + string.slice(string.length - 2, string.length);
+  }
+  return string;
+};
+
+// Vertical layout: the plot area keeps a fixed height and the legend grows below the x-axis.
+const PLOT_TOP = 50;
+const PLOT_HEIGHT = 195;
+const AXIS_LABEL_SPACE = 40;
+const LEGEND_Y = PLOT_TOP + PLOT_HEIGHT + AXIS_LABEL_SPACE;
+const LEGEND_FONT_SIZE = 13;
+const LEGEND_SYMBOL_SPACER = 6;
+const LEGEND_ROW_GUTTER = 5;
+// Mirrors Victory's legend row height: label height (x1.15 when it has capitals or digits, x1.05
+// overlap margin) + symbol spacer + row gutter. Reserving less clips the bottom rows.
+const LEGEND_ROW_HEIGHT =
+  Math.ceil(LEGEND_FONT_SIZE * 1.15 * 1.05) + LEGEND_SYMBOL_SPACER + LEGEND_ROW_GUTTER;
+
 const dropPointsBefore = (data, cutoff) => {
   if (!data.length || data[0].x >= cutoff) {
     return data;
@@ -194,13 +214,6 @@ function Chart(props) {
       : sensorStyles["90"]
   ), [isPartitionedBySensor]);
 
-  const breakString = useCallback((n) => (string) => {
-    if (string.length > n) {
-      return string.slice(0, n - 5) + "..." + string.slice(string.length - 2, string.length);
-    }
-    return string;
-  }, []);
-
   const relabelAndFormatSeries = useCallback(
     (name) => {
       if (isPartitionedBySensor) {
@@ -215,26 +228,7 @@ function Chart(props) {
       }
       return breakString(12)(relabelMap[name] || name);
     },
-    [breakString, isPartitionedBySensor, relabelMap]
-  );
-
-  const relabelAndFormatSeriesForLegend = useCallback(
-    (name) => {
-      const truncateString = breakString(12);
-
-      if (isPartitionedBySensor) {
-        const { base, suffix } = splitPartitionedName(name);
-        if (suffix) {
-          const displayBase = relabelMap ? (relabelMap[base] || base) : base;
-          return `${truncateString(displayBase)}-${suffix}°`;
-        }
-      }
-      if (!relabelMap) {
-        return name;
-      }
-      return truncateString(relabelMap[name] || name);
-    },
-    [breakString, isPartitionedBySensor, relabelMap]
+    [isPartitionedBySensor, relabelMap]
   );
 
   const measureLegendLabel = useMemo(() => {
@@ -243,7 +237,7 @@ function Chart(props) {
     }
     const context = canvasMeasureRef.current.getContext("2d");
     if (context) {
-      context.font = "13px Helvetica, Arial, sans-serif";
+      context.font = `${LEGEND_FONT_SIZE}px Helvetica, Arial, sans-serif`;
       return (text) => context.measureText(text).width;
     }
     return (text) => text.length * 8;
@@ -304,37 +298,28 @@ function Chart(props) {
 
   const selectLegendData = useCallback(
     (name) => {
-      if (!seriesMap[name]) {
-        return {};
-      }
-
-      const reformattedName = relabelAndFormatSeriesForLegend(name);
-      const line = seriesMap[name];
-      const legendColor = chartTheme.seriesColor(line?.color);
       const item = {
-        name: reformattedName,
+        name: relabelAndFormatSeries(name),
         originalName: name,
-        symbol: { fill: legendColor },
+        symbol: { fill: chartTheme.seriesColor(seriesMap[name].color) },
       };
       if (hiddenSeries.has(name)) {
-        return { ...item, symbol: { ...item.symbol, fill: chartTheme.surface } };
+        // A hidden series keeps an outlined swatch and a dimmed label.
+        return { ...item, symbol: { fill: chartTheme.surface }, labels: { opacity: 0.45 } };
       }
       return item;
     },
-    [chartTheme, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
+    [chartTheme, hiddenSeries, relabelAndFormatSeries, seriesMap]
   );
 
-  const legendItems = useMemo(
-    () => names.map(selectLegendData).filter((item) => item && item.name),
-    [names, selectLegendData]
-  );
+  const legendItems = useMemo(() => names.map(selectLegendData), [names, selectLegendData]);
 
   const legendLayout = useMemo(() => {
     if (!legendItems.length) {
-      return { itemsPerRow: 1, rows: 0, rowHeight: 24 };
+      return { itemsPerRow: 1, rows: 0 };
     }
 
-    const legendPadding = 130; // left + right padding for legend area inside the chart
+    const legendPadding = 130; // 70 left + 60 right, which keeps the last row clear of the download button
     const availableWidth = Math.max(200, chartWidth - legendPadding);
     const gutter = 15;
     const symbolWidth = 14; // approx symbol + stroke width
@@ -350,7 +335,7 @@ function Chart(props) {
       Math.min(legendItems.length, Math.floor(availableWidth / targetWidth) || 1)
     );
     const rows = Math.ceil(legendItems.length / itemsPerRow);
-    return { itemsPerRow, rows, rowHeight: 24 };
+    return { itemsPerRow, rows };
   }, [chartWidth, legendItems, measureLegendLabel]);
 
   useLayoutEffect(() => {
@@ -450,46 +435,33 @@ function Chart(props) {
     ]
   );
 
-  const legendEvents = useMemo(
-    () => [
-      {
-        childName: "legend",
-        target: "data",
-        eventHandlers: {
-          onClick: (_, legendProps) => {
-            return [
-              {
-                childName: legendProps.datum.name,
-                target: "data",
-                mutation: () => {
-                  const seriesName = legendProps.datum.originalName;
-                  setHiddenSeries((prevHidden) => {
-                    const next = new Set(prevHidden);
-                    if (next.has(seriesName)) {
-                      next.delete(seriesName);
-                    } else {
-                      next.add(seriesName);
-                    }
-                    return next;
-                  });
-                  return null;
-                },
-              },
-            ];
-          },
-          onMouseOver: (_, legendProps) => {
-            setHoveredSeries(legendProps.datum.originalName);
-            return [];
-          },
-          onMouseOut: () => {
-            setHoveredSeries(null);
-            return [];
-          },
-        },
+  const legendEvents = useMemo(() => {
+    const eventHandlers = {
+      onClick: (_, legendProps) => {
+        const seriesName = legendProps.datum.originalName;
+        setHiddenSeries((prevHidden) => {
+          const next = new Set(prevHidden);
+          if (next.has(seriesName)) {
+            next.delete(seriesName);
+          } else {
+            next.add(seriesName);
+          }
+          return next;
+        });
+        return [];
       },
-    ],
-    [setHiddenSeries]
-  );
+      onMouseOver: (_, legendProps) => {
+        setHoveredSeries(legendProps.datum.originalName);
+        return [];
+      },
+      onMouseOut: () => {
+        setHoveredSeries(null);
+        return [];
+      },
+    };
+    // Both the swatch and its label toggle and highlight the series.
+    return ["data", "labels"].map((target) => ({ childName: "legend", target, eventHandlers }));
+  }, []);
 
   const triggerBlobDownload = useCallback((blob, filename) => {
     const url = URL.createObjectURL(blob);
@@ -859,12 +831,9 @@ function Chart(props) {
   const exportMenuOpen = Boolean(exportAnchorEl);
   const chartStateKey = names.join("-");
 
-  const legendRows = legendLayout.rows;
-  const legendItemsPerRow = legendLayout.itemsPerRow;
-  const legendRowHeight = legendLayout.rowHeight;
-  const legendBottomPadding = 40 + legendRows * legendRowHeight;
-  const chartHeight = 285 + legendRows * legendRowHeight;
-  const legendY = chartHeight - legendBottomPadding + 40;
+  const legendHeight = legendLayout.rows * LEGEND_ROW_HEIGHT;
+  const legendBottomPadding = AXIS_LABEL_SPACE + legendHeight;
+  const chartHeight = LEGEND_Y + legendHeight;
 
   return (
     <Box ref={chartContainerRef} sx={{ position: "relative" }}>
@@ -873,7 +842,7 @@ function Chart(props) {
         style={{ parent: { width: "100%" } }}
         title={title}
         domainPadding={10}
-        padding={{ left: 70, right: 50, bottom: legendBottomPadding, top: 50 }}
+        padding={{ left: 70, right: 50, bottom: legendBottomPadding, top: PLOT_TOP }}
         events={legendEvents}
         height={chartHeight}
         width={chartWidth}
@@ -885,7 +854,7 @@ function Chart(props) {
             responsive={true}
             voronoiBlacklist={["parent"]}
             // Stop the tooltip just above the legend, so hovering legend entries doesn't show it.
-            voronoiPadding={{ top: 5, left: 5, right: 5, bottom: chartHeight - legendY + 5 }}
+            voronoiPadding={{ top: 5, left: 5, right: 5, bottom: legendHeight + 5 }}
             labels={createToolTip}
             labelComponent={
               <VictoryTooltip
@@ -966,19 +935,18 @@ function Chart(props) {
         />
         <VictoryLegend
           x={70}
-          y={legendY}
+          y={LEGEND_Y}
+          // victory-legend reads titleComponent.props directly; React 19 drops its defaultProps here.
           titleComponent={<VictoryLabel />}
-          symbolSpacer={6}
-          itemsPerRow={legendItemsPerRow}
+          symbolSpacer={LEGEND_SYMBOL_SPACER}
+          itemsPerRow={legendLayout.itemsPerRow}
           name="legend"
-          borderPadding={{ right: 8 }}
           orientation="horizontal"
-          cursor="pointer"
           gutter={15}
-          rowGutter={5}
+          rowGutter={LEGEND_ROW_GUTTER}
           style={{
-            labels: { fontSize: 13 },
-            data: { stroke: "#485157", strokeWidth: 0.5, size: 6.5, cursor: "pointer" },
+            labels: { fontSize: LEGEND_FONT_SIZE, cursor: "pointer" },
+            data: { stroke: chartTheme.legendSwatchStroke, strokeWidth: 0.5, size: 6.5, cursor: "pointer" },
           }}
           data={legendItems}
           width={chartWidth}

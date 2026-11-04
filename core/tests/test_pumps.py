@@ -465,10 +465,9 @@ def test_pump_context_cleans_up_after_stop_serialization_failure(mocker) -> None
         pin=13,
         calibration=_linear_pump_calibration(),
     )
-    with pytest.raises(OSError, match="PWM bookkeeping failed"):
-        with pump:
-            pump.continuously(block=False)
-            mocker.patch.object(pump.pwm, "_serialize", side_effect=OSError("PWM bookkeeping failed"))
+    with pump:
+        pump.continuously(block=False)
+        mocker.patch.object(pump.pwm, "_serialize", side_effect=OSError("PWM bookkeeping failed"))
 
     assert pump.interrupt.is_set()
     assert pump.pwm._is_cleaned_up
@@ -476,30 +475,77 @@ def test_pump_context_cleans_up_after_stop_serialization_failure(mocker) -> None
 
 
 @pytest.mark.timeout(5)
-def test_pump_action_surfaces_worker_serialization_failure(mocker, monkeypatch: pytest.MonkeyPatch) -> None:
-    experiment = "test_pump_action_surfaces_worker_serialization_failure"
-    mqtt_client = FakeMQTTClient()
+@pytest.mark.parametrize("cancel_during_telemetry", [False, True])
+def test_pump_accounts_for_volume_despite_pwm_telemetry_failure(
+    monkeypatch: pytest.MonkeyPatch, cancel_during_telemetry: bool
+) -> None:
+    experiment = "pump_telemetry_failure_accounting"
+    mqtt_client, events = _fake_client_collecting_dosing_events(experiment)
+    cancel = threading.Event()
+    calibration = _linear_pump_calibration(slope=2.0)
+    calibration.curve_data_ = _poly_curve([2.0, 0.1])
     pump = PWMPump(
         unit=unit,
         experiment=experiment,
         pin=13,
-        calibration=_linear_pump_calibration(),
+        calibration=calibration,
         mqtt_client=cast(Any, mqtt_client),
+        cancel_events=(cancel,),
     )
     monkeypatch.setattr("pioreactor.actions.pump.PWMPump", lambda *args, **kwargs: pump)
-    monkeypatch.setattr(
-        "pioreactor.actions.pump.utils.managed_lifecycle",
-        lambda *args, **kwargs: _FakeManagedLifecycle(mqtt_client),
+    telemetry_attempts: list[float] = []
+
+    def fail_telemetry() -> None:
+        telemetry_attempts.append(pump.pwm.duty_cycle)
+        if cancel_during_telemetry:
+            cancel.set()
+        raise OSError("PWM bookkeeping failed")
+
+    monkeypatch.setattr(pump.pwm, "_serialize", fail_telemetry)
+    duration = 10.0 if cancel_during_telemetry else 0.01
+    moved = add_media(
+        duration=duration,
+        unit=unit,
+        experiment=experiment,
+        calibration=calibration,
+        mqtt_client=mqtt_client,
+        cancel_event=cancel,
     )
-    mocker.patch.object(pump.pwm, "_serialize", side_effect=OSError("PWM bookkeeping failed"))
 
-    with pytest.raises(OSError, match="PWM bookkeeping failed"):
-        add_media(duration=0.01, unit=unit, experiment=experiment, calibration=pump.calibration)
-
+    assert telemetry_attempts
+    if cancel_during_telemetry:
+        assert telemetry_attempts[0] > 0
+        assert not pump.completed
+        assert 0 < moved < calibration.duration_to_ml(duration)
+        assert moved == pytest.approx(calibration.duration_to_ml(pump.elapsed))
+    else:
+        assert pump.completed
+        assert moved == pytest.approx(calibration.duration_to_ml(duration))
+    assert sum(events) == pytest.approx(moved)
     assert pump.interrupt.is_set()
     assert pump.pwm.duty_cycle == 0.0
     assert pump.pwm._is_cleaned_up
     assert not pump.pwm.is_locked()
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert pump.pin not in cache
+
+
+def test_dosing_event_publish_failure_still_propagates(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_dosing_event(topic: str, payload: bytes, **kwargs: Any) -> None:
+        if topic.endswith("/dosing_events"):
+            raise OSError("Dosing event publish failed")
+
+    client = FakeMQTTClient(on_publish=fail_dosing_event)
+    _set_up_deterministic_pump_action(monkeypatch, client)
+    with pytest.raises(OSError, match="Dosing event publish failed"):
+        add_media(
+            duration=0.01,
+            unit=unit,
+            experiment="dosing_event_publish_failure",
+            calibration=_linear_pump_calibration(),
+        )
+    with local_intermittent_storage("pwm_locks") as cache:
+        assert _get_pin("media_pump") not in cache
 
 
 def test_pump_context_exit_after_pwm_cleanup_stops_worker_without_republishing() -> None:

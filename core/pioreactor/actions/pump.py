@@ -89,7 +89,7 @@ class PWMPump:
         try:
             self.stop()
         finally:
-            self.pwm.clean_up()
+            self.pwm.clean_up(serialize=False)
 
     @property
     def elapsed(self) -> float:
@@ -104,7 +104,11 @@ class PWMPump:
         return self.run is None or self.run.done.wait(timeout)
 
     def publish_duty_cycles(self) -> None:
-        self.pwm._serialize()
+        # PWM telemetry must not prevent dosing-volume accounting or its return value.
+        try:
+            self.pwm._serialize()
+        except Exception:
+            self.pwm.logger.warning("Unable to publish pump duty cycle telemetry.", exc_info=True)
 
     def start(self, duty_cycle: float) -> None:
         self._begin(None, duty_cycle)
@@ -147,7 +151,8 @@ class PWMPump:
                     self.run.join()
             finally:
                 self.interrupt.set()
-                self.pwm.stop()
+                self.pwm.stop(serialize=False)
+                self.publish_duty_cycles()
 
     def by_volume(self, ml: pt.mL, block: bool = True) -> None:
         if not isfinite(ml) or ml < 0:

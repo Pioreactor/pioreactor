@@ -467,7 +467,7 @@ class PWM:
             remove_signal_handlers(signal.SIGHUP, [self._exit, self._ignore_future_sighups])
             self._registered_sighup_handler = False
 
-    def clean_up(self) -> None:
+    def clean_up(self, *, serialize: bool = True) -> None:
         with self._lifecycle_lock:
             if self._is_cleaned_up or self._closing:
                 return
@@ -488,7 +488,7 @@ class PWM:
             # No queued serializer can subsequently erase a new owner's pin state.
             with self._telemetry_lock:
                 try:
-                    if output_closed:
+                    if output_closed and serialize:
                         self._serialize()
                 finally:
                     self._is_cleaned_up = True

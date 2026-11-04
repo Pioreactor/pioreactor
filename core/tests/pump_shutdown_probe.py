@@ -38,12 +38,12 @@ def child(mode: str, root: str, stop: str) -> None:
     client.on_publish = deliver
     original_cleanup = PWM.clean_up
 
-    def delayed_cleanup(self: PWM) -> None:
+    def delayed_cleanup(self: PWM, *, serialize: bool = True) -> None:
         # Force scheduling at the ownership boundary: output stopped, lock still held.
         if threading.current_thread() is not threading.main_thread():
             print("ENTER_CLEANUP", flush=True)
             time.sleep(0.75)
-        original_cleanup(self)
+        original_cleanup(self, serialize=serialize)
         print("CLEANUP_DONE", flush=True)
 
     PWM.clean_up = delayed_cleanup
