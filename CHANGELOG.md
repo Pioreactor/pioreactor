@@ -1,4 +1,4 @@
-### Upcoming
+### 26.12.0
 
 #### Breaking changes
 
