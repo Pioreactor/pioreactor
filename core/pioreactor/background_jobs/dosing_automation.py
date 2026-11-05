@@ -228,7 +228,7 @@ class DosingAutomationJob(AutomationJob):
         volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
         source_of_event = f"{self.job_name}:{self.automation_name}"
         waste_removal_multiplier = config.getfloat(
-            "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
+            "dosing_automation.config", "waste_removal_multiplier", fallback=1.0
         )
 
         # Capture the token for this exchange. A quick pause/resume must not revive it.

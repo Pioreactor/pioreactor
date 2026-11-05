@@ -1,5 +1,6 @@
 import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react";
+import { TextSize } from "victory";
 import Chart from "../components/Chart";
 
 beforeAll(() => {
@@ -71,4 +72,41 @@ test("legend labels toggle and dim their series", async () => {
   fireEvent.click(legendLabel("unit2"));
   await waitFor(() => expect(swatchFor(1).style.fill).toBe("#0077BB"));
   expect(legendLabel("unit2").querySelector("tspan").style.opacity).toBe("");
+});
+
+test("legend labels use the available width and only long ones are shortened", async () => {
+  // jsdom can't measure text, so give Victory (and the legend layout) 7px per character.
+  const realImpl = TextSize._approximateTextSizeInternal.impl;
+  TextSize._approximateTextSizeInternal.impl = (text) => ({ width: String(text).length * 7, height: 15 });
+  try {
+    const series = Array.from({ length: 6 }, (_, i) => `unit${i + 1}`);
+    global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
+      series,
+      data: series.map(() => [
+        { x: "2026-09-01T01:00:00Z", y: 1 },
+        { x: "2026-09-01T02:00:00Z", y: 2 },
+      ]),
+    }) });
+    const { container } = render(<Chart
+      chartKey="od" dataSource="od_readings" experiment="exp1" experimentStartTime="2026-09-01T00:00:00Z"
+      fixedDecimals={2} interpolation="linear" lookback={24} topic="od_reading/od1"
+      relabelMap={{ unit1: "P3 AirBubbler", unit2: "A very long relabelled bioreactor name 02" }}
+      unitsColorMap={Object.fromEntries(series.map((name) => [name, "#0077BB"]))} title="OD" yAxisLabel="OD"
+    />);
+    const legendLabels = () => [...container.querySelectorAll("text")]
+      .filter((node) => /^(P3|A very|unit)/.test(node.textContent));
+    await waitFor(() => expect(legendLabels()).toHaveLength(6));
+
+    const texts = legendLabels().map((node) => node.textContent);
+    expect(texts).toContain("P3 AirBubbler");
+    const shortened = texts.find((text) => text.startsWith("A very"));
+    expect(shortened).toMatch(/…02$/);
+    expect(shortened.length * 7).toBeLessThanOrEqual(220);
+
+    // 480px of room: the widest packing that fits is 3 per row, so 2 rows.
+    const rowYs = new Set(legendLabels().map((node) => node.getAttribute("y")));
+    expect(rowYs.size).toBe(2);
+  } finally {
+    TextSize._approximateTextSizeInternal.impl = realImpl;
+  }
 });

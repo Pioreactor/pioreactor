@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo, useId } from 'react';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import { uiColors } from '../theme/colors';
@@ -48,6 +48,7 @@ function clampVolume(value, fallbackValue, size) {
 }
 
 const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVolume }) => {
+  const liquidClipId = useId();
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   const {
@@ -192,9 +193,9 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
   const visibleLiquidHeight = Math.min(liquidHeight, bioreactor.height);
   const liquidWaves = useMemo(() => {
     const paths = [];
-    if (!nOD || visibleLiquidHeight <= 0) return paths;
-    const waveSpacing = 150 / binFloat(nOD, 0.1);
-    if (waveSpacing <= 0) return paths;
+    if (!(nOD > 0) || visibleLiquidHeight <= 0) return paths;
+    // Denser lines read as a more turbid culture; cap the density so high nOD stays legible.
+    const waveSpacing = Math.max(150 / binFloat(nOD, 0.1), 10);
     for (let y = liquidY + 10; y < liquidY + visibleLiquidHeight; y += waveSpacing) {
       const r = pseudoRandom(pseudoRandom(y, 0.618), pseudoRandom(y, 1.618));
       const points = [];
@@ -290,9 +291,17 @@ const BioreactorDiagram = ({ experiment, unit, config, size, liquidVolume, maxVo
               x={bioreactor.x} y={liquidY} width={bioreactor.width}
               height={visibleLiquidHeight} rx={10} fill="#e0d0b5"
             />
-            {liquidWaves.map((points, index) => (
-              <polyline key={index} points={points} fill="none" stroke="#e0d0b540" strokeWidth={1} />
-            ))}
+            <clipPath id={liquidClipId}>
+              <rect
+                x={bioreactor.x + 1.5} y={liquidY + 1.5} width={bioreactor.width - 3}
+                height={Math.max(visibleLiquidHeight - 3, 0)} rx={8.5}
+              />
+            </clipPath>
+            <g clipPath={`url(#${liquidClipId})`} fill="none" stroke="#a08a63" strokeOpacity={0.4} strokeWidth={1.5}>
+              {liquidWaves.map((points, index) => (
+                <polyline key={index} points={points} />
+              ))}
+            </g>
           </g>
         )}
         <line

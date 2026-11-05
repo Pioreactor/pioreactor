@@ -510,7 +510,7 @@ def get_update_app_commands(
         # download production
         if RELEASE_ARCHIVE_PATTERN.search(source):
             # provided a release archive
-            version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
+            version_installed = re.search(r"release_(.*).zip$", Path(source).name).groups()[0]  # type: ignore
             commands_and_priority.extend(create_commands_for_release_archive(source, version_installed))
             # The leader reuses its staged archive to update workers, so its update task removes it instead.
             if is_staged_release_archive(source) and not whoami.am_I_leader():

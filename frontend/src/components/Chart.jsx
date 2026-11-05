@@ -25,6 +25,7 @@ import {
   VictoryLegend,
   VictoryTooltip,
   VictoryVoronoiContainer,
+  TextSize,
   createContainer
 } from "victory";
 import dayjs from 'dayjs';
@@ -66,13 +67,6 @@ const sensorStyles = {
   "180": { symbol: "diamond", dash: "8,3,2,3" },
 };
 
-const breakString = (n) => (string) => {
-  if (string.length > n) {
-    return string.slice(0, n - 5) + "..." + string.slice(string.length - 2, string.length);
-  }
-  return string;
-};
-
 // Vertical layout: the plot area keeps a fixed height and the legend grows below the x-axis.
 const PLOT_TOP = 50;
 const PLOT_HEIGHT = 195;
@@ -81,6 +75,12 @@ const LEGEND_Y = PLOT_TOP + PLOT_HEIGHT + AXIS_LABEL_SPACE;
 const LEGEND_FONT_SIZE = 13;
 const LEGEND_SYMBOL_SPACER = 6;
 const LEGEND_ROW_GUTTER = 5;
+const LEGEND_SYMBOL_SIZE = 6.5;
+const LEGEND_GUTTER = 15;
+// Victory sizes each legend column to its widest item: label + symbol + spacer + gutter.
+const LEGEND_ITEM_OVERHEAD = LEGEND_SYMBOL_SIZE + LEGEND_SYMBOL_SPACER + LEGEND_GUTTER;
+// Longer labels are shortened in the middle so one long name doesn't take a whole row.
+const LEGEND_MAX_LABEL_WIDTH = 220;
 // Mirrors Victory's legend row height: label height (x1.15 when it has capitals or digits, x1.05
 // overlap margin) + symbol spacer + row gutter. Reserving less clips the bottom rows.
 const LEGEND_ROW_HEIGHT =
@@ -170,7 +170,6 @@ function Chart(props) {
 
   const topics = useMemo(() => toArray(topic), [topic]);
   const chartContainerRef = useRef(null);
-  const canvasMeasureRef = useRef(null);
   const [chartWidth, setChartWidth] = useState(600);
   const [seriesMap, setSeriesMap] = useState({});
   const [hiddenSeries, setHiddenSeries] = useState(() => new Set());
@@ -214,39 +213,43 @@ function Chart(props) {
       : sensorStyles["90"]
   ), [isPartitionedBySensor]);
 
-  const relabelAndFormatSeries = useCallback(
+  // Splits a series' display label into a shortenable head and a tail that is always kept,
+  // so names that differ only at the end (pio01, pio02) and sensor angles stay distinguishable.
+  const seriesLabelParts = useCallback(
     (name) => {
-      if (isPartitionedBySensor) {
-        const { base, suffix } = splitPartitionedName(name);
-        if (suffix) {
-          const displayBase = relabelMap ? (relabelMap[base] || base) : base;
-          return `${breakString(12)(displayBase)}-${suffix}°`;
-        }
-      }
-      if (!relabelMap) {
-        return name;
-      }
-      return breakString(12)(relabelMap[name] || name);
+      const relabel = (unitName) => relabelMap?.[unitName] || unitName;
+      const { base, suffix } = isPartitionedBySensor
+        ? splitPartitionedName(name)
+        : { base: name, suffix: null };
+      const display = suffix ? relabel(base) : relabel(name);
+      const tail = display.slice(-2) + (suffix ? `-${suffix}°` : "");
+      return { head: display.slice(0, -2), tail };
     },
     [isPartitionedBySensor, relabelMap]
   );
 
-  const measureLegendLabel = useMemo(() => {
-    if (!canvasMeasureRef.current) {
-      canvasMeasureRef.current = document.createElement("canvas");
-    }
-    const context = canvasMeasureRef.current.getContext("2d");
-    if (context) {
-      context.font = `${LEGEND_FONT_SIZE}px Helvetica, Arial, sans-serif`;
-      return (text) => context.measureText(text).width;
-    }
-    return (text) => text.length * 8;
-  }, []);
+  const seriesLabel = useCallback(
+    (name) => {
+      const { head, tail } = seriesLabelParts(name);
+      return head + tail;
+    },
+    [seriesLabelParts]
+  );
+
+  // Measured the way VictoryLegend measures its labels, so the layout matches what it draws.
+  const measureLegendLabel = useCallback(
+    (text) =>
+      TextSize.approximateTextSize(text, {
+        fontSize: LEGEND_FONT_SIZE,
+        fontFamily: chartTheme.theme.legend.style.labels.fontFamily,
+      }).width,
+    [chartTheme]
+  );
 
   const createToolTip = useCallback(
     (d) => {
       let xValue;
-      const seriesLabel = d.datum.childName || "unknown";
+      const label = d.datum.childName ? seriesLabel(d.datum.childName) : "unknown";
       try {
         if (byDuration) {
           xValue = `${d.datum.x.toFixed(2)} hours elapsed`;
@@ -259,9 +262,9 @@ function Chart(props) {
 
       const rounded =
         Math.round(yTransformation(d.datum.y) * 10 ** fixedDecimals) / 10 ** fixedDecimals;
-      return `${xValue}\n${seriesLabel}: ${rounded}`;
+      return `${xValue}\n${label}: ${rounded}`;
     },
-    [byDuration, fixedDecimals, yTransformation]
+    [byDuration, fixedDecimals, seriesLabel, yTransformation]
   );
 
   const mapPartitionedSeriesName = useCallback(
@@ -296,10 +299,35 @@ function Chart(props) {
     [isPartitionedBySensor, unit]
   );
 
+  const legendAvailableWidth = Math.max(200, chartWidth - 70 - 50); // spans the plot area
+
+  const fitLegendLabel = useCallback(
+    (name) => {
+      const { head, tail } = seriesLabelParts(name);
+      const maxWidth = Math.min(LEGEND_MAX_LABEL_WIDTH, legendAvailableWidth - LEGEND_ITEM_OVERHEAD);
+      if (measureLegendLabel(head + tail) <= maxWidth) {
+        return head + tail;
+      }
+      // Longest head prefix that fits alongside the ellipsis and tail.
+      let low = 0;
+      let high = head.length;
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        if (measureLegendLabel(`${head.slice(0, mid)}…${tail}`) <= maxWidth) {
+          low = mid;
+        } else {
+          high = mid - 1;
+        }
+      }
+      return `${head.slice(0, low)}…${tail}`;
+    },
+    [legendAvailableWidth, measureLegendLabel, seriesLabelParts]
+  );
+
   const selectLegendData = useCallback(
     (name) => {
       const item = {
-        name: relabelAndFormatSeries(name),
+        name: fitLegendLabel(name),
         originalName: name,
         symbol: { fill: chartTheme.seriesColor(seriesMap[name].color) },
       };
@@ -309,7 +337,7 @@ function Chart(props) {
       }
       return item;
     },
-    [chartTheme, hiddenSeries, relabelAndFormatSeries, seriesMap]
+    [chartTheme, fitLegendLabel, hiddenSeries, seriesMap]
   );
 
   const legendItems = useMemo(() => names.map(selectLegendData), [names, selectLegendData]);
@@ -318,25 +346,28 @@ function Chart(props) {
     if (!legendItems.length) {
       return { itemsPerRow: 1, rows: 0 };
     }
-
-    const legendPadding = 130; // 70 left + 60 right, which keeps the last row clear of the download button
-    const availableWidth = Math.max(200, chartWidth - legendPadding);
-    const gutter = 15;
-    const symbolWidth = 14; // approx symbol + stroke width
-
-    const estimatedWidths = legendItems.map(
-      (item) => measureLegendLabel(item.name) + symbolWidth + gutter + 8
-    );
-    const avgWidth = estimatedWidths.reduce((sum, width) => sum + width, 0) / estimatedWidths.length;
-    const minWidth = Math.max(60, Math.max(...estimatedWidths));
-    const targetWidth = Math.max(minWidth, avgWidth + gutter);
-    const itemsPerRow = Math.max(
-      1,
-      Math.min(legendItems.length, Math.floor(availableWidth / targetWidth) || 1)
-    );
-    const rows = Math.ceil(legendItems.length / itemsPerRow);
+    const itemWidths = legendItems.map((item) => measureLegendLabel(item.name) + LEGEND_ITEM_OVERHEAD);
+    // Item i sits in column i % itemsPerRow, and each column is as wide as its widest item.
+    const fits = (itemsPerRow) => {
+      const columnWidths = new Array(itemsPerRow).fill(0);
+      itemWidths.forEach((width, i) => {
+        const column = i % itemsPerRow;
+        columnWidths[column] = Math.max(columnWidths[column], width);
+      });
+      return columnWidths.reduce((sum, width) => sum + width, 0) <= legendAvailableWidth;
+    };
+    let itemsPerRow = itemWidths.length;
+    while (itemsPerRow > 1 && !fits(itemsPerRow)) {
+      itemsPerRow -= 1;
+    }
+    // Spread items evenly over the rows needed (5 + 5 rather than 9 + 1).
+    const rows = Math.ceil(itemWidths.length / itemsPerRow);
+    const balanced = Math.ceil(itemWidths.length / rows);
+    if (fits(balanced)) {
+      itemsPerRow = balanced;
+    }
     return { itemsPerRow, rows };
-  }, [chartWidth, legendItems, measureLegendLabel]);
+  }, [legendAvailableWidth, legendItems, measureLegendLabel]);
 
   useLayoutEffect(() => {
     const node = chartContainerRef.current;
@@ -362,7 +393,6 @@ function Chart(props) {
 
   const selectVictoryLines = useCallback(
     (name) => {
-      const reformattedName = relabelAndFormatSeries(name);
       const series = seriesMap?.[name];
       if (!series) {
         return null;
@@ -378,8 +408,8 @@ function Chart(props) {
           <VictoryScatter
             size={4}
             symbol={getSensorStyle(name).symbol}
-            key={`line-${reformattedName}${chartKey}`}
-            name={reformattedName}
+            key={`line-${name}${chartKey}`}
+            name={name}
             style={{
               data: {
                 fill: seriesColor,
@@ -392,8 +422,8 @@ function Chart(props) {
         marker = (
           <VictoryLine
             interpolation={interpolation}
-            key={`line-${reformattedName}${chartKey}`}
-            name={reformattedName}
+            key={`line-${name}${chartKey}`}
+            name={name}
             style={{
               labels: { fill: seriesColor },
               data: {
@@ -429,7 +459,6 @@ function Chart(props) {
       hiddenSeries,
       hoveredSeries,
       interpolation,
-      relabelAndFormatSeries,
       seriesMap,
       yTransformation,
     ]
@@ -942,11 +971,11 @@ function Chart(props) {
           itemsPerRow={legendLayout.itemsPerRow}
           name="legend"
           orientation="horizontal"
-          gutter={15}
+          gutter={LEGEND_GUTTER}
           rowGutter={LEGEND_ROW_GUTTER}
           style={{
             labels: { fontSize: LEGEND_FONT_SIZE, cursor: "pointer" },
-            data: { stroke: chartTheme.legendSwatchStroke, strokeWidth: 0.5, size: 6.5, cursor: "pointer" },
+            data: { stroke: chartTheme.legendSwatchStroke, strokeWidth: 0.5, size: LEGEND_SYMBOL_SIZE, cursor: "pointer" },
           }}
           data={legendItems}
           width={chartWidth}

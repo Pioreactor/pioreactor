@@ -22,6 +22,7 @@ jest.mock("victory", () => {
     VictoryTooltip: MockVictoryComponent,
     VictoryVoronoiContainer: MockVictoryComponent,
     VictoryTheme: jest.requireActual("victory").VictoryTheme,
+    TextSize: jest.requireActual("victory").TextSize,
     createContainer: () => MockVictoryComponent,
   };
 });

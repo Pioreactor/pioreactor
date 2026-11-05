@@ -1783,6 +1783,23 @@ def test_pio_update_app_never_removes_a_usb_release_archive(monkeypatch: pytest.
     assert not any(source in command and command[1] == "rm" for command, _, _ in commands)
 
 
+def test_pio_update_app_parses_version_from_archive_filename_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    import tempfile
+
+    from pioreactor.cli.pio import get_update_app_commands
+
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_leader", lambda: False)
+    monkeypatch.setattr("pioreactor.cli.pio.whoami.am_I_a_worker", lambda: True)
+    source = "/home/pioreactor/release_archives/release_26.11.0.zip"
+
+    commands, version_installed = get_update_app_commands(None, "pioreactor/pioreactor", source, None)
+
+    assert version_installed == "26.11.0"
+    assert ["sudo", "rm", "-rf", f"{tempfile.gettempdir()}/release_26.11.0"] in [
+        command for command, _, _ in commands
+    ]
+
+
 def test_pio_update_app_rejects_malicious_branch() -> None:
     runner = CliRunner()
 
