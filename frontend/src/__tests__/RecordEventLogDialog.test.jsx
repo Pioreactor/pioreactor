@@ -67,7 +67,7 @@ describe("RecordEventLogDialog", () => {
         experiment: "exp1",
         message: "Added fresh media",
         task: "manual",
-        source: "UI",
+        source: "ui",
         level: "INFO",
       })
     );

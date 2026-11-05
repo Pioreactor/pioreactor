@@ -145,6 +145,61 @@ function ShieldAlertOutlineIcon(props) {
 
 
 
+async function fetchWorkerAssignment(unit) {
+  const response = await fetch(`/api/workers/${unit}`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error);
+  }
+  return response.json();
+}
+
+
+export function PastExperimentNotice({unit, experiment, assignedExperiment, selectExperiment, onAssigned}) {
+  const [assigning, setAssigning] = useState(false)
+  const [assignError, setAssignError] = useState(null)
+
+  const experimentChip = (name) => (
+    <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={name} data-experiment-name={name} />
+  )
+
+  const assignToExperiment = () => {
+    setAssigning(true)
+    setAssignError(null)
+    fetch(`/api/experiments/${experimentPathSegment(experiment)}/workers`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pioreactor_unit: unit }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          return response.json().then((errorData) => { throw new Error(errorData.error) })
+        }
+        onAssigned()
+      })
+      .catch((error) => setAssignError(`Could not assign this Pioreactor. ${error.message || "Please try again."}`))
+      .finally(() => setAssigning(false))
+  }
+
+  const action = assignedExperiment
+    ? <Button color="inherit" size="small" onClick={() => selectExperiment(assignedExperiment)}>Switch experiment</Button>
+    : <Button color="inherit" size="small" disabled={assigning} onClick={assignToExperiment}>Assign to this experiment</Button>
+
+  return (
+    <Box sx={{mb: '10px', mt: '10px'}}>
+      <Alert severity="info" action={action}>
+        {assignedExperiment
+          ? <>This Pioreactor is now assigned to experiment {experimentChip(assignedExperiment)}. </>
+          : <>This Pioreactor isn't assigned to an experiment. </>
+        }
+        Showing its data from {experimentChip(experiment)} read-only, with controls turned off.
+      </Alert>
+      {assignError && <Alert severity="error" sx={{mt: 1}}>{assignError}</Alert>}
+    </Box>
+  )
+}
+
+
 function PioreactorHeader({assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
   const onExperimentClick = () => {
     selectExperiment(assignedExperiment);
@@ -166,7 +221,10 @@ function PioreactorHeader({assignedExperiment, isActive, selectExperiment, model
                 <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
                 <Box sx={{ fontWeight: "fontWeightRegular", mr: 1.5, display:"inline-block" }}>
-                <Chip icon={<PlayCircleOutlinedIcon/>} size="small" sx={{ mb: "2px" }} label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
+                {assignedExperiment
+                  ? <Chip icon={<PlayCircleOutlinedIcon/>} size="small" sx={{ mb: "2px" }} label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
+                  : "None"
+                }
               </Box>
             </Box>
             <Box sx={{display:"inline-block", whiteSpace: "nowrap"}}>
@@ -2128,16 +2186,14 @@ function Pioreactor({title}) {
   const {pioreactorUnit} = useParams();
   const unit = pioreactorUnit
   const [assignedExperiment, setAssignedExperiment] = useState(null)
+  const [assignmentLoaded, setAssignmentLoaded] = useState(false)
+  const [assignmentVersion, setAssignmentVersion] = useState(0)
   const [bioreactorValues, setBioreactorValues] = useState({})
   const [isActive, setIsActive] = useState(true)
   const [modelDetails, setModelDetails] = useState({})
   const [error, setError] = useState(null)
   // Charts refetch their history when this identity changes, so keep it stable across MQTT-driven rerenders.
   const unitsColorMap = useMemo(() => ({[unit]: colors[0]}), [unit])
-
-  const onExperimentClick = () => {
-    selectExperiment(assignedExperiment);
-  }
 
   useEffect(() => {
     document.title = title;
@@ -2161,30 +2217,19 @@ function Pioreactor({title}) {
   }, [unit]);
 
   useEffect(() => {
-    function getWorkerAssignment() {
-      fetch(`/api/workers/${unit}/experiment`)
-        .then((response) => {
-          if (!response.ok) {
-            return response.json().then((errorData) => {
-              console.log(errorData)
-              throw new Error(errorData.error);
-            });
-          }
-          return response.json();
-        })
-        .then((json) => {
+    let cancelled = false;
+    fetchWorkerAssignment(unit)
+      .then((json) => {
+        if (cancelled) return;
         setAssignedExperiment(json['experiment'])
         setIsActive(json['is_active'])
+        setAssignmentLoaded(true)
       })
       .catch((error) => {
-        setError(error.message);
+        if (!cancelled) setError(error.message);
       });
-    }
-
-    if (experimentMetadata){
-      getWorkerAssignment()
-    }
-  }, [experimentMetadata, unit])
+    return () => { cancelled = true };
+  }, [experimentMetadata, unit, assignmentVersion])
 
   useEffect(() => {
     function getModelDetails() {
@@ -2211,6 +2256,10 @@ function Pioreactor({title}) {
 
 
 
+  const isViewingPastExperiment = assignmentLoaded
+    && Boolean(experimentMetadata.experiment)
+    && experimentMetadata.experiment !== assignedExperiment
+
   if (error) {
     return (
       <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
@@ -2229,11 +2278,15 @@ function Pioreactor({title}) {
               xs: 12
             }}>
             <PioreactorHeader assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
-            {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
-            <Box>
-            <Alert severity="info" sx={{mb: '10px', mt: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment}/> to control this worker.</Alert>
-            </Box>
-          }
+            {isViewingPastExperiment &&
+              <PastExperimentNotice
+                unit={unit}
+                experiment={experimentMetadata.experiment}
+                assignedExperiment={assignedExperiment}
+                selectExperiment={selectExperiment}
+                onAssigned={() => setAssignmentVersion((version) => version + 1)}
+              />
+            }
           </Grid>
           <Grid
             size={{
@@ -2300,6 +2353,7 @@ function Pioreactor({title}) {
                   unit={unit}
                   experiment={experimentMetadata.experiment}
                   experimentStartTime={experimentMetadata.started_at}
+                  controlsDisabled={isViewingPastExperiment}
                 />
               </Box>
             </Grid>

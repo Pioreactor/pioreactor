@@ -56,7 +56,7 @@ function RecordEventLogDialog({
           message: message,
           timestamp: timestampUTC,
           task: task,
-          source: "UI",
+          source: "ui",
           level: "INFO",
         });
         setMessage("")

@@ -518,7 +518,11 @@ def db_get_tables() -> list[dict[str, Any]]:
 
 
 def db_get_table_schema(table_name: str) -> list[dict[str, Any]]:
-    """Get schema for the specified table."""
+    """Get schema for the specified table.
+
+    For logs, source identifies the emitting application or plugin (e.g. app, ui, huey,
+    or a plugin name); task identifies the job or logger (e.g. growth_rate_calculating).
+    """
     exists = query_app_db("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
     if not exists:
         raise ValueError(f"Table '{table_name}' does not exist in the database.")
@@ -535,6 +539,10 @@ def db_query_db(
     """Run a single read-only SELECT (including WITH queries) against the application database.
 
     Discover tables and columns with db_get_tables and db_get_table_schema first.
+    For logs, source identifies the emitting application or plugin (app for core jobs);
+    filter task for a job or logger name such as growth_rate_calculating.
+    Inspect observed values before filtering unfamiliar categorical columns. Empty results
+    mean no rows matched the supplied filters, not that the requested data is unavailable.
     Use ? placeholders with parameters for values. Returns rows, row_count, and truncated.
     At most limit rows are returned; use SQL aggregation or explicit pagination for larger datasets.
     """

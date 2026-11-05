@@ -442,6 +442,18 @@ def test_get_worker(client) -> None:
     assert data["pioreactor_unit"] == "unit1"
     assert data["is_active"] == 1
     assert data["added_at"] == "2023-10-01T10:00:00Z"
+    assert data["experiment"] == "exp1"
+
+
+def test_get_worker_reports_unassigned_and_unknown_workers(client) -> None:
+    with capture_requests():
+        assert client.delete("/api/experiments/exp1/workers/unit2").status_code == 200
+
+    response = client.get("/api/workers/unit2")
+    assert response.status_code == 200
+    assert response.get_json()["experiment"] is None
+
+    assert client.get("/api/workers/not-a-unit").status_code == 404
 
 
 def test_get_experiment_assignment_for_worker(client) -> None:

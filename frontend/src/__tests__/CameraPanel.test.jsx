@@ -179,6 +179,21 @@ describe("CameraPanel", () => {
     await waitFor(() => expect(automaticStillsSwitch).not.toBeChecked());
   });
 
+  test("disables the automatic snapshot switch when controls are disabled", () => {
+    render(
+      <MemoryRouter>
+        <ControlledCameraPanel
+          unit="unit-1"
+          experiment="experiment-a"
+          controlsDisabled
+          initialStatus={{ detection_status: "detected", auto_capture_enabled: true }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("switch", { name: "Capture snapshots automatically" })).toBeDisabled();
+  });
+
   test("restores automatic snapshots and explains a failed update", async () => {
     let rejectUpdate;
     mockFetchTaskResult.mockImplementation(

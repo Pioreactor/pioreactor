@@ -4716,24 +4716,25 @@ def _get_worker_model_definition(pioreactor_unit: str, model_name: str, model_ve
 
 @api_bp.route("/workers/<pioreactor_unit>", methods=["GET"])
 def get_worker(pioreactor_unit: str) -> ResponseReturnValue:
-    # Query the database for a worker
+    # experiment is the worker's current assignment, or null when unassigned.
     result = query_app_db(
         """
-        SELECT pioreactor_unit, added_at, is_active, model_name, model_version
-        FROM workers
-        WHERE pioreactor_unit = ?
+        SELECT w.pioreactor_unit, w.added_at, w.is_active, w.model_name, w.model_version, a.experiment
+        FROM workers w
+        LEFT JOIN experiment_worker_assignments a
+          on w.pioreactor_unit = a.pioreactor_unit
+        WHERE w.pioreactor_unit = ?
         """,
         (pioreactor_unit,),
         one=True,
     )
 
-    # Check if the worker is found and assigned to the experiment
     if result:
         return jsonify(result)
     else:
         abort_with(
             404,
-            "Worker not found",
+            f"Worker `{pioreactor_unit}` not found.",
             cause=f"Worker '{pioreactor_unit}' not in leader database.",
             remediation="Check the unit name or add the worker to the inventory.",
         )

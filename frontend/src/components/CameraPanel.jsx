@@ -149,6 +149,7 @@ export default function CameraPanel({
   onStatusChange,
   experiment,
   experimentStartTime = null,
+  controlsDisabled = false,
 }) {
   const ownsStatus = controlledStatus === undefined;
   const statusUrl = ownsStatus && unit && experiment
@@ -317,7 +318,7 @@ export default function CameraPanel({
                     control={
                       <Switch
                         checked={automaticStillsEnabled}
-                        disabled={autoCaptureUpdatePending || automaticStillsDisabledInConfig}
+                        disabled={controlsDisabled || autoCaptureUpdatePending || automaticStillsDisabledInConfig}
                         onChange={handleAutoCaptureChange}
                       />
                     }
